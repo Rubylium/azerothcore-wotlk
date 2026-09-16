@@ -28,3 +28,16 @@
 
 # Ignore sql/* files
 data/sql/*    linguist-documentation
+
+# Binary files must never be line-ending normalized
+*.png    binary
+*.jpg    binary
+*.tga    binary
+*.blp    binary
+*.dbc    binary
+*.MPQ    binary
+*.mpq    binary
+*.zip    binary
+*.node   binary
+*.dll    binary
+*.exe    binary
