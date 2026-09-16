@@ -1,0 +1,6 @@
+#ifndef MOD_STAT_GROWTH_VICTORY_RUSH_SYSTEM_H
+#define MOD_STAT_GROWTH_VICTORY_RUSH_SYSTEM_H
+
+void AddVictoryRushScripts();
+
+#endif

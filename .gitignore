@@ -11,6 +11,8 @@
 !/modules/CMakeLists.txt
 !/modules/*.h
 !/modules/*.cmake
+# Custom server module, tracked in this repository
+!/modules/mod-stat-growth
 /build*/
 /var/*
 !/var/build/.gitkeep
@@ -137,3 +139,19 @@ e2e/go.work.sum
 
 .cache
 compile_commands.json
+
+#
+# Local server setup
+#
+
+# Runtime: binaries, client data, configs with credentials, logs
+/server/
+# Third-party libraries and tools (vcpkg, MySQL, OpenSSL, archives)
+/dependencies/
+/backups/
+# Generated client patch packages
+/clientPatcher/dist/
+/clientPatcher/.stage/
+# MPQ builder packages and output
+/localTools/mpq-builder/node_modules/
+/localTools/mpq-builder/*.MPQ

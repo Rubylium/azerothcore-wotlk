@@ -1,0 +1,6 @@
+#ifndef MOD_STAT_GROWTH_SINISTER_STRIKE_SYSTEM_H
+#define MOD_STAT_GROWTH_SINISTER_STRIKE_SYSTEM_H
+
+void AddSinisterStrikeScripts();
+
+#endif

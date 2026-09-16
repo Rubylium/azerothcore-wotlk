@@ -1,0 +1,114 @@
+[worldserver]
+
+# Enable the permanent stat-growth system.
+StatGrowth.Enabled = 1
+
+# Automatically learn every eligible class-trainer spell for free on login and level-up.
+StatGrowth.AutoLearnClassSpells = 1
+
+# Adds persistent, class-compatible bonuses to equipment without changing its identity or quality.
+PersonalLoot.Enabled = 1
+
+# Require the PersonalLoot client addon handshake after entering the world.
+PersonalLoot.RequireAddon = 1
+PersonalLoot.AddonGraceSeconds = 20
+
+# Chance for an item to receive bonuses, based on its original Blizzard quality.
+GearBonus.PoorChance = 5.0
+GearBonus.CommonChance = 10.0
+GearBonus.UncommonChance = 25.0
+GearBonus.RareChance = 45.0
+GearBonus.EpicChance = 70.0
+GearBonus.LegendaryChance = 100.0
+
+# Bonus scaling per item level. PercentScale is used by XP, resource, vitality and fortune.
+GearBonus.AttributeScale = 0.10
+GearBonus.PercentScale = 0.015
+
+# Leech heals the wearer for a percentage of the effective damage they deal. LeechScale is its value per item
+# level; MaxLeech caps the total from all equipped items.
+GearBonus.LeechScale = 0.005
+GearBonus.MaxLeech = 25.0
+
+# Improve equipment already selected by a creature's normal loot table. This does not add another drop roll.
+# Uncommon or better equipment that is unusable or obsolete is replaced with class-appropriate gear of the same
+# quality for a missing or weak slot. Poor and common equipment is left as dropped. A replacement is never an item
+# the player already owns or one already on the same corpse.
+SmartLoot.Enabled = 1
+
+# Replacement items must require no less than this many levels below the progression level.
+SmartLoot.LevelWindow = 5
+
+# A creature may provide equipment up to this many levels above its own level, capped at the player's level.
+# This prevents farming trivial creatures for current-level gear.
+SmartLoot.CreatureLevelTolerance = 3
+
+# Chance for an eligible creature corpse to contain an Essence of Growth.
+StatGrowth.DropChance = 10.0
+
+# Permanent points granted whenever one essence is consumed.
+StatGrowth.BonusPerUse = 1
+
+# Uses a native client Item.dbc entry so the inventory icon works without a client patch.
+StatGrowth.ItemEntry = 42590
+
+# Independent chance for an eligible corpse to contain an Essence of Experience.
+StatGrowth.ExperienceDropChance = 10.0
+
+# Permanent, stacking experience-gain percentage granted per essence.
+StatGrowth.ExperienceBonusPerUse = 10
+
+# Uses a native client Item.dbc entry so the inventory icon works without a client patch.
+StatGrowth.ExperienceItemEntry = 39163
+
+# Independent chance for an eligible corpse to contain an Essence of Resource.
+StatGrowth.ResourceDropChance = 10.0
+
+# Permanent, stacking primary-resource regeneration percentage granted per essence.
+StatGrowth.ResourceBonusPerUse = 1
+
+# Uses a native client Item.dbc entry so the inventory icon works without a client patch.
+StatGrowth.ResourceItemEntry = 21238
+
+# Independent chance for an eligible corpse to contain an Essence of Vitality.
+StatGrowth.VitalityDropChance = 10.0
+
+# Permanent, stacking maximum-health percentage granted per essence.
+StatGrowth.VitalityBonusPerUse = 1
+
+# Uses a native client Item.dbc entry so the inventory icon works without a client patch.
+StatGrowth.VitalityItemEntry = 41606
+
+# Independent chance for an eligible corpse to contain an Essence of Fortune.
+StatGrowth.FortuneDropChance = 10.0
+
+# Permanent Fortune percentage granted per essence. Fortune increases gold gains and loot quality; it never
+# increases item counts.
+StatGrowth.FortuneBonusPerUse = 1
+
+# Uses a native client Item.dbc entry so the inventory icon works without a client patch.
+StatGrowth.FortuneItemEntry = 23656
+
+# Tier distribution within an already-successful essence drop.
+# Faint receives the remaining chance (80% with these defaults).
+StatGrowth.GreaterTierChance = 18.0
+StatGrowth.AscendantTierChance = 2.0
+
+# Permanent bonus multipliers for higher tiers. Faint always uses 1x.
+StatGrowth.GreaterTierMultiplier = 3
+StatGrowth.AscendantTierMultiplier = 10
+
+# Essences are consumed automatically when looted and never take bag space. Essences obtained another way
+# (trade, mail, older stacks) are still used by right-clicking them.
+
+# Chance, per Fortune percent, for each equipment drop to be replaced by a class-appropriate item one quality
+# higher (poor and common become uncommon, up to epic). Capped by MaxQualityUpgradeChance.
+Fortune.QualityUpgradeChancePerPoint = 1.0
+Fortune.MaxQualityUpgradeChance = 50.0
+
+# Extra gear bonus roll chance, per Fortune percent, added to the GearBonus quality chance.
+Fortune.GearBonusChancePerPoint = 0.5
+
+# Extra gear bonus value percent per Fortune percent, capped by MaxGearBonusValueIncrease.
+Fortune.GearBonusValuePerPoint = 0.5
+Fortune.MaxGearBonusValueIncrease = 100.0
