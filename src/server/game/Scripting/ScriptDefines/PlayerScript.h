@@ -118,6 +118,8 @@ enum PlayerHook
     PLAYERHOOK_ON_BEFORE_STORE_OR_EQUIP_NEW_ITEM,
     PLAYERHOOK_ON_AFTER_STORE_OR_EQUIP_NEW_ITEM,
     PLAYERHOOK_ON_AFTER_UPDATE_MAX_POWER,
+    PLAYERHOOK_ON_BEFORE_REGENERATE_POWER,
+    PLAYERHOOK_ON_BEFORE_MODIFY_POWER,
     PLAYERHOOK_ON_AFTER_UPDATE_MAX_HEALTH,
     PLAYERHOOK_ON_BEFORE_UPDATE_ATTACK_POWER_AND_DAMAGE,
     PLAYERHOOK_ON_AFTER_UPDATE_ATTACK_POWER_AND_DAMAGE,
@@ -472,6 +474,10 @@ public:
     virtual void OnPlayerAfterStoreOrEquipNewItem(Player* /*player*/, uint32 /*vendorslot*/, Item* /*item*/, uint8 /*count*/, uint8 /*bag*/, uint8 /*slot*/, ItemTemplate const* /*pProto*/, Creature* /*pVendor*/, VendorItem const* /*crItem*/, bool /*bStore*/) { };
 
     virtual void OnPlayerAfterUpdateMaxPower(Player* /*player*/, Powers& /*power*/, float& /*value*/) { }
+
+    virtual void OnPlayerBeforeRegeneratePower(Player* /*player*/, Powers /*power*/, float& /*amount*/) { }
+
+    virtual void OnPlayerBeforeModifyPower(Player* /*player*/, Powers /*power*/, int32& /*amount*/) { }
 
     virtual void OnPlayerAfterUpdateMaxHealth(Player* /*player*/, float& /*value*/) { }
 

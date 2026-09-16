@@ -27,6 +27,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "World.h"
+#include "WorldSession.h"
 
 namespace lfg
 {
@@ -446,6 +447,15 @@ namespace lfg
             data.group = proposalGroups.find(itRoles->first)->second;
             if (!proposal.isNew && data.group && data.group == proposal.group) // Player from existing group, autoaccept
                 data.accept = LFG_ANSWER_AGREE;
+            else if (Player* player = ObjectAccessor::FindConnectedPlayer(itRoles->first);
+                     player && player->GetSession()->IsBot())
+            {
+                // Server-controlled LFG fillers must never fail a real player's ready check
+                // because their AI packet handler was delayed, in combat, or temporarily idle.
+                data.accept = LFG_ANSWER_AGREE;
+                LOG_INFO("dungeonbots", "proposal pre-accepted bot name={} guid={} role={}",
+                         player->GetName(), itRoles->first.ToString(), uint32(data.role));
+            }
 
             if (!completedEncounters && !proposal.isNew)
             {

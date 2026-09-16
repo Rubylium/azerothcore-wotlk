@@ -463,6 +463,18 @@ void ScriptMgr::OnPlayerAfterUpdateMaxPower(Player* player, Powers& power, float
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_AFTER_UPDATE_MAX_POWER, script->OnPlayerAfterUpdateMaxPower(player, power, value));
 }
 
+void ScriptMgr::OnPlayerBeforeRegeneratePower(Player* player, Powers power, float& amount)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_BEFORE_REGENERATE_POWER,
+        script->OnPlayerBeforeRegeneratePower(player, power, amount));
+}
+
+void ScriptMgr::OnPlayerBeforeModifyPower(Player* player, Powers power, int32& amount)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_BEFORE_MODIFY_POWER,
+        script->OnPlayerBeforeModifyPower(player, power, amount));
+}
+
 void ScriptMgr::OnPlayerAfterUpdateMaxHealth(Player* player, float& value)
 {
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_AFTER_UPDATE_MAX_HEALTH, script->OnPlayerAfterUpdateMaxHealth(player, value));

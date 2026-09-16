@@ -1012,8 +1012,11 @@ public:
     void AddExtraAttacks(uint32 count);
 
     // Combot points system
-    [[nodiscard]] uint8 GetComboPoints(Unit const* who = nullptr) const { return (who && m_comboTarget != who) ? 0 : m_comboPoints; }
-    [[nodiscard]] uint8 GetComboPoints(ObjectGuid const& guid) const { return (m_comboTarget && m_comboTarget->GetGUID() == guid) ? m_comboPoints : 0; }
+    [[nodiscard]] uint8 GetComboPoints(Unit const* who = nullptr) const { return (who && m_comboTarget != who && !HasTargetlessComboPoints()) ? 0 : m_comboPoints; }
+    [[nodiscard]] uint8 GetComboPoints(ObjectGuid const& guid) const { return ((m_comboTarget && m_comboTarget->GetGUID() == guid) || HasTargetlessComboPoints()) ? m_comboPoints : 0; }
+    // Rogue combo points belong to the player; the combo target only tells the client where to display them
+    [[nodiscard]] bool HasTargetlessComboPoints() const;
+    void SetComboTarget(Unit* target);
     [[nodiscard]] Unit* GetComboTarget() const { return m_comboTarget; }
     [[nodiscard]] ObjectGuid const GetComboTargetGUID() const { return m_comboTarget ? m_comboTarget->GetGUID() : ObjectGuid::Empty; }
 

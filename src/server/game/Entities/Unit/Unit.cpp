@@ -11037,6 +11037,9 @@ int32 Unit::GetHealthGain(int32 dVal)
 // returns negative amount on power reduction
 int32 Unit::ModifyPower(Powers power, int32 dVal, bool withPowerUpdate /*= true*/)
 {
+    if (IsPlayer())
+        sScriptMgr->OnPlayerBeforeModifyPower(ToPlayer(), power, dVal);
+
     if (dVal == 0)
         return 0;
 
@@ -13249,10 +13252,59 @@ void Unit::RestoreDisplayId()
     SetDisplayId(GetNativeDisplayId());
 }
 
+bool Unit::HasTargetlessComboPoints() const
+{
+    return IsPlayer() && getClass() == CLASS_ROGUE;
+}
+
+void Unit::SetComboTarget(Unit* target)
+{
+    if (target == m_comboTarget)
+    {
+        return;
+    }
+
+    if (m_comboTarget)
+    {
+        m_comboTarget->RemoveComboPointHolder(this);
+    }
+
+    m_comboTarget = target;
+
+    if (target)
+    {
+        target->AddComboPointHolder(this);
+    }
+
+    SendComboPoints();
+}
+
 void Unit::AddComboPoints(Unit* target, int8 count)
 {
     if (!count)
     {
+        return;
+    }
+
+    if (HasTargetlessComboPoints())
+    {
+        m_comboPoints = std::max<int8>(std::min<int8>(m_comboPoints + count, 5), 0);
+
+        // Show the points on the current selection, even when an area attack granted them from another unit
+        if (Unit* selected = ToPlayer()->GetSelectedUnit())
+        {
+            target = selected;
+        }
+
+        if (target && target != m_comboTarget)
+        {
+            SetComboTarget(target);
+        }
+        else
+        {
+            SendComboPoints();
+        }
+
         return;
     }
 
@@ -13277,7 +13329,7 @@ void Unit::AddComboPoints(Unit* target, int8 count)
 
 void Unit::ClearComboPoints()
 {
-    if (!m_comboTarget)
+    if (!m_comboTarget && !(HasTargetlessComboPoints() && m_comboPoints))
     {
         return;
     }
@@ -13288,8 +13340,12 @@ void Unit::ClearComboPoints()
 
     m_comboPoints = 0;
     SendComboPoints();
-    m_comboTarget->RemoveComboPointHolder(this);
-    m_comboTarget = nullptr;
+
+    if (m_comboTarget)
+    {
+        m_comboTarget->RemoveComboPointHolder(this);
+        m_comboTarget = nullptr;
+    }
 }
 
 void Unit::SendComboPoints()
@@ -13334,7 +13390,17 @@ void Unit::ClearComboPointHolders()
 {
     while (!m_ComboPointHolders.empty())
     {
-        (*m_ComboPointHolders.begin())->ClearComboPoints(); // this also removes it from m_comboPointHolders
+        Unit* holder = *m_ComboPointHolders.begin();
+
+        // targetless holders keep their points and only lose the display target
+        if (holder->HasTargetlessComboPoints())
+        {
+            holder->SetComboTarget(nullptr); // this also removes it from m_comboPointHolders
+        }
+        else
+        {
+            holder->ClearComboPoints(); // this also removes it from m_comboPointHolders
+        }
     }
 }
 

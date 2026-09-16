@@ -1975,6 +1975,8 @@ void Player::Regenerate(Powers power)
             addvalue += float(GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, power) * ((power != POWER_ENERGY) ? m_regenTimerCount : m_regenTimer)) / (5.0f * IN_MILLISECONDS);
     }
 
+    sScriptMgr->OnPlayerBeforeRegeneratePower(this, power, addvalue);
+
     if (addvalue < 0.0f)
     {
         if (curValue == 0)
@@ -11743,6 +11745,11 @@ Player* Player::GetSelectedPlayer() const
 void Player::SetSelection(ObjectGuid guid)
 {
     SetGuidValue(UNIT_FIELD_TARGET, guid);
+
+    // targetless combo points follow the selection so the client shows them on the new target
+    if (HasTargetlessComboPoints() && GetComboPoints() && IsInWorld())
+        if (Unit* selected = GetSelectedUnit())
+            SetComboTarget(selected);
 
     if (NeedSendSpectatorData())
         ArenaSpectator::SendCommand_GUID(FindMap(), GetGUID(), "TRG", guid);

@@ -442,6 +442,18 @@ namespace lfg
                     uint32 proposalId = itProposal->first;
                     LfgProposal& proposal = ProposalsStore[proposalId];
 
+                    uint32 accepted = 0;
+                    uint32 pending = 0;
+                    for (auto const& [playerGuid, proposalPlayer] : proposal.players)
+                    {
+                        if (proposalPlayer.accept == LFG_ANSWER_AGREE)
+                            ++accepted;
+                        else
+                            ++pending;
+                    }
+                    LOG_INFO("dungeonbots", "proposal created id={} dungeon={} players={} preAccepted={} pending={}",
+                             proposalId, proposal.dungeonId, proposal.players.size(), accepted, pending);
+
                     ObjectGuid guid;
                     for (LfgProposalPlayerContainer::const_iterator itPlayers = proposal.players.begin(); itPlayers != proposal.players.end(); ++itPlayers)
                     {
@@ -607,6 +619,10 @@ namespace lfg
         LfgGuidSet players;
         uint32 rDungeonId = 0;
         bool isContinue = grp && grp->isLFGGroup() && GetState(gguid) != LFG_STATE_FINISHED_DUNGEON;
+
+        LOG_INFO("dungeonbots", "core join request name={} guid={} class={} level={} roles={} state={} dungeons={} grouped={}",
+                 player->GetName(), guid.ToString(), uint32(player->getClass()), uint32(player->GetLevel()),
+                 uint32(roles), uint32(GetState(gguid)), dungeons.size(), grp != nullptr);
 
         if (grp && (grp->isBGGroup() || grp->isBFGroup()))
             return;
@@ -803,6 +819,9 @@ namespace lfg
         // Can't join. Send result
         if (joinData.result != LFG_JOIN_OK)
         {
+            LOG_INFO("dungeonbots", "core join rejected name={} guid={} roles={} result={} lockPlayers={} remainingDungeons={} randomDungeon={}",
+                     player->GetName(), guid.ToString(), uint32(roles), uint32(joinData.result),
+                     joinData.lockmap.size(), dungeons.size(), rDungeonId);
             LOG_DEBUG("lfg", "LFGMgr::Join: [{}] joining with {} members. result: {}", guid.ToString(), grp ? grp->GetMembersCount() : 1, joinData.result);
             if (!dungeons.empty())                             // Only should show lockmap when have no dungeons available
                 joinData.lockmap.clear();
@@ -882,6 +901,8 @@ namespace lfg
             player->GetSession()->SendLfgUpdatePlayer(LfgUpdateData(LFG_UPDATETYPE_JOIN_QUEUE, dungeons, comment));
             SetState(guid, LFG_STATE_QUEUED);
             SetRoles(guid, roles);
+            LOG_INFO("dungeonbots", "core join queued name={} guid={} roles={} queueDungeons={} randomDungeon={}",
+                     player->GetName(), guid.ToString(), uint32(roles), dungeons.size(), rDungeonId);
         }
     }
 
@@ -1933,6 +1954,10 @@ namespace lfg
         LfgProposalPlayer& player = itProposalPlayer->second;
         player.accept = LfgAnswer(accept);
 
+        LOG_INFO("dungeonbots", "proposal answer id={} guid={} accept={} isBot={}", proposalId,
+                 guid.ToString(), accept, ObjectAccessor::FindConnectedPlayer(guid) &&
+                 ObjectAccessor::FindConnectedPlayer(guid)->GetSession()->IsBot());
+
         LOG_DEBUG("lfg", "LFGMgr::UpdateProposal: Player [{}] of proposal {} selected: {}", guid.ToString(), proposalId, accept);
         if (!accept)
         {
@@ -2023,6 +2048,9 @@ namespace lfg
     {
         LfgProposal& proposal = itProposal->second;
         proposal.state = LFG_PROPOSAL_FAILED;
+
+        LOG_INFO("dungeonbots", "proposal removed id={} type={} players={}",
+                 itProposal->first, uint32(type), proposal.players.size());
 
         LOG_DEBUG("lfg", "LFGMgr::RemoveProposal: Proposal {}, state FAILED, UpdateType {}", itProposal->first, type);
         // Mark all people that didn't answered as no accept

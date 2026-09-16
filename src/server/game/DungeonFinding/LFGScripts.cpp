@@ -245,12 +245,41 @@ namespace lfg
 
         if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
         {
+            bool botOnlyGroup = !player->GetSession()->IsBot();
+            bool hasBotMember = false;
+            for (Group::MemberSlot const& memberSlot : group->GetMemberSlots())
+            {
+                Player* member = ObjectAccessor::FindConnectedPlayer(memberSlot.guid);
+                if (!member)
+                {
+                    botOnlyGroup = false;
+                    break;
+                }
+
+                if (!member->GetSession()->IsBot())
+                {
+                    botOnlyGroup = false;
+                    break;
+                }
+
+                hasBotMember = true;
+            }
+            botOnlyGroup = botOnlyGroup && hasBotMember;
+
             // xinef: fixed dungeon deserter
-            if (method != GROUP_REMOVEMETHOD_KICK_LFG && state != LFG_STATE_FINISHED_DUNGEON &&
+            if (!botOnlyGroup && method != GROUP_REMOVEMETHOD_KICK_LFG && state != LFG_STATE_FINISHED_DUNGEON &&
                     player->HasAura(LFG_SPELL_DUNGEON_COOLDOWN) && players >= LFG_GROUP_KICK_VOTES_NEEDED &&
                     sWorld->getBoolConfig(CONFIG_LFG_CAST_DESERTER))
             {
                 player->AddAura(LFG_SPELL_DUNGEON_DESERTER, player);
+            }
+
+            if (botOnlyGroup)
+            {
+                player->RemoveAurasDueToSpell(LFG_SPELL_DUNGEON_COOLDOWN);
+                player->RemoveAurasDueToSpell(LFG_SPELL_DUNGEON_DESERTER);
+                LOG_INFO("lfg", "Removed LFG leave penalties from [{}]: all other group members were bots",
+                         guid.ToString());
             }
             //else if (state == LFG_STATE_BOOT)
             // Update internal kick cooldown of kicked
