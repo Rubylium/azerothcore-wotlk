@@ -106,6 +106,18 @@ foreach ($localeFolder in $localeFolders) {
     "set realmlist $serverAddress" | Set-Content -LiteralPath $realmlistPath -Encoding ASCII
 }
 
+# Atlas shipped with 1.0.10 and 1.0.11, replaced by the built-in dungeon maps: move it into the backup
+$removedAddonNames = @('Atlas', 'Atlas_Battlegrounds', 'Atlas_DungeonLocs', 'Atlas_OutdoorRaids', 'Atlas_Transportation')
+foreach ($addonName in $removedAddonNames) {
+    $relativeAddonPath = Join-Path 'Interface\AddOns' $addonName
+    $addonPath = Join-Path $clientPath $relativeAddonPath
+    if (Test-Path -LiteralPath $addonPath) {
+        $addonBackupPath = Join-Path $backupPath $relativeAddonPath
+        New-Item -ItemType Directory -Path (Split-Path -Parent $addonBackupPath) -Force | Out-Null
+        Move-Item -LiteralPath $addonPath -Destination $addonBackupPath
+    }
+}
+
 $addonNames = @('DungeonBots', 'PersonalLoot')
 Get-ChildItem -LiteralPath (Join-Path $clientPath 'WTF') -Filter 'AddOns.txt' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
     $lines = @(Get-Content -LiteralPath $_.FullName -ErrorAction SilentlyContinue)

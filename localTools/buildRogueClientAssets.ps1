@@ -1,20 +1,38 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
+
+# Converts every icon PNG in modules/mod-stat-growth/client-assets/source into a 64x64 TGA in client-assets/compiled.
+# Existing icons keep their historical names; any other file becomes CombatRogue_<PascalCaseName>.tga
+# (keen-openings.png -> CombatRogue_KeenOpenings.tga), which is the name localTools/patchSinisterStrike.ps1 expects.
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repoRoot 'modules\mod-stat-growth\client-assets\source'
-$clientAssetRoot = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK\Interface\AddOns\PersonalLoot\Textures\Rogue'
 $compiledRoot = Join-Path $repoRoot 'modules\mod-stat-growth\client-assets\compiled'
-$assets = @{
+$clientAssetRoot = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK\Interface\AddOns\PersonalLoot\Textures\Rogue'
+
+$legacySpellIcons = @{
+    'quick-cut.png' = 'RogueMomentum_QuickCut'
+    'shadow-lunge.png' = 'RogueMomentum_ShadowLunge'
+    'riposte.png' = 'RogueMomentum_Riposte'
+    'sanguine-veil.png' = 'RogueMomentum_SanguineVeil'
+    'opportunity.png' = 'RogueMomentum_Opening'
+    'battle-tempo.png' = 'RogueMomentum_BattleTempo'
+    'killing-momentum.png' = 'RogueMomentum_KillingMomentum'
+    'crimson-sweep.png' = 'RogueMomentum_CrimsonSweep'
+    'gladiator-stance.png' = 'Ability_Warrior_GladiatorStance'
+}
+
+# Textures still shipped with the PersonalLoot addon
+$addonTextures = @{
     'quick-cut.png' = 'QuickCut.tga'; 'shadow-lunge.png' = 'ShadowLunge.tga'; 'riposte.png' = 'Riposte.tga'
     'opportunity.png' = 'Opportunity.tga'; 'battle-tempo.png' = 'BattleTempo.tga'; 'killing-momentum.png' = 'KillingMomentum.tga'
 }
-$spellAssets = @{
-    'quick-cut.png' = 'RogueMomentum_QuickCut.tga'; 'shadow-lunge.png' = 'RogueMomentum_ShadowLunge.tga'
-    'riposte.png' = 'RogueMomentum_Riposte.tga'; 'sanguine-veil.png' = 'RogueMomentum_SanguineVeil.tga'
-    'opportunity.png' = 'RogueMomentum_Opening.tga'; 'battle-tempo.png' = 'RogueMomentum_BattleTempo.tga'
-    'killing-momentum.png' = 'RogueMomentum_KillingMomentum.tga'
-    'crimson-sweep.png' = 'RogueMomentum_CrimsonSweep.tga'
-    'gladiator-stance.png' = 'Ability_Warrior_GladiatorStance.tga'
+
+function Get-CompiledName([string]$fileName) {
+    if ($legacySpellIcons.ContainsKey($fileName)) { return $legacySpellIcons[$fileName] }
+    $words = [IO.Path]::GetFileNameWithoutExtension($fileName) -split '[-_ ]+' | Where-Object { $_ }
+    $pascal = ($words | ForEach-Object { $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1) }) -join ''
+    return "CombatRogue_$pascal"
 }
 
 function Convert-ToTga([string]$sourcePath, [string]$destinationPath) {
@@ -43,17 +61,16 @@ function Convert-ToTga([string]$sourcePath, [string]$destinationPath) {
     } finally { $source.Dispose() }
 }
 
-New-Item -ItemType Directory -Path $clientAssetRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $compiledRoot -Force | Out-Null
-foreach ($asset in $assets.GetEnumerator()) {
-    $sourcePath = Join-Path $sourceRoot $asset.Key
-    if (-not (Test-Path -LiteralPath $sourcePath)) { throw "Missing generated Rogue asset: $sourcePath" }
-    Convert-ToTga $sourcePath (Join-Path $clientAssetRoot $asset.Value)
+New-Item -ItemType Directory -Path $clientAssetRoot -Force | Out-Null
+
+$compiled = 0
+foreach ($file in Get-ChildItem -LiteralPath $sourceRoot -Filter '*.png' -File | Sort-Object Name) {
+    Convert-ToTga $file.FullName (Join-Path $compiledRoot "$(Get-CompiledName $file.Name).tga")
+    ++$compiled
+    if ($addonTextures.ContainsKey($file.Name)) {
+        Convert-ToTga $file.FullName (Join-Path $clientAssetRoot $addonTextures[$file.Name])
+    }
 }
-foreach ($asset in $spellAssets.GetEnumerator()) {
-    $sourcePath = Join-Path $sourceRoot $asset.Key
-    if (-not (Test-Path -LiteralPath $sourcePath)) { throw "Missing generated Rogue spell asset: $sourcePath" }
-    Convert-ToTga $sourcePath (Join-Path $compiledRoot $asset.Value)
-}
-Write-Host "Installed $($assets.Count) Rogue Momentum icons in $clientAssetRoot"
-Write-Host "Built $($spellAssets.Count) native spell icons in $compiledRoot"
+
+Write-Host "Built $compiled spell icons in $compiledRoot"

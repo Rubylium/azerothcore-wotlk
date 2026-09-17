@@ -1,0 +1,152 @@
+"""Extracts the retail window pieces used by the RetailUI client interface patch.
+
+Reads (never writes) a local retail World of Warcraft install through TACTTool (github.com/wowdev/TACTSharp,
+by Marlamin), crops each atlas member named below with the retail UiTextureAtlas / UiTextureAtlasMember
+coordinates (CSV exports from wago.tools), and writes one power-of-two TGA per piece into
+clientPatcher/interface/Interface/RetailUI plus the matching Lua atlas table
+clientPatcher/interface/Interface/FrameXML/RetailUIAtlas.lua. The outputs are committed, so building the patch
+does not need a retail client.
+
+Usage:
+  python extractRetailUi.py --tacttool <TACTTool.exe> --retail "C:/Program Files (x86)/World of Warcraft"
+                            --atlas-csv <folder with UiTextureAtlas.csv and UiTextureAtlasMember.csv>
+                            [--region eu]
+"""
+import argparse
+import csv
+import os
+import struct
+import subprocess
+import tempfile
+
+from PIL import Image
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUTPUT_ROOT = os.path.join(REPO, 'clientPatcher', 'interface', 'Interface')
+TEXTURE_PATH = 'Interface\\RetailUI\\'
+
+# name -> (display width, display height, horizontal tile, vertical tile). 2x atlases display at half size.
+PIECES = {
+    'ui-frame-portraitmetal-cornertopleft-2x': (75, 75, False, False),
+    'ui-frame-metal-cornertopleft-2x': (75, 75, False, False),
+    'ui-frame-metal-cornertopright-2x': (75, 75, False, False),
+    'ui-frame-metal-cornerbottomleft-2x': (32, 32, False, False),
+    'ui-frame-metal-cornerbottomright-2x': (32, 32, False, False),
+    '_ui-frame-metal-edgetop-2x': (32, 75, True, False),
+    '_ui-frame-metal-edgebottom-2x': (16, 32, True, False),
+    '!ui-frame-metal-edgeleft-2x': (75, 16, False, True),
+    '!ui-frame-metal-edgeright-2x': (75, 16, False, True),
+    '_UI-Frame-TopTileStreaks': (256, 43, True, False),
+    'UI-Frame-InnerTopLeft': (6, 6, False, False),
+    'UI-Frame-InnerTopRight': (6, 6, False, False),
+    'UI-Frame-InnerBotLeftCorner': (6, 6, False, False),
+    'UI-Frame-InnerBotRight': (6, 6, False, False),
+    '!UI-Frame-InnerLeftTile': (3, 256, False, True),
+    '!UI-Frame-InnerRightTile': (3, 256, False, True),
+    '_UI-Frame-InnerTopTile': (256, 3, True, False),
+    '_UI-Frame-InnerBotTile': (256, 3, True, False),
+    'redbutton-exit-2x': (24, 24, False, False),
+    'redbutton-exit-pressed-2x': (24, 24, False, False),
+    'redbutton-exit-disabled-2x': (24, 24, False, False),
+    'redbutton-highlight-2x': (24, 24, False, False),
+    'questbg-parchment': (299, 407, False, False),
+}
+# Whole-file tiling grounds: FileDataID -> output name
+FILES = {374155: 'ui-background-rock', 374154: 'ui-background-marble'}
+
+
+def read_blp(path):
+    data = open(path, 'rb').read()
+    if data[:4] == b'BLP2':
+        encoding = data[8]
+        width, height = struct.unpack_from('<II', data, 12)
+        offset = struct.unpack_from('<I', data, 20)[0]
+        if encoding == 3:
+            raw = data[offset:offset + width * height * 4]
+            return Image.frombuffer('RGBA', (width, height), raw, 'raw', 'BGRA', 0, 1).copy()
+    return Image.open(path).convert('RGBA')
+
+
+def write_tga(image, path):
+    image = image.convert('RGBA')
+    width, height = image.size
+    header = bytearray(18)
+    header[2] = 2
+    header[12:14] = width.to_bytes(2, 'little')
+    header[14:16] = height.to_bytes(2, 'little')
+    header[16] = 32
+    header[17] = 0x28
+    r, g, b, a = image.split()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as file:
+        file.write(header)
+        file.write(Image.merge('RGBA', (b, g, r, a)).tobytes())
+
+
+def power_of_two(value):
+    size = 1
+    while size < value:
+        size *= 2
+    return size
+
+
+def file_name(name):
+    return name.lstrip('_!').lower()
+
+
+def extract(args, file_data_id, work):
+    target = os.path.join(work, '%d.blp' % file_data_id)
+    if not os.path.exists(target):
+        subprocess.run([args.tacttool, '-r', args.region, '-m', 'fdid', '-i', str(file_data_id), '-d', args.retail,
+                        '-o', target], check=True, capture_output=True)
+    return read_blp(target)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--tacttool', required=True)
+    parser.add_argument('--retail', required=True)
+    parser.add_argument('--atlas-csv', required=True)
+    parser.add_argument('--region', default='eu')
+    args = parser.parse_args()
+
+    atlases = {row['ID']: row for row in csv.DictReader(open(os.path.join(args.atlas_csv, 'UiTextureAtlas.csv'),
+                                                             encoding='utf8'))}
+    members = {row['CommittedName']: row for row in csv.DictReader(
+        open(os.path.join(args.atlas_csv, 'UiTextureAtlasMember.csv'), encoding='utf8'))}
+
+    work = tempfile.mkdtemp(prefix='retailui-')
+    lua = ['-- Generated by localTools/interface/extractRetailUi.py from retail atlas data. Do not edit.',
+           '-- name = { file, width, height, left, right, top, bottom, horizTile, vertTile }',
+           'RetailUIAtlas = {']
+    for name, (width, height, horiz, vert) in PIECES.items():
+        member = members[name]
+        sheet = extract(args, int(atlases[member['UiTextureAtlasID']]['FileDataID']), work)
+        box = tuple(int(member[key]) for key in ('CommittedLeft', 'CommittedTop', 'CommittedRight', 'CommittedBottom'))
+        piece = sheet.crop(box)
+        canvas = Image.new('RGBA', (power_of_two(piece.size[0]), power_of_two(piece.size[1])), (0, 0, 0, 0))
+        canvas.alpha_composite(piece, (0, 0))
+        output = file_name(name)
+        write_tga(canvas, os.path.join(OUTPUT_ROOT, 'RetailUI', output + '.tga'))
+        # Tiling repeats the whole image, so a tiled axis must span the full canvas: pieces are cropped to their
+        # exact size and tile axes of the retail pieces are already powers of two.
+        right = 1.0 if horiz else piece.size[0] / canvas.size[0]
+        bottom = 1.0 if vert else piece.size[1] / canvas.size[1]
+        lua.append('    ["%s"] = { "%s%s", %d, %d, 0, %.6f, 0, %.6f, %s, %s },' % (
+            name, TEXTURE_PATH.replace('\\', '\\\\'), output, width, height, right, bottom,
+            'true' if horiz else 'false', 'true' if vert else 'false'))
+    lua.append('}')
+    lua.append('RetailUIFiles = {')
+    for file_data_id, output in FILES.items():
+        write_tga(extract(args, file_data_id, work), os.path.join(OUTPUT_ROOT, 'RetailUI', output + '.tga'))
+        lua.append('    ["%s"] = "%s%s",' % (output, TEXTURE_PATH.replace('\\', '\\\\'), output))
+    lua.append('}')
+    atlas_lua = os.path.join(OUTPUT_ROOT, 'FrameXML', 'RetailUIAtlas.lua')
+    os.makedirs(os.path.dirname(atlas_lua), exist_ok=True)
+    with open(atlas_lua, 'w', encoding='utf-8', newline='\n') as file:
+        file.write('\n'.join(lua) + '\n')
+    print('Wrote', len(PIECES) + len(FILES), 'textures and', atlas_lua)
+
+
+if __name__ == '__main__':
+    main()

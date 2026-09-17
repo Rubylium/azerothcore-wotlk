@@ -3,28 +3,15 @@ const fs = require('fs');
 const path = require('path');
 const { Archive } = require('@jamiephan/stormlib');
 
+const { getPatchFiles } = require('./patchFiles');
+
 const repoRoot = path.resolve(__dirname, '..', '..');
-const dbcRoot = path.join(repoRoot, 'server', 'Data', 'dbc');
-const iconRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled');
 const outputPath = process.argv[2] || path.join(__dirname, 'patch-Z.MPQ');
-const files = [
-    { source: path.join(dbcRoot, 'Spell.dbc'), archive: 'DBFilesClient\\Spell.dbc' },
-    { source: path.join(dbcRoot, 'SkillLineAbility.dbc'), archive: 'DBFilesClient\\SkillLineAbility.dbc' },
-    { source: path.join(dbcRoot, 'SpellIcon.dbc'), archive: 'DBFilesClient\\SpellIcon.dbc' },
-    { source: path.join(iconRoot, 'RogueMomentum_QuickCut.tga'), archive: 'Interface\\Icons\\RogueMomentum_QuickCut.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_ShadowLunge.tga'), archive: 'Interface\\Icons\\RogueMomentum_ShadowLunge.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_Riposte.tga'), archive: 'Interface\\Icons\\RogueMomentum_Riposte.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_SanguineVeil.tga'), archive: 'Interface\\Icons\\RogueMomentum_SanguineVeil.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_Opening.tga'), archive: 'Interface\\Icons\\RogueMomentum_Opening.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_BattleTempo.tga'), archive: 'Interface\\Icons\\RogueMomentum_BattleTempo.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_KillingMomentum.tga'), archive: 'Interface\\Icons\\RogueMomentum_KillingMomentum.tga' },
-    { source: path.join(iconRoot, 'RogueMomentum_CrimsonSweep.tga'), archive: 'Interface\\Icons\\RogueMomentum_CrimsonSweep.tga' },
-    { source: path.join(iconRoot, 'Ability_Warrior_GladiatorStance.tga'), archive: 'Interface\\Icons\\Ability_Warrior_GladiatorStance.tga' },
-];
+const files = getPatchFiles(repoRoot);
 
 for (const file of files) {
     if (!fs.existsSync(file.source)) {
-        throw new Error(`Missing source DBC: ${file.source}`);
+        throw new Error(`Missing patch source: ${file.source}`);
     }
 }
 
@@ -33,7 +20,7 @@ if (fs.existsSync(outputPath)) {
 }
 
 const archive = new Archive();
-archive.create(outputPath, { maxFileCount: 16, flags: 0 });
+archive.create(outputPath, { maxFileCount: Math.max(64, files.length * 2), flags: 0 });
 for (const file of files) {
     archive.addFile(file.source, file.archive);
 }
