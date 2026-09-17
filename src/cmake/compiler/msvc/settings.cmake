@@ -69,6 +69,13 @@ target_compile_options(acore-compile-option-interface
   INTERFACE
     /MP)
 
+# Faster RelWithDebInfo compilation: /Z7 stores debug info in each object file instead of serializing every
+# parallel compiler through the shared PDB server (/Zi). Visual Studio 18 removed /DEBUG:FASTLINK, so retain
+# the supported full PDB linker mode.
+string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+message(STATUS "MSVC: RelWithDebInfo uses /Z7 and the default full PDB linker mode")
+
 # Define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES - eliminates the warning by changing the strcpy call to strcpy_s, which prevents buffer overruns
 target_compile_definitions(acore-compile-option-interface
   INTERFACE

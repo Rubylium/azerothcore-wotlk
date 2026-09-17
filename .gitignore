@@ -13,6 +13,7 @@
 !/modules/*.cmake
 # Custom server module, tracked in this repository
 !/modules/mod-stat-growth
+!/modules/mod-aoe-loot
 /build*/
 /var/*
 !/var/build/.gitkeep
@@ -152,6 +153,7 @@ compile_commands.json
 # Generated client patch packages
 /clientPatcher/dist/
 /clientPatcher/.stage/
+/clientPatcher/vendor/
 # MPQ builder packages and output
 /localTools/mpq-builder/node_modules/
 /localTools/mpq-builder/*.MPQ
