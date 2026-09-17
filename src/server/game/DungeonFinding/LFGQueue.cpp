@@ -291,8 +291,18 @@ namespace lfg
             }
         }
 
+        // A complete group that is not proposed leaves everyone waiting: record why in the dungeonbots log
+        auto const logFullGroupRejected = [&](char const* reason)
+        {
+            if (numPlayers == MAXGROUPSIZE)
+                LOG_INFO("dungeonbots", "full group not proposed guids={} reason={}", strGuids.toString(), reason);
+        };
+
         if (numLfgGroups > 1)
+        {
+            logFullGroupRejected("multiple-lfg-groups");
             return LFG_INCOMPATIBLES_MULTIPLE_LFG_GROUPS;
+        }
 
         // Group with less that MAXGROUPSIZE members always compatible
         if (!sLFGMgr->IsTesting() && check.size() == 1 && numPlayers < MAXGROUPSIZE)
@@ -340,11 +350,17 @@ namespace lfg
             }
 
             if (numPlayers != proposalRoles.size())
+            {
+                logFullGroupRejected("ignore-or-duplicate-player");
                 return LFG_INCOMPATIBLES_HAS_IGNORES;
+            }
 
             uint8 roleCheckResult = LFGMgr::CheckGroupRoles(proposalRoles);
             if (!roleCheckResult || roleCheckResult > 0xF)
+            {
+                logFullGroupRejected("roles");
                 return LFG_INCOMPATIBLES_NO_ROLES;
+            }
 
             // now, every combination can occur only 4 times (explained in FindNewGroups)
             if (foundMask & (((uint64)1) << (roleCheckResult - 1)))
@@ -356,7 +372,10 @@ namespace lfg
                         if (foundMask & (((uint64)1) << (48 + roleCheckResult - 1)))
                         {
                             if (foundCount >= 10) // but only after finding at least 10 compatibles (this helps when there are few groups)
+                            {
+                                logFullGroupRejected("role-combination-limit");
                                 return LFG_INCOMPATIBLES_NO_ROLES;
+                            }
                         }
                         else
                             addToFoundMask |= (((uint64)1) << (48 + roleCheckResult - 1));
@@ -380,7 +399,10 @@ namespace lfg
             }
 
             if (proposalDungeons.empty())
+            {
+                logFullGroupRejected("no-common-dungeon");
                 return LFG_INCOMPATIBLES_NO_DUNGEONS;
+            }
         }
         else
         {
@@ -411,10 +433,14 @@ namespace lfg
         proposal.isNew = numLfgGroups != 1;
 
         if (!sLFGMgr->AllQueued(check)) // can't create proposal
+        {
+            logFullGroupRejected("member-not-queued");
             return LFG_COMPATIBILITY_PENDING;
+        }
 
         if (!sScriptMgr->OnPlayerbotCheckLFGQueue(proposal.queues))
         {
+            logFullGroupRejected("playerbots-check");
             return LFG_INCOMPATIBLES_HAS_IGNORES;
         }
 

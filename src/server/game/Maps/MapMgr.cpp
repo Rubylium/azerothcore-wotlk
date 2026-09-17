@@ -230,7 +230,9 @@ Map::EnterState MapMgr::PlayerCannotEnter(uint32 mapid, Player* player, bool log
     }
 
     // players are only allowed to enter 5 instances per hour
-    if (entry->IsNonRaidDungeon() && (!group || !group->isLFGGroup() || !group->IsLfgRandomInstance()))
+    // (not playerbots: fill bots run dungeon after dungeon and would be refused at the door of the next one)
+    if (entry->IsNonRaidDungeon() && (!group || !group->isLFGGroup() || !group->IsLfgRandomInstance()) &&
+        !player->GetSession()->IsBot())
     {
         uint32 instaceIdToCheck = 0;
         if (InstanceSave* save = sInstanceSaveMgr->PlayerGetInstanceSave(player->GetGUID(), mapid, player->GetDifficulty(entry->IsRaid())))
