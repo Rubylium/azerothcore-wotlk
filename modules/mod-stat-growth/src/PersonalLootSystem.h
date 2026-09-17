@@ -55,7 +55,9 @@ struct PersonalLootRoll
 
 void LoadPersonalLootRolls();
 void DeletePersonalLootRoll(CharacterDatabaseTransaction transaction, ObjectGuid::LowType itemGuid);
-void TryRollPersonalLoot(Player* player, Item* item);
+// lootGuid/lootIndex identify the loot the item came from, so bonuses previewed on the loot window or a group
+// roll are the ones applied; lootIndex -1 matches any slot of that loot holding the same item.
+void TryRollPersonalLoot(Player* player, Item* item, ObjectGuid lootGuid = ObjectGuid::Empty, int32 lootIndex = -1);
 void ApplyEquippedPersonalLoot(Player* player);
 void ApplyPersonalLootItem(Player* player, Item* item);
 void RemovePersonalLootItem(Player* player, Item* item);

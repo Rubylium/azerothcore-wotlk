@@ -2,11 +2,15 @@
 
 #include "Chat.h"
 #include "DBCStores.h"
+#include "DBCStructure.h"
+#include "ObjectMgr.h"
 #include "Map.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellScript.h"
 
+#include <charconv>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 
@@ -14,8 +18,15 @@ namespace
 {
 constexpr uint32 QuickTravelSpell = 90019;
 constexpr std::string_view TravelPrefix = "PersonalLoot\tTRAVEL\t";
+constexpr std::string_view InstancePrefix = "PersonalLoot\tINSTANCE\t";
 
-std::unordered_map<ObjectGuid::LowType, uint32> pendingDestinations;
+struct PendingDestination
+{
+    WorldLocation location;
+    std::string name;
+};
+
+std::unordered_map<ObjectGuid::LowType, PendingDestination> pendingDestinations;
 
 bool IsNetworkTaxiNode(uint32 nodeId)
 {
@@ -78,17 +89,13 @@ class QuickTravelSpellScript : public SpellScript
         if (destination == pendingDestinations.end())
             return;
 
-        uint32 const nodeId = destination->second;
+        PendingDestination const pending = destination->second;
         pendingDestinations.erase(destination);
-        TaxiNodesEntry const* node = sTaxiNodesStore.LookupEntry(nodeId);
-        if (!node || !CanQuickTravel(player, true, false) || !IsNetworkTaxiNode(nodeId) ||
-            !IsAllowedForPlayer(player, node))
+        if (!CanQuickTravel(player, true, false))
             return;
 
-        std::string const destinationName = node->name[0] ? node->name[0] : "flight master";
-        if (player->TeleportTo(node->map_id, node->x, node->y, node->z + 1.0f, player->GetOrientation()))
-            ChatHandler(player->GetSession()).PSendSysMessage(
-                "|cff66ccffQuick Travel: {}.|r", destinationName);
+        if (player->TeleportTo(pending.location))
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff66ccffQuick Travel: {}.|r", pending.name);
     }
 
     void Register() override
@@ -115,7 +122,38 @@ void HandleQuickTravelAddonMessage(Player* player, uint32 language, std::string 
         return;
     }
 
-    pendingDestinations[player->GetGUID().GetCounter()] = destination->ID;
+    pendingDestinations[player->GetGUID().GetCounter()] = {
+        WorldLocation(destination->map_id, destination->x, destination->y, destination->z + 1.0f,
+            player->GetOrientation()),
+        destination->name[0] ? destination->name[0] : "flight master" };
+    player->CastSpell(player, QuickTravelSpell, false);
+}
+
+// Travel to a dungeon or raid entrance: the outside area its exit portal leads back to, which is where the
+// meeting stone stands. The client sends the LFGDungeons id of the map pin that was clicked.
+void HandleInstanceTravelAddonMessage(Player* player, uint32 language, std::string const& message)
+{
+    if (!player || language != LANG_ADDON || !message.starts_with(InstancePrefix))
+        return;
+
+    std::string_view const argument(message.data() + InstancePrefix.size(), message.size() - InstancePrefix.size());
+    uint32 dungeonId = 0;
+    auto const parsed = std::from_chars(argument.data(), argument.data() + argument.size(), dungeonId);
+    if (parsed.ec != std::errc() || !dungeonId || !CanQuickTravel(player, true))
+        return;
+
+    LFGDungeonEntry const* dungeon = sLFGDungeonStore.LookupEntry(dungeonId);
+    AreaTriggerTeleport const* entrance = dungeon ? sObjectMgr->GetGoBackTrigger(dungeon->map) : nullptr;
+    if (!entrance)
+    {
+        ChatHandler(player->GetSession()).SendSysMessage("That destination has no known entrance.");
+        return;
+    }
+
+    pendingDestinations[player->GetGUID().GetCounter()] = {
+        WorldLocation(entrance->target_mapId, entrance->target_X, entrance->target_Y, entrance->target_Z,
+            entrance->target_Orientation),
+        dungeon->name[0] ? dungeon->name[0] : "instance entrance" };
     player->CastSpell(player, QuickTravelSpell, false);
 }
 

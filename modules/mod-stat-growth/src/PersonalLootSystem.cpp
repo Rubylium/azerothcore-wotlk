@@ -2,12 +2,21 @@
 
 #include "Chat.h"
 #include "DatabaseEnv.h"
+#include "Creature.h"
 #include "FortuneBoostSystem.h"
+#include "GameObject.h"
+#include "GameTime.h"
+#include "Group.h"
 #include "Item.h"
+#include "LootMgr.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "ItemTemplate.h"
 #include "Player.h"
 #include "Random.h"
 #include "SharedDefines.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "StatGrowthConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -16,7 +25,10 @@
 #include <array>
 #include <charconv>
 #include <cmath>
+#include <map>
+#include <optional>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -24,6 +36,8 @@
 namespace
 {
 constexpr std::string_view AddonPrefix = "PersonalLoot";
+// Custom "Vol de vie" spell (localTools/patchSinisterStrike.ps1): names the Leech heal in logs and meters
+constexpr uint32 SPELL_GEAR_BONUS_LEECH = 90022;
 
 struct AddonHandshake
 {
@@ -36,6 +50,31 @@ std::unordered_map<ObjectGuid::LowType, PersonalLootRoll> personalLootRolls;
 std::unordered_map<ObjectGuid::LowType, std::unordered_set<ObjectGuid::LowType>> equippedPersonalLoot;
 std::unordered_map<ObjectGuid::LowType, std::array<uint32, 5>> equippedCustomBonuses;
 std::unordered_map<ObjectGuid::LowType, AddonHandshake> addonHandshakes;
+
+// Bonuses rolled before an item exists, so the loot window and group roll tooltips can preview them. Rolled per
+// class because the winner of a group roll may be of a different class than the player hovering the item.
+struct PreRollKey
+{
+    ObjectGuid lootGuid;
+    uint32 lootIndex = 0;
+    uint32 itemId = 0;
+    uint8 classId = 0;
+
+    bool operator<(PreRollKey const& other) const
+    {
+        return std::tie(lootGuid, lootIndex, itemId, classId) <
+            std::tie(other.lootGuid, other.lootIndex, other.itemId, other.classId);
+    }
+};
+
+struct PreRoll
+{
+    PersonalLootRoll roll;
+    Seconds createdAt;
+};
+
+constexpr Seconds PreRollLifetime = 1h;
+std::map<PreRollKey, PreRoll> preRolls;
 
 std::string_view GetAffixName(PersonalLootAffix affix)
 {
@@ -209,16 +248,17 @@ std::string BuildAffixText(PersonalLootRoll const& roll)
     return text;
 }
 
-bool IsEligibleEquipment(Item const* item)
+bool IsEligibleEquipmentTemplate(ItemTemplate const* itemTemplate)
 {
-    if (!item || item->GetCount() != 1)
-        return false;
-
-    ItemTemplate const* itemTemplate = item->GetTemplate();
     if (!itemTemplate || (itemTemplate->Class != ITEM_CLASS_WEAPON && itemTemplate->Class != ITEM_CLASS_ARMOR))
         return false;
 
     return itemTemplate->InventoryType != INVTYPE_NON_EQUIP && itemTemplate->InventoryType != INVTYPE_BAG;
+}
+
+bool IsEligibleEquipment(Item const* item)
+{
+    return item && item->GetCount() == 1 && IsEligibleEquipmentTemplate(item->GetTemplate());
 }
 
 void ApplyAffix(Player* player, PersonalLootAffixRoll const& affix, bool apply)
@@ -303,6 +343,91 @@ void ApplyAffix(Player* player, PersonalLootAffixRoll const& affix, bool apply)
         default:
             break;
     }
+}
+
+PersonalLootRoll RollBonuses(Player* player, ItemTemplate const* itemTemplate)
+{
+    PersonalLootRoll roll;
+    roll.itemQuality = itemTemplate->Quality;
+    roll.rolledClass = player->getClass();
+
+    // Fortune makes bonuses both more likely and stronger
+    uint32 const fortuneBonus = GetFortuneBonus(player);
+    float const fortuneMultiplier = GetFortuneValueMultiplier(fortuneBonus);
+    if (roll_chance_f(std::min(GetBonusChance(itemTemplate->Quality) + GetFortuneBonusChance(fortuneBonus), 100.0f)))
+    {
+        std::vector<PersonalLootAffix> pool = GetClassAffixPool(roll.rolledClass);
+        uint8 const affixCount = std::min<uint8>(GetAffixCount(itemTemplate->Quality), roll.affixes.size());
+        for (uint8 index = 0; index < affixCount; ++index)
+        {
+            uint32 const poolIndex = urand(0, pool.size() - 1);
+            roll.affixes[index].type = pool[poolIndex];
+            roll.affixes[index].value = RollAffixValue(itemTemplate, pool[poolIndex], fortuneMultiplier);
+            pool.erase(pool.begin() + poolIndex);
+        }
+    }
+
+    return roll;
+}
+
+PersonalLootRoll const& GetOrCreatePreRoll(Player* player, ObjectGuid lootGuid, uint32 lootIndex,
+    ItemTemplate const* itemTemplate)
+{
+    Seconds const now = GameTime::GetGameTime();
+    std::erase_if(preRolls, [now](auto const& entry) { return now - entry.second.createdAt > PreRollLifetime; });
+
+    PreRollKey const key { lootGuid, lootIndex, itemTemplate->ItemId, player->getClass() };
+    auto itr = preRolls.find(key);
+    if (itr == preRolls.end())
+        itr = preRolls.emplace(key, PreRoll { RollBonuses(player, itemTemplate), now }).first;
+    return itr->second.roll;
+}
+
+std::optional<PersonalLootRoll> TakePreRoll(Player* player, ObjectGuid lootGuid, int32 lootIndex, uint32 itemId)
+{
+    if (lootGuid.IsEmpty())
+        return std::nullopt;
+
+    for (auto itr = preRolls.begin(); itr != preRolls.end(); ++itr)
+    {
+        PreRollKey const& key = itr->first;
+        if (key.lootGuid == lootGuid && key.itemId == itemId && key.classId == player->getClass() &&
+            (lootIndex < 0 || key.lootIndex == uint32(lootIndex)))
+        {
+            PersonalLootRoll const roll = itr->second.roll;
+            preRolls.erase(itr);
+            return roll;
+        }
+    }
+
+    return std::nullopt;
+}
+
+Loot* GetOpenLoot(Player* player)
+{
+    ObjectGuid const lootGuid = player->GetLootGUID();
+    if (lootGuid.IsCreatureOrVehicle())
+    {
+        Creature* creature = ObjectAccessor::GetCreature(*player, lootGuid);
+        return creature ? &creature->loot : nullptr;
+    }
+    if (lootGuid.IsGameObject())
+    {
+        GameObject* gameObject = ObjectAccessor::GetGameObject(*player, lootGuid);
+        return gameObject ? &gameObject->loot : nullptr;
+    }
+    if (lootGuid.IsItem())
+    {
+        Item* item = player->GetItemByGuid(lootGuid);
+        return item ? &item->loot : nullptr;
+    }
+    return nullptr;
+}
+
+bool ParseNumber(std::string_view value, uint32& result)
+{
+    auto const conversion = std::from_chars(value.data(), value.data() + value.size(), result);
+    return conversion.ec == std::errc() && conversion.ptr == value.data() + value.size();
 }
 
 void SendAddonMessage(Player* player, std::string const& payload)
@@ -417,32 +542,15 @@ void DeletePersonalLootRoll(CharacterDatabaseTransaction transaction, ObjectGuid
     transaction->Append("DELETE FROM mod_personal_loot_roll WHERE item_guid = {}", itemGuid);
 }
 
-void TryRollPersonalLoot(Player* player, Item* item)
+void TryRollPersonalLoot(Player* player, Item* item, ObjectGuid lootGuid, int32 lootIndex)
 {
     if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::PersonalLootEnabled) ||
         !player || !IsEligibleEquipment(item) || personalLootRolls.contains(item->GetGUID().GetCounter()))
         return;
 
     ItemTemplate const* itemTemplate = item->GetTemplate();
-    PersonalLootRoll roll;
-    roll.itemQuality = itemTemplate->Quality;
-    roll.rolledClass = player->getClass();
-
-    // Fortune makes bonuses both more likely and stronger
-    uint32 const fortuneBonus = GetFortuneBonus(player);
-    float const fortuneMultiplier = GetFortuneValueMultiplier(fortuneBonus);
-    if (roll_chance_f(std::min(GetBonusChance(itemTemplate->Quality) + GetFortuneBonusChance(fortuneBonus), 100.0f)))
-    {
-        std::vector<PersonalLootAffix> pool = GetClassAffixPool(roll.rolledClass);
-        uint8 const affixCount = std::min<uint8>(GetAffixCount(itemTemplate->Quality), roll.affixes.size());
-        for (uint8 index = 0; index < affixCount; ++index)
-        {
-            uint32 const poolIndex = urand(0, pool.size() - 1);
-            roll.affixes[index].type = pool[poolIndex];
-            roll.affixes[index].value = RollAffixValue(itemTemplate, pool[poolIndex], fortuneMultiplier);
-            pool.erase(pool.begin() + poolIndex);
-        }
-    }
+    std::optional<PersonalLootRoll> const preRoll = TakePreRoll(player, lootGuid, lootIndex, itemTemplate->ItemId);
+    PersonalLootRoll const roll = preRoll ? *preRoll : RollBonuses(player, itemTemplate);
 
     ObjectGuid::LowType const itemGuid = item->GetGUID().GetCounter();
     personalLootRolls[itemGuid] = roll;
@@ -578,6 +686,67 @@ void HandlePersonalLootAddonMessage(Player* player, uint32 language, std::string
         uint8 slot = 0;
         if (ParseByte(parts[2], bag) && ParseByte(parts[3], slot))
             SendItemMetadata(player, bag, slot);
+        return;
+    }
+
+    // L <itemId> <lootSlot>: item in the open loot window; R <itemId> <rollId>: item of an active group roll
+    if ((parts[1] == "L" || parts[1] == "R") && parts.size() >= 4)
+    {
+        uint32 itemId = 0;
+        uint32 clientSlot = 0;
+        if (!ParseNumber(parts[2], itemId) || !ParseNumber(parts[3], clientSlot))
+            return;
+
+        bool const isRoll = parts[1] == "R";
+        std::string const reference = std::string(parts[1]) + "\t" + std::to_string(clientSlot) + "\t" +
+            std::to_string(itemId);
+        ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
+        if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::PersonalLootEnabled) ||
+            !IsEligibleEquipmentTemplate(itemTemplate))
+        {
+            SendAddonMessage(player, "C" + reference);
+            return;
+        }
+
+        ObjectGuid lootGuid;
+        int32 lootIndex = -1;
+        if (isRoll)
+        {
+            // Prefer the roll whose slot matches the client roll id when the same item is rolled more than once
+            if (Group* group = player->GetGroup())
+                for (Roll const* roll : group->GetRolls())
+                    if (roll && roll->itemid == itemId && roll->playerVote.contains(player->GetGUID()) &&
+                        (lootIndex < 0 || roll->itemSlot == clientSlot))
+                    {
+                        lootGuid = roll->itemGUID;
+                        lootIndex = roll->itemSlot;
+                    }
+        }
+        else if (Loot* loot = GetOpenLoot(player))
+        {
+            // The client loot slot can be offset by the money slot: pick the matching item closest to it
+            for (uint32 index = 0; index < loot->items.size(); ++index)
+            {
+                LootItem const& lootItem = loot->items[index];
+                if (lootItem.is_looted || lootItem.itemid != itemId)
+                    continue;
+
+                if (lootIndex < 0 || std::abs(int32(index) + 1 - int32(clientSlot)) <
+                    std::abs(lootIndex + 1 - int32(clientSlot)))
+                    lootIndex = int32(index);
+            }
+            lootGuid = player->GetLootGUID();
+        }
+
+        if (lootGuid.IsEmpty() || lootIndex < 0)
+        {
+            SendAddonMessage(player, "C" + reference);
+            return;
+        }
+
+        PersonalLootRoll const& roll = GetOrCreatePreRoll(player, lootGuid, uint32(lootIndex), itemTemplate);
+        std::string const affixText = BuildAffixText(roll);
+        SendAddonMessage(player, affixText.empty() ? "C" + reference : "D" + reference + "\t" + affixText);
     }
 }
 
@@ -607,6 +776,18 @@ void ApplyPersonalLootLeech(Unit* attacker, Unit* victim, uint32 damage)
         statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::PersonalLootMaxLeech));
     uint32 const effectiveDamage = std::min(damage, victim->GetHealth());
     uint32 const healing = static_cast<uint32>(static_cast<float>(effectiveDamage) * leechPercent / 100.0f);
-    if (healing > 0)
+    if (healing == 0)
+        return;
+
+    // A spell heal, not a silent ModifyHealth: it sends the heal log, so the heal shows as floating combat text,
+    // in the combat log and in damage meters such as Details
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_GEAR_BONUS_LEECH);
+    if (!spellInfo)
+    {
         player->ModifyHealth(healing);
+        return;
+    }
+
+    HealInfo healInfo(player, player, healing, spellInfo, spellInfo->GetSchoolMask());
+    player->HealBySpell(healInfo);
 }

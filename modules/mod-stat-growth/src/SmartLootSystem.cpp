@@ -217,6 +217,20 @@ bool HasClassAppropriateStats(ItemTemplate const& itemTemplate, Player const* pl
     return true;
 }
 
+bool HasEquipmentProficiency(ItemTemplate const& itemTemplate, Player const* player)
+{
+    uint32 const requiredSkill = itemTemplate.GetSkill();
+
+    // Every equippable weapon subclass must map to a real learned weapon skill.
+    // CanUseItem only checks RequiredSkill, which is normally zero on weapons.
+    if (itemTemplate.Class == ITEM_CLASS_WEAPON)
+        return requiredSkill != 0 && player->GetSkillValue(requiredSkill) > 0;
+
+    // Armor without a proficiency (rings, necklaces, cloaks, trinkets and
+    // class-restricted relics) is validated by BotCanUseItem below.
+    return requiredSkill == 0 || player->GetSkillValue(requiredSkill) > 0;
+}
+
 std::array<uint8, 2> GetEquipmentSlots(uint32 inventoryType)
 {
     switch (inventoryType)
@@ -283,7 +297,8 @@ bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& can
 {
     if (candidate.RequiredLevel > progressionLevel || candidate.RequiredLevel < minimumRequiredLevel ||
         candidate.Quality != quality ||
-        player->CanUseItem(&candidate) != EQUIP_ERR_OK || !HasClassAppropriateStats(candidate, player))
+        player->BotCanUseItem(&candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(candidate, player) ||
+        !HasClassAppropriateStats(candidate, player))
         return false;
 
     if (candidate.Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate.InventoryType) &&

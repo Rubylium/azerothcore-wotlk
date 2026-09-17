@@ -66,7 +66,7 @@ SET `class` = CASE WHEN `entry` IN (1950, 2050) THEN 7 WHEN `entry` = 3338 THEN 
     `RequiredLevel` = 1,
     `maxcount` = 0,
     `stackable` = 200,
-    `bonding` = 1,
+    `bonding` = 0,
     `description` = CASE `entry`
         WHEN 1533 THEN 'A dim shard of living potential. Consume it to permanently gain +1 class-compatible stat.'
         WHEN 1612 THEN 'Raw potential churns beneath its surface. Consume it to permanently gain +3 class-compatible stats.'

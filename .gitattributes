@@ -38,6 +38,9 @@ data/sql/*    linguist-documentation
 *.MPQ    binary
 *.mpq    binary
 *.zip    binary
+*.ogg    binary
+*.mp3    binary
+*.wav    binary
 *.node   binary
 *.dll    binary
 *.exe    binary

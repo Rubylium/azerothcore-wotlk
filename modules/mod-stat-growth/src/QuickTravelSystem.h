@@ -10,5 +10,6 @@ class Player;
 void AddQuickTravelScripts();
 void ClearQuickTravel(Player* player);
 void HandleQuickTravelAddonMessage(Player* player, uint32 language, std::string const& message);
+void HandleInstanceTravelAddonMessage(Player* player, uint32 language, std::string const& message);
 
 #endif

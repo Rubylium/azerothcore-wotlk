@@ -1,4 +1,6 @@
 #include "AutoLearnSpellsSystem.h"
+#include "AdaptiveTrainingDummy.h"
+#include "CombatRogue.h"
 #include "EssenceFeedback.h"
 #include "EssenceTierSystem.h"
 #include "ExperienceBoostSystem.h"
@@ -8,14 +10,18 @@
 #include "QuickTravelSystem.h"
 #include "ResourceBoostSystem.h"
 #include "SmartLootSystem.h"
-#include "RogueMomentumSystem.h"
 #include "StatGrowthSystem.h"
 #include "VictoryRushSystem.h"
 #include "VitalityBoostSystem.h"
 
 #include "Chat.h"
 #include "Creature.h"
+#include "DatabaseEnv.h"
+#include "Group.h"
 #include "Item.h"
+#include "LFGMgr.h"
+#include "Map.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "StatGrowthConfig.h"
@@ -141,6 +147,49 @@ bool AutoConsumeLootedEssences(Player* player, Item* item, uint32 count)
         player->DestroyItemCount(itemEntry, consumed, true);
     return true;
 }
+
+// Releasing the spirit inside a dungeon or raid brings the player back to life at the start of the instance
+// instead of sending the ghost to the graveyard outside. Bots keep the default: the dungeon bot manager revives
+// them next to their real player once the fight is over.
+bool RespawnAtDungeonStart(Player* player)
+{
+    if (!player || player->IsAlive() || player->GetSession()->IsBot())
+        return false;
+
+    Map const* map = player->GetMap();
+    if (!map || !map->IsDungeon() || map->IsBattlegroundOrArena())
+        return false;
+
+    uint32 const mapId = player->GetMapId();
+    WorldLocation start;
+    bool found = false;
+
+    // Dungeon Finder runs start where the Dungeon Finder teleports the group in
+    if (Group* group = player->GetGroup(); group && group->isLFGGroup())
+        if (lfg::LFGDungeonData const* dungeon = sLFGMgr->GetLFGDungeon(sLFGMgr->GetDungeon(group->GetGUID())))
+            if (dungeon->map == mapId && (dungeon->x != 0.0f || dungeon->y != 0.0f || dungeon->z != 0.0f))
+            {
+                start.WorldRelocate(mapId, dungeon->x, dungeon->y, dungeon->z, dungeon->o);
+                found = true;
+            }
+
+    // Otherwise the landing point of the instance entrance portal
+    if (!found)
+        if (AreaTriggerTeleport const* entrance = sObjectMgr->GetMapEntranceTrigger(mapId))
+        {
+            start.WorldRelocate(mapId, entrance->target_X, entrance->target_Y, entrance->target_Z,
+                entrance->target_Orientation);
+            found = true;
+        }
+
+    if (!found)
+        return false;
+
+    player->ResurrectPlayer(1.0f);
+    player->SpawnCorpseBones();
+    player->TeleportTo(start);
+    return true;
+}
 }
 
 class StatGrowthWorldScript : public WorldScript
@@ -148,7 +197,8 @@ class StatGrowthWorldScript : public WorldScript
 public:
     StatGrowthWorldScript() : WorldScript("StatGrowthWorldScript", {
         WORLDHOOK_ON_BEFORE_CONFIG_LOAD,
-        WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE
+        WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE,
+        WORLDHOOK_ON_STARTUP
     }) { }
 
     void OnBeforeConfigLoad(bool reload) override
@@ -159,6 +209,15 @@ public:
     void OnLoadCustomDatabaseTable() override
     {
         LoadPersonalLootRolls();
+    }
+
+    // Every restart gives players a clean Dungeon Finder slate: saved deserter and random dungeon cooldown
+    // auras are removed before anyone can log in
+    void OnStartup() override
+    {
+        CharacterDatabase.DirectExecute("DELETE FROM character_aura WHERE spell IN ({}, {})",
+            uint32(lfg::LFG_SPELL_DUNGEON_DESERTER), uint32(lfg::LFG_SPELL_DUNGEON_COOLDOWN));
+        LOG_INFO("server.loading", ">> Cleared saved Dungeon Finder deserter and cooldown auras");
     }
 };
 
@@ -181,7 +240,8 @@ public:
         PLAYERHOOK_ON_LOOT_ITEM,
         PLAYERHOOK_ON_GROUP_ROLL_REWARD_ITEM,
         PLAYERHOOK_ON_EQUIP,
-        PLAYERHOOK_ON_UNEQUIP_ITEM
+        PLAYERHOOK_ON_UNEQUIP_ITEM,
+        PLAYERHOOK_CAN_REPOP_AT_GRAVEYARD
     }) { }
 
     void OnPlayerLogin(Player* player) override
@@ -190,22 +250,25 @@ public:
             ApplyStoredStatGrowth(player);
 
         LearnAvailableClassSpells(player);
-        LearnRogueMomentumAbilities(player);
+        OnCombatRogueLogin(player);
         LearnGladiatorStance(player);
         ApplyEquippedPersonalLoot(player);
         BeginPersonalLootAddonHandshake(player);
     }
 
+    bool OnPlayerCanRepopAtGraveyard(Player* player) override
+    {
+        return !RespawnAtDungeonStart(player);
+    }
+
     void OnPlayerLogout(Player* player) override
     {
-        ClearRogueMomentum(player);
         ClearQuickTravel(player);
         ClearPersonalLootPlayerState(player);
     }
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
-        UpdateRogueMomentum(player, diff);
         UpdateGladiatorStance(player);
         UpdatePersonalLootAddonHandshake(player, diff);
     }
@@ -214,6 +277,7 @@ public:
     {
         HandlePersonalLootAddonMessage(player, language, message);
         HandleQuickTravelAddonMessage(player, language, message);
+        HandleInstanceTravelAddonMessage(player, language, message);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel) override
@@ -221,9 +285,10 @@ public:
         if (player->GetLevel() > oldLevel)
         {
             LearnAvailableClassSpells(player);
-            LearnRogueMomentumAbilities(player);
             LearnGladiatorStance(player);
         }
+
+        OnCombatRogueLevelChanged(player, oldLevel);
     }
 
     void OnPlayerCreatureKill(Player* killer, Creature* killed) override
@@ -235,7 +300,7 @@ public:
         TryAddResourceBoostLoot(killer, killed);
         TryAddVitalityBoostLoot(killer, killed);
         TryAddFortuneBoostLoot(killer, killed);
-        OnRogueMomentumKill(killer);
+        OnCombatRogueKill(killer, killed);
     }
 
     void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
@@ -247,7 +312,6 @@ public:
         TryAddResourceBoostLoot(petOwner, killed);
         TryAddVitalityBoostLoot(petOwner, killed);
         TryAddFortuneBoostLoot(petOwner, killed);
-        OnRogueMomentumKill(petOwner);
     }
 
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit*, uint8) override
@@ -258,7 +322,6 @@ public:
     void OnPlayerBeforeRegeneratePower(Player* player, Powers power, float& amount) override
     {
         ApplyResourceRegenerationBoost(player, power, amount);
-        ApplyRogueMomentumRegeneration(player, power, amount);
     }
 
     void OnPlayerBeforeModifyPower(Player* player, Powers power, int32& amount) override
@@ -276,16 +339,16 @@ public:
         ApplyFortuneGoldBoost(player, amount);
     }
 
-    void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid) override
+    void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid lootGuid) override
     {
         if (!AutoConsumeLootedEssences(player, item, count))
-            TryRollPersonalLoot(player, item);
+            TryRollPersonalLoot(player, item, lootGuid);
     }
 
-    void OnPlayerGroupRollRewardItem(Player* player, Item* item, uint32 count, RollVote, Roll*) override
+    void OnPlayerGroupRollRewardItem(Player* player, Item* item, uint32 count, RollVote, Roll* roll) override
     {
         if (!AutoConsumeLootedEssences(player, item, count))
-            TryRollPersonalLoot(player, item);
+            TryRollPersonalLoot(player, item, roll ? roll->itemGUID : ObjectGuid::Empty, roll ? roll->itemSlot : -1);
     }
 
     void OnPlayerEquip(Player* player, Item* item, uint8, uint8, bool) override
@@ -351,7 +414,8 @@ public:
 
 void AddStatGrowthScripts()
 {
-    AddRogueMomentumScripts();
+    AddAdaptiveTrainingDummyScripts();
+    AddCombatRogueScripts();
     AddGladiatorStanceScripts();
     AddVictoryRushScripts();
     AddQuickTravelScripts();

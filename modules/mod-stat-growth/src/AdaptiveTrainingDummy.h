@@ -1,0 +1,6 @@
+#ifndef MOD_STAT_GROWTH_ADAPTIVE_TRAINING_DUMMY_H
+#define MOD_STAT_GROWTH_ADAPTIVE_TRAINING_DUMMY_H
+
+void AddAdaptiveTrainingDummyScripts();
+
+#endif
