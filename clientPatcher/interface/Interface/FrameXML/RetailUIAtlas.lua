@@ -24,6 +24,10 @@ RetailUIAtlas = {
     ["redbutton-exit-disabled-2x"] = { "Interface\\RetailUI\\redbutton-exit-disabled-2x", 24, 24, 0, 0.562500, 0, 0.593750, false, false },
     ["redbutton-highlight-2x"] = { "Interface\\RetailUI\\redbutton-highlight-2x", 24, 24, 0, 0.562500, 0, 0.593750, false, false },
     ["questbg-parchment"] = { "Interface\\RetailUI\\questbg-parchment", 299, 407, 0, 0.583984, 0, 0.794922, false, false },
+    ["ui-questtracker-primary-objective-header-2x"] = { "Interface\\RetailUI\\ui-questtracker-primary-objective-header-2x", 300, 40, 0, 0.585938, 0, 0.625000, false, false },
+    ["ui-questtracker-secondary-objective-header-2x"] = { "Interface\\RetailUI\\ui-questtracker-secondary-objective-header-2x", 300, 30, 0, 0.585938, 0, 0.937500, false, false },
+    ["ui-questtracker-tracker-check-2x"] = { "Interface\\RetailUI\\ui-questtracker-tracker-check-2x", 19, 19, 0, 0.593750, 0, 0.593750, false, false },
+    ["ui-questtracker-objective-nub-2x"] = { "Interface\\RetailUI\\ui-questtracker-objective-nub-2x", 19, 19, 0, 0.593750, 0, 0.593750, false, false },
 }
 RetailUIFiles = {
     ["ui-background-rock"] = "Interface\\RetailUI\\ui-background-rock",

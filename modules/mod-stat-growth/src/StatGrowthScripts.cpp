@@ -1,6 +1,7 @@
 #include "AutoLearnSpellsSystem.h"
 #include "AdaptiveTrainingDummy.h"
 #include "CombatRogue.h"
+#include "DungeonProgressSystem.h"
 #include "EssenceFeedback.h"
 #include "EssenceTierSystem.h"
 #include "ExperienceBoostSystem.h"
@@ -226,6 +227,7 @@ class StatGrowthPlayerScript : public PlayerScript
 public:
     StatGrowthPlayerScript() : PlayerScript("StatGrowthPlayerScript", {
         PLAYERHOOK_ON_LOGIN,
+        PLAYERHOOK_ON_MAP_CHANGED,
         PLAYERHOOK_ON_LOGOUT,
         PLAYERHOOK_ON_UPDATE,
         PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE,
@@ -254,6 +256,13 @@ public:
         LearnGladiatorStance(player);
         ApplyEquippedPersonalLoot(player);
         BeginPersonalLootAddonHandshake(player);
+        SendDungeonProgress(player);
+    }
+
+    // Entering or leaving an instance: the client swaps between the dungeon tracker and the quest tracker
+    void OnPlayerMapChanged(Player* player) override
+    {
+        SendDungeonProgress(player);
     }
 
     bool OnPlayerCanRepopAtGraveyard(Player* player) override
@@ -378,11 +387,19 @@ private:
 class StatGrowthUnitScript : public UnitScript
 {
 public:
-    StatGrowthUnitScript() : UnitScript("StatGrowthUnitScript", true, { UNITHOOK_ON_DAMAGE }) { }
+    StatGrowthUnitScript() : UnitScript("StatGrowthUnitScript", true, {
+        UNITHOOK_ON_DAMAGE,
+        UNITHOOK_ON_UNIT_DEATH
+    }) { }
 
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
     {
         ApplyPersonalLootLeech(attacker, victim, damage);
+    }
+
+    void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
+    {
+        OnDungeonProgressUnitDeath(unit);
     }
 };
 

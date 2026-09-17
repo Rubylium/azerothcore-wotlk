@@ -33,7 +33,8 @@ if (!locale) {
 }
 
 const tocName = 'Interface\\FrameXML\\FrameXML.toc';
-const retailFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua'];
+const retailFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
+    'DungeonTracker.lua'];
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);

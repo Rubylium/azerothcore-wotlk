@@ -50,6 +50,11 @@ PIECES = {
     'redbutton-exit-disabled-2x': (24, 24, False, False),
     'redbutton-highlight-2x': (24, 24, False, False),
     'questbg-parchment': (299, 407, False, False),
+    # Dragonflight objective tracker art for the dungeon progress tracker
+    'ui-questtracker-primary-objective-header-2x': (300, 40, False, False),
+    'ui-questtracker-secondary-objective-header-2x': (300, 30, False, False),
+    'ui-questtracker-tracker-check-2x': (19, 19, False, False),
+    'ui-questtracker-objective-nub-2x': (19, 19, False, False),
 }
 # Whole-file tiling grounds: FileDataID -> output name
 FILES = {374155: 'ui-background-rock', 374154: 'ui-background-marble'}
