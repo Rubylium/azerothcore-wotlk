@@ -17147,6 +17147,17 @@ void Unit::BuildCooldownPacket(WorldPacket& data, uint8 flags, PacketCooldowns c
     }
 }
 
+uint32 Unit::getClassMask() const
+{
+    uint8 const unitClass = getClass();
+    uint8 const templateClass = sObjectMgr->GetClassFormulaTemplate(unitClass);
+    uint32 mask = 1 << (unitClass - 1);
+    if (templateClass != unitClass)
+        mask |= 1 << (templateClass - 1);
+
+    return mask;
+}
+
 uint8 Unit::getRace(bool original) const
 {
     if (IsPlayer())

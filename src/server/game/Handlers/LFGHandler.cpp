@@ -68,10 +68,13 @@ void WorldSession::HandleLfgJoinOpcode(WorldPackets::LFG::LFGJoin& packet)
             newDungeons.insert(dungeon);
     }
 
-    LOG_DEBUG("network", "CMSG_LFG_JOIN [{}] roles: {}, Dungeons: {}, Comment: {}",
-                 GetPlayerInfo(), packet.Roles, newDungeons.size(), packet.Comment);
+    uint8 roles = uint8(packet.Roles);
+    sScriptMgr->OnPlayerLfgRoles(GetPlayer(), roles);
 
-    sLFGMgr->JoinLfg(GetPlayer(), uint8(packet.Roles), newDungeons, packet.Comment);
+    LOG_DEBUG("network", "CMSG_LFG_JOIN [{}] roles: {}, Dungeons: {}, Comment: {}",
+                 GetPlayerInfo(), roles, newDungeons.size(), packet.Comment);
+
+    sLFGMgr->JoinLfg(GetPlayer(), roles, newDungeons, packet.Comment);
     GetPlayer()->UpdateLFGChannel();
 }
 
@@ -107,6 +110,7 @@ void WorldSession::HandleLfgSetRolesOpcode(WorldPacket& recvData)
 {
     uint8 roles;
     recvData >> roles;                                    // Player Group Roles
+    sScriptMgr->OnPlayerLfgRoles(GetPlayer(), roles);
     ObjectGuid guid = GetPlayer()->GetGUID();
     Group* group = GetPlayer()->GetGroup();
     if (!group)

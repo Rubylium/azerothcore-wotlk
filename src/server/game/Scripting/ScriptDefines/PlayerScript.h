@@ -223,6 +223,7 @@ enum PlayerHook
     PLAYERHOOK_ON_GET_REPUTATION_PRICE_DISCOUNT,
     PLAYERHOOK_ON_LEARN_TAXI_NODE,
     PLAYERHOOK_ON_BEFORE_GET_LEVEL_FOR_XP_GAIN,
+    PLAYERHOOK_ON_LFG_ROLES,
     PLAYERHOOK_END
 };
 
@@ -379,6 +380,17 @@ public:
 
     // Called when a player queues a Random Dungeon using the RDF (Random Dungeon Finder)
     virtual void OnPlayerQueueRandomDungeon(Player* /*player*/, uint32 & /*rDungeonId*/) { }
+
+    /**
+     * @brief Called with the Dungeon Finder roles a player sends, when joining and when answering a role check.
+     *
+     * The server otherwise trusts the client's roles. A script can check them against what the player's class
+     * may take, or change them, before the Dungeon Finder uses them.
+     *
+     * @param player The player queueing
+     * @param roles The lfg::LfgRoles mask the client sent, which the script may change
+     */
+    virtual void OnPlayerLfgRoles(Player* /*player*/, uint8& /*roles*/) { }
 
     // Called when a player is removed from battleground
     virtual void OnPlayerRemoveFromBattleground(Player* /*player*/, Battleground* /*bg*/) { }

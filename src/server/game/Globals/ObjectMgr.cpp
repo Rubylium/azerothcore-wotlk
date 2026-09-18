@@ -4343,6 +4343,52 @@ void ObjectMgr::PlayerCreateInfoAddItemHelper(uint32 race_, uint32 class_, uint3
     }
 }
 
+// Custom playable classes: which existing class supplies their combat formulas, and their display name for
+// server-side messages. The client learns about them through ChrClasses.dbc in the patch.
+void ObjectMgr::LoadCustomClasses()
+{
+    uint32 const oldMSTime = getMSTime();
+
+    _customClassTemplates = {};
+    _customClassKeepsTemplateSpells = {};
+
+    QueryResult result = WorldDatabase.Query("SELECT ClassId, TemplateClass, InheritSpells FROM custom_class");
+    if (!result)
+    {
+        LOG_INFO("server.loading", ">> Loaded 0 custom classes. DB table `custom_class` is empty.");
+        LOG_INFO("server.loading", " ");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint8 const classId = fields[0].Get<uint8>();
+        uint8 const templateClass = fields[1].Get<uint8>();
+
+        if (!classId || classId >= MAX_CLASSES)
+        {
+            LOG_ERROR("sql.sql", "Table `custom_class` has invalid ClassId {}, skipped", classId);
+            continue;
+        }
+
+        if (!templateClass || templateClass >= MAX_CLASSES || !sChrClassesStore.LookupEntry(templateClass))
+        {
+            LOG_ERROR("sql.sql", "Table `custom_class` has invalid TemplateClass {} for class {}, skipped",
+                templateClass, classId);
+            continue;
+        }
+
+        _customClassTemplates[classId] = templateClass;
+        _customClassKeepsTemplateSpells[classId] = fields[2].Get<bool>();
+        ++count;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} custom classes in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
 void ObjectMgr::LoadPlayerInfo()
 {
     // Load playercreate

@@ -1,0 +1,127 @@
+{
+  "_comment": [
+    "Custom playable classes. One entry here generates everything the client and the world database need:",
+    "ChrClasses, the race/class pairs, skills, starting outfit, the world tables and the client class table.",
+    "Spells, talents and icons are authored separately (see localTools/patchSinisterStrike.ps1).",
+    "",
+    "id            ChrClasses id: 10, or 12-15 (1-9 and 11 are Blizzard's). A slot left out here is wiped.",
+    "token         Client class token, uppercase ASCII, used for icons, colors and class texts.",
+    "templateClass Existing class whose combat formulas, skills and base stats are reused.",
+    "startClass    Class whose starting gear is copied (default: templateClass).",
+    "previewOutfit Item ids used only to dress the character-creation model. The generated outfit keeps the",
+    "              start class's real item ids, so preview armor is never granted to a new character.",
+    "startLike     { race, class }: every race starts exactly where that race and class do.",
+    "classSkill    { id, name, icon }: the class's own skill line, which is its spellbook tab, and the",
+    "              carries the template's tabs (a Pestiféré would have Blood, Frost and Unholy).",
+    "talentTab     The class's own talent tree, instead of sharing the template's three. Without it the",
+    "              class is added to the template's TalentTab rows, which is how a Pestiféré ended up",
+    "              showing Blood, Frost and Unholy. Shape:",
+    "                id          TalentTab.dbc id, unused (Blizzard's stop at 411).",
+    "                name        Tab name shown above the tree.",
+    "                background  The client loads Interface\\TalentFrame\\<background>-{Top,Bottom}{Left,Right}.blp,",
+    "                            so it must match the art shipped by localTools/mpq-builder/patchFiles.js.",
+    "                icon        SpellIcon.dbc icon file name for the tab button.",
+    "                tabPage     0-2, the tree's slot in the talent frame.",
+    "                talents     The grid: { id (Talent.dbc id), name, tier (row, 0-based), column (0-3),",
+    "                            ranks (one spell id per rank, authored in patchSinisterStrike.ps1),",
+    "                            requires { talent: <name>, rank } }. A prerequisite is drawn by the client",
+    "                            as a straight line, so keep it in the same column with nothing in between.",
+    "inheritSpells true (default): the class also starts with the template's abilities and uses its trainers.",
+    "              false: only the spells listed in startSpells, for a class with an authored kit.",
+    "startSpells   Spells a new character knows: proficiencies and its own abilities.",
+    "powerType     0 mana, 1 rage, 3 energy (runes are Death Knight only in the client).",
+    "spellFamily   Spell family of the class's own spells (default 0). The client applies talent modifiers",
+    "              only to spells of the class's family, so it must match the family its spells carry.",
+    "roles         Dungeon Finder roles it may queue as: any of tank, healer, damage (default: damage).",
+    "races         ChrRaces ids allowed to pick it (1 Human, 2 Orc, 3 Dwarf, 4 Night Elf, 5 Undead, 6 Tauren,",
+    "              7 Gnome, 8 Troll, 10 Blood Elf, 11 Draenei).",
+    "startLevel    Character creation level; higher than 1 makes it a hero class like the Death Knight.",
+    "iconCell      Cell [column, row] in the 4x4 class icon sheet the creation screen uses.",
+    "classIcon     The class's own icon art (square, any size), used wherever a class icon is drawn.",
+    "detailsCell   Free cell [column, row] of Details' class icon sheet: [2, 2] or [3, 2].",
+    "color         Class color as [r, g, b] 0-1, for unit frames and chat."
+  ],
+  "classes": [
+    {
+      "id": 12,
+      "token": "PESTIFERE",
+      "name": "Pestiféré",
+      "comment": "Plague tank: carries its own diseases, spreads them, detonates them",
+      "templateClass": 6,
+      "startClass": 1,
+      "startLike": { "race": 1, "class": 1 },
+      "previewOutfit": [50096, 50098, 50094, 51000, 50097, 51787, 50095, 50415],
+      "classSkill": { "id": 900, "name": "Pestiféré", "icon": "Pestifere_Pourriture" },
+      "talentTab": {
+        "id": 900,
+        "name": "Charnier",
+        "background": "PestifereCharnier",
+        "icon": "PestifereTalent_CharnierAmbulant",
+        "tabPage": 0,
+        "talents": [
+          { "id": 2900, "name": "Peau coriace", "tier": 0, "column": 0, "ranks": [90231, 90232, 90233] },
+          { "id": 2901, "name": "Chair putride", "tier": 0, "column": 1, "ranks": [90212] },
+          { "id": 2902, "name": "Rage fielleuse", "tier": 0, "column": 2, "ranks": [90234, 90235, 90236] },
+
+          { "id": 2903, "name": "Peste virulente", "tier": 1, "column": 1, "ranks": [90214],
+            "requires": { "talent": "Chair putride", "rank": 1 } },
+          { "id": 2904, "name": "Miasme", "tier": 1, "column": 2, "ranks": [90240, 90241, 90242] },
+          { "id": 2905, "name": "Inoculation rapide", "tier": 1, "column": 3, "ranks": [90238, 90239] },
+
+          { "id": 2906, "name": "Mains putrides", "tier": 2, "column": 0, "ranks": [90243, 90244, 90245] },
+          { "id": 2918, "name": "Contagion galopante", "tier": 2, "column": 1, "ranks": [90269, 90270] },
+          { "id": 2907, "name": "Symbiose morbide", "tier": 2, "column": 2, "ranks": [90249, 90250] },
+          { "id": 2908, "name": "Fossoyeur", "tier": 2, "column": 3, "ranks": [90246, 90247, 90248] },
+
+          { "id": 2909, "name": "Métabolisme nécrotique", "tier": 3, "column": 0, "ranks": [90251, 90252, 90253] },
+          { "id": 2919, "name": "Crocs infectés", "tier": 3, "column": 1, "ranks": [90288, 90289, 90290] },
+          { "id": 2911, "name": "Charnier ambulant", "tier": 3, "column": 3, "ranks": [90256] },
+
+          { "id": 2912, "name": "Croûte nécrosée", "tier": 4, "column": 0, "ranks": [90257, 90258, 90259] },
+          { "id": 2913, "name": "Menace contagieuse", "tier": 4, "column": 2, "ranks": [90260, 90261, 90262] },
+          { "id": 2914, "name": "Porteur endurci", "tier": 4, "column": 3, "ranks": [90263, 90264] },
+
+          { "id": 2920, "name": "Fièvre", "tier": 5, "column": 0, "ranks": [90271, 90272, 90273] },
+          { "id": 2915, "name": "Résilience du porteur", "tier": 5, "column": 1, "ranks": [90266, 90267] },
+          { "id": 2916, "name": "Purge cathartique", "tier": 5, "column": 2, "ranks": [90265] },
+          { "id": 2921, "name": "Bile corrosive", "tier": 5, "column": 3, "ranks": [90278, 90279, 90280] },
+
+          { "id": 2922, "name": "Riposte fétide", "tier": 6, "column": 0, "ranks": [90276, 90277] },
+          { "id": 2923, "name": "Hôte parfait", "tier": 6, "column": 1, "ranks": [90281, 90282, 90283] },
+          { "id": 2910, "name": "Détonation en chaîne", "tier": 6, "column": 2, "ranks": [90254, 90255] },
+
+          { "id": 2924, "name": "Pus épais", "tier": 7, "column": 0, "ranks": [90293, 90294, 90295] },
+          { "id": 2925, "name": "Vomissure", "tier": 7, "column": 1, "ranks": [90284] },
+          { "id": 2926, "name": "Charognard", "tier": 7, "column": 2, "ranks": [90274, 90275] },
+
+          { "id": 2927, "name": "Rigor mortis", "tier": 8, "column": 1, "ranks": [90285] },
+          { "id": 2928, "name": "Pandémie prolongée", "tier": 8, "column": 2, "ranks": [90291, 90292] },
+
+          { "id": 2917, "name": "Sépulcre", "tier": 9, "column": 1, "ranks": [90268],
+            "requires": { "talent": "Rigor mortis", "rank": 1 } },
+
+          { "id": 2929, "name": "Avatar de la peste", "tier": 10, "column": 1, "ranks": [90287],
+            "requires": { "talent": "Sépulcre", "rank": 1 } }
+        ]
+      },
+      "inheritSpells": false,
+      "powerType": 1,
+      "spellFamily": 16,
+      "roles": ["tank", "healer", "damage"],
+      "races": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11],
+      "startLevel": 1,
+      "iconCell": [3, 2],
+      "classIcon": "localTools/interface/assets/classes/pestifere.png",
+      "detailsCell": [2, 2],
+      "color": [0.42, 0.58, 0.27],
+      "startSpells": [
+        6603,
+        9078, 9077, 8737, 750,
+        196, 197, 198, 199, 200, 201, 202, 203,
+        674,
+        3127,
+        90200, 90210
+      ]
+    }
+  ]
+}

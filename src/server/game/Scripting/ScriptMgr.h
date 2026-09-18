@@ -362,6 +362,7 @@ public: /* PlayerScript */
     void OnPlayerUpdateFaction(Player* player);
     void OnPlayerAddToBattleground(Player* player, Battleground* bg);
     void OnPlayerQueueRandomDungeon(Player* player, uint32 & rDungeonId);
+    void OnPlayerLfgRoles(Player* player, uint8& roles);
     void OnPlayerRemoveFromBattleground(Player* player, Battleground* bg);
     void OnPlayerAchievementComplete(Player* player, AchievementEntry const* achievement);
     bool OnPlayerBeforeAchievementComplete(Player* player, AchievementEntry const* achievement);

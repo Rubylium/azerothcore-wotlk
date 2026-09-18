@@ -132,18 +132,29 @@ enum Classes
     CLASS_SHAMAN        = 7, // TITLE Shaman
     CLASS_MAGE          = 8, // TITLE Mage
     CLASS_WARLOCK       = 9, // TITLE Warlock
-    //CLASS_UNK           = 10,
-    CLASS_DRUID         = 11 // TITLE Druid
+    CLASS_CUSTOM_1      = 10, // TITLE Custom 1
+    CLASS_DRUID         = 11, // TITLE Druid
+    // Server-side custom classes: playable ids the client accepts once ChrClasses.dbc describes them.
+    // Their combat formulas follow the template class declared in the world table `custom_class`.
+    CLASS_CUSTOM_2      = 12, // TITLE Custom 2
+    CLASS_CUSTOM_3      = 13, // TITLE Custom 3
+    CLASS_CUSTOM_4      = 14, // TITLE Custom 4
+    CLASS_CUSTOM_5      = 15  // TITLE Custom 5
 };
 
 // max+1 for player class
-#define MAX_CLASSES       12
+#define MAX_CLASSES       16
+
+// Custom classes, playable once their data exists; harmless in masks while unused
+#define CLASSMASK_ALL_CUSTOM \
+    ((1<<(CLASS_CUSTOM_1-1))|(1<<(CLASS_CUSTOM_2-1))|(1<<(CLASS_CUSTOM_3-1))| \
+    (1<<(CLASS_CUSTOM_4-1)) |(1<<(CLASS_CUSTOM_5-1)))
 
 #define CLASSMASK_ALL_PLAYABLE \
     ((1<<(CLASS_WARRIOR-1))|(1<<(CLASS_PALADIN-1))|(1<<(CLASS_HUNTER-1))| \
     (1<<(CLASS_ROGUE-1))  |(1<<(CLASS_PRIEST-1)) |(1<<(CLASS_SHAMAN-1))| \
     (1<<(CLASS_MAGE-1))   |(1<<(CLASS_WARLOCK-1))|(1<<(CLASS_DRUID-1)) | \
-    (1<<(CLASS_DEATH_KNIGHT-1)))
+    (1<<(CLASS_DEATH_KNIGHT-1)) | CLASSMASK_ALL_CUSTOM)
 
 // valid classes for creature_template.unit_class
 #define CLASSMASK_ALL_CREATURES ((1<<(CLASS_WARRIOR-1)) | (1<<(CLASS_PALADIN-1)) | (1<<(CLASS_ROGUE-1)) | (1<<(CLASS_MAGE-1)))

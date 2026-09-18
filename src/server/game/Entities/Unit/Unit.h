@@ -843,7 +843,9 @@ public:
     // Class methods
     [[nodiscard]] uint8 getClass() const { return GetByteValue(UNIT_FIELD_BYTES_0, 1); }
     [[nodiscard]] virtual bool IsClass(Classes unitClass, [[maybe_unused]] ClassContext context = CLASS_CONTEXT_NONE) const { return (getClass() == unitClass); }
-    [[nodiscard]] uint32 getClassMask() const { return 1 << (getClass() - 1); }
+    // A custom class also carries the bit of the class it is built on, so the template's items, quests,
+    // talent tabs and skill abilities apply to it (see ObjectMgr::LoadCustomClasses)
+    [[nodiscard]] uint32 getClassMask() const;
 
     // Gender methods
     [[nodiscard]] uint8 getGender() const { return GetByteValue(UNIT_FIELD_BYTES_0, 2); }

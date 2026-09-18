@@ -38,6 +38,7 @@
 #include "VehicleDefines.h"
 #include <functional>
 #include <limits>
+#include <array>
 #include <map>
 #include <memory>
 #include <string>
@@ -1093,6 +1094,25 @@ public:
     PageText const* GetPageText(uint32 pageEntry);
 
     void LoadPlayerInfo();
+    void LoadCustomClasses();
+
+    // Custom classes borrow the per-class combat tables (crit, dodge, regen, rating scaling) of a template
+    // class, so a new class needs no new rows in the game tables. Returns the class itself when it has none.
+    [[nodiscard]] uint8 GetClassFormulaTemplate(uint8 classId) const
+    {
+        return classId < MAX_CLASSES && _customClassTemplates[classId] ? _customClassTemplates[classId] : classId;
+    }
+    // The class mask spells are learned and taught with: a custom class only carries its template's bit when
+    // it is meant to start from the template's kit. A class with its own spells keeps its own bit alone.
+    [[nodiscard]] uint32 GetSpellClassMask(uint8 classId) const
+    {
+        uint32 const mask = 1 << (classId - 1);
+        uint8 const templateClass = GetClassFormulaTemplate(classId);
+        if (templateClass == classId || !_customClassKeepsTemplateSpells[classId])
+            return mask;
+
+        return mask | (1 << (templateClass - 1));
+    }
     void LoadPetLevelInfo();
     void LoadExplorationBaseXP();
     void LoadPetNames();
@@ -1443,7 +1463,14 @@ public:
     bool DeleteGameTele(std::string_view name);
 
     Trainer::Trainer* GetTrainer(uint32 creatureId);
-    std::vector<Trainer::Trainer const*> const& GetClassTrainers(uint8 classId) const { return _classTrainers.at(classId); }
+    // A class without a class trainer (a new custom class before its trainer exists) returns an empty list
+    // rather than throwing out of `.learn all my class` and module auto-learn code
+    std::vector<Trainer::Trainer const*> const& GetClassTrainers(uint8 classId) const
+    {
+        static std::vector<Trainer::Trainer const*> const empty;
+        auto const itr = _classTrainers.find(classId);
+        return itr == _classTrainers.end() ? empty : itr->second;
+    }
 
     [[nodiscard]] VendorItemData const* GetNpcVendorItemList(uint32 entry) const
     {
@@ -1568,6 +1595,8 @@ private:
     AreaTriggerScriptContainer _areaTriggerScriptStore;
     DungeonProgressionRequirementsContainer _accessRequirementStore;
     DungeonEncounterContainer _dungeonEncounterStore;
+    std::array<uint8, MAX_CLASSES> _customClassTemplates = {};
+    std::array<bool, MAX_CLASSES> _customClassKeepsTemplateSpells = {};
 
     RepRewardRateContainer _repRewardRateStore;
     RepOnKillContainer _repOnKillStore;

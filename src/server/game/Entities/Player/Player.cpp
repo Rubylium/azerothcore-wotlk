@@ -5263,7 +5263,7 @@ uint32 Player::GetShieldBlockValue() const
 float Player::GetMeleeCritFromAgility()
 {
     uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    uint32 pclass = sObjectMgr->GetClassFormulaTemplate(getClass());
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
@@ -5311,7 +5311,7 @@ void Player::GetDodgeFromAgility(float& diminishing, float& nondiminishing)
     };
 
     uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    uint32 pclass = sObjectMgr->GetClassFormulaTemplate(getClass());
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
@@ -5333,7 +5333,7 @@ void Player::GetDodgeFromAgility(float& diminishing, float& nondiminishing)
 float Player::GetSpellCritFromIntellect()
 {
     uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    uint32 pclass = sObjectMgr->GetClassFormulaTemplate(getClass());
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
@@ -5356,7 +5356,8 @@ float Player::GetRatingMultiplier(CombatRating cr) const
 
     GtCombatRatingsEntry const* Rating = sGtCombatRatingsStore.LookupEntry(cr * GT_MAX_LEVEL + level - 1);
     // gtOCTClassCombatRatingScalarStore.dbc starts with 1, CombatRating with zero, so cr+1
-    GtOCTClassCombatRatingScalarEntry const* classRating = sGtOCTClassCombatRatingScalarStore.LookupEntry((getClass() - 1) * GT_MAX_RATING + cr + 1);
+    GtOCTClassCombatRatingScalarEntry const* classRating = sGtOCTClassCombatRatingScalarStore.LookupEntry(
+        (sObjectMgr->GetClassFormulaTemplate(getClass()) - 1) * GT_MAX_RATING + cr + 1);
     if (!Rating || !classRating)
         return 1.0f;                                        // By default use minimum coefficient (not must be called)
 
@@ -5385,7 +5386,7 @@ float Player::GetExpertiseDodgeOrParryReduction(WeaponAttackType attType) const
 float Player::OCTRegenHPPerSpirit()
 {
     uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    uint32 pclass = sObjectMgr->GetClassFormulaTemplate(getClass());
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
@@ -5408,7 +5409,7 @@ float Player::OCTRegenHPPerSpirit()
 float Player::OCTRegenMPPerSpirit()
 {
     uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    uint32 pclass = sObjectMgr->GetClassFormulaTemplate(getClass());
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
@@ -12247,7 +12248,7 @@ void Player::learnQuestRewardedSpells()
 void Player::learnSkillRewardedSpells(uint32 skill_id, uint32 skill_value)
 {
     uint32 raceMask  = getRaceMask();
-    uint32 classMask = getClassMask();
+    uint32 classMask = sObjectMgr->GetSpellClassMask(getClass());
 
     // Get all abilities for this skill and sort by MinSkillLineRank (lowest to highest)
     auto abilities = GetSkillLineAbilitiesBySkillLine(skill_id);
@@ -12626,7 +12627,7 @@ float Player::GetReputationPriceDiscount(FactionTemplateEntry const* factionTemp
 bool Player::IsSpellFitByClassAndRace(uint32 spell_id) const
 {
     uint32 racemask  = getRaceMask();
-    uint32 classmask = getClassMask();
+    uint32 classmask = sObjectMgr->GetSpellClassMask(getClass());
 
     SkillLineAbilityMapBounds bounds = sSpellMgr->GetSkillLineAbilityMapBounds(spell_id);
     if (bounds.first == bounds.second)
@@ -15437,10 +15438,20 @@ void Player::_LoadTalents(PreparedQueryResult result)
             // xinef: checked
             uint32 spellId = (*result)[0].Get<uint32>();
             uint8 specMask = (*result)[1].Get<uint8>();
-            addTalent(spellId, specMask, 0);
-            TalentSpellPos const* talentPos = GetTalentSpellPos(spellId);
-            ASSERT(talentPos);
+            // A reworked talent tree can leave a character holding a spell that is no longer a talent rank.
+            // Asserting here took the whole server down on that character's login; dropping the row instead
+            // refunds the point, since talent points are counted from the talents actually known.
+            if (!addTalent(spellId, specMask, 0))
+            {
+                LOG_ERROR("entities.player.loading", "Player::_LoadTalents: {} ({}) has spell {} saved as a talent, "
+                    "but it is not a talent rank. Removed.", GetName(), GetGUID().ToString(), spellId);
 
+                CharacterDatabasePreparedStatement* stmt =
+                    CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_TALENT_BY_SPELL);
+                stmt->SetData(0, GetGUID().GetCounter());
+                stmt->SetData(1, spellId);
+                CharacterDatabase.Execute(stmt);
+            }
         } while (result->NextRow());
     }
 }
