@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 # Generates the custom spell data shared by the server and the client:
 # - Combat rogue rework ("Crimson Duelist", see .agents/plans/combat-rogue-rework): new and updated abilities, hidden
@@ -15,6 +15,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $serverDbcRoot = Join-Path $repoRoot 'server\Data\dbc'
 $clientDbcRoot = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK\Data\DBFilesClient'
 $compiledIconRoot = Join-Path $repoRoot 'modules\mod-stat-growth\client-assets\compiled'
+$pestifereCompiledIconRoot = Join-Path $repoRoot 'modules\mod-pestifere\client-assets\compiled\icons'
 $serverSpellPath = Join-Path $serverDbcRoot 'Spell.dbc'
 $spellBackupPath = Join-Path $serverDbcRoot 'Spell.before-sinister-strike.dbc'
 $serverSkillPath = Join-Path $serverDbcRoot 'SkillLineAbility.dbc'
@@ -44,10 +45,46 @@ $sinisterStrikeRanks = @(1752, 1757, 1758, 1759, 1760, 8621, 11293, 11294, 26861
 $eviscerateRanks = @(2098, 6760, 6761, 6762, 8623, 8624, 11299, 11300, 31016, 26865, 48667, 48668)
 $sliceAndDiceRanks = @(5171, 6774)
 
+# Power types (Spell.dbc field 41) and the rune cost field (226), which only Death Knight spells use
+$POWER_RAGE = 1
+
 # Aura type ids
 $A_Dummy = 4; $A_ModIncreaseSpeed = 31; $A_ModParryPercent = 47; $A_ModDodgePercent = 49; $A_ModHitChance = 54
-$A_ModDamagePercentTaken = 87; $A_ModPowerRegenPercent = 110; $A_ModOffhandDamagePct = 122; $A_ModMeleeHaste = 138
+$A_ModDamagePercentTaken = 87; $A_AddFlatModifier = 107; $A_ModPowerRegenPercent = 110
+$A_ModOffhandDamagePct = 122; $A_ModMeleeHaste = 138; $A_ModResistancePct = 142
 $A_ModExpertise = 240; $A_ModCritPct = 290
+
+# Spell modifier operations, the misc value of SPELL_AURA_ADD_FLAT_MODIFIER. A modifier only reaches a spell whose
+# SpellFamilyName matches the modifier's (field 208) and whose SpellFamilyFlags (209-211) overlap its class mask.
+# The class masks are three flag96, one per effect: effect 0 is fields 122-124 (122 = its first flag word).
+$SPELLMOD_RADIUS = 6; $SPELLMOD_COST = 14
+$F_ProcFlags = 34; $F_ProcChance = 35; $F_EffectClassMask0 = 122
+
+# The Pestiféré is its own spell family. No stock spell uses 16, so its talents reach its abilities and nothing
+# else, and no other class's talent or script can reach them. ChrClasses gives class 12 the same family
+# (spellFamily in localTools/customClasses/classes.json): the client applies the modifiers to tooltips and costs.
+$FAM_PESTIFERE = 16
+$PF_FRAPPE_PUTRIDE = 0x1; $PF_CONTAGION = 0x2; $PF_DETONATION = 0x4; $PF_ODEUR = 0x8; $PF_CRACHAT = 0x10
+$PF_POURRITURE = 0x20; $PF_INOCULATION = 0x40; $PF_SELF_PLAGUE = 0x80; $PF_ENEMY_PLAGUE = 0x100
+$PF_SEPULCRE_PLAGUE = 0x200; $PF_CHARNIER = 0x400; $PF_PURGE = 0x800; $PF_SEPULCRE = 0x1000
+$PF_MORSURE = 0x2000; $PF_RIPOSTE = 0x4000; $PF_FLAQUE = 0x8000; $PF_CARAPACE_SUINTANTE = 0x10000; $PF_BOND = 0x20000
+$PF_PUANTEUR = 0x40000; $PF_PANDEMIE = 0x80000; $PF_FIEVRE = 0x100000; $PF_VOMISSURE = 0x200000; $PF_AVATAR = 0x400000
+$pestifereFamilyFlags = @{
+    90200 = $PF_FRAPPE_PUTRIDE; 90217 = $PF_FRAPPE_PUTRIDE
+    90201 = $PF_CONTAGION; 90202 = $PF_DETONATION; 90206 = $PF_DETONATION
+    90203 = $PF_ODEUR; 90204 = $PF_CRACHAT; 90205 = $PF_POURRITURE
+    90210 = $PF_INOCULATION; 90212 = $PF_INOCULATION; 90214 = $PF_INOCULATION
+    90211 = $PF_SELF_PLAGUE; 90213 = $PF_SELF_PLAGUE; 90215 = $PF_SELF_PLAGUE
+    90220 = $PF_ENEMY_PLAGUE; 90221 = $PF_ENEMY_PLAGUE; 90222 = $PF_ENEMY_PLAGUE
+    90207 = $PF_SEPULCRE_PLAGUE; 90208 = $PF_SEPULCRE_PLAGUE
+    90256 = $PF_CHARNIER; 90265 = $PF_PURGE; 90268 = $PF_SEPULCRE
+    90223 = $PF_FLAQUE; 90224 = $PF_MORSURE; 90225 = $PF_RIPOSTE; 90226 = $PF_CARAPACE_SUINTANTE; 90227 = $PF_BOND
+    90228 = $PF_PUANTEUR; 90229 = $PF_PANDEMIE; 90216 = $PF_FIEVRE; 90284 = $PF_VOMISSURE; 90287 = $PF_AVATAR
+}
+# More aura and modifier ids used by the Pestiféré rows
+$A_ModThreat = 10; $A_ModTaunt = 11; $A_SchoolAbsorb = 69; $A_ModDamagePercentDone = 79; $A_ModScale = 61
+$A_PeriodicDamage = 3; $A_AddPctModifier = 108
+$SPELLMOD_DAMAGE = 0; $SPELLMOD_DURATION = 1; $SPELLMOD_COOLDOWN = 11
 
 $customSpells = @(
     # --- Combat rogue: abilities ---
@@ -127,8 +164,352 @@ $customSpells = @(
     @{ Id = 90022; Clone = 2983; Name = 'Vol de vie'; FallbackIconSpell = 689; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Heals you for a share of the damage you deal.' },
     @{ Id = 90019; Clone = 8690; Name = 'Quick Travel'; IconPath = 'Interface\Icons\INV_Misc_Rune_01'; Description = 'Teleport to the selected flight master after a 3 sec cast.'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TravelCast = $true },
-    @{ Id = 90021; Clone = 2565; Name = 'Gladiator Stance'; IconPath = 'Interface\Icons\Ability_Warrior_GladiatorStance'; Description = 'Fight as a gladiator while in Defensive Stance with a shield equipped. Doubles all damage you deal and all damage you take before other reductions. Cast again to leave.'; AuraDescription = 'Damage dealt and damage taken increased by 100%.'; Cost = 0; Cooldown = 0; Level = 10; Spellbook = $true; GladiatorStance = $true; SkillLine = 257; ClassMask = 1 }
+    @{ Id = 90021; Clone = 2565; Name = 'Gladiator Stance'; IconPath = 'Interface\Icons\Ability_Warrior_GladiatorStance'; Description = 'Fight as a gladiator while in Defensive Stance with a shield equipped. Doubles all damage you deal and all damage you take before other reductions. Cast again to leave.'; AuraDescription = 'Damage dealt and damage taken increased by 100%.'; Cost = 0; Cooldown = 0; Level = 10; Spellbook = $true; GladiatorStance = $true; SkillLine = 257; ClassMask = 1 },
+
+    # --- Pestiféré (class 12): see .agents/plans/pestifere/pestifere.DESIGN.md ---
+    # Skill line 900 is the class's own spellbook tab, class mask 2048 is class 12.
+    # Behaviour lives in modules/mod-pestifere; the rows below are the data those scripts hang on.
+    # Rage costs are stored tenfold (200 = 20 rage).
+    @{ Id = 90200; Clone = 12294; Name = 'Frappe putride'; Icon = 'Pestifere_FrappePutride'; FallbackIconSpell = 45462; Cost = 0; Cooldown = 3000; Level = 1; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Frappe la cible pour 110% des dégâts de votre arme, applique une charge de Pourriture et vous rend 10 points de rage.'
+       # Effect 2: apply a stack of Pourriture. Effect 3: the rage it pays back.
+       Fields = @{ 71 = 121; 74 = 0; 80 = 5; 86 = 6; 95 = 0;
+                   72 = 64; 75 = 0; 87 = 6; 117 = 90205;
+                   73 = 30; 76 = 0; 82 = 100; 88 = 1; 112 = 1 }
+       Visual = @{ Clone = 11624 } },
+    @{ Id = 90205; Clone = 55078; Name = 'Pourriture'; Icon = 'Pestifere_Pourriture'; FallbackIconSpell = 55078; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'La chair de la cible se putréfie.'
+       AuraDescription = 'Subit des dégâts de Nature toutes les 3 sec. La cible enfle à chaque charge.'
+       # 20 sec, up to 6 stacks, and the target visibly swells: 2% model scale per stack
+       Fields = @{ 40 = 18; 49 = 6; 74 = 0; 72 = 6; 75 = 0; 81 = 2; 87 = 6; 96 = 61 } },
+
+    @{ Id = 90201; Clone = 50842; Name = 'Contagion'; Icon = 'Pestifere_Contagion'; FallbackIconSpell = 50842; Cost = 200; Cooldown = 6000; Level = 6; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Transmet chaque fléau que vous portez aux ennemis dans un rayon de 8 mètres et rafraîchit les vôtres.'
+       Visual = @{ Clone = 11172 } },
+    @{ Id = 90202; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 250; Cooldown = 0; Level = 10; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Fait éclater la pourriture des ennemis proches. Les dégâts augmentent avec les charges de Pourriture et les fléaux consommés, et vous soigne pour chaque ennemi touché.'
+       Fields = @{ 72 = 0; 75 = 0; 81 = 0; 87 = 0; 96 = 0; 74 = 0; 80 = 1 }
+       Visual = @{ Clone = 15216 } },
+    @{ Id = 90203; Clone = 355; Name = 'Odeur de charogne'; Icon = 'Pestifere_OdeurCharogne'; FallbackIconSpell = 355; Cost = 0; Cooldown = 8000; Level = 14; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Force la cible à vous attaquer pendant 3 sec.' },
+    @{ Id = 90204; Clone = 47476; Name = 'Crachat bilieux'; Icon = 'Pestifere_CrachatBilieux'; FallbackIconSpell = 47476; Cost = 100; Cooldown = 20000; Level = 20; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Crache de la bile sur une cible à 30 mètres, interrompant son incantation pendant 4 sec.' },
+    # Détonation en chaîne: the blast jumping to an enemy outside it. mod-pestifere computes the damage (the same
+    # formula as Détonation, on that enemy's own rot) and casts this with it; no damage class, so it cannot miss.
+    @{ Id = 90206; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'La détonation se propage.'
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
+       Fields = @{ 46 = 13; 213 = 0 }
+       Visual = @{ Clone = 15216 } },
+
+    # The three plagues: cast on yourself, then carried. Their strength scales with how many you carry,
+    # which mod-pestifere recalculates; the values here are the single-plague baseline.
+    @{ Id = 90210; Clone = 12975; Name = 'Inoculation : Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 150; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Vous inoculez la Carapace nécrosée.'
+       Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90211 } },
+    @{ Id = 90211; Clone = 2983; CantCancel = $true; Name = 'Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       AuraDescription = 'Dégâts subis réduits. Vous vous déplacez plus lentement.'
+       # Infinite while carried, removed when you leave combat
+       Fields = @{ 40 = 21; 95 = 87; 74 = 0; 80 = -8; 110 = 127; 72 = 6; 75 = 0; 81 = -10; 87 = 1; 96 = 33;
+                   73 = 6; 76 = 0; 82 = 10; 88 = 1; 97 = 101; 112 = 1 } },
+    @{ Id = 90212; Clone = 12975; Name = 'Inoculation : Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 150; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       # Taught by its talent, whose rank spell it is: the talent frame shows this tooltip
+       Description = "Vous inoculez la Chair putride : vous vous soignez toutes les 3 sec, d'autant plus que vous portez de fléaux, mais les soins que les autres vous prodiguent sont réduits."
+       Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90213 } },
+    @{ Id = 90213; Clone = 2983; CantCancel = $true; Name = 'Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       AuraDescription = 'Vous vous soignez toutes les 3 sec. Les soins que vous recevez sont réduits.'
+       Fields = @{ 40 = 21; 95 = 8; 74 = 0; 80 = 20; 98 = 3000 } },
+    @{ Id = 90214; Clone = 12975; Name = 'Inoculation : Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 150; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       # Taught by its talent, whose rank spell it is: the talent frame shows this tooltip
+       Description = "Vous inoculez la Peste virulente : vos dégâts augmentent, mais elle vous ronge toutes les 3 sec, et vous tue si elle est le seul fléau que vous portez."
+       Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90215 } },
+    @{ Id = 90215; Clone = 2983; CantCancel = $true; Name = 'Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       AuraDescription = 'Dégâts infligés augmentés. Vous subissez des dégâts toutes les 3 sec, qui empirent si la Peste virulente est le seul fléau que vous portez.'
+       Fields = @{ 40 = 21; 95 = 79; 74 = 0; 80 = 10; 110 = 127; 72 = 6; 75 = 0; 81 = 15; 87 = 1; 96 = 3;
+                   99 = 3000 } },
+
+    # The enemy versions, handed out by Contagion and consumed by Détonation
+    @{ Id = 90220; Clone = 55078; Name = 'Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       AuraDescription = 'Dégâts infligés réduits par la nécrose.'
+       Fields = @{ 40 = 18; 95 = 79; 74 = 0; 80 = -5; 110 = 127 } },
+    @{ Id = 90221; Clone = 55078; Name = 'Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       AuraDescription = 'Les soins reçus sont réduits par la putréfaction.'
+       Fields = @{ 40 = 18 } },
+    @{ Id = 90222; Clone = 55078; Name = 'Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       AuraDescription = 'Subit des dégâts de Nature toutes les 3 sec.'
+       Fields = @{ 40 = 18 } },
+
+    # Sépulcre's stored plague: the damage it held back, dealt over 12 sec. mod-pestifere deals every tick itself
+    # (the amount is exact: it was already mitigated once), and Contagion hands the enemy version out. Physical,
+    # which no resistance can partly resist, and not dispellable: grave dirt, not a disease.
+    @{ Id = 90207; Clone = 55078; CantCancel = $true; Name = 'Sépulcre'; Icon = 'Pestifere_Sepulcre'; FallbackIconSpell = 43265; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Les dégâts retenus par le Sépulcre.'
+       AuraDescription = 'Les dégâts retenus par le Sépulcre vous sont infligés toutes les 3 sec.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 3; BasePoints = 0 })
+       Fields = @{ 2 = 0; 40 = 29; 46 = 1; 49 = 1; 98 = 3000; 213 = 0; 225 = 1 } },
+    @{ Id = 90208; Clone = 55078; Name = 'Sépulcre'; Icon = 'Pestifere_Sepulcre'; FallbackIconSpell = 43265; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Les dégâts retenus par un Sépulcre.'
+       AuraDescription = 'Subit toutes les 3 sec les dégâts retenus par un Sépulcre.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 6; Aura = 3; BasePoints = 0 })
+       Fields = @{ 2 = 0; 40 = 29; 46 = 13; 49 = 1; 98 = 3000; 213 = 0; 225 = 1 } },
+
+    # Active spells taught by talents: each is its talent's rank spell, so the talent frame shows this tooltip and
+    # learning the talent puts the spell in the class tab (like Chair putride and Peste virulente above)
+    @{ Id = 90256; Clone = 6343; Name = 'Charnier ambulant'; Icon = 'PestifereTalent_CharnierAmbulant'; FallbackIconSpell = 69195; Cost = 0; Cooldown = 60000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Une pulsation infecte tous les ennemis dans un rayon de 10 mètres avec chaque fléau que vous portez et porte leur Pourriture à 6 charges. Génère une menace importante.'
+       # Caster-centred enemy area (Thunder Clap layout), a dummy effect per enemy hit, no damage class: it cannot miss
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 22 })
+       Fields = @{ 89 = 15; 92 = 13; 213 = 0 }
+       # Festergut's Pungent Blight burst
+       Visual = @{ Clone = 14608 } },
+    @{ Id = 90265; Clone = 12975; Name = 'Purge cathartique'; Icon = 'PestifereTalent_PurgeCathartique'; FallbackIconSpell = 48743; Cost = 0; Cooldown = 45000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = "Consume les fléaux que vous portez et vous rend 12% de vos points de vie maximum pour chacun d'eux. La soupape de sécurité, au prix de votre mitigation."
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       # Death Pact's heal burst
+       Visual = @{ Clone = 11150 } },
+    @{ Id = 90268; Clone = 12975; Name = 'Sépulcre'; Icon = 'PestifereTalent_Sepulcre'; FallbackIconSpell = 43265; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Pendant 8 sec, 50% des dégâts que vous subissez ne vous sont pas infligés : ils sont stockés en un fléau qui vous les inflige sur les 12 sec suivantes. Ce fléau se propage avec Contagion et se détone comme les autres.'
+       AuraDescription = 'La moitié des dégâts subis est retenue par le Sépulcre.'
+       # An all-school absorb whose amount mod-pestifere makes unlimited: it takes half of every hit, 8 sec
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 69; BasePoints = 0; Misc = 127 })
+       Fields = @{ 40 = 31 }
+       # Bone Shield: bones circling the carrier while it holds
+       Visual = @{ Clone = 11539 } },
+
+    # --- Pestiféré: the kit from level 24 to 70 ---
+    # Flaque de bile: a pool at your feet (Consecration's layout: a dynamic object on the caster, applying its aura to
+    # every enemy inside). Effect 0 ticks damage and sows Pourriture, effect 1 is Bile corrosive's damage reduction
+    # (0 without the talent); mod-pestifere computes both.
+    @{ Id = 90223; Clone = 26573; Name = 'Flaque de bile'; Icon = 'Pestifere_FlaqueDeBile'; FallbackIconSpell = 43265; Cost = 150; Cooldown = 15000; Level = 24; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Déverse une flaque de bile à vos pieds pendant 10 sec. Les ennemis qui s''y trouvent subissent des dégâts de Nature toutes les 2 sec et reçoivent une charge de Pourriture à chaque fois.'
+       AuraDescription = 'Subit des dégâts de Nature toutes les 2 sec et pourrit.'
+       Effects = @(@{ Index = 0; Effect = 27; TargetA = 18; Aura = $A_PeriodicDamage; BasePoints = 0 },
+                   @{ Index = 1; Effect = 27; TargetA = 18; Aura = $A_ModDamagePercentDone; BasePoints = 0; Misc = 127 })
+       Fields = @{ 89 = 16; 90 = 16; 92 = 14; 93 = 14; 98 = 2000; 40 = 1; 213 = 0; 225 = 8 }
+       # A green disease fog on the ground (GreenRadiationFog, the dungeon-sized one), cast with a green glow in the
+       # hands. Toxic Pool's AcidBurn was a raid-sized orange fume.
+       Visual = @{ Clone = 8964; Cast = 726; PersistentArea = 9180 } },
+    # Morsure fétide: the single-target threat strike, stronger for every Pourriture on the target (spell_threat adds
+    # its bonus threat)
+    @{ Id = 90224; Clone = 12294; Name = 'Morsure fétide'; Icon = 'Pestifere_MorsureFetide'; FallbackIconSpell = 55090; Cost = 200; Cooldown = 6000; Level = 30; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Mord la cible pour 150% des dégâts de votre arme, augmentés de 10% par charge de Pourriture qu''elle porte, sans les consommer. Génère une menace importante.'
+       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 150 })
+       Visual = @{ Clone = 11624 } },
+    # Riposte purulente: usable for a few seconds after you dodge, parry or block (Revenge's aura state)
+    @{ Id = 90225; Clone = 57823; Name = 'Riposte purulente'; Icon = 'Pestifere_RipostePurulente'; FallbackIconSpell = 57823; Cost = 50; Cooldown = 5000; Level = 36; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Utilisable après avoir esquivé, paré ou bloqué une attaque. Frappe la cible pour 120% des dégâts de votre arme et applique une charge de Pourriture à la cible et à 2 ennemis proches.'
+       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 120 })
+       Fields = @{ 20 = 1 } },
+    # Carapace suintante: the short defensive, an absorb that grows with Virulence
+    @{ Id = 90226; Clone = 48707; Name = 'Carapace suintante'; Icon = 'Pestifere_CarapaceSuintante'; FallbackIconSpell = 48707; Cost = 100; Cooldown = 30000; Level = 44; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Une carapace de pus vous entoure pendant 10 sec et absorbe 4% de vos points de vie maximum, plus 3% par fléau que vous portez.'
+       AuraDescription = 'Absorbe les dégâts.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_SchoolAbsorb; BasePoints = 0; Misc = 127 })
+       Fields = @{ 40 = 1 }
+       # Anti-Magic Shell's green bubble
+       Visual = @{ Clone = 11869 } },
+    # Bond putride: a leap onto an enemy (Intercept's charge, its stun replaced by rage)
+    @{ Id = 90227; Clone = 20252; Name = 'Bond putride'; Icon = 'Pestifere_BondPutride'; FallbackIconSpell = 20252; Cost = 0; Cooldown = 20000; Level = 50; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Bondit sur un ennemi situé entre 8 et 25 mètres, lui applique une charge de Pourriture et vous rend 15 points de rage.'
+       Effects = @(@{ Index = 0; Effect = 96; TargetA = 6 },
+                   @{ Index = 1; Effect = 30; TargetA = 1; BasePoints = 150; Misc = 1 }) },
+    # Puanteur insoutenable: AoE taunt (Challenging Shout)
+    @{ Id = 90228; Clone = 1161; Name = 'Puanteur insoutenable'; Icon = 'Pestifere_Puanteur'; FallbackIconSpell = 1161; Cost = 0; Cooldown = 180000; Level = 60; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Une puanteur insoutenable force tous les ennemis dans un rayon de 10 mètres à vous attaquer pendant 6 sec.'
+       AuraDescription = 'Forcé d''attaquer le Pestiféré.' },
+    # Pandémie: the big AoE cooldown. Effect 0 removes Contagion's cooldown (a -100% cooldown modifier), effect 1 is
+    # the marker Frappe putride reads to strike 3 more enemies.
+    @{ Id = 90229; Clone = 12975; Name = 'Pandémie'; Icon = 'Pestifere_Pandemie'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 120000; Level = 70; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Pendant 15 sec, Contagion n''a plus de temps de recharge et Frappe putride frappe aussi 3 ennemis proches.'
+       AuraDescription = 'Contagion sans temps de recharge. Frappe putride touche 3 ennemis de plus.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_AddPctModifier; Value = -100; Misc = $SPELLMOD_COOLDOWN },
+                   @{ Index = 1; Effect = 6; TargetA = 1; Aura = $A_Dummy })
+       Fields = @{ 40 = 8; 122 = $PF_CONTAGION }
+       # Unholy Blight's green haze
+       Visual = @{ Clone = 11095 } },
+
+    # Support spells: never in the spellbook
+    # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2 threat)
+    @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = 'Menace générée augmentée.'
+       Effects = @(@{ Index = 0; Aura = $A_ModThreat; Value = 100; Misc = 127 }) },
+    # Fièvre: the talent's proc, your next Morsure fétide free and off cooldown
+    @{ Id = 90216; Clone = 12975; Name = 'Fièvre'; Icon = 'PestifereTalent_Fievre'; FallbackIconSpell = 55090; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Votre prochaine Morsure fétide ne coûte pas de rage.'
+       AuraDescription = 'Votre prochaine Morsure fétide ne coûte pas de rage et n''a pas de temps de recharge.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_AddPctModifier; Value = -100; Misc = $SPELLMOD_COST })
+       Fields = @{ 40 = 1; 122 = $PF_MORSURE } },
+    # Pandémie's extra strikes: Frappe putride on a nearby enemy, without its cost or cooldown
+    @{ Id = 90217; Clone = 12294; Name = 'Frappe putride'; Icon = 'Pestifere_FrappePutride'; FallbackIconSpell = 45462; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Frappe putride, portée par la Pandémie.'
+       Effects = @(@{ Index = 0; Effect = 121; TargetA = 6; BasePoints = 5 },
+                   @{ Index = 1; Effect = 64; TargetA = 6 })
+       Fields = @{ 117 = 90205 }
+       Visual = @{ Clone = 11624 } },
+    # Rigor mortis: the cooldown after it saved you (3 min)
+    @{ Id = 90286; Clone = 2983; Name = 'Rigor mortis'; Icon = 'PestifereTalent_RigorMortis'; FallbackIconSpell = 48743; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Rigor mortis ne peut plus vous sauver pour le moment.'
+       AuraDescription = 'Rigor mortis ne peut plus vous sauver.'
+       Fields = @{ 40 = 25 } },
+
+    # Talent-taught actives of the rebuilt tree (each is its talent's rank spell)
+    @{ Id = 90284; Clone = 120; Name = 'Vomissure'; Icon = 'PestifereTalent_Vomissure'; FallbackIconSpell = 69195; Cost = 200; Cooldown = 12000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Vomit un flot de bile devant vous : inflige de lourds dégâts de Nature aux ennemis dans un cône de 10 mètres et leur applique 2 charges de Pourriture.'
+       # Cone of Cold's cone, one damage effect, no damage class: it cannot miss
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 104; BasePoints = 0 })
+       Fields = @{ 92 = 13; 213 = 0; 225 = 8 }
+       Visual = @{ Clone = 14608 } },
+    @{ Id = 90287; Clone = 12975; Name = 'Avatar de la peste'; Icon = 'PestifereTalent_AvatarPeste'; FallbackIconSpell = 49206; Cost = 0; Cooldown = 180000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Vous devenez un avatar de la peste pendant 20 sec : vous grandissez, vos fléaux comptent pour un fléau de plus et Détonation ne consomme plus les charges de Pourriture.'
+       AuraDescription = 'Avatar de la peste : Virulence augmentée, Détonation ne consomme plus la Pourriture.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_ModScale; Value = 30 },
+                   @{ Index = 1; Effect = 6; TargetA = 1; Aura = $A_Dummy })
+       Fields = @{ 40 = 18 }
+       Visual = @{ Clone = 11095 } }
 )
+
+# --- Pestiféré: the "Charnier" talent tree (pestifere.DESIGN.md section 6) ---
+# One Spell.dbc row per talent rank, ids 90230-90299, none of them in the spellbook: the talent frame learns
+# them and they stay passive and hidden. A talent with Auras is a real passive the core applies on its own;
+# every other one is a dummy marker aura mod-pestifere reads with HasAura, because what it changes lives in
+# the module. Description placeholders {0}, {1} take V0/V1 per rank.
+# The grid itself - tier, column, prerequisites - is in localTools/customClasses/classes.json, which names the
+# same rank ids and is checked against Spell.dbc when it builds Talent.dbc.
+$pestifereTalents = @(
+    # Tier 1
+    @{ Name = 'Peau coriace'; Icon = 'PestifereTalent_PeauCoriace'; FallbackIconSpell = 12299
+       Ids = @(90231, 90232, 90233); V0 = @(2, 4, 6)
+       Description = 'Augmente votre armure de {0}%.'
+       Auras = @(@{ Aura = $A_ModResistancePct; Values = @(2, 4, 6); Misc = 1 }) },
+    @{ Name = 'Rage fielleuse'; Icon = 'PestifereTalent_RageFielleuse'; FallbackIconSpell = 29131
+       Ids = @(90234, 90235, 90236); V0 = @(10, 20, 30)
+       Description = 'Les dégâts que vous subissez vous génèrent {0}% de rage supplémentaire.' },
+
+    # Tier 2
+    @{ Name = 'Inoculation rapide'; Icon = 'PestifereTalent_InoculationRapide'; FallbackIconSpell = 12975
+       Ids = @(90238, 90239); V0 = @(3, 6)
+       Description = 'Vos Inoculations coûtent {0} points de rage de moins.'
+       # Rage costs are stored tenfold, so 3 rage is -30
+       Auras = @(@{ Aura = $A_AddFlatModifier; Values = @(-30, -60); Misc = $SPELLMOD_COST })
+       Fields = @{ 122 = $PF_INOCULATION } },
+    @{ Name = 'Miasme'; Icon = 'PestifereTalent_Miasme'; FallbackIconSpell = 50842
+       Ids = @(90240, 90241, 90242); V0 = @(1, 2, 3); V1 = @('mètre', 'mètres', 'mètres')
+       Description = 'Augmente le rayon de Contagion de {0} {1}.'
+       Auras = @(@{ Aura = $A_AddFlatModifier; Values = @(1, 2, 3); Misc = $SPELLMOD_RADIUS })
+       Fields = @{ 122 = $PF_CONTAGION } },
+
+    # Tier 3
+    @{ Name = 'Mains putrides'; Icon = 'PestifereTalent_MainsPutrides'; FallbackIconSpell = 674
+       Ids = @(90243, 90244, 90245); V0 = @(10, 20, 30)
+       Description = 'Vos attaques de main gauche ont {0}% de chances d''appliquer une charge de Pourriture.'
+       # A proc aura: off-hand hits (auto attacks and off-hand strikes) roll the rank's chance
+       ProcFlags = 0x00800000; ProcChance = @(10, 20, 30) },
+    @{ Name = 'Fossoyeur'; Icon = 'PestifereTalent_Fossoyeur'; FallbackIconSpell = 12163
+       Ids = @(90246, 90247, 90248); V0 = @(8, 16, 24)
+       Description = 'Maniée à deux mains, Frappe putride inflige {0}% de dégâts supplémentaires et applique 2 charges de Pourriture.' },
+    @{ Name = 'Symbiose morbide'; Icon = 'PestifereTalent_SymbioseMorbide'; FallbackIconSpell = 50536
+       Ids = @(90249, 90250); V0 = @(15, 30)
+       Description = 'Chair putride vous soigne {0}% de plus par fléau que vous portez.' },
+
+    # Tier 4
+    @{ Name = 'Métabolisme nécrotique'; Icon = 'PestifereTalent_MetabolismeNecrotique'; FallbackIconSpell = 29131
+       Ids = @(90251, 90252, 90253); V0 = @(33, 66, 100)
+       Description = 'Les dégâts de vos propres fléaux vous génèrent {0}% de la rage normale. La maladie vous nourrit.' },
+    @{ Name = 'Détonation en chaîne'; Icon = 'PestifereTalent_DetonationChaine'; FallbackIconSpell = 49158
+       Ids = @(90254, 90255); V0 = @(1, 2)
+       V1 = @('ennemi supplémentaire', 'ennemis supplémentaires')
+       Description = 'Détonation se propage à {0} {1} hors de son rayon, à 8 mètres au plus d''une cible qui explose. Chacun explose avec sa propre pourriture.' },
+
+    # Tier 5
+    @{ Name = 'Croûte nécrosée'; Icon = 'PestifereTalent_CrouteNecrosee'; FallbackIconSpell = 49222
+       Ids = @(90257, 90258, 90259); V0 = @(2, 4, 6)
+       Description = 'Carapace nécrosée réduit en plus les dégâts subis de {0}% par fléau que vous portez.' },
+    @{ Name = 'Menace contagieuse'; Icon = 'PestifereTalent_MenaceContagieuse'; FallbackIconSpell = 50842
+       Ids = @(90260, 90261, 90262); V0 = @(30, 60, 90)
+       Description = 'Les dégâts infligés par vos fléaux génèrent {0}% de menace supplémentaire.' },
+    @{ Name = 'Porteur endurci'; Icon = 'PestifereTalent_PorteurEndurci'; FallbackIconSpell = 69674
+       Ids = @(90263, 90264); V0 = @(15, 30)
+       Description = 'Réduit de {0}% les dégâts que la Peste virulente vous inflige.' },
+
+    # Tier 6
+    @{ Name = 'Résilience du porteur'; Icon = 'PestifereTalent_ResiliencePorteur'; FallbackIconSpell = 49222
+       Ids = @(90266, 90267); V0 = @(3, 6)
+       Description = 'Tant que vous portez les trois fléaux, vous subissez {0}% de dégâts en moins.' },
+
+    # The rebuilt tree: procs and choices
+    @{ Name = 'Contagion galopante'; Icon = 'PestifereTalent_ContagionGalopante'; FallbackIconSpell = 50842
+       Ids = @(90269, 90270); V0 = @(15, 30)
+       Description = 'Frappe putride a {0}% de chances de réinitialiser le temps de recharge de Contagion.' },
+    @{ Name = 'Fièvre'; Icon = 'PestifereTalent_Fievre'; FallbackIconSpell = 55090
+       Ids = @(90271, 90272, 90273); V0 = @(3, 6, 9)
+       Description = 'Chaque dégât de Pourriture a {0}% de chances de vous donner la Fièvre : votre prochaine Morsure fétide ne coûte pas de rage et son temps de recharge est réinitialisé.' },
+    @{ Name = 'Charognard'; Icon = 'PestifereTalent_Charognard'; FallbackIconSpell = 49206
+       Ids = @(90274, 90275); V0 = @(50, 100)
+       Description = 'Quand un ennemi portant votre Pourriture meurt, {0}% de ses charges passent à l''ennemi le plus proche.' },
+    @{ Name = 'Riposte fétide'; Icon = 'PestifereTalent_RiposteFetide'; FallbackIconSpell = 57823
+       Ids = @(90276, 90277); V0 = @(1, 2); V1 = @(10, 20)
+       Description = 'Riposte purulente applique aussi la Pourriture à {0} ennemi(s) de plus et inflige {1}% de dégâts supplémentaires.' },
+    @{ Name = 'Bile corrosive'; Icon = 'PestifereTalent_BileCorrosive'; FallbackIconSpell = 43265
+       Ids = @(90278, 90279, 90280); V0 = @(2, 4, 6)
+       Description = 'Les ennemis dans votre Flaque de bile infligent {0}% de dégâts en moins.' },
+    @{ Name = 'Hôte parfait'; Icon = 'PestifereTalent_HoteParfait'; FallbackIconSpell = 49222
+       Ids = @(90281, 90282, 90283); V0 = @(1, 2, 3)
+       Description = 'Augmente vos chances de parer de {0}% par fléau que vous portez.' },
+    @{ Name = 'Crocs infectés'; Icon = 'PestifereTalent_CrocsInfectes'; FallbackIconSpell = 55090
+       Ids = @(90288, 90289, 90290); V0 = @(10, 20, 30)
+       Description = 'Augmente les dégâts de Morsure fétide de {0}%.'
+       Auras = @(@{ Aura = $A_AddPctModifier; Values = @(10, 20, 30); Misc = $SPELLMOD_DAMAGE })
+       Fields = @{ 122 = $PF_MORSURE } },
+    @{ Name = 'Pandémie prolongée'; Icon = 'PestifereTalent_PandemieProlongee'; FallbackIconSpell = 50536
+       Ids = @(90291, 90292); V0 = @(3, 6)
+       Description = 'Pandémie dure {0} sec de plus.'
+       Auras = @(@{ Aura = $A_AddFlatModifier; Values = @(3000, 6000); Misc = $SPELLMOD_DURATION })
+       Fields = @{ 122 = $PF_PANDEMIE } },
+    @{ Name = 'Pus épais'; Icon = 'PestifereTalent_PusEpais'; FallbackIconSpell = 48707
+       Ids = @(90293, 90294, 90295); V0 = @(10, 20, 30)
+       Description = 'Carapace suintante absorbe {0}% de dégâts de plus.' },
+    @{ Name = 'Rigor mortis'; Icon = 'PestifereTalent_RigorMortis'; FallbackIconSpell = 48743
+       Ids = @(90285)
+       Description = 'Un coup qui devrait vous tuer vous laisse à 1 point de vie et dévore les fléaux que vous portez. Ne peut se produire qu''une fois toutes les 3 min.' }
+    # Charnier ambulant (90256), Purge cathartique (90265), Sépulcre (90268), Vomissure (90284) and Avatar de la peste
+    # (90287) teach an active spell: their rank spell is that spell, defined with the abilities above
+)
+
+foreach ($talent in $pestifereTalents) {
+    for ($rank = 0; $rank -lt $talent.Ids.Count; ++$rank) {
+        $arguments = [object[]]@(
+            $(if ($talent.V0) { $talent.V0[$rank] } else { '' }),
+            $(if ($talent.V1) { $talent.V1[$rank] } else { '' })
+        )
+        $effects = @()
+        if ($talent.Auras) {
+            for ($auraIndex = 0; $auraIndex -lt $talent.Auras.Count; ++$auraIndex) {
+                $aura = $talent.Auras[$auraIndex]
+                $effects += @{ Index = $auraIndex; Aura = $aura.Aura; Value = $aura.Values[$rank]; Misc = $aura.Misc }
+            }
+        }
+        else {
+            $effects += @{ Index = 0; Aura = $A_Dummy }
+        }
+        $fields = @{}
+        if ($talent.Fields) {
+            foreach ($field in $talent.Fields.Keys) { $fields[$field] = $talent.Fields[$field] }
+        }
+        if ($talent.ProcFlags) {
+            $fields[$F_ProcFlags] = $talent.ProcFlags
+            $fields[$F_ProcChance] = $talent.ProcChance[$rank]
+        }
+        $customSpells += @{
+            Id = $talent.Ids[$rank]; Clone = 2983; Name = $talent.Name; Icon = $talent.Icon
+            FallbackIconSpell = $talent.FallbackIconSpell
+            Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+            Description = [string]::Format($talent.Description, $arguments)
+            Effects = $effects
+            Fields = $fields
+        }
+    }
+}
+
 $spellbookSpells = @($customSpells | Where-Object { $_.Spellbook })
 
 $customSounds = @(
@@ -157,6 +538,8 @@ $customVisualKits = @(
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15
+    # The ground effect of a persistent area (a pool, a cloud)
+    PersistentArea = 25
 }
 
 # The whole Combat talent tree, rewritten on the WotLK talent spell ids (same grid, ranks and prerequisites).
@@ -482,8 +865,12 @@ function Get-IconIdForPath([string]$path) {
 # Explicit IconPath, else the generated icon when compiled, else the fallback icon id
 function Resolve-IconId($spec, [uint32]$fallbackIconId) {
     if ($spec.IconPath) { return Get-IconIdForPath $spec.IconPath }
-    if ($spec.Icon -and (Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($spec.Icon).tga"))) {
-        return Get-IconIdForPath "Interface\Icons\$($spec.Icon)"
+    if ($spec.Icon) {
+        foreach ($iconRoot in @($compiledIconRoot, $pestifereCompiledIconRoot)) {
+            if (Test-Path -LiteralPath (Join-Path $iconRoot "$($spec.Icon).tga")) {
+                return Get-IconIdForPath "Interface\Icons\$($spec.Icon)"
+            }
+        }
     }
     return $fallbackIconId
 }
@@ -750,12 +1137,58 @@ foreach ($custom in $customSpells) {
         for ($field = 209; $field -le 214; ++$field) { Set-Field $record $field 0 }
         Set-Field $record 225 1
     }
+    if ($custom.CantCancel) {
+        # SPELL_ATTR0_NO_AURA_CANCEL: the carried plagues cannot be right-clicked away. Shedding one is meant to
+        # cost something (Purge cathartique, or letting it lapse out of combat), never to be free.
+        $attributes = [BitConverter]::ToUInt32($record, 4 * 4)
+        Set-Field $record 4 ([uint32]($attributes -bor [uint32]2147483648))
+    }
+    if ($custom.TalentAura) {
+        # A learned talent rank: passive, hidden, permanent, self only, no cost, no cast, no visual.
+        # Everything the clone carried is stripped so only the effects the talent declares remain.
+        # PASSIVE | HIDDEN_CLIENTSIDE | HIDE_IN_COMBAT_LOG: without HIDDEN_CLIENTSIDE every learned rank shows up
+        # in the spellbook's General tab as a "Passive" entry
+        Set-Field $record 4 0x1c0
+        for ($field = 5; $field -le 27; ++$field) { Set-Field $record $field 0 }
+        Set-Field $record 28 1
+        for ($field = 29; $field -le 39; ++$field) { Set-Field $record $field 0 }
+        Set-Field $record 40 21
+        for ($field = 41; $field -le 45; ++$field) { Set-Field $record $field 0 }
+        Set-Field $record 46 1
+        for ($field = 47; $field -le 70; ++$field) { Set-Field $record $field 0 }
+        Set-Field $record 68 ([uint32]::MaxValue)
+        for ($field = 71; $field -le 132; ++$field) { Set-Field $record $field 0 }
+        Set-Field $record 134 0
+        for ($field = 204; $field -le 233; ++$field) { Set-Field $record $field 0 }
+        Set-Field $record 225 1
+    }
     if ($custom.Effects) {
         Write-Effects $record 0 $custom.Effects
     }
     if ($custom.Fields) {
         foreach ($field in $custom.Fields.Keys) {
             Write-Field $record 0 ([int]$field) ([long]$custom.Fields[$field])
+        }
+    }
+    # The Pestiféré is a rage class built on Death Knight spells: without this every clone keeps its
+    # source's rune cost and asks for Blood runes the class can never have.
+    if ([int]$custom.Id -ge 90200 -and [int]$custom.Id -le 90299) {
+        Set-Field $record 41 ([uint32]$POWER_RAGE)
+        Set-Field $record 226 0
+        # Warrior clones carry their stance requirement: the class has no stances to be in
+        Set-Field $record 12 0
+        Set-Field $record 13 0
+        # Its own spell family: the clone's Warrior or Death Knight family and flags would let those classes'
+        # talents and scripts reach it
+        Set-Field $record 208 ([uint32]$FAM_PESTIFERE)
+        $familyFlags = if ($pestifereFamilyFlags.ContainsKey([int]$custom.Id)) { $pestifereFamilyFlags[[int]$custom.Id] } else { 0 }
+        Set-Field $record 209 ([uint32]$familyFlags)
+        Set-Field $record 210 0
+        Set-Field $record 211 0
+        # Only modifiers name other spells, in their own Fields: a mask inherited from the clone is cleared
+        $setsMask = $custom.Fields -and @($custom.Fields.Keys | Where-Object { [int]$_ -ge 122 -and [int]$_ -le 130 }).Count
+        if (-not $custom.TalentAura -and -not $setsMask) {
+            for ($field = 122; $field -le 130; ++$field) { Set-Field $record $field 0 }
         }
     }
     if ($visualIdsBySpell.ContainsKey([int]$custom.Id)) {
@@ -831,6 +1264,12 @@ for ($index = 0; $index -lt $spellbookSpells.Count; ++$index) {
     Set-Field $record 2 ([uint32]$spellbookSpells[$index].Id)
     Set-Field $record 8 0
     Set-Field $record 9 2
+    # AcquireMethod 2 teaches a spell with its whole skill line - and every Pestiféré has its skill line from
+    # level 1, which handed out the entire kit at creation. 0 is what Blizzard's class abilities use: the
+    # spell is taught by something else (mod-pestifere at its level, or its talent).
+    if ([int]$spellbookSpells[$index].Id -ge 90200 -and [int]$spellbookSpells[$index].Id -le 90299) {
+        Set-Field $record 9 0
+    }
     if ($spellbookSpells[$index].SkillLine) {
         Set-Field $record 1 ([uint32]$spellbookSpells[$index].SkillLine)
         Set-Field $record 3 0
@@ -871,5 +1310,7 @@ $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'Combat
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize
 Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisualCount new, $($customVisualKits.Count) new kits)."
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
+$pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
+Write-Host "Pestiféré talent tree: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."
 Write-Host "Combat rogue icons generated: $generatedIcons (missing ones use stock game icons)."
