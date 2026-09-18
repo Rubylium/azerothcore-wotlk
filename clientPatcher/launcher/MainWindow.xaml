@@ -1,0 +1,658 @@
+<Window x:Class="Evolutions.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Evolutions"
+        Width="1200" Height="720"
+        WindowStyle="None" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Base}"
+        Icon="Assets/Evolutions.ico"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType"
+        FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource Text}">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0,0,0,1"
+                      CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- Rail navigation: one checked page at a time -->
+        <Style x:Key="NavButton" TargetType="RadioButton">
+            <Setter Property="GroupName" Value="Pages" />
+            <Setter Property="Width" Value="48" />
+            <Setter Property="Height" Value="48" />
+            <Setter Property="Margin" Value="0,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource Muted}" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="19" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="Transparent">
+                            <Border x:Name="Pill" CornerRadius="12" Background="#00FFFFFF" />
+                            <Border x:Name="Marker" Width="3" Height="0" CornerRadius="2" HorizontalAlignment="Left"
+                                    Margin="-14,0,0,0" Background="{StaticResource GoldBrush}" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pill" Property="Background" Value="#14FFFFFF" />
+                                <Setter Property="Foreground" Value="{StaticResource Text}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Pill" Property="Background" Value="#26E8BE60" />
+                                <Setter TargetName="Marker" Property="Height" Value="22" />
+                                <Setter Property="Foreground" Value="{StaticResource Gold}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Title bar buttons -->
+        <Style x:Key="ChromeButton" TargetType="Button">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Foreground" Value="{StaticResource Muted}" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Back" Background="Transparent" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Back" Property="Background" Value="#1FFFFFFF" />
+                                <Setter Property="Foreground" Value="{StaticResource Text}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource ChromeButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Back" Background="Transparent" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Back" Property="Background" Value="#E0C42B1C" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Secondary actions -->
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Back" CornerRadius="8" Background="#0FFFFFFF" BorderBrush="#26FFFFFF"
+                                BorderThickness="1" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Back" Property="BorderBrush" Value="{StaticResource GoldBrush}" />
+                                <Setter TargetName="Back" Property="Background" Value="#1AE8BE60" />
+                                <Setter Property="Foreground" Value="{StaticResource Gold}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LinkButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Gold}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter x:Name="Content" />
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource GoldLight}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The main call to action -->
+        <Style x:Key="PlayButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="#2A1606" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="Glow" CornerRadius="10" Background="#E8BE60" Opacity="0.55">
+                                <Border.Effect>
+                                    <BlurEffect Radius="26" />
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="Face" CornerRadius="10" BorderThickness="1" BorderBrush="#FFF3D58A">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop x:Name="Top" Color="#FFF8DB8B" Offset="0" />
+                                        <GradientStop Color="#FFE3AE4E" Offset="0.55" />
+                                        <GradientStop Color="#FFB9762A" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <Border x:Name="Shine" CornerRadius="10,10,40,40" Height="22" VerticalAlignment="Top"
+                                    Margin="2,2,2,0" Opacity="0.35">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#FFFFFFFF" Offset="0" />
+                                        <GradientStop Color="#00FFFFFF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="0,1,0,0" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Glow" Storyboard.TargetProperty="Opacity"
+                                                             To="0.95" Duration="0:0:0.18" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Glow" Storyboard.TargetProperty="Opacity"
+                                                             To="0.55" Duration="0:0:0.3" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Glow" Property="Visibility" Value="Collapsed" />
+                                <Setter TargetName="Shine" Property="Visibility" Value="Collapsed" />
+                                <Setter TargetName="Face" Property="Background" Value="#FF262A33" />
+                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FFFFFF" />
+                                <Setter Property="Foreground" Value="{StaticResource Muted}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A slim scroll bar -->
+        <Style x:Key="ThumbStyle" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="3" Background="#40FFFFFF" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ThumbStyle}" />
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="#B80D1017" />
+            <Setter Property="BorderBrush" Value="#1AFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style x:Key="Tag" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="#33E8BE60" />
+            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+
+        <!-- News card on the home page -->
+        <DataTemplate x:Key="NewsCard">
+            <Button Style="{StaticResource LinkButton}" Click="OnNewsCardClick" Tag="{Binding}" Margin="0,0,14,0">
+                <Border x:Name="Card" Style="{StaticResource Card}" Width="232" Height="196" ClipToBounds="True">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="112" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border CornerRadius="11,11,0,0" ClipToBounds="True">
+                            <Border.Background>
+                                <ImageBrush ImageSource="{Binding Image}" Stretch="UniformToFill" />
+                            </Border.Background>
+                        </Border>
+                        <Border CornerRadius="11,11,0,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00000000" Offset="0.5" />
+                                    <GradientStop Color="#CC0D1017" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Border Style="{StaticResource Tag}" Margin="12,0,0,10" VerticalAlignment="Bottom"
+                                Background="#CC0D1017">
+                            <TextBlock Text="{Binding Tag}" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Gold}" />
+                        </Border>
+                        <StackPanel Grid.Row="1" Margin="14,10,14,0">
+                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Text}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding DateText}" FontSize="11" Margin="0,4,0,0"
+                                       Foreground="{StaticResource Muted}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Button>
+            <DataTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Card" Property="BorderBrush" Value="#80E8BE60" />
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- News entry on the news page -->
+        <DataTemplate x:Key="NewsEntry">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="0" ClipToBounds="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border CornerRadius="11,0,0,11" MinHeight="146">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{Binding Image}" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="22,18,22,18">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource Tag}">
+                                <TextBlock Text="{Binding Tag}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Gold}" />
+                            </Border>
+                            <TextBlock Text="{Binding DateText}" FontSize="11" Margin="10,0,0,0"
+                                       VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Title}" FontFamily="{StaticResource Display}" FontSize="20"
+                                   FontWeight="Bold" Margin="0,10,0,6" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" LineHeight="20"
+                                   Foreground="{StaticResource Soft}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <Storyboard x:Key="PageIn">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.25" />
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                             From="10" To="0" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </Window.Resources>
+
+    <Grid x:Name="Root" ClipToBounds="True">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="76" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="46" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="104" />
+        </Grid.RowDefinitions>
+
+        <!-- Backdrop: the art drifts slowly, darkened where text sits -->
+        <Image x:Name="Backdrop" Grid.ColumnSpan="2" Grid.RowSpan="3" Source="Assets/background.jpg"
+               Stretch="UniformToFill" VerticalAlignment="Top" RenderTransformOrigin="0.62,0.4">
+            <Image.RenderTransform>
+                <ScaleTransform x:Name="BackdropScale" ScaleX="1" ScaleY="1" />
+            </Image.RenderTransform>
+            <Image.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="BackdropScale" Storyboard.TargetProperty="ScaleX"
+                                             From="1" To="1.07" Duration="0:0:40" AutoReverse="True"
+                                             RepeatBehavior="Forever" />
+                            <DoubleAnimation Storyboard.TargetName="BackdropScale" Storyboard.TargetProperty="ScaleY"
+                                             From="1" To="1.07" Duration="0:0:40" AutoReverse="True"
+                                             RepeatBehavior="Forever" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Image.Triggers>
+        </Image>
+        <Rectangle Grid.ColumnSpan="2" Grid.RowSpan="3" IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#B0080A0F" Offset="0" />
+                    <GradientStop Color="#10080A0F" Offset="0.22" />
+                    <GradientStop Color="#20080A0F" Offset="0.45" />
+                    <GradientStop Color="#E6080A0F" Offset="0.78" />
+                    <GradientStop Color="#FF080A0F" Offset="1" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <Rectangle Grid.ColumnSpan="2" Grid.RowSpan="3" IsHitTestVisible="False">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#D0080A0F" Offset="0" />
+                    <GradientStop Color="#00080A0F" Offset="0.42" />
+                    <GradientStop Color="#00080A0F" Offset="0.8" />
+                    <GradientStop Color="#70080A0F" Offset="1" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+        <!-- Pages other than home sit on a darker veil -->
+        <Rectangle x:Name="Veil" Grid.ColumnSpan="2" Grid.RowSpan="3" Fill="#E0080A0F" Opacity="0"
+                   IsHitTestVisible="False" />
+
+        <!-- The logo covers the spot where the art had its own -->
+        <Image x:Name="Logo" Grid.ColumnSpan="2" Grid.RowSpan="2" Source="Assets/logo.png" Width="340"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="448,30,0,0" IsHitTestVisible="False"
+               RenderOptions.BitmapScalingMode="HighQuality">
+            <Image.Effect>
+                <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.8" Color="Black" />
+            </Image.Effect>
+        </Image>
+
+        <!-- Rail -->
+        <Border Grid.RowSpan="3" Background="#C0070910" BorderBrush="#12FFFFFF" BorderThickness="0,0,1,0">
+            <DockPanel LastChildFill="False" Margin="0,14,0,18">
+                <Border DockPanel.Dock="Top" Width="46" Height="46" CornerRadius="12" Margin="0,0,0,22"
+                        BorderThickness="1" BorderBrush="#66E8BE60" MouseLeftButtonDown="OnDragWindow">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FF3A2410" Offset="0" />
+                            <GradientStop Color="#FF120C08" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Image Source="Assets/evolution-mark.png" Width="34" Height="34" Stretch="Uniform"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
+                </Border>
+                <RadioButton x:Name="NavHome" DockPanel.Dock="Top" Style="{StaticResource NavButton}"
+                             Content="&#xE80F;" ToolTip="Accueil" IsChecked="True" Checked="OnNavigate" />
+                <RadioButton x:Name="NavNews" DockPanel.Dock="Top" Style="{StaticResource NavButton}"
+                             Content="&#xE8F1;" ToolTip="Nouveautés" Checked="OnNavigate" />
+                <RadioButton x:Name="NavSettings" DockPanel.Dock="Bottom" Style="{StaticResource NavButton}"
+                             Content="&#xE713;" ToolTip="Paramètres" Checked="OnNavigate" />
+            </DockPanel>
+        </Border>
+
+        <!-- Title bar -->
+        <Grid Grid.Column="1" Background="Transparent" MouseLeftButtonDown="OnDragWindow">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="22,0,0,0">
+                <TextBlock Text="EVOLUTIONS" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="13"
+                           Foreground="{StaticResource Soft}" />
+                <Border x:Name="VersionPill" Style="{StaticResource Tag}" Margin="10,0,0,0" Background="#14FFFFFF"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="VersionText" FontSize="10" Foreground="{StaticResource Muted}" />
+                </Border>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,8,0">
+                <Button Style="{StaticResource ChromeButton}" Content="&#xE921;" Click="OnMinimize" />
+                <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="OnClose" Margin="4,0,0,0" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Home -->
+        <Grid x:Name="HomePage" Grid.Column="1" Grid.Row="1">
+            <Grid.RenderTransform>
+                <TranslateTransform />
+            </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Kept left of the logo whatever the title's length -->
+            <StackPanel VerticalAlignment="Bottom" Margin="40,0,0,26" Width="320" HorizontalAlignment="Left">
+                <Border x:Name="FeaturedTag" Style="{StaticResource Tag}">
+                    <TextBlock x:Name="FeaturedTagText" Text="À LA UNE" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{StaticResource Gold}" />
+                </Border>
+                <TextBlock x:Name="FeaturedTitle" FontFamily="{StaticResource Display}" FontWeight="Bold"
+                           FontSize="29" Margin="0,12,0,8" TextWrapping="Wrap" LineHeight="35">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.9" Color="Black" />
+                    </TextBlock.Effect>
+                </TextBlock>
+                <TextBlock x:Name="FeaturedBody" TextWrapping="Wrap" FontSize="14" LineHeight="21"
+                           Foreground="{StaticResource Soft}" MaxHeight="84" TextTrimming="WordEllipsis">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.9" Color="Black" />
+                    </TextBlock.Effect>
+                </TextBlock>
+                <Button x:Name="FeaturedMore" Style="{StaticResource LinkButton}" Margin="0,12,0,0"
+                        Click="OnOpenNews" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Lire les nouveautés" FontWeight="SemiBold" />
+                        <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="11" Margin="8,3,0,0" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <Grid Grid.Row="1" Margin="40,0,26,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Realm -->
+                <Border Style="{StaticResource Card}" Width="250" Height="196" Padding="20,18" Margin="0,0,14,0">
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Text="ROYAUME" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Muted}" />
+                            <TextBlock Text="Evolutions" FontFamily="{StaticResource Display}" FontWeight="Bold"
+                                       FontSize="22" Margin="0,6,0,2" />
+                            <TextBlock Text="Wrath of the Lich King · 3.3.5a" FontSize="12"
+                                       Foreground="{StaticResource Muted}" />
+                        </StackPanel>
+                        <StackPanel VerticalAlignment="Bottom">
+                            <Border Height="1" Background="#14FFFFFF" Margin="0,0,0,14" />
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="12" Height="12" VerticalAlignment="Center">
+                                    <Ellipse x:Name="RealmHalo" Fill="{StaticResource Muted}" Opacity="0.25" />
+                                    <Ellipse x:Name="RealmDot" Width="8" Height="8" Fill="{StaticResource Muted}" />
+                                </Grid>
+                                <TextBlock x:Name="RealmState" Text="Vérification…" Margin="10,0,0,0"
+                                           FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock x:Name="RealmDetail" FontSize="11" Margin="22,3,0,0"
+                                       Foreground="{StaticResource Muted}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <ItemsControl x:Name="NewsCards" Grid.Column="1" ItemTemplate="{StaticResource NewsCard}"
+                              HorizontalAlignment="Right">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,-14,0" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </Grid>
+        </Grid>
+
+        <!-- News -->
+        <Grid x:Name="NewsPage" Grid.Column="1" Grid.Row="1" Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <TranslateTransform />
+            </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="Nouveautés" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="28"
+                       Margin="40,6,40,18" />
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="40,0,34,10">
+                <ItemsControl x:Name="NewsList" ItemTemplate="{StaticResource NewsEntry}" />
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Settings -->
+        <Grid x:Name="SettingsPage" Grid.Column="1" Grid.Row="1" Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <TranslateTransform />
+            </Grid.RenderTransform>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,6,34,10">
+                <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                    <TextBlock Text="Paramètres" FontFamily="{StaticResource Display}" FontWeight="Bold"
+                               FontSize="28" Margin="0,0,0,18" />
+
+                    <Border Style="{StaticResource Card}" Padding="22,18" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Dossier du jeu" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock x:Name="FolderText" Margin="0,4,0,0" Foreground="{StaticResource Muted}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="OpenFolderButton" Style="{StaticResource GhostButton}" Content="Ouvrir"
+                                        Click="OnOpenFolder" Margin="16,0,8,0" />
+                                <Button x:Name="ChangeFolderButton" Style="{StaticResource GhostButton}"
+                                        Content="Changer" Click="OnChangeFolder" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Padding="22,18" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Réparer le jeu" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Margin="0,4,0,0" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                                           Text="Vérifie chaque fichier du patch et retélécharge ce qui manque ou a été abîmé." />
+                            </StackPanel>
+                            <Button x:Name="RepairButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                    Content="Réparer" Click="OnRepair" Margin="16,0,0,0" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Padding="22,18" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Vider le cache" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Margin="0,4,0,0" Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                                           Text="Corrige les objets, sorts ou quêtes qui s'affichent mal en jeu. Le jeu le reconstruit tout seul." />
+                            </StackPanel>
+                            <Button x:Name="CacheButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+                                    Content="Vider" Click="OnClearCache" Margin="16,0,0,0" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <TextBlock x:Name="AboutText" Margin="2,10,0,0" FontSize="11" Foreground="{StaticResource Muted}" />
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Action bar -->
+        <Border Grid.Column="1" Grid.Row="2" BorderThickness="0,1,0,0">
+            <Border.BorderBrush>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#00E8BE60" Offset="0" />
+                    <GradientStop Color="#40E8BE60" Offset="0.7" />
+                    <GradientStop Color="#00E8BE60" Offset="1" />
+                </LinearGradientBrush>
+            </Border.BorderBrush>
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#C0080A0F" Offset="0" />
+                    <GradientStop Color="#F2080A0F" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid Margin="40,0,32,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,36,0">
+                    <Grid>
+                        <TextBlock x:Name="StatusText" FontSize="14" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock x:Name="DetailText" HorizontalAlignment="Right" FontSize="12"
+                                   Foreground="{StaticResource Muted}" />
+                    </Grid>
+                    <Grid x:Name="ProgressTrack" Height="6" Margin="0,12,0,0">
+                        <Border CornerRadius="3" Background="#1AFFFFFF" />
+                        <Border x:Name="ProgressFill" CornerRadius="3" HorizontalAlignment="Left" Width="0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#FFB9762A" Offset="0" />
+                                    <GradientStop Color="#FFF8DB8B" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect Color="#E8BE60" BlurRadius="12" ShadowDepth="0" Opacity="0.8" />
+                            </Border.Effect>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+                <Button x:Name="PlayButton" Grid.Column="1" Style="{StaticResource PlayButton}" Width="236" Height="60"
+                        IsEnabled="False" Click="OnPlay">
+                    <TextBlock x:Name="PlayText" Text="JOUER" FontFamily="{StaticResource Display}" FontWeight="Bold"
+                               FontSize="22" />
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

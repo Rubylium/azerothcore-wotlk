@@ -1,0 +1,23 @@
+[
+  {
+    "Title": "Le Pestiféré arrive en Azeroth",
+    "Date": "2026-09-18",
+    "Tag": "Nouvelle classe",
+    "Image": "icecrown",
+    "Body": "Une nouvelle classe jouable fait son apparition : le Pestiféré, un tank qui porte la peste en lui. Accumulez les maladies sur vos ennemis, laissez la contagion se répandre, puis déclenchez Détonation pour tout faire exploser."
+  },
+  {
+    "Title": "Donjons avec compagnons",
+    "Date": "2026-09-17",
+    "Tag": "Donjons",
+    "Image": "ulduar",
+    "Body": "L'outil Donjons complète votre groupe avec des compagnons contrôlés par le serveur. Choisissez votre rôle, lancez la recherche et partez à l'aventure, même seul. Un suivi de progression façon retail vous guide boss après boss."
+  },
+  {
+    "Title": "Bienvenue sur Evolutions",
+    "Date": "2026-09-16",
+    "Tag": "Serveur",
+    "Image": "wintergrasp",
+    "Body": "Le launcher installe et tient à jour tout ce dont le jeu a besoin : l'interface du serveur, DragonUI, Details et les correctifs du client. Cliquez sur Jouer, il s'occupe du reste."
+  }
+]

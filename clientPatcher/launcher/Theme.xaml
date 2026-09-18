@@ -1,0 +1,36 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <FontFamily x:Key="Display">pack://application:,,,/Evolutions;component/Assets/Fonts/#Cinzel</FontFamily>
+
+    <SolidColorBrush x:Key="Base" Color="#FF080A0F" />
+    <SolidColorBrush x:Key="Text" Color="#FFF2EEE6" />
+    <SolidColorBrush x:Key="Soft" Color="#FFC9C4BA" />
+    <SolidColorBrush x:Key="Muted" Color="#FF8D93A0" />
+    <SolidColorBrush x:Key="Gold" Color="#FFE8BE60" />
+    <SolidColorBrush x:Key="GoldLight" Color="#FFF8DB8B" />
+    <SolidColorBrush x:Key="Online" Color="#FF4ADE80" />
+    <SolidColorBrush x:Key="Offline" Color="#FFEF5A4A" />
+    <LinearGradientBrush x:Key="GoldBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FFF8DB8B" Offset="0" />
+        <GradientStop Color="#FFD49A45" Offset="1" />
+    </LinearGradientBrush>
+
+    <Style TargetType="ToolTip">
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Placement" Value="Right" />
+        <Setter Property="HorizontalOffset" Value="8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border CornerRadius="6" Background="#F0151922" BorderBrush="#26FFFFFF" BorderThickness="1"
+                            Padding="10,6">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>
