@@ -436,6 +436,7 @@ void AddStatGrowthScripts()
     AddGladiatorStanceScripts();
     AddVictoryRushScripts();
     AddQuickTravelScripts();
+    AddDungeonFinderLockScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
     new StatGrowthUnitScript();

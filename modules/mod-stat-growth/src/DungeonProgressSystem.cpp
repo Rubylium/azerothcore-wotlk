@@ -4,13 +4,16 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "InstanceScript.h"
+#include "LFGMgr.h"
 #include "Map.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -119,4 +122,152 @@ void OnDungeonProgressUnitDeath(Unit* unit)
         if (player && player->GetSession())
             SendProgressMessage(player, payload);
     });
+}
+
+// -----------------------------------------------------------------------------------------------------------------
+// Dungeon Finder gear locks
+// -----------------------------------------------------------------------------------------------------------------
+
+namespace
+{
+// The client only learns that a dungeon is locked and a reason code: a gear lock reads "get better gear" in a
+// tooltip, with no number, and a random dungeon is never locked itself - it only fails when joined, once the server
+// finds every dungeon in it locked. This tells the client's Dungeon Finder (DungeonFinderLocks.lua) both up front:
+//   G <tab> <average item level> <tab> <dungeon id>:<required average>,...
+//       the player's average as the Dungeon Finder computes it, and the requirement of every dungeon locked for
+//       gear; "g" continues the list when it does not fit one message
+//   R <tab> <random dungeon id> <tab> <lock reason>:<value>,...
+//       a random dungeon with no dungeon left to join, and why its dungeons are locked (the value is the lowest
+//       average item level required for a gear lock, 0 otherwise)
+constexpr std::string_view LockPrefix = "DungeonFinderLocks";
+constexpr std::size_t LockMessageMaxLength = 220;
+
+struct DungeonLock
+{
+    uint32 reason;
+    uint32 requiredItemLevel;
+};
+
+// Locks found while the Dungeon Finder evaluates a player, sent once it is done
+std::unordered_map<ObjectGuid, std::unordered_map<uint32 /*dungeon id*/, DungeonLock>> pendingLocks;
+
+void SendLockMessage(Player* player, std::string const& payload)
+{
+    WorldPacket packet;
+    std::string const message = std::string(LockPrefix) + '	' + payload;
+    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player, message);
+    player->GetSession()->SendPacket(&packet);
+}
+
+void SendGearLocks(Player* player, std::unordered_map<uint32, DungeonLock> const& locks)
+{
+    // Always sent, even empty: it also clears what an earlier evaluation reported
+    std::string const average = std::to_string(uint32(player->GetAverageItemLevelForDF()));
+    std::string payload = "G	" + average + '	';
+    std::size_t listed = 0;
+    for (auto const& [dungeonId, lock] : locks)
+    {
+        if (lock.reason != lfg::LFG_LOCKSTATUS_TOO_LOW_GEAR_SCORE)
+            continue;
+
+        std::string const entry = std::to_string(dungeonId) + ':' + std::to_string(lock.requiredItemLevel);
+        if (listed && payload.size() + entry.size() + 1 > LockMessageMaxLength)
+        {
+            SendLockMessage(player, payload);
+            payload = "g	" + average + '	';
+            listed = 0;
+        }
+
+        payload += (listed ? "," : "") + entry;
+        ++listed;
+    }
+    SendLockMessage(player, payload);
+}
+
+// A random dungeon the player may pick but cannot join: every dungeon it draws from is locked
+void SendBlockedRandomDungeons(Player* player, std::unordered_map<uint32, DungeonLock> const& locks)
+{
+    for (uint32 entry : sLFGMgr->GetRandomAndSeasonalDungeons(player->GetLevel(), player->GetSession()->Expansion()))
+    {
+        // The set holds packed entries (dungeon id | type << 24): the lookups and the client use the plain id
+        uint32 const randomId = entry & 0x00FFFFFF;
+        lfg::LfgDungeonSet const& dungeons = sLFGMgr->GetDungeonsByRandom(randomId);
+        if (dungeons.empty())
+            continue;
+
+        // Lock reason -> lowest average item level required (gear locks only)
+        std::map<uint32, uint32> reasons;
+        bool joinable = false;
+        for (uint32 dungeonId : dungeons)
+        {
+            auto const lock = locks.find(dungeonId);
+            if (lock == locks.end())
+            {
+                joinable = true;
+                break;
+            }
+
+            auto const [reason, inserted] = reasons.emplace(lock->second.reason, lock->second.requiredItemLevel);
+            if (!inserted && lock->second.requiredItemLevel < reason->second)
+                reason->second = lock->second.requiredItemLevel;
+        }
+
+        if (joinable)
+            continue;
+
+        std::string payload = "R	" + std::to_string(randomId) + '	';
+        bool first = true;
+        for (auto const& [reason, requiredItemLevel] : reasons)
+        {
+            payload += (first ? "" : ",") + std::to_string(reason) + ':' + std::to_string(requiredItemLevel);
+            first = false;
+        }
+        SendLockMessage(player, payload);
+    }
+}
+
+class DungeonFinderLockGlobalScript : public GlobalScript
+{
+public:
+    DungeonFinderLockGlobalScript() : GlobalScript("DungeonFinderLockGlobalScript", {
+        GLOBALHOOK_ON_INITIALIZE_LOCKED_DUNGEONS,
+        GLOBALHOOK_ON_AFTER_INITIALIZE_LOCKED_DUNGEONS
+    }) { }
+
+    void OnInitializeLockedDungeons(Player* player, uint8& /*level*/, uint32& lockData,
+        lfg::LFGDungeonData const* dungeon) override
+    {
+        if (!player || !dungeon || !lockData)
+            return;
+
+        DungeonLock lock{ lockData, 0 };
+        if (lockData == lfg::LFG_LOCKSTATUS_TOO_LOW_GEAR_SCORE)
+        {
+            // The same requirement LFGMgr::InitializeLockedDungeons just compared the player's average against
+            DungeonProgressionRequirements const* requirements =
+                sObjectMgr->GetAccessRequirement(dungeon->map, Difficulty(dungeon->difficulty));
+            lock.requiredItemLevel = requirements ? requirements->reqItemLevel : 0;
+        }
+
+        pendingLocks[player->GetGUID()][dungeon->id] = lock;
+    }
+
+    void OnAfterInitializeLockedDungeons(Player* player) override
+    {
+        if (!player || !player->GetSession())
+            return;
+
+        std::unordered_map<uint32, DungeonLock> locks;
+        if (auto node = pendingLocks.extract(player->GetGUID()))
+            locks = std::move(node.mapped());
+
+        SendGearLocks(player, locks);
+        SendBlockedRandomDungeons(player, locks);
+    }
+};
+}
+
+void AddDungeonFinderLockScripts()
+{
+    new DungeonFinderLockGlobalScript();
 }
