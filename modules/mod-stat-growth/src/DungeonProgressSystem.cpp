@@ -44,7 +44,8 @@ uint32 GetCompletedMask(Map* map)
 {
     auto const tracked = trackedProgress.find(map->GetInstanceId());
     uint32 mask = tracked == trackedProgress.end() ? 0 : tracked->second;
-    if (InstanceScript const* script = map->GetInstanceScript())
+    InstanceMap const* instance = map->ToInstanceMap();
+    if (InstanceScript const* script = instance ? instance->GetInstanceScript() : nullptr)
         mask |= script->GetCompletedEncounterMask();
     return mask;
 }

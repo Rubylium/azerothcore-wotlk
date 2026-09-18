@@ -93,7 +93,8 @@ void BuildEquipmentCatalog()
 
 uint32 GetPreferredArmorSubclass(Player const* player)
 {
-    switch (player->getClass())
+    // A custom class wears the armor of the class it is built on (see mod-custom-classes)
+    switch (sObjectMgr->GetClassFormulaTemplate(player->getClass()))
     {
         case CLASS_MAGE:
         case CLASS_PRIEST:
@@ -152,7 +153,8 @@ int32 GetPhysicalStatScore(ItemTemplate const& itemTemplate, uint8 classId)
     int32 const rangedAttackPower = GetStatValue(itemTemplate, ITEM_MOD_RANGED_ATTACK_POWER);
     int32 score = stamina * 2 + attackPower + rangedAttackPower;
 
-    switch (classId)
+    // A custom class values the stats of the class it is built on (see mod-custom-classes)
+    switch (sObjectMgr->GetClassFormulaTemplate(classId))
     {
         case CLASS_ROGUE:
         case CLASS_HUNTER:

@@ -143,7 +143,7 @@ void HandleInstanceTravelAddonMessage(Player* player, uint32 language, std::stri
         return;
 
     LFGDungeonEntry const* dungeon = sLFGDungeonStore.LookupEntry(dungeonId);
-    AreaTriggerTeleport const* entrance = dungeon ? sObjectMgr->GetGoBackTrigger(dungeon->map) : nullptr;
+    AreaTriggerTeleport const* entrance = dungeon ? sObjectMgr->GetGoBackTrigger(dungeon->MapID) : nullptr;
     if (!entrance)
     {
         ChatHandler(player->GetSession()).SendSysMessage("That destination has no known entrance.");
@@ -153,7 +153,7 @@ void HandleInstanceTravelAddonMessage(Player* player, uint32 language, std::stri
     pendingDestinations[player->GetGUID().GetCounter()] = {
         WorldLocation(entrance->target_mapId, entrance->target_X, entrance->target_Y, entrance->target_Z,
             entrance->target_Orientation),
-        dungeon->name[0] ? dungeon->name[0] : "instance entrance" };
+        dungeon->Name[0] ? dungeon->Name[0] : "instance entrance" };
     player->CastSpell(player, QuickTravelSpell, false);
 }
 

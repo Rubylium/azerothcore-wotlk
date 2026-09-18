@@ -3,6 +3,7 @@
 #include "CharacterDatabase.h"
 #include "Creature.h"
 #include "EssenceTierSystem.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerSettings.h"
 #include "Random.h"
@@ -53,7 +54,9 @@ constexpr std::array<PermanentStat, 0> noStats = {};
 
 std::span<PermanentStat const> GetClassStats(uint8 classId)
 {
-    switch (classId)
+    // A custom class grows the stats of the class it is built on (see mod-custom-classes): the Pestiféré is a
+    // strength plate tank on Death Knight rules. Without this it matches no case and essences grant nothing.
+    switch (sObjectMgr->GetClassFormulaTemplate(classId))
     {
         case CLASS_WARRIOR:
             return warriorStats;

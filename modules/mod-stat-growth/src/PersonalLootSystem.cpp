@@ -119,7 +119,8 @@ uint8 GetCustomBonusIndex(PersonalLootAffix affix)
 std::vector<PersonalLootAffix> GetClassAffixPool(uint8 classId)
 {
     std::vector<PersonalLootAffix> pool;
-    switch (classId)
+    // A custom class rolls the affixes of the class it is built on (see mod-custom-classes)
+    switch (sObjectMgr->GetClassFormulaTemplate(classId))
     {
         case CLASS_WARRIOR:
         case CLASS_DEATH_KNIGHT:
