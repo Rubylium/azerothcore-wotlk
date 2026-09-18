@@ -10,8 +10,8 @@ const { Archive } = require('@jamiephan/stormlib');
 // - Data/patch-L.MPQ: the Shadowlands login screen assets (Patch-C.mpq of "Shadowlands character creator mix" by
 //   gongel, based on warfoll02's work, modification permitted) without its GlueXML (replaced by ours) and with
 //   the custom menu music from clientPatcher/vendor/music.
-// - With --test-class: Data/<locale>/patch-<locale>-Y.MPQ holding the local custom class test DBCs (never shipped).
-// Usage: node buildInterfacePatch.js [--client <path>] [--test-class]
+// Custom classes come from localTools/customClasses (run buildCustomClasses.py first).
+// Usage: node buildInterfacePatch.js [--client <path>]
 
 const argv = process.argv.slice(2);
 const option = (name) => {
@@ -33,8 +33,10 @@ if (!locale) {
 }
 
 const tocName = 'Interface\\FrameXML\\FrameXML.toc';
-const retailFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
-    'DungeonTracker.lua'];
+const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
+    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'CustomClasses.lua', 'CustomClassesUI.lua'];
+const glueXmlFiles = ['CustomClasses.lua', 'CustomClassesGlue.lua'];
+const glueTocName = 'Interface' + String.fromCharCode(92) + 'GlueXML' + String.fromCharCode(92) + 'GlueXML.toc';
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);
@@ -54,16 +56,16 @@ function readArchiveFile(archivePath, name) {
 }
 
 // The stock toc as the client loads it: the highest-priority stock locale archive that has one
-function readStockToc() {
+function readStockToc(name = tocName) {
     const archives = [`patch-${locale}-3.MPQ`, `patch-${locale}-2.MPQ`, `patch-${locale}.MPQ`, `locale-${locale}.MPQ`];
-    for (const name of archives) {
-        const archivePath = path.join(dataPath, locale, name);
-        const data = fs.existsSync(archivePath) ? readArchiveFile(archivePath, tocName) : null;
+    for (const archiveName of archives) {
+        const archivePath = path.join(dataPath, locale, archiveName);
+        const data = fs.existsSync(archivePath) ? readArchiveFile(archivePath, name) : null;
         if (data) {
             return data.toString('utf8');
         }
     }
-    throw new Error(`${tocName} not found in the ${locale} archives`);
+    throw new Error(`${name} not found in the ${locale} archives`);
 }
 
 function walk(root, relative = '') {
@@ -109,15 +111,24 @@ function writeArchive(outputPath, files) {
 }
 
 // --- patch-<locale>-R: interface ---
-const marker = '## add new modules above here';
-const stockToc = readStockToc();
-if (!stockToc.includes(marker)) {
-    throw new Error('Unexpected FrameXML.toc layout');
+function stageToc(label, stockName, marker, files) {
+    const stock = readStockToc(stockName);
+    if (!stock.includes(marker)) {
+        throw new Error(`Unexpected ${stockName} layout`);
+    }
+    const staged = path.join(os.tmpdir(), `${label}-${locale}.toc`);
+    fs.writeFileSync(staged, stock.replace(marker, `${files.join('\r\n')}\r\n\r\n${marker}`));
+    return staged;
 }
-const stagedToc = path.join(os.tmpdir(), `FrameXML-${locale}.toc`);
-fs.writeFileSync(stagedToc, stockToc.replace(marker, `${retailFiles.join('\r\n')}\r\n\r\n${marker}`));
+
+const frameXmlToc = stageToc('FrameXML', tocName, '## add new modules above here', frameXmlFiles);
+// The glue marker sits at the end of the list, so these load after CharacterCreate.xml declares the
+// class button template they build on
+const glueToc = stageToc('GlueXML', glueTocName, '## This Always Runs Last, Add New Items above it.',
+    glueXmlFiles);
 writeArchive(path.join(dataPath, locale, `patch-${locale}-R.MPQ`),
-    [{ source: stagedToc, archive: tocName }, ...walk(interfaceRoot)]);
+    [{ source: frameXmlToc, archive: tocName }, { source: glueToc, archive: glueTocName },
+        ...walk(interfaceRoot)]);
 
 // --- patch-L: Shadowlands login screen assets + menu music ---
 // The mod ships 430 MB, most of it never loaded by 3.3.5 (Worgen/Goblin/Pandaria/allied race scenes, older
@@ -165,8 +176,12 @@ function buildShadowlandsPatch() {
         'Patch-C.mpq');
     const musicSource = path.join(vendorRoot, 'music', 'WotLK_main_title.mp3');
     const musicName = 'Sound\\Music\\GlueScreenMusic\\WotLK_main_title.mp3';
+    const classIconName = 'Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes.blp';
+    const classIconSource = path.join(interfaceRoot, ...classIconName.split('\\'));
+    const logoName = 'Interface\\Glues\\Common\\Glues-WoW-WotLKLogo.blp';
+    const logoSource = path.join(repoRoot, 'clientPatcher', 'assets', 'logo', 'Glues-WoW-WotLKLogo.blp');
     const replaced = new Set(['interface\\gluexml\\charactercreate.lua', 'interface\\gluexml\\charactercreate.xml',
-        'interface\\gluexml\\glueparent.lua']);
+        'interface\\gluexml\\glueparent.lua', classIconName.toLowerCase(), logoName.toLowerCase()]);
     if (fs.existsSync(musicSource)) {
         replaced.add(musicName.toLowerCase());
     }
@@ -191,11 +206,19 @@ function buildShadowlandsPatch() {
         };
 
         // Kept stock: the mod's Shadowlands login scene (the classic WotLK login screen stays)
-        const excludedFolders = ['interface\\glues\\models\\ui_mainmenu_northrend\\'];
+        const excludedFolders = [
+            'interface\\glues\\models\\ui_mainmenu_northrend\\',
+            // Restore the original 3.3.5 loading bar; the vendor version carries Way of Elendil branding.
+            'interface\\glues\\loadingbar\\',
+            // Restore all regular in-game buttons instead of globally replacing them with blue Glue art.
+            'interface\\buttons\\',
+        ];
         const reachable = new Set();
         const queue = [];
         const mark = (lower) => {
-            if (excludedFolders.some((folder) => lower.startsWith(folder))) {
+            const isGlueButton = lower.startsWith('interface\\glues\\common\\') && lower.includes('button');
+            const isSharedGlueButton = lower.startsWith('interface\\common\\glues-bigbutton-');
+            if (excludedFolders.some((folder) => lower.startsWith(folder)) || isGlueButton || isSharedGlueButton) {
                 return;
             }
             if (names.has(lower) && !reachable.has(lower) && !replaced.has(lower)) {
@@ -246,6 +269,14 @@ function buildShadowlandsPatch() {
         if (fs.existsSync(musicSource)) {
             files.push({ source: musicSource, archive: musicName });
         }
+        if (!fs.existsSync(classIconSource)) {
+            throw new Error(`Missing custom class icon atlas: ${classIconSource}`);
+        }
+        files.push({ source: classIconSource, archive: classIconName });
+        if (!fs.existsSync(logoSource)) {
+            throw new Error(`Missing compiled Evolutions logo: ${logoSource}`);
+        }
+        files.push({ source: logoSource, archive: logoName });
         console.log(`Shadowlands assets: ${reachable.size} of ${names.size} files are used by the client`);
         writeArchive(path.join(dataPath, 'patch-L.MPQ'), files);
     } finally {
@@ -255,11 +286,3 @@ function buildShadowlandsPatch() {
 }
 
 buildShadowlandsPatch();
-
-// --- patch-<locale>-Y: local custom class test data only ---
-const testClassPath = path.join(dataPath, locale, `patch-${locale}-Y.MPQ`);
-if (argv.includes('--test-class')) {
-    writeArchive(testClassPath, walk(path.join(vendorRoot, 'testclass')));
-} else if (fs.existsSync(testClassPath)) {
-    console.log(`Left in place: ${testClassPath} (custom class test data, not part of the friend patch)`);
-}

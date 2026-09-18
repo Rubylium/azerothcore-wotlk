@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: Details Custom Classes
+## Notes: Teaches Details about the server's custom classes, so its bars do not error on them.
+## Author: TestWoW
+## Version: 1.0.0
+## Dependencies: Details
+
+DetailsCustomClasses.lua

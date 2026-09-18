@@ -124,7 +124,10 @@ end
 
 local function modernizeCloseButton(button, holder)
     if not button then return end
-    button:SetParent(holder.top)
+    -- Never reparent it: UIPanelCloseButton closes with HideUIPanel(self:GetParent()), so a button moved
+    -- onto our chrome would hide the chrome and leave the window open. Anchoring works across parents;
+    -- the frame level is what keeps it above the new artwork.
+    button:SetFrameLevel(holder.top:GetFrameLevel() + 2)
     button:SetWidth(24)
     button:SetHeight(24)
     button:ClearAllPoints()

@@ -5,6 +5,9 @@ const path = require('path');
 function getPatchFiles(repoRoot) {
     const dbcRoot = path.join(repoRoot, 'server', 'Data', 'dbc');
     const iconRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled');
+    const pestifereIconRoot = path.join(repoRoot, 'modules', 'mod-pestifere', 'client-assets', 'compiled', 'icons');
+    const pestifereTalentRoot = path.join(repoRoot, 'modules', 'mod-pestifere', 'client-assets', 'compiled',
+        'talentframe');
 
     const files = [
         'Spell.dbc', 'SkillLineAbility.dbc', 'SpellIcon.dbc', 'SpellVisual.dbc', 'SpellVisualKit.dbc', 'SoundEntries.dbc',
@@ -15,6 +18,14 @@ function getPatchFiles(repoRoot) {
 
     for (const name of fs.readdirSync(iconRoot).filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
         files.push({ source: path.join(iconRoot, name), archive: `Interface\\Icons\\${name}` });
+    }
+    for (const name of fs.readdirSync(pestifereIconRoot)
+        .filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
+        files.push({ source: path.join(pestifereIconRoot, name), archive: `Interface\\Icons\\${name}` });
+    }
+    for (const name of fs.readdirSync(pestifereTalentRoot)
+        .filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
+        files.push({ source: path.join(pestifereTalentRoot, name), archive: `Interface\\TalentFrame\\${name}` });
     }
 
     const soundRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'sounds');

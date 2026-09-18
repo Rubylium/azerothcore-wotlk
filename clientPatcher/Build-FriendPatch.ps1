@@ -2,7 +2,9 @@ param(
     [string]$version,
     [string]$clientPath = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK',
     # Package the current patch-Z.MPQ as is, without regenerating the spell data first
-    [switch]$skipSpellData
+    [switch]$skipSpellData,
+    # awesome_wotlk (github.com/Rubylium/awesome_wotlk), built: MSDF font rendering and client fixes
+    [string]$awesomeWotlkPath = 'C:\Users\alexi\Documents\GitHub\awesome_wotlk'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +42,7 @@ if (-not $skipSpellData) {
 
     Write-Host 'Compiling custom icons...'
     & (Join-Path $repoRoot 'localTools\buildRogueClientAssets.ps1')
+    & (Join-Path $repoRoot 'localTools\buildPestifereClientAssets.ps1')
 
     Write-Host 'Patching spell data...'
     & (Join-Path $repoRoot 'localTools\patchSinisterStrike.ps1')
@@ -70,8 +73,37 @@ if (-not $skipSpellData) {
     }
 }
 
+# Custom playable classes: regenerates the class DBCs (client copies land in clientPatcher/interface, server
+# copies in the worldserver dbc folder), the world SQL and the client class table used by the interface files.
+Write-Host 'Generating custom classes...'
+& python (Join-Path $repoRoot 'localTools\customClasses\buildCustomClasses.py') --client $clientPath | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "Custom class generation failed (exit $LASTEXITCODE)."
+}
+
+# Every change made to Wow.exe, applied by the installer through Patch-WowExe.ps1: the awesome_wotlk loader (its
+# bytes read from the fork's Patch.h) and the Dungeon Finder roles of the custom classes
+Write-Host 'Generating the Wow.exe patches...'
+& python (Join-Path $repoRoot 'localTools\clientExe\buildWowExePatch.py') --awesome-wotlk $awesomeWotlkPath | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "Wow.exe patch generation failed (exit $LASTEXITCODE)."
+}
+
+# The custom classes' icons, painted into Details' class icon sheet (it has no cell for a class it does not know)
+Write-Host 'Painting custom class icons for Details...'
+& python (Join-Path $repoRoot 'localTools\interface\buildDetailsClassIcons.py') --client $clientPath | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "Details class icon generation failed (exit $LASTEXITCODE)."
+}
+
 # Interface patches: RetailUI windows + Shadowlands character creation (patch-<locale>-R) and the Shadowlands
 # login screen assets with the custom menu music (patch-L). Built straight into the client folder.
+Write-Host 'Compiling Evolutions Glue-screen logo...'
+& python (Join-Path $repoRoot 'localTools\interface\buildGlueLogo.py') | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "Evolutions logo build failed (exit $LASTEXITCODE)."
+}
+
 Write-Host 'Building interface patches...'
 Push-Location (Join-Path $repoRoot 'localTools\mpq-builder')
 try {
@@ -96,18 +128,61 @@ $sources = @(
     'Data\patch-Z.MPQ',
     'Interface\AddOns\DungeonBots',
     'Interface\AddOns\PersonalLoot',
+    # Registers the custom classes with Details, which errors on every bar for a class it does not know
+    'Interface\AddOns\DetailsCustomClasses',
+    # The interface the server is played with: DragonUI, and Details with its plugins (as installed in the client)
+    'Interface\AddOns\DragonUI',
+    'Interface\AddOns\DragonUI_Options',
+    'Interface\AddOns\Details',
+    'Interface\AddOns\Details_3DModelsPaths',
+    'Interface\AddOns\Details_ChartViewer',
+    'Interface\AddOns\Details_DataStorage',
+    'Interface\AddOns\Details_DeathGraphs',
+    'Interface\AddOns\Details_EncounterDetails',
+    'Interface\AddOns\Details_SunderCount',
+    'Interface\AddOns\Details_TimeLine',
+    'Interface\AddOns\Details_TinyThreat',
+    # Details' class icon sheets with the custom classes painted in. Listed after the Details folder, so these
+    # replace its stock sheets in the package
+    'Interface\AddOns\Details\images\classes_small.tga',
+    'Interface\AddOns\Details\images\classes_small_bw.tga',
+    'Interface\AddOns\Details\images\classes_small_alpha.tga',
+    'Interface\AddOns\Details\images\classes_small_alpha_bw.tga',
     # WDM-patch 2.4.5 (Trimitor, github.com/Trimitor/WDM-patch): built-in world map (M) for Classic and TBC
     # instances. Client-only map data and textures; it touches none of the DBCs in patch-Z.MPQ
     'Data\frFR\patch-frFR-M.MPQ',
     # RetailUI window chrome and the Shadowlands character creation screen with retail round icons
     'Data\frFR\patch-frFR-R.MPQ',
     # Shadowlands login screen assets (gongel / warfoll02) and the custom menu music
-    'Data\patch-L.MPQ'
+    'Data\patch-L.MPQ',
+    # awesome_wotlk: loaded by Wow.exe once Patch-WowExe.ps1 has patched it in. skia.dll is its renderer and
+    # must sit next to it, or the library does not load at all.
+    'AwesomeWotlkLib.dll',
+    'skia.dll'
 )
 
+# Files built outside this repository ship from where they are built, never from a client folder
+$externalSources = @{
+    'AwesomeWotlkLib.dll' = Join-Path $awesomeWotlkPath 'build\Release\AwesomeWotlkLib.dll'
+    'skia.dll' = Join-Path $awesomeWotlkPath 'deps\skia\skia.dll'
+}
+
+$repoAddonPath = Join-Path $patcherRoot 'addons'
 foreach ($relativePath in $sources) {
+    $repoSourcePath = Join-Path $repoAddonPath ($relativePath -replace '^Interface\\AddOns\\', '')
     $sourcePath = if ($relativePath -eq 'Data\patch-Z.MPQ') {
         $packageMpqPath
+    }
+    elseif ($externalSources.ContainsKey($relativePath)) {
+        $externalSources[$relativePath]
+    }
+    elseif ($relativePath -like 'Interface\AddOns\*' -and (Test-Path -LiteralPath $repoSourcePath) -and
+        ((Test-Path -LiteralPath $repoSourcePath -PathType Leaf) -or
+         (Get-ChildItem -LiteralPath $repoSourcePath -Filter '*.toc' -File))) {
+        # Addons and single addon files kept in the repository ship from there; the client copy is only for local
+        # testing. A repository folder without a .toc (addons\Details only holds the painted icon sheets) is not an
+        # addon: the addon itself comes from the client.
+        $repoSourcePath
     }
     else {
         Join-Path $clientPath $relativePath

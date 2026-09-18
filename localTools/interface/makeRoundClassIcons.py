@@ -10,7 +10,9 @@ Each portrait is cut to a circle and framed by the retail metal ring, laid out o
 the creation screen (same cells as RACE_ICON_TCOORDS / CLASS_ICON_TCOORDS). Output: 32-bit top-left TGA.
 """
 import csv
+import json
 import os
+import struct
 import sys
 
 from PIL import Image, ImageChops, ImageDraw
@@ -20,7 +22,11 @@ from blp import read_blp  # noqa: E402
 
 TEMP = os.environ['TEMP']
 RETAIL = os.path.join(TEMP, 'claude', 'retail')
-OUT = os.path.join(TEMP, 'claude', 'spike', 'payload', 'Interface', 'Glues', 'CharacterCreate')
+PREVIEWS = os.path.join(TEMP, 'claude', 'previews')
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(REPO, 'clientPatcher', 'interface', 'Interface', 'Glues', 'CharacterCreate')
+CLASS_DEFINITIONS = os.path.join(REPO, 'localTools', 'customClasses', 'classes.json')
+CLASS_ART = os.path.join(REPO, 'localTools', 'interface', 'assets', 'classes')
 
 CELL = 128
 GLOW_SCALE = 1.36  # glow textures are drawn 1.36x the button size in the XML
@@ -51,6 +57,31 @@ def write_tga(image, path):
     with open(path, 'wb') as file:
         file.write(header)
         file.write(Image.merge('RGBA', (b, g, r, a)).tobytes())
+
+
+def write_blp2(image, path):
+    """Writes an 8-bit paletted BLP2 with a separate 8-bit alpha plane (supported by WotLK 3.3.5a)."""
+    image = image.convert('RGBA')
+    width, height = image.size
+    quantized = image.convert('RGB').quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+    rgb_palette = quantized.getpalette()[:256 * 3]
+    palette = bytearray()
+    for index in range(256):
+        red, green, blue = rgb_palette[index * 3:index * 3 + 3]
+        palette.extend((blue, green, red, 255))
+
+    indices = quantized.tobytes()
+    alpha = image.getchannel('A').tobytes()
+    header_size = 148 + len(palette)
+    offsets = [header_size] + [0] * 15
+    sizes = [len(indices) + len(alpha)] + [0] * 15
+    header = struct.pack('<4sIBBBBII16I16I', b'BLP2', 1, 1, 8, 0, 0, width, height, *offsets, *sizes)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as file:
+        file.write(header)
+        file.write(palette)
+        file.write(indices)
+        file.write(alpha)
 
 
 def square_canvas(image):
@@ -114,7 +145,7 @@ def build_grid(target_name, columns, rows, cells):
     for (column, row), icon in cells.items():
         image.alpha_composite(icon, (column * CELL, row * CELL))
     write_tga(image, os.path.join(OUT, target_name + '.tga'))
-    image.save(os.path.join(TEMP, 'claude', 'spike', 'previews', target_name + '.png'))
+    image.save(os.path.join(PREVIEWS, target_name + '.png'))
 
 
 def glow_texture(source, name, tint=None, opacity=1.0):
@@ -134,7 +165,7 @@ def glow_texture(source, name, tint=None, opacity=1.0):
     if opacity < 1.0:
         texture.putalpha(texture.getchannel('A').point(lambda v: int(v * opacity)))
     write_tga(texture, os.path.join(OUT, name + '.tga'))
-    texture.save(os.path.join(TEMP, 'claude', 'spike', 'previews', name + '.png'))
+    texture.save(os.path.join(PREVIEWS, name + '.png'))
 
 
 CLASS_CELLS = {  # CLASS_ICON_TCOORDS cells (4x4 grid)
@@ -144,15 +175,47 @@ CLASS_CELLS = {  # CLASS_ICON_TCOORDS cells (4x4 grid)
     # Placeholder art for custom classes until each has its own icon
     'demonhunter': (2, 2), 'monk': (3, 2), 'evoker': (0, 3),
 }
+
+
+def class_art():
+    """Loads stock art and replaces cells with token-matched custom class art when available."""
+    art = {cell: atlas('classicon-' + name).convert('RGBA') for name, cell in CLASS_CELLS.items()}
+    with open(CLASS_DEFINITIONS, encoding='utf8') as file:
+        definitions = json.load(file)['classes']
+    for definition in definitions:
+        token = definition['token'].lower()
+        art_path = os.path.join(CLASS_ART, token + '.png')
+        if not os.path.exists(art_path):
+            print('warning: custom class icon not found:', art_path)
+            continue
+        cell = tuple(definition['iconCell'])
+        art[cell] = Image.open(art_path).convert('RGBA')
+        print('custom class icon:', definition['name'], '-> cell', cell)
+    return art
+
+
+def build_class_textures():
+    art = class_art()
+    build_grid('RoundClasses', 4, 4, {cell: round_icon(image) for cell, image in art.items()})
+
+    cell_size = 64
+    plain = Image.new('RGBA', (4 * cell_size, 4 * cell_size), (0, 0, 0, 0))
+    for (column, row), image in art.items():
+        plain.alpha_composite(image.resize((cell_size, cell_size), Image.LANCZOS),
+                              (column * cell_size, row * cell_size))
+    name = 'UI-CharacterCreate-Classes'
+    write_blp2(plain, os.path.join(OUT, name + '.blp'))
+    plain.save(os.path.join(PREVIEWS, name + '.png'))
+
+
 RACE_COLUMNS = {  # RACE_ICON_TCOORDS cells (8x4 grid): rows male alliance, male horde, female alliance, female horde
     'human': (0, 0), 'dwarf': (1, 0), 'gnome': (2, 0), 'nightelf': (3, 0), 'draenei': (4, 0),
     'tauren': (0, 1), 'undead': (1, 1), 'troll': (2, 1), 'orc': (3, 1), 'bloodelf': (4, 1),
 }
 
 if __name__ == '__main__':
-    os.makedirs(os.path.join(TEMP, 'claude', 'spike', 'previews'), exist_ok=True)
-    build_grid('RoundClasses', 4, 4, {cell: round_icon(atlas('classicon-' + name))
-                                      for name, cell in CLASS_CELLS.items()})
+    os.makedirs(PREVIEWS, exist_ok=True)
+    build_class_textures()
     races = {}
     for name, (column, row) in RACE_COLUMNS.items():
         races[(column, row)] = round_icon(atlas('raceicon128-' + name + '-male'))

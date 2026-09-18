@@ -89,6 +89,11 @@ foreach ($file in $manifest.files) {
     }
 }
 
+# Wow.exe itself needs two changes: the awesome_wotlk loader, which loads AwesomeWotlkLib.dll (MSDF fonts and client
+# fixes, copied above), and the Dungeon Finder roles of the custom classes, without which the client offers a
+# custom class no role and refuses to queue it. The original Wow.exe is kept in the backup folder.
+& (Join-Path $PSScriptRoot 'Patch-WowExe.ps1') -ClientPath $clientPath -BackupPath $backupPath
+
 $localePattern = '^(enUS|enGB|frFR|deDE|esES|esMX|ruRU|koKR|zhCN|zhTW)$'
 $localeFolders = Get-ChildItem -LiteralPath (Join-Path $clientPath 'Data') -Directory | Where-Object { $_.Name -match $localePattern }
 if (-not $localeFolders) {
@@ -118,7 +123,7 @@ foreach ($addonName in $removedAddonNames) {
     }
 }
 
-$addonNames = @('DungeonBots', 'PersonalLoot')
+$addonNames = @('DungeonBots', 'PersonalLoot', 'DetailsCustomClasses')
 Get-ChildItem -LiteralPath (Join-Path $clientPath 'WTF') -Filter 'AddOns.txt' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
     $lines = @(Get-Content -LiteralPath $_.FullName -ErrorAction SilentlyContinue)
     foreach ($addonName in $addonNames) {

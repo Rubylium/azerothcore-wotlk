@@ -13,3 +13,8 @@ Installation:
 
 The installer backs up every replaced file under _RubyEbonBackup inside the client folder.
 It does not include or install the original World of Warcraft client.
+
+Wow.exe is patched in place (the original copy goes to the backup folder) so that it loads
+AwesomeWotlkLib.dll: smooth vector font rendering and client fixes. The font renderer can be turned
+off in game with: /console MSDFMode 0
+Windows 10 or 11 is required for it.

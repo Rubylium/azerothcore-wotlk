@@ -82,8 +82,7 @@ CLASS_ICON_TCOORDS = {
 	["WARLOCK"]	= {0.75, 1.0, 0.25, 0.5},
 	["PALADIN"]	= {0, 0.25, 0.5, 0.75},
 	["DEATHKNIGHT"]	= {0.25, 0.5, 0.5, 0.75},
-	["ENGINEER"] = {0.25, 0.5, 0.5, 0.75},
-	["TESTCLASS"] = {0.5, 0.75, 0.5, 0.75}
+	["ENGINEER"] = {0.25, 0.5, 0.5, 0.75}
 };
 
 BANNER_DEFAULT_TEXTURE_COORDS = {0.109375, 0.890625, 0.201171875, 0.80078125};
@@ -1366,6 +1365,3 @@ end
 -- 	self:SetChecked(1);
 -- 	CharacterRace_OnClick(CharCreatePandarenFactionFrame.PandarenButton, CharCreatePandarenFactionFrame.PandarenButton:GetID(), true);
 -- end
--- Custom classes
-CLASS_TESTCLASS = "Classe de test.";
-CLASS_INFO_TESTCLASS0 = "- Classe de test";
