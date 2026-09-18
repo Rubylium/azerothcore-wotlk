@@ -44,3 +44,5 @@ data/sql/*    linguist-documentation
 *.node   binary
 *.dll    binary
 *.exe    binary
+*.ico    binary
+*.ttf    binary
