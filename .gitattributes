@@ -32,6 +32,7 @@ data/sql/*    linguist-documentation
 # Binary files must never be line-ending normalized
 *.png    binary
 *.jpg    binary
+*.gif    binary
 *.tga    binary
 *.blp    binary
 *.dbc    binary
