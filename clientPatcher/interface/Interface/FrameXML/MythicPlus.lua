@@ -488,11 +488,14 @@ proposal:SetPoint("CENTER", UIParent, "CENTER", 0, 90)
 proposal:SetFrameStrata("DIALOG")
 proposal:SetToplevel(true)
 proposal:EnableMouse(true)
+-- A solid ground under everything: retail's panel art fades out towards its top
 proposal:SetBackdrop({
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
     edgeSize = 32,
     insets = { left = 11, right = 12, top = 12, bottom = 11 },
 })
+proposal:SetBackdropColor(0.04, 0.04, 0.05, 1)
 proposal:Hide()
 tinsert(UISpecialFrames, "MythicPlusProposalFrame")
 
