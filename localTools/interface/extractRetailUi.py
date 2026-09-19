@@ -55,9 +55,40 @@ PIECES = {
     'ui-questtracker-secondary-objective-header-2x': (300, 30, False, False),
     'ui-questtracker-tracker-check-2x': (19, 19, False, False),
     'ui-questtracker-objective-nub-2x': (19, 19, False, False),
+    # Mythic+ (retail Challenge Mode): the Dungeon Finder tab, the keystone activation and the dungeon timer
+    'ChallengeMode-MainTabBg': (548, 397, False, False),
+    'ChallengeMode-DungeonIconFrame': (52, 52, False, False),
+    'ChallengeMode-ThinDivider': (365, 3, False, False),
+    'ChallengeMode-KeystoneSlotBG': (114, 114, False, False),
+    'ChallengeMode-KeystoneSlotFrame': (120, 120, False, False),
+    'ChallengeMode-KeystoneSlotFrameGlow': (120, 120, False, False),
+    'ChallengeMode-Runes-Large': (381, 381, False, False),
+    'ChallengeMode-Runes-GlowLarge': (392, 391, False, False),
+    'ChallengeMode-Runes-Small': (248, 248, False, False),
+    'ChallengeMode-Runes-BackgroundBurst': (300, 301, False, False),
+    'ChallengeMode-Runes-Shockwave': (206, 209, False, False),
+    'ChallengeMode-Timer': (261, 87, False, False),
+    'ChallengeMode-TimerBG': (223, 11, False, False),
+    'ChallengeMode-TimerFill': (223, 11, False, False),
+    'ChallengeMode-SpikeyStar': (200, 200, False, False),
+    'ChallengeMode-SoftYellowGlow': (206, 206, False, False),
+    'ChallengeMode-Chest': (175, 130, False, False),
+    'ChallengeMode-icon-chest': (19, 20, False, False),
+    'mythicplus-popup-ring': (77, 77, False, False),
 }
 # Whole-file tiling grounds: FileDataID -> output name
 FILES = {374155: 'ui-background-rock', 374154: 'ui-background-marble'}
+# Retail sounds: FileDataID -> path under clientPatcher/interface (Mythic+ keystone, countdown, timer, results)
+SOUNDS = {
+    633963: 'Sound/Interface/MythicPlus/KeystoneInsert.ogg',
+    633975: 'Sound/Interface/MythicPlus/DomeOpen.ogg',
+    7383351: 'Sound/Interface/MythicPlus/ChallengeStart.ogg',
+    567474: 'Sound/Interface/MythicPlus/CountdownTick.ogg',
+    567438: 'Sound/Interface/MythicPlus/CountdownEnd.ogg',
+    668957: 'Sound/Interface/MythicPlus/TimerWarning.ogg',
+    774376: 'Sound/Interface/MythicPlus/NewRecord.ogg',
+    648409: 'Sound/Interface/MythicPlus/TimeExpired.ogg',
+}
 
 
 def read_blp(path):
@@ -146,6 +177,11 @@ def main():
         write_tga(extract(args, file_data_id, work), os.path.join(OUTPUT_ROOT, 'RetailUI', output + '.tga'))
         lua.append('    ["%s"] = "%s%s",' % (output, TEXTURE_PATH.replace('\\', '\\\\'), output))
     lua.append('}')
+    for file_data_id, output in SOUNDS.items():
+        target = os.path.join(OUTPUT_ROOT, '..', *output.split('/'))
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        subprocess.run([args.tacttool, '-r', args.region, '-m', 'fdid', '-i', str(file_data_id), '-d', args.retail,
+                        '-o', target], check=True, capture_output=True)
     atlas_lua = os.path.join(OUTPUT_ROOT, 'FrameXML', 'RetailUIAtlas.lua')
     os.makedirs(os.path.dirname(atlas_lua), exist_ok=True)
     with open(atlas_lua, 'w', encoding='utf-8', newline='\n') as file:

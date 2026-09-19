@@ -23,15 +23,18 @@ namespace Evolutions
     public partial class MainWindow : Window
     {
         static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
-        static readonly string[] NewsImages = { "icecrown", "ulduar", "wintergrasp", "malygos", "argent", "ruby" };
+        static readonly string[] NewsImages = { "icecrown", "ulduar", "wintergrasp", "malygos", "argent", "ruby",
+            "raidfinder" };
 
         readonly Settings settings = Settings.Load();
         readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
         readonly bool selfUpdate;
         readonly DispatcherTimer realmTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        readonly AnimatedGifPlayer animatedBackdrop;
 
         Manifest manifest;
         bool busy;
+        bool launching;
         bool repairRequested;
         Action playAction;
         Stopwatch transferClock;
@@ -41,18 +44,42 @@ namespace Evolutions
             this.selfUpdate = selfUpdate;
             http.DefaultRequestHeaders.UserAgent.ParseAdd("Evolutions/" + Assembly.GetExecutingAssembly().GetName().Version);
             InitializeComponent();
+            animatedBackdrop = new AnimatedGifPlayer(BackdropFrames,
+                new Uri("pack://application:,,,/Evolutions;component/Assets/background-animated.gif"));
 
             SourceInitialized += (sender, args) => Dwm.Style(new WindowInteropHelper(this).Handle);
+            StateChanged += (sender, args) =>
+            {
+                if (WindowState == WindowState.Minimized)
+                    animatedBackdrop.Stop();
+                else
+                    animatedBackdrop.Start();
+            };
+            Closed += (sender, args) => animatedBackdrop.Dispose();
             realmTimer.Tick += async (sender, args) => await CheckRealmAsync();
             Loaded += async (sender, args) =>
             {
                 ShowNews(settings.News);
                 ShowVersion(settings.Version);
                 ShowSettings();
+                animatedBackdrop.Start();
+                _ = LoadAnimatedBackdropAsync();
                 realmTimer.Start();
                 await CheckRealmAsync();
                 await CheckAsync();
             };
+        }
+
+        async Task LoadAnimatedBackdropAsync()
+        {
+            try
+            {
+                await animatedBackdrop.LoadAsync();
+            }
+            catch (Exception)
+            {
+                // Keep the static JPG fallback when the animated resource cannot be decoded.
+            }
         }
 
         // Update ---------------------------------------------------------------------------------------------------
@@ -195,14 +222,60 @@ namespace Evolutions
 
         void OnPlay(object sender, RoutedEventArgs e) => playAction?.Invoke();
 
-        void Play()
+        async void Play()
         {
-            Process.Start(new ProcessStartInfo(Path.Combine(settings.GameFolder, "Wow.exe"))
+            if (launching)
+                return;
+
+            launching = true;
+            playAction = null;
+            PlayButton.IsHitTestVisible = false;
+            PlayText.Text = "LANCEMENT…";
+            LaunchSpinner.Visibility = Visibility.Visible;
+            LaunchSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360,
+                TimeSpan.FromMilliseconds(850))
             {
-                WorkingDirectory = settings.GameFolder,
-                UseShellExecute = false,
+                RepeatBehavior = RepeatBehavior.Forever,
             });
-            Close();
+            StatusText.Text = "Lancement de World of Warcraft…";
+            DetailText.Text = "Le client démarre, veuillez patienter.";
+
+            await Dispatcher.Yield(DispatcherPriority.Render);
+
+            try
+            {
+                Process game = Process.Start(new ProcessStartInfo(Path.Combine(settings.GameFolder, "Wow.exe"))
+                {
+                    WorkingDirectory = settings.GameFolder,
+                    UseShellExecute = false,
+                });
+                if (game == null)
+                    throw new InvalidOperationException("Windows n'a pas pu démarrer Wow.exe.");
+
+                DateTime timeout = DateTime.UtcNow.AddSeconds(8);
+                while (DateTime.UtcNow < timeout)
+                {
+                    await Task.Delay(100);
+                    game.Refresh();
+                    if (game.HasExited)
+                        throw new InvalidOperationException("Wow.exe s'est fermé pendant son démarrage.");
+                    if (game.MainWindowHandle != IntPtr.Zero)
+                    {
+                        await Task.Delay(250);
+                        break;
+                    }
+                }
+
+                Close();
+            }
+            catch (Exception exception)
+            {
+                launching = false;
+                LaunchSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                LaunchSpinner.Visibility = Visibility.Collapsed;
+                PlayButton.IsHitTestVisible = true;
+                SetState("Impossible de lancer World of Warcraft", exception.Message, "RÉESSAYER", Play);
+            }
         }
 
         // Game folder ----------------------------------------------------------------------------------------------

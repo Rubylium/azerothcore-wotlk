@@ -1,5 +1,7 @@
 -- Dungeon progress tracker: retail's objective tracker look for the boss list of the instance you are in.
 -- While it is shown it takes the quest tracker's place; the quest tracker returns when you leave the instance.
+-- The quest tracker is DragonUI's when that addon is on (it silences Blizzard's WatchFrame and shows its own at
+-- its own position), Blizzard's otherwise. The Mythic+ timer (MythicPlus.lua) claims the same place.
 -- Fed by the server (mod-stat-growth DungeonProgressSystem) over the "DungeonProgress" addon channel:
 --   STATE <encounterId>:<0|1> ...   boss list in order, 1 = defeated
 --   NONE                            not in an instance
@@ -66,23 +68,75 @@ local function acquireEntry(index)
     return entry
 end
 
--- The quest tracker keeps its position while hidden, so the dungeon tracker simply takes its place
-local function anchorTracker()
-    tracker:ClearAllPoints()
-    if WatchFrame then
-        tracker:SetPoint("TOPLEFT", WatchFrame, "TOPLEFT", 0, 0)
+-- The quest tracker keeps its position while hidden, so what takes its place anchors on it: DragonUI's tracker
+-- anchor (DragonUI_QuestTrackerFrame, moved by DragonUI's editor) or Blizzard's WatchFrame
+function DungeonTracker_AnchorToQuestArea(region)
+    region:ClearAllPoints()
+    if DragonUI_QuestTrackerFrame then
+        region:SetPoint("TOPRIGHT", DragonUI_QuestTrackerFrame, "TOPRIGHT", 0, 0)
+    elseif WatchFrame then
+        region:SetPoint("TOPLEFT", WatchFrame, "TOPLEFT", 0, 0)
     else
-        tracker:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -110, -220)
+        region:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -110, -220)
     end
 end
 
-local function setQuestTrackerShown(show)
-    if not WatchFrame then return end
-    if show then
-        WatchFrame:Show()
+local function anchorTracker()
+    -- Under the Mythic+ timer while it shows (MythicPlus.lua)
+    if MythicPlusTimerFrame and MythicPlusTimerFrame:IsShown() then
+        tracker:ClearAllPoints()
+        tracker:SetPoint("TOPRIGHT", MythicPlusTimerFrame, "BOTTOMRIGHT", -4, -8)
     else
-        WatchFrame:Hide()
+        DungeonTracker_AnchorToQuestArea(tracker)
     end
+end
+
+-- Who keeps the quest tracker hidden: the dungeon tracker, the Mythic+ timer
+local claims = {}
+local dragonHooked = false
+-- DragonUI wanted its tracker shown while we held the place: it comes back when we leave it
+local dragonWanted = false
+
+local function questTrackerHidden()
+    return next(claims) ~= nil
+end
+
+-- With DragonUI only its own tracker is hidden: it keeps Blizzard's WatchFrame running (invisible) for the quest
+-- POI buttons, and calling WatchFrame_Update from here would taint them
+local function applyQuestTracker()
+    local hidden = questTrackerHidden()
+    local dragon = DragonUIObjectiveTracker
+    if dragon and not dragonHooked then
+        -- DragonUI shows its tracker again on every quest update
+        dragonHooked = true
+        dragon:HookScript("OnShow", function(self)
+            if questTrackerHidden() then
+                dragonWanted = true
+                self:Hide()
+            end
+        end)
+    end
+
+    if dragon then
+        if hidden and dragon:IsShown() then
+            dragonWanted = true
+            dragon:Hide()
+        elseif not hidden and dragonWanted then
+            dragonWanted = false
+            dragon:Show()
+        end
+    elseif WatchFrame then
+        if hidden then WatchFrame:Hide() else WatchFrame:Show() end
+    end
+end
+
+function DungeonTracker_ClaimQuestArea(owner, claim)
+    claims[owner] = claim and true or nil
+    applyQuestTracker()
+end
+
+local function setQuestTrackerShown(show)
+    DungeonTracker_ClaimQuestArea("dungeon", not show)
 end
 
 local function layout(bosses)
@@ -167,6 +221,12 @@ end)
 -- Blizzard re-shows the quest tracker on quest and achievement updates
 if hooksecurefunc then
     hooksecurefunc("WatchFrame_Update", function()
-        if shown then setQuestTrackerShown(false) end
+        if questTrackerHidden() and WatchFrame and not DragonUIObjectiveTracker then WatchFrame:Hide() end
     end)
+end
+
+function DungeonTracker_UpdateAnchor()
+    if tracker then
+        anchorTracker()
+    end
 end

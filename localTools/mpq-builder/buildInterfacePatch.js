@@ -34,7 +34,8 @@ if (!locale) {
 
 const tocName = 'Interface\\FrameXML\\FrameXML.toc';
 const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
-    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'CustomClasses.lua', 'CustomClassesUI.lua'];
+    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'RaidFinder.lua', 'MythicPlus.lua', 'CombatLogFix.lua',
+    'CustomClasses.lua', 'CustomClassesUI.lua'];
 const glueXmlFiles = ['CustomClasses.lua', 'CustomClassesGlue.lua'];
 const glueTocName = 'Interface' + String.fromCharCode(92) + 'GlueXML' + String.fromCharCode(92) + 'GlueXML.toc';
 

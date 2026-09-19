@@ -133,6 +133,8 @@ $sources = @(
     # The interface the server is played with: DragonUI, and Details with its plugins (as installed in the client)
     'Interface\AddOns\DragonUI',
     'Interface\AddOns\DragonUI_Options',
+    # Retail-style raid frames (Blizzard's Compact Raid Frames backported to a stock 3.3.5a client)
+    'Interface\AddOns\CompactRaidFrame',
     'Interface\AddOns\Details',
     'Interface\AddOns\Details_3DModelsPaths',
     'Interface\AddOns\Details_ChartViewer',

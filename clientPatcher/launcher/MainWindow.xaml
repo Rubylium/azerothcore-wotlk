@@ -346,27 +346,41 @@
             <RowDefinition Height="104" />
         </Grid.RowDefinitions>
 
-        <!-- Backdrop: the art drifts slowly, darkened where text sits -->
-        <Image x:Name="Backdrop" Grid.ColumnSpan="2" Grid.RowSpan="3" Source="Assets/background.jpg"
-               Stretch="UniformToFill" VerticalAlignment="Top" RenderTransformOrigin="0.62,0.4">
-            <Image.RenderTransform>
-                <ScaleTransform x:Name="BackdropScale" ScaleX="1" ScaleY="1" />
-            </Image.RenderTransform>
-            <Image.Triggers>
+        <!-- Backdrop: slow parallax keeps the scene alive without moving the interface -->
+        <Viewbox x:Name="Backdrop" Grid.ColumnSpan="2" Grid.RowSpan="3" Stretch="UniformToFill"
+                 VerticalAlignment="Top" RenderTransformOrigin="0.62,0.4" ClipToBounds="True">
+            <Viewbox.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="BackdropScale" ScaleX="1.035" ScaleY="1.035" />
+                    <TranslateTransform x:Name="BackdropTranslate" />
+                </TransformGroup>
+            </Viewbox.RenderTransform>
+            <Canvas x:Name="BackdropFrames" Width="960" Height="600" ClipToBounds="True"
+                    RenderOptions.BitmapScalingMode="HighQuality">
+                <Image Source="Assets/background.jpg" Width="960" Height="600" Stretch="Fill"
+                       IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality" />
+            </Canvas>
+            <Viewbox.Triggers>
                 <EventTrigger RoutedEvent="Loaded">
                     <BeginStoryboard>
                         <Storyboard>
                             <DoubleAnimation Storyboard.TargetName="BackdropScale" Storyboard.TargetProperty="ScaleX"
-                                             From="1" To="1.07" Duration="0:0:40" AutoReverse="True"
+                                             From="1.035" To="1.075" Duration="0:0:28" AutoReverse="True"
                                              RepeatBehavior="Forever" />
                             <DoubleAnimation Storyboard.TargetName="BackdropScale" Storyboard.TargetProperty="ScaleY"
-                                             From="1" To="1.07" Duration="0:0:40" AutoReverse="True"
+                                             From="1.035" To="1.075" Duration="0:0:28" AutoReverse="True"
+                                             RepeatBehavior="Forever" />
+                            <DoubleAnimation Storyboard.TargetName="BackdropTranslate" Storyboard.TargetProperty="X"
+                                             From="-8" To="8" Duration="0:0:22" AutoReverse="True"
+                                             RepeatBehavior="Forever" />
+                            <DoubleAnimation Storyboard.TargetName="BackdropTranslate" Storyboard.TargetProperty="Y"
+                                             From="-3" To="5" Duration="0:0:31" AutoReverse="True"
                                              RepeatBehavior="Forever" />
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
-            </Image.Triggers>
-        </Image>
+            </Viewbox.Triggers>
+        </Viewbox>
         <Rectangle Grid.ColumnSpan="2" Grid.RowSpan="3" IsHitTestVisible="False">
             <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -392,7 +406,7 @@
         <Rectangle x:Name="Veil" Grid.ColumnSpan="2" Grid.RowSpan="3" Fill="#E0080A0F" Opacity="0"
                    IsHitTestVisible="False" />
 
-        <!-- The logo covers the spot where the art had its own -->
+        <!-- Server logo: shown on the home hero only; the old left-rail mark stays removed -->
         <Image x:Name="Logo" Grid.ColumnSpan="2" Grid.RowSpan="2" Source="Assets/logo.png" Width="340"
                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="448,30,0,0" IsHitTestVisible="False"
                RenderOptions.BitmapScalingMode="HighQuality">
@@ -404,18 +418,6 @@
         <!-- Rail -->
         <Border Grid.RowSpan="3" Background="#C0070910" BorderBrush="#12FFFFFF" BorderThickness="0,0,1,0">
             <DockPanel LastChildFill="False" Margin="0,14,0,18">
-                <Border DockPanel.Dock="Top" Width="46" Height="46" CornerRadius="12" Margin="0,0,0,22"
-                        BorderThickness="1" BorderBrush="#66E8BE60" MouseLeftButtonDown="OnDragWindow">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#FF3A2410" Offset="0" />
-                            <GradientStop Color="#FF120C08" Offset="1" />
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <Image Source="Assets/evolution-mark.png" Width="34" Height="34" Stretch="Uniform"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           RenderOptions.BitmapScalingMode="HighQuality" />
-                </Border>
                 <RadioButton x:Name="NavHome" DockPanel.Dock="Top" Style="{StaticResource NavButton}"
                              Content="&#xE80F;" ToolTip="Accueil" IsChecked="True" Checked="OnNavigate" />
                 <RadioButton x:Name="NavNews" DockPanel.Dock="Top" Style="{StaticResource NavButton}"
@@ -451,7 +453,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- Kept left of the logo whatever the title's length -->
+            <!-- Featured server news -->
             <StackPanel VerticalAlignment="Bottom" Margin="40,0,0,26" Width="320" HorizontalAlignment="Left">
                 <Border x:Name="FeaturedTag" Style="{StaticResource Tag}">
                     <TextBlock x:Name="FeaturedTagText" Text="À LA UNE" FontSize="11" FontWeight="SemiBold"
@@ -649,8 +651,19 @@
                 </StackPanel>
                 <Button x:Name="PlayButton" Grid.Column="1" Style="{StaticResource PlayButton}" Width="236" Height="60"
                         IsEnabled="False" Click="OnPlay">
-                    <TextBlock x:Name="PlayText" Text="JOUER" FontFamily="{StaticResource Display}" FontWeight="Bold"
-                               FontSize="22" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Grid x:Name="LaunchSpinner" Width="18" Height="18" Margin="0,0,10,0"
+                              VerticalAlignment="Center" Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <RotateTransform x:Name="LaunchSpinnerRotation" />
+                            </Grid.RenderTransform>
+                            <Ellipse Stroke="#553A2410" StrokeThickness="2" />
+                            <Path Data="M 9,1 A 8,8 0 0 1 17,9" Stroke="#FF3A2410" StrokeThickness="2.2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                        </Grid>
+                        <TextBlock x:Name="PlayText" Text="JOUER" FontFamily="{StaticResource Display}"
+                                   FontWeight="Bold" FontSize="22" />
+                    </StackPanel>
                 </Button>
             </Grid>
         </Border>
