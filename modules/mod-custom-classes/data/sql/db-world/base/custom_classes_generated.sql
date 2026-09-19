@@ -9,8 +9,8 @@ DELETE FROM `playercreateinfo_spell_custom` WHERE `classmask` IN (512, 4096, 819
 DELETE FROM `trainer` WHERE `Type` = 0 AND `Requirement` IN (10, 13, 14, 15);
 
 DELETE FROM `custom_class` WHERE `ClassId` IN (12);
-INSERT INTO `custom_class` (`ClassId`, `TemplateClass`, `InheritSpells`, `Roles`, `Name`, `Comment`) VALUES
-(12, 6, 0, 14, 'Pestiféré', 'Plague tank: carries its own diseases, spreads them, detonates them');
+INSERT INTO `custom_class` (`ClassId`, `TemplateClass`, `InheritSpells`, `Roles`, `StartLevel`, `Name`, `Comment`) VALUES
+(12, 6, 0, 14, 10, 'Pestiféré', 'Plague tank: carries its own diseases, spreads them, detonates them');
 
 -- Class 12 (Pestiféré), built on class 6
 DELETE FROM `playercreateinfo` WHERE `class` = 12;

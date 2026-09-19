@@ -89,51 +89,51 @@ $SPELLMOD_DAMAGE = 0; $SPELLMOD_DURATION = 1; $SPELLMOD_COOLDOWN = 11
 $customSpells = @(
     # --- Combat rogue: abilities ---
     @{ Id = 90010; Clone = 1752; Name = 'Quick Cut'; IconPath = 'Interface\Icons\RogueMomentum_QuickCut'; Cost = 20; Cooldown = 0; Level = 4; Spellbook = $true
-       Description = 'Requires Opening. Carve through the target for 175% damage and generate 2 combo points. Consumes Opening.'
+       Description = 'Requires Opening. Carve through the target for 175% weapon damage and generate 2 combo points. Consumes Opening. From level 30, your off-hand weapon strikes too, for half the damage.'
        Fields = @{ 20 = 9 }
        # Mutilate: twin stab animation, deep wound on the target
        Visual = @{ Clone = 7913 } },
     @{ Id = 90011; Clone = 36554; Name = 'Shadow Lunge'; IconPath = 'Interface\Icons\RogueMomentum_ShadowLunge'; Cost = 0; Cooldown = 12000; Level = 8; Spellbook = $true; ShadowLungeDamage = $true
-       Description = 'Step through the shadows to your target and strike for 150% weapon damage, generating a combo point. The cooldown resets when you kill an enemy.'
+       Description = 'Step through the shadows to your target and strike for 150% weapon damage, generating a combo point. The cooldown resets when you kill an enemy. From level 35 it grants Opening, and from level 60 it restores 10 Energy when used after a reset.'
        # Shadowstep smoke with a weapon swing, shadow slash on the target
        Visual = @{ Clone = 8262; Cast = 'ShadowLungeCast'; Impact = 6642 } },
     @{ Id = 90012; Clone = 14278; Name = 'Riposte'; IconPath = 'Interface\Icons\RogueMomentum_Riposte'; Cost = 10; Cooldown = 8000; Level = 10; Spellbook = $true
-       Description = 'Counterattack for 165% weapon damage and a combo point. Within 5 sec after you dodge or parry, Riposte strikes critically and grants an additional combo point.'
+       Description = 'Counterattack for 162% weapon damage and a combo point. Within 5 sec after you dodge or parry, Riposte deals double damage and grants an additional combo point. From level 45, it also increases your dodge chance by 15% for 7 sec.'
        # Devastate's glowing blades, then Mortal Strike's heavy wound
        Visual = @{ Clone = 12295; Cast = 11383; Impact = 437; TargetImpact = 0 } },
     @{ Id = 90100; Clone = 51723; Name = 'Crescent Slash'; Icon = 'CombatRogue_CrescentSlash'; Cost = 20; Cooldown = 0; Level = 14; Spellbook = $true; NoEquipment = $true
-       Description = 'Slash all enemies within 8 yards for 110% weapon damage and generate a combo point. Restores 2 Energy for each enemy hit, up to 8.'
+       Description = 'Slash all enemies within 8 yards for 110% weapon damage (125% from level 42) and generate a combo point. Restores 2 Energy for each enemy hit, up to 8. From level 62, hitting 3 or more enemies generates 2 combo points.'
        Fields = @{ 80 = 109; 92 = 18 }
        # Cleave: ground crescent under the rogue, slash on every enemy hit
        Visual = @{ Clone = 219; Impact = 'CrescentSlashImpact' } },
     @{ Id = 90017; Clone = 51723; Name = 'Crimson Sweep'; IconPath = 'Interface\Icons\RogueMomentum_CrimsonSweep'; Cost = 30; Cooldown = 6000; Level = 18; Spellbook = $true; NoEquipment = $true
-       Description = 'Sweep through all enemies within 8 yards for 60% weapon damage, apply Crimson Wounds for 6 sec and generate a combo point. Each Crimson Wounds tick restores 2 Energy. Consumes Opening to make the bleed last 10 sec and generate 2 combo points.'
+       Description = 'Sweep through all enemies within 8 yards for 60% weapon damage, apply Crimson Wounds for 6 sec and generate a combo point. Consumes Opening to make the bleed last 10 sec and generate 2 combo points. Crimson Wounds bleeds for 20% weapon damage every 2 sec, and each tick restores 2 Energy, up to 8 Energy every 2 sec. From level 40 it stacks up to 3 times, and from level 65 the cooldown is 4 sec.'
        Fields = @{ 80 = 59; 92 = 18 }
        # Blood-red glowing blades, blood burst on every enemy hit
        Visual = @{ Clone = 11117; Cast = 10971; Impact = 'CrimsonSweepImpact' } },
 
     # --- Combat rogue: finishers ---
     @{ Id = 90013; Clone = 5171; Name = 'Sanguine Veil'; IconPath = 'Interface\Icons\RogueMomentum_SanguineVeil'; Cost = 20; Cooldown = 0; Level = 16; Spellbook = $true
-       Description = 'Finishing move that shrouds you in a sanguine veil, healing you for 15% of all damage you deal. Lasts 6 sec per combo point. Consumes up to 30 extra Energy to last up to 50% longer.'
+       Description = 'Finishing move that shrouds you in a sanguine veil, healing you for 15% of all damage you deal (20% from level 60). Lasts 6 sec per combo point. Consumes up to 30 extra Energy to last up to 50% longer.'
        AuraDescription = 'Healing for a share of damage dealt.'
        Effects = @(@{ Index = 0; Aura = $A_Dummy }, @{ Index = 1; Aura = $A_ModDamagePercentTaken; BasePoints = 0; Misc = 127 })
        Fields = @{ 40 = 21; 209 = 0; 210 = 0; 211 = 0 }
        # Slice and Dice flourish, blood tap burst, red glowing hands while the veil lasts
        Visual = @{ Clone = 254; Cast = 416; Impact = 10285; State = 108 } },
     @{ Id = 90101; Clone = 51723; Name = 'Blood Waltz'; Icon = 'CombatRogue_BloodWaltz'; FallbackIconSpell = 46924; Cost = 30; Cooldown = 0; Level = 26; Spellbook = $true; NoEquipment = $true
-       Description = 'Finishing move that spins through all enemies within 8 yards, dealing 45% weapon damage per combo point to each, refreshing your Crimson Wounds on them and extending Battle Tempo by 1 sec per enemy hit. Consumes up to 30 extra Energy to deal up to 50% more damage.'
+       Description = 'Finishing move that spins through all enemies within 8 yards, dealing 45% weapon damage per combo point to each, refreshing your Crimson Wounds on them and extending Battle Tempo by 1 sec per enemy hit. Consumes up to 30 extra Energy to deal up to 50% more damage. From level 50, grants Opening at 5 combo points, and from level 75 reaches 2 yards further.'
        Fields = @{ 5 = 0x00100010; 80 = 44; 92 = 18 }
        # Whirlwind spin, blood strike slash on every enemy hit
        Visual = @{ Clone = 223; Cast = 369; Impact = 'BloodWaltzImpact' } },
     @{ Id = 90105; Clone = 51723; Name = 'Crimson Daggerfall'; Icon = 'CombatRogue_CrimsonDaggerfall'; FallbackIconSpell = 51723; Cost = 30; Cooldown = 15000; Level = 20; Spellbook = $true; NoEquipment = $true
-       Description = 'Finishing move that launches a storm of daggers at all enemies within 8 yards, dealing 60% weapon damage per combo point. Deals 30% more damage to enemies suffering from one of your damage-over-time effects. Consumes up to 30 extra Energy to deal up to 50% more damage. Improves at levels 45 and 70.'
+       Description = 'Finishing move that launches a storm of daggers at all enemies within 8 yards, dealing 60% weapon damage per combo point. Deals 30% more damage to enemies suffering from one of your damage-over-time effects. Consumes up to 30 extra Energy to deal up to 50% more damage. Your other finishing moves reduce its cooldown by 1 sec per combo point, and at 5 combo points have a 20% chance to rain a free Crimson Daggerfall. From level 45 it deals 70% weapon damage per combo point, and from level 70 50% more damage to enemies suffering from your damage-over-time effects.'
        Fields = @{ 5 = 0x00100010; 80 = 59; 92 = 18 }
        # A physical dagger missile reaches every affected enemy; its custom impact kit owns the randomized sound.
        Visual = @{ Clone = 14261; Impact = 'DaggerfallImpact' } },
 
     # --- Combat rogue: buffs, bleed and hidden support spells ---
     @{ Id = 90014; Clone = 2983; Name = 'Opening'; IconPath = 'Interface\Icons\RogueMomentum_Opening'; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 2; Spellbook = $false
-       Description = 'Quick Cut is available.'; AuraDescription = 'Quick Cut is available.' },
+       Description = 'Quick Cut is available. Stacks up to 2 times from level 55.'; AuraDescription = 'Quick Cut is available.' },
     @{ Id = 90015; Clone = 2983; Name = 'Battle Tempo'; IconPath = 'Interface\Icons\RogueMomentum_BattleTempo'; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 5; Spellbook = $false
        Description = 'Eviscerate grants 3% attack speed per combo point for 10 sec.'; AuraDescription = 'Attack speed increased.'
        Effects = @(@{ Index = 0; Aura = $A_ModMeleeHaste; Value = 3 }) },
@@ -171,7 +171,7 @@ $customSpells = @(
     # Behaviour lives in modules/mod-pestifere; the rows below are the data those scripts hang on.
     # Rage costs are stored tenfold (200 = 20 rage).
     @{ Id = 90200; Clone = 12294; Name = 'Frappe putride'; Icon = 'Pestifere_FrappePutride'; FallbackIconSpell = 45462; Cost = 0; Cooldown = 3000; Level = 1; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Frappe la cible pour 110% des dégâts de votre arme, applique une charge de Pourriture et vous rend 10 points de rage.'
+       Description = 'Frappe la cible pour 110% des dégâts de votre arme, applique une charge de Pourriture et vous rend 10 points de rage. La Pourriture inflige toutes les 3 sec 1% des points de vie maximum de la cible par charge, jusqu''à 6 charges.'
        # Effect 2: apply a stack of Pourriture. Effect 3: the rage it pays back.
        Fields = @{ 71 = 121; 74 = 0; 80 = 5; 86 = 6; 95 = 0;
                    72 = 64; 75 = 0; 87 = 6; 117 = 90205;
@@ -179,21 +179,21 @@ $customSpells = @(
        Visual = @{ Clone = 11624 } },
     @{ Id = 90205; Clone = 55078; Name = 'Pourriture'; Icon = 'Pestifere_Pourriture'; FallbackIconSpell = 55078; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'La chair de la cible se putréfie.'
-       AuraDescription = 'Subit des dégâts de Nature toutes les 3 sec. La cible enfle à chaque charge.'
+       AuraDescription = 'Subit toutes les 3 sec des dégâts de Nature égaux à 1% de ses points de vie maximum par charge. Enfle à chaque charge.'
        # 20 sec, up to 6 stacks, and the target visibly swells: 2% model scale per stack
        Fields = @{ 40 = 18; 49 = 6; 74 = 0; 72 = 6; 75 = 0; 81 = 2; 87 = 6; 96 = 61 } },
 
     @{ Id = 90201; Clone = 50842; Name = 'Contagion'; Icon = 'Pestifere_Contagion'; FallbackIconSpell = 50842; Cost = 200; Cooldown = 6000; Level = 6; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Transmet chaque fléau que vous portez aux ennemis dans un rayon de 8 mètres et rafraîchit les vôtres.'
+       Description = 'Transmet chaque fléau que vous portez aux ennemis dans un rayon de 10 mètres et prolonge la Pourriture qu''ils portent déjà. Génère de la menace pour chaque fléau transmis.'
        Visual = @{ Clone = 11172 } },
     @{ Id = 90202; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 250; Cooldown = 0; Level = 10; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Fait éclater la pourriture des ennemis proches. Les dégâts augmentent avec les charges de Pourriture et les fléaux consommés, et vous soigne pour chaque ennemi touché.'
+       Description = 'Fait exploser la Pourriture des ennemis proches et consomme les fléaux qu''ils portent : plus un ennemi porte de charges et de fléaux, plus l''explosion est violente. Vous rend 2% de vos points de vie maximum pour chaque ennemi touché.'
        Fields = @{ 72 = 0; 75 = 0; 81 = 0; 87 = 0; 96 = 0; 74 = 0; 80 = 1 }
        Visual = @{ Clone = 15216 } },
     @{ Id = 90203; Clone = 355; Name = 'Odeur de charogne'; Icon = 'Pestifere_OdeurCharogne'; FallbackIconSpell = 355; Cost = 0; Cooldown = 8000; Level = 14; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Force la cible à vous attaquer pendant 3 sec.' },
     @{ Id = 90204; Clone = 47476; Name = 'Crachat bilieux'; Icon = 'Pestifere_CrachatBilieux'; FallbackIconSpell = 47476; Cost = 100; Cooldown = 20000; Level = 20; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Crache de la bile sur une cible à 30 mètres, interrompant son incantation pendant 4 sec.' },
+       Description = 'Crache de la bile sur un ennemi situé à 30 mètres au plus et le réduit au silence pendant 5 sec.' },
     # Détonation en chaîne: the blast jumping to an enemy outside it. mod-pestifere computes the damage (the same
     # formula as Détonation, on that enemy's own rot) and casts this with it; no damage class, so it cannot miss.
     @{ Id = 90206; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
@@ -205,38 +205,38 @@ $customSpells = @(
     # The three plagues: cast on yourself, then carried. Their strength scales with how many you carry,
     # which mod-pestifere recalculates; the values here are the single-plague baseline.
     @{ Id = 90210; Clone = 12975; Name = 'Inoculation : Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 150; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Vous inoculez la Carapace nécrosée.'
+       Description = 'Vous vous inoculez la Carapace nécrosée : vous subissez 4% de dégâts en moins et votre armure augmente de 10%, plus 3% de réduction et 10% d''armure pour chaque autre fléau que vous portez. Vous générez deux fois plus de menace, mais vous vous déplacez 10% plus lentement.'
        Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90211 } },
     @{ Id = 90211; Clone = 2983; CantCancel = $true; Name = 'Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
-       AuraDescription = 'Dégâts subis réduits. Vous vous déplacez plus lentement.'
+       AuraDescription = 'Dégâts subis réduits et armure augmentée. Menace générée doublée. Vous vous déplacez plus lentement.'
        # Infinite while carried, removed when you leave combat
        Fields = @{ 40 = 21; 95 = 87; 74 = 0; 80 = -8; 110 = 127; 72 = 6; 75 = 0; 81 = -10; 87 = 1; 96 = 33;
                    73 = 6; 76 = 0; 82 = 10; 88 = 1; 97 = 101; 112 = 1 } },
     @{ Id = 90212; Clone = 12975; Name = 'Inoculation : Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 150; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        # Taught by its talent, whose rank spell it is: the talent frame shows this tooltip
-       Description = "Vous inoculez la Chair putride : vous vous soignez toutes les 3 sec, d'autant plus que vous portez de fléaux, mais les soins que les autres vous prodiguent sont réduits."
+       Description = "Vous vous inoculez la Chair putride : vous récupérez 0,6% de vos points de vie maximum toutes les 3 sec, plus 0,4% pour chaque autre fléau que vous portez, mais les soins que les autres vous prodiguent sont réduits de 20%."
        Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90213 } },
     @{ Id = 90213; Clone = 2983; CantCancel = $true; Name = 'Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
-       AuraDescription = 'Vous vous soignez toutes les 3 sec. Les soins que vous recevez sont réduits.'
+       AuraDescription = 'Vous récupérez des points de vie toutes les 3 sec. Les soins que les autres vous prodiguent sont réduits de 20%.'
        Fields = @{ 40 = 21; 95 = 8; 74 = 0; 80 = 20; 98 = 3000 } },
     @{ Id = 90214; Clone = 12975; Name = 'Inoculation : Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 150; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        # Taught by its talent, whose rank spell it is: the talent frame shows this tooltip
-       Description = "Vous inoculez la Peste virulente : vos dégâts augmentent, mais elle vous ronge toutes les 3 sec, et vous tue si elle est le seul fléau que vous portez."
+       Description = "Vous vous inoculez la Peste virulente : vos dégâts augmentent de 6%, plus 4% pour chaque autre fléau que vous portez, mais elle vous inflige 0,5% de vos points de vie maximum toutes les 3 sec. Si c'est le seul fléau que vous portez, elle vous ronge de plus en plus fort."
        Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90215 } },
     @{ Id = 90215; Clone = 2983; CantCancel = $true; Name = 'Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
-       AuraDescription = 'Dégâts infligés augmentés. Vous subissez des dégâts toutes les 3 sec, qui empirent si la Peste virulente est le seul fléau que vous portez.'
+       AuraDescription = 'Dégâts infligés augmentés. Vous subissez des dégâts toutes les 3 sec, de plus en plus forts si la Peste virulente est le seul fléau que vous portez.'
        Fields = @{ 40 = 21; 95 = 79; 74 = 0; 80 = 10; 110 = 127; 72 = 6; 75 = 0; 81 = 15; 87 = 1; 96 = 3;
                    99 = 3000 } },
 
     # The enemy versions, handed out by Contagion and consumed by Détonation
     @{ Id = 90220; Clone = 55078; Name = 'Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       AuraDescription = 'Dégâts infligés réduits par la nécrose.'
+       AuraDescription = 'Dégâts infligés réduits de 5%.'
        Fields = @{ 40 = 18; 95 = 79; 74 = 0; 80 = -5; 110 = 127 } },
     @{ Id = 90221; Clone = 55078; Name = 'Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       AuraDescription = 'Les soins reçus sont réduits par la putréfaction.'
+       AuraDescription = 'Soins reçus réduits de 20%.'
        Fields = @{ 40 = 18 } },
     @{ Id = 90222; Clone = 55078; Name = 'Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       AuraDescription = 'Subit des dégâts de Nature toutes les 3 sec.'
+       AuraDescription = 'Subit toutes les 3 sec des dégâts de Nature égaux à 1% de ses points de vie maximum.'
        Fields = @{ 40 = 18 } },
 
     # Sépulcre's stored plague: the damage it held back, dealt over 12 sec. mod-pestifere deals every tick itself
@@ -256,19 +256,19 @@ $customSpells = @(
     # Active spells taught by talents: each is its talent's rank spell, so the talent frame shows this tooltip and
     # learning the talent puts the spell in the class tab (like Chair putride and Peste virulente above)
     @{ Id = 90256; Clone = 6343; Name = 'Charnier ambulant'; Icon = 'PestifereTalent_CharnierAmbulant'; FallbackIconSpell = 69195; Cost = 0; Cooldown = 60000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Une pulsation infecte tous les ennemis dans un rayon de 10 mètres avec chaque fléau que vous portez et porte leur Pourriture à 6 charges. Génère une menace importante.'
+       Description = 'Libère une onde qui transmet chaque fléau que vous portez à tous les ennemis dans un rayon de 10 mètres et monte leur Pourriture à 6 charges. Génère une menace importante.'
        # Caster-centred enemy area (Thunder Clap layout), a dummy effect per enemy hit, no damage class: it cannot miss
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 22 })
        Fields = @{ 89 = 15; 92 = 13; 213 = 0 }
        # Festergut's Pungent Blight burst
        Visual = @{ Clone = 14608 } },
     @{ Id = 90265; Clone = 12975; Name = 'Purge cathartique'; Icon = 'PestifereTalent_PurgeCathartique'; FallbackIconSpell = 48743; Cost = 0; Cooldown = 45000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = "Consume les fléaux que vous portez et vous rend 12% de vos points de vie maximum pour chacun d'eux. La soupape de sécurité, au prix de votre mitigation."
+       Description = "Consomme les fléaux que vous portez et vous rend 12% de vos points de vie maximum pour chacun d'eux. Vous perdez leurs effets jusqu'à ce que vous vous les inoculiez de nouveau."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
        # Death Pact's heal burst
        Visual = @{ Clone = 11150 } },
     @{ Id = 90268; Clone = 12975; Name = 'Sépulcre'; Icon = 'PestifereTalent_Sepulcre'; FallbackIconSpell = 43265; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Pendant 8 sec, 50% des dégâts que vous subissez ne vous sont pas infligés : ils sont stockés en un fléau qui vous les inflige sur les 12 sec suivantes. Ce fléau se propage avec Contagion et se détone comme les autres.'
+       Description = 'Pendant 8 sec, la moitié des dégâts que vous subissez est différée : le Sépulcre la retient, puis vous l''inflige sur les 12 sec suivantes. Ce fléau se transmet avec Contagion et explose avec Détonation, comme les autres.'
        AuraDescription = 'La moitié des dégâts subis est retenue par le Sépulcre.'
        # An all-school absorb whose amount mod-pestifere makes unlimited: it takes half of every hit, 8 sec
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 69; BasePoints = 0; Misc = 127 })
@@ -320,7 +320,7 @@ $customSpells = @(
     # Pandémie: the big AoE cooldown. Effect 0 removes Contagion's cooldown (a -100% cooldown modifier), effect 1 is
     # the marker Frappe putride reads to strike 3 more enemies.
     @{ Id = 90229; Clone = 12975; Name = 'Pandémie'; Icon = 'Pestifere_Pandemie'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 120000; Level = 70; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Pendant 15 sec, Contagion n''a plus de temps de recharge et Frappe putride frappe aussi 3 ennemis proches.'
+       Description = 'Pendant 15 sec, Contagion n''a plus de temps de recharge et Frappe putride touche aussi 3 ennemis proches.'
        AuraDescription = 'Contagion sans temps de recharge. Frappe putride touche 3 ennemis de plus.'
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_AddPctModifier; Value = -100; Misc = $SPELLMOD_COOLDOWN },
                    @{ Index = 1; Effect = 6; TargetA = 1; Aura = $A_Dummy })
@@ -336,7 +336,7 @@ $customSpells = @(
     # Fièvre: the talent's proc, your next Morsure fétide free and off cooldown
     @{ Id = 90216; Clone = 12975; Name = 'Fièvre'; Icon = 'PestifereTalent_Fievre'; FallbackIconSpell = 55090; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Votre prochaine Morsure fétide ne coûte pas de rage.'
-       AuraDescription = 'Votre prochaine Morsure fétide ne coûte pas de rage et n''a pas de temps de recharge.'
+       AuraDescription = 'Votre prochaine Morsure fétide ne coûte pas de rage.'
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_AddPctModifier; Value = -100; Misc = $SPELLMOD_COST })
        Fields = @{ 40 = 1; 122 = $PF_MORSURE } },
     # Pandémie's extra strikes: Frappe putride on a nearby enemy, without its cost or cooldown
@@ -361,7 +361,7 @@ $customSpells = @(
        Visual = @{ Clone = 14608 } },
     @{ Id = 90287; Clone = 12975; Name = 'Avatar de la peste'; Icon = 'PestifereTalent_AvatarPeste'; FallbackIconSpell = 49206; Cost = 0; Cooldown = 180000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Vous devenez un avatar de la peste pendant 20 sec : vous grandissez, vos fléaux comptent pour un fléau de plus et Détonation ne consomme plus les charges de Pourriture.'
-       AuraDescription = 'Avatar de la peste : Virulence augmentée, Détonation ne consomme plus la Pourriture.'
+       AuraDescription = 'Vos fléaux comptent pour un fléau de plus. Détonation ne consomme plus la Pourriture.'
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_ModScale; Value = 30 },
                    @{ Index = 1; Effect = 6; TargetA = 1; Aura = $A_Dummy })
        Fields = @{ 40 = 18 }
@@ -383,7 +383,7 @@ $pestifereTalents = @(
        Auras = @(@{ Aura = $A_ModResistancePct; Values = @(2, 4, 6); Misc = 1 }) },
     @{ Name = 'Rage fielleuse'; Icon = 'PestifereTalent_RageFielleuse'; FallbackIconSpell = 29131
        Ids = @(90234, 90235, 90236); V0 = @(10, 20, 30)
-       Description = 'Les dégâts que vous subissez vous génèrent {0}% de rage supplémentaire.' },
+       Description = 'Les dégâts que vous subissez vous rapportent {0}% de rage en plus.' },
 
     # Tier 2
     @{ Name = 'Inoculation rapide'; Icon = 'PestifereTalent_InoculationRapide'; FallbackIconSpell = 12975
@@ -406,7 +406,7 @@ $pestifereTalents = @(
        ProcFlags = 0x00800000; ProcChance = @(10, 20, 30) },
     @{ Name = 'Fossoyeur'; Icon = 'PestifereTalent_Fossoyeur'; FallbackIconSpell = 12163
        Ids = @(90246, 90247, 90248); V0 = @(8, 16, 24)
-       Description = 'Maniée à deux mains, Frappe putride inflige {0}% de dégâts supplémentaires et applique 2 charges de Pourriture.' },
+       Description = 'Avec une arme à deux mains, Frappe putride inflige {0}% de dégâts supplémentaires et applique 2 charges de Pourriture.' },
     @{ Name = 'Symbiose morbide'; Icon = 'PestifereTalent_SymbioseMorbide'; FallbackIconSpell = 50536
        Ids = @(90249, 90250); V0 = @(15, 30)
        Description = 'Chair putride vous soigne {0}% de plus par fléau que vous portez.' },
@@ -414,11 +414,11 @@ $pestifereTalents = @(
     # Tier 4
     @{ Name = 'Métabolisme nécrotique'; Icon = 'PestifereTalent_MetabolismeNecrotique'; FallbackIconSpell = 29131
        Ids = @(90251, 90252, 90253); V0 = @(33, 66, 100)
-       Description = 'Les dégâts de vos propres fléaux vous génèrent {0}% de la rage normale. La maladie vous nourrit.' },
+       Description = 'Les dégâts que vous infligent vos propres fléaux vous rapportent de la rage : {0}% de ce qu''un coup ennemi de même force vous donnerait.' },
     @{ Name = 'Détonation en chaîne'; Icon = 'PestifereTalent_DetonationChaine'; FallbackIconSpell = 49158
        Ids = @(90254, 90255); V0 = @(1, 2)
        V1 = @('ennemi supplémentaire', 'ennemis supplémentaires')
-       Description = 'Détonation se propage à {0} {1} hors de son rayon, à 8 mètres au plus d''une cible qui explose. Chacun explose avec sa propre pourriture.' },
+       Description = 'Détonation touche aussi {0} {1} hors de sa zone, à 8 mètres au plus d''un ennemi qui explose. Chacun explose selon sa propre Pourriture.' },
 
     # Tier 5
     @{ Name = 'Croûte nécrosée'; Icon = 'PestifereTalent_CrouteNecrosee'; FallbackIconSpell = 49222
@@ -442,13 +442,13 @@ $pestifereTalents = @(
        Description = 'Frappe putride a {0}% de chances de réinitialiser le temps de recharge de Contagion.' },
     @{ Name = 'Fièvre'; Icon = 'PestifereTalent_Fievre'; FallbackIconSpell = 55090
        Ids = @(90271, 90272, 90273); V0 = @(3, 6, 9)
-       Description = 'Chaque dégât de Pourriture a {0}% de chances de vous donner la Fièvre : votre prochaine Morsure fétide ne coûte pas de rage et son temps de recharge est réinitialisé.' },
+       Description = 'Chaque fois que votre Pourriture inflige des dégâts, vous avez {0}% de chances d''être pris de Fièvre : le temps de recharge de Morsure fétide est réinitialisé et sa prochaine utilisation ne coûte pas de rage.' },
     @{ Name = 'Charognard'; Icon = 'PestifereTalent_Charognard'; FallbackIconSpell = 49206
        Ids = @(90274, 90275); V0 = @(50, 100)
        Description = 'Quand un ennemi portant votre Pourriture meurt, {0}% de ses charges passent à l''ennemi le plus proche.' },
     @{ Name = 'Riposte fétide'; Icon = 'PestifereTalent_RiposteFetide'; FallbackIconSpell = 57823
-       Ids = @(90276, 90277); V0 = @(1, 2); V1 = @(10, 20)
-       Description = 'Riposte purulente applique aussi la Pourriture à {0} ennemi(s) de plus et inflige {1}% de dégâts supplémentaires.' },
+       Ids = @(90276, 90277); V0 = @('1 ennemi', '2 ennemis'); V1 = @(10, 20)
+       Description = 'Riposte purulente applique aussi la Pourriture à {0} de plus et inflige {1}% de dégâts supplémentaires.' },
     @{ Name = 'Bile corrosive'; Icon = 'PestifereTalent_BileCorrosive'; FallbackIconSpell = 43265
        Ids = @(90278, 90279, 90280); V0 = @(2, 4, 6)
        Description = 'Les ennemis dans votre Flaque de bile infligent {0}% de dégâts en moins.' },
@@ -564,7 +564,7 @@ $combatTalents = @(
     @{ Name = 'Fleet Footwork'; Icon = 'CombatRogue_FleetFootwork'; Ids = @(13742, 13872); V0 = @(2, 4)
        Description = 'Reduces the cooldown of Shadow Lunge by {0} sec.' },
     @{ Name = 'Counter Rhythm'; Icon = 'CombatRogue_CounterRhythm'; Ids = @(14251)
-       Description = 'Dodging or parrying an attack resets the cooldown of Riposte. This effect cannot occur more than once every 6 sec. Riposte critical strikes grant Opening.' },
+       Description = 'Dodging or parrying an attack resets the cooldown of Riposte. This effect cannot occur more than once every 6 sec. A Riposte used within 5 sec of a dodge or parry grants Opening.' },
     @{ Name = 'Deep Cuts'; Icon = 'CombatRogue_DeepCuts'; Ids = @(13706, 13804, 13805, 13806, 13807); V0 = @(6, 12, 18, 24, 30)
        Description = 'Increases the damage done by your Crimson Wounds by {0}%.' },
     @{ Name = 'Opportunist'; Icon = 'CombatRogue_Opportunist'; Ids = @(13754, 13867); V0 = @(10, 20)
@@ -580,12 +580,12 @@ $combatTalents = @(
        Description = 'Quick Cut has a {0}% chance not to consume Opening.' },
     @{ Name = 'Flowing Strikes'; Icon = 'CombatRogue_FlowingStrikes'; Ids = @(13877)
        Description = 'Every 4th Sinister Strike automatically performs a free Quick Cut on its target, without needing or consuming Opening.' },
-    @{ Name = 'Rending Arc'; Icon = 'CombatRogue_RendingArc'; Ids = @(13960, 13961, 13962, 13963, 13964); V0 = @(4, 8, 12, 16, 20); V1 = @('.', '.', '.', '.', ' and extends their Crimson Wounds by 2 sec.')
+    @{ Name = 'Rending Arc'; Icon = 'CombatRogue_RendingArc'; Ids = @(13960, 13961, 13962, 13963, 13964); V0 = @(4, 8, 12, 16, 20); V1 = @('.', '.', '.', '.', ' and adds 2 sec to their Crimson Wounds, up to its full duration.')
        Description = 'Crescent Slash deals {0}% more damage to enemies affected by your Crimson Wounds{1}' },
     @{ Name = 'Relentless Flow'; Icon = 'CombatRogue_RelentlessFlow'; Ids = @(30919, 30920); V0 = @('.', ', and its free Quick Cut restores 10 Energy.')
        Description = 'Flowing Strikes triggers on every 3rd Sinister Strike{0}' },
     @{ Name = 'Widening Arcs'; Icon = 'CombatRogue_WideningArcs'; Ids = @(31124, 31126); V0 = @(2, 4)
-       Description = 'Increases the radius of Crescent Slash, Crimson Sweep and Blood Waltz by {0} yards.' },
+       Description = 'Increases the radius of Crescent Slash, Crimson Sweep, Blood Waltz and Crimson Daggerfall by {0} yards.' },
     @{ Name = 'Tempo Echo'; Icon = 'CombatRogue_TempoEcho'; Ids = @(31122, 31123, 61329); V0 = @(10, 20, 30)
        Description = 'Eviscerate has a {0}% chance to strike again 0.5 sec later for 40% of its damage.' },
     @{ Name = 'Adrenaline Flow'; Icon = 'CombatRogue_AdrenalineFlow'; Ids = @(13750)
@@ -596,9 +596,9 @@ $combatTalents = @(
     @{ Name = 'Relentless Tempo'; Icon = 'CombatRogue_RelentlessTempo'; Ids = @(5952, 51679); V0 = @(10, 20)
        Description = 'Your finishing moves have a {0}% chance per combo point spent to grant Opening.' },
     @{ Name = 'Hemorrhaging Blades'; Icon = 'CombatRogue_HemorrhagingBlades'; Ids = @(35541, 35550, 35551, 35552, 35553); V0 = @(4, 8, 12, 16, 20)
-       Description = 'Crescent Slash has a {0}% chance to apply Crimson Wounds to each enemy it hits.' },
+       Description = 'Crescent Slash has a {0}% chance to apply Crimson Wounds for 6 sec to each enemy it hits that is not already bleeding.' },
     @{ Name = 'Riposte Echo'; Icon = 'CombatRogue_RiposteEcho'; Ids = @(51672, 51674); V0 = @(1, 2); V1 = @('enemy', 'enemies')
-       Description = 'Riposte also strikes {0} additional {1} in front of you.' },
+       Description = 'Riposte also strikes {0} additional {1} in front of you, within 5 yards, for the same damage.' },
     @{ Name = 'Waltz of Blades'; Icon = 'CombatRogue_WaltzOfBlades'; Ids = @(32601)
        Description = 'Blood Waltz grants 1 combo point for each enemy hit, up to 3.' },
     @{ Name = 'Crimson Frenzy'; Icon = 'CombatRogue_CrimsonFrenzy'; Ids = @(51682, 58413); V0 = @(1, 2)
@@ -606,7 +606,7 @@ $combatTalents = @(
     @{ Name = 'Executioner''s Tempo'; Icon = 'CombatRogue_ExecutionersTempo'; Ids = @(51685, 51686, 51687, 51688, 51689); V0 = @(4, 8, 12, 16, 20); V1 = @(3, 6, 9, 12, 15)
        Description = 'Your abilities deal {0}% more damage to enemies below 35% health, and killing an enemy restores {1} Energy.' },
     @{ Name = 'Crimson Cadence'; Icon = 'CombatRogue_CrimsonCadence'; Ids = @(51690)
-       Description = 'Every 5th finishing move releases a free Blood Waltz with 5 combo points. Against a single enemy it releases an echo of your last Eviscerate for 50% of its damage instead.' }
+       Description = 'Every 5th finishing move releases a free Blood Waltz with 5 combo points when 2 or more enemies are within its reach. Otherwise it releases an echo of your last Eviscerate for 50% of its damage.' }
 )
 
 $talentRankInfo = @{}
@@ -896,8 +896,8 @@ function Get-SourceString([uint32]$offset) {
     return [Text.Encoding]::UTF8.GetString($source, $start, $end - $start)
 }
 
-$sinisterDescription = Add-DbcString $strings 'Strike for weapon damage, generating a combo point and 10 Energy. Has a 25% chance to grant Opening, and always grants it on a critical strike.'
-$eviscerateAppend = ' Grants Battle Tempo: 3% attack speed per combo point for 10 sec. Consumes up to 30 extra Energy to deal up to 50% more damage.'
+$sinisterDescription = Add-DbcString $strings 'Strike for weapon damage, generating a combo point and 10 Energy (12 from level 20). Has a 25% chance to grant Opening (35% from level 50), and always grants it on a critical strike.'
+$eviscerateAppend = ' Deals 10% more damage, plus 5% per combo point. Grants Battle Tempo: 3% attack speed per combo point for 10 sec. Consumes up to 30 extra Energy to deal up to 50% more damage. From level 25, grants Opening at 5 combo points.'
 $sliceAndDiceAppend = ' Consumes up to 30 extra Energy to last up to 50% longer.'
 $appendedDescriptions = @{}
 $foundSinister = [Collections.Generic.HashSet[uint32]]::new()

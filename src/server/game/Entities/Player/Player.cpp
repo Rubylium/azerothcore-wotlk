@@ -574,6 +574,9 @@ bool Player::Create(ObjectGuid::LowType guidlow, CharacterCreateInfo* createInfo
                          ? sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL)
                          : sWorld->getIntConfig(CONFIG_START_HEROIC_PLAYER_LEVEL);
 
+    // A custom class may start higher than the realm's start level (custom_class.StartLevel)
+    start_level = std::max<uint32>(start_level, sObjectMgr->GetCustomClassStartLevel(getClass()));
+
     if (GetSession()->HasPermission(rbac::RBAC_PERM_USE_START_GM_LEVEL))
     {
         uint32 gm_level = sWorld->getIntConfig(CONFIG_START_GM_LEVEL);

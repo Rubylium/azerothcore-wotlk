@@ -83,6 +83,13 @@ constexpr uint32 PURGE_HEAL_PCT_PER_PLAGUE = 12;
 // Sépulcre (90268): % of each hit held back and dealt later by the stored plague
 constexpr uint32 SEPULCRE_HELD_PCT = 50;
 
+// Pourriture (90205) and the enemy Peste virulente (90222): their 3 sec ticks deal a share of the target's maximum
+// health, per stack for Pourriture, so they scale with whatever they rot. On a huge health pool (a boss) a tick is
+// held to a share of the Pestiféré's attack power instead.
+constexpr float POURRITURE_TICK_HEALTH_PCT = 1.0f;      // % of maximum health per stack per tick
+constexpr float PESTE_ENEMY_TICK_HEALTH_PCT = 1.0f;     // % of maximum health per tick
+constexpr float PLAGUE_TICK_AP_CAP = 0.15f;             // most a tick (a stack of Pourriture) deals, x attack power
+
 // Flaque de bile (90223): damage of each 2 sec tick, as a share of attack power
 constexpr float FLAQUE_TICK_AP_COEFF = 0.06f;
 
@@ -1255,13 +1262,32 @@ public:
         parry_chance += GetTalentValue(pestifere, TALENT_HOTE_PARFAIT) * int32(GetVirulence(pestifere)) * 100;
     }
 
-    // Menace contagieuse: plague ticks on enemies generate extra threat
+    // Pourriture and the enemy Peste virulente deal a share of the target's health (their spell data carries none),
+    // then Menace contagieuse makes every plague tick on an enemy generate extra threat
     void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage,
         SpellInfo const* spellInfo) override
     {
         Player* pestifere = GetPestifere(attacker);
         if (!pestifere || !target || target == attacker || !spellInfo || !IsPlagueDamage(spellInfo->Id))
             return;
+
+        float healthPct = 0.0f;
+        uint8 stacks = 1;
+        if (spellInfo->Id == SPELL_POURRITURE)
+        {
+            healthPct = POURRITURE_TICK_HEALTH_PCT;
+            if (Aura const* rot = target->GetAura(SPELL_POURRITURE, pestifere->GetGUID()))
+                stacks = rot->GetStackAmount();
+        }
+        else if (spellInfo->Id == SPELL_PESTE_VIRULENTE_ENEMY)
+            healthPct = PESTE_ENEMY_TICK_HEALTH_PCT;
+
+        if (healthPct > 0.0f)
+        {
+            float const perStack = std::min(float(target->GetMaxHealth()) * healthPct / 100.0f,
+                pestifere->GetTotalAttackPowerValue(BASE_ATTACK) * PLAGUE_TICK_AP_CAP);
+            damage = std::max<uint32>(1, uint32(perStack * float(stacks)));
+        }
 
         AddPlagueThreat(pestifere, target, damage, spellInfo);
     }

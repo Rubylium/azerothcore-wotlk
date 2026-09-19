@@ -7,6 +7,7 @@ CREATE TABLE `custom_class` (
   `TemplateClass` tinyint unsigned NOT NULL COMMENT 'Existing class whose combat formulas are used',
   `InheritSpells` tinyint unsigned NOT NULL DEFAULT 1 COMMENT '1: starts from the template class spells and trainers, 0: only its own',
   `Roles` tinyint unsigned NOT NULL DEFAULT 8 COMMENT 'Dungeon Finder roles it may queue as: 2 tank, 4 healer, 8 damage',
+  `StartLevel` tinyint unsigned NOT NULL DEFAULT 0 COMMENT 'Level a new character starts at, 0: the realm start level',
   `Name` varchar(50) NOT NULL DEFAULT '' COMMENT 'For logs and commands; the client shows its own name',
   `Comment` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`ClassId`)

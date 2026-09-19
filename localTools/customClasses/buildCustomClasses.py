@@ -94,8 +94,18 @@ ITEM_INVENTORY_TYPE = 6
 # CharStartOutfit.dbc packs race, class, gender and outfit into one physical field. Its raw records therefore
 # store 24 item ids at 2-25, followed by their display ids at 26-49 and inventory types at 50-73.
 START_OUTFIT_ITEM_COUNT = 24
+START_OUTFIT_ITEMS = 2
 START_OUTFIT_DISPLAY = 26
 START_OUTFIT_INVENTORY_TYPE = 50
+
+# Item.dbc inventory types that fight over the same equipment slot: a start outfit item replaces a copied one of
+# the same group (a two-hander replaces the copied sword and shield). 0 is not equipment and never replaced.
+SLOT_GROUPS = {5: 'chest', 20: 'chest', 13: 'weapon', 14: 'weapon', 17: 'weapon', 21: 'weapon', 22: 'weapon',
+               23: 'weapon', 15: 'ranged', 25: 'ranged', 26: 'ranged'}
+
+
+def slot_group(inventory_type):
+    return SLOT_GROUPS.get(inventory_type, inventory_type)
 
 
 class Dbc:
@@ -277,12 +287,22 @@ def start_class(definition):
 
 
 def add_start_outfit(dbc, definition):
-    """Copies real starter gear while optionally giving the creation model a separate visual outfit."""
+    """Copies real starter gear while optionally giving the creation model a separate visual outfit.
+
+    `startOutfit` items are added to the copied gear, and replace any copied item of the same slot, so a class
+    that starts above level 1 is not left in its template's level-1 gear.
+    """
     preview_items = definition.get('previewOutfit', [])
+    start_items = definition.get('startOutfit', [])
     preview = []
-    if preview_items:
+    by_id = {}
+    items = None
+    if preview_items or start_items:
         items = Dbc(os.path.join(CLIENT_DBC_CACHE, 'Item.dbc'))
         by_id = {items.field(record, 0): record for record in items.records}
+    for item_id in start_items:
+        assert item_id in by_id, f'start outfit item {item_id} is not in Item.dbc'
+    if preview_items:
         assert len(preview_items) <= START_OUTFIT_ITEM_COUNT, 'previewOutfit has too many items'
         for item_id in preview_items:
             assert item_id in by_id, f'preview outfit item {item_id} is not in Item.dbc'
@@ -310,6 +330,23 @@ def add_start_outfit(dbc, definition):
             row = bytearray(record)
             dbc.set_field(row, 0, next_id)
             dbc.set_field(row, 1, race | (definition['id'] << 8) | (gender << 16))
+            if start_items:
+                replaced = {slot_group(items.field(by_id[item_id], ITEM_INVENTORY_TYPE)) for item_id in start_items}
+                copied = [dbc.field(row, START_OUTFIT_ITEMS + index) for index in range(START_OUTFIT_ITEM_COUNT)]
+                # An empty slot holds 0 or -1 (read unsigned here)
+                kept = [item_id for item_id in copied if item_id not in (0, 0xFFFFFFFF) and not (
+                    item_id in by_id and items.field(by_id[item_id], ITEM_INVENTORY_TYPE)
+                    and slot_group(items.field(by_id[item_id], ITEM_INVENTORY_TYPE)) in replaced)]
+                outfit = start_items + kept
+                assert len(outfit) <= START_OUTFIT_ITEM_COUNT, 'start outfit has too many items'
+                for index in range(START_OUTFIT_ITEM_COUNT):
+                    item_id = outfit[index] if index < len(outfit) else 0
+                    item = by_id.get(item_id)
+                    dbc.set_field(row, START_OUTFIT_ITEMS + index, item_id if item_id else -1)
+                    dbc.set_field(row, START_OUTFIT_DISPLAY + index,
+                                  items.field(item, ITEM_DISPLAY_INFO) if item else -1)
+                    dbc.set_field(row, START_OUTFIT_INVENTORY_TYPE + index,
+                                  items.field(item, ITEM_INVENTORY_TYPE) if item else -1)
             if preview:
                 for index in range(START_OUTFIT_ITEM_COUNT):
                     dbc.set_field(row, START_OUTFIT_DISPLAY + index, 0)
@@ -495,11 +532,11 @@ def build_sql(definitions):
             '',
         ]
     lines.append(f'DELETE FROM `custom_class` WHERE `ClassId` IN ({ids});')
-    lines.append('INSERT INTO `custom_class` (`ClassId`, `TemplateClass`, `InheritSpells`, `Roles`, `Name`,'
-                 ' `Comment`) VALUES')
+    lines.append('INSERT INTO `custom_class` (`ClassId`, `TemplateClass`, `InheritSpells`, `Roles`, `StartLevel`,'
+                 ' `Name`, `Comment`) VALUES')
     lines.append(',\n'.join(
         f"({d['id']}, {d['templateClass']}, {int(d.get('inheritSpells', True))}, {role_mask(d)},"
-        f" {sql_value(d['name'])}, {sql_value(d.get('comment', ''))})"
+        f" {int(d.get('startLevel', 0))}, {sql_value(d['name'])}, {sql_value(d.get('comment', ''))})"
         for d in definitions) + ';')
     lines.append('')
 
