@@ -105,6 +105,12 @@ public:
                     break;
                 case GO_CHAPEL_DOOR:
                     _doorChapelGUID = go->GetGUID();
+                    // A mythic run starts at the Cathedral: its door needs no Scarlet Key
+                    if (instance->IsMythic())
+                    {
+                        go->SetGoState(GO_STATE_ACTIVE);
+                        go->RemoveGameObjectFlag(GO_FLAG_LOCKED);
+                    }
                     break;
                 default:
                     break;

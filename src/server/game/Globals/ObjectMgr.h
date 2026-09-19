@@ -784,6 +784,9 @@ public:
     CreatureAddon const* GetCreatureTemplateAddon(uint32 entry);
     CreatureMovementData const* GetCreatureMovementOverride(ObjectGuid::LowType spawnId) const;
     ItemTemplate const* GetItemTemplate(uint32 entry);
+    // An item template made at startup, before any player loads (the item store is not guarded against the map
+    // threads); it takes the names of the item its locale comes from
+    ItemTemplate const* AddGeneratedItemTemplate(ItemTemplate const& itemTemplate, uint32 localeSourceEntry);
     [[nodiscard]] ItemTemplateContainer const* GetItemTemplateStore() const { return &_itemTemplateStore; }
     [[nodiscard]] std::vector<ItemTemplate*> const* GetItemTemplateStoreFast() const { return &_itemTemplateStoreFast; }
 
@@ -1112,6 +1115,11 @@ public:
             return mask;
 
         return mask | (1 << (templateClass - 1));
+    }
+    // The level a new character of a custom class starts at, 0 when the class keeps the realm's start level
+    [[nodiscard]] uint8 GetCustomClassStartLevel(uint8 classId) const
+    {
+        return classId < MAX_CLASSES ? _customClassStartLevels[classId] : 0;
     }
     void LoadPetLevelInfo();
     void LoadExplorationBaseXP();
@@ -1597,6 +1605,7 @@ private:
     DungeonEncounterContainer _dungeonEncounterStore;
     std::array<uint8, MAX_CLASSES> _customClassTemplates = {};
     std::array<bool, MAX_CLASSES> _customClassKeepsTemplateSpells = {};
+    std::array<uint8, MAX_CLASSES> _customClassStartLevels = {};
 
     RepRewardRateContainer _repRewardRateStore;
     RepOnKillContainer _repOnKillStore;
@@ -1712,6 +1721,7 @@ private:
     BroadcastTextContainer _broadcastTextStore;
     ItemTemplateContainer _itemTemplateStore;
     std::vector<ItemTemplate*> _itemTemplateStoreFast; // pussywizard
+    bool _generatedItemTemplates = false;
     ItemLocaleContainer _itemLocaleStore;
     ItemSetNameLocaleContainer _itemSetNameLocaleStore;
     QuestLocaleContainer _questLocaleStore;

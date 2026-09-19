@@ -310,6 +310,7 @@ public:
     void MasterLoot(Loot* loot, WorldObject* pLootedObject);
     Rolls::iterator GetRoll(ObjectGuid Guid);
     void CountTheRoll(Rolls::iterator roll);
+    bool AutoRoll(Roll* roll);
     bool CountRollVote(ObjectGuid playerGUID, ObjectGuid Guid, uint8 Choise);
     void EndRoll(Loot* loot);
     void RemovePlayerFromRolls(ObjectGuid guid);
@@ -331,6 +332,14 @@ public:
     bool IsLfgWithBuff() const { return isLFGGroup() && (m_lfgGroupFlags & GROUP_LFG_FLAG_APPLY_RANDOM_BUFF); }
     bool IsLfgRandomInstance() const { return isLFGGroup() && (m_lfgGroupFlags & GROUP_LFG_FLAG_IS_RANDOM_INSTANCE); }
     bool IsLfgHeroic() const { return isLFGGroup() && (m_lfgGroupFlags & GROUP_LFG_FLAG_IS_HEROIC); }
+
+    // Raid Finder (mod-playerbots): its members never get a permanent instance lock
+    void SetRaidFinder(bool raidFinder) { _raidFinder = raidFinder; }
+    bool IsRaidFinder() const { return _raidFinder; }
+
+    // Mythic dungeons (see MythicDungeon.h): the mythic level the group plays at, handed to the instance it creates
+    void SetMythicLevel(int32 level) { _mythicLevel = level; }
+    int32 GetMythicLevel() const { return _mythicLevel; }
 
     // Difficulty Change
     uint32 GetDifficultyChangePreventionTime() const;
@@ -379,5 +388,8 @@ protected:
     // Xinef: change difficulty prevention
     uint32 _difficultyChangePreventionTime;
     DifficultyPreventionChangeType _difficultyChangePreventionType;
+
+    bool _raidFinder = false;
+    int32 _mythicLevel = -1;
 };
 #endif

@@ -1182,6 +1182,9 @@ void Group::GroupLoot(Loot* loot, WorldObject* pLootedObject)
 
                 loot->items[itemSlot].is_blocked = true;
 
+                if (i->auto_roll && AutoRoll(r))
+                    continue;
+
                 // If there is any "auto pass", broadcast the pass now.
                 if (r->totalPass)
                 {
@@ -1342,6 +1345,9 @@ void Group::NeedBeforeGreed(Loot* loot, WorldObject* lootedObject)
                     r->rollVoteMask &= ~ROLL_FLAG_TYPE_NEED;
 
                 loot->items[itemSlot].is_blocked = true;
+
+                if (i->auto_roll && AutoRoll(r))
+                    continue;
 
                 //Broadcast Pass and Send Rollstart
                 for (Roll::PlayerVote::const_iterator itr = r->playerVote.begin(); itr != r->playerVote.end(); ++itr)
@@ -1592,6 +1598,44 @@ void Group::RemovePlayerFromRolls(ObjectGuid guid)
         else
             ++it;
     }
+}
+
+// Loot flagged auto_roll (mod-stat-growth's essences) is never left for the players to click: every real player
+// who may roll on it rolls Need, bots pass, and the roll is counted at once, results in chat as usual. Without a
+// real player able to roll, the item goes to a normal roll instead (false).
+bool Group::AutoRoll(Roll* roll)
+{
+    uint8 needs = 0;
+    for (auto const& [guid, vote] : roll->playerVote)
+    {
+        Player* player = ObjectAccessor::FindPlayer(guid);
+        if (vote == NOT_EMITED_YET && player && !player->GetSession()->IsBot())
+            ++needs;
+    }
+    if (!needs)
+        return false;
+
+    roll->totalNeed = 0;
+    roll->totalGreed = 0;
+    roll->totalPass = 0;
+    for (auto& [guid, vote] : roll->playerVote)
+    {
+        Player* player = ObjectAccessor::FindPlayer(guid);
+        if (vote == NOT_EMITED_YET && player && !player->GetSession()->IsBot())
+        {
+            vote = NEED;
+            ++roll->totalNeed;
+        }
+        else
+        {
+            vote = PASS;
+            ++roll->totalPass;
+        }
+    }
+
+    RollId.push_back(roll);
+    CountTheRoll(std::prev(RollId.end()));
+    return true;
 }
 
 void Group::CountTheRoll(Rolls::iterator rollI)

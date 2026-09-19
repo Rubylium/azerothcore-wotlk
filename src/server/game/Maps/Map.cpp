@@ -2103,10 +2103,13 @@ bool InstanceMap::AddPlayerToMap(Player* player)
 
         // increase current instances (hourly limit)
         // xinef: specific instances are still limited
-        if (!group || !group->isLFGGroup() || !group->IsLfgRandomInstance())
+        // Raid Finder runs can be repeated at will, so they do not count either
+        bool const raidFinder = group && group->IsRaidFinder();
+        if ((!group || !group->isLFGGroup() || !group->IsLfgRandomInstance()) && !raidFinder)
             player->AddInstanceEnterTime(GetInstanceId(), GameTime::GetGameTime().count());
 
-        if (!playerBind->perm && !mapSave->CanReset() && group && !group->isLFGGroup() && !group->IsLfgRandomInstance())
+        if (!playerBind->perm && !mapSave->CanReset() && group && !group->isLFGGroup() && !group->IsLfgRandomInstance() &&
+            !raidFinder)
         {
             WorldPacket data(SMSG_INSTANCE_LOCK_WARNING_QUERY, 9);
             data << uint32(60000);
@@ -2280,7 +2283,8 @@ void InstanceMap::PermBindAllPlayers()
         // some players may already be permanently bound, in this case nothing happens
         InstancePlayerBind* bind = sInstanceSaveMgr->PlayerGetBoundInstance(player->GetGUID(), save->GetMapId(), save->GetDifficulty());
 
-        if (!bind || !bind->perm)
+        // Raid Finder runs leave no lockout
+        if ((!bind || !bind->perm) && !(group && group->IsRaidFinder()))
         {
             WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 4);
             data << uint32(0);

@@ -3933,7 +3933,29 @@ void ObjectMgr::LoadItemTemplates()
 
 ItemTemplate const* ObjectMgr::GetItemTemplate(uint32 entry)
 {
-    return entry < _itemTemplateStoreFast.size() ? _itemTemplateStoreFast[entry] : nullptr;
+    if (entry < _itemTemplateStoreFast.size())
+        return _itemTemplateStoreFast[entry];
+
+    // Generated items (AddGeneratedItemTemplate) have sparse entries far above the real ones
+    if (_generatedItemTemplates)
+    {
+        ItemTemplateContainer::iterator const itr = _itemTemplateStore.find(entry);
+        if (itr != _itemTemplateStore.end())
+            return &itr->second;
+    }
+    return nullptr;
+}
+
+ItemTemplate const* ObjectMgr::AddGeneratedItemTemplate(ItemTemplate const& itemTemplate, uint32 localeSourceEntry)
+{
+    // Kept out of the fast index: their entries would stretch it over millions of empty slots
+    uint32 const entry = itemTemplate.ItemId;
+    ItemTemplate& stored = _itemTemplateStore[entry] = itemTemplate;
+    _generatedItemTemplates = true;
+
+    if (ItemLocale const* locale = GetItemLocale(localeSourceEntry))
+        _itemLocaleStore[entry] = *locale;
+    return &stored;
 }
 
 void ObjectMgr::LoadItemSetNameLocales()
@@ -4351,8 +4373,10 @@ void ObjectMgr::LoadCustomClasses()
 
     _customClassTemplates = {};
     _customClassKeepsTemplateSpells = {};
+    _customClassStartLevels = {};
 
-    QueryResult result = WorldDatabase.Query("SELECT ClassId, TemplateClass, InheritSpells FROM custom_class");
+    QueryResult result =
+        WorldDatabase.Query("SELECT ClassId, TemplateClass, InheritSpells, StartLevel FROM custom_class");
     if (!result)
     {
         LOG_INFO("server.loading", ">> Loaded 0 custom classes. DB table `custom_class` is empty.");
@@ -4380,8 +4404,17 @@ void ObjectMgr::LoadCustomClasses()
             continue;
         }
 
+        uint8 startLevel = fields[3].Get<uint8>();
+        if (startLevel > DEFAULT_MAX_LEVEL)
+        {
+            LOG_ERROR("sql.sql", "Table `custom_class` has StartLevel {} above {} for class {}, capped",
+                startLevel, DEFAULT_MAX_LEVEL, classId);
+            startLevel = DEFAULT_MAX_LEVEL;
+        }
+
         _customClassTemplates[classId] = templateClass;
         _customClassKeepsTemplateSpells[classId] = fields[2].Get<bool>();
+        _customClassStartLevels[classId] = startLevel;
         ++count;
     } while (result->NextRow());
 

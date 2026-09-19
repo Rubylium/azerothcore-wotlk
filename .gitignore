@@ -165,3 +165,6 @@ compile_commands.json
 # MPQ builder packages and output
 /localTools/mpq-builder/node_modules/
 /localTools/mpq-builder/*.MPQ
+
+# TACTTool download cache of localTools/interface/extractRetailUi.py
+localTools/interface/cache/

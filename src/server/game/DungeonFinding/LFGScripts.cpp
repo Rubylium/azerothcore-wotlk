@@ -23,9 +23,11 @@
 #include "Group.h"
 #include "LFGMgr.h"
 #include "ObjectAccessor.h"
+#include "Opcodes.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
+#include "WorldPacket.h"
 
 namespace lfg
 {
@@ -194,6 +196,18 @@ namespace lfg
             sLFGMgr->LeaveLfg(guid);
     }
 
+    // The client keeps the party lock list it was sent last, and the Dungeon Finder goes on refusing what the
+    // former party members could not enter: someone out of a group has no party locks
+    static void ClearPartyLocks(Player* player)
+    {
+        if (!player)
+            return;
+
+        WorldPacket data(SMSG_LFG_PARTY_INFO, 1);
+        data << uint8(0);
+        player->SendDirectMessage(&data);
+    }
+
     void LFGGroupScript::OnRemoveMember(Group* group, ObjectGuid guid, RemoveMethod method, ObjectGuid kicker, char const* reason)
     {
         // used only with EXTRA_LOGS
@@ -202,6 +216,8 @@ namespace lfg
 
         if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
+
+        ClearPartyLocks(ObjectAccessor::FindConnectedPlayer(guid));
 
         ObjectGuid gguid = group->GetGUID();
         LOG_DEBUG("lfg", "LFGScripts::OnRemoveMember [{}]: remove [{}] Method: {} Kicker: [{}] Reason: {}",
@@ -301,6 +317,9 @@ namespace lfg
 
         ObjectGuid gguid = group->GetGUID();
         LOG_DEBUG("lfg", "LFGScripts::OnDisband [{}]", gguid.ToString());
+
+        for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+            ClearPartyLocks(itr->GetSource());
 
         // pussywizard: after all necessary actions handle raid browser
         if (sLFGMgr->GetState(group->GetLeaderGUID()) == LFG_STATE_RAIDBROWSER)

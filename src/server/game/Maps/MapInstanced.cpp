@@ -205,6 +205,10 @@ InstanceMap* MapInstanced::CreateInstance(uint32 InstanceId, InstanceSave* save,
     ASSERT(map->IsDungeon());
     m_InstancedMaps[InstanceId] = map;
 
+    // A mythic group's instance is mythic from the start, before any creature loads (see MythicDungeon.h)
+    if (Group* group = player ? player->GetGroup() : nullptr; group && group->GetMythicLevel() >= 0)
+        map->SetMythicLevel(group->GetMythicLevel());
+
     map->LoadRespawnTimes();
     map->LoadCorpseData();
 

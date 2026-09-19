@@ -30,6 +30,7 @@
 #include "Vehicle.h"
 #include "icecrown_citadel.h"
 #include "PassiveAI.h"
+#include "ScriptedGossip.h"
 #include "SpellAuraEffects.h"
 
 enum Texts
@@ -203,6 +204,29 @@ enum EncounterActions
     ACTION_SHIP_VISITS_SELF_2   = 7,
     ACTION_SHIP_VISITS_ENEMY_2  = 8
 };
+
+// The Gunship Battle can be skipped: the captain's second gossip option marks it won and sends everyone in the
+// instance - players and the bots filling the raid - to Deathbringer's Rise, where the Deathbringer Saurfang
+// encounter waits. The gunship armory is not looted.
+constexpr uint32 GOSSIP_OPTION_SKIP_GUNSHIP = 1;
+Position const DeathbringersRisePos = { -549.073f, 2211.29f, 539.223f, 0.523333f };
+
+void SkipGunshipBattle(Creature* captain, Player* player)
+{
+    InstanceScript* instance = captain->GetInstanceScript();
+    if (!instance || instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != NOT_STARTED)
+        return;
+
+    CloseGossipMenuFor(player);
+    captain->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+    instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, DONE);
+
+    for (auto const& ref : captain->GetMap()->GetPlayers())
+        if (Player* member = ref.GetSource())
+            member->TeleportTo(captain->GetMapId(), DeathbringersRisePos.GetPositionX(),
+                DeathbringersRisePos.GetPositionY(), DeathbringersRisePos.GetPositionZ(),
+                DeathbringersRisePos.GetOrientation());
+}
 
 Position const SkybreakerAddsSpawnPos = { 15.91131f, 0.0f, 20.4628f, M_PI };
 Position const OrgrimsHammerAddsSpawnPos = { 60.728395f, 0.0f, 38.93467f, M_PI };
@@ -787,10 +811,15 @@ public:
             checkTimer = 1000;
         }
 
-        void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
+        void sGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
         {
             if (!me->HasNpcFlag(UNIT_NPC_FLAG_GOSSIP))
                 return;
+            if (gossipListId == GOSSIP_OPTION_SKIP_GUNSHIP)
+            {
+                SkipGunshipBattle(me, player);
+                return;
+            }
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->GetTransport()->setActive(true);
             me->GetTransport()->ToMotionTransport()->EnableMovement(true);
@@ -1122,10 +1151,15 @@ public:
             checkTimer = 1000;
         }
 
-        void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
+        void sGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
         {
             if (!me->HasNpcFlag(UNIT_NPC_FLAG_GOSSIP))
                 return;
+            if (gossipListId == GOSSIP_OPTION_SKIP_GUNSHIP)
+            {
+                SkipGunshipBattle(me, player);
+                return;
+            }
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->GetTransport()->setActive(true);
             me->GetTransport()->ToMotionTransport()->EnableMovement(true);

@@ -167,6 +167,7 @@ struct LootItem
     bool    is_counted        : 1;
     bool    needs_quest       : 1;                          // quest drop
     bool    follow_loot_rules : 1;
+    bool    auto_roll         : 1;                          // group loot rolls Need for the players at once (see Group::AutoRoll)
     uint8   groupid           : 7;
 
     // Constructor, copies most fields from LootStoreItem, generates random count and random suffixes/properties

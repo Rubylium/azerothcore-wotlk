@@ -399,6 +399,7 @@ LootItem::LootItem(LootStoreItem const& li)
     ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemid);
     freeforall  = proto && proto->HasFlag(ITEM_FLAG_MULTI_DROP);
     follow_loot_rules = proto && proto->HasFlagCu(ITEM_FLAGS_CU_FOLLOW_LOOT_RULES);
+    auto_roll = false;
 
     needs_quest = li.needs_quest;
 

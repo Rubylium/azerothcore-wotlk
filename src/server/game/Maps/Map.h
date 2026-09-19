@@ -524,6 +524,12 @@ public:
 
     DataMap CustomData;
 
+    // Mythic dungeons (see MythicDungeon.h): the mythic level this instance is played at, -1 for a normal one. Set
+    // when the instance is created, before its creatures load, so they are scaled from the start.
+    void SetMythicLevel(int32 level) { _mythicLevel = level; }
+    [[nodiscard]] int32 GetMythicLevel() const { return _mythicLevel; }
+    [[nodiscard]] bool IsMythic() const { return _mythicLevel >= 0; }
+
     template<HighGuid high>
     inline ObjectGuid::LowType GenerateLowGuid()
     {
@@ -619,6 +625,8 @@ protected:
     TransportsContainer::iterator _transportsUpdateIter;
 
 private:
+    int32 _mythicLevel = -1;
+
     Player* _GetScriptPlayerSourceOrTarget(Object* source, Object* target, ScriptInfo const* scriptInfo) const;
     Creature* _GetScriptCreatureSourceOrTarget(Object* source, Object* target, ScriptInfo const* scriptInfo, bool bReverse = false) const;
     Unit* _GetScriptUnit(Object* obj, bool isSource, ScriptInfo const* scriptInfo) const;

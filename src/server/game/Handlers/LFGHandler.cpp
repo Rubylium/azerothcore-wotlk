@@ -236,13 +236,13 @@ void WorldSession::HandleLfgPartyLockInfoRequestOpcode(WorldPacket&  /*recvData*
     ObjectGuid guid = GetPlayer()->GetGUID();
     LOG_DEBUG("network", "CMSG_LFG_PARTY_LOCK_INFO_REQUEST [{}]", guid.ToString());
 
+    // Without a group the answer is an empty list: the client keeps the last one it got otherwise, and goes on
+    // showing the dungeons its former party members could not enter
     Group* group = GetPlayer()->GetGroup();
-    if (!group)
-        return;
 
     // Get the locked dungeons of the other party members
     lfg::LfgLockPartyMap lockMap;
-    for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+    for (GroupReference* itr = group ? group->GetFirstMember() : nullptr; itr != nullptr; itr = itr->next())
     {
         Player* plrg = itr->GetSource();
         if (!plrg)
