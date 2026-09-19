@@ -1,13 +1,16 @@
 #include "SmartLootSystem.h"
 
 #include "Creature.h"
+#include "Group.h"
 #include "Item.h"
 #include "ItemEnchantmentMgr.h"
 #include "LootMgr.h"
+#include "MythicDungeon.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "Random.h"
 #include "StatGrowthConfig.h"
+#include "WorldSession.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -60,7 +63,9 @@ bool IsEquipmentInventoryType(uint32 inventoryType)
 
 bool IsCatalogEquipment(ItemTemplate const& itemTemplate)
 {
-    if ((itemTemplate.Class != ITEM_CLASS_WEAPON && itemTemplate.Class != ITEM_CLASS_ARMOR) ||
+    // Generated Mythic+ items are handed out as variants of their base item, never picked themselves
+    if (Mythic::IsGeneratedItem(itemTemplate.ItemId) ||
+        (itemTemplate.Class != ITEM_CLASS_WEAPON && itemTemplate.Class != ITEM_CLASS_ARMOR) ||
         !IsEquipmentInventoryType(itemTemplate.InventoryType) || itemTemplate.ItemLevel == 0 ||
         itemTemplate.Quality < ITEM_QUALITY_NORMAL || itemTemplate.Quality > ITEM_QUALITY_EPIC ||
         itemTemplate.Bonding == BIND_QUEST_ITEM || itemTemplate.Bonding == BIND_QUEST_ITEM1 ||
@@ -184,15 +189,18 @@ int32 GetCasterStatScore(ItemTemplate const& itemTemplate)
         GetStatValue(itemTemplate, ITEM_MOD_HASTE_SPELL_RATING) * 3;
 }
 
+// A custom class is physical or caster as the class it is built on (see mod-custom-classes)
 bool IsPhysicalClass(uint8 classId)
 {
-    return classId == CLASS_WARRIOR || classId == CLASS_ROGUE || classId == CLASS_HUNTER ||
-        classId == CLASS_DEATH_KNIGHT;
+    uint8 const baseClass = sObjectMgr->GetClassFormulaTemplate(classId);
+    return baseClass == CLASS_WARRIOR || baseClass == CLASS_ROGUE || baseClass == CLASS_HUNTER ||
+        baseClass == CLASS_DEATH_KNIGHT;
 }
 
 bool IsCasterClass(uint8 classId)
 {
-    return classId == CLASS_MAGE || classId == CLASS_PRIEST || classId == CLASS_WARLOCK;
+    uint8 const baseClass = sObjectMgr->GetClassFormulaTemplate(classId);
+    return baseClass == CLASS_MAGE || baseClass == CLASS_PRIEST || baseClass == CLASS_WARLOCK;
 }
 
 int32 GetClassStatScore(ItemTemplate const& itemTemplate, Player const* player)
@@ -209,7 +217,13 @@ int32 GetClassStatScore(ItemTemplate const& itemTemplate, Player const* player)
 
 bool HasClassAppropriateStats(ItemTemplate const& itemTemplate, Player const* player)
 {
-    int32 const physicalScore = GetPhysicalStatScore(itemTemplate, player->getClass());
+    // Held in the off-hand (orbs, tomes) is caster gear, whatever its stats
+    if (itemTemplate.InventoryType == INVTYPE_HOLDABLE && IsPhysicalClass(player->getClass()))
+        return false;
+
+    // Stamina suits every class: it does not make a caster item a physical one, nor the other way round
+    int32 const physicalScore = GetPhysicalStatScore(itemTemplate, player->getClass()) -
+        GetStatValue(itemTemplate, ITEM_MOD_STAMINA) * 2;
     int32 const casterScore = GetCasterStatScore(itemTemplate);
 
     if (IsPhysicalClass(player->getClass()) && casterScore > 0 && physicalScore == 0)
@@ -294,11 +308,16 @@ bool IsInCorpseLoot(Loot const& loot, uint32 itemId)
     });
 }
 
+// A replacement keeps the item level of the item that dropped: at most this many item levels below it, never
+// above. Which raid or dungeon it came from still decides how good the loot is; only the class fit changes.
+constexpr uint32 ReplacementItemLevelWindow = 6;
+
 bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& candidate, uint32 progressionLevel,
-    uint32 minimumRequiredLevel, uint32 quality)
+    uint32 minimumRequiredLevel, uint32 quality, uint32 droppedItemLevel)
 {
     if (candidate.RequiredLevel > progressionLevel || candidate.RequiredLevel < minimumRequiredLevel ||
-        candidate.Quality != quality ||
+        candidate.Quality != quality || candidate.ItemLevel > droppedItemLevel ||
+        candidate.ItemLevel + ReplacementItemLevelWindow < droppedItemLevel ||
         player->BotCanUseItem(&candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(candidate, player) ||
         !HasClassAppropriateStats(candidate, player))
         return false;
@@ -325,11 +344,12 @@ int32 ScoreCandidate(Player* player, ItemTemplate const& candidate, uint32 progr
 }
 
 void AddCandidates(Player* player, Loot const& loot, uint32 progressionLevel, uint32 minimumRequiredLevel,
-    uint32 quality, std::vector<SmartLootCandidate>& candidates)
+    uint32 quality, uint32 droppedItemLevel, std::vector<SmartLootCandidate>& candidates)
 {
     for (ItemTemplate const* candidate : equipmentCatalog)
     {
-        if (!IsUsableCandidate(player, loot, *candidate, progressionLevel, minimumRequiredLevel, quality))
+        if (!IsUsableCandidate(player, loot, *candidate, progressionLevel, minimumRequiredLevel, quality,
+                droppedItemLevel))
             continue;
 
         uint32 const equippedItemLevel = GetWeakestEquippedItemLevel(player, *candidate);
@@ -338,8 +358,9 @@ void AddCandidates(Player* player, Loot const& loot, uint32 progressionLevel, ui
     }
 }
 
-ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* killed, uint32 quality)
+ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* killed, ItemTemplate const& dropped)
 {
+    uint32 const quality = dropped.Quality;
     uint32 const sourceTolerance = statGrowthConfig.GetConfigValue<uint32>(
         StatGrowthConfigKey::SmartLootCreatureLevelTolerance);
     uint32 const levelWindow = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::SmartLootLevelWindow);
@@ -347,7 +368,8 @@ ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* kille
     uint32 const minimumRequiredLevel = progressionLevel > levelWindow ? progressionLevel - levelWindow : 1;
 
     std::vector<SmartLootCandidate> candidates;
-    AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, candidates);
+    AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel,
+        candidates);
     if (candidates.empty())
         return nullptr;
 
@@ -386,6 +408,24 @@ ItemTemplate const* GetEquipmentLootTemplate(LootItem const& lootItem)
 
     return itemTemplate;
 }
+
+// Whom the drop is fitted to: whoever tagged the creature, except that bots are never dressed by it. In a group
+// holding real players, one of those near the creature (a random one per item when several are there) takes it,
+// or a group with bots would loot shields and off-hands made for its bot tank.
+Player* PickLootOwner(Player* player, Creature* killed)
+{
+    Player* owner = killed->GetLootRecipient() ? killed->GetLootRecipient() : player;
+    Group* group = killed->GetLootRecipientGroup() ? killed->GetLootRecipientGroup() : owner->GetGroup();
+    if (!group)
+        return owner;
+
+    std::vector<Player*> players;
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        if (Player* member = ref->GetSource(); member && !member->GetSession()->IsBot() && member->IsInMap(killed))
+            players.push_back(member);
+
+    return players.empty() ? owner : players[urand(0, static_cast<uint32>(players.size() - 1))];
+}
 }
 
 void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
@@ -395,9 +435,6 @@ void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
         killed->IsPet() || killed->IsTotem() || killed->GetCreatureTemplate()->type == CREATURE_TYPE_CRITTER)
         return;
 
-    if (Player* lootRecipient = killed->GetLootRecipient())
-        player = lootRecipient;
-
     BuildEquipmentCatalog();
     for (LootItem& lootItem : killed->loot.items)
     {
@@ -406,32 +443,55 @@ void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
         if (!original || original->Quality < ITEM_QUALITY_UNCOMMON || original->Quality > ITEM_QUALITY_EPIC)
             continue;
 
-        if (ItemTemplate const* replacement = SelectSmartReplacement(player, killed, original->Quality))
+        if (ItemTemplate const* replacement =
+                SelectSmartReplacement(PickLootOwner(player, killed), killed, *original))
             ReplaceLootItem(lootItem, *replacement);
     }
 }
 
-bool UpgradeLootItemQuality(Player* player, Creature* killed, LootItem& lootItem)
+// A mythic boss gives each real player one epic of the run's item level, fitted to their class the same way as
+// Smart Loot replacements, from just below that item level (wider when the game has no items there, as between
+// raid tiers). Upgrades over what they wear come first, but a player whose gear is already better still gets
+// something of the right item level.
+ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel)
 {
-    if (!player || !killed)
-        return false;
-
-    ItemTemplate const* original = GetEquipmentLootTemplate(lootItem);
-    if (!original)
-        return false;
-
-    // Poor and common equipment upgrades straight to uncommon, anything better moves up one quality up to epic
-    uint32 const targetQuality = original->Quality < ITEM_QUALITY_UNCOMMON
-        ? uint32(ITEM_QUALITY_UNCOMMON)
-        : uint32(original->Quality) + 1;
-    if (targetQuality > ITEM_QUALITY_EPIC)
-        return false;
+    if (!player)
+        return nullptr;
 
     BuildEquipmentCatalog();
-    ItemTemplate const* replacement = SelectSmartReplacement(player, killed, targetQuality);
-    if (!replacement)
-        return false;
+    uint32 const progressionLevel = player->GetLevel();
+    std::vector<SmartLootCandidate> candidates;
+    for (uint32 window : { ReplacementItemLevelWindow, 13u, 26u })
+    {
+        for (ItemTemplate const* candidate : equipmentCatalog)
+        {
+            if (candidate->Quality != ITEM_QUALITY_EPIC || candidate->ItemLevel > itemLevel ||
+                candidate->ItemLevel + window < itemLevel || candidate->RequiredLevel > progressionLevel ||
+                player->BotCanUseItem(candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(*candidate, player) ||
+                !HasClassAppropriateStats(*candidate, player))
+                continue;
+            if (candidate->Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate->InventoryType) &&
+                candidate->SubClass != GetPreferredArmorSubclass(player))
+                continue;
+            if (GetWeakestEquippedItemLevel(player, *candidate) == std::numeric_limits<uint32>::max() ||
+                player->HasItemCount(candidate->ItemId, 1, true))
+                continue;
 
-    ReplaceLootItem(lootItem, *replacement);
-    return true;
+            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel) });
+        }
+
+        if (!candidates.empty())
+            break;
+    }
+
+    if (candidates.empty())
+        return nullptr;
+
+    std::sort(candidates.begin(), candidates.end(), [](SmartLootCandidate const& left, SmartLootCandidate const& right)
+    {
+        return left.score > right.score;
+    });
+
+    size_t const topPoolSize = std::min<size_t>(candidates.size(), 8);
+    return candidates[urand(0, static_cast<uint32>(topPoolSize - 1))].itemTemplate;
 }

@@ -62,6 +62,8 @@ void StatGrowthConfig::BuildConfigCache()
         Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<uint32>(StatGrowthConfigKey::VitalityBonusPerUse, "StatGrowth.VitalityBonusPerUse", 1,
         Reloadable::Yes, [](uint32 value) { return value > 0; }, "greater than zero");
+    SetConfigValue<float>(StatGrowthConfigKey::VitalityHealthPerLevel, "StatGrowth.VitalityHealthPerLevel", 0.5f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f; }, "zero or greater");
     SetConfigValue<uint32>(StatGrowthConfigKey::VitalityItemEntry, "StatGrowth.VitalityItemEntry", 41606,
         Reloadable::No, [](uint32 value) { return value > 0; }, "greater than zero");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneDropChance, "StatGrowth.FortuneDropChance", 10.0f,
@@ -79,12 +81,6 @@ void StatGrowthConfig::BuildConfigCache()
     SetConfigValue<uint32>(StatGrowthConfigKey::AscendantTierMultiplier,
         "StatGrowth.AscendantTierMultiplier", 10, Reloadable::Yes,
         [](uint32 value) { return value > 0; }, "greater than zero");
-    SetConfigValue<float>(StatGrowthConfigKey::FortuneQualityUpgradeChancePerPoint,
-        "Fortune.QualityUpgradeChancePerPoint", 1.0f, Reloadable::Yes,
-        [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
-    SetConfigValue<float>(StatGrowthConfigKey::FortuneMaxQualityUpgradeChance,
-        "Fortune.MaxQualityUpgradeChance", 50.0f, Reloadable::Yes,
-        [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusChancePerPoint,
         "Fortune.GearBonusChancePerPoint", 0.5f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");

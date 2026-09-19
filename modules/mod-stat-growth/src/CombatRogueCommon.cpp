@@ -159,10 +159,22 @@ void ExtendBattleTempo(Player* player, uint32 milliseconds)
     aura->SetDuration(duration);
 }
 
-void OnFinisherCast(Player* player, uint8 comboPoints, Unit* target)
+void OnFinisherCast(Player* player, uint8 comboPoints, Unit* target, bool daggerfall)
 {
     if (!comboPoints)
         return;
+
+    // Crimson Daggerfall feeds on the other finishers: each one shortens its cooldown, and a full one may rain a
+    // free Daggerfall (a triggered cast: 5 combo points, no energy, and its cooldown is left alone)
+    if (!daggerfall && player->HasSpell(SPELL_CRIMSON_DAGGERFALL))
+    {
+        player->ModifySpellCooldown(SPELL_CRIMSON_DAGGERFALL,
+            -int32(DAGGERFALL_COOLDOWN_PER_COMBO_POINT_MS * comboPoints));
+
+        if (comboPoints >= 5 && roll_chance_i(DAGGERFALL_FREE_CAST_CHANCE) &&
+            !GetEnemiesInRange(player, GetAoeRadius(player, false)).empty())
+            player->CastSpell(player, SPELL_CRIMSON_DAGGERFALL, TRIGGERED_FULL_MASK);
+    }
 
     if (uint8 const relentlessTempo = GetTalentRank(player, Talent::RelentlessTempo))
         if (roll_chance_i(std::min(100, 10 * relentlessTempo * comboPoints)))
@@ -377,7 +389,7 @@ constexpr std::array<EvolutionMessage, 15> EvolutionMessages = { {
     { EVOLUTION_SHADOW_LUNGE_OPENING, "Shadow Lunge now grants Opening." },
     { EVOLUTION_CRIMSON_WOUNDS_STACKS, "Crimson Wounds now stacks up to 3 times." },
     { EVOLUTION_CRESCENT_SLASH_DAMAGE, "Crescent Slash now deals 125% weapon damage." },
-    { EVOLUTION_RIPOSTE_DODGE, "Riposte now increases your dodge chance by 15% for 6 sec." },
+    { EVOLUTION_RIPOSTE_DODGE, "Riposte now increases your dodge chance by 15% for 7 sec." },
     { EVOLUTION_KEENER_OPENINGS,
         "Sinister Strike grants Opening more often, and Blood Waltz at 5 combo points grants Opening." },
     { EVOLUTION_OPENING_STACKS, "Opening now stacks up to 2 times." },

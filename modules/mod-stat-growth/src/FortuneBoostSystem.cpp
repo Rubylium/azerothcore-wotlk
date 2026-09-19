@@ -9,7 +9,6 @@
 #include "PersonalLootSystem.h"
 #include "Random.h"
 #include "SharedDefines.h"
-#include "SmartLootSystem.h"
 #include "StatGrowthConfig.h"
 #include <algorithm>
 #include <limits>
@@ -50,29 +49,6 @@ void ApplyFortuneGoldBoost(Player* player, int32& amount)
     uint32 const bonusPercent = GetFortuneBonus(player);
     int64 const boostedAmount = static_cast<int64>(amount) + static_cast<int64>(amount) * bonusPercent / 100;
     amount = static_cast<int32>(std::min<int64>(boostedAmount, std::numeric_limits<int32>::max()));
-}
-
-// Fortune improves what drops instead of how many copies drop: each equipment drop has a chance to be
-// replaced by a class-appropriate item one quality higher. Item counts are never changed.
-void ApplyFortuneLootBoost(Player* player, Creature* killed)
-{
-    if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) || !player ||
-        !IsEligibleCreature(killed))
-        return;
-
-    if (Player* lootRecipient = killed->GetLootRecipient())
-        player = lootRecipient;
-
-    float const upgradeChance = std::min(
-        static_cast<float>(GetFortuneBonus(player)) *
-            statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneQualityUpgradeChancePerPoint),
-        statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneMaxQualityUpgradeChance));
-    if (upgradeChance <= 0.0f)
-        return;
-
-    for (LootItem& item : killed->loot.items)
-        if (roll_chance_f(upgradeChance))
-            UpgradeLootItemQuality(player, killed, item);
 }
 
 bool GrantFortuneBoost(Player* player, uint32 amount, uint32& totalBonus)

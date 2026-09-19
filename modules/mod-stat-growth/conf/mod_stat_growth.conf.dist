@@ -73,8 +73,12 @@ StatGrowth.ResourceItemEntry = 21238
 # Independent chance for an eligible corpse to contain an Essence of Vitality.
 StatGrowth.VitalityDropChance = 10.0
 
-# Permanent, stacking maximum-health percentage granted per essence.
+# Permanent, stacking Vitality points granted per essence.
 StatGrowth.VitalityBonusPerUse = 1
+
+# Maximum health each Vitality point gives, per character level: a flat amount added to health that keeps its
+# worth while levelling (0.5: +10 health per point at level 20, +40 at level 80).
+StatGrowth.VitalityHealthPerLevel = 0.5
 
 # Uses a native client Item.dbc entry so the inventory icon works without a client patch.
 StatGrowth.VitalityItemEntry = 41606
@@ -82,8 +86,8 @@ StatGrowth.VitalityItemEntry = 41606
 # Independent chance for an eligible corpse to contain an Essence of Fortune.
 StatGrowth.FortuneDropChance = 10.0
 
-# Permanent Fortune percentage granted per essence. Fortune increases gold gains and loot quality; it never
-# increases item counts.
+# Permanent Fortune percentage granted per essence. Fortune increases gold gains and the chance and strength of
+# gear bonuses; it never changes which item drops, its item level or item counts.
 StatGrowth.FortuneBonusPerUse = 1
 
 # Uses a native client Item.dbc entry so the inventory icon works without a client patch.
@@ -100,11 +104,6 @@ StatGrowth.AscendantTierMultiplier = 10
 
 # Essences are consumed automatically when looted and never take bag space. Essences obtained another way
 # (trade, mail, older stacks) are still used by right-clicking them.
-
-# Chance, per Fortune percent, for each equipment drop to be replaced by a class-appropriate item one quality
-# higher (poor and common become uncommon, up to epic). Capped by MaxQualityUpgradeChance.
-Fortune.QualityUpgradeChancePerPoint = 1.0
-Fortune.MaxQualityUpgradeChance = 50.0
 
 # Extra gear bonus roll chance, per Fortune percent, added to the GearBonus quality chance.
 Fortune.GearBonusChancePerPoint = 0.5

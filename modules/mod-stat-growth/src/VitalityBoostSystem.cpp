@@ -28,12 +28,6 @@ uint32 GetStoredVitalityBonus(Player* player)
     return player->GetPlayerSetting(VitalitySettingsSource, VitalityBonusSetting).value;
 }
 
-uint32 GetVitalityBonus(Player* player)
-{
-    uint64 const bonus = static_cast<uint64>(GetStoredVitalityBonus(player)) +
-        GetEquippedPersonalLootBonus(player, PersonalLootAffix::MaximumHealth);
-    return static_cast<uint32>(std::min<uint64>(bonus, std::numeric_limits<uint32>::max()));
-}
 }
 
 void ApplyVitalityBoost(Player* player, float& maxHealth)
@@ -41,9 +35,19 @@ void ApplyVitalityBoost(Player* player, float& maxHealth)
     if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) || !player)
         return;
 
-    uint32 const bonusPercent = GetVitalityBonus(player);
-    double const boostedHealth = static_cast<double>(maxHealth) * (100.0 + bonusPercent) / 100.0;
+    // Gear bonuses (the maximum-health affix) stay a percentage; the essences' Vitality points are a flat amount
+    // per level, added after it, so they never multiply gear or other bonuses
+    uint32 const affixPercent = GetEquippedPersonalLootBonus(player, PersonalLootAffix::MaximumHealth);
+    double const boostedHealth = static_cast<double>(maxHealth) * (100.0 + affixPercent) / 100.0 +
+        GetVitalityHealth(player, GetStoredVitalityBonus(player));
     maxHealth = static_cast<float>(std::min<double>(boostedHealth, std::numeric_limits<uint32>::max()));
+}
+
+uint32 GetVitalityHealth(Player const* player, uint32 points)
+{
+    double const perPoint = static_cast<double>(player->GetLevel()) *
+        statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::VitalityHealthPerLevel);
+    return static_cast<uint32>(std::min<double>(perPoint * points, std::numeric_limits<uint32>::max()));
 }
 
 bool GrantVitalityBoost(Player* player, uint32 amount, uint32& totalBonus)

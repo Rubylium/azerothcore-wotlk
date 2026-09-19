@@ -7,6 +7,8 @@
 #include "ExperienceBoostSystem.h"
 #include "FortuneBoostSystem.h"
 #include "GladiatorStanceSystem.h"
+#include "MythicDungeonSystem.h"
+#include "MythicItemGeneration.h"
 #include "PersonalLootSystem.h"
 #include "QuickTravelSystem.h"
 #include "ResourceBoostSystem.h"
@@ -109,8 +111,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
             }
 
             PlayTieredFeedback(player, EssenceVisual::Vitality, tier, "VITALITY");
-            chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Maximum health "
-                "permanently increased by +{}%. Total: +{}%.|r", tierName, amount, totalBonus);
+            chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Vitality permanently "
+                "increased by +{} ({} maximum health at your level). Total: {} Vitality, +{} maximum health.|r",
+                tierName, amount, GetVitalityHealth(player, amount), totalBonus, GetVitalityHealth(player, totalBonus));
             return true;
         }
         case EssenceFamily::Fortune:
@@ -124,8 +127,8 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
             }
 
             PlayTieredFeedback(player, EssenceVisual::Fortune, tier, "FORTUNE");
-            chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Gold gains and loot "
-                "quality permanently increased by +{}%. Total: +{}%.|r", tierName, amount, totalBonus);
+            chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Gold gains and gear bonuses "
+                "(chance and strength) permanently increased by +{}%. Total: +{}%.|r", tierName, amount, totalBonus);
             return true;
         }
     }
@@ -191,6 +194,27 @@ bool RespawnAtDungeonStart(Player* player)
     player->TeleportTo(start);
     return true;
 }
+
+// Mythic trash gives nothing and mythic bosses hand out their own equipment (MythicDungeonSystem.cpp): only the
+// essences of a Mythique 0 boss are added there (Mythic+ gives its essences at the end of the dungeon)
+void AddKillLoot(Player* player, Creature* killed)
+{
+    if (IsMythicLootless(killed))
+        return;
+
+    if (!IsMythicCreature(killed))
+        ImproveBaseEquipmentLoot(player, killed);
+    TryAddStatGrowthLoot(player, killed);
+    TryAddExperienceBoostLoot(player, killed);
+    TryAddResourceBoostLoot(player, killed);
+    TryAddVitalityBoostLoot(player, killed);
+    TryAddFortuneBoostLoot(player, killed);
+}
+}
+
+bool ConsumeEssenceReward(Player* player, uint32 itemEntry)
+{
+    return ConsumeEssence(player, itemEntry);
 }
 
 class StatGrowthWorldScript : public WorldScript
@@ -302,25 +326,13 @@ public:
 
     void OnPlayerCreatureKill(Player* killer, Creature* killed) override
     {
-        ImproveBaseEquipmentLoot(killer, killed);
-        ApplyFortuneLootBoost(killer, killed);
-        TryAddStatGrowthLoot(killer, killed);
-        TryAddExperienceBoostLoot(killer, killed);
-        TryAddResourceBoostLoot(killer, killed);
-        TryAddVitalityBoostLoot(killer, killed);
-        TryAddFortuneBoostLoot(killer, killed);
+        AddKillLoot(killer, killed);
         OnCombatRogueKill(killer, killed);
     }
 
     void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
     {
-        ImproveBaseEquipmentLoot(petOwner, killed);
-        ApplyFortuneLootBoost(petOwner, killed);
-        TryAddStatGrowthLoot(petOwner, killed);
-        TryAddExperienceBoostLoot(petOwner, killed);
-        TryAddResourceBoostLoot(petOwner, killed);
-        TryAddVitalityBoostLoot(petOwner, killed);
-        TryAddFortuneBoostLoot(petOwner, killed);
+        AddKillLoot(petOwner, killed);
     }
 
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit*, uint8) override
@@ -437,6 +449,8 @@ void AddStatGrowthScripts()
     AddVictoryRushScripts();
     AddQuickTravelScripts();
     AddDungeonFinderLockScripts();
+    AddMythicDungeonScripts();
+    AddMythicItemGenerationScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
     new StatGrowthUnitScript();

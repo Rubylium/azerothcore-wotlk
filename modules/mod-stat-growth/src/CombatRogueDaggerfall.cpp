@@ -55,12 +55,21 @@ class CombatRogueCrimsonDaggerfallScript : public SpellScript
 
     uint8 _comboPoints = 0;
     uint32 _overflowEnergy = 0;
+    // Rained for free by another finisher (see OnFinisherCast): full strength, no energy, no finisher effects
+    bool _free = false;
 
     void HandleBeforeCast()
     {
         Player* player = GetRogue(GetCaster());
         if (!player)
             return;
+
+        _free = GetSpell()->IsTriggered();
+        if (_free)
+        {
+            _comboPoints = 5;
+            return;
+        }
 
         _comboPoints = std::max<uint8>(player->GetComboPoints(), 1);
         _overflowEnergy = TakeOverflowEnergy(player, GetSpellInfo()->ManaCost);
@@ -101,8 +110,8 @@ class CombatRogueCrimsonDaggerfallScript : public SpellScript
 
     void HandleAfterCast()
     {
-        if (Player* player = GetRogue(GetCaster()))
-            OnFinisherCast(player, _comboPoints, GetExplTargetUnit());
+        if (Player* player = GetRogue(GetCaster()); player && !_free)
+            OnFinisherCast(player, _comboPoints, GetExplTargetUnit(), true);
     }
 
     void Register() override

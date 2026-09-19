@@ -36,6 +36,11 @@ enum Spells : uint32
     SPELL_CRIMSON_DAGGERFALL = 90105
 };
 
+// Crimson Daggerfall: every other finisher takes this much off its cooldown per combo point spent, and one spending
+// 5 combo points has this % chance to rain a free Daggerfall
+constexpr uint32 DAGGERFALL_COOLDOWN_PER_COMBO_POINT_MS = 1000;
+constexpr int32 DAGGERFALL_FREE_CAST_CHANCE = 20;
+
 // Caster aura state not used by any class: set while Opening is up and required by Quick Cut in the client data, so the
 // Quick Cut button lights up like a reactive ability
 constexpr uint32 OPENING_AURA_STATE = 9;
@@ -141,7 +146,8 @@ uint32 TakeOverflowEnergy(Player* player, uint32 baseCost);
 float GetOverflowMultiplier(uint32 overflowEnergy);
 void ApplyBattleTempo(Player* player, uint8 comboPoints);
 void ExtendBattleTempo(Player* player, uint32 milliseconds);
-void OnFinisherCast(Player* player, uint8 comboPoints, Unit* target);
+// `daggerfall` is set by Crimson Daggerfall itself, which does not feed its own cooldown or free casts
+void OnFinisherCast(Player* player, uint8 comboPoints, Unit* target, bool daggerfall = false);
 
 // Bleeds and AoE
 float GetAoeRadius(Player const* player, bool bloodWaltz);

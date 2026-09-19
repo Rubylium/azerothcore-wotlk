@@ -85,6 +85,14 @@ void AddTieredEssenceLoot(Creature* killed, EssenceFamily family)
     uint32 const itemEntry = GetEssenceEntry(family, tier);
     LootStoreItem const essence(itemEntry, 0, 100.0f, false, LOOT_MODE_DEFAULT, 0, 1, 1);
     killed->loot.AddItem(essence);
+
+    // In a group nobody has to roll on it: the players roll Need automatically (Group::AutoRoll)
+    for (auto item = killed->loot.items.rbegin(); item != killed->loot.items.rend(); ++item)
+        if (item->itemid == itemEntry)
+        {
+            item->auto_roll = true;
+            break;
+        }
 }
 
 EssenceTier GetEssenceTier(uint32 itemEntry)
@@ -101,6 +109,16 @@ EssenceTier GetEssenceTier(uint32 itemEntry)
     }
 
     return EssenceTier::Faint;
+}
+
+uint32 RollEssenceEntry(uint32 tierRolls)
+{
+    EssenceTier tier = EssenceTier::Faint;
+    for (uint32 roll = 0; roll < std::max<uint32>(tierRolls, 1); ++roll)
+        tier = std::max(tier, RollEssenceTier());
+
+    EssenceFamily const family = static_cast<EssenceFamily>(urand(0, static_cast<uint32>(EssenceItems.size() - 1)));
+    return GetEssenceEntry(family, tier);
 }
 
 std::string_view GetEssenceTierName(EssenceTier tier)
