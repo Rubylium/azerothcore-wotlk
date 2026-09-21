@@ -33,25 +33,97 @@ MINOR, NOTABLE, KEYSTONE = 0, 1, 2
 
 # What one point buys, before the branch's own scale. A minor node is about four essences, a notable is about a
 # Mythic+ run of essence farming, and a keystone is worth more than that: nothing on the board is filler.
-BASE_VALUE = {MINOR: 6, NOTABLE: 18, KEYSTONE: 45}
+# Effect ids, matching ParagonEffect in ParagonSystem.cpp. Change one and change the other.
+E_STAT, E_ARMOR, E_ARMOR_PCT, E_GUARD, E_RETALIATE, E_LAST_STAND, E_FURY, E_SURGE = range(8)
+
+# What a plain node is worth. The board is mostly these: a tree of nothing but procs would be noise, and the
+# quiet nodes are what make the loud ones feel like arriving somewhere.
+BASE_VALUE = {MINOR: 8, NOTABLE: 30, KEYSTONE: 0}     # keystones are never plain stats
+
+
+def special(effect, name, description, icon, value=0, value2=0, chance=0.0,
+            duration=0, cooldown=0):
+    return {"effect": effect, "name": name, "description": description, "icon": icon,
+            "value": value, "value2": value2, "chance": chance,
+            "duration": duration, "cooldown": cooldown}
+
 
 # Attack and spell power are worth less per point than a primary stat, so their branches carry bigger numbers
 # for the same real gain.
+#
+# Each branch's `specials` are dealt out to its notable slots in order and then its keystone. A branch with
+# fewer specials than notables fills the rest with plain stats, which is deliberate: the interesting nodes
+# should be worth walking to, not the default.
 BRANCHES = [
-    # angle, stat, scale, name, (minor, notable, keystone) icons
-    (0,   STRENGTH,     1.0, "Force",      ("Spell_Nature_Strength", "Ability_Warrior_StrengthOfArms",
-                                            "Ability_Warrior_InnerRage")),
-    (60,  ATTACK_POWER, 2.0, "Puissance",  ("Ability_Warrior_BattleShout", "Ability_TrueShot",
-                                            "Spell_Holy_SealOfMight")),
-    (120, AGILITY,      1.0, "Agilité",    ("Ability_Rogue_Sprint", "Spell_Nature_MentalQuickness",
-                                            "Ability_Rogue_CutToTheChase")),
-    (180, STAMINA,      1.2, "Endurance",  ("Spell_Holy_BlessingOfStamina", "Spell_Nature_UnyeildingStamina",
-                                            "Spell_Holy_WordFortitude")),
-    (240, SPELL_POWER,  1.4, "Arcanes",    ("Spell_Arcane_Arcane01", "Spell_Arcane_Blast",
-                                            "Spell_Arcane_ArcanePotency")),
-    (300, INTELLECT,    1.0, "Intellect",  ("Spell_Holy_ArcaneIntellect", "Spell_Arcane_MindMastery",
-                                            "Spell_Magic_GreaterBlessingofKings")),
+    (0, STRENGTH, 1.0, "Force",
+     ("Spell_Nature_Strength", "Ability_Warrior_StrengthOfArms", "Ability_Warrior_InnerRage"),
+     [
+         special(E_FURY, "Ardeur", "10% de chances en infligeant des dégâts d'augmenter vos dégâts de 8% "
+                 "pendant 10 s.", "Ability_Warrior_Rampage", value=8, chance=10.0, duration=10000),
+     ],
+     special(E_FURY, "Furie du parangon",
+             "15% de chances en infligeant des dégâts d'augmenter tous vos dégâts de 20% pendant 12 s.",
+             "Ability_Warrior_InnerRage", value=20, chance=15.0, duration=12000)),
+
+    (60, ATTACK_POWER, 2.0, "Puissance",
+     ("Ability_Warrior_BattleShout", "Ability_TrueShot", "Spell_Holy_SealOfMight"),
+     [
+         special(E_SURGE, "Curée", "Tuer un ennemi octroie 120 en puissance d'attaque et des sorts "
+                 "pendant 15 s.", "Ability_Rogue_SliceDice", value=120, duration=15000),
+     ],
+     special(E_SURGE, "Élan du parangon",
+             "Tuer un ennemi octroie 350 en puissance d'attaque et des sorts pendant 20 s.",
+             "Spell_Holy_SealOfMight", value=350, duration=20000)),
+
+    (120, AGILITY, 1.0, "Agilité",
+     ("Ability_Rogue_Sprint", "Spell_Nature_MentalQuickness", "Ability_Rogue_CutToTheChase"),
+     [
+         special(E_RETALIATE, "Riposte", "10% de chances quand vous êtes touché de renvoyer 25% des dégâts "
+                 "à l'attaquant.", "Ability_Warrior_Revenge", value=25, chance=10.0),
+     ],
+     special(E_RETALIATE, "Représailles du parangon",
+             "20% de chances quand vous êtes touché de renvoyer 60% des dégâts à l'attaquant.",
+             "Ability_Rogue_CutToTheChase", value=60, chance=20.0)),
+
+    # The armour branch. Minor nodes here are armour rather than stamina, so walking it actually makes you
+    # harder to kill instead of just larger.
+    (180, STAMINA, 1.2, "Carapace",
+     ("Spell_Holy_BlessingOfStamina", "Ability_Warrior_ShieldWall", "Spell_Holy_WordFortitude"),
+     [
+         special(E_GUARD, "Écaille de pierre", "10% de chances quand vous êtes touché d'augmenter votre "
+                 "armure de 10% pendant 8 s.", "Spell_Holy_DevotionAura",
+                 value=10, chance=10.0, duration=8000),
+         special(E_ARMOR_PCT, "Peau d'acier", "Augmente votre armure de 5%.",
+                 "INV_Shield_06", value=5),
+     ],
+     special(E_LAST_STAND, "Rempart du parangon",
+             "Sous 35% de vie, vous subissez 40% de dégâts en moins pendant 10 s. 1 minute de recharge.",
+             "Spell_Holy_WordFortitude", value=40, value2=35, duration=10000, cooldown=60000)),
+
+    (240, SPELL_POWER, 1.4, "Arcanes",
+     ("Spell_Arcane_Arcane01", "Spell_Arcane_Blast", "Spell_Arcane_ArcanePotency"),
+     [
+         special(E_FURY, "Résonance", "8% de chances en infligeant des dégâts d'augmenter vos dégâts de 10% "
+                 "pendant 10 s.", "Spell_Arcane_Blast", value=10, chance=8.0, duration=10000),
+     ],
+     special(E_FURY, "Cataclysme du parangon",
+             "12% de chances en infligeant des dégâts d'augmenter tous vos dégâts de 25% pendant 12 s.",
+             "Spell_Arcane_ArcanePotency", value=25, chance=12.0, duration=12000)),
+
+    (300, INTELLECT, 1.0, "Intellect",
+     ("Spell_Holy_ArcaneIntellect", "Spell_Arcane_MindMastery", "Spell_Magic_GreaterBlessingofKings"),
+     [
+         special(E_SURGE, "Clairvoyance", "Tuer un ennemi octroie 150 en puissance des sorts et d'attaque "
+                 "pendant 15 s.", "Spell_Arcane_MindMastery", value=150, duration=15000),
+     ],
+     special(E_SURGE, "Omniscience du parangon",
+             "Tuer un ennemi octroie 400 en puissance des sorts et d'attaque pendant 20 s.",
+             "Spell_Magic_GreaterBlessingofKings", value=400, duration=20000)),
 ]
+
+# Armour a plain node on the Carapace branch is worth, in place of a stat.
+ARMOR_MINOR, ARMOR_NOTABLE = 150, 600
+ARMOR_BRANCH = "Carapace"
 
 STAT_NAME = {
     STRENGTH: "Force", AGILITY: "Agilité", STAMINA: "Endurance", INTELLECT: "Intellect",
@@ -108,8 +180,10 @@ def escape(text):
 
 def build():
     available = load_icons()
-    missing = sorted({icon for _, _, _, _, icons in BRANCHES for icon in icons
-                      if icon.lower() not in available})
+    wanted = {icon for branch in BRANCHES for icon in branch[4]}
+    wanted |= {s["icon"] for branch in BRANCHES for s in branch[5]}
+    wanted |= {branch[6]["icon"] for branch in BRANCHES}
+    missing = sorted({icon for icon in wanted if icon.lower() not in available})
     if missing:
         raise SystemExit("Not in SpellIcon.dbc, would show as a green question mark: %s" % ", ".join(missing))
 
@@ -118,7 +192,8 @@ def build():
     branches = []                                        # ring_slots per branch, for the cross-links below
 
     nodes.append({
-        "id": START_NODE, "type": MINOR, "x": 0, "y": 0, "stat": STAMINA, "value": 0, "free": 1,
+        "id": START_NODE, "type": MINOR, "x": 0, "y": 0, "effect": E_STAT, "stat": STAMINA, "value": 0,
+        "value2": 0, "chance": 0.0, "duration": 0, "cooldown": 0, "free": 1,
         "icon": "Spell_Arcane_Arcane04", "name": "Éveil", "branch": "",
         "description": "Le point de départ du tableau. Aucun point requis.",
     })
@@ -126,7 +201,8 @@ def build():
         raise SystemExit("start node icon missing")
 
     node_id = 100
-    for angle, stat, scale, branch_name, icons in BRANCHES:
+    for angle, stat, scale, branch_name, icons, specials, keystone in BRANCHES:
+        remaining = list(specials)
         ring_slots = []                                  # node ids per ring, in ring order
         for ring_index, (radius, count, notable_slots) in enumerate(RINGS):
             slots = []
@@ -152,17 +228,50 @@ def build():
                 else:
                     node_type = MINOR
 
-                value = int(round(BASE_VALUE[node_type] * scale))
-                label = {MINOR: branch_name, NOTABLE: "%s majeur" % branch_name,
-                         KEYSTONE: "%s suprême" % branch_name}[node_type]
+                # Keystones are always a special, notables take one while any are left, and everything
+                # else is the branch's plain stat - or its armour, on the branch that is about armour.
+                chosen = None
+                if node_type == KEYSTONE:
+                    chosen = keystone
+                elif node_type == NOTABLE and remaining:
+                    chosen = remaining.pop(0)
 
-                nodes.append({
-                    "id": node_id, "type": node_type,
-                    "x": int(round(radius * math.cos(theta))), "y": int(round(radius * math.sin(theta))),
-                    "stat": stat, "value": value, "free": 0, "icon": icons[node_type],
-                    "name": label, "branch": branch_name,
-                    "description": "+%d %s" % (value, STAT_NAME[stat]),
-                })
+                if chosen:
+                    node = {
+                        "id": node_id, "type": node_type,
+                        "x": int(round(radius * math.cos(theta))),
+                        "y": int(round(radius * math.sin(theta))),
+                        "effect": chosen["effect"], "stat": stat,
+                        "value": chosen["value"], "value2": chosen["value2"],
+                        "chance": chosen["chance"], "duration": chosen["duration"],
+                        "cooldown": chosen["cooldown"], "free": 0, "icon": chosen["icon"],
+                        "name": chosen["name"], "branch": branch_name,
+                        "description": chosen["description"],
+                    }
+                elif branch_name == ARMOR_BRANCH:
+                    amount = ARMOR_MINOR if node_type == MINOR else ARMOR_NOTABLE
+                    node = {
+                        "id": node_id, "type": node_type,
+                        "x": int(round(radius * math.cos(theta))),
+                        "y": int(round(radius * math.sin(theta))),
+                        "effect": E_ARMOR, "stat": stat, "value": amount, "value2": 0, "chance": 0.0,
+                        "duration": 0, "cooldown": 0, "free": 0, "icon": icons[node_type],
+                        "name": "Carapace" if node_type == MINOR else "Carapace majeure",
+                        "branch": branch_name, "description": "+%d Armure" % amount,
+                    }
+                else:
+                    value = int(round(BASE_VALUE[node_type] * scale))
+                    node = {
+                        "id": node_id, "type": node_type,
+                        "x": int(round(radius * math.cos(theta))),
+                        "y": int(round(radius * math.sin(theta))),
+                        "effect": E_STAT, "stat": stat, "value": value, "value2": 0, "chance": 0.0,
+                        "duration": 0, "cooldown": 0, "free": 0, "icon": icons[node_type],
+                        "name": branch_name if node_type == MINOR else "%s majeur" % branch_name,
+                        "branch": branch_name, "description": "+%d %s" % (value, STAT_NAME[stat]),
+                    }
+
+                nodes.append(node)
                 slots.append(node_id)
                 node_id += 1
 
@@ -196,7 +305,7 @@ def signature(nodes, links):
     """Must match LoadParagonBoard in ParagonSystem.cpp, wraparound included."""
     total = 0
     for node in nodes:
-        total += node["id"] * 31 + node["value"] * 7 + node["stat"]
+        total += node["id"] * 31 + node["value"] * 7 + node["stat"] + node["effect"] * 3
     for a, b in links:
         total += a * 13 + b * 17
     return total % (2 ** 32)
@@ -217,10 +326,10 @@ def write_lua(nodes, links, stamp):
     ]
     for node in nodes:
         lines.append(
-            "        [%d] = { type = %d, x = %d, y = %d, stat = %d, value = %d, free = %s,"
-            " icon = %s, name = %s, description = %s }," % (
-                node["id"], node["type"], node["x"], node["y"], node["stat"], node["value"],
-                "true" if node["free"] else "false",
+            "        [%d] = { type = %d, x = %d, y = %d, effect = %d, stat = %d, value = %d,"
+            " free = %s, icon = %s, name = %s, description = %s }," % (
+                node["id"], node["type"], node["x"], node["y"], node["effect"], node["stat"],
+                node["value"], "true" if node["free"] else "false",
                 lua_string("Interface" + chr(92) + "Icons" + chr(92) + node["icon"]),
                 lua_string(node["name"]), lua_string(node["description"])))
     lines += ["    },", "    links = {"]
@@ -259,8 +368,13 @@ def main():
         "    `type` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 minor, 1 notable, 2 keystone',",
         "    `x` SMALLINT NOT NULL DEFAULT 0,",
         "    `y` SMALLINT NOT NULL DEFAULT 0,",
+        "    `effect` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ParagonEffect',",
         "    `stat` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'PermanentStat',",
         "    `value` INT UNSIGNED NOT NULL DEFAULT 0,",
+        "    `value2` INT UNSIGNED NOT NULL DEFAULT 0,",
+        "    `chance` FLOAT NOT NULL DEFAULT 0 COMMENT 'percent, for the procs',",
+        "    `duration` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'milliseconds',",
+        "    `cooldown` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'milliseconds',",
         "    `free` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'costs no point, always allocated',",
         "    `icon` VARCHAR(128) NOT NULL DEFAULT '',",
         "    `name` VARCHAR(64) NOT NULL DEFAULT '',",
@@ -277,12 +391,13 @@ def main():
         "DELETE FROM `paragon_node_link`;",
         "DELETE FROM `paragon_node`;",
         "",
-        "INSERT INTO `paragon_node` (`id`, `type`, `x`, `y`, `stat`, `value`, `free`, `icon`, `name`,"
-        " `description`) VALUES",
+        "INSERT INTO `paragon_node` (`id`, `type`, `x`, `y`, `effect`, `stat`, `value`, `value2`,"
+        " `chance`, `duration`, `cooldown`, `free`, `icon`, `name`, `description`) VALUES",
     ]
 
-    rows = ["    (%d, %d, %d, %d, %d, %d, %d, '%s', '%s', '%s')" % (
-        n["id"], n["type"], n["x"], n["y"], n["stat"], n["value"], n["free"],
+    rows = ["    (%d, %d, %d, %d, %d, %d, %d, %d, %g, %d, %d, %d, '%s', '%s', '%s')" % (
+        n["id"], n["type"], n["x"], n["y"], n["effect"], n["stat"], n["value"], n["value2"],
+        n["chance"], n["duration"], n["cooldown"], n["free"],
         escape("Interface" + chr(92) + "Icons" + chr(92) + n["icon"]),
         escape(n["name"]), escape(n["description"])) for n in nodes]
     lines.append(",\n".join(rows) + ";")

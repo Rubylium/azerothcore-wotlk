@@ -4,9 +4,11 @@
 #include "Define.h"
 
 #include <string>
+#include <string_view>
 
 class Creature;
 class Player;
+class Unit;
 
 // The paragon board: a second layer of permanent power on top of the essences, spent on a tree rather than
 // granted flat. A node is worth several essences at least, so every point is an event; the 50 point cap is what
@@ -23,8 +25,12 @@ void LoadParagonForPlayer(Player* player);
 void ForgetParagonForPlayer(Player* player);
 
 // A boss died: roll each real player in the group for a point, at a chance set by the difficulty it was killed
-// on. Rolled per player, so nobody is competing for it.
+// on. Rolled per player, so nobody is competing for it. A Mythic+ boss never rolls - the run itself pays.
 void TryAwardParagonPoint(Player* player, Creature* killed);
+
+// Hands points over outright, with a short reason for the message. For awards that are earned rather than
+// rolled for, such as finishing a key.
+void AwardParagonPoints(Player* player, uint32 count, std::string_view reason);
 
 // Bots do not own a board. They are handed the stat a real board of the group's average size would be worth,
 // on their own best stat, so a bot party keeps pace with the player filling theirs.
@@ -35,6 +41,13 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
 
 // Opens the board on the client. The gossip option and the NPC script both come through here.
 void SendParagonBoard(Player* player);
+
+// Combat hooks. Each returns immediately for a character with no procs allocated, which is almost all of
+// them, so they are cheap enough to sit on the damage path.
+void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage);
+void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage);
+void OnParagonKill(Player* player, Unit* killed);
+void UpdateParagonBuffs(Player* player);
 
 void AddParagonScripts();
 

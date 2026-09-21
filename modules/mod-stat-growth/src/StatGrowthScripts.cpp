@@ -389,6 +389,7 @@ public:
     {
         UpdateGladiatorStance(player);
         UpdatePersonalLootAddonHandshake(player, diff);
+        UpdateParagonBuffs(player);
     }
 
     void OnPlayerBeforeSendChatMessage(Player* player, uint32&, uint32& language, std::string& message) override
@@ -415,6 +416,7 @@ public:
     {
         AddKillLoot(killer, killed);
         TryAwardParagonPoint(killer, killed);
+        OnParagonKill(killer, killed);
         OnCombatRogueKill(killer, killed);
     }
 
@@ -496,6 +498,10 @@ public:
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
     {
         ApplyPersonalLootLeech(attacker, victim, damage);
+        // Both sides of the same hit: what the victim's paragon board does about being hit, and what the
+        // attacker's does about landing one.
+        OnParagonDamageDealt(attacker, victim, damage);
+        OnParagonDamageTaken(victim, attacker, damage);
     }
 
     void OnUnitDeath(Unit* unit, Unit* /*killer*/) override

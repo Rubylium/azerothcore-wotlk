@@ -13,6 +13,7 @@
 #include "Map.h"
 #include "MythicDungeon.h"
 #include "ObjectMgr.h"
+#include "ParagonSystem.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
@@ -360,6 +361,8 @@ public:
 
             GiveMythicItem(player, itemLevel);
             GrantEssenceRewards(player, essences, essenceRolls);
+            // Always, for finishing it: a key is worth a known amount rather than a roll of the dice.
+            AwardParagonPoints(player, 1, "Mythique+");
         });
     }
 
