@@ -15,9 +15,12 @@
     "startLike     { race, class }: every race starts exactly where that race and class do.",
     "classSkill    { id, name, icon }: the class's own skill line, which is its spellbook tab, and the",
     "              carries the template's tabs (a Pestiféré would have Blood, Frost and Unholy).",
-    "talentTab     The class's own talent tree, instead of sharing the template's three. Without it the",
-    "              class is added to the template's TalentTab rows, which is how a Pestiféré ended up",
-    "              showing Blood, Frost and Unholy. Shape:",
+    "talentTabs    The class's own talent trees, instead of sharing the template's: exactly three. The client's",
+    "              inspect code keeps one slot per tree and every stock class has three; inspecting a class",
+    "              with another count after a stock one resizes those slots and corrupts them (Wow.exe crash",
+    "              0x5C681E), so a class with fewer real trees declares empty ones to make three. Without",
+    "              them the class is added to the template's TalentTab rows, which is how a Pestiféré ended",
+    "              up showing Blood, Frost and Unholy. Each tree:",
     "                id          TalentTab.dbc id, unused (Blizzard's stop at 411).",
     "                name        Tab name shown above the tree.",
     "                background  The client loads Interface\\TalentFrame\\<background>-{Top,Bottom}{Left,Right}.blp,",
@@ -56,7 +59,7 @@
       "startOutfit": [6195, 832, 2978, 3302, 2980, 3188],
       "previewOutfit": [50096, 50098, 50094, 51000, 50097, 51787, 50095, 50415],
       "classSkill": { "id": 900, "name": "Pestiféré", "icon": "Pestifere_Pourriture" },
-      "talentTab": {
+      "talentTabs": [{
         "id": 900,
         "name": "Charnier",
         "background": "PestifereCharnier",
@@ -107,7 +110,71 @@
           { "id": 2929, "name": "Avatar de la peste", "tier": 10, "column": 1, "ranks": [90287],
             "requires": { "talent": "Sépulcre", "rank": 1 } }
         ]
-      },
+      }, {
+        "id": 901,
+        "name": "Sangsue",
+        "background": "PestifereSangsue",
+        "icon": "PestifereHealer_Sangsue",
+        "tabPage": 1,
+        "talents": [
+          { "id": 2930, "name": "Humeurs noires", "tier": 0, "column": 0, "ranks": [90320, 90321, 90322] },
+          { "id": 2931, "name": "Transfusion", "tier": 0, "column": 1, "ranks": [90300] },
+          { "id": 2932, "name": "Veines gonflées", "tier": 0, "column": 2, "ranks": [90323, 90324, 90325] },
+
+          { "id": 2933, "name": "Transfusion vigoureuse", "tier": 1, "column": 0, "ranks": [90326, 90327, 90328] },
+          { "id": 2934, "name": "Sangsue", "tier": 1, "column": 1, "ranks": [90302],
+            "requires": { "talent": "Transfusion", "rank": 1 } },
+          { "id": 2935, "name": "Coagulation", "tier": 1, "column": 2, "ranks": [90329, 90330, 90331] },
+          { "id": 2959, "name": "Spores fertiles", "tier": 1, "column": 3, "ranks": [90376, 90377, 90378] },
+
+          { "id": 2936, "name": "Saignée", "tier": 2, "column": 0, "ranks": [90303] },
+          { "id": 2937, "name": "Sangsue vorace", "tier": 2, "column": 1, "ranks": [90332, 90333],
+            "requires": { "talent": "Sangsue", "rank": 1 } },
+          { "id": 2938, "name": "Carapace partagée", "tier": 2, "column": 2, "ranks": [90334] },
+          { "id": 2939, "name": "Triage", "tier": 2, "column": 3, "ranks": [90335, 90336] },
+
+          { "id": 2940, "name": "Saignée profonde", "tier": 3, "column": 0, "ranks": [90337, 90338, 90339],
+            "requires": { "talent": "Saignée", "rank": 1 } },
+          { "id": 2941, "name": "Absorption morbide", "tier": 3, "column": 1, "ranks": [90304] },
+          { "id": 2942, "name": "Anticorps", "tier": 3, "column": 2, "ranks": [90340, 90341, 90342] },
+          { "id": 2943, "name": "Réserve de sang", "tier": 3, "column": 3, "ranks": [90343, 90344, 90345] },
+
+          { "id": 2944, "name": "Sangsue prolifère", "tier": 4, "column": 0, "ranks": [90346, 90347] },
+          { "id": 2945, "name": "Don de sang", "tier": 4, "column": 1, "ranks": [90305] },
+          { "id": 2946, "name": "Détonation salvatrice", "tier": 4, "column": 2, "ranks": [90348, 90349] },
+          { "id": 2947, "name": "Circulation", "tier": 4, "column": 3, "ranks": [90350, 90351, 90352] },
+
+          { "id": 2950, "name": "Sang partagé", "tier": 5, "column": 0, "ranks": [90358, 90359] },
+          { "id": 2948, "name": "Donneur universel", "tier": 5, "column": 1, "ranks": [90353, 90354],
+            "requires": { "talent": "Don de sang", "rank": 1 } },
+          { "id": 2949, "name": "Contagion bénigne", "tier": 5, "column": 2, "ranks": [90355, 90356, 90357] },
+          { "id": 2960, "name": "Brume pestilentielle", "tier": 5, "column": 3, "ranks": [90315] },
+
+          { "id": 2953, "name": "Sangsue géante", "tier": 6, "column": 0, "ranks": [90363, 90364] },
+          { "id": 2951, "name": "Symbiote", "tier": 6, "column": 1, "ranks": [90306] },
+          { "id": 2952, "name": "Force vitale", "tier": 6, "column": 2, "ranks": [90360, 90361, 90362] },
+
+          { "id": 2961, "name": "Pustules multiples", "tier": 7, "column": 0, "ranks": [90379, 90380] },
+          { "id": 2954, "name": "Symbiose parfaite", "tier": 7, "column": 1, "ranks": [90365, 90366],
+            "requires": { "talent": "Symbiote", "rank": 1 } },
+          { "id": 2955, "name": "Sang de l'hôte", "tier": 7, "column": 2, "ranks": [90367, 90368, 90369] },
+
+          { "id": 2956, "name": "Hémophagie", "tier": 8, "column": 1, "ranks": [90370, 90371, 90372] },
+          { "id": 2962, "name": "Essaim vorace", "tier": 8, "column": 2, "ranks": [90381, 90382] },
+
+          { "id": 2957, "name": "Cœur battant", "tier": 9, "column": 1, "ranks": [90375] },
+
+          { "id": 2958, "name": "Pestilence salvatrice", "tier": 10, "column": 1, "ranks": [90308],
+            "requires": { "talent": "Cœur battant", "rank": 1 } }
+        ]
+      }, {
+        "id": 902,
+        "name": "Putréfaction",
+        "background": "DeathKnightUnholy",
+        "icon": "Pestifere_Pourriture",
+        "tabPage": 2,
+        "talents": []
+      }],
       "inheritSpells": false,
       "powerType": 1,
       "spellFamily": 16,
@@ -126,6 +193,83 @@
         3127,
         90200, 90210
       ]
+    },
+    {
+      "id": 13,
+      "token": "NECROMANCER",
+      "name": "Nécromancien",
+      "comment": "Commander of temporary melee and ranged undead minions",
+      "templateClass": 9,
+      "startClass": 9,
+      "classSkill": { "id": 901, "name": "Nécromancie", "icon": "Necromancer_CapturedSouls" },
+      "inheritSpells": false,
+      "powerType": 0,
+      "spellFamily": 18,
+      "roles": ["damage"],
+      "races": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11],
+      "startLevel": 15,
+      "startOutfit": [3310, 4786, 10048, 4313, 3645, 14367, 1190, 21934, 21932, 1300, 11288],
+      "iconCell": [2, 2],
+      "classIcon": "localTools/interface/assets/classes/necromancer.png",
+      "detailsCell": [3, 2],
+      "color": [0.58, 0.43, 0.72],
+      "talentTabs": [{
+        "id": 903,
+        "name": "Légion",
+        "background": "DeathKnightUnholy",
+        "icon": "NecromancerTalent_MasterOfTheDead",
+        "tabPage": 0,
+        "talents": [
+          { "id": 3000, "name": "Savoir interdit", "tier": 0, "column": 0, "ranks": [90500, 90501, 90502, 90503, 90504] },
+          { "id": 3001, "name": "Rituels rapides", "tier": 0, "column": 1, "ranks": [90505, 90506, 90507] },
+          { "id": 3002, "name": "Réservoir d'âmes", "tier": 0, "column": 2, "ranks": [90508, 90509] },
+
+          { "id": 3003, "name": "Artisan des os", "tier": 1, "column": 0, "ranks": [90510, 90511, 90512] },
+          { "id": 3004, "name": "Économie funèbre", "tier": 1, "column": 1, "ranks": [90513, 90514] },
+          { "id": 3005, "name": "Marque profonde", "tier": 1, "column": 2, "ranks": [90515, 90516, 90517] },
+
+          { "id": 3006, "name": "Fer de lance d'os", "tier": 2, "column": 0, "ranks": [90518],
+            "requires": { "talent": "Artisan des os", "rank": 3 } },
+          { "id": 3007, "name": "Commandement impitoyable", "tier": 2, "column": 2, "ranks": [90519, 90520, 90521] },
+          { "id": 3008, "name": "Marche sans fin", "tier": 2, "column": 3, "ranks": [90522, 90523, 90524] },
+
+          { "id": 3009, "name": "Tireurs de la crypte", "tier": 3, "column": 0, "ranks": [90525, 90526, 90527] },
+          { "id": 3010, "name": "Âmes débordantes", "tier": 3, "column": 1, "ranks": [90528, 90529] },
+          { "id": 3011, "name": "Doctrine de la peste", "tier": 3, "column": 2, "ranks": [90530, 90531, 90532] },
+
+          { "id": 3012, "name": "Marée des tombes", "tier": 4, "column": 1, "ranks": [90533] },
+          { "id": 3013, "name": "Cohorte immortelle", "tier": 4, "column": 2, "ranks": [90534, 90535, 90536] },
+          { "id": 3014, "name": "Légion innombrable", "tier": 4, "column": 3, "ranks": [90537, 90538] },
+
+          { "id": 3015, "name": "Frénésie parfaite", "tier": 5, "column": 0, "ranks": [90539, 90540, 90541] },
+          { "id": 3016, "name": "Feu des âmes", "tier": 5, "column": 1, "ranks": [90542, 90543, 90544] },
+          { "id": 3017, "name": "Sceau éternel", "tier": 5, "column": 2, "ranks": [90545, 90546] },
+
+          { "id": 3018, "name": "Chair d'abomination", "tier": 6, "column": 0, "ranks": [90547, 90548, 90549] },
+          { "id": 3019, "name": "Présence du maître", "tier": 6, "column": 1, "ranks": [90550, 90551, 90552, 90553, 90554] },
+          { "id": 3020, "name": "Volonté nécrotique", "tier": 6, "column": 2, "ranks": [90555, 90556, 90557] },
+
+          { "id": 3021, "name": "Moisson vorace", "tier": 7, "column": 1, "ranks": [90558, 90559, 90560] },
+
+          { "id": 3022, "name": "Maître des morts", "tier": 10, "column": 1, "ranks": [90561],
+            "requires": { "talent": "Présence du maître", "rank": 5 } }
+        ]
+      }, {
+        "id": 904,
+        "name": "Ossuaire",
+        "background": "DeathKnightFrost",
+        "icon": "Spell_Shadow_AnimateDead",
+        "tabPage": 1,
+        "talents": []
+      }, {
+        "id": 905,
+        "name": "Rituels",
+        "background": "DeathKnightBlood",
+        "icon": "Spell_Shadow_DarkRitual",
+        "tabPage": 2,
+        "talents": []
+      }],
+      "startSpells": [6603, 90400, 90402, 90422]
     }
   ]
 }

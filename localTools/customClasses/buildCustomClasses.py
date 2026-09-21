@@ -5,7 +5,7 @@ Client data (written to clientPatcher/interface/DBFilesClient, packed into the i
   CharBaseInfo.dbc        which races may pick it
   SkillRaceClassInfo.dbc  its skills: weapons, armor, defense, languages (copied from the template class)
   CharStartOutfit.dbc     the gear new characters start with (copied from the template class)
-  TalentTab.dbc           its talent trees: its own when `talentTab` declares one, else the template's
+  TalentTab.dbc           its talent trees: its own when `talentTabs` declares them, else the template's
   Talent.dbc              the grid of its own trees (no strings, so the same bytes go to the server)
 
 Server data:
@@ -358,15 +358,22 @@ def add_start_outfit(dbc, definition):
             next_id += 1
 
 
+def talent_tabs(definition):
+    """The trees a class brings of its own: `talentTabs`, or the single `talentTab` of an older definition."""
+    if definition.get('talentTabs'):
+        return definition['talentTabs']
+    return [definition['talentTab']] if definition.get('talentTab') else []
+
+
 def add_talent_tab(dbc, definition):
-    """Gives the class its talent trees: its own tab when `talentTab` declares one, the template's otherwise.
+    """Gives the class its talent trees: its own tabs when `talentTabs` declares them, the template's otherwise.
 
     A class that brings its own tree must not also be added to the template's, which is what made the
     Pestiféré show the Death Knight's Blood, Frost and Unholy.
     """
     class_bit = 1 << (definition['id'] - 1)
-    own = definition.get('talentTab')
-    if not own:
+    tabs = talent_tabs(definition)
+    if not tabs:
         template_bit = 1 << (definition['templateClass'] - 1)
         for record in dbc.records:
             mask = dbc.field(record, TALENTTAB_CLASSMASK)
@@ -375,22 +382,28 @@ def add_talent_tab(dbc, definition):
         return
 
     assert dbc.fields == TALENTTAB_FIELDS, 'unexpected TalentTab layout'
-    assert all(dbc.field(record, 0) != own['id'] for record in dbc.records), 'talent tab id already used'
-    icon = find_spell_icon(own['icon'])
-    assert icon, f"talent tab icon {own['icon']} is not in SpellIcon.dbc"
-    row = bytearray(dbc.records[0])
-    dbc.set_field(row, 0, own['id'])
-    name = dbc.add_string(own['name'])
-    for locale in range(16):
-        dbc.set_field(row, TALENTTAB_NAME + locale, name)
-    dbc.set_field(row, TALENTTAB_NAME + 16, 0)
-    dbc.set_field(row, TALENTTAB_ICON, icon)
-    dbc.set_field(row, TALENTTAB_RACEMASK, RACEMASK_ALL)
-    dbc.set_field(row, TALENTTAB_CLASSMASK, class_bit)
-    dbc.set_field(row, TALENTTAB_PETMASK, 0)
-    dbc.set_field(row, TALENTTAB_TABPAGE, own.get('tabPage', 0))
-    dbc.set_field(row, TALENTTAB_BACKGROUND, dbc.add_string(own['background']))
-    dbc.records.append(row)
+    # The client's inspect code keeps a slot per tree and resizes those slots (corrupting them) when a class with
+    # another count is inspected after a stock three-tree class: a class brings exactly three, empty ones included
+    assert len(tabs) == 3, f"class {definition['id']} declares {len(tabs)} talent trees, the client needs exactly 3"
+    pages = [own.get('tabPage', 0) for own in tabs]
+    assert len(set(pages)) == len(pages), 'two talent tabs share a tab page'
+    for own in tabs:
+        assert all(dbc.field(record, 0) != own['id'] for record in dbc.records), 'talent tab id already used'
+        icon = find_spell_icon(own['icon'])
+        assert icon, f"talent tab icon {own['icon']} is not in SpellIcon.dbc"
+        row = bytearray(dbc.records[0])
+        dbc.set_field(row, 0, own['id'])
+        name = dbc.add_string(own['name'])
+        for locale in range(16):
+            dbc.set_field(row, TALENTTAB_NAME + locale, name)
+        dbc.set_field(row, TALENTTAB_NAME + 16, 0)
+        dbc.set_field(row, TALENTTAB_ICON, icon)
+        dbc.set_field(row, TALENTTAB_RACEMASK, RACEMASK_ALL)
+        dbc.set_field(row, TALENTTAB_CLASSMASK, class_bit)
+        dbc.set_field(row, TALENTTAB_PETMASK, 0)
+        dbc.set_field(row, TALENTTAB_TABPAGE, own.get('tabPage', 0))
+        dbc.set_field(row, TALENTTAB_BACKGROUND, dbc.add_string(own['background']))
+        dbc.records.append(row)
 
 
 def read_spell_ids():
@@ -414,10 +427,7 @@ def build_talent_grid(definitions):
     known_ids = {dbc.field(record, 0) for record in dbc.records}
     spells = read_spell_ids()
     added = 0
-    for definition in definitions:
-        own = definition.get('talentTab')
-        if not own:
-            continue
+    for own in (tab for definition in definitions for tab in talent_tabs(definition)):
         talents = own['talents']
         by_name = {talent['name']: talent for talent in talents}
         assert len(by_name) == len(talents), f"duplicate talent name in tab {own['id']}"
@@ -699,8 +709,7 @@ def main():
 
     names = ', '.join(f"{d['name']} ({d['id']})" for d in definitions)
     print(f'Custom classes generated: {names}')
-    own_trees = ', '.join(f"{d['talentTab']['name']} ({d['talentTab']['id']})"
-                          for d in definitions if d.get('talentTab'))
+    own_trees = ', '.join(f"{tab['name']} ({tab['id']})" for d in definitions for tab in talent_tabs(d))
     print(f'  talent trees: {own_trees or "none"} - {talent_rows} talents')
     print(f'  client data : {CLIENT_DBC_OUT}')
     print(f'  server data : {SERVER_DBC}')

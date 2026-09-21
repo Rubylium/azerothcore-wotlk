@@ -16,6 +16,7 @@
 !/modules/mod-aoe-loot
 !/modules/mod-custom-classes
 !/modules/mod-pestifere
+!/modules/mod-necromancer
 /build*/
 /var/*
 !/var/build/.gitkeep

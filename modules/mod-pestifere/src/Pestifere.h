@@ -7,6 +7,7 @@
 
 #include <array>
 #include <list>
+#include <vector>
 
 class Aura;
 class Player;
@@ -59,7 +60,27 @@ enum Spells : uint32
     SPELL_AVATAR_DE_LA_PESTE        = 90287,
 
     // Rigor mortis's cooldown, a debuff while it cannot save the carrier again
-    SPELL_RIGOR_MORTIS_COOLDOWN     = 90286
+    SPELL_RIGOR_MORTIS_COOLDOWN     = 90286,
+
+    // The healer tree "Sangsue" (pestifere-healer.DESIGN.md). The actives are their talent's rank spell.
+    SPELL_TRANSFUSION_HEAL          = 90301,    // names Transfusion's healing in the combat log
+    SPELL_SANGSUE                   = 90302,
+    SPELL_SAIGNEE                   = 90303,
+    SPELL_ABSORPTION_MORBIDE        = 90304,
+    SPELL_DON_DE_SANG               = 90305,
+    SPELL_SYMBIOTE                  = 90306,
+    SPELL_SYMBIOTE_AURA             = 90307,    // on the bearer
+    SPELL_PESTILENCE_SALVATRICE     = 90308,
+    SPELL_COAGULATION               = 90309,    // on an ally Transfusion healed
+    SPELL_RESERVE_DE_SANG           = 90310,    // shown while hits are banked
+    SPELL_CONTAGION_BENIGNE_HEAL    = 90311,    // names Contagion bénigne's healing in the combat log
+    SPELL_SPORES                    = 90312,    // Transfusion's heal-over-time proc
+    SPELL_PUSTULE                   = 90313,    // names the Pustule éclatante proc's healing
+    SPELL_ESSAIM                    = 90314,    // names the Essaim proc's healing
+    SPELL_BRUME_PESTILENTIELLE      = 90315,
+    SPELL_BRUME_HOT                 = 90316,    // Brume pestilentielle on each group member
+    SPELL_CAILLOT                   = 90317,    // the absorb Symbiote builds on its bearer
+    SPELL_HEMOSTASE                 = 90318     // the healer's burst buff: its next melee hits heal three times as much
 };
 
 // A learned talent rank is a passive aura on the player (its rank spell). Each rank names the value it grants.
@@ -111,6 +132,48 @@ constexpr Talent<3> TALENT_PUS_EPAIS = { { { 90293, 10 }, { 90294, 20 }, { 90295
 // Learned: a killing blow leaves the carrier at 1 health instead, once every 3 min
 constexpr Talent<1> TALENT_RIGOR_MORTIS = { { { 90285, 1 } } };
 
+// The "Sangsue" healer tree (pestifere-healer.DESIGN.md section 3). Talents missing here are data only: Humeurs
+// noires, Veines gonflées, Anticorps, Circulation, Force vitale (auras), Sangsue vorace and Saignée profonde
+// (spell modifiers), and the ones that teach a spell.
+// The spine: melee hits trade their damage for healing
+constexpr Talent<1> TALENT_TRANSFUSION = { { { 90300, 1 } } };
+// % more Transfusion healing
+constexpr Talent<3> TALENT_TRANSFUSION_VIGOUREUSE = { { { 90326, 5 }, { 90327, 10 }, { 90328, 15 } } };
+// % less damage taken by an ally Transfusion healed
+constexpr Talent<3> TALENT_COAGULATION = { { { 90329, 2 }, { 90330, 4 }, { 90331, 6 } } };
+// Learned: Carapace suintante also shields the most injured ally
+constexpr Talent<1> TALENT_CARAPACE_PARTAGEE = { { { 90334, 1 } } };
+// % more healing on an ally under 35% health
+constexpr Talent<2> TALENT_TRIAGE = { { { 90335, 10 }, { 90336, 20 } } };
+// % of each hit banked while nobody needs healing
+constexpr Talent<3> TALENT_RESERVE_DE_SANG = { { { 90343, 10 }, { 90344, 20 }, { 90345, 30 } } };
+// % chance for a leech whose enemy dies to jump to the nearest enemy
+constexpr Talent<2> TALENT_SANGSUE_PROLIFERE = { { { 90346, 50 }, { 90347, 100 } } };
+// % more Détonation healing, which goes to injured allies instead of the caster
+constexpr Talent<2> TALENT_DETONATION_SALVATRICE = { { { 90348, 50 }, { 90349, 100 } } };
+// % less health Don de sang costs
+constexpr Talent<2> TALENT_DONNEUR_UNIVERSEL = { { { 90353, 50 }, { 90354, 100 } } };
+// % of maximum health Contagion heals each group member in its radius
+constexpr Talent<3> TALENT_CONTAGION_BENIGNE = { { { 90355, 2 }, { 90356, 4 }, { 90357, 6 } } };
+// % of the Transfusion healing given to others that heals the caster too
+constexpr Talent<2> TALENT_SANG_PARTAGE = { { { 90358, 10 }, { 90359, 20 } } };
+// % more Sangsue healing
+constexpr Talent<2> TALENT_SANGSUE_GEANTE = { { { 90363, 15 }, { 90364, 30 } } };
+// % of Transfusion healing the Symbiote copies (25% without the talent)
+constexpr Talent<2> TALENT_SYMBIOSE_PARFAITE = { { { 90365, 35 }, { 90366, 50 } } };
+// % less damage taken by the Symbiote's bearer
+constexpr Talent<3> TALENT_SANG_DE_L_HOTE = { { { 90367, 3 }, { 90368, 6 }, { 90369, 9 } } };
+// % more Transfusion healing from Frappe putride
+constexpr Talent<3> TALENT_HEMOPHAGIE = { { { 90370, 20 }, { 90371, 40 }, { 90372, 60 } } };
+// % of each Transfusion heal that also heals the next injured ally
+constexpr Talent<1> TALENT_COEUR_BATTANT = { { { 90375, 30 } } };
+// Extra % chance per hit to proc Spores
+constexpr Talent<3> TALENT_SPORES_FERTILES = { { { 90376, 5 }, { 90377, 10 }, { 90378, 15 } } };
+// Extra % chance per hit to proc Pustule éclatante (and +25% splash per point)
+constexpr Talent<2> TALENT_PUSTULES_MULTIPLES = { { { 90379, 4 }, { 90380, 8 } } };
+// Extra Essaim bounces
+constexpr Talent<2> TALENT_ESSAIM_VORACE = { { { 90381, 1 }, { 90382, 2 } } };
+
 // The value of the highest rank the unit has learned, 0 without the talent
 template<std::size_t Ranks>
 int32 GetTalentValue(Unit const* unit, Talent<Ranks> const& talent)
@@ -152,7 +215,12 @@ struct AbilityUnlock
     uint8 level;
 };
 
-constexpr std::array<AbilityUnlock, 13> AbilityUnlocks = { {
+// Dual Wield: the class wields two one-handers like a Death Knight. It is also a starting spell, but characters created
+// before that never got it, and without it the server refuses anything in the off hand.
+constexpr uint32 SPELL_DUAL_WIELD = 674;
+
+constexpr std::array<AbilityUnlock, 14> AbilityUnlocks = { {
+    { SPELL_DUAL_WIELD, 1 },
     { SPELL_FRAPPE_PUTRIDE, 1 },
     { SPELL_INOCULATION_CARAPACE, 1 },
     { SPELL_CONTAGION, 6 },
@@ -207,6 +275,26 @@ void GiveRagePoints(Player* player, float rage);
 
 // Teaches every ability the player's level unlocks; returns how many were newly learned
 uint32 LearnUnlockedAbilities(Player* player);
+
+// --- The healer (PestifereHealer.cpp): every heal picks its own target ---
+
+// How far the healer reaches an ally, in yards
+constexpr float HEAL_RANGE = 40.0f;
+
+// The healer and its group members within `range`, alive and in line of sight (pets excluded)
+std::vector<Unit*> GetGroupMembersInRange(Player* healer, float range);
+
+// The injured ones among them, most injured (lowest health percentage) first, at most `maxCount`.
+// `exclude` is left out (Don de sang never picks its caster).
+std::vector<Unit*> GetInjuredAllies(Player* healer, float range, std::size_t maxCount, Unit const* exclude = nullptr);
+
+// Heals one ally: Triage and the target's healing-taken modifiers apply, the heal is logged under `spellId`
+// and threatens the enemies fighting that ally. Returns the health actually restored.
+uint32 HealAlly(Player* healer, Unit* target, uint32 amount, uint32 spellId);
+
+// Spreads `amount` over `allies` in their order, each taking what it is missing; the last one takes the rest.
+// Returns the health actually restored.
+uint32 HealByNeed(Player* healer, std::vector<Unit*> const& allies, uint32 amount, uint32 spellId);
 }
 
 #endif

@@ -3,4 +3,5 @@
 -- Finder roles it may queue as.
 CustomClasses = {
     [12] = { token = "PESTIFERE", name = "Pestiféré", color = { 0.420, 0.580, 0.270 }, iconCell = { 3, 2 }, roles = { tank = true, healer = true, damage = true }, detailsCell = { 2, 2 } },
+    [13] = { token = "NECROMANCER", name = "Nécromancien", color = { 0.580, 0.430, 0.720 }, iconCell = { 2, 2 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 3, 2 } },
 }

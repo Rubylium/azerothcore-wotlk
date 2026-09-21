@@ -16,6 +16,7 @@ $serverDbcRoot = Join-Path $repoRoot 'server\Data\dbc'
 $clientDbcRoot = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK\Data\DBFilesClient'
 $compiledIconRoot = Join-Path $repoRoot 'modules\mod-stat-growth\client-assets\compiled'
 $pestifereCompiledIconRoot = Join-Path $repoRoot 'modules\mod-pestifere\client-assets\compiled\icons'
+$necromancerCompiledIconRoot = Join-Path $repoRoot 'modules\mod-necromancer\client-assets\compiled\icons'
 $serverSpellPath = Join-Path $serverDbcRoot 'Spell.dbc'
 $spellBackupPath = Join-Path $serverDbcRoot 'Spell.before-sinister-strike.dbc'
 $serverSkillPath = Join-Path $serverDbcRoot 'SkillLineAbility.dbc'
@@ -69,6 +70,11 @@ $PF_POURRITURE = 0x20; $PF_INOCULATION = 0x40; $PF_SELF_PLAGUE = 0x80; $PF_ENEMY
 $PF_SEPULCRE_PLAGUE = 0x200; $PF_CHARNIER = 0x400; $PF_PURGE = 0x800; $PF_SEPULCRE = 0x1000
 $PF_MORSURE = 0x2000; $PF_RIPOSTE = 0x4000; $PF_FLAQUE = 0x8000; $PF_CARAPACE_SUINTANTE = 0x10000; $PF_BOND = 0x20000
 $PF_PUANTEUR = 0x40000; $PF_PANDEMIE = 0x80000; $PF_FIEVRE = 0x100000; $PF_VOMISSURE = 0x200000; $PF_AVATAR = 0x400000
+# The healer tree "Sangsue" (ids 90300-90399)
+$PF_SANGSUE = 0x800000; $PF_SAIGNEE = 0x1000000; $PF_ABSORPTION = 0x2000000; $PF_DON_DE_SANG = 0x4000000
+$PF_SYMBIOTE = 0x8000000; $PF_PESTILENCE_SALVATRICE = 0x10000000; $PF_HEALER_AURA = 0x20000000
+# No talent modifies Brume pestilentielle: it shares the healer auras' flag (0x80000000 would be negative here)
+$PF_SPORES = 0x40000000; $PF_BRUME = $PF_HEALER_AURA
 $pestifereFamilyFlags = @{
     90200 = $PF_FRAPPE_PUTRIDE; 90217 = $PF_FRAPPE_PUTRIDE
     90201 = $PF_CONTAGION; 90202 = $PF_DETONATION; 90206 = $PF_DETONATION
@@ -80,16 +86,22 @@ $pestifereFamilyFlags = @{
     90256 = $PF_CHARNIER; 90265 = $PF_PURGE; 90268 = $PF_SEPULCRE
     90223 = $PF_FLAQUE; 90224 = $PF_MORSURE; 90225 = $PF_RIPOSTE; 90226 = $PF_CARAPACE_SUINTANTE; 90227 = $PF_BOND
     90228 = $PF_PUANTEUR; 90229 = $PF_PANDEMIE; 90216 = $PF_FIEVRE; 90284 = $PF_VOMISSURE; 90287 = $PF_AVATAR
+    90302 = $PF_SANGSUE; 90303 = $PF_SAIGNEE; 90304 = $PF_ABSORPTION; 90305 = $PF_DON_DE_SANG; 90306 = $PF_SYMBIOTE
+    90308 = $PF_PESTILENCE_SALVATRICE
+    90301 = $PF_HEALER_AURA; 90307 = $PF_HEALER_AURA; 90309 = $PF_HEALER_AURA; 90310 = $PF_HEALER_AURA; 90311 = $PF_HEALER_AURA
+    90312 = $PF_SPORES; 90313 = $PF_HEALER_AURA; 90314 = $PF_HEALER_AURA; 90315 = $PF_BRUME; 90316 = $PF_BRUME
+    90317 = $PF_HEALER_AURA; 90318 = $PF_HEALER_AURA
 }
 # More aura and modifier ids used by the Pestiféré rows
 $A_ModThreat = 10; $A_ModTaunt = 11; $A_SchoolAbsorb = 69; $A_ModDamagePercentDone = 79; $A_ModScale = 61
 $A_PeriodicDamage = 3; $A_AddPctModifier = 108
+$A_ModIncreaseHealthPercent = 133; $A_ModTotalStatPercentage = 137
 $SPELLMOD_DAMAGE = 0; $SPELLMOD_DURATION = 1; $SPELLMOD_COOLDOWN = 11
 
 $customSpells = @(
     # --- Combat rogue: abilities ---
     @{ Id = 90010; Clone = 1752; Name = 'Quick Cut'; IconPath = 'Interface\Icons\RogueMomentum_QuickCut'; Cost = 20; Cooldown = 0; Level = 4; Spellbook = $true
-       Description = 'Requires Opening. Carve through the target for 175% weapon damage and generate 2 combo points. Consumes Opening. From level 30, your off-hand weapon strikes too, for half the damage.'
+       Description = 'Requires Opening. Carve through the target for 175% weapon damage and generate 2 combo points. Consumes Opening and resets the cooldown of Crimson Daggerfall. From level 30, your off-hand weapon strikes too, for half the damage.'
        Fields = @{ 20 = 9 }
        # Mutilate: twin stab animation, deep wound on the target
        Visual = @{ Clone = 7913 } },
@@ -126,7 +138,7 @@ $customSpells = @(
        # Whirlwind spin, blood strike slash on every enemy hit
        Visual = @{ Clone = 223; Cast = 369; Impact = 'BloodWaltzImpact' } },
     @{ Id = 90105; Clone = 51723; Name = 'Crimson Daggerfall'; Icon = 'CombatRogue_CrimsonDaggerfall'; FallbackIconSpell = 51723; Cost = 30; Cooldown = 15000; Level = 20; Spellbook = $true; NoEquipment = $true
-       Description = 'Finishing move that launches a storm of daggers at all enemies within 8 yards, dealing 60% weapon damage per combo point. Deals 30% more damage to enemies suffering from one of your damage-over-time effects. Consumes up to 30 extra Energy to deal up to 50% more damage. Your other finishing moves reduce its cooldown by 1 sec per combo point, and at 5 combo points have a 20% chance to rain a free Crimson Daggerfall. From level 45 it deals 70% weapon damage per combo point, and from level 70 50% more damage to enemies suffering from your damage-over-time effects.'
+       Description = 'Finishing move that launches a storm of daggers at all enemies within 8 yards, dealing 60% weapon damage per combo point. Deals 30% more damage to enemies suffering from one of your damage-over-time effects. Consumes up to 30 extra Energy to deal up to 50% more damage. Its cooldown resets when it kills an enemy and when Quick Cut consumes Opening. Your other finishing moves reduce its cooldown by 1 sec per combo point, and at 5 combo points have a 20% chance to rain a free Crimson Daggerfall. From level 45 it deals 70% weapon damage per combo point, and from level 70 50% more damage to enemies suffering from your damage-over-time effects.'
        Fields = @{ 5 = 0x00100010; 80 = 59; 92 = 18 }
        # A physical dagger missile reaches every affected enemy; its custom impact kit owns the randomized sound.
        Visual = @{ Clone = 14261; Impact = 'DaggerfallImpact' } },
@@ -171,12 +183,13 @@ $customSpells = @(
     # Behaviour lives in modules/mod-pestifere; the rows below are the data those scripts hang on.
     # Rage costs are stored tenfold (200 = 20 rage).
     @{ Id = 90200; Clone = 12294; Name = 'Frappe putride'; Icon = 'Pestifere_FrappePutride'; FallbackIconSpell = 45462; Cost = 0; Cooldown = 3000; Level = 1; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Frappe la cible pour 110% des dégâts de votre arme, applique une charge de Pourriture et vous rend 10 points de rage. La Pourriture inflige toutes les 3 sec 1% des points de vie maximum de la cible par charge, jusqu''à 6 charges.'
+       Description = 'Frappe la cible pour 110% des dégâts de votre arme, applique deux charges de Pourriture et vous rend 10 points de rage. La Pourriture inflige toutes les 3 sec 1% des points de vie maximum de la cible par charge, jusqu''à 6 charges.'
        # Effect 2: apply a stack of Pourriture. Effect 3: the rage it pays back.
        Fields = @{ 71 = 121; 74 = 0; 80 = 5; 86 = 6; 95 = 0;
                    72 = 64; 75 = 0; 87 = 6; 117 = 90205;
                    73 = 30; 76 = 0; 82 = 100; 88 = 1; 112 = 1 }
-       Visual = @{ Clone = 11624 } },
+       # Plague Strike's swing; its impact had no sound, the custom one lands like a heavy two-hand crit
+       Visual = @{ Clone = 11624; Impact = 'PutrideImpact' } },
     @{ Id = 90205; Clone = 55078; Name = 'Pourriture'; Icon = 'Pestifere_Pourriture'; FallbackIconSpell = 55078; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'La chair de la cible se putréfie.'
        AuraDescription = 'Subit toutes les 3 sec des dégâts de Nature égaux à 1% de ses points de vie maximum par charge. Enfle à chaque charge.'
@@ -187,7 +200,7 @@ $customSpells = @(
        Description = 'Transmet chaque fléau que vous portez aux ennemis dans un rayon de 10 mètres et prolonge la Pourriture qu''ils portent déjà. Génère de la menace pour chaque fléau transmis.'
        Visual = @{ Clone = 11172 } },
     @{ Id = 90202; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 250; Cooldown = 0; Level = 10; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Fait exploser la Pourriture des ennemis proches et consomme les fléaux qu''ils portent : plus un ennemi porte de charges et de fléaux, plus l''explosion est violente. Vous rend 2% de vos points de vie maximum pour chaque ennemi touché.'
+       Description = 'Fait exploser la moitié de la Pourriture des ennemis proches et consomme les fléaux qu''ils portent : plus un ennemi porte de charges et de fléaux, plus l''explosion est violente. Au-delà de 4 ennemis pourrissants, les dégâts de zone sont répartis. Vous rend 2% de vos points de vie maximum pour chaque ennemi touché.'
        Fields = @{ 72 = 0; 75 = 0; 81 = 0; 87 = 0; 96 = 0; 74 = 0; 80 = 1 }
        Visual = @{ Clone = 15216 } },
     @{ Id = 90203; Clone = 355; Name = 'Odeur de charogne'; Icon = 'Pestifere_OdeurCharogne'; FallbackIconSpell = 355; Cost = 0; Cooldown = 8000; Level = 14; Spellbook = $true; SkillLine = 900; ClassMask = 2048
@@ -205,10 +218,10 @@ $customSpells = @(
     # The three plagues: cast on yourself, then carried. Their strength scales with how many you carry,
     # which mod-pestifere recalculates; the values here are the single-plague baseline.
     @{ Id = 90210; Clone = 12975; Name = 'Inoculation : Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 150; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Vous vous inoculez la Carapace nécrosée : vous subissez 4% de dégâts en moins et votre armure augmente de 10%, plus 3% de réduction et 10% d''armure pour chaque autre fléau que vous portez. Vous générez deux fois plus de menace, mais vous vous déplacez 10% plus lentement.'
+       Description = 'Vous vous inoculez la Carapace nécrosée : vous subissez 4% de dégâts en moins et votre armure augmente de 10%, plus 3% de réduction et 10% d''armure pour chaque autre fléau que vous portez. Vous générez 150% de menace en plus, mais vous vous déplacez 10% plus lentement.'
        Fields = @{ 29 = 0; 71 = 64; 86 = 1; 116 = 90211 } },
     @{ Id = 90211; Clone = 2983; CantCancel = $true; Name = 'Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
-       AuraDescription = 'Dégâts subis réduits et armure augmentée. Menace générée doublée. Vous vous déplacez plus lentement.'
+       AuraDescription = 'Dégâts subis réduits et armure augmentée. Menace générée augmentée de 150%. Vous vous déplacez plus lentement.'
        # Infinite while carried, removed when you leave combat
        Fields = @{ 40 = 21; 95 = 87; 74 = 0; 80 = -8; 110 = 127; 72 = 6; 75 = 0; 81 = -10; 87 = 1; 96 = 33;
                    73 = 6; 76 = 0; 82 = 10; 88 = 1; 97 = 101; 112 = 1 } },
@@ -329,10 +342,10 @@ $customSpells = @(
        Visual = @{ Clone = 11095 } },
 
     # Support spells: never in the spellbook
-    # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2 threat)
+    # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2.5 threat)
     @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = 'Menace générée augmentée.'
-       Effects = @(@{ Index = 0; Aura = $A_ModThreat; Value = 100; Misc = 127 }) },
+       Effects = @(@{ Index = 0; Aura = $A_ModThreat; Value = 150; Misc = 127 }) },
     # Fièvre: the talent's proc, your next Morsure fétide free and off cooldown
     @{ Id = 90216; Clone = 12975; Name = 'Fièvre'; Icon = 'PestifereTalent_Fievre'; FallbackIconSpell = 55090; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Votre prochaine Morsure fétide ne coûte pas de rage.'
@@ -345,7 +358,7 @@ $customSpells = @(
        Effects = @(@{ Index = 0; Effect = 121; TargetA = 6; BasePoints = 5 },
                    @{ Index = 1; Effect = 64; TargetA = 6 })
        Fields = @{ 117 = 90205 }
-       Visual = @{ Clone = 11624 } },
+       Visual = @{ Clone = 11624; Impact = 'PutrideImpact' } },
     # Rigor mortis: the cooldown after it saved you (3 min)
     @{ Id = 90286; Clone = 2983; Name = 'Rigor mortis'; Icon = 'PestifereTalent_RigorMortis'; FallbackIconSpell = 48743; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Rigor mortis ne peut plus vous sauver pour le moment.'
@@ -365,7 +378,117 @@ $customSpells = @(
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_ModScale; Value = 30 },
                    @{ Index = 1; Effect = 6; TargetA = 1; Aura = $A_Dummy })
        Fields = @{ 40 = 18 }
-       Visual = @{ Clone = 11095 } }
+       Visual = @{ Clone = 11095 } },
+    # --- Pestiféré: the healer tree "Sangsue" (.agents/plans/pestifere/pestifere-healer.DESIGN.md) ---
+    # Everything is instant and needs no friendly target: mod-pestifere (PestifereHealer.cpp) picks the ally.
+    # Transfusion itself is a talent rank (below); these are the actives its talents teach and the rows that name
+    # the healing in the combat log.
+    # Transfusion's heal: never cast, it names the healing that melee hits trade for
+    @{ Id = 90301; Clone = 2983; Name = 'Transfusion'; Icon = 'PestifereHealer_Transfusion'; FallbackIconSpell = 689; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Les dégâts de vos coups de mêlée soignent vos alliés blessés.' },
+    # Sangsue: a Nature strike that attaches a leech (effect 1, a periodic aura on the enemy). mod-pestifere sets
+    # each drain from attack power and heals the most injured ally with it.
+    @{ Id = 90302; Clone = 12294; Name = 'Sangsue'; Icon = 'PestifereHealer_Sangsue'; FallbackIconSpell = 5138; Cost = 150; Cooldown = 8000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Frappe la cible pour 80% des dégâts de votre arme en dégâts de Nature et y attache une sangsue pendant 12 sec. Toutes les 2 sec, la sangsue draine l''ennemi et soigne l''allié le plus blessé pour 150% des dégâts drainés.'
+       AuraDescription = 'Une sangsue draine la vie de la cible toutes les 2 sec.'
+       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 80 },
+                   @{ Index = 1; Effect = 6; TargetA = 6; Aura = $A_PeriodicDamage; BasePoints = 0 })
+       Fields = @{ 40 = 29; 99 = 2000; 225 = 8 }
+       # Plague Strike's swing, Death Coil's green burst and sound as the leech bites in
+       Visual = @{ Clone = 11624; Impact = 10303 } },
+    @{ Id = 90303; Clone = 12294; Name = 'Saignée'; Icon = 'PestifereHealer_Saignee'; FallbackIconSpell = 49998; Cost = 200; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Frappe la cible pour 140% des dégâts de votre arme. Transfusion peut échanger ce coup contre des soins sur 3 alliés blessés au lieu d''un seul.'
+       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 140 })
+       # Death Strike's swing and sound, then a burst of blood with Mark of Blood's sound
+       Visual = @{ Clone = 11831; Impact = 'SaigneeImpact' } },
+    # The self-cast healer actives: a dummy on the caster, mod-pestifere finds the ally (Purge cathartique's layout)
+    @{ Id = 90304; Clone = 12975; Name = 'Absorption morbide'; Icon = 'PestifereHealer_AbsorptionMorbide'; FallbackIconSpell = 528; Cost = 100; Cooldown = 8000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Aspire une maladie et un poison de l''allié le plus blessé qui en porte, à 40 mètres au plus, et lui rend 5% de ses points de vie maximum pour chaque effet aspiré.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       Fields = @{ 205 = 133; 206 = 1500 }
+       # Putricide's Malleable Goo: a shadow cast and a poison cloud
+       Visual = @{ Clone = 15006 } },
+    @{ Id = 90305; Clone = 12975; Name = 'Don de sang'; Icon = 'PestifereHealer_DonDeSang'; FallbackIconSpell = 48743; Cost = 0; Cooldown = 45000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Vous perdez 8% de vos points de vie maximum et l''allié le plus blessé, à 40 mètres au plus, récupère 25% de ses points de vie maximum, ou 40% s''il est sous 35% de ses points de vie. Ne déclenche pas le temps de recharge global.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       Visual = @{ Clone = 11150 } },
+    @{ Id = 90306; Clone = 12975; Name = 'Symbiote'; Icon = 'PestifereHealer_Symbiote'; FallbackIconSpell = 53563; Cost = 100; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Lie un symbiote à votre cible amicale ou, à défaut, à l''allié qui subit le plus d''attaques, pendant 60 sec. Il reçoit 25% des soins de Transfusion que vous prodiguez aux autres, et 20% de tous vos soins forment sur lui un Caillot qui absorbe les dégâts, jusqu''à 15% de ses points de vie maximum. Un seul symbiote à la fois.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       Fields = @{ 205 = 133; 206 = 1500 }
+       # Rotface's Expunged Gas: an ooze burst with a blight spore impact
+       Visual = @{ Clone = 15224 } },
+    # The symbiote on its bearer: effect 1 is Sang de l'hôte's damage reduction (0 without the talent)
+    @{ Id = 90307; Clone = 2983; Name = 'Symbiote'; Icon = 'PestifereHealer_Symbiote'; FallbackIconSpell = 53563; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Un symbiote partage les soins du Pestiféré.'
+       AuraDescription = 'Reçoit une part des soins de Transfusion du Pestiféré.'
+       Effects = @(@{ Index = 0; Aura = $A_Dummy }, @{ Index = 1; Aura = $A_ModDamagePercentTaken; BasePoints = 0; Misc = 127 })
+       Fields = @{ 40 = 3 }
+       # Necrotic Plague's dark green glow on the bearer, silent
+       Visual = @{ Clone = 14858 } },
+    @{ Id = 90308; Clone = 12975; Name = 'Pestilence salvatrice'; Icon = 'PestifereHealer_PestilenceSalvatrice'; FallbackIconSpell = 49194; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Pendant 15 sec, Transfusion soigne jusqu''à 5 alliés blessés et ses soins sont doublés. Ne déclenche pas le temps de recharge global.'
+       AuraDescription = 'Transfusion soigne jusqu''à 5 alliés et ses soins sont doublés.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_Dummy })
+       Fields = @{ 40 = 8 }
+       # Unholy Blight's haze, cast with Festergut's spore burst and its sound
+       Visual = @{ Clone = 11095; Cast = 13575 } },
+    # Coagulation on the ally just healed: effect 0 is the talent's damage reduction
+    @{ Id = 90309; Clone = 2983; Name = 'Coagulation'; Icon = 'PestifereHealer_Coagulation'; FallbackIconSpell = 48982; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Dégâts subis réduits.'
+       AuraDescription = 'Dégâts subis réduits.'
+       Effects = @(@{ Index = 0; Aura = $A_ModDamagePercentTaken; BasePoints = 0; Misc = 127 })
+       Fields = @{ 40 = 32 } },
+    # Réserve de sang: shown while hits are banked for the next trade
+    @{ Id = 90310; Clone = 2983; Name = 'Réserve de sang'; Icon = 'PestifereHealer_ReserveDeSang'; FallbackIconSpell = 55233; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Des soins en réserve.'
+       AuraDescription = 'Votre prochain échange de Transfusion soigne en plus ce que vous avez mis en réserve.'
+       Fields = @{ 40 = 21 } },
+    # Contagion bénigne's heal: never cast, it names the healing Contagion gives
+    @{ Id = 90311; Clone = 2983; Name = 'Contagion bénigne'; Icon = 'PestifereHealer_ContagionBenigne'; FallbackIconSpell = 50842; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Contagion soigne les alliés proches.' },
+    # Transfusion's procs (mod-pestifere rolls them on every melee hit while someone is injured)
+    # Spores: a heal over time on an injured ally, 10 sec, a tick every 2 sec sized from attack power
+    @{ Id = 90312; Clone = 774; Name = 'Spores'; Icon = 'PestifereHealer_Spores'; FallbackIconSpell = 774; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Des spores bienfaisantes soignent la cible.'
+       AuraDescription = 'Récupère des points de vie toutes les 2 sec.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 8; BasePoints = 0 })
+       Fields = @{ 40 = 1; 98 = 2000 }
+       # Blood Plague's disease glow instead of Rejuvenation's, silent
+       Visual = @{ Clone = 14315 } },
+    # Pustule éclatante and Essaim: never cast, they name the healing of the two burst procs
+    @{ Id = 90313; Clone = 2983; Name = 'Pustule éclatante'; Icon = 'PestifereHealer_Pustule'; FallbackIconSpell = 49005; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une pustule éclate et soigne l''allié le plus blessé et ceux qui l''entourent.' },
+    @{ Id = 90314; Clone = 2983; Name = 'Essaim'; Icon = 'PestifereHealer_Essaim'; FallbackIconSpell = 33076; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Un essaim de mouches soigne un allié blessé puis rebondit sur le suivant.' },
+    # Brume pestilentielle: the group heal over time, taught by its talent
+    @{ Id = 90315; Clone = 12975; Name = 'Brume pestilentielle'; Icon = 'PestifereHealer_Brume'; FallbackIconSpell = 48438; Cost = 200; Cooldown = 30000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Une brume bienfaisante enveloppe les membres de votre groupe à 30 mètres au plus : elle leur rend aussitôt 10% de leurs points de vie maximum, puis 12% de plus en 12 sec.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       Fields = @{ 205 = 133; 206 = 1500 }
+       # Putricide's Choking Gas Explosion: a gas nova around the caster
+       Visual = @{ Clone = 15079 } },
+    @{ Id = 90316; Clone = 774; Name = 'Brume pestilentielle'; Icon = 'PestifereHealer_Brume'; FallbackIconSpell = 48438; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Une brume bienfaisante soigne la cible.'
+       AuraDescription = 'Récupère 2% de ses points de vie maximum toutes les 2 sec.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 8; BasePoints = 0 })
+       Fields = @{ 40 = 29; 98 = 2000 }
+       Visual = @{ Clone = 14315 } },
+    # Caillot: the absorb Symbiote builds on its bearer from 20% of the healer's healing (mod-pestifere sets the amount)
+    @{ Id = 90317; Clone = 2983; Name = 'Caillot'; Icon = 'PestifereHealer_Coagulation'; FallbackIconSpell = 48982; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Un caillot de sang absorbe les dégâts.'
+       AuraDescription = 'Absorbe les dégâts.'
+       Effects = @(@{ Index = 0; Aura = $A_SchoolAbsorb; BasePoints = 0; Misc = 127 })
+       Fields = @{ 40 = 3 }
+       # Bone Shield's circling bones, a clot around the tank
+       Visual = @{ Clone = 11539 } },
+    # Hémostase: the next 3 melee hits heal three times as much (a stack per hit, mod-pestifere consumes them)
+    @{ Id = 90318; Clone = 2983; Name = 'Hémostase'; Icon = 'PestifereHealer_Hemophagie'; FallbackIconSpell = 55233; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 3; Spellbook = $false
+       Description = 'Vos prochains coups soignent trois fois plus.'
+       AuraDescription = 'Vos prochains coups de mêlée soignent trois fois plus.'
+       Fields = @{ 40 = 32 }
+       # Vampiric Blood's red glow while it lasts
+       Visual = @{ Clone = 11149 } }
 )
 
 # --- Pestiféré: the "Charnier" talent tree (pestifere.DESIGN.md section 6) ---
@@ -470,9 +593,100 @@ $pestifereTalents = @(
        Description = 'Carapace suintante absorbe {0}% de dégâts de plus.' },
     @{ Name = 'Rigor mortis'; Icon = 'PestifereTalent_RigorMortis'; FallbackIconSpell = 48743
        Ids = @(90285)
-       Description = 'Un coup qui devrait vous tuer vous laisse à 1 point de vie et dévore les fléaux que vous portez. Ne peut se produire qu''une fois toutes les 3 min.' }
+       Description = 'Un coup qui devrait vous tuer vous laisse à 1 point de vie et dévore les fléaux que vous portez. Ne peut se produire qu''une fois toutes les 3 min.' },
     # Charnier ambulant (90256), Purge cathartique (90265), Sépulcre (90268), Vomissure (90284) and Avatar de la peste
     # (90287) teach an active spell: their rank spell is that spell, defined with the abilities above
+
+    # --- The healer tree "Sangsue" (TalentTab 901), ranks 90300-90399 ---
+    @{ Name = 'Humeurs noires'; Icon = 'PestifereHealer_HumeursNoires'; FallbackIconSpell = 49004
+       Ids = @(90320, 90321, 90322); V0 = @(1, 2, 3)
+       Description = 'Augmente vos chances de coup critique de {0}%.'
+       Auras = @(@{ Aura = $A_ModCritPct; Values = @(1, 2, 3) }) },
+    @{ Name = 'Transfusion'; Icon = 'PestifereHealer_Transfusion'; FallbackIconSpell = 689
+       Ids = @(90300)
+       Description = 'Vos coups de mêlée échangent leurs dégâts contre des soins : quand un allié à 40 mètres au plus est blessé, la part d''un coup qui couvre ce qui lui manque soigne l''allié le plus blessé au lieu d''être infligée. Sans blessé, vos coups infligent tous leurs dégâts. Tant qu''un allié est blessé, chaque coup peut aussi déposer des Spores (soin sur la durée, 25% de chances), faire éclater une Pustule (soin de zone, 10%) ou libérer un Essaim qui rebondit sur 3 alliés (10%). Quand un allié tombe sous 35% de ses points de vie, Hémostase triple les soins de vos 3 coups suivants (au plus une fois toutes les 20 sec). Sans effet tant que vous portez la Carapace nécrosée.' },
+    @{ Name = 'Veines gonflées'; Icon = 'PestifereHealer_VeinesGonflees'; FallbackIconSpell = 49005
+       Ids = @(90323, 90324, 90325); V0 = @(3, 6, 9)
+       Description = 'Augmente vos points de vie maximum de {0}%.'
+       Auras = @(@{ Aura = $A_ModIncreaseHealthPercent; Values = @(3, 6, 9) }) },
+    @{ Name = 'Transfusion vigoureuse'; Icon = 'PestifereHealer_TransfusionVigoureuse'; FallbackIconSpell = 689
+       Ids = @(90326, 90327, 90328); V0 = @(5, 10, 15)
+       Description = 'Les soins de Transfusion sont augmentés de {0}%.' },
+    @{ Name = 'Coagulation'; Icon = 'PestifereHealer_Coagulation'; FallbackIconSpell = 48982
+       Ids = @(90329, 90330, 90331); V0 = @(2, 4, 6)
+       Description = 'Un allié que Transfusion soigne subit {0}% de dégâts en moins pendant 6 sec.' },
+    @{ Name = 'Sangsue vorace'; Icon = 'PestifereHealer_SangsueVorace'; FallbackIconSpell = 5138
+       Ids = @(90332, 90333); V0 = @(3, 6)
+       Description = 'La sangsue de Sangsue reste attachée {0} sec de plus.'
+       Auras = @(@{ Aura = $A_AddFlatModifier; Values = @(3000, 6000); Misc = $SPELLMOD_DURATION })
+       Fields = @{ 122 = $PF_SANGSUE } },
+    @{ Name = 'Carapace partagée'; Icon = 'PestifereHealer_CarapacePartagee'; FallbackIconSpell = 48707
+       Ids = @(90334)
+       Description = 'Carapace suintante protège aussi l''allié le plus blessé, pour le même montant.' },
+    @{ Name = 'Triage'; Icon = 'PestifereHealer_Triage'; FallbackIconSpell = 48438
+       Ids = @(90335, 90336); V0 = @(10, 20)
+       Description = 'Vos soins sur un allié à moins de 35% de ses points de vie sont augmentés de {0}%.' },
+    @{ Name = 'Saignée profonde'; Icon = 'PestifereHealer_SaigneeProfonde'; FallbackIconSpell = 49998
+       Ids = @(90337, 90338, 90339); V0 = @(10, 20, 30)
+       Description = 'Saignée inflige {0}% de dégâts supplémentaires, et peut donc en échanger davantage.'
+       Auras = @(@{ Aura = $A_AddPctModifier; Values = @(10, 20, 30); Misc = $SPELLMOD_DAMAGE })
+       Fields = @{ 122 = $PF_SAIGNEE } },
+    @{ Name = 'Anticorps'; Icon = 'PestifereHealer_Anticorps'; FallbackIconSpell = 51052
+       Ids = @(90340, 90341, 90342); V0 = @(2, 4, 6)
+       Description = 'Réduit de {0}% les dégâts magiques que vous subissez.'
+       Auras = @(@{ Aura = $A_ModDamagePercentTaken; Values = @(-2, -4, -6); Misc = 126 }) },
+    @{ Name = 'Réserve de sang'; Icon = 'PestifereHealer_ReserveDeSang'; FallbackIconSpell = 55233
+       Ids = @(90343, 90344, 90345); V0 = @(10, 20, 30)
+       Description = 'Tant qu''aucun allié n''est blessé, {0}% des dégâts de vos coups de mêlée sont mis en réserve, jusqu''à 20% de vos points de vie maximum. Le prochain échange de Transfusion soigne en plus toute la réserve.' },
+    @{ Name = 'Sangsue prolifère'; Icon = 'PestifereHealer_SangsueProlifere'; FallbackIconSpell = 5138
+       Ids = @(90346, 90347); V0 = @(50, 100)
+       Description = 'Quand un ennemi porteur de votre sangsue meurt, elle a {0}% de chances de passer à l''ennemi le plus proche avec sa durée restante.' },
+    @{ Name = 'Détonation salvatrice'; Icon = 'PestifereHealer_DetonationSalvatrice'; FallbackIconSpell = 49158
+       Ids = @(90348, 90349); V0 = @(50, 100)
+       Description = 'Les soins de Détonation vont à vos alliés blessés au lieu de vous et sont augmentés de {0}%.' },
+    @{ Name = 'Circulation'; Icon = 'PestifereHealer_Circulation'; FallbackIconSpell = 49016
+       Ids = @(90350, 90351, 90352); V0 = @(2, 4, 6)
+       Description = 'Augmente votre vitesse d''attaque de {0}%.'
+       Auras = @(@{ Aura = $A_ModMeleeHaste; Values = @(2, 4, 6) }) },
+    @{ Name = 'Donneur universel'; Icon = 'PestifereHealer_DonneurUniversel'; FallbackIconSpell = 48743
+       Ids = @(90353, 90354); V0 = @(50, 100)
+       Description = 'Don de sang vous coûte {0}% de points de vie en moins.' },
+    @{ Name = 'Contagion bénigne'; Icon = 'PestifereHealer_ContagionBenigne'; FallbackIconSpell = 50842
+       Ids = @(90355, 90356, 90357); V0 = @(2, 4, 6)
+       Description = 'Contagion soigne aussi les membres de votre groupe à sa portée de {0}% de leurs points de vie maximum, même si vous ne portez aucun fléau.' },
+    @{ Name = 'Sang partagé'; Icon = 'PestifereHealer_SangPartage'; FallbackIconSpell = 689
+       Ids = @(90358, 90359); V0 = @(10, 20)
+       Description = '{0}% des soins de Transfusion que vous prodiguez aux autres vous soignent aussi.' },
+    @{ Name = 'Sangsue géante'; Icon = 'PestifereHealer_SangsueGeante'; FallbackIconSpell = 5138
+       Ids = @(90363, 90364); V0 = @(15, 30)
+       Description = 'Les soins de Sangsue sont augmentés de {0}%.' },
+    @{ Name = 'Force vitale'; Icon = 'PestifereHealer_ForceVitale'; FallbackIconSpell = 57330
+       Ids = @(90360, 90361, 90362); V0 = @(2, 4, 6)
+       Description = 'Augmente votre Force de {0}%.'
+       Auras = @(@{ Aura = $A_ModTotalStatPercentage; Values = @(2, 4, 6); Misc = 0 }) },
+    @{ Name = 'Symbiose parfaite'; Icon = 'PestifereHealer_SymbioseParfaite'; FallbackIconSpell = 53563
+       Ids = @(90365, 90366); V0 = @(35, 50)
+       Description = 'Votre Symbiote reçoit {0}% des soins de Transfusion au lieu de 25%.' },
+    @{ Name = 'Sang de l''hôte'; Icon = 'PestifereHealer_SangDeLHote'; FallbackIconSpell = 53563
+       Ids = @(90367, 90368, 90369); V0 = @(3, 6, 9)
+       Description = 'Le porteur de votre Symbiote subit {0}% de dégâts en moins.' },
+    @{ Name = 'Hémophagie'; Icon = 'PestifereHealer_Hemophagie'; FallbackIconSpell = 45462
+       Ids = @(90370, 90371, 90372); V0 = @(20, 40, 60)
+       Description = 'Les soins de Transfusion obtenus par Frappe putride sont augmentés de {0}%.' },
+    @{ Name = 'Cœur battant'; Icon = 'PestifereHealer_CoeurBattant'; FallbackIconSpell = 48982
+       Ids = @(90375)
+       Description = 'Chaque soin de Transfusion soigne aussi l''allié blessé suivant pour 30% de son montant.' },
+    @{ Name = 'Spores fertiles'; Icon = 'PestifereHealer_SporesFertiles'; FallbackIconSpell = 774
+       Ids = @(90376, 90377, 90378); V0 = @(5, 10, 15)
+       Description = 'Vos coups ont {0}% de chances en plus de déposer des Spores.' },
+    @{ Name = 'Pustules multiples'; Icon = 'PestifereHealer_PustulesMultiples'; FallbackIconSpell = 49005
+       Ids = @(90379, 90380); V0 = @(4, 8); V1 = @(25, 50)
+       Description = 'Vos coups ont {0}% de chances en plus de faire éclater une Pustule, et ses éclaboussures soignent {1}% de plus.' },
+    @{ Name = 'Essaim vorace'; Icon = 'PestifereHealer_EssaimVorace'; FallbackIconSpell = 33076
+       Ids = @(90381, 90382); V0 = @('1 rebond', '2 rebonds')
+       Description = 'Votre Essaim fait {0} de plus.' }
+    # Sangsue (90302), Saignée (90303), Absorption morbide (90304), Don de sang (90305), Symbiote (90306) and
+    # Pestilence salvatrice (90308) teach an active spell: their rank spell is that spell, defined above
 )
 
 foreach ($talent in $pestifereTalents) {
@@ -510,6 +724,9 @@ foreach ($talent in $pestifereTalents) {
     }
 }
 
+$necromancerSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\necromancer\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($necromancerSpellSource))
+
 $spellbookSpells = @($customSpells | Where-Object { $_.Spellbook })
 
 $customSounds = @(
@@ -535,6 +752,10 @@ $customVisualKits = @(
     @{ Key = 'BloodWaltzImpact'; Clone = 10467; Fields = @{ 15 = 158 } }
     # Dagger Throw impact; one quiet random custom variation is selected independently for every enemy hit.
     @{ Key = 'DaggerfallImpact'; Clone = 220; Sound = 'DaggerfallImpact'; Fields = @{} }
+    # Pestiféré: Plague Strike's impact (silent in stock data) with a heavy critical two-hand axe hit on flesh
+    @{ Key = 'PutrideImpact'; Clone = 10737; Fields = @{ 15 = 158 } }
+    # Pestiféré: Heart Strike's blood burst with Mark of Blood's sound, for Saignée
+    @{ Key = 'SaigneeImpact'; Clone = 10467; Fields = @{ 15 = 12997 } }
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15
@@ -866,7 +1087,7 @@ function Get-IconIdForPath([string]$path) {
 function Resolve-IconId($spec, [uint32]$fallbackIconId) {
     if ($spec.IconPath) { return Get-IconIdForPath $spec.IconPath }
     if ($spec.Icon) {
-        foreach ($iconRoot in @($compiledIconRoot, $pestifereCompiledIconRoot)) {
+        foreach ($iconRoot in @($compiledIconRoot, $pestifereCompiledIconRoot, $necromancerCompiledIconRoot)) {
             if (Test-Path -LiteralPath (Join-Path $iconRoot "$($spec.Icon).tga")) {
                 return Get-IconIdForPath "Interface\Icons\$($spec.Icon)"
             }
@@ -1170,9 +1391,25 @@ foreach ($custom in $customSpells) {
             Write-Field $record 0 ([int]$field) ([long]$custom.Fields[$field])
         }
     }
+    # Necromancer spells clone visuals/cast layouts from several classes, including Death Knight. Strip every
+    # inherited rune, stance, weapon and spell-family requirement centrally: the class is a mana caster and all
+    # its spells belong exclusively to family 18.
+    if ([int]$custom.Id -ge 90400 -and [int]$custom.Id -le 90599) {
+        Set-Field $record 12 0
+        Set-Field $record 13 0
+        Set-Field $record 41 0
+        Set-Field $record 68 ([uint32]::MaxValue)
+        Set-Field $record 69 0
+        Set-Field $record 70 0
+        Set-Field $record 208 18
+        Set-Field $record 209 0
+        Set-Field $record 210 0
+        Set-Field $record 211 0
+        Set-Field $record 226 0
+    }
     # The Pestiféré is a rage class built on Death Knight spells: without this every clone keeps its
     # source's rune cost and asks for Blood runes the class can never have.
-    if ([int]$custom.Id -ge 90200 -and [int]$custom.Id -le 90299) {
+    if ([int]$custom.Id -ge 90200 -and [int]$custom.Id -le 90399) {
         Set-Field $record 41 ([uint32]$POWER_RAGE)
         Set-Field $record 226 0
         # Warrior clones carry their stance requirement: the class has no stances to be in
@@ -1263,12 +1500,17 @@ for ($index = 0; $index -lt $spellbookSpells.Count; ++$index) {
     Set-Field $record 0 ([uint32]($maxSkillId + $index + 1))
     Set-Field $record 2 ([uint32]$spellbookSpells[$index].Id)
     Set-Field $record 8 0
-    Set-Field $record 9 2
-    # AcquireMethod 2 teaches a spell with its whole skill line - and every Pestiféré has its skill line from
-    # level 1, which handed out the entire kit at creation. 0 is what Blizzard's class abilities use: the
-    # spell is taught by something else (mod-pestifere at its level, or its talent).
-    if ([int]$spellbookSpells[$index].Id -ge 90200 -and [int]$spellbookSpells[$index].Id -le 90299) {
+    # AcquireMethod 2 teaches a spell with its whole skill line - and a custom class carries its own skill line
+    # from level 1, so the core handed out the entire kit at creation (a level 1 Nécromancien opened with every
+    # spell it would ever learn, its level 60 army included). 0 is what Blizzard's class abilities use: the
+    # spell is taught by something else - the class module at the level its AbilityUnlocks names, or a talent
+    # rank. Every spell filed under a class's own skill line (900 and up) is taught that way; a row that really
+    # wants the skill line to teach it says so with AutoLearn = $true.
+    $ownsSkillLine = [int]$spellbookSpells[$index].SkillLine -ge 900
+    if ($ownsSkillLine -and -not $spellbookSpells[$index].AutoLearn) {
         Set-Field $record 9 0
+    } else {
+        Set-Field $record 9 2
     }
     if ($spellbookSpells[$index].SkillLine) {
         Set-Field $record 1 ([uint32]$spellbookSpells[$index].SkillLine)
@@ -1312,5 +1554,5 @@ Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisua
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
-Write-Host "Pestiféré talent tree: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."
+Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."
 Write-Host "Combat rogue icons generated: $generatedIcons (missing ones use stock game icons)."

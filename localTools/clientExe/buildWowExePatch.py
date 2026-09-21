@@ -104,8 +104,10 @@ def role_table_patch(exe):
     table = bytearray(exe.read(WOW_EXE_ROLE_TABLE_VA, WOW_EXE_ROLE_TABLE_SIZE))
     names = []
     for definition in definitions:
-        assert definition['id'] in WOW_EXE_PATCHABLE_ROLE_SLOTS, \
-            f"class {definition['id']} has no free byte in Wow.exe's role table: only {WOW_EXE_PATCHABLE_ROLE_SLOTS}"
+        # The stock table has safe storage only for ids 10 and 12. Higher custom class ids are still fully
+        # playable; they simply stay out of the stock Dungeon Finder until its table access is relocated.
+        if definition['id'] not in WOW_EXE_PATCHABLE_ROLE_SLOTS:
+            continue
         table[definition['id']] = LFG_ROLE_LEADER | role_mask(definition)
         names.append(f"{definition['name']} ({definition['id']})")
     return patch(exe, 'Dungeon Finder roles: ' + ', '.join(names), WOW_EXE_ROLE_TABLE_VA, bytes(table))

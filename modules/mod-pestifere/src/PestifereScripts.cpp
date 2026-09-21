@@ -27,6 +27,8 @@
 //   90227 Bond putride       EFFECT_0 SPELL_EFFECT_CHARGE
 //   90284 Vomissure          EFFECT_0 SPELL_EFFECT_SCHOOL_DAMAGE, cone
 //   90287 Avatar de la peste EFFECT_0 SPELL_AURA_MOD_SCALE
+// The healer tree "Sangsue" lives in PestifereHealer.cpp; Contagion, Détonation and Carapace suintante below carry
+// its Contagion bénigne, Détonation salvatrice and Carapace partagée.
 // The three self plagues have no duration in data; this module sets it when the carrier leaves combat.
 
 #include "Pestifere.h"
@@ -47,6 +49,7 @@
 #include "UnitScript.h"
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 using namespace Pestifere;
@@ -59,7 +62,19 @@ namespace
 
 // Contagion (90201): its radius is the spell's own (see PestifereContagionSpellScript), so talents apply to it
 // Threat added per enemy, per plague actually spread onto it. Contagion is the class's main threat tool.
+// The flat amount is the floor at low level; the attack power share is what keeps up at 80.
 constexpr float CONTAGION_THREAT_PER_PLAGUE = 90.0f;
+constexpr float CONTAGION_THREAT_AP_PER_PLAGUE = 0.15f;
+
+// Bonus threat of the tank's strikes, as a share of attack power, only while it carries Carapace nécrosée (which then
+// multiplies it like all its threat). A flat bonus sized for level 10 is nothing at 80, where bot damage dealers
+// out-damage the tank: this scales with the tank's gear instead.
+constexpr float FRAPPE_THREAT_AP = 0.6f;         // Frappe putride, the strike pressed the most
+constexpr float MORSURE_THREAT_AP = 1.0f;        // Morsure fétide, the single-target threat button
+constexpr float RIPOSTE_THREAT_AP = 0.8f;        // Riposte purulente
+constexpr float DETONATION_THREAT_AP = 0.4f;     // Détonation, per enemy that explodes
+constexpr float VOMISSURE_THREAT_AP = 0.4f;      // Vomissure, per enemy in the cone
+constexpr float CHARNIER_THREAT_AP = 0.8f;       // Charnier ambulant, per enemy
 
 // Détonation (90202): damage = base + (stacks * perStack) * (1 + bonus * plaguesConsumed) + what Sépulcre held
 // Base and per-stack damage are shares of attack power, so the button keeps up while levelling.
@@ -89,6 +104,10 @@ constexpr uint32 SEPULCRE_HELD_PCT = 50;
 constexpr float POURRITURE_TICK_HEALTH_PCT = 1.0f;      // % of maximum health per stack per tick
 constexpr float PESTE_ENEMY_TICK_HEALTH_PCT = 1.0f;     // % of maximum health per tick
 constexpr float PLAGUE_TICK_AP_CAP = 0.15f;             // most a tick (a stack of Pourriture) deals, x attack power
+
+// Area damage is split past this many enemies: the plague reaches a whole pull, and every enemy taking a full
+// share of it made a wing worth several bosses. Past the fourth, each takes sqrt(AOE_FULL_TARGETS / count) of it.
+constexpr std::size_t AOE_FULL_TARGETS = 4;
 
 // Flaque de bile (90223): damage of each 2 sec tick, as a share of attack power
 constexpr float FLAQUE_TICK_AP_COEFF = 0.06f;
@@ -180,6 +199,49 @@ void AddPlagueThreat(Player* caster, Unit* target, uint32 damage, SpellInfo cons
         return;
 
     target->AddThreat(caster, float(damage) * float(bonus) / 100.0f, spellInfo->GetSchoolMask(), spellInfo);
+}
+
+// The area split takes damage away, never threat: threat in this core is paid on damage dealt, so a wide pull
+// would have slipped out of the tank's hands the moment its damage was split. What the split held back is handed
+// to the enemy as threat instead, so a Pestiféré holds exactly the pack it held before.
+void AddWithheldThreat(Player* caster, Unit* target, float withheld, SpellInfo const* spellInfo)
+{
+    if (withheld <= 0.0f || !target->CanHaveThreatList())
+        return;
+
+    target->AddThreat(caster, withheld, spellInfo->GetSchoolMask(), spellInfo);
+}
+
+// A tank strike's bonus threat: a share of attack power, only while the Pestiféré carries Carapace nécrosée
+// (a healer or damage dealer does not want it). AddThreat applies the carrier's threat multiplier on top.
+void AddTankThreat(Player* caster, Unit* target, float apCoeff, SpellInfo const* spellInfo)
+{
+    if (!caster || !target || !target->CanHaveThreatList() || !CarriesOwnPlague(caster, SPELL_CARAPACE_NECROSEE))
+        return;
+
+    target->AddThreat(caster, caster->GetTotalAttackPowerValue(BASE_ATTACK) * apCoeff, spellInfo->GetSchoolMask(),
+        spellInfo);
+}
+
+// What one enemy takes of an area effect, when that many are caught in it
+float AoeFactor(std::size_t targets)
+{
+    if (targets <= AOE_FULL_TARGETS)
+        return 1.0f;
+
+    return std::sqrt(float(AOE_FULL_TARGETS) / float(targets));
+}
+
+// How many enemies a Pestiféré is rotting right now, counted as Pourriture comes and goes
+// (PestiferePourritureAuraScript): what the plague ticks for is split over them, past AOE_FULL_TARGETS
+struct PlagueData : public DataMap::Base
+{
+    uint32 rotting = 0;
+};
+
+PlagueData* GetPlagueData(Player* caster)
+{
+    return caster->CustomData.GetDefault<PlagueData>("PestiferePlague");
 }
 
 // Adds stacks of Pourriture without a hit roll: the stroke that sows it already landed
@@ -346,7 +408,7 @@ uint32 GetRipeness(Player* caster, Unit* target)
 }
 
 // Consumes what the caster sowed on the target and returns the explosion's damage, 0 when nothing was sown
-uint32 Detonate(Player* caster, Unit* target, bool& ripe)
+uint32 Detonate(Player* caster, Unit* target, bool& ripe, SpellInfo const* spellInfo)
 {
     ObjectGuid const casterGuid = caster->GetGUID();
     Aura* rot = target->GetAura(SPELL_POURRITURE, casterGuid);
@@ -371,14 +433,26 @@ uint32 Detonate(Player* caster, Unit* target, bool& ripe)
         return 0;
 
     float const attackPower = caster->GetTotalAttackPowerValue(BASE_ATTACK);
-    float const damage = attackPower * DETONATION_BASE_AP_COEFF +
-        (float(stacks) * attackPower * DETONATION_STACK_AP_COEFF) * (1.0f + DETONATION_PLAGUE_BONUS * float(plagues)) +
-        float(owed);
+    // Split like the plague itself, over everything this Pestiféré is rotting: what is owed by Sépulcre was
+    // already dealt to this one enemy, so it is paid whole. The threat of the blast is not split (see
+    // AddWithheldThreat): a wide pull is held as firmly as before.
+    float const share = AoeFactor(GetPlagueData(caster)->rotting);
+    float const blast = attackPower * DETONATION_BASE_AP_COEFF +
+        (float(stacks) * attackPower * DETONATION_STACK_AP_COEFF)
+        * (1.0f + DETONATION_PLAGUE_BONUS * float(plagues));
+    float const damage = blast * share + float(owed);
+    AddWithheldThreat(caster, target, blast - blast * share, spellInfo);
 
-    // The rot is spent: the next detonation is only as big as the work put in between. An Avatar de la peste keeps
-    // it: the pack goes on ripening while it lasts.
+    // Half the rot is spent, not all of it: the blast used to wipe the stacks and with them the next Morsure
+    // fétide, so it was worth skipping on a single target. An Avatar de la peste spends none: the pack goes on
+    // ripening while it lasts.
     if (!caster->HasAura(SPELL_AVATAR_DE_LA_PESTE))
-        target->RemoveAura(SPELL_POURRITURE, casterGuid);
+    {
+        if (uint8 const left = stacks / 2; left && rot)
+            rot->SetStackAmount(left);
+        else
+            target->RemoveAura(SPELL_POURRITURE, casterGuid);
+    }
     for (Plague const& plague : Plagues)
         target->RemoveAura(plague.enemySpellId, casterGuid);
     target->RemoveAura(SPELL_SEPULCRE_STORED_ENEMY, casterGuid);
@@ -402,12 +476,18 @@ class PestifereFrappePutrideSpellScript : public SpellScript
         if (!caster || !target)
             return;
 
+        // The strike's own stack comes from its trigger effect; this is the second one. Two a strike is what makes
+        // the rot ripen inside a Morsure fétide cycle -- at one, the cap took 18 sec and the rotation stalled.
+        AddRot(caster, target, 1);
+
         if (int32 const bonus = GetTalentValue(caster, TALENT_FOSSOYEUR); bonus && IsWieldingTwoHand(caster))
         {
             SetHitDamage(GetHitDamage() + int32(CalculatePct(GetHitDamage(), bonus)));
-            // The strike's own stack comes from its trigger effect; this is the second one
+            // A two-hander sows a third
             AddRot(caster, target, 1);
         }
+
+        AddTankThreat(caster, target, FRAPPE_THREAT_AP, GetSpellInfo());
 
         if (int32 const chance = GetTalentValue(caster, TALENT_CONTAGION_GALOPANTE); chance && roll_chance_i(chance))
             caster->RemoveSpellCooldown(SPELL_CONTAGION, true);
@@ -485,10 +565,32 @@ class PestiferePourritureAuraScript : public AuraScript
         caster->RemoveSpellCooldown(SPELL_MORSURE_FETIDE, true);
     }
 
+    // One more enemy rotting, one fewer: what each tick of the plague is worth follows (see AoeFactor)
+    void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (Player* caster = GetPestifere(GetCaster()))
+            ++GetPlagueData(caster)->rotting;
+    }
+
+    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        Player* caster = GetPestifere(GetCaster());
+        if (!caster)
+            return;
+
+        PlagueData* data = GetPlagueData(caster);
+        if (data->rotting)
+            --data->rotting;
+    }
+
     void Register() override
     {
         OnEffectPeriodic += AuraEffectPeriodicFn(PestiferePourritureAuraScript::HandlePeriodic, EFFECT_0,
             SPELL_AURA_PERIODIC_DAMAGE);
+        OnEffectApply += AuraEffectApplyFn(PestiferePourritureAuraScript::HandleApply, EFFECT_0,
+            SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(PestiferePourritureAuraScript::HandleRemove, EFFECT_0,
+            SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -511,6 +613,8 @@ class PestifereMorsureFetideSpellScript : public SpellScript
         Aura const* rot = target->GetAura(SPELL_POURRITURE, caster->GetGUID());
         if (int32 const stacks = rot ? rot->GetStackAmount() : 0)
             SetHitDamage(GetHitDamage() + int32(CalculatePct(GetHitDamage(), stacks * MORSURE_DAMAGE_PER_STACK)));
+
+        AddTankThreat(caster, target, MORSURE_THREAT_AP, GetSpellInfo());
     }
 
     // Fièvre made this one free: it is spent
@@ -549,6 +653,7 @@ class PestifereRipostePurulenteSpellScript : public SpellScript
                 int32(CalculatePct(GetHitDamage(), points * RIPOSTE_FETIDE_DAMAGE_PER_POINT)));
 
         AddRot(caster, target, 1);
+        AddTankThreat(caster, target, RIPOSTE_THREAT_AP, GetSpellInfo());
 
         uint32 const extraTargets = RIPOSTE_EXTRA_TARGETS + uint32(points);
         uint32 rotted = 0;
@@ -616,22 +721,37 @@ class PestifereCarapaceSuintanteAuraScript : public AuraScript
 {
     PrepareAuraScript(PestifereCarapaceSuintanteAuraScript);
 
+    // Sized on the Pestiféré who cast it, so the copy Carapace partagée gives an ally holds the same amount
     void CalculateAbsorb(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
     {
-        Unit* owner = GetUnitOwner();
-        if (!owner)
+        Unit* source = GetCaster() ? GetCaster() : GetUnitOwner();
+        if (!source)
             return;
 
-        uint32 const percent = SUINTANTE_ABSORB_PCT_BASE + SUINTANTE_ABSORB_PCT_STEP * GetVirulence(owner);
-        uint32 absorb = CalculatePct(owner->GetMaxHealth(), percent);
-        absorb += CalculatePct(absorb, GetTalentValue(owner, TALENT_PUS_EPAIS));
+        uint32 const percent = SUINTANTE_ABSORB_PCT_BASE + SUINTANTE_ABSORB_PCT_STEP * GetVirulence(source);
+        uint32 absorb = CalculatePct(source->GetMaxHealth(), percent);
+        absorb += CalculatePct(absorb, GetTalentValue(source, TALENT_PUS_EPAIS));
         amount = int32(absorb);
+    }
+
+    // Carapace partagée (healer tree): the most injured ally gets a shell too
+    void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        Player* caster = GetPestifere(GetCaster());
+        if (!caster || GetUnitOwner() != caster || !GetTalentValue(caster, TALENT_CARAPACE_PARTAGEE))
+            return;
+
+        std::vector<Unit*> const allies = GetInjuredAllies(caster, HEAL_RANGE, 1, caster);
+        if (!allies.empty())
+            caster->AddAura(SPELL_CARAPACE_SUINTANTE, allies.front());
     }
 
     void Register() override
     {
         DoEffectCalcAmount += AuraEffectCalcAmountFn(PestifereCarapaceSuintanteAuraScript::CalculateAbsorb, EFFECT_0,
             SPELL_AURA_SCHOOL_ABSORB);
+        AfterEffectApply += AuraEffectApplyFn(PestifereCarapaceSuintanteAuraScript::HandleApply, EFFECT_0,
+            SPELL_AURA_SCHOOL_ABSORB, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -671,8 +791,14 @@ class PestifereVomissureSpellScript : public SpellScript
         if (!caster || !target)
             return;
 
-        SetHitDamage(std::max<int32>(1, int32(caster->GetTotalAttackPowerValue(BASE_ATTACK) * VOMISSURE_AP_COEFF)));
+        // Split over the enemies already rotting, as the plague is (see AoeFactor); the threat of the cone is
+        // paid whole, so a wide pull is held as firmly as before
+        float const share = AoeFactor(GetPlagueData(caster)->rotting);
+        float const whole = caster->GetTotalAttackPowerValue(BASE_ATTACK) * VOMISSURE_AP_COEFF;
+        SetHitDamage(std::max<int32>(1, int32(whole * share)));
+        AddWithheldThreat(caster, target, whole - whole * share, GetSpellInfo());
         AddRot(caster, target, VOMISSURE_ROT_STACKS);
+        AddTankThreat(caster, target, VOMISSURE_THREAT_AP, GetSpellInfo());
     }
 
     void Register() override
@@ -720,7 +846,7 @@ class PestifereContagionSpellScript : public SpellScript
     void HandleAfterCast()
     {
         Player* caster = GetPestifere(GetCaster());
-        if (!caster || !CarriesAnyPlague(caster))
+        if (!caster)
             return;
 
         SpellInfo const* spellInfo = GetSpellInfo();
@@ -729,6 +855,15 @@ class PestifereContagionSpellScript : public SpellScript
         // The spell's own area radius (effect 2, cloned from Pestilence: 10 yd). CalcRadius applies the caster's
         // radius modifiers, which is how the Miasme talent widens it; a fixed radius here would ignore them.
         float const radius = spellInfo->Effects[EFFECT_2].CalcRadius(caster);
+
+        // Contagion bénigne (healer tree): the wave heals the group around, plagues or not
+        if (int32 const heal = GetTalentValue(caster, TALENT_CONTAGION_BENIGNE))
+            for (Unit* ally : GetGroupMembersInRange(caster, radius))
+                HealAlly(caster, ally, CalculatePct(ally->GetMaxHealth(), heal), SPELL_CONTAGION_BENIGNE_HEAL);
+
+        if (!CarriesAnyPlague(caster))
+            return;
+
         std::list<Unit*> const enemies = GetEnemiesInRange(caster, radius);
         uint32 applied = 0;
         uint32 refused = 0;
@@ -747,8 +882,9 @@ class PestifereContagionSpellScript : public SpellScript
                 continue;
 
             caster->SetInCombatWith(enemy);
-            enemy->AddThreat(caster, CONTAGION_THREAT_PER_PLAGUE * float(spread.applied), SPELL_SCHOOL_MASK_NORMAL,
-                spellInfo);
+            float const perPlague = std::max(CONTAGION_THREAT_PER_PLAGUE,
+                caster->GetTotalAttackPowerValue(BASE_ATTACK) * CONTAGION_THREAT_AP_PER_PLAGUE);
+            enemy->AddThreat(caster, perPlague * float(spread.applied), SPELL_SCHOOL_MASK_NORMAL, spellInfo);
         }
 
         // Feeding the pack feeds the carrier: plagues never time out while Contagion keeps landing. Sépulcre's
@@ -788,7 +924,9 @@ class PestifereCharnierAmbulantSpellScript : public SpellScript
         AddRot(caster, enemy, POURRITURE_MAX_STACKS);
 
         caster->SetInCombatWith(enemy);
-        enemy->AddThreat(caster, CHARNIER_THREAT_PER_ENEMY, SPELL_SCHOOL_MASK_NORMAL, GetSpellInfo());
+        enemy->AddThreat(caster, std::max(CHARNIER_THREAT_PER_ENEMY,
+            caster->GetTotalAttackPowerValue(BASE_ATTACK) * CHARNIER_THREAT_AP), SPELL_SCHOOL_MASK_NORMAL,
+            GetSpellInfo());
     }
 
     void Register() override
@@ -816,7 +954,7 @@ class PestifereDetonationSpellScript : public SpellScript
         _inBlast.insert(target->GetGUID());
 
         bool ripe = false;
-        uint32 const damage = Detonate(caster, target, ripe);
+        uint32 const damage = Detonate(caster, target, ripe, GetSpellInfo());
 
         // Nothing sown on this one, nothing to reap: it is in the blast but takes none of it
         if (!damage)
@@ -828,6 +966,7 @@ class PestifereDetonationSpellScript : public SpellScript
 
         SetHitDamage(int32(damage));
         _exploded.push_back(target->GetGUID());
+        AddTankThreat(caster, target, DETONATION_THREAT_AP, GetSpellInfo());
         Count(ripe);
     }
 
@@ -862,7 +1001,7 @@ class PestifereDetonationSpellScript : public SpellScript
         {
             Unit* enemy = candidates[index].second;
             bool ripe = false;
-            if (uint32 const damage = Detonate(caster, enemy, ripe))
+            if (uint32 const damage = Detonate(caster, enemy, ripe, GetSpellInfo()))
             {
                 caster->CastCustomSpell(SPELL_DETONATION_CHAIN, SPELLVALUE_BASE_POINT0, int32(damage), enemy,
                     TRIGGERED_FULL_MASK);
@@ -885,9 +1024,21 @@ class PestifereDetonationSpellScript : public SpellScript
         SpellInfo const* spellInfo = GetSpellInfo();
         uint32 const healPerTarget =
             uint32(float(caster->GetMaxHealth()) * DETONATION_HEAL_PCT_PER_TARGET / 100.0f);
-        uint32 const healing = std::max<uint32>(1, healPerTarget * _detonated);
-        HealInfo healInfo(caster, caster, healing, spellInfo, SpellSchoolMask(spellInfo->SchoolMask));
-        caster->HealBySpell(healInfo);
+        uint32 healing = std::max<uint32>(1, healPerTarget * _detonated);
+
+        // Détonation salvatrice (healer tree): the heal goes to the injured allies instead, one per enemy detonated
+        if (int32 const bonus = GetTalentValue(caster, TALENT_DETONATION_SALVATRICE))
+        {
+            healing += CalculatePct(healing, bonus);
+            std::vector<Unit*> const allies = GetInjuredAllies(caster, HEAL_RANGE, _detonated);
+            if (!allies.empty())
+                HealByNeed(caster, allies, healing, spellInfo->Id);
+        }
+        else
+        {
+            HealInfo healInfo(caster, caster, healing, spellInfo, SpellSchoolMask(spellInfo->SchoolMask));
+            caster->HealBySpell(healInfo);
+        }
 
         GiveRage(caster, _rageRefund);
     }
@@ -1282,14 +1433,21 @@ public:
         else if (spellInfo->Id == SPELL_PESTE_VIRULENTE_ENEMY)
             healthPct = PESTE_ENEMY_TICK_HEALTH_PCT;
 
+        uint32 whole = 0;
         if (healthPct > 0.0f)
         {
             float const perStack = std::min(float(target->GetMaxHealth()) * healthPct / 100.0f,
                 pestifere->GetTotalAttackPowerValue(BASE_ATTACK) * PLAGUE_TICK_AP_CAP);
-            damage = std::max<uint32>(1, uint32(perStack * float(stacks)));
+            // Split over everything this Pestiféré is rotting: a pull of a whole wing no longer pays per enemy
+            float const share = AoeFactor(GetPlagueData(pestifere)->rotting);
+            whole = std::max<uint32>(1, uint32(perStack * float(stacks)));
+            damage = std::max<uint32>(1, uint32(float(whole) * share));
         }
 
-        AddPlagueThreat(pestifere, target, damage, spellInfo);
+        // Threat on the whole tick, damage on the split one: holding a wide pull is unchanged
+        AddPlagueThreat(pestifere, target, std::max(whole, damage), spellInfo);
+        if (whole > damage)
+            AddWithheldThreat(pestifere, target, float(whole - damage), spellInfo);
     }
 
     void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* /*spellInfo*/) override
@@ -1402,8 +1560,11 @@ public:
 };
 }
 
+void AddPestifereHealerScripts();
+
 void AddPestifereScripts()
 {
+    AddPestifereHealerScripts();
     new PestifereUnitScript();
     new PestiferePlayerScript();
     RegisterSpellScript(PestifereFrappePutrideSpellScript);

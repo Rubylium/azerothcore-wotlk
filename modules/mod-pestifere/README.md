@@ -1,7 +1,8 @@
 # mod-pestifere
 
-Server-side behaviour of the **Pestiféré** (ChrClasses id 12), a plague tank. Design:
-`.agents/plans/pestifere/pestifere.DESIGN.md`.
+Server-side behaviour of the **Pestiféré** (ChrClasses id 12), a plague tank with a melee healer tree. Design:
+`.agents/plans/pestifere/pestifere.DESIGN.md` (tank) and `.agents/plans/pestifere/pestifere-healer.DESIGN.md`
+(healer).
 
 The class itself is declared by `modules/mod-custom-classes` (world table `custom_class`), and its spell rows
 are generated into the client patch and `server/Data/dbc` by `localTools/patchSinisterStrike.ps1`. This module
@@ -113,6 +114,35 @@ grouped per spell and meant to be tuned on a training dummy. Talent values per r
 "data" talents are spell modifiers or auras the core applies on its own; the others are read by the scripts through
 the rank tables in `src/Pestifere.h`.
 
+## Healer ("Sangsue", `src/PestifereHealer.cpp`)
+
+The second tree (TalentTab 901, tab page 1; 11 tiers, capstone at 50 points, 70 ranks, spell ids 90300-90399).
+The healer never casts. **Transfusion** (90300) trades the damage of its melee hits for healing. Once a hit's
+damage is final, the core hook `UnitScript::ModifyFinalDamage` runs and does three things:
+
+- it finds the most injured group member within 40 yd (the healer included);
+- it moves the share of the hit that covers what that member is missing from the damage into the absorb;
+- it heals the member for that share, logged as 90301.
+
+A healthy group takes nothing, so the hit is pure damage. Rage is paid on the whole hit. Transfusion sleeps while
+the Pestiféré carries Carapace nécrosée.
+
+| Spell | Script | What the script does |
+|---|---|---|
+| 90302 Sangsue | `PestifereSangsueAuraScript` | drain from attack power, heals the most injured ally, jumps on death (Sangsue prolifère) |
+| 90303 Saignée | (the damage hook) | its trade reaches 3 allies |
+| 90304 Absorption morbide | `PestifereAbsorptionMorbideSpellScript` | draws a disease and a poison out of the most injured ally carrying one |
+| 90305 Don de sang | `PestifereDonDeSangSpellScript` | caster's health for the most injured ally |
+| 90306 / 90307 Symbiote | `PestifereSymbioteSpellScript`, `PestifereSymbioteAuraScript` | binds to the friendly target or the member with the most attackers; copies Transfusion healing |
+| 90308 Pestilence salvatrice | (the damage hook) | the trade reaches 5 allies, double healing |
+| 90309 Coagulation | `PestifereCoagulationAuraScript` | the talent's damage reduction on an ally healed |
+| 90312 Spores | `PestifereSporesAuraScript` | Transfusion proc: heal over time sized from attack power |
+| 90313 / 90314 | (the damage hook) | Pustule éclatante and Essaim procs: burst with splash, bouncing heal |
+| 90315 / 90316 Brume pestilentielle | `PestifereBrumeSpellScript`, `PestifereBrumeAuraScript` | group heal over time, % of each member's health |
+
+Contagion bénigne, Détonation salvatrice and Carapace partagée live in the Contagion, Détonation and Carapace
+suintante scripts. Every heal goes through `HealAlly` (Triage, healing-taken modifiers, heal threat).
+
 ## Levelling
 
 The class uses no trainer. `PestiferePlayerScript` grants 90200 and 90210 at level 1, 90201 at 6, 90202 at 10,
@@ -145,5 +175,5 @@ and the Pourriture damage and model swelling are all spell data.
 
 ## SQL
 
-`data/sql/db-world/base/pestifere_scripts.sql` binds each script name to its spell id. The updater applies it
+`data/sql/db-world/base/pestifere_scripts.sql` binds each script name to its spell id, the healer's included. The updater applies it
 on the next worldserver start.

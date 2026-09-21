@@ -4,9 +4,23 @@ Add-Type -AssemblyName System.Drawing
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $assetRoot = Join-Path $repoRoot 'modules\mod-pestifere\client-assets'
 $iconSourceRoot = Join-Path $assetRoot 'source\icons'
-$backgroundSource = Join-Path $assetRoot 'source\backgrounds\PestifereCharnier.png'
+$backgroundSourceRoot = Join-Path $assetRoot 'source\backgrounds'
 $compiledIconRoot = Join-Path $assetRoot 'compiled\icons'
 $compiledTalentRoot = Join-Path $assetRoot 'compiled\talentframe'
+
+$talentBackgrounds = @('PestifereCharnier', 'PestifereSangsue')
+$spellPatchPath = Join-Path $repoRoot 'localTools\patchSinisterStrike.ps1'
+$requiredHealerIcons = [regex]::Matches(
+    [IO.File]::ReadAllText($spellPatchPath),
+    "Icon = '(PestifereHealer_[^']+)'"
+) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+
+$missingHealerSources = @($requiredHealerIcons | Where-Object {
+    -not (Test-Path -LiteralPath (Join-Path $iconSourceRoot "${_}.png"))
+})
+if ($missingHealerSources.Count) {
+    throw "Missing Pestiféré healer icon sources: $($missingHealerSources -join ', ')"
+}
 
 function Write-Tga([Drawing.Bitmap]$bitmap, [string]$destinationPath) {
     $width = $bitmap.Width
@@ -84,40 +98,56 @@ foreach ($file in Get-ChildItem -LiteralPath $iconSourceRoot -Filter '*.png' -Fi
     ++$iconCount
 }
 
-# WotLK talent backgrounds are a 320x384 image split into 256/64 columns and 256/128 rows.
-$background = [Drawing.Image]::FromFile($backgroundSource)
-try {
-    $targetAspect = 320.0 / 384.0
-    $cropWidth = [Math]::Min($background.Width, [int][Math]::Round($background.Height * $targetAspect))
-    $cropHeight = [Math]::Min($background.Height, [int][Math]::Round($background.Width / $targetAspect))
-    $cropX = [int](($background.Width - $cropWidth) / 2)
-    $cropY = [int](($background.Height - $cropHeight) / 2)
-    $rect = [Drawing.Rectangle]::new($cropX, $cropY, $cropWidth, $cropHeight)
-    $canvas = Resize-Image $background 320 384 $rect
+# WotLK talent backgrounds are 320x384 images split into 256/64 columns and 256/128 rows.
+foreach ($backgroundName in $talentBackgrounds) {
+    $backgroundSource = Join-Path $backgroundSourceRoot "${backgroundName}.png"
+    if (-not (Test-Path -LiteralPath $backgroundSource)) {
+        throw "Missing Pestiféré talent background: $backgroundSource"
+    }
+
+    $background = [Drawing.Image]::FromFile($backgroundSource)
     try {
-        $quadrants = @(
-            @{ Name = 'PestifereCharnier-TopLeft.tga'; X = 0; Y = 0; Width = 256; Height = 256 },
-            @{ Name = 'PestifereCharnier-TopRight.tga'; X = 256; Y = 0; Width = 64; Height = 256 },
-            @{ Name = 'PestifereCharnier-BottomLeft.tga'; X = 0; Y = 256; Width = 256; Height = 128 },
-            @{ Name = 'PestifereCharnier-BottomRight.tga'; X = 256; Y = 256; Width = 64; Height = 128 }
-        )
-        foreach ($quadrant in $quadrants) {
-            $sourceRect = [Drawing.Rectangle]::new($quadrant.X, $quadrant.Y, $quadrant.Width, $quadrant.Height)
-            $tile = Resize-Image $canvas $quadrant.Width $quadrant.Height $sourceRect
-            try {
-                Write-Tga $tile (Join-Path $compiledTalentRoot $quadrant.Name)
+        $targetAspect = 320.0 / 384.0
+        $cropWidth = [Math]::Min($background.Width, [int][Math]::Round($background.Height * $targetAspect))
+        $cropHeight = [Math]::Min($background.Height, [int][Math]::Round($background.Width / $targetAspect))
+        $cropX = [int](($background.Width - $cropWidth) / 2)
+        $cropY = [int](($background.Height - $cropHeight) / 2)
+        $rect = [Drawing.Rectangle]::new($cropX, $cropY, $cropWidth, $cropHeight)
+        $canvas = Resize-Image $background 320 384 $rect
+        try {
+            $quadrants = @(
+                @{ Suffix = 'TopLeft'; X = 0; Y = 0; Width = 256; Height = 256 },
+                @{ Suffix = 'TopRight'; X = 256; Y = 0; Width = 64; Height = 256 },
+                @{ Suffix = 'BottomLeft'; X = 0; Y = 256; Width = 256; Height = 128 },
+                @{ Suffix = 'BottomRight'; X = 256; Y = 256; Width = 64; Height = 128 }
+            )
+            foreach ($quadrant in $quadrants) {
+                $sourceRect = [Drawing.Rectangle]::new($quadrant.X, $quadrant.Y, $quadrant.Width, $quadrant.Height)
+                $tile = Resize-Image $canvas $quadrant.Width $quadrant.Height $sourceRect
+                try {
+                    $tileName = "${backgroundName}-$($quadrant.Suffix).tga"
+                    Write-Tga $tile (Join-Path $compiledTalentRoot $tileName)
+                }
+                finally {
+                    $tile.Dispose()
+                }
             }
-            finally {
-                $tile.Dispose()
-            }
+        }
+        finally {
+            $canvas.Dispose()
         }
     }
     finally {
-        $canvas.Dispose()
+        $background.Dispose()
     }
 }
-finally {
-    $background.Dispose()
+
+$missingHealerCompiled = @($requiredHealerIcons | Where-Object {
+    -not (Test-Path -LiteralPath (Join-Path $compiledIconRoot "${_}.tga"))
+})
+if ($missingHealerCompiled.Count) {
+    throw "Missing compiled Pestiféré healer icons: $($missingHealerCompiled -join ', ')"
 }
 
-Write-Host "Built $iconCount Pestifere icons and 4 Charnier talent-background tiles."
+$backgroundTileCount = $talentBackgrounds.Count * 4
+Write-Host "Built $iconCount Pestifere icons and $backgroundTileCount talent-background tiles."

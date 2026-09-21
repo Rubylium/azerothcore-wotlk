@@ -41,3 +41,12 @@ The talent implementation described in `.agents/plans/pestifere/pestifere.DESIGN
 
 The talent background base name is `PestifereCharnier`. The compiler emits the four exact WotLK quadrants
 under `Interface\TalentFrame`.
+
+## Sangsue healer art
+
+The healer specialization uses 36 dedicated `PestifereHealer_*` icons for its active abilities, proc auras,
+and talent nodes. `buildPestifereClientAssets.ps1` derives the required icon list from
+`localTools/patchSinisterStrike.ps1` and fails the build if a source or compiled icon is missing.
+
+The talent tab icon is `PestifereHealer_Sangsue`. Its background base name is `PestifereSangsue`; the
+compiler emits its four WotLK talent-frame quadrants beside the Charnier tiles.

@@ -6,6 +6,7 @@ function getPatchFiles(repoRoot) {
     const dbcRoot = path.join(repoRoot, 'server', 'Data', 'dbc');
     const iconRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled');
     const pestifereIconRoot = path.join(repoRoot, 'modules', 'mod-pestifere', 'client-assets', 'compiled', 'icons');
+    const necromancerIconRoot = path.join(repoRoot, 'modules', 'mod-necromancer', 'client-assets', 'compiled', 'icons');
     const pestifereTalentRoot = path.join(repoRoot, 'modules', 'mod-pestifere', 'client-assets', 'compiled',
         'talentframe');
 
@@ -22,6 +23,10 @@ function getPatchFiles(repoRoot) {
     for (const name of fs.readdirSync(pestifereIconRoot)
         .filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
         files.push({ source: path.join(pestifereIconRoot, name), archive: `Interface\\Icons\\${name}` });
+    }
+    for (const name of fs.readdirSync(necromancerIconRoot)
+        .filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
+        files.push({ source: path.join(necromancerIconRoot, name), archive: `Interface\\Icons\\${name}` });
     }
     for (const name of fs.readdirSync(pestifereTalentRoot)
         .filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {

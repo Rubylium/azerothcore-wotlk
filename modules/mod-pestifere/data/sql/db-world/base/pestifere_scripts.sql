@@ -25,7 +25,16 @@ DELETE FROM `spell_script_names` WHERE `ScriptName` IN (
     'PestifereMainsPutridesAuraScript',
     'PestifereCarapaceNecroseeAuraScript',
     'PestifereChairPutrideAuraScript',
-    'PestiferePesteVirulenteAuraScript'
+    'PestiferePesteVirulenteAuraScript',
+    'PestifereSangsueAuraScript',
+    'PestifereAbsorptionMorbideSpellScript',
+    'PestifereDonDeSangSpellScript',
+    'PestifereSymbioteSpellScript',
+    'PestifereSymbioteAuraScript',
+    'PestifereCoagulationAuraScript',
+    'PestifereSporesAuraScript',
+    'PestifereBrumeSpellScript',
+    'PestifereBrumeAuraScript'
 );
 
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
@@ -50,7 +59,18 @@ INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (90245, 'PestifereMainsPutridesAuraScript'),
 (90211, 'PestifereCarapaceNecroseeAuraScript'),
 (90213, 'PestifereChairPutrideAuraScript'),
-(90215, 'PestiferePesteVirulenteAuraScript');
+(90215, 'PestiferePesteVirulenteAuraScript'),
+-- The healer tree "Sangsue" (PestifereHealer.cpp). Transfusion itself is the damage hook, and Saignée and
+-- Pestilence salvatrice are read by it: no script of their own.
+(90302, 'PestifereSangsueAuraScript'),
+(90304, 'PestifereAbsorptionMorbideSpellScript'),
+(90305, 'PestifereDonDeSangSpellScript'),
+(90306, 'PestifereSymbioteSpellScript'),
+(90307, 'PestifereSymbioteAuraScript'),
+(90309, 'PestifereCoagulationAuraScript'),
+(90312, 'PestifereSporesAuraScript'),
+(90315, 'PestifereBrumeSpellScript'),
+(90316, 'PestifereBrumeAuraScript');
 
 -- Morsure fétide is the single-target threat button: flat bonus threat on top of its damage, like Shield Slam's
 -- (Carapace nécrosée then doubles all of it)
