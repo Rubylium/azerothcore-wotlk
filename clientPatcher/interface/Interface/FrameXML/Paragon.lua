@@ -25,10 +25,9 @@ local NODE_SIZE = { [0] = 44, [1] = 60, [2] = 80 }
 -- one part in two hundred, which satisfied the geometry and was still plainly a square at eighty pixels.
 -- buildParagonArt.py narrows every socket's hole until these sizes have room, so the two move together.
 local ICON_SCALE = { [0] = 0.57, [1] = 0.57, [2] = 0.47 }
--- The drawn height of the whole link texture, not of the bar inside it: the texture is mostly transparent
--- margin so that rotating it does not smear (buildParagonArt.py, padLinkBar). The bar is a quarter of this,
--- so the line reads as about 7 pixels.
-local LINK_WIDTH = 28
+-- How wide the spark that runs along a link is drawn. The links themselves carry no width here any more:
+-- each one is a texture with the bar already drawn into it at LINK_THICKNESS board units (buildParagonArt.py).
+local SPARK_SIZE = 28
 
 local MIN_ZOOM, MAX_ZOOM, ZOOM_STEP = 0.4, 1.8, 0.12
 -- Opens showing the hub and the first few rings rather than the whole board. Fitting all 217 nodes in the
@@ -105,44 +104,47 @@ end
 -- Line drawing
 --------------------------------------------------------------------------------
 
--- Rotating a texture between two points. 3.3.5 cannot anchor a texture's four corners independently, so the
--- rotation has to happen in the texture coordinates while the texture itself stays axis-aligned. This is the
--- long-standing community solution (wowpedia, "Drawing a line"), kept as-is because the trigonometry is
--- fiddly and well tested.
-local function drawLine(texture, parent, sx, sy, ex, ey, width)
-    local dx, dy = ex - sx, ey - sy
-    local cx, cy = (sx + ex) / 2, (sy + ey) / 2
-    if dx < 0 then
-        dx, dy = -dx, -dy
-    end
+-- Placing a link between two nodes.
+--
+-- The usual way to draw a line in 3.3.5 is to rotate one bar texture with the eight-argument SetTexCoord.
+-- That does not survive here. The coordinates that trick needs for a long thin bar run far outside [0,1] -
+-- up to 3.3 and -2.3 on this board - and the client does not draw them: the only links that came out right
+-- were the horizontals, whose coordinates are exactly 0 and 1. Every rotated one rendered as a sliver or an
+-- elbow.
+--
+-- So the rotation is baked into the art. localTools/interface/buildParagonArt.py emits one texture per
+-- distinct link shape on the board, with the bar already drawn corner to corner, and this only has to place
+-- it square. One texel is one board unit, and the board carries the zoom on its own scale, so the size is
+-- fixed once and never recomputed.
+local LINK_PAD = 12        -- must match LINK_PAD in buildParagonArt.py
 
-    local length = math.sqrt(dx * dx + dy * dy)
-    if length < 0.5 then
+local function potAtLeast(value)
+    local size = 16
+    while size < value do
+        size = size * 2
+    end
+    return size
+end
+
+local function placeLink(texture, parent, sx, sy, ex, ey)
+    local dx, dy = ex - sx, ey - sy
+    local spanX, spanY = math.abs(dx), math.abs(dy)
+    if spanX + spanY < 1 then
         texture:Hide()
         return
     end
 
-    local s, c = -dy / length, dx / length
-    local sc = s * c
-    local boxWidth, boxHeight
-    local BLx, BLy, TLx, TLy, TRx, TRy, BRx, BRy
-
-    if dy >= 0 then
-        boxWidth, boxHeight = (length * c) - (width * s), (width * c) - (length * s)
-        BLx, BLy, BRy = (width / length) * sc, s * s, (length / width) * sc
-        BRx, TLx, TLy, TRx = 1 - BLy, BLy, 1 - BRy, 1 - BLx
-        TRy = BRx
+    texture:SetTexture(ART .. string.format("Paragon-Link-%dx%d", spanX, spanY))
+    -- The art is drawn in the "/" sense; the other diagonal is the same picture mirrored.
+    if (dx < 0) ~= (dy < 0) then
+        texture:SetTexCoord(1, 0, 0, 1)
     else
-        boxWidth, boxHeight = (length * c) + (width * s), (width * c) - (length * s)
-        BLx, BLy, BRx = s * s, -(length / width) * sc, 1 + (width / length) * sc
-        BRy, TLx, TLy, TRy = BLx, -BLy, 1 - BLx, 1 - BLx
-        TRx = BRy
+        texture:SetTexCoord(0, 1, 0, 1)
     end
 
     texture:ClearAllPoints()
-    texture:SetTexCoord(TLx, TLy, BLx, BLy, TRx, TRy, BRx, BRy)
-    texture:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", cx - (boxWidth / 2), cy - (boxHeight / 2))
-    texture:SetPoint("TOPRIGHT", parent, "BOTTOMLEFT", cx + (boxWidth / 2), cy + (boxHeight / 2))
+    texture:SetSize(potAtLeast(spanX + LINK_PAD), potAtLeast(spanY + LINK_PAD))
+    texture:SetPoint("CENTER", parent, "BOTTOMLEFT", (sx + ex) / 2, (sy + ey) / 2)
     texture:Show()
 end
 
@@ -189,6 +191,17 @@ local function animateLink(texture, sx, sy, ex, ey)
     local spark = board.sparkPool[#board.sparkPool]
     if not spark then return end
     table.remove(board.sparkPool)
+
+    -- The comet has a nose and a tail, so it has to point the way it is travelling. Its art is generated
+    -- already turned along the link, pointing up and to the right; the other three directions are the same
+    -- picture flipped on one or both axes, which are ordinary in-range texture coordinates.
+    local dx, dy = ex - sx, ey - sy
+    spark:SetTexture(ART .. string.format("Paragon-Link-Spark-%dx%d", math.abs(dx), math.abs(dy)))
+    local left, right = 0, 1
+    local top, bottom = 0, 1
+    if dx < 0 then left, right = 1, 0 end
+    if dy < 0 then top, bottom = 1, 0 end
+    spark:SetTexCoord(left, right, top, bottom)
 
     spark:SetAlpha(1)
     spark:Show()
@@ -264,8 +277,10 @@ local function refreshLinks()
 end
 
 local function refreshHeader()
+    -- The orb is what is left to spend; the line under it is what is already on the board. Both were bare
+    -- numbers before, and an unlabelled "6 / 50" under a big figure reads as the point total.
     pointText:SetText(state.available)
-    spentText:SetFormattedText("%d / %d", state.spent, state.cap)
+    spentText:SetFormattedText("%d / %d |cff888888dépensés|r", state.spent, state.cap)
 
     local banked = state.earned - state.cap
     if banked > 0 then
@@ -390,10 +405,9 @@ local function createBoard()
         local a, b = ParagonBoard.nodes[link[1]], ParagonBoard.nodes[link[2]]
         if a and b then
             local texture = board:CreateTexture(nil, "BORDER")
-            texture:SetTexture(ART .. "Paragon-Link")
             local ax, ay = nodePosition(a)
             local bx, by = nodePosition(b)
-            drawLine(texture, board, ax, ay, bx, by, LINK_WIDTH)
+            placeLink(texture, board, ax, ay, bx, by)
             table.insert(linkTextures, { texture = texture, a = link[1], b = link[2],
                 ax = ax, ay = ay, bx = bx, by = by })
         end
@@ -402,9 +416,8 @@ local function createBoard()
     board.sparkPool = {}
     for _ = 1, 8 do
         local spark = board:CreateTexture(nil, "OVERLAY")
-        spark:SetTexture(ART .. "Paragon-Link-Spark")
         spark:SetBlendMode("ADD")
-        spark:SetSize(28, 28)
+        spark:SetSize(SPARK_SIZE, SPARK_SIZE)
         spark:Hide()
         table.insert(board.sparkPool, spark)
     end
@@ -477,10 +490,32 @@ local function createChrome()
     RetailUI.SetAtlas(orbFrame, "ChallengeMode-KeystoneSlotFrame")
     orbFrame:SetPoint("CENTER")
     orbFrame:SetSize(76, 76)
+    -- The socket art is a lit keystone slot, far too busy to read a number off. Darkened, it reads as an
+    -- empty socket with the figure sitting in it.
+    orbBackground:SetVertexColor(0.30, 0.32, 0.38)
 
-    pointText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    pointText:SetPoint("CENTER", orb, "CENTER", 0, 2)
-    pointText:SetTextColor(0.7, 0.9, 1)
+    -- The number goes in a frame of its own, ABOVE the orb. A child frame draws over every layer of its
+    -- parent, so a font string created on `hud` - as this one was - ends up behind the socket art no matter
+    -- which draw layer it asks for. That is why the count was invisible while the labels around it, which
+    -- fall outside the orb's rectangle, were not.
+    local orbText = CreateFrame("Frame", nil, orb)
+    orbText:SetAllPoints()
+    orbText:SetFrameLevel(orb:GetFrameLevel() + 3)
+
+    local orbInk = orbText:CreateTexture(nil, "BACKGROUND")
+    orbInk:SetTexture(ART .. "Paragon-Node-Glow")
+    orbInk:SetVertexColor(0, 0, 0, 0.55)
+    orbInk:SetPoint("CENTER")
+    orbInk:SetSize(52, 52)
+
+    pointText = orbText:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+    pointText:SetPoint("CENTER", orbText, "CENTER", 0, 1)
+    pointText:SetTextColor(1, 0.85, 0.35)
+
+    local orbLabel = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    orbLabel:SetPoint("BOTTOM", orb, "TOP", 0, 1)
+    orbLabel:SetText("À dépenser")
+    orbLabel:SetTextColor(0.7, 0.9, 1)
 
     spentText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     spentText:SetPoint("TOP", orb, "BOTTOM", 0, -2)
