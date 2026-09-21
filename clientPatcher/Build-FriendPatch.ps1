@@ -10,6 +10,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# The interface step rewrites the MPQs inside the client folder, which a running WoW holds open. Checking up
+# front turns a failure several minutes in - after the icons, the DBCs and the class data have been rebuilt -
+# into an immediate, obvious one.
+if (-not $skipInterfacePatches -and (Get-Process -Name 'Wow' -ErrorAction SilentlyContinue)) {
+    throw 'World of Warcraft is running and holds the patch archives. Close it, or pass -skipInterfacePatches.'
+}
 $patcherRoot = $PSScriptRoot
 $repoRoot = Split-Path -Parent $patcherRoot
 $templatePath = Join-Path $patcherRoot 'template'

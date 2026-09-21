@@ -8,7 +8,10 @@ param(
     # Publish this package from dist (e.g. CustomWotLKClientPatch-1.0.24.zip): a launcher-only release keeps the
     # client files the players already have. Implies -skipBuild.
     [string]$packageName = '',
-    [string]$repository = 'Rubylium/Evolutions'
+    [string]$repository = 'Rubylium/Evolutions',
+    # Publish an existing package even though sources have changed since it was built. Only for deliberately
+    # re-releasing an older client build; it is never the right answer to a build that just failed.
+    [switch]$allowStale
 )
 
 # Publishes a release that the Evolutions launcher installs from.
@@ -55,6 +58,44 @@ function New-DeterministicZip([string]$folder, [string]$zipPath) {
     }
 }
 
+# Refuses to publish a package that no longer matches the sources it was built from.
+#
+# -skipBuild takes the newest zip in dist, and a build that FAILS leaves no new zip - so without this the
+# newest one is the previous build and it goes out as a new release carrying the old client, silently. The
+# same check catches the other way of getting there: editing a file and forgetting to build at all.
+function Assert-PackageIsCurrent([IO.FileInfo]$package) {
+    $roots = @('interface', 'addons', 'assets', 'vendor') |
+        ForEach-Object { Join-Path $patcherRoot $_ } |
+        Where-Object { Test-Path -LiteralPath $_ }
+    if (-not $roots) { return }
+
+    $newer = Get-ChildItem -LiteralPath $roots -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.LastWriteTime -gt $package.LastWriteTime -and
+            $_.FullName -notmatch '\\(node_modules|__pycache__|\.git)\\'
+        } |
+        Sort-Object LastWriteTime -Descending
+
+    if (-not $newer) { return }
+
+    $listed = $newer | Select-Object -First 5 | ForEach-Object {
+        "    $($_.FullName.Substring($patcherRoot.Length + 1))  ($($_.LastWriteTime.ToString('HH:mm:ss')))"
+    }
+    $extra = if ($newer.Count -gt 5) { "    ... and $($newer.Count - 5) more" } else { $null }
+
+    $message = @(
+        "$($package.Name) was built at $($package.LastWriteTime.ToString('HH:mm:ss')), before these changed:",
+        $listed,
+        $extra,
+        '',
+        'Publishing it would ship the previous client. If a build just failed - the interface step fails while',
+        'WoW holds the patch files - close the client and run Build-FriendPatch.ps1 again.',
+        'Pass -allowStale only to deliberately re-release an older build.'
+    ) | Where-Object { $null -ne $_ }
+
+    throw ($message -join [Environment]::NewLine)
+}
+
 function Get-Sha256([string]$path) {
     (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
@@ -87,6 +128,15 @@ else {
         throw 'No package in dist: run without -skipBuild.'
     }
 }
+if ($packageName -or $skipBuild) {
+    if ($allowStale) {
+        Write-Warning "Publishing $($package.Name) without checking it against the sources (-allowStale)."
+    }
+    else {
+        Assert-PackageIsCurrent $package
+    }
+}
+
 Write-Host "Package: $($package.Name)"
 Expand-Archive -LiteralPath $package.FullName -DestinationPath $payloadRoot
 
