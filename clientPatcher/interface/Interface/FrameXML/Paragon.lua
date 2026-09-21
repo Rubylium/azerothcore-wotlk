@@ -18,11 +18,12 @@ local CANVAS_RIGHT, CANVAS_BOTTOM = 14, 42
 -- Slack here is empty ground to pan into, and it is what let the board shrink away from the viewport.
 local BOARD_EXTENT = 1700
 local NODE_SIZE = { [0] = 44, [1] = 60, [2] = 80 }
--- Fraction of the node the icon is drawn at, per socket. Each fills that socket's hole and is cropped into a
--- circle by the ring, which draws over it - an icon smaller than the hole just shows its own square edge,
--- which is what it used to do. The values come from the art: buildParagonArt.py widens the minor and notable
--- rings inward until the corners of an icon this size land on metal, so the two move together.
-local ICON_SCALE = { [0] = 0.61, [1] = 0.61, [2] = 0.50 }
+-- Fraction of the node the icon is drawn at, per socket. Each is wider than that socket's hole, so the ring
+-- drawing over it crops the square icon into the circle of the hole; an icon smaller than the hole just
+-- shows its own square edge. The margin at both ends has to be real: the keystone once cleared its metal by
+-- one part in two hundred, which satisfied the geometry and was still plainly a square at eighty pixels.
+-- buildParagonArt.py narrows every socket's hole until these sizes have room, so the two move together.
+local ICON_SCALE = { [0] = 0.57, [1] = 0.57, [2] = 0.47 }
 -- The drawn height of the whole link texture, not of the bar inside it: the texture is mostly transparent
 -- margin so that rotating it does not smear (buildParagonArt.py, padLinkBar). The bar is a quarter of this,
 -- so the line reads as about 7 pixels.

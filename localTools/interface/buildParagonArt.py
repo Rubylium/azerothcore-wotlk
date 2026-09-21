@@ -171,7 +171,10 @@ def padLinkBar(bar, size):
 # The band is filled with the colour of the metal already at that radius, darkened towards the middle, so it
 # reads as the socket being deeper rather than as a patch stuck over the art.
 ICON_CROP_RATIO = 1.4142135623730951
-COLLAR_MARGIN = 0.96              # leave a little slack rather than sitting exactly on the limit
+# How much of the theoretical limit to actually use. At 0.96 the keystone's corners cleared the metal by
+# about one part in two hundred, which is "covered" on paper and plainly a square on screen once the socket is
+# drawn at eighty pixels. The crop has to bite, not just touch.
+COLLAR_MARGIN = 0.80
 COLLAR_SHADOW = 0.62              # how dark the innermost edge of the new band goes
 
 
@@ -284,7 +287,9 @@ def buildAssets():
         elif name == "Paragon-Link":
             assets[name] = padLinkBar(makeSeamless(loadSource(name), (size[0], LINK_BAR_HEIGHT),
                                                    horizontal=True), size)
-        elif name in ("Paragon-Node-Minor", "Paragon-Node-Notable"):
+        elif name.startswith("Paragon-Node-"):
+            # Every socket, the keystone included: its ring is thick, but its hole is wide enough that the
+            # corners of an icon filling it only just reached metal.
             assets[name] = tightenSocketHole(resizeExact(loadSource(name), size))
         else:
             assets[name] = resizeExact(loadSource(name), size)
