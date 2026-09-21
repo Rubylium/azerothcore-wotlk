@@ -16,12 +16,17 @@
  */
 
 #include "CreatureScript.h"
+#include "Map.h"
 #include "PassiveAI.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
+#include "SpellMgr.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "forge_of_souls.h"
+
+#include <algorithm>
 
 enum Yells
 {
@@ -51,6 +56,25 @@ enum Spells
     SPELL_SOULSTORM                 = 68872,
 };
 
+enum BronjahmCreatures
+{
+    NPC_CORRUPTED_SOUL_FRAGMENT     = 36535,
+};
+
+// Corrupt Soul summons a fragment that has to be killed before it reaches Bronjahm and heals him. On its own
+// twenty second cycle that is a fine rhythm - but the fragment carries the instance's health scaling, and in a
+// mythic run it can still be alive when the next cast comes due. The mechanic then stacks on itself and the
+// group never gets to touch the boss.
+//
+// So the cast waits for the floor to be clear, and once a fragment falls there is a guaranteed stretch of
+// fight before another is summoned.
+constexpr uint32 CorruptSoulBreather = 12000;
+
+// What a fragment costs the group when it reaches Bronjahm. A share of maximum health rather than a flat
+// number, so it stays a real threat through every key level without ever being the whole health bar: the
+// punishment for letting one through should be a healer under pressure, not a wipe.
+constexpr uint8 ConsumeSoulHealthPct = 25;
+
 enum Events
 {
     EVENT_SPELL_SHADOW_BOLT = 1,
@@ -73,8 +97,16 @@ struct boss_bronjahm : public BossAI
     void Reset() override
     {
         BossAI::Reset();
+        _corruptSoulBreather = 0;
         me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
         DoCastSelf(SPELL_SOULSTORM_CHANNEL_OOC, true);
+    }
+
+    void SummonedCreatureDies(Creature* summon, Unit* killer) override
+    {
+        BossAI::SummonedCreatureDies(summon, killer);
+        if (summon->GetEntry() == NPC_CORRUPTED_SOUL_FRAGMENT)
+            _corruptSoulBreather = CorruptSoulBreather;
     }
 
     void JustEngagedWith(Unit* who) override
@@ -117,6 +149,7 @@ struct boss_bronjahm : public BossAI
             return;
 
         events.Update(diff);
+        _corruptSoulBreather -= std::min(_corruptSoulBreather, diff);
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
@@ -142,6 +175,14 @@ struct boss_bronjahm : public BossAI
                 events.Repeat(10s, 15s);
                 break;
             case EVENT_SPELL_CORRUPT_SOUL:
+                // A fragment still on the floor, or one that only just fell: look again shortly rather than
+                // summoning a second one on top of it.
+                if (summons.HasEntry(NPC_CORRUPTED_SOUL_FRAGMENT) || _corruptSoulBreather)
+                {
+                    events.Repeat(2s);
+                    break;
+                }
+
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                 {
                     Talk(SAY_CORRUPT_SOUL);
@@ -183,6 +224,10 @@ struct boss_bronjahm : public BossAI
         me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
         BossAI::EnterEvadeMode(why);
     }
+
+private:
+    // Counts down the guaranteed stretch of fight after a soul fragment dies, before another may be summoned.
+    uint32 _corruptSoulBreather = 0;
 };
 
 struct npc_fos_corrupted_soul_fragment : public NullCreatureAI
@@ -213,6 +258,7 @@ struct npc_fos_corrupted_soul_fragment : public NullCreatureAI
         {
             me->GetMotionMaster()->MoveIdle();
             me->CastSpell(bronjahm, SPELL_CONSUME_SOUL, true);
+            ConsumeSoul(bronjahm);
             me->DespawnOrUnsummon(1ms);
             return;
         }
@@ -225,6 +271,40 @@ struct npc_fos_corrupted_soul_fragment : public NullCreatureAI
         }
         else
             Timer -= diff;
+    }
+
+private:
+    // A fragment that gets home takes it out on the group rather than feeding Bronjahm.
+    //
+    // Retail has the soul heal him for a flat 120,000 (spell 68858), which this core never casts - 68861 is a
+    // script effect nothing implements, so until now a fragment reaching him did nothing whatsoever and the
+    // mechanic could be ignored outright. Either way a flat heal is the wrong shape for a scaled instance: it
+    // is trivial at a high key and enormous at a low one, and healing a boss punishes the group by making the
+    // fight longer, which is the least interesting way to be punished.
+    void ConsumeSoul(Creature* bronjahm)
+    {
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_CONSUME_SOUL);
+        if (!spellInfo)
+            return;
+
+        Map::PlayerList const& players = me->GetMap()->GetPlayers();
+        for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
+        {
+            Player* player = itr->GetSource();
+            if (!player || !player->IsAlive() || player->IsGameMaster())
+                continue;
+
+            uint32 const damage = CalculatePct(player->GetMaxHealth(), ConsumeSoulHealthPct);
+            if (!damage)
+                continue;
+
+            // Dealt as the boss's own spell so it reads as Consume Soul in the log and in a damage meter,
+            // rather than as health quietly disappearing.
+            SpellNonMeleeDamage damageInfo(bronjahm, player, spellInfo, spellInfo->SchoolMask);
+            damageInfo.damage = damage;
+            bronjahm->SendSpellNonMeleeDamageLog(&damageInfo);
+            bronjahm->DealSpellDamage(&damageInfo, false);
+        }
     }
 };
 
