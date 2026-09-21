@@ -56,69 +56,69 @@ def special(effect, name, description, icon, value=0, value2=0, chance=0.0,
 # should be worth walking to, not the default.
 BRANCHES = [
     (0, STRENGTH, 1.0, "Force",
-     ("Spell_Nature_Strength", "Ability_Warrior_StrengthOfArms", "Ability_Warrior_InnerRage"),
+     ("ParagonNode_Strength", "ParagonNode_StrengthMajor", "ParagonNode_StrengthMajor"),
      [
          special(E_FURY, "Ardeur", "10% de chances en infligeant des dégâts d'augmenter vos dégâts de 8% "
-                 "pendant 10 s.", "Ability_Warrior_Rampage", value=8, chance=10.0, duration=10000),
+                 "pendant 10 s.", "ParagonNode_Ardour", value=8, chance=10.0, duration=10000),
      ],
      special(E_FURY, "Furie du parangon",
              "15% de chances en infligeant des dégâts d'augmenter tous vos dégâts de 20% pendant 12 s.",
-             "Ability_Warrior_InnerRage", value=20, chance=15.0, duration=12000)),
+             "ParagonNode_Fury", value=20, chance=15.0, duration=12000)),
 
     (60, ATTACK_POWER, 2.0, "Puissance",
-     ("Ability_Warrior_BattleShout", "Ability_TrueShot", "Spell_Holy_SealOfMight"),
+     ("ParagonNode_Power", "ParagonNode_PowerMajor", "ParagonNode_PowerMajor"),
      [
          special(E_SURGE, "Curée", "Tuer un ennemi octroie 120 en puissance d'attaque et des sorts "
-                 "pendant 15 s.", "Ability_Rogue_SliceDice", value=120, duration=15000),
+                 "pendant 15 s.", "ParagonNode_Quarry", value=120, duration=15000),
      ],
      special(E_SURGE, "Élan du parangon",
              "Tuer un ennemi octroie 350 en puissance d'attaque et des sorts pendant 20 s.",
-             "Spell_Holy_SealOfMight", value=350, duration=20000)),
+             "ParagonNode_Momentum", value=350, duration=20000)),
 
     (120, AGILITY, 1.0, "Agilité",
-     ("Ability_Rogue_Sprint", "Spell_Nature_MentalQuickness", "Ability_Rogue_CutToTheChase"),
+     ("ParagonNode_Agility", "ParagonNode_AgilityMajor", "ParagonNode_AgilityMajor"),
      [
          special(E_RETALIATE, "Riposte", "10% de chances quand vous êtes touché de renvoyer 25% des dégâts "
-                 "à l'attaquant.", "Ability_Warrior_Revenge", value=25, chance=10.0),
+                 "à l'attaquant.", "ParagonNode_Riposte", value=25, chance=10.0),
      ],
      special(E_RETALIATE, "Représailles du parangon",
              "20% de chances quand vous êtes touché de renvoyer 60% des dégâts à l'attaquant.",
-             "Ability_Rogue_CutToTheChase", value=60, chance=20.0)),
+             "ParagonNode_Reprisal", value=60, chance=20.0)),
 
     # The armour branch. Minor nodes here are armour rather than stamina, so walking it actually makes you
     # harder to kill instead of just larger.
     (180, STAMINA, 1.2, "Carapace",
-     ("Spell_Holy_BlessingOfStamina", "Ability_Warrior_ShieldWall", "Spell_Holy_WordFortitude"),
+     ("ParagonNode_Armor", "ParagonNode_ArmorMajor", "ParagonNode_ArmorMajor"),
      [
          special(E_GUARD, "Écaille de pierre", "10% de chances quand vous êtes touché d'augmenter votre "
-                 "armure de 10% pendant 8 s.", "Spell_Holy_DevotionAura",
+                 "armure de 10% pendant 8 s.", "ParagonNode_Stonescale",
                  value=10, chance=10.0, duration=8000),
          special(E_ARMOR_PCT, "Peau d'acier", "Augmente votre armure de 5%.",
-                 "INV_Shield_06", value=5),
+                 "ParagonNode_Steelskin", value=5),
      ],
      special(E_LAST_STAND, "Rempart du parangon",
              "Sous 35% de vie, vous subissez 40% de dégâts en moins pendant 10 s. 1 minute de recharge.",
-             "Spell_Holy_WordFortitude", value=40, value2=35, duration=10000, cooldown=60000)),
+             "ParagonNode_Bulwark", value=40, value2=35, duration=10000, cooldown=60000)),
 
     (240, SPELL_POWER, 1.4, "Arcanes",
-     ("Spell_Arcane_Arcane01", "Spell_Arcane_Blast", "Spell_Arcane_ArcanePotency"),
+     ("ParagonNode_Arcane", "ParagonNode_ArcaneMajor", "ParagonNode_ArcaneMajor"),
      [
          special(E_FURY, "Résonance", "8% de chances en infligeant des dégâts d'augmenter vos dégâts de 10% "
-                 "pendant 10 s.", "Spell_Arcane_Blast", value=10, chance=8.0, duration=10000),
+                 "pendant 10 s.", "ParagonNode_Resonance", value=10, chance=8.0, duration=10000),
      ],
      special(E_FURY, "Cataclysme du parangon",
              "12% de chances en infligeant des dégâts d'augmenter tous vos dégâts de 25% pendant 12 s.",
-             "Spell_Arcane_ArcanePotency", value=25, chance=12.0, duration=12000)),
+             "ParagonNode_Cataclysm", value=25, chance=12.0, duration=12000)),
 
     (300, INTELLECT, 1.0, "Intellect",
-     ("Spell_Holy_ArcaneIntellect", "Spell_Arcane_MindMastery", "Spell_Magic_GreaterBlessingofKings"),
+     ("ParagonNode_Intellect", "ParagonNode_IntellectMajor", "ParagonNode_IntellectMajor"),
      [
          special(E_SURGE, "Clairvoyance", "Tuer un ennemi octroie 150 en puissance des sorts et d'attaque "
-                 "pendant 15 s.", "Spell_Arcane_MindMastery", value=150, duration=15000),
+                 "pendant 15 s.", "ParagonNode_Clairvoyance", value=150, duration=15000),
      ],
      special(E_SURGE, "Omniscience du parangon",
              "Tuer un ennemi octroie 400 en puissance des sorts et d'attaque pendant 20 s.",
-             "Spell_Magic_GreaterBlessingofKings", value=400, duration=20000)),
+             "ParagonNode_Omniscience", value=400, duration=20000)),
 ]
 
 # Armour a plain node on the Carapace branch is worth, in place of a stat.
@@ -178,14 +178,34 @@ def escape(text):
     return text.replace(chr(92), chr(92) * 2).replace("'", "''")
 
 
+ICON_PREFIX = "ParagonNode_"
+ICON_SOURCE = os.path.join(REPO, "modules", "mod-stat-growth", "client-assets", "source", "icons")
+
+
+def custom_icons():
+    """The node icons this module ships, by name."""
+    if not os.path.isdir(ICON_SOURCE):
+        return set()
+    return {os.path.splitext(name)[0].lower() for name in os.listdir(ICON_SOURCE)
+            if name.lower().endswith(".png")}
+
+
 def build():
     available = load_icons()
+    ours = custom_icons()
     wanted = {icon for branch in BRANCHES for icon in branch[4]}
     wanted |= {s["icon"] for branch in BRANCHES for s in branch[5]}
     wanted |= {branch[6]["icon"] for branch in BRANCHES}
-    missing = sorted({icon for icon in wanted if icon.lower() not in available})
-    if missing:
-        raise SystemExit("Not in SpellIcon.dbc, would show as a green question mark: %s" % ", ".join(missing))
+    missing_custom = sorted({i for i in wanted
+                             if i.startswith(ICON_PREFIX) and i.lower() not in ours})
+    if missing_custom:
+        raise SystemExit("No source PNG in %s for: %s" % (ICON_SOURCE, ", ".join(missing_custom)))
+
+    missing_stock = sorted({i for i in wanted
+                            if not i.startswith(ICON_PREFIX) and i.lower() not in available})
+    if missing_stock:
+        raise SystemExit("Not in SpellIcon.dbc, would show as a green question mark: %s"
+                         % ", ".join(missing_stock))
 
     nodes = []
     links = set()
@@ -194,11 +214,11 @@ def build():
     nodes.append({
         "id": START_NODE, "type": MINOR, "x": 0, "y": 0, "effect": E_STAT, "stat": STAMINA, "value": 0,
         "value2": 0, "chance": 0.0, "duration": 0, "cooldown": 0, "free": 1,
-        "icon": "Spell_Arcane_Arcane04", "name": "Éveil", "branch": "",
+        "icon": "ParagonNode_Awakening", "name": "Éveil", "branch": "",
         "description": "Le point de départ du tableau. Aucun point requis.",
     })
-    if "spell_arcane_arcane04" not in available:
-        raise SystemExit("start node icon missing")
+    if "paragonnode_awakening" not in ours:
+        raise SystemExit("start node icon missing from %s" % ICON_SOURCE)
 
     node_id = 100
     for angle, stat, scale, branch_name, icons, specials, keystone in BRANCHES:

@@ -115,6 +115,12 @@ if (-not $skipInterfacePatches) {
         throw "Evolutions logo build failed (exit $LASTEXITCODE)."
     }
 
+    Write-Host 'Compiling Paragon node icons...'
+    & python (Join-Path $repoRoot 'localTools\paragon\buildParagonIcons.py') | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Paragon node icon build failed (exit $LASTEXITCODE)."
+    }
+
     Write-Host 'Compiling Paragon interface art...'
     & python (Join-Path $repoRoot 'localTools\interface\buildParagonArt.py') | Out-Host
     if ($LASTEXITCODE -ne 0) {
