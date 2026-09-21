@@ -38,5 +38,5 @@ INSERT INTO `creature`
      `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`,
      `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`)
 VALUES
-    (9000010, 900101, 0, 0, 0, 1, 1, 0, -8828.5, 622.8, 94.3, 2.16, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', NULL, 0,
+    (9000010, 900101, 0, 0, 0, 1, 1, 0, -8846.152, 626.574, 94.508, 0.45, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', NULL, 0,
      'Stormwind Trade District riding instructor');
