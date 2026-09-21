@@ -200,7 +200,7 @@ $customSpells = @(
        Description = 'Transmet chaque fléau que vous portez aux ennemis dans un rayon de 10 mètres et prolonge la Pourriture qu''ils portent déjà. Génère de la menace pour chaque fléau transmis.'
        Visual = @{ Clone = 11172 } },
     @{ Id = 90202; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 250; Cooldown = 0; Level = 10; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Fait exploser la moitié de la Pourriture des ennemis proches et consomme les fléaux qu''ils portent : plus un ennemi porte de charges et de fléaux, plus l''explosion est violente. Au-delà de 4 ennemis pourrissants, les dégâts de zone sont répartis. Vous rend 2% de vos points de vie maximum pour chaque ennemi touché.'
+       Description = 'Fait exploser la moitié de la Pourriture des ennemis proches et consomme les fléaux qu''ils portent : plus un ennemi porte de charges et de fléaux, plus l''explosion est violente. Au-delà de 4 ennemis pourrissants, les dégâts de zone sont répartis. Vous rend 2% de vos points de vie maximum pour chaque ennemi touché ; ce que vous ne pouvez pas soigner devient une Excroissance qui absorbe les dégâts.'
        Fields = @{ 72 = 0; 75 = 0; 81 = 0; 87 = 0; 96 = 0; 74 = 0; 80 = 1 }
        Visual = @{ Clone = 15216 } },
     @{ Id = 90203; Clone = 355; Name = 'Odeur de charogne'; Icon = 'Pestifere_OdeurCharogne'; FallbackIconSpell = 355; Cost = 0; Cooldown = 8000; Level = 14; Spellbook = $true; SkillLine = 900; ClassMask = 2048
@@ -304,14 +304,14 @@ $customSpells = @(
        Visual = @{ Clone = 8964; Cast = 726; PersistentArea = 9180 } },
     # Morsure fétide: the single-target threat strike, stronger for every Pourriture on the target (spell_threat adds
     # its bonus threat)
-    @{ Id = 90224; Clone = 12294; Name = 'Morsure fétide'; Icon = 'Pestifere_MorsureFetide'; FallbackIconSpell = 55090; Cost = 200; Cooldown = 6000; Level = 30; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Mord la cible pour 150% des dégâts de votre arme, augmentés de 10% par charge de Pourriture qu''elle porte, sans les consommer. Génère une menace importante.'
-       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 150 })
+    @{ Id = 90224; Clone = 12294; Name = 'Morsure fétide'; Icon = 'Pestifere_MorsureFetide'; FallbackIconSpell = 55090; Cost = 140; Cooldown = 4500; Level = 30; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Mord la cible pour 230% des dégâts de votre arme, augmentés de 18% par charge de Pourriture qu''elle porte, sans les consommer. Génère une menace importante.'
+       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 230 })
        Visual = @{ Clone = 11624 } },
     # Riposte purulente: usable for a few seconds after you dodge, parry or block (Revenge's aura state)
-    @{ Id = 90225; Clone = 57823; Name = 'Riposte purulente'; Icon = 'Pestifere_RipostePurulente'; FallbackIconSpell = 57823; Cost = 50; Cooldown = 5000; Level = 36; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Utilisable après avoir esquivé, paré ou bloqué une attaque. Frappe la cible pour 120% des dégâts de votre arme et applique une charge de Pourriture à la cible et à 2 ennemis proches.'
-       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 120 })
+    @{ Id = 90225; Clone = 57823; Name = 'Riposte purulente'; Icon = 'Pestifere_RipostePurulente'; FallbackIconSpell = 57823; Cost = 0; Cooldown = 3000; Level = 36; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Utilisable après avoir esquivé, paré ou bloqué une attaque. Frappe la cible pour 180% des dégâts de votre arme et applique une charge de Pourriture à la cible et à 2 ennemis proches.'
+       Effects = @(@{ Index = 0; Effect = 31; TargetA = 6; Value = 180 })
        Fields = @{ 20 = 1 } },
     # Carapace suintante: the short defensive, an absorb that grows with Virulence
     @{ Id = 90226; Clone = 48707; Name = 'Carapace suintante'; Icon = 'Pestifere_CarapaceSuintante'; FallbackIconSpell = 48707; Cost = 100; Cooldown = 30000; Level = 44; Spellbook = $true; SkillLine = 900; ClassMask = 2048
@@ -341,6 +341,17 @@ $customSpells = @(
        # Unholy Blight's green haze
        Visual = @{ Clone = 11095 } },
 
+    # Excroissance: never cast by the player. PestifereScripts.cpp pours every point of overhealing a
+    # Pestiféré receives into it and sets the amount itself, so the base points here are only a placeholder.
+    @{ Id = 90230; Clone = 48707; Name = 'Excroissance'; Icon = 'PestifereTalent_CrouteNecrosee'; FallbackIconSpell = 48707; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Les soins que votre corps ne peut pas utiliser s''accumulent sous votre peau et absorbent les dégâts, jusqu''à 75% de vos points de vie maximum.'
+       AuraDescription = 'Absorbe les dégâts.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_SchoolAbsorb; BasePoints = 0; Misc = 127 })
+       # 20 sec: long enough to be worth banking, short enough that it is never a second health bar
+       Fields = @{ 40 = 18 }
+       # Anti-Magic Shell's green bubble, as Carapace suintante wears
+       Visual = @{ Clone = 11869 } },
+
     # Support spells: never in the spellbook
     # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2.5 threat)
     @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
@@ -366,7 +377,7 @@ $customSpells = @(
        Fields = @{ 40 = 25 } },
 
     # Talent-taught actives of the rebuilt tree (each is its talent's rank spell)
-    @{ Id = 90284; Clone = 120; Name = 'Vomissure'; Icon = 'PestifereTalent_Vomissure'; FallbackIconSpell = 69195; Cost = 200; Cooldown = 12000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+    @{ Id = 90284; Clone = 120; Name = 'Vomissure'; Icon = 'PestifereTalent_Vomissure'; FallbackIconSpell = 69195; Cost = 150; Cooldown = 9000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Vomit un flot de bile devant vous : inflige de lourds dégâts de Nature aux ennemis dans un cône de 10 mètres et leur applique 2 charges de Pourriture.'
        # Cone of Cold's cone, one damage effect, no damage class: it cannot miss
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 104; BasePoints = 0 })

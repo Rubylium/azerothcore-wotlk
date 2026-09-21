@@ -51,6 +51,8 @@ enum Spells : uint32
     SPELL_BOND_PUTRIDE              = 90227,
     SPELL_PUANTEUR_INSOUTENABLE     = 90228,
     SPELL_PANDEMIE                  = 90229,
+    // Healing the body cannot use, kept as a growth that takes the next hits instead of being wasted
+    SPELL_EXCROISSANCE              = 90230,
 
     // Active spells taught by a talent: each is that talent's rank spell
     SPELL_CHARNIER_AMBULANT         = 90256,

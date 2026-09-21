@@ -78,10 +78,15 @@ constexpr float CHARNIER_THREAT_AP = 0.8f;       // Charnier ambulant, per enemy
 
 // Détonation (90202): damage = base + (stacks * perStack) * (1 + bonus * plaguesConsumed) + what Sépulcre held
 // Base and per-stack damage are shares of attack power, so the button keeps up while levelling.
-constexpr float DETONATION_BASE_AP_COEFF = 0.15f;
-constexpr float DETONATION_STACK_AP_COEFF = 0.12f;
-// +50% per plague consumed on that enemy: a fully infected, fully rotten target is worth many times a fresh one
-constexpr float DETONATION_PLAGUE_BONUS = 0.5f;
+//
+// These were cut by a little over half. Measured over a dungeon run, Détonation was 54% of the Pestiféré's
+// damage and everything else was rounding: the per-stack term and the plague bonus multiply, so a ripe target
+// carrying all three plagues was worth (0.15 + 6*0.12) * 2.5 = 2.2 attack power on a button with no cooldown.
+// The payoff still leads the meter, at about a third of it, and the rest of the kit was raised to meet it.
+constexpr float DETONATION_BASE_AP_COEFF = 0.13f;
+constexpr float DETONATION_STACK_AP_COEFF = 0.065f;
+// +32% per plague consumed on that enemy: a fully infected, fully rotten target is worth several fresh ones
+constexpr float DETONATION_PLAGUE_BONUS = 0.32f;
 // Self-heal per enemy detonated, as a percentage of the caster's maximum health
 constexpr float DETONATION_HEAL_PCT_PER_TARGET = 2.0f;
 // Rage refunded per enemy detonated at the Pourriture cap - big booms fund the next build-up
@@ -102,18 +107,21 @@ constexpr uint32 SEPULCRE_HELD_PCT = 50;
 // health, per stack for Pourriture, so they scale with whatever they rot. On a huge health pool (a boss) a tick is
 // held to a share of the Pestiféré's attack power instead.
 constexpr float POURRITURE_TICK_HEALTH_PCT = 1.0f;      // % of maximum health per stack per tick
-constexpr float PESTE_ENEMY_TICK_HEALTH_PCT = 1.0f;     // % of maximum health per tick
+constexpr float PESTE_ENEMY_TICK_HEALTH_PCT = 1.3f;     // % of maximum health per tick
 constexpr float PLAGUE_TICK_AP_CAP = 0.15f;             // most a tick (a stack of Pourriture) deals, x attack power
 
 // Area damage is split past this many enemies: the plague reaches a whole pull, and every enemy taking a full
 // share of it made a wing worth several bosses. Past the fourth, each takes sqrt(AOE_FULL_TARGETS / count) of it.
 constexpr std::size_t AOE_FULL_TARGETS = 4;
 
-// Flaque de bile (90223): damage of each 2 sec tick, as a share of attack power
-constexpr float FLAQUE_TICK_AP_COEFF = 0.06f;
+// Flaque de bile (90223): damage of each 2 sec tick, as a share of attack power. Raised with the rest of the
+// area kit to cover the ground Détonation gave up.
+constexpr float FLAQUE_TICK_AP_COEFF = 0.14f;
 
-// Morsure fétide (90224): % more damage per Pourriture stack on the target
-constexpr int32 MORSURE_DAMAGE_PER_STACK = 10;
+// Morsure fétide (90224): % more damage per Pourriture stack on the target. This is the single-target payoff
+// and it was 2% of a dungeon's damage; with the weapon share and cooldown in the spell data it is now worth
+// pressing on a boss, where Détonation only ever has one target to eat.
+constexpr int32 MORSURE_DAMAGE_PER_STACK = 18;
 
 // Riposte purulente (90225): nearby enemies it rots besides its target, and how far it reaches
 constexpr uint32 RIPOSTE_EXTRA_TARGETS = 2;
@@ -130,7 +138,7 @@ constexpr uint32 PANDEMIE_EXTRA_TARGETS = 3;
 constexpr float PANDEMIE_RADIUS = 5.0f;
 
 // Vomissure (90284): damage to each enemy in the cone as a share of attack power, and the Pourriture it sows
-constexpr float VOMISSURE_AP_COEFF = 0.6f;
+constexpr float VOMISSURE_AP_COEFF = 1.8f;
 constexpr uint8 VOMISSURE_ROT_STACKS = 2;
 
 // Charognard: how far the rot of a dying enemy can jump
@@ -147,6 +155,10 @@ constexpr float CHAIR_HEAL_PCT_BASE = 0.6f;             // % of maximum health h
 constexpr float CHAIR_HEAL_PCT_STEP = 0.4f;             // extra % per further plague carried
 constexpr uint32 CHAIR_HEALING_TAKEN_PENALTY = 20;      // % less healing received from others
 constexpr uint32 CHAIR_ENEMY_HEALING_PENALTY = 20;      // % less healing received by an enemy carrying it
+
+// Excroissance (90230): healing a Pestiféré cannot use is not thrown away, it sets under the skin as an absorb.
+// Capped as a share of maximum health, so a quiet stretch at full health cannot bank an second health bar.
+constexpr uint32 EXCROISSANCE_CAP_PCT = 75;
 
 // Peste virulente (90215): damage plague
 constexpr int32 PESTE_DAMAGE_DONE_BASE = 6;             // % damage done at Virulence 1
@@ -1450,18 +1462,74 @@ public:
             AddWithheldThreat(pestifere, target, float(whole - damage), spellInfo);
     }
 
-    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* /*spellInfo*/) override
+    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
     {
-        if (!heal || !target || target == healer)
+        if (!heal || !target)
             return;
 
-        // Chair putride carried: healing from others is rotten; the plague's own ticks keep the carrier alive
-        if (CarriesOwnPlague(target, SPELL_CHAIR_PUTRIDE))
-            heal -= heal * CHAIR_HEALING_TAKEN_PENALTY / 100;
+        // The plagues only rot what someone else sends: a carrier's own ticks are what keep it alive
+        if (target != healer)
+        {
+            // Chair putride carried: healing from others is rotten; the plague's own ticks keep the carrier alive
+            if (CarriesOwnPlague(target, SPELL_CHAIR_PUTRIDE))
+                heal -= heal * CHAIR_HEALING_TAKEN_PENALTY / 100;
 
-        // Chair putride handed to an enemy: its healers get less out of it too
-        if (target->HasAura(SPELL_CHAIR_PUTRIDE_ENEMY))
-            heal -= heal * CHAIR_ENEMY_HEALING_PENALTY / 100;
+            // Chair putride handed to an enemy: its healers get less out of it too
+            if (target->HasAura(SPELL_CHAIR_PUTRIDE_ENEMY))
+                heal -= heal * CHAIR_ENEMY_HEALING_PENALTY / 100;
+        }
+
+        // Last, on whatever the plagues left of it, and on a Pestiféré's own heals too: at full health those
+        // are the ones overhealing hardest.
+        StoreOverheal(target, heal, spellInfo);
+    }
+
+    // Excroissance: the surplus of a heal sets under the skin instead of being wasted. Détonation healing a
+    // tank who is already full, Chair putride ticking, a healer topping off a pull that never hurt - all of it
+    // becomes an absorb, up to EXCROISSANCE_CAP_PCT of maximum health, and rots away if it is not spent.
+    static void StoreOverheal(Unit* target, uint32 heal, SpellInfo const* spellInfo)
+    {
+        Player* pestifere = GetPestifere(target);
+        if (!pestifere || !heal)
+            return;
+
+        // The growth is an absorb rather than a heal, so it cannot feed itself; guarded anyway
+        if (spellInfo && spellInfo->Id == SPELL_EXCROISSANCE)
+            return;
+
+        uint32 const maxHealth = pestifere->GetMaxHealth();
+        uint32 const health = pestifere->GetHealth();
+        uint32 const missing = maxHealth > health ? maxHealth - health : 0;
+        if (heal <= missing)
+            return;
+
+        uint32 const cap = CalculatePct(maxHealth, EXCROISSANCE_CAP_PCT);
+        ObjectGuid const guid = pestifere->GetGUID();
+        Aura* growth = pestifere->GetAura(SPELL_EXCROISSANCE, guid);
+        AuraEffect* shell = growth ? growth->GetEffect(EFFECT_0) : nullptr;
+        uint32 const held = shell ? uint32(std::max(0, shell->GetAmount())) : 0;
+        if (held >= cap)
+            return;
+
+        uint32 const amount = std::min(cap, held + (heal - missing));
+        if (!shell)
+        {
+            pestifere->CastCustomSpell(SPELL_EXCROISSANCE, SPELLVALUE_BASE_POINT0, int32(amount), pestifere,
+                TRIGGERED_FULL_MASK);
+            growth = pestifere->GetAura(SPELL_EXCROISSANCE, guid);
+            shell = growth ? growth->GetEffect(EFFECT_0) : nullptr;
+            if (!shell)
+                return;
+        }
+        else
+        {
+            growth->RefreshDuration();
+        }
+
+        // Set rather than let the spell's own data decide: the amount is what the overheal put there, and
+        // SetAmount also stops anything recalculating it from base points later.
+        shell->SetAmount(int32(amount));
+        growth->SetNeedClientUpdateForTargets();
     }
 
 private:
