@@ -450,10 +450,12 @@ local function createChrome()
     insetEdge("_UI-Frame-InnerBotTile", false, "BOTTOMLEFT", bottomLeft, "BOTTOMRIGHT",
         "BOTTOMRIGHT", bottomRight, "BOTTOMLEFT")
 
-    -- Centred in the title band, which runs from 21 to 64 below the top of the frame. At -8 the text sat
-    -- above the band entirely and its descenders were cut by the band's own top edge.
+    -- Exactly where RUI.Skin puts a window title: across the top, clear of the close button on the right
+    -- and of the corner art on the left. Anything lower lands in the band and gets clipped by it.
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", frame, "TOP", 0, -32)
+    title:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -4)
+    title:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -26, -4)
+    title:SetJustifyH("CENTER")
     title:SetText("Parangon")
     title:SetTextColor(1, 0.82, 0)
 
@@ -563,8 +565,8 @@ local function createFrame()
     ground:SetTexture(RetailUIFiles["ui-background-rock"], true)
     ground:SetHorizTile(true)
     ground:SetVertTile(true)
-    ground:SetPoint("TOPLEFT", CANVAS_LEFT, -CANVAS_TOP)
-    ground:SetPoint("BOTTOMRIGHT", -CANVAS_RIGHT, CANVAS_BOTTOM)
+    ground:SetPoint("TOPLEFT", 2, -21)
+    ground:SetPoint("BOTTOMRIGHT", -2, 2)
 
     -- 3.3.5 clips nothing but a scroll frame, so the pannable board has to live inside one.
     canvas = CreateFrame("ScrollFrame", "ParagonCanvas", frame)
@@ -572,6 +574,12 @@ local function createFrame()
     canvas:SetPoint("BOTTOMRIGHT", -CANVAS_RIGHT, CANVAS_BOTTOM)
     canvas:EnableMouse(true)
     canvas:EnableMouseWheel(true)
+
+    local insetGround = frame:CreateTexture(nil, "BORDER")
+    insetGround:SetTexture(RetailUIFiles["ui-background-marble"], true)
+    insetGround:SetHorizTile(true)
+    insetGround:SetVertTile(true)
+    insetGround:SetAllPoints(canvas)
 
     board = CreateFrame("Frame", "ParagonBoardCanvas", canvas)
     board:SetSize(BOARD_EXTENT, BOARD_EXTENT)
