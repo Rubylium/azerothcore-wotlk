@@ -1,0 +1,38 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+	<!--
+		Evolutions: the nodes the retail glue package inherits from but never ships, so the login screen logged
+		"Couldn't find inherited node" and fell back to unstyled text. They are defined here, from the client's
+		own glue fonts, and loaded before the screens that use them.
+	-->
+
+	<!-- GlueTemplates.xml titles -->
+	<Font name="GlueDark_Font_15" inherits="GlueFontNormalSmall" virtual="true">
+		<FontHeight val="15"/>
+		<Color r="0.85" g="0.78" b="0.6"/>
+		<Shadow>
+			<Offset>
+				<AbsDimension x="1" y="-1"/>
+			</Offset>
+			<Color r="0" g="0" b="0"/>
+		</Shadow>
+	</Font>
+
+	<!-- AccountLogin.xml asks for this in-game font, which the login screen does not have -->
+	<Font name="GameFontNormalLarge" inherits="GlueFontNormalLarge" virtual="true"/>
+
+	<!-- The PIN pad of AccountLogin.xml (shown only where the server asks for one) -->
+	<Button name="VirtualKeyPadButtonTemplate" virtual="true">
+		<Size x="46" y="26"/>
+		<NormalTexture file="Interface\Glues\Common\Glue-Panel-Button-Up"/>
+		<PushedTexture file="Interface\Glues\Common\Glue-Panel-Button-Down"/>
+		<HighlightTexture file="Interface\Glues\Common\Glue-Panel-Button-Highlight" alphaMode="ADD"/>
+		<ButtonText name="$parentText">
+			<Anchors>
+				<Anchor point="CENTER"/>
+			</Anchors>
+		</ButtonText>
+		<NormalFont style="GlueFontNormalSmall"/>
+		<HighlightFont style="GlueFontHighlightSmall"/>
+	</Button>
+</Ui>

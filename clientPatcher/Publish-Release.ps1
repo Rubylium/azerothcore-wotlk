@@ -219,7 +219,9 @@ $uploads.Add($manifestPath)
 $newBytes = ($uploads | ForEach-Object { (Get-Item $_).Length } | Measure-Object -Sum).Sum
 Write-Host ("Publishing {0}: {1} files, {2} addons, {3} uploaded ({4:N1} MB)" -f $tag, $manifest.Files.Count,
     $manifest.Bundles.Count, $uploads.Count, ($newBytes / 1MB))
-Invoke-Gh release create $tag @uploads --repo $repository --title $tag --notes ' ' --latest
+$releaseNotesPath = Join-Path $work 'release-notes.txt'
+[IO.File]::WriteAllText($releaseNotesPath, '', [Text.UTF8Encoding]::new($false))
+Invoke-Gh release create $tag @uploads --repo $repository --title $tag --notes-file $releaseNotesPath --latest
 
 Write-Host "Published: https://github.com/$repository/releases/tag/$tag"
 Write-Host "Launcher:  https://github.com/$repository/releases/latest/download/Evolutions.exe"

@@ -24,7 +24,7 @@ namespace Evolutions
     {
         static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
         static readonly string[] NewsImages = { "icecrown", "ulduar", "wintergrasp", "malygos", "argent", "ruby",
-            "raidfinder" };
+            "raidfinder", "mythicplus" };
 
         readonly Settings settings = Settings.Load();
         readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };

@@ -1,0 +1,50 @@
+## Evolutions: the retail glue package (Noa-1995, WoW Retail Interface), used and adapted with his
+## permission. Entries naming files of his own server were dropped, the 3.3.5a post-localisation file put
+## back, and our custom-class files added at the end.
+
+##DebugHook.lua
+GlueStrings.lua
+EvolutionsGlueStrings.lua
+EvolutionsGlue.lua
+GlueFonts.xml
+GlueFontStyles.xml
+GlueLocalization.xml
+EvolutionsGlue.xml
+## add new files after here
+GlueBasicControls.xml
+GlueParent.xml
+GlueButtons.xml
+GlueTemplates.xml
+GlueDialog.xml
+GlueDropDownMenu.xml
+GlueTooltip.xml
+GlueSplash.xml
+RealmList.xml
+AddonList.xml
+AccountLogin.xml
+CharacterSelect.xml
+CharacterCreate.xml
+PatchDownload.xml
+MovieFrame.xml
+RealmWizard.xml
+CreditsFrame.xml
+SecurityMatrix.xml
+OptionsFrameTemplates.xml
+OptionsPanelTemplates.xml
+TrialConvert.xml
+VideoOptionsFrame.xml
+VideoOptionsPanels.xml
+AudioOptionsFrame.xml
+AudioOptionsPanels.xml
+OptionsSelect.xml
+##CameraSelect.xml
+CharacterInfo.lua
+CharacterCreate.lua
+# custom modules
+# add new modules above here
+GlueLocalizationPost.xml
+
+# Evolutions: the Pestifere and any other custom class, after the
+# character creation screen has declared the class button template
+CustomClasses.lua
+CustomClassesGlue.lua

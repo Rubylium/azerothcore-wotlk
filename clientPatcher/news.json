@@ -1,5 +1,19 @@
 [
   {
+    "Title": "Mythique+ : la course contre la montre commence",
+    "Date": "2026-09-19",
+    "Tag": "Donjons",
+    "Image": "mythicplus",
+    "Body": "Le Mythique+ arrive dans l'outil Donjons, avec son propre onglet. Choisissez un donjon, insérez votre clé et entrez : un dôme vous protège pendant le compte à rebours, le temps de vous préparer, puis le chrono démarre. Finissez dans les temps pour améliorer votre clé de 1 à 3 niveaux selon votre avance ; chaque mort coûte quelques secondes. Plus la clé est haute, plus les ennemis sont redoutables et plus le butin est puissant, avec des objets générés au-delà de tout ce que le jeu proposait jusqu'ici. Votre score Mythique+ garde la trace de vos exploits, et votre tank compagnon ouvre désormais la route jusqu'aux boss. Bonne chance, et surveillez le chrono !"
+  },
+  {
+    "Title": "Le Pestiféré soigne désormais",
+    "Date": "2026-09-19",
+    "Tag": "Nouvelle classe",
+    "Image": "icecrown",
+    "Body": "Le Pestiféré gagne un second arbre de talents, Sangsue : un soigneur de mêlée. Frappez, et quand vos alliés sont blessés, vos coups échangent leurs dégâts contre des soins sur le plus blessé d'entre eux. Tout est instantané : Sangsue, Saignée, Don de sang, Symbiote et Pestilence salvatrice trouvent leur cible tout seuls."
+  },
+  {
     "Title": "Recherche de raid : tous les raids, quand vous voulez",
     "Date": "2026-09-18",
     "Tag": "Raids",

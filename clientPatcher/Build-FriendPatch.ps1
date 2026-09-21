@@ -3,6 +3,8 @@ param(
     [string]$clientPath = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK',
     # Package the current patch-Z.MPQ as is, without regenerating the spell data first
     [switch]$skipSpellData,
+    # Reuse the installed glue/interface MPQs. Useful while WoW has its stock locale archives locked.
+    [switch]$skipInterfacePatches,
     # awesome_wotlk (github.com/Rubylium/awesome_wotlk), built: MSDF font rendering and client fixes
     [string]$awesomeWotlkPath = 'C:\Users\alexi\Documents\GitHub\awesome_wotlk'
 )
@@ -43,6 +45,7 @@ if (-not $skipSpellData) {
     Write-Host 'Compiling custom icons...'
     & (Join-Path $repoRoot 'localTools\buildRogueClientAssets.ps1')
     & (Join-Path $repoRoot 'localTools\buildPestifereClientAssets.ps1')
+    & (Join-Path $repoRoot 'localTools\buildNecromancerClientAssets.ps1')
 
     Write-Host 'Patching spell data...'
     & (Join-Path $repoRoot 'localTools\patchSinisterStrike.ps1')
@@ -98,22 +101,27 @@ if ($LASTEXITCODE -ne 0) {
 
 # Interface patches: RetailUI windows + Shadowlands character creation (patch-<locale>-R) and the Shadowlands
 # login screen assets with the custom menu music (patch-L). Built straight into the client folder.
-Write-Host 'Compiling Evolutions Glue-screen logo...'
-& python (Join-Path $repoRoot 'localTools\interface\buildGlueLogo.py') | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Evolutions logo build failed (exit $LASTEXITCODE)."
-}
-
-Write-Host 'Building interface patches...'
-Push-Location (Join-Path $repoRoot 'localTools\mpq-builder')
-try {
-    & node buildInterfacePatch.js --client $clientPath | Out-Host
+if (-not $skipInterfacePatches) {
+    Write-Host 'Compiling Evolutions Glue-screen logo...'
+    & python (Join-Path $repoRoot 'localTools\interface\buildGlueLogo.py') | Out-Host
     if ($LASTEXITCODE -ne 0) {
-        throw "Interface patch build failed (exit $LASTEXITCODE). Close WoW if it holds the patch files."
+        throw "Evolutions logo build failed (exit $LASTEXITCODE)."
+    }
+
+    Write-Host 'Building interface patches...'
+    Push-Location (Join-Path $repoRoot 'localTools\mpq-builder')
+    try {
+        & node buildInterfacePatch.js --client $clientPath | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "Interface patch build failed (exit $LASTEXITCODE). Close WoW if it holds the patch files."
+        }
+    }
+    finally {
+        Pop-Location
     }
 }
-finally {
-    Pop-Location
+else {
+    Write-Host 'Reusing installed interface patches.'
 }
 
 if (Test-Path -LiteralPath $stagePath) {

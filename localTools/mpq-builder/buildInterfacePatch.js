@@ -4,9 +4,10 @@ const path = require('path');
 const { Archive } = require('@jamiephan/stormlib');
 
 // Builds the client interface patches from clientPatcher/interface and clientPatcher/vendor:
-// - Data/<locale>/patch-<locale>-R.MPQ: every file under clientPatcher/interface (RetailUI window chrome, the
-//   Shadowlands character creation screen with retail round icons), plus the client's own FrameXML.toc with the
-//   RetailUI files added.
+// - Data/<locale>/patch-<locale>-R.MPQ: the retail glue package (clientPatcher/vendor/retail-glue, Noa-1995's
+//   "WoW Retail Interface", used and adapted with the author's permission: the login, realm, character select
+//   and character creation screens), then every file under clientPatcher/interface on top of it (RetailUI window
+//   chrome, and the glue files adapted for Evolutions), plus the client's own FrameXML.toc with our files added.
 // - Data/patch-L.MPQ: the Shadowlands login screen assets (Patch-C.mpq of "Shadowlands character creator mix" by
 //   gongel, based on warfoll02's work, modification permitted) without its GlueXML (replaced by ours) and with
 //   the custom menu music from clientPatcher/vendor/music.
@@ -34,10 +35,8 @@ if (!locale) {
 
 const tocName = 'Interface\\FrameXML\\FrameXML.toc';
 const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
-    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'RaidFinder.lua', 'MythicPlus.lua', 'CombatLogFix.lua',
-    'CustomClasses.lua', 'CustomClassesUI.lua'];
-const glueXmlFiles = ['CustomClasses.lua', 'CustomClassesGlue.lua'];
-const glueTocName = 'Interface' + String.fromCharCode(92) + 'GlueXML' + String.fromCharCode(92) + 'GlueXML.toc';
+    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'RaidFinder.lua', 'MythicPlus.lua',
+    'CustomClasses.lua', 'CustomClassesUI.lua', 'TalentReset.lua'];
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);
@@ -82,6 +81,17 @@ function walk(root, relative = '') {
     return out;
 }
 
+// The archive takes one file per path: later lists win, so our own files override the vendor packages
+function mergeByArchive(...lists) {
+    const merged = new Map();
+    for (const list of lists) {
+        for (const file of list) {
+            merged.set(file.archive.toLowerCase(), file);
+        }
+    }
+    return [...merged.values()];
+}
+
 function writeArchive(outputPath, files) {
     for (const file of files) {
         if (!fs.existsSync(file.source)) {
@@ -122,14 +132,65 @@ function stageToc(label, stockName, marker, files) {
     return staged;
 }
 
+// --- the retail glue package (login, realm select, character select, character creation) ---
+// clientPatcher/vendor/retail-glue, Noa-1995's "WoW Retail Interface", used and adapted with the author's
+// permission. Its own GlueXML and art are packed as they are; the files we had to adapt for Evolutions (the
+// Pestiféré class, our branding, French) live in clientPatcher/interface and override them by path.
+const glueVendorRoot = path.join(vendorRoot, 'retail-glue');
+const GLUE_VENDOR_FOLDERS = {
+    GlueXML: 'Interface\\GlueXML',
+    Glues: 'Interface\\Glues',
+    GluesVideo: 'Interface\\GluesVideo',
+    Loginscreen: 'Interface\\Loginscreen',
+    tooltips: 'Interface\\Tooltips',
+    cinematics: 'Interface\\cinematics',
+};
+// Art for races and classes this client has no models for, and the source image of the login background
+// (see .agents/plans/retail-glue)
+const GLUE_VENDOR_SKIPPED = ['Glues\\Models\\ui_demonhunter', 'Glues\\Models\\ui_dracthyr',
+    'Loginscreen\\Background.png'];
+
+function vendorGlueFiles() {
+    if (!fs.existsSync(glueVendorRoot)) {
+        throw new Error(`Missing the retail glue package: ${glueVendorRoot}`);
+    }
+    const files = [];
+    for (const [folder, prefix] of Object.entries(GLUE_VENDOR_FOLDERS)) {
+        const root = path.join(glueVendorRoot, folder);
+        if (!fs.existsSync(root)) {
+            continue;
+        }
+        for (const file of walk(root)) {
+            const relative = path.join(folder, file.archive.split('\\').join(path.sep));
+            if (GLUE_VENDOR_SKIPPED.some((skipped) => relative.toLowerCase()
+                .startsWith(skipped.split('\\').join(path.sep).toLowerCase()))) {
+                continue;
+            }
+            files.push({ source: file.source, archive: `${prefix}\\${file.archive}` });
+        }
+    }
+    return files;
+}
+
 const frameXmlToc = stageToc('FrameXML', tocName, '## add new modules above here', frameXmlFiles);
-// The glue marker sits at the end of the list, so these load after CharacterCreate.xml declares the
-// class button template they build on
-const glueToc = stageToc('GlueXML', glueTocName, '## This Always Runs Last, Add New Items above it.',
-    glueXmlFiles);
-writeArchive(path.join(dataPath, locale, `patch-${locale}-R.MPQ`),
-    [{ source: frameXmlToc, archive: tocName }, { source: glueToc, archive: glueTocName },
-        ...walk(interfaceRoot)]);
+// The glue package brings its own toc (clientPatcher/interface/Interface/GlueXML/GlueXML.toc), which already
+// loads our custom-class files last, after CharacterCreate.xml has declared the class button template
+// The Evolutions logo: the glue package carries the author's own emblem at this path, and the locale patch is
+// what the client reads first, so ours goes in here rather than only in patch-L
+const logoName = 'Interface\\Glues\\Common\\Glues-WoW-WotLKLogo.blp';
+const logoSource = path.join(repoRoot, 'clientPatcher', 'assets', 'logo', 'Glues-WoW-WotLKLogo.blp');
+if (!fs.existsSync(logoSource)) {
+    throw new Error(`Missing compiled Evolutions logo: ${logoSource}`);
+}
+
+const vendorGlue = vendorGlueFiles();
+console.log(`Retail glue package: ${vendorGlue.length} files`);
+const interfaceFiles = mergeByArchive(vendorGlue, [{ source: frameXmlToc, archive: tocName }],
+    walk(interfaceRoot), [{ source: logoSource, archive: logoName }]);
+writeArchive(path.join(dataPath, locale, `patch-${locale}-R.MPQ`), interfaceFiles);
+// What this patch owns. The client reads patch-L before it, so anything it also packs would win over ours --
+// that is how the mix's character creation art ended up under the retail screens.
+const interfaceOwned = new Set(interfaceFiles.map((file) => file.archive.toLowerCase()));
 
 // --- patch-L: Shadowlands login screen assets + menu music ---
 // The mod ships 430 MB, most of it never loaded by 3.3.5 (Worgen/Goblin/Pandaria/allied race scenes, older
@@ -179,13 +240,13 @@ function buildShadowlandsPatch() {
     const musicName = 'Sound\\Music\\GlueScreenMusic\\WotLK_main_title.mp3';
     const classIconName = 'Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes.blp';
     const classIconSource = path.join(interfaceRoot, ...classIconName.split('\\'));
-    const logoName = 'Interface\\Glues\\Common\\Glues-WoW-WotLKLogo.blp';
-    const logoSource = path.join(repoRoot, 'clientPatcher', 'assets', 'logo', 'Glues-WoW-WotLKLogo.blp');
-    const replaced = new Set(['interface\\gluexml\\charactercreate.lua', 'interface\\gluexml\\charactercreate.xml',
-        'interface\\gluexml\\glueparent.lua', classIconName.toLowerCase(), logoName.toLowerCase()]);
+    // The glue layer as a whole is the retail package's now, so none of the mix's own glue code is packed
+    const replacedNames = new Set([classIconName.toLowerCase(), logoName.toLowerCase()]);
     if (fs.existsSync(musicSource)) {
-        replaced.add(musicName.toLowerCase());
+        replacedNames.add(musicName.toLowerCase());
     }
+    const replaced = (lower) => replacedNames.has(lower) || lower.startsWith('interface\\gluexml\\')
+        || interfaceOwned.has(lower);
 
     const stock = stockFileNames();
     const archive = Archive.open(source);
@@ -209,7 +270,9 @@ function buildShadowlandsPatch() {
         // Kept stock: the mod's Shadowlands login scene (the classic WotLK login screen stays)
         const excludedFolders = [
             'interface\\glues\\models\\ui_mainmenu_northrend\\',
-            // Restore the original 3.3.5 loading bar; the vendor version carries Way of Elendil branding.
+            // The mix's loading bar carries Way of Elendil branding. Skipping it is only half the job -
+            // the retail bar is packed explicitly further down, or the client falls through to Patch-D's
+            // copy of the same branding.
             'interface\\glues\\loadingbar\\',
             // Restore all regular in-game buttons instead of globally replacing them with blue Glue art.
             'interface\\buttons\\',
@@ -222,7 +285,7 @@ function buildShadowlandsPatch() {
             if (excludedFolders.some((folder) => lower.startsWith(folder)) || isGlueButton || isSharedGlueButton) {
                 return;
             }
-            if (names.has(lower) && !reachable.has(lower) && !replaced.has(lower)) {
+            if (names.has(lower) && !reachable.has(lower) && !replaced(lower)) {
                 reachable.add(lower);
                 queue.push(lower);
             }
@@ -278,6 +341,19 @@ function buildShadowlandsPatch() {
             throw new Error(`Missing compiled Evolutions logo: ${logoSource}`);
         }
         files.push({ source: logoSource, archive: logoName });
+        // The retail HD loading bar, from the same retail glue package as the rest of the screens. It already
+        // ships in patch-<locale>-R, but a base patch outranks a locale one, so the leftover Patch-D of the
+        // client image - a full "Way of Elendil" skin, its own logo and bar included - was winning that path
+        // and painting the server's old name across the progress bar. The logo is only ours on screen because
+        // it is packed here too; the bar needs the same treatment.
+        const loadingBarRoot = path.join(glueVendorRoot, 'Glues', 'LoadingBar');
+        for (const leaf of ['Loading-BarBorder.blp', 'Loading-BarFill.blp']) {
+            const loadingBarSource = path.join(loadingBarRoot, leaf);
+            if (!fs.existsSync(loadingBarSource)) {
+                throw new Error(`Missing retail loading bar texture: ${loadingBarSource}`);
+            }
+            files.push({ source: loadingBarSource, archive: `Interface\\Glues\\LoadingBar\\${leaf}` });
+        }
         console.log(`Shadowlands assets: ${reachable.size} of ${names.size} files are used by the client`);
         writeArchive(path.join(dataPath, 'patch-L.MPQ'), files);
     } finally {
