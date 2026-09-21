@@ -2859,6 +2859,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
             }
 
             Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
+            if (damageInfo.damage)
+                sScriptMgr->ModifyFinalDamage(caster, damageInfo.target, damageInfo.damage, damageInfo.absorb, m_spellInfo);
 
             // xinef: health leech handling
             if (m_spellInfo->HasEffect(SPELL_EFFECT_HEALTH_LEECH))
