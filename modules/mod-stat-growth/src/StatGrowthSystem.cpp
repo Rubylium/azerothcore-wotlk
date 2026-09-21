@@ -106,37 +106,37 @@ std::string_view GetStatName(PermanentStat stat)
     }
 }
 
-void ApplyStatGrowth(Player* player, PermanentStat stat, uint32 amount)
+void ApplyStatGrowth(Player* player, PermanentStat stat, uint32 amount, bool apply = true)
 {
     switch (stat)
     {
         case PermanentStat::Strength:
-            player->HandleStatFlatModifier(UNIT_MOD_STAT_STRENGTH, BASE_VALUE, amount, true);
+            player->HandleStatFlatModifier(UNIT_MOD_STAT_STRENGTH, BASE_VALUE, amount, apply);
             player->UpdateStatBuffMod(STAT_STRENGTH);
             break;
         case PermanentStat::Agility:
-            player->HandleStatFlatModifier(UNIT_MOD_STAT_AGILITY, BASE_VALUE, amount, true);
+            player->HandleStatFlatModifier(UNIT_MOD_STAT_AGILITY, BASE_VALUE, amount, apply);
             player->UpdateStatBuffMod(STAT_AGILITY);
             break;
         case PermanentStat::Stamina:
-            player->HandleStatFlatModifier(UNIT_MOD_STAT_STAMINA, BASE_VALUE, amount, true);
+            player->HandleStatFlatModifier(UNIT_MOD_STAT_STAMINA, BASE_VALUE, amount, apply);
             player->UpdateStatBuffMod(STAT_STAMINA);
             break;
         case PermanentStat::Intellect:
-            player->HandleStatFlatModifier(UNIT_MOD_STAT_INTELLECT, BASE_VALUE, amount, true);
+            player->HandleStatFlatModifier(UNIT_MOD_STAT_INTELLECT, BASE_VALUE, amount, apply);
             player->UpdateStatBuffMod(STAT_INTELLECT);
             break;
         case PermanentStat::Spirit:
-            player->HandleStatFlatModifier(UNIT_MOD_STAT_SPIRIT, BASE_VALUE, amount, true);
+            player->HandleStatFlatModifier(UNIT_MOD_STAT_SPIRIT, BASE_VALUE, amount, apply);
             player->UpdateStatBuffMod(STAT_SPIRIT);
             break;
         case PermanentStat::AttackPower:
             player->HandleStatFlatModifier(player->getClass() == CLASS_HUNTER ? UNIT_MOD_ATTACK_POWER_RANGED
                                                                               : UNIT_MOD_ATTACK_POWER,
-                TOTAL_VALUE, amount, true);
+                TOTAL_VALUE, amount, apply);
             break;
         case PermanentStat::SpellPower:
-            player->ApplySpellPowerBonus(amount, true);
+            player->ApplySpellPowerBonus(amount, apply);
             break;
         default:
             break;
@@ -163,6 +163,11 @@ bool SaveStatGrowth(Player* player, PermanentStat stat, uint32 amount)
     CharacterDatabase.Execute(statement);
     return true;
 }
+}
+
+void ApplyPermanentStat(Player* player, PermanentStat stat, uint32 amount, bool apply)
+{
+    ApplyStatGrowth(player, stat, amount, apply);
 }
 
 void ApplyStoredStatGrowth(Player* player)

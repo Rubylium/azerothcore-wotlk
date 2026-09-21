@@ -87,6 +87,24 @@ void StatGrowthConfig::BuildConfigCache()
     SetConfigValue<float>(StatGrowthConfigKey::MythicEssenceBonusPerKeyLevel,
         "StatGrowth.MythicEssenceBonusPerKeyLevel", 10.0f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled, "Paragon.Enabled", true, Reloadable::Yes);
+    SetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap, "Paragon.PointCap", 50, Reloadable::Yes,
+        [](uint32 value) { return value > 0; }, "greater than zero");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonNormalChance, "Paragon.NormalBossChance", 3.0f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonHeroicChance, "Paragon.HeroicBossChance", 8.0f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonMythicZeroChance, "Paragon.MythicZeroBossChance", 15.0f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonMythicChance, "Paragon.MythicBossChance", 15.0f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonMythicChancePerLevel,
+        "Paragon.MythicBossChancePerKeyLevel", 3.0f, Reloadable::Yes,
+        [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonRaidChance, "Paragon.RaidBossChance", 25.0f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
+    SetConfigValue<float>(StatGrowthConfigKey::ParagonRaidHeroicChance, "Paragon.RaidHeroicBossChance", 40.0f,
+        Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusChancePerPoint,
         "Fortune.GearBonusChancePerPoint", 0.5f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");

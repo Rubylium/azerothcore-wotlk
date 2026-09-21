@@ -11,6 +11,7 @@
 #include "MythicItemGeneration.h"
 #include "PersonalLootSystem.h"
 #include "QuickTravelSystem.h"
+#include "ParagonSystem.h"
 #include "RidingInstructor.h"
 #include "ResourceBoostSystem.h"
 #include "SmartLootSystem.h"
@@ -311,6 +312,7 @@ public:
     void OnLoadCustomDatabaseTable() override
     {
         LoadPersonalLootRolls();
+        LoadParagonBoard();
     }
 
     // Every restart gives players a clean Dungeon Finder slate: saved deserter and random dungeon cooldown
@@ -352,6 +354,10 @@ public:
         if (statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled))
             ApplyStoredStatGrowth(player);
 
+        // Read before it is applied, and before anything else touches the character's stats
+        LoadParagonForPlayer(player);
+        ApplyStoredParagon(player);
+
         LearnAvailableClassSpells(player);
         OnCombatRogueLogin(player);
         LearnGladiatorStance(player);
@@ -376,6 +382,7 @@ public:
     {
         ClearQuickTravel(player);
         ClearPersonalLootPlayerState(player);
+        ForgetParagonForPlayer(player);
     }
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
@@ -390,6 +397,7 @@ public:
         HandleQuickTravelAddonMessage(player, language, message);
         HandleInstanceTravelAddonMessage(player, language, message);
         HandleTalentResetAddonMessage(player, language, message);
+        HandleParagonAddonMessage(player, language, message);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel) override
@@ -406,12 +414,14 @@ public:
     void OnPlayerCreatureKill(Player* killer, Creature* killed) override
     {
         AddKillLoot(killer, killed);
+        TryAwardParagonPoint(killer, killed);
         OnCombatRogueKill(killer, killed);
     }
 
     void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
     {
         AddKillLoot(petOwner, killed);
+        TryAwardParagonPoint(petOwner, killed);
     }
 
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit*, uint8) override
@@ -528,6 +538,7 @@ void AddStatGrowthScripts()
     AddVictoryRushScripts();
     AddQuickTravelScripts();
     AddRidingInstructorScripts();
+    AddParagonScripts();
     AddDungeonFinderLockScripts();
     AddMythicDungeonScripts();
     AddMythicItemGenerationScripts();

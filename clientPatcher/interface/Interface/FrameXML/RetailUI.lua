@@ -63,6 +63,8 @@ local function applyNineSlice(container, hasPortrait)
         "BOTTOMRIGHT", pieces.BottomRightCorner, "TOPRIGHT", 0)
 end
 
+RUI.ApplyNineSlice = applyNineSlice
+
 -- Big corner art every classic panel is painted with. Item slot / label art is small or named otherwise.
 local CHROME_MIN_SIZE = 100
 local CHROME_SUFFIXES = { "topleft$", "topright$", "botleft$", "botright$", "bottomleft$", "bottomright$",

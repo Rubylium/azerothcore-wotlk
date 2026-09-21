@@ -36,7 +36,9 @@ if (!locale) {
 const tocName = 'Interface\\FrameXML\\FrameXML.toc';
 const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
     'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'RaidFinder.lua', 'MythicPlus.lua',
-    'CustomClasses.lua', 'CustomClassesUI.lua', 'TalentReset.lua'];
+    'CustomClasses.lua', 'CustomClassesUI.lua', 'TalentReset.lua',
+    // ParagonBoard.lua is the generated node table and must load before the frame that draws it
+    'ParagonBoard.lua', 'Paragon.lua'];
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);
@@ -183,10 +185,14 @@ if (!fs.existsSync(logoSource)) {
     throw new Error(`Missing compiled Evolutions logo: ${logoSource}`);
 }
 
+// The client cannot read a PNG. Art is authored as one and converted to BLP next to it (buildParagonArt.py
+// keeps the source beside its output), so without this every source image ships too and nothing can read them.
+const shippable = (files) => files.filter((file) => !/\.png$/i.test(file.archive));
+
 const vendorGlue = vendorGlueFiles();
 console.log(`Retail glue package: ${vendorGlue.length} files`);
 const interfaceFiles = mergeByArchive(vendorGlue, [{ source: frameXmlToc, archive: tocName }],
-    walk(interfaceRoot), [{ source: logoSource, archive: logoName }]);
+    shippable(walk(interfaceRoot)), [{ source: logoSource, archive: logoName }]);
 writeArchive(path.join(dataPath, locale, `patch-${locale}-R.MPQ`), interfaceFiles);
 // What this patch owns. The client reads patch-L before it, so anything it also packs would win over ours --
 // that is how the mix's character creation art ended up under the retail screens.

@@ -20,6 +20,9 @@ enum class PermanentStat : uint8
 };
 
 void ApplyStoredStatGrowth(Player* player);
+// Applies, or takes back, a flat permanent stat bonus. Shared with the paragon board, which needs to remove
+// what a node gave when it is respecced.
+void ApplyPermanentStat(Player* player, PermanentStat stat, uint32 amount, bool apply);
 bool GrantRandomStatGrowth(Player* player, uint32 amount, std::string_view& statName);
 void TryAddStatGrowthLoot(Player* player, Creature* killed);
 

@@ -108,6 +108,12 @@ if (-not $skipInterfacePatches) {
         throw "Evolutions logo build failed (exit $LASTEXITCODE)."
     }
 
+    Write-Host 'Compiling Paragon interface art...'
+    & python (Join-Path $repoRoot 'localTools\interface\buildParagonArt.py') | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Paragon art build failed (exit $LASTEXITCODE)."
+    }
+
     Write-Host 'Building interface patches...'
     Push-Location (Join-Path $repoRoot 'localTools\mpq-builder')
     try {
