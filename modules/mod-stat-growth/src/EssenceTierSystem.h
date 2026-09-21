@@ -32,7 +32,10 @@ bool IsEssenceItem(uint32 itemEntry);
 bool TryGetEssenceFamily(uint32 itemEntry, EssenceFamily& family);
 // A random essence of any family; its tier is the best of that many tier rolls
 uint32 RollEssenceEntry(uint32 tierRolls);
-// Grants an essence's bonus right away, as when one is looted (StatGrowthScripts.cpp)
-bool ConsumeEssenceReward(Player* player, uint32 itemEntry);
+// How many essences a Mythic+ clear of that key level pays
+uint32 GetMythicEssenceReward(uint32 level);
+// Grants that many essences at once, each rolled for its own family and tier, reporting the lot in one line
+// (StatGrowthScripts.cpp). Returns how many were granted.
+uint32 GrantEssenceRewards(Player* player, uint32 count, uint32 tierRolls);
 
 #endif

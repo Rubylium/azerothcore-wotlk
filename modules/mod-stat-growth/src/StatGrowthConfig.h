@@ -43,6 +43,8 @@ enum class StatGrowthConfigKey : uint8
     AscendantTierChance,
     GreaterTierMultiplier,
     AscendantTierMultiplier,
+    MythicEssenceBaseline,
+    MythicEssenceBonusPerKeyLevel,
     FortuneGearBonusChancePerPoint,
     FortuneGearBonusValuePerPoint,
     FortuneMaxGearBonusValueIncrease,

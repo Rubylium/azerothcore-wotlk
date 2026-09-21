@@ -81,6 +81,12 @@ void StatGrowthConfig::BuildConfigCache()
     SetConfigValue<uint32>(StatGrowthConfigKey::AscendantTierMultiplier,
         "StatGrowth.AscendantTierMultiplier", 10, Reloadable::Yes,
         [](uint32 value) { return value > 0; }, "greater than zero");
+    SetConfigValue<uint32>(StatGrowthConfigKey::MythicEssenceBaseline,
+        "StatGrowth.MythicEssenceBaseline", 60, Reloadable::Yes,
+        [](uint32 value) { return value > 0; }, "greater than zero");
+    SetConfigValue<float>(StatGrowthConfigKey::MythicEssenceBonusPerKeyLevel,
+        "StatGrowth.MythicEssenceBonusPerKeyLevel", 10.0f, Reloadable::Yes,
+        [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusChancePerPoint,
         "Fortune.GearBonusChancePerPoint", 0.5f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");

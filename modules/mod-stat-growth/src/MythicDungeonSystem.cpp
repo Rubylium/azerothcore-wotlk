@@ -331,8 +331,10 @@ public:
     }
 };
 
-// Mythic+ rewards, once the last boss of the dungeon is down: an epic of the key's item level and an essence for
-// every real player in the instance (higher keys roll the essence tier more times)
+// Mythic+ rewards, once the last boss of the dungeon is down: an epic of the key's item level and the dungeon's
+// essences for every real player in the instance. Nothing drops during a key, so this pays for the whole run --
+// a clear is worth what the same dungeon would have dropped on heroic, more as the key rises, and higher keys
+// roll each essence's tier more times on top of that.
 class MythicDungeonGlobalScript : public GlobalScript
 {
 public:
@@ -350,13 +352,14 @@ public:
 
         uint32 const itemLevel = Mythic::GetItemLevel(level);
         uint32 const essenceRolls = 1 + static_cast<uint32>(level) / EssenceRollLevels;
-        map->DoForAllPlayers([itemLevel, essenceRolls](Player* player)
+        uint32 const essences = GetMythicEssenceReward(static_cast<uint32>(level));
+        map->DoForAllPlayers([itemLevel, essenceRolls, essences](Player* player)
         {
             if (player->GetSession()->IsBot())
                 return;
 
             GiveMythicItem(player, itemLevel);
-            ConsumeEssenceReward(player, RollEssenceEntry(essenceRolls));
+            GrantEssenceRewards(player, essences, essenceRolls);
         });
     }
 

@@ -102,6 +102,19 @@ StatGrowth.AscendantTierChance = 2.0
 StatGrowth.GreaterTierMultiplier = 3
 StatGrowth.AscendantTierMultiplier = 10
 
+# What a Mythic+ clear pays in essences. Nothing drops during a key -- every creature in one is stripped of its
+# loot -- so the end of the run pays for the whole dungeon at once.
+#
+# The baseline is a number of kills. It is multiplied by the drop chances above, so a clear pays what the same
+# dungeon would have dropped on heroic (60 kills x 50% = 30 essences with the defaults) and the chances stay the
+# single place the rate is set. It is a fixed count rather than the run's real one on purpose: a key is routed
+# around the packs it can skip, and paying per kill would push groups into fighting the timer for essences.
+StatGrowth.MythicEssenceBaseline = 60
+
+# Added to that per key level, in percent: +2 pays 1.2x the baseline, +10 pays 2x. Key level also keeps rolling
+# the essence tier more times, so higher keys pay better twice over.
+StatGrowth.MythicEssenceBonusPerKeyLevel = 10.0
+
 # Essences are consumed automatically when looted and never take bag space. Essences obtained another way
 # (trade, mail, older stacks) are still used by right-clicking them.
 

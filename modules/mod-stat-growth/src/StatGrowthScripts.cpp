@@ -32,6 +32,8 @@
 #include "StatGrowthConfig.h"
 #include "StringFormat.h"
 
+#include <array>
+
 namespace
 {
 void PlayTieredFeedback(Player* player, EssenceVisual visual, EssenceTier tier, std::string_view powerName)
@@ -42,7 +44,7 @@ void PlayTieredFeedback(Player* player, EssenceVisual visual, EssenceTier tier, 
 }
 
 // Grants the permanent bonus of one essence and plays its feedback. The caller removes the item.
-bool ConsumeEssence(Player* player, uint32 itemEntry)
+bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
 {
     EssenceFamily family;
     if (!player || !statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) ||
@@ -67,6 +69,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
                 return false;
             }
 
+            if (quiet)
+                return true;
+
             PlayTieredFeedback(player, EssenceVisual::Growth, tier, "POWER");
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00{} permanently "
                 "increased by +{}.|r", tierName, statName, amount);
@@ -81,6 +86,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
                 chat.SendSysMessage("Unable to grant a permanent experience bonus.");
                 return false;
             }
+
+            if (quiet)
+                return true;
 
             PlayTieredFeedback(player, EssenceVisual::Experience, tier, "WISDOM");
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Experience gained "
@@ -97,6 +105,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
                 return false;
             }
 
+            if (quiet)
+                return true;
+
             PlayTieredFeedback(player, EssenceVisual::Resource, tier, "FLOW");
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Primary-resource "
                 "regeneration permanently increased by +{}%. Total: +{}%.|r", tierName, amount, totalBonus);
@@ -111,6 +122,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
                 chat.SendSysMessage("Unable to grant a permanent vitality bonus.");
                 return false;
             }
+
+            if (quiet)
+                return true;
 
             PlayTieredFeedback(player, EssenceVisual::Vitality, tier, "VITALITY");
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Vitality permanently "
@@ -127,6 +141,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry)
                 chat.SendSysMessage("Unable to grant a permanent fortune bonus.");
                 return false;
             }
+
+            if (quiet)
+                return true;
 
             PlayTieredFeedback(player, EssenceVisual::Fortune, tier, "FORTUNE");
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Gold gains and gear bonuses "
@@ -248,9 +265,33 @@ void AddKillLoot(Player* player, Creature* killed)
 }
 }
 
-bool ConsumeEssenceReward(Player* player, uint32 itemEntry)
+// A whole dungeon's essences at once, for the end of a Mythic+ run. Each is rolled and applied on its own, so
+// the families and tiers land exactly as they would have one by one; only the reporting is pooled, into a single
+// line and a single effect keyed to the best tier of the batch.
+uint32 GrantEssenceRewards(Player* player, uint32 count, uint32 tierRolls)
 {
-    return ConsumeEssence(player, itemEntry);
+    if (!player || !count)
+        return 0;
+
+    std::array<uint32, 3> granted = {};
+    for (uint32 index = 0; index < count; ++index)
+    {
+        uint32 const itemEntry = RollEssenceEntry(tierRolls);
+        if (ConsumeEssence(player, itemEntry, true))
+            ++granted[static_cast<uint8>(GetEssenceTier(itemEntry))];
+    }
+
+    uint32 const total = granted[0] + granted[1] + granted[2];
+    if (!total)
+        return 0;
+
+    EssenceTier const best = granted[2] ? EssenceTier::Ascendant
+        : (granted[1] ? EssenceTier::Greater : EssenceTier::Faint);
+    PlayTieredFeedback(player, EssenceVisual::Growth, best, "POWER");
+    ChatHandler(player->GetSession()).PSendSysMessage(
+        "|cffa335eeThe dungeon's essences bind to your soul.|r |cff00ff00{} absorbed: {} faint, {} greater, "
+        "{} ascendant.|r", total, granted[0], granted[1], granted[2]);
+    return total;
 }
 
 class StatGrowthWorldScript : public WorldScript

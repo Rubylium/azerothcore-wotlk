@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 
 namespace
@@ -109,6 +110,34 @@ EssenceTier GetEssenceTier(uint32 itemEntry)
     }
 
     return EssenceTier::Faint;
+}
+
+// What a Mythic+ clear pays in essences.
+//
+// A key drops none of its own: every creature in one is stripped of its loot (MythicDungeonSystem.cpp), which is
+// the point of it -- nobody stops to loot a corpse against a timer. That leaves the end of the run paying for the
+// whole dungeon, and it was paying a single essence while the same dungeon on heroic paid one for every other
+// kill, across five families dropping at ten percent each.
+//
+// The rate is read back from those drop chances instead of written down again, so tuning them moves this with
+// them. The baseline it multiplies is a fixed number of kills rather than the run's real one: a key is routed
+// around the packs it can skip, and paying per kill would push groups into fighting the timer for essences.
+uint32 GetMythicEssenceReward(uint32 level)
+{
+    float const perKill =
+        (statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::DropChance) +
+         statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::ExperienceDropChance) +
+         statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::ResourceDropChance) +
+         statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::VitalityDropChance) +
+         statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneDropChance)) / 100.0f;
+
+    float const keyBonus = 1.0f + level *
+        statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::MythicEssenceBonusPerKeyLevel) / 100.0f;
+    float const reward = perKill * keyBonus *
+        statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::MythicEssenceBaseline);
+
+    // A cleared key always pays something, however the chances above are tuned
+    return std::max<uint32>(1, static_cast<uint32>(std::lround(reward)));
 }
 
 uint32 RollEssenceEntry(uint32 tierRolls)
