@@ -10,10 +10,11 @@
 local PREFIX = "Paragon"
 
 local WINDOW_WIDTH, WINDOW_HEIGHT = 940, 640
--- The canvas takes everything the chrome does not: the title band ends 64 below the top, and the button row
--- needs about 36 at the bottom. The old insets left a band of bare ground under the tree.
-local CANVAS_LEFT, CANVAS_TOP = 14, 66
-local CANVAS_RIGHT, CANVAS_BOTTOM = 14, 42
+-- The board fills the window: the same rectangle as the panel ground, so it runs under the border art on
+-- every side rather than stopping short of it. Everything else - the points orb, its text, the reset button -
+-- floats on top of the board instead of sitting in a margin beside it.
+local CANVAS_LEFT, CANVAS_TOP = 2, 21
+local CANVAS_RIGHT, CANVAS_BOTTOM = 2, 2
 -- The outermost node sits at radius 780 and is drawn 80 across, so 1700 holds the board with nothing spare.
 -- Slack here is empty ground to pan into, and it is what let the board shrink away from the viewport.
 local BOARD_EXTENT = 1700
@@ -64,7 +65,7 @@ local state = {
     receiving = false,
 }
 
-local frame, canvas, board, pointText, spentText, statusText
+local frame, canvas, board, hud, pointText, spentText, statusText
 local nodeButtons, linkTextures = {}, {}
 local adjacency = {}
 local animations = {}
@@ -460,7 +461,13 @@ local function createChrome()
     title:SetText("Parangon")
     title:SetTextColor(1, 0.82, 0)
 
-    local orb = CreateFrame("Frame", nil, frame)
+    -- Above the board, which is a scroll child and therefore draws over the window's own layers. Without
+    -- this the readout and the button disappear behind the tree the moment the board fills the frame.
+    hud = CreateFrame("Frame", nil, frame)
+    hud:SetAllPoints(frame)
+    hud:SetFrameLevel(frame:GetFrameLevel() + 15)
+
+    local orb = CreateFrame("Frame", nil, hud)
     orb:SetSize(72, 72)
     orb:SetPoint("TOPLEFT", frame, "TOPLEFT", 36, -38)
     local orbBackground = orb:CreateTexture(nil, "ARTWORK")
@@ -471,14 +478,14 @@ local function createChrome()
     orbFrame:SetPoint("CENTER")
     orbFrame:SetSize(76, 76)
 
-    pointText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+    pointText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     pointText:SetPoint("CENTER", orb, "CENTER", 0, 2)
     pointText:SetTextColor(0.7, 0.9, 1)
 
-    spentText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    spentText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     spentText:SetPoint("TOP", orb, "BOTTOM", 0, -2)
 
-    statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    statusText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     statusText:SetPoint("TOPLEFT", orb, "BOTTOMLEFT", -10, -22)
 
     local closeButton = CreateFrame("Button", nil, frame)
@@ -498,7 +505,7 @@ end
 -- Sized to the label rather than to a number picked in advance: a stock panel button is meant to hug its
 -- text, and "Fermer" in a 170 wide plate is what made these look like placeholders.
 local function createButton(label, anchorPoint, offsetX, onClick)
-    local button = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    local button = CreateFrame("Button", nil, hud, "UIPanelButtonTemplate")
     button:SetHeight(22)
     button:SetPoint(anchorPoint, frame, anchorPoint, offsetX, 16)
     button:SetText(label)
@@ -617,7 +624,8 @@ local function createFrame()
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, -CANVAS_TOP)
     mover:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", 0, -CANVAS_TOP)
-    mover:SetHeight(CANVAS_TOP)
+    mover:SetHeight(CANVAS_TOP + 52)
+    mover:SetFrameLevel(frame:GetFrameLevel() + 16)
     mover:EnableMouse(true)
     mover:RegisterForDrag("LeftButton")
     mover:SetScript("OnDragStart", function() frame:StartMoving() end)
