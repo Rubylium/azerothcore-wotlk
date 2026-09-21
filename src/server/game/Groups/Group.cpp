@@ -1602,7 +1602,8 @@ void Group::RemovePlayerFromRolls(ObjectGuid guid)
 
 // Loot flagged auto_roll (mod-stat-growth's essences) is never left for the players to click: every real player
 // who may roll on it rolls Need, bots pass, and the roll is counted at once, results in chat as usual. Without a
-// real player able to roll, the item goes to a normal roll instead (false).
+// real player able to roll, it stays on the corpse (false): bots may neither roll on it nor loot it
+// (LootItem::AllowedForPlayer).
 bool Group::AutoRoll(Roll* roll)
 {
     uint8 needs = 0;

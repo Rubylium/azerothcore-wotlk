@@ -29,6 +29,7 @@
 #include "SpellMgr.h"
 #include "Util.h"
 #include "World.h"
+#include "WorldSession.h"
 
 ServerConfigs const qualityToRate[] =
 {
@@ -425,6 +426,10 @@ bool LootItem::AllowedForPlayer(Player const* player, ObjectGuid source) const
         return false;
 
     if (!sConditionMgr->IsObjectMeetToConditions(const_cast<Player*>(player), conditions))
+        return false;
+
+    // Rolled automatically for the real players (Group::AutoRoll): bots never roll on it nor loot it
+    if (auto_roll && player->GetSession() && player->GetSession()->IsBot())
         return false;
 
     // not show loot for not own team
