@@ -49,6 +49,7 @@ bool HasOwnedDamageOverTime(Player const* player, Unit const* target)
 
 // 90105 Crimson Daggerfall: cooldown AoE finisher. The DBC sends a dagger missile and a randomized custom
 // impact sound to every target selected by effect 0; this script owns scaling and finisher integration.
+// Its cooldown resets when it kills an enemy (and when Quick Cut spends an Opening, see CombatRogueScripts.cpp).
 class CombatRogueCrimsonDaggerfallScript : public SpellScript
 {
     PrepareSpellScript(CombatRogueCrimsonDaggerfallScript);
@@ -114,6 +115,15 @@ class CombatRogueCrimsonDaggerfallScript : public SpellScript
             OnFinisherCast(player, _comboPoints, GetExplTargetUnit(), true);
     }
 
+    // The daggers land after the cast: a kill among them readies it again
+    void HandleAfterHit()
+    {
+        Player* player = GetRogue(GetCaster());
+        Unit* target = GetHitUnit();
+        if (player && target && !target->IsAlive() && player->HasSpellCooldown(SPELL_CRIMSON_DAGGERFALL))
+            player->RemoveSpellCooldown(SPELL_CRIMSON_DAGGERFALL, true);
+    }
+
     void Register() override
     {
         BeforeCast += SpellCastFn(CombatRogueCrimsonDaggerfallScript::HandleBeforeCast);
@@ -121,6 +131,7 @@ class CombatRogueCrimsonDaggerfallScript : public SpellScript
             CombatRogueCrimsonDaggerfallScript::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
         OnHit += SpellHitFn(CombatRogueCrimsonDaggerfallScript::HandleHit);
         AfterCast += SpellCastFn(CombatRogueCrimsonDaggerfallScript::HandleAfterCast);
+        AfterHit += SpellHitFn(CombatRogueCrimsonDaggerfallScript::HandleAfterHit);
     }
 };
 }

@@ -88,7 +88,7 @@ class CombatRogueSinisterStrikeScript : public SpellScript
     }
 };
 
-// 90010 Quick Cut: spends Opening for a heavy strike and 2 combo points
+// 90010 Quick Cut: spends Opening for a heavy strike and 2 combo points, and readies Crimson Daggerfall again
 class CombatRogueQuickCutScript : public SpellScript
 {
     PrepareSpellScript(CombatRogueQuickCutScript);
@@ -118,6 +118,10 @@ class CombatRogueQuickCutScript : public SpellScript
         // Flowing Strikes performs a free Quick Cut that neither needs nor consumes Opening
         if (GetSpell()->IsTriggered())
             return;
+
+        // An Opening spent: Crimson Daggerfall is ready again, for Daggerfall, Quick Cut, Daggerfall
+        if (player->HasSpellCooldown(SPELL_CRIMSON_DAGGERFALL))
+            player->RemoveSpellCooldown(SPELL_CRIMSON_DAGGERFALL, true);
 
         uint8 const twinCuts = GetTalentRank(player, Talent::TwinCuts);
         if (!twinCuts || !roll_chance_i(4 * twinCuts))
