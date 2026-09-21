@@ -22,16 +22,18 @@ constexpr uint8 BossLevel = 82;
 constexpr float HealthMultiplier = 1.6f;
 constexpr float DamageMultiplier = 1.4f;
 
-// Item level of the loot a Mythique 0 boss gives, one tier above WotLK heroics (200)
-constexpr uint32 BaseItemLevel = 213;
+// Item level of the loot a Mythique 0 boss gives, a clear tier above WotLK heroics (200): a mythic pull hits
+// for 1.4x a heroic's and has 1.6x its health before the key even counts, and 213 did not pay for that
+constexpr uint32 BaseItemLevel = 223;
 // Mythic+ loot rises with the key, without end
 constexpr uint32 ItemLevelPerKeyLevel = 4;
 
 // The best items of the game. Above them Mythic+ loot is generated at startup (mod-stat-growth
 // MythicItemGeneration.cpp) from those items: variant v is item level MaxItemLevel + 1 + ItemLevelPerKeyLevel * v,
-// the item level of key +18 + v. Its entry names its base item, which is how the client extension (awesome_wotlk
-// GeneratedItems.cpp) draws it with that item's look: entry = GeneratedItemBase * (v + 1) + base entry. Real
-// entries stay below GeneratedItemBase. Both sides must agree on these numbers.
+// which a key of +16 and up asks for. The variant is read from the item level wanted, never from the key, so the
+// baseline above can move without touching this. Its entry names its base item, which is how the client extension
+// (awesome_wotlk GeneratedItems.cpp) draws it with that item's look: entry = GeneratedItemBase * (v + 1) + base
+// entry. Real entries stay below GeneratedItemBase. Both sides must agree on these numbers.
 constexpr uint32 MaxItemLevel = 284;
 constexpr uint32 GeneratedItemBase = 0x10000;
 constexpr uint32 GeneratedItemVariants = 128;

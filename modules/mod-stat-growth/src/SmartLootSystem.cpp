@@ -278,6 +278,52 @@ std::array<uint8, 2> GetEquipmentSlots(uint32 inventoryType)
     }
 }
 
+bool IsOneHandWeapon(uint32 inventoryType)
+{
+    return inventoryType == INVTYPE_WEAPON || inventoryType == INVTYPE_WEAPONMAINHAND ||
+        inventoryType == INVTYPE_WEAPONOFFHAND;
+}
+
+bool IsHandHeld(uint32 inventoryType)
+{
+    return IsOneHandWeapon(inventoryType) || inventoryType == INVTYPE_2HWEAPON || inventoryType == INVTYPE_SHIELD ||
+        inventoryType == INVTYPE_HOLDABLE;
+}
+
+// Weapons follow how the player fights: a two-hander wielder gets two-handers (nothing for the off hand), a one-hander
+// wielder no two-handers, and the off hand gets more of what it already holds (a shield, a weapon, a held item). An
+// empty off hand beside a one-hander takes a weapon when the player can dual wield, a shield or held item otherwise.
+// Without this, the empty off hand of a two-hander wielder scored as a missing slot and off-hands flooded the loot.
+bool FitsWeaponStyle(Player const* player, ItemTemplate const& candidate)
+{
+    uint32 const type = candidate.InventoryType;
+    if (!IsHandHeld(type))
+        return true;
+
+    Item const* mainHand = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+    if (!mainHand)
+        return true;
+
+    // Titan's Grip wields two-handers in both hands: a two-hander fits either way
+    bool const titanGrip = player->CanTitanGrip();
+    if (mainHand->GetTemplate()->InventoryType == INVTYPE_2HWEAPON && !titanGrip)
+        return type == INVTYPE_2HWEAPON;
+
+    if (type == INVTYPE_2HWEAPON)
+        return titanGrip;
+    if (type == INVTYPE_WEAPON || type == INVTYPE_WEAPONMAINHAND)
+        return true;
+
+    // What goes in the off hand only
+    Item const* offHand = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+    uint32 const held = offHand ? offHand->GetTemplate()->InventoryType : INVTYPE_NON_EQUIP;
+    if (held == INVTYPE_SHIELD || held == INVTYPE_HOLDABLE)
+        return type == held;
+    if (IsOneHandWeapon(held) || held == INVTYPE_2HWEAPON)
+        return type == INVTYPE_WEAPONOFFHAND;
+    return player->CanDualWield() ? type == INVTYPE_WEAPONOFFHAND : type != INVTYPE_WEAPONOFFHAND;
+}
+
 uint32 GetWeakestEquippedItemLevel(Player const* player, ItemTemplate const& candidate)
 {
     std::array<uint8, 2> const slots = GetEquipmentSlots(candidate.InventoryType);
@@ -319,7 +365,7 @@ bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& can
         candidate.Quality != quality || candidate.ItemLevel > droppedItemLevel ||
         candidate.ItemLevel + ReplacementItemLevelWindow < droppedItemLevel ||
         player->BotCanUseItem(&candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(candidate, player) ||
-        !HasClassAppropriateStats(candidate, player))
+        !HasClassAppropriateStats(candidate, player) || !FitsWeaponStyle(player, candidate))
         return false;
 
     if (candidate.Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate.InventoryType) &&
@@ -343,8 +389,9 @@ int32 ScoreCandidate(Player* player, ItemTemplate const& candidate, uint32 progr
         levelFit + GetClassStatScore(candidate, player);
 }
 
+// Upgrades only, unless `anyFit`: then anything usable, for a drop the owner could not use at all
 void AddCandidates(Player* player, Loot const& loot, uint32 progressionLevel, uint32 minimumRequiredLevel,
-    uint32 quality, uint32 droppedItemLevel, std::vector<SmartLootCandidate>& candidates)
+    uint32 quality, uint32 droppedItemLevel, bool anyFit, std::vector<SmartLootCandidate>& candidates)
 {
     for (ItemTemplate const* candidate : equipmentCatalog)
     {
@@ -353,7 +400,7 @@ void AddCandidates(Player* player, Loot const& loot, uint32 progressionLevel, ui
             continue;
 
         uint32 const equippedItemLevel = GetWeakestEquippedItemLevel(player, *candidate);
-        if (equippedItemLevel == 0 || candidate->ItemLevel > equippedItemLevel)
+        if (anyFit || equippedItemLevel == 0 || candidate->ItemLevel > equippedItemLevel)
             candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel) });
     }
 }
@@ -368,8 +415,13 @@ ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* kille
     uint32 const minimumRequiredLevel = progressionLevel > levelWindow ? progressionLevel - levelWindow : 1;
 
     std::vector<SmartLootCandidate> candidates;
-    AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel,
+    AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel, false,
         candidates);
+    // No upgrade: the drop stays as it is, unless it does not suit how the owner fights (an off-hand for a two-hander
+    // wielder), which is then swapped for the best item that does
+    if (candidates.empty() && !FitsWeaponStyle(player, dropped))
+        AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel, true,
+            candidates);
     if (candidates.empty())
         return nullptr;
 
@@ -468,7 +520,7 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel)
             if (candidate->Quality != ITEM_QUALITY_EPIC || candidate->ItemLevel > itemLevel ||
                 candidate->ItemLevel + window < itemLevel || candidate->RequiredLevel > progressionLevel ||
                 player->BotCanUseItem(candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(*candidate, player) ||
-                !HasClassAppropriateStats(*candidate, player))
+                !HasClassAppropriateStats(*candidate, player) || !FitsWeaponStyle(player, *candidate))
                 continue;
             if (candidate->Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate->InventoryType) &&
                 candidate->SubClass != GetPreferredArmorSubclass(player))

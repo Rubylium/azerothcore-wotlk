@@ -26,6 +26,8 @@ constexpr std::string_view AddonPrefix = "DungeonProgress";
 // Encounters defeated per instance, for maps whose script does not track them itself (most classic dungeons).
 // Merged with the instance script's own mask when the state is sent.
 std::unordered_map<uint32 /*instanceId*/, uint32 /*encounter bit mask*/> trackedProgress;
+// For a map holding several Dungeon Finder dungeons, the one each instance is running (see GetShownEncounters)
+std::unordered_map<uint32 /*instanceId*/, uint32 /*Dungeon Finder entry*/> instanceWings;
 
 void SendProgressMessage(Player* player, std::string const& payload)
 {
@@ -53,18 +55,97 @@ uint32 GetCompletedMask(Map* map)
     return mask;
 }
 
-std::string BuildStatePayload(Map* map, DungeonEncounterList const& encounters)
+std::vector<DungeonEncounter const*> GetOrdered(DungeonEncounterList const& encounters)
 {
-    uint32 const mask = GetCompletedMask(map);
     std::vector<DungeonEncounter const*> ordered(encounters.begin(), encounters.end());
     // DungeonEncounter.dbc order index is not loaded by the core; the encounter bit follows the same order
     std::sort(ordered.begin(), ordered.end(), [](DungeonEncounter const* left, DungeonEncounter const* right)
     {
         return left->dbcEntry->encounterIndex < right->dbcEntry->encounterIndex;
     });
+    return ordered;
+}
 
+struct Wing
+{
+    uint32 dungeonId = 0;
+    std::vector<DungeonEncounter const*> encounters;
+};
+
+// Some maps hold several Dungeon Finder dungeons (Scarlet Monastery's four wings, Dire Maul, Maraudon...). In order,
+// each one's encounters end with the one marked as its last boss (instance_encounters.lastEncounterDungeon).
+std::vector<Wing> GetWings(DungeonEncounterList const& encounters)
+{
+    std::vector<Wing> wings;
+    Wing current;
+    for (DungeonEncounter const* encounter : GetOrdered(encounters))
+    {
+        current.encounters.push_back(encounter);
+        if (encounter->lastEncounterDungeon)
+        {
+            current.dungeonId = encounter->lastEncounterDungeon;
+            wings.push_back(std::move(current));
+            current = Wing();
+        }
+    }
+
+    // Encounters after the last marked one belong to the dungeon before them
+    if (!current.encounters.empty())
+    {
+        if (wings.empty())
+            wings.push_back(std::move(current));
+        else
+            wings.back().encounters.insert(wings.back().encounters.end(), current.encounters.begin(),
+                                           current.encounters.end());
+    }
+    return wings;
+}
+
+// The dungeon of a multi-dungeon map whose entrance is nearest to where the instance was first seen
+uint32 GetNearestWing(std::vector<Wing> const& wings, uint32 mapId, Position const& position)
+{
+    uint32 nearest = 0;
+    float nearestDistance = 0.0f;
+    for (Wing const& wing : wings)
+    {
+        lfg::LFGDungeonData const* dungeon = wing.dungeonId ? sLFGMgr->GetLFGDungeon(wing.dungeonId) : nullptr;
+        if (!dungeon || dungeon->map != mapId || (dungeon->x == 0.0f && dungeon->y == 0.0f))
+            continue;
+
+        float const distance = position.GetExactDist2d(dungeon->x, dungeon->y);
+        if (!nearest || distance < nearestDistance)
+        {
+            nearest = wing.dungeonId;
+            nearestDistance = distance;
+        }
+    }
+    return nearest;
+}
+
+// The encounters the tracker lists: all of the map's, or on a multi-dungeon map only those of the dungeon the
+// instance runs, decided once from where its first player (or its first boss down) stood
+std::vector<DungeonEncounter const*> GetShownEncounters(Map* map, DungeonEncounterList const& encounters,
+                                                        Position const& position)
+{
+    std::vector<Wing> const wings = GetWings(encounters);
+    if (wings.size() <= 1)
+        return GetOrdered(encounters);
+
+    auto itr = instanceWings.find(map->GetInstanceId());
+    if (itr == instanceWings.end())
+        itr = instanceWings.emplace(map->GetInstanceId(), GetNearestWing(wings, map->GetId(), position)).first;
+
+    for (Wing const& wing : wings)
+        if (wing.dungeonId == itr->second)
+            return wing.encounters;
+    return GetOrdered(encounters);
+}
+
+std::string BuildStatePayload(Map* map, std::vector<DungeonEncounter const*> const& shown)
+{
+    uint32 const mask = GetCompletedMask(map);
     std::string payload = "STATE";
-    for (DungeonEncounter const* encounter : ordered)
+    for (DungeonEncounter const* encounter : shown)
     {
         payload += '\t';
         payload += std::to_string(encounter->dbcEntry->id);
@@ -90,7 +171,7 @@ void SendDungeonProgress(Player* player)
         return;
     }
 
-    SendProgressMessage(player, BuildStatePayload(map, *encounters));
+    SendProgressMessage(player, BuildStatePayload(map, GetShownEncounters(map, *encounters, *player)));
 }
 
 void OnDungeonProgressUnitDeath(Unit* unit)
@@ -116,7 +197,7 @@ void OnDungeonProgressUnitDeath(Unit* unit)
     if (!defeated)
         return;
 
-    std::string const payload = BuildStatePayload(map, *encounters);
+    std::string const payload = BuildStatePayload(map, GetShownEncounters(map, *encounters, *creature));
     map->DoForAllPlayers([&payload](Player* player)
     {
         if (player && player->GetSession())

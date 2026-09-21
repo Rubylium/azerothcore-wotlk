@@ -43,13 +43,23 @@ struct MythicCreatureData : DataMap::Base
 // template of the same role carries (trash: health 5-6, damage 13).
 constexpr float ClassicHealthScale = 2.0f;
 constexpr float ClassicDamageScale = 6.5f;
-constexpr float WotlkDamageModifier = 13.0f;
+// What a WotLK heroic template of the role carries at most: 13 for an elite, about 1 for normal-rank trash (3 left
+// for older normal mobs made to hit harder). Older templates above it, tuned for other base stats, are brought
+// down to it; bosses keep their own.
+constexpr float WotlkEliteDamageModifier = 13.0f;
+constexpr float WotlkNormalDamageModifier = 3.0f;
 // A boss never has less health than this modifier gives, so a classic boss is a real fight
 constexpr float BossHealthModifierFloor = 20.0f;
 // Creature spells have fixed values made for their original level: they follow the base health ratio between the
 // original and the mythic level (roughly how much players grew in between), capped
+// A TBC heroic's spells are already tuned for its heroic mode: they catch up with the levels much less than
+// classic ones, whose values are made for a level-40 fight
 constexpr float MaxSpellLevelFactor = 10.0f;
+constexpr float MaxTbcSpellLevelFactor = 1.25f;
 constexpr uint8 MinSpellScalingLevel = 10;
+
+// How long anything killed in a mythic instance stays dead: longer than any run, so a cleared room stays cleared
+constexpr uint32 MythicRespawnDelay = 2 * HOUR;
 
 bool IsPlayerControlled(Creature const* creature)
 {
@@ -140,10 +150,19 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     creature->ResetPlayerDamageReq();
 
     // Weapon damage: the WotLK base; the template's DamageModifier is applied on top by the stat system, so a
-    // classic template is raised towards a WotLK one
+    // classic template is raised towards a WotLK one, and none but a boss hits harder than a WotLK one of its rank
     float damageScale = 1.0f;
-    if (classic && cinfo->DamageModifier > 0.0f)
-        damageScale = std::min(cinfo->DamageModifier * ClassicDamageScale, WotlkDamageModifier) / cinfo->DamageModifier;
+    if (cinfo->DamageModifier > 0.0f)
+    {
+        float const modifier = cinfo->DamageModifier * (classic ? ClassicDamageScale : 1.0f);
+        float const reference = cinfo->rank == CREATURE_ELITE_NORMAL ? WotlkNormalDamageModifier
+                                                                     : WotlkEliteDamageModifier;
+        // A boss keeps its own modifier; a classic one is only raised as far as a WotLK elite
+        float limit = reference;
+        if (IsMythicBoss(creature))
+            limit = classic ? WotlkEliteDamageModifier : cinfo->DamageModifier;
+        damageScale = std::min(modifier, limit) / cinfo->DamageModifier;
+    }
 
     float const baseDamage = stats->BaseDamage[EXPANSION_WRATH_OF_THE_LICH_KING] * damageScale *
         Mythic::DamageMultiplier * levelScaling;
@@ -160,7 +179,8 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
         {
             float const ratio = static_cast<float>(stats->BaseHealth[EXPANSION_WRATH_OF_THE_LICH_KING]) /
                 std::max<uint32>(1, original->BaseHealth[expansion]);
-            data.spellFactor *= std::clamp(ratio, 1.0f, MaxSpellLevelFactor);
+            data.spellFactor *= std::clamp(ratio, 1.0f,
+                expansion == EXPANSION_THE_BURNING_CRUSADE ? MaxTbcSpellLevelFactor : MaxSpellLevelFactor);
         }
 
     creature->UpdateAllStats();
@@ -249,8 +269,18 @@ public:
 
     void OnCreatureSelectLevel(CreatureTemplate const* cinfo, Creature* creature) override
     {
-        if (MythicCreatureData* data = creature->CustomData.Get<MythicCreatureData>(MythicDataKey))
-            ScaleCreature(cinfo, creature, *data);
+        MythicCreatureData* data = creature->CustomData.Get<MythicCreatureData>(MythicDataKey);
+        if (!data)
+            return;
+
+        ScaleCreature(cinfo, creature, *data);
+
+        // Nothing a mythic group kills comes back while the run lasts. Some rooms repopulate fast enough to be a
+        // treadmill rather than a fight -- the Halls of Lightning forge puts its slags back every 20 seconds --
+        // and a key is timed, so clearing the way has to stay cleared. The instance is new for the next run, so
+        // this never outlives it.
+        if (creature->GetRespawnDelay() < MythicRespawnDelay)
+            creature->SetRespawnDelay(MythicRespawnDelay);
     }
 };
 

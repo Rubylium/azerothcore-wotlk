@@ -18,6 +18,7 @@
 #include "AreaTriggerScript.h"
 #include "CreatureScript.h"
 #include "InstanceMapScript.h"
+#include "Map.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "halls_of_lightning.h"
@@ -97,6 +98,11 @@ public:
 
     bool _OnTrigger(Player* player, AreaTrigger const* /*at*/) override
     {
+        // The Hall of the Watchers wakes two to four of its thirty-one statues for every player who walks it,
+        // and they are on nobody's way to a boss. A mythic run is against the clock: they stay asleep there.
+        if (Map* map = player->FindMap(); map && map->IsMythic())
+            return false;
+
         std::list<Creature*> creatures;
         player->GetCreatureListWithEntryInGrid(creatures, { NPC_TITANIUM_SIEGEBREAKER, NPC_TITANIUM_THUNDERER }, 50.0f);
         creatures.remove_if([&](Creature const* creature) -> bool

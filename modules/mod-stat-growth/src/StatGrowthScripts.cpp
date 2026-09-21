@@ -11,8 +11,10 @@
 #include "MythicItemGeneration.h"
 #include "PersonalLootSystem.h"
 #include "QuickTravelSystem.h"
+#include "RidingInstructor.h"
 #include "ResourceBoostSystem.h"
 #include "SmartLootSystem.h"
+#include "TalentResetSystem.h"
 #include "StatGrowthSystem.h"
 #include "VictoryRushSystem.h"
 #include "VitalityBoostSystem.h"
@@ -152,6 +154,32 @@ bool AutoConsumeLootedEssences(Player* player, Item* item, uint32 count)
     return true;
 }
 
+// Where the player arrived in the instance it is in: the true start of the run. A map can hold several dungeons
+// (Scarlet Monastery's four wings are one map), and Mythic+ runs are not Dungeon Finder dungeons, so neither the
+// group's Dungeon Finder entry nor the map's entrance portal can be trusted to name the right wing.
+struct DungeonArrival : public DataMap::Base
+{
+    uint32 instanceId = 0;
+    WorldLocation location;
+};
+
+void RememberDungeonArrival(Player* player)
+{
+    Map const* map = player ? player->GetMap() : nullptr;
+    if (!map || !map->IsDungeon() || map->IsBattlegroundOrArena())
+        return;
+
+    DungeonArrival* arrival = player->CustomData.GetDefault<DungeonArrival>("DungeonArrival");
+    // A player already in this instance keeps its first arrival (a reconnect or a second teleport inside the
+    // same run is not a new start)
+    if (arrival->instanceId == map->GetInstanceId())
+        return;
+
+    arrival->instanceId = map->GetInstanceId();
+    arrival->location.WorldRelocate(player->GetMapId(), player->GetPositionX(), player->GetPositionY(),
+        player->GetPositionZ(), player->GetOrientation());
+}
+
 // Releasing the spirit inside a dungeon or raid brings the player back to life at the start of the instance
 // instead of sending the ghost to the graveyard outside. Bots keep the default: the dungeon bot manager revives
 // them next to their real player once the fight is over.
@@ -168,8 +196,16 @@ bool RespawnAtDungeonStart(Player* player)
     WorldLocation start;
     bool found = false;
 
-    // Dungeon Finder runs start where the Dungeon Finder teleports the group in
-    if (Group* group = player->GetGroup(); group && group->isLFGGroup())
+    // Where the player came in, when it is still this instance
+    if (DungeonArrival const* arrival = player->CustomData.Get<DungeonArrival>("DungeonArrival");
+        arrival && arrival->instanceId == map->GetInstanceId() && arrival->location.GetMapId() == mapId)
+    {
+        start = arrival->location;
+        found = true;
+    }
+
+    // Else Dungeon Finder runs start where the Dungeon Finder teleports the group in
+    if (Group* group = player->GetGroup(); !found && group && group->isLFGGroup())
         if (lfg::LFGDungeonData const* dungeon = sLFGMgr->GetLFGDungeon(sLFGMgr->GetDungeon(group->GetGUID())))
             if (dungeon->map == mapId && (dungeon->x != 0.0f || dungeon->y != 0.0f || dungeon->z != 0.0f))
             {
@@ -177,7 +213,7 @@ bool RespawnAtDungeonStart(Player* player)
                 found = true;
             }
 
-    // Otherwise the landing point of the instance entrance portal
+    // Else the landing point of the instance entrance portal
     if (!found)
         if (AreaTriggerTeleport const* entrance = sObjectMgr->GetMapEntranceTrigger(mapId))
         {
@@ -286,6 +322,7 @@ public:
     // Entering or leaving an instance: the client swaps between the dungeon tracker and the quest tracker
     void OnPlayerMapChanged(Player* player) override
     {
+        RememberDungeonArrival(player);
         SendDungeonProgress(player);
     }
 
@@ -311,6 +348,7 @@ public:
         HandlePersonalLootAddonMessage(player, language, message);
         HandleQuickTravelAddonMessage(player, language, message);
         HandleInstanceTravelAddonMessage(player, language, message);
+        HandleTalentResetAddonMessage(player, language, message);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel) override
@@ -448,6 +486,7 @@ void AddStatGrowthScripts()
     AddGladiatorStanceScripts();
     AddVictoryRushScripts();
     AddQuickTravelScripts();
+    AddRidingInstructorScripts();
     AddDungeonFinderLockScripts();
     AddMythicDungeonScripts();
     AddMythicItemGenerationScripts();

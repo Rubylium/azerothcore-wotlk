@@ -188,6 +188,9 @@ local function ParkStockWidgets(park, except)
             widget:SetParent(parked[name].parent)
             widget:SetFrameLevel(parked[name].level)
             parked[name] = nil
+        elseif widget and not parkThis and widget:GetParent() == parking then
+            -- Parked without a record left (an error cut a tab switch short): back to the Dungeon Finder
+            widget:SetParent(LFDQueueFrame)
         end
     end
 
@@ -246,6 +249,10 @@ local function HidePanel()
     ParkStockWidgets(false)
     LFDQueueFrameTitleText:SetText(stockTitle)
     panel:Hide()
+    -- The stock type puts its own list (random or specific) and background back
+    if LFDQueueFrame_SetType then
+        LFDQueueFrame_SetType(LFDQueueFrame.type or "specific")
+    end
     if LFDQueueFrame_Update then
         LFDQueueFrame_Update()
     end
@@ -253,15 +260,13 @@ end
 
 local selectedTab = 1
 
+-- The Dungeon Finder's own widgets are parked or given back first, and the Mythic+ frame shown last: nothing that
+-- goes wrong in it can leave the Dungeons tab without its widgets
 local function SelectTab(index)
     selectedTab = index
     PanelTemplates_SetTab(LFDParentFrame, index)
-    if MythicPlusFrame then
-        if index == 3 then
-            MythicPlusFrame:Show()
-        else
-            MythicPlusFrame:Hide()
-        end
+    if MythicPlusFrame and index ~= 3 then
+        MythicPlusFrame:Hide()
     end
 
     if index == 3 then
@@ -275,6 +280,10 @@ local function SelectTab(index)
         ShowPanel("mythic")
     else
         HidePanel()
+    end
+
+    if MythicPlusFrame and index == 3 then
+        MythicPlusFrame:Show()
     end
 end
 
@@ -292,11 +301,7 @@ mythicPlusTab:SetScript("OnClick", function()
 end)
 
 LFDParentFrame:HookScript("OnShow", function()
-    if selectedTab == 3 then
-        SelectTab(3)
-    elseif mode then
-        ShowPanel(mode)
-    end
+    SelectTab(selectedTab)
 end)
 
 -- -----------------------------------------------------------------------------------------------------------------

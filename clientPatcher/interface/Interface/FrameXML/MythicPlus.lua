@@ -11,7 +11,15 @@ local MYTHIC_ID_BASE = 100000
 local SOUND = "Sound\\Interface\\MythicPlus\\"
 local KEYSTONE_ICON = "Interface\\Icons\\INV_Relics_Hourglass"
 local FONT = "Fonts\\FRIZQT__.TTF"
+-- The dungeon grid: four to a row, each row as tall as the tab can afford (see LayoutTiles)
 local COLUMNS = 4
+local TILE_WIDTH = 74
+local ICON_SIZE = 38
+local ICON_CENTER = 22        -- the icon's centre under the top of its tile
+local GRID_TOP = 84           -- the first row, under the key header and its line
+local ROW_HEIGHT = 74
+local MIN_ROW_HEIGHT = 48     -- squeezed rows: icons only, no dungeon names
+local GRID_BOTTOM_ROOM = 46   -- kept under the grid for the chosen dungeon / status line
 
 local french = GetLocale() == "frFR"
 local TEXT = french and {
@@ -42,7 +50,7 @@ local TEXT = french and {
     accept = "Entrer",
     decline = "Refuser",
     go = "C'est parti !",
-    deaths = "%d |4mort:morts; (+%d s)",
+    deaths = "%d (+%ds)",
     timed = "Mythique +%d réussi !",
     overTimeTitle = "Mythique +%d terminé hors délai",
     upgrade = "Clé améliorée de %d |4niveau:niveaux; : +%d",
@@ -51,10 +59,7 @@ local TEXT = french and {
     time = "Temps : %s / %s",
     scoreLine = "Score Mythique+ : %s",
     abandoned = "La clé a été abandonnée.",
-    startKey = "Lancer la clé",
-    autoStart = "Départ automatique dans %s",
     waitingPlayers = "En attente des joueurs...",
-    barrierTip = "Préparez-vous dans la barrière : elle tombe quand la clé est lancée.",
     tabTip = "Votre clé fixe le niveau du donjon. Terminez-le dans le temps imparti pour l'améliorer ; "
         .. "le butin et les essences tombent sur le dernier boss.",
 } or {
@@ -85,7 +90,7 @@ local TEXT = french and {
     accept = "Enter",
     decline = "Decline",
     go = "Go!",
-    deaths = "%d |4death:deaths; (+%d s)",
+    deaths = "%d (+%ds)",
     timed = "Mythic +%d completed!",
     overTimeTitle = "Mythic +%d completed over time",
     upgrade = "Keystone upgraded by %d |4level:levels;: +%d",
@@ -94,10 +99,7 @@ local TEXT = french and {
     time = "Time: %s / %s",
     scoreLine = "Mythic+ Rating: %s",
     abandoned = "The keystone was abandoned.",
-    startKey = "Start keystone",
-    autoStart = "Starts by itself in %s",
     waitingPlayers = "Waiting for the players...",
-    barrierTip = "Get ready inside the barrier: it falls when the keystone is started.",
     tabTip = "Your keystone sets the dungeon's level. Complete it in time to upgrade it; loot and essences drop "
         .. "from the last boss.",
 }
@@ -220,9 +222,22 @@ frame:SetFrameLevel(LFDQueueFrame:GetFrameLevel() + 6)
 frame:EnableMouse(true)
 frame:Hide()
 
+local HEADER_HEIGHT = 78
+
+-- The retail ground. Its own art fades in from the top, so it starts under the header, and everything laid on it
+-- (the dungeon tiles) is kept above it: see ApplyLevels
 local background = frame:CreateTexture(nil, "BACKGROUND")
 SetAtlas(background, "ChallengeMode-MainTabBg")
-background:SetAllPoints(frame)
+background:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -HEADER_HEIGHT)
+background:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT")
+
+-- The header (key and rating) on its own near-opaque strip: the Dungeon Finder's wall art behind it has a stone
+-- ledge, and a translucent strip let that line run straight through the key and the rating
+local headerBackground = frame:CreateTexture(nil, "BACKGROUND")
+headerBackground:SetTexture(0, 0, 0, 1)
+headerBackground:SetGradientAlpha("VERTICAL", 0, 0, 0, 0.97, 0, 0, 0, 0.88)
+headerBackground:SetPoint("TOPLEFT", frame, "TOPLEFT")
+headerBackground:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", 0, -HEADER_HEIGHT)
 
 -- The keystone: slot, hourglass, glow and runes that spin up when it is activated
 local slot = CreateFrame("Frame", nil, frame)
@@ -254,24 +269,24 @@ slotGlow:SetBlendMode("ADD")
 slotGlow:SetAlpha(0)
 
 local keyLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-keyLabel:SetPoint("TOPLEFT", slot, "TOPRIGHT", 4, -10)
+keyLabel:SetPoint("BOTTOMLEFT", slot, "RIGHT", 6, 1)
 keyLabel:SetText(TEXT.key)
 local keyText = frame:CreateFontString(nil, "ARTWORK")
 keyText:SetFont(FONT, 26, "OUTLINE")
-keyText:SetPoint("TOPLEFT", keyLabel, "BOTTOMLEFT", 0, -3)
+keyText:SetPoint("TOPLEFT", slot, "RIGHT", 6, -1)
 
 local scoreLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-scoreLabel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -14)
+scoreLabel:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -12, -37)
 scoreLabel:SetText(TEXT.score)
 local scoreText = frame:CreateFontString(nil, "ARTWORK")
 scoreText:SetFont(FONT, 22, "OUTLINE")
-scoreText:SetPoint("TOPRIGHT", scoreLabel, "BOTTOMRIGHT", 0, -4)
+scoreText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -41)
 
 local divider = frame:CreateTexture(nil, "ARTWORK")
 SetAtlas(divider, "ChallengeMode-ThinDivider")
 divider:SetHeight(3)
-divider:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -76)
-divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -76)
+divider:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -HEADER_HEIGHT + 2)
+divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -HEADER_HEIGHT + 2)
 
 -- The dungeons: icon, best level and name, in the retail frame; the picked one glows
 local tiles = {}
@@ -312,33 +327,42 @@ end
 
 local function CreateTile(index)
     local tile = CreateFrame("Button", nil, frame)
-    tile:SetWidth(74)
-    tile:SetHeight(72)
-    local column, row = (index - 1) % COLUMNS, floor((index - 1) / COLUMNS)
-    tile:SetPoint("TOPLEFT", frame, "TOPLEFT", 6 + column * 78, -84 - row * 74)
+    tile:SetWidth(TILE_WIDTH)
+    tile:SetFrameLevel(frame:GetFrameLevel() + 3)
 
     tile.glow = tile:CreateTexture(nil, "BACKGROUND")
     SetAtlas(tile.glow, "ChallengeMode-SoftYellowGlow", 70)
-    tile.glow:SetPoint("CENTER", tile, "TOP", 0, -22)
+    tile.glow:SetPoint("CENTER", tile, "TOP", 0, -ICON_CENTER)
     tile.glow:SetBlendMode("ADD")
     tile.icon = tile:CreateTexture(nil, "ARTWORK")
-    tile.icon:SetWidth(38)
-    tile.icon:SetHeight(38)
-    tile.icon:SetPoint("CENTER", tile, "TOP", 0, -22)
+    tile.icon:SetWidth(ICON_SIZE)
+    tile.icon:SetHeight(ICON_SIZE)
+    tile.icon:SetPoint("CENTER", tile, "TOP", 0, -ICON_CENTER)
     tile.border = tile:CreateTexture(nil, "OVERLAY")
     SetAtlas(tile.border, "ChallengeMode-DungeonIconFrame", 48)
     tile.border:SetPoint("CENTER", tile.icon, "CENTER")
+    -- The picked dungeon keeps a square gold ring, the shape of the icon, so the choice stays visible
+    tile.selection = tile:CreateTexture(nil, "OVERLAY")
+    tile.selection:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+    tile.selection:SetWidth(ICON_SIZE + 10)
+    tile.selection:SetHeight(ICON_SIZE + 10)
+    tile.selection:SetPoint("CENTER", tile.icon, "CENTER")
+    tile.selection:SetBlendMode("ADD")
+    tile.selection:Hide()
     tile.level = tile:CreateFontString(nil, "OVERLAY")
     tile.level:SetFont(FONT, 15, "OUTLINE")
     tile.level:SetPoint("CENTER", tile.icon, "BOTTOM", 0, 2)
     tile.name = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    tile.name:SetWidth(76)
+    tile.name:SetWidth(TILE_WIDTH + 2)
     tile.name:SetHeight(24)
     tile.name:SetPoint("TOP", tile.icon, "BOTTOM", 0, -7)
     tile.name:SetJustifyV("TOP")
 
+    -- A square hover, the shape of the icon: the retail keystone glow is a disc and sat badly on it
     local highlight = tile:CreateTexture(nil, "HIGHLIGHT")
-    SetAtlas(highlight, "ChallengeMode-KeystoneSlotFrameGlow", 54)
+    highlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    highlight:SetWidth(ICON_SIZE + 12)
+    highlight:SetHeight(ICON_SIZE + 12)
     highlight:SetPoint("CENTER", tile.icon, "CENTER")
     highlight:SetBlendMode("ADD")
 
@@ -347,6 +371,28 @@ local function CreateTile(index)
     tile:SetScript("OnClick", OnTileClick)
     tiles[index] = tile
     return tile
+end
+
+-- The grid is laid out for the room the tab actually has: the rows are squeezed rather than spilling out of the
+-- panel (the last one used to be cut off), and the line under it follows them
+local function LayoutTiles(count)
+    local rows = max(1, ceil(count / COLUMNS))
+    local room = frame:GetHeight() - GRID_TOP - GRID_BOTTOM_ROOM
+    local rowHeight = max(MIN_ROW_HEIGHT, min(ROW_HEIGHT, floor(room / rows)))
+    for index = 1, count do
+        local tile = tiles[index]
+        local column, row = (index - 1) % COLUMNS, floor((index - 1) / COLUMNS)
+        tile:SetHeight(rowHeight - 2)
+        tile:ClearAllPoints()
+        tile:SetPoint("TOPLEFT", frame, "TOPLEFT", 6 + column * (TILE_WIDTH + 4), -GRID_TOP - row * rowHeight)
+        -- The name only has room under the icon while the rows are not squeezed
+        if rowHeight >= ROW_HEIGHT - 6 then
+            tile.name:Show()
+        else
+            tile.name:Hide()
+        end
+    end
+    return GRID_TOP + rows * rowHeight
 end
 
 local choiceText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
@@ -434,14 +480,25 @@ function UpdateTab()
         end
         if chosen == dungeonId then
             tile.glow:Show()
+            tile.selection:Show()
+            tile.name:SetTextColor(1, 0.82, 0)
         else
             tile.glow:Hide()
+            tile.selection:Hide()
+            tile.name:SetTextColor(1, 1, 1)
         end
         tile:Show()
     end
     for index = #order + 1, #tiles do
         tiles[index]:Hide()
     end
+
+    -- The grid, and the lines under it, take the room the tab has
+    local gridBottom = LayoutTiles(#order)
+    choiceText:ClearAllPoints()
+    choiceText:SetPoint("TOP", frame, "TOP", 0, -(gridBottom + 6))
+    statusText:ClearAllPoints()
+    statusText:SetPoint("TOP", frame, "TOP", 0, -(gridBottom + 10))
 
     choiceText:SetText(chosen and format(TEXT.chosen, DungeonName(chosen)) or TEXT.random)
     if status.state == STATE_NONE then
@@ -472,7 +529,22 @@ function UpdateTab()
     end
 end
 
+-- Where the tab and its pieces sit in the stack. The Dungeon Finder's own level changes with how many panels the
+-- game has open, so it is read again on every show: the tab used to end up under the stock window, and the tiles
+-- under its own ground, whose art fades in from the top and swallowed the lower row of dungeons.
+local function ApplyLevels()
+    local base = LFDQueueFrame:GetFrameLevel() + 6
+    frame:SetFrameLevel(base)
+    slot:SetFrameLevel(base + 3)
+    for _, tile in ipairs(tiles) do
+        tile:SetFrameLevel(base + 3)
+    end
+    mainButton:SetFrameLevel(base + 4)
+    closeButton:SetFrameLevel(base + 4)
+end
+
 frame:SetScript("OnShow", function()
+    ApplyLevels()
     Send("LIST")
     UpdateTab()
 end)
@@ -562,8 +634,8 @@ declineButton:SetHeight(24)
 declineButton:SetPoint("BOTTOMLEFT", proposal, "BOTTOM", 6, 20)
 declineButton:SetText(TEXT.decline)
 
+-- No keystone sound here: it already played when the key was queued (Activate)
 acceptButton:SetScript("OnClick", function()
-    PlaySoundFile(SOUND .. "KeystoneInsert.ogg")
     Send("ACCEPT")
     acceptButton:Disable()
     proposalText:SetText(TEXT.readyWait)
@@ -683,7 +755,6 @@ timerLevel:SetFont(FONT, 15, "OUTLINE")
 timerLevel:SetPoint("TOPLEFT", timerFrame, "TOPLEFT", 18, -12)
 local timerDungeon = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 timerDungeon:SetPoint("LEFT", timerLevel, "RIGHT", 6, 0)
-timerDungeon:SetPoint("RIGHT", timerFrame, "RIGHT", -16, 0)
 timerDungeon:SetJustifyH("LEFT")
 
 local timerClock = timerFrame:CreateFontString(nil, "OVERLAY")
@@ -693,12 +764,13 @@ local timerLimit = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableS
 timerLimit:SetPoint("BOTTOMLEFT", timerClock, "BOTTOMRIGHT", 4, 2)
 local timerDeaths = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 timerDeaths:SetPoint("RIGHT", timerFrame, "RIGHT", -18, 0)
-timerDeaths:SetPoint("TOP", timerClock, "TOP", 0, -4)
+timerDeaths:SetPoint("TOP", timerLevel, "TOP", 0, -1)
 local deathIcon = timerFrame:CreateTexture(nil, "OVERLAY")
 deathIcon:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame-Skull")
 deathIcon:SetWidth(14)
 deathIcon:SetHeight(14)
 deathIcon:SetPoint("RIGHT", timerDeaths, "LEFT", -2, 0)
+timerDungeon:SetPoint("RIGHT", deathIcon, "LEFT", -6, 0)
 
 local barBackground = timerFrame:CreateTexture(nil, "ARTWORK")
 SetAtlas(barBackground, "ChallengeMode-TimerBG", BAR_WIDTH, 10)
@@ -716,41 +788,29 @@ for index, share in ipairs({ 0.6, 0.8 }) do
     tick:SetWidth(2)
     tick:SetHeight(12)
     tick:SetPoint("LEFT", barBackground, "LEFT", BAR_WIDTH * share - 1, 0)
-    local label = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("BOTTOM", tick, "TOP", 0, 1)
-    thresholds[index] = { share = share, upgrade = 4 - index, label = label, tick = tick }
+    thresholds[index] = { share = share, upgrade = 4 - index, tick = tick }
 end
 
--- Before the key is started: the group waits in the barrier; its owner starts it from here
+-- The time left for each chest, on one line beside the clock (the ticks are too close for a label each)
+local timerChests = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+timerChests:SetPoint("RIGHT", timerFrame, "RIGHT", -18, 0)
+timerChests:SetPoint("BOTTOM", timerClock, "BOTTOM", 0, 2)
+timerChests:SetJustifyH("RIGHT")
+
+-- While the players get in, before the countdown
 local timerWait = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 timerWait:SetPoint("BOTTOMLEFT", timerFrame, "BOTTOMLEFT", 22, 16)
 timerWait:SetPoint("RIGHT", timerFrame, "RIGHT", -18, 0)
 timerWait:SetJustifyH("LEFT")
-local startButton = CreateFrame("Button", "MythicPlusStartButton", timerFrame, "UIPanelButtonTemplate")
-startButton:SetWidth(96)
-startButton:SetHeight(20)
-startButton:SetPoint("RIGHT", timerFrame, "RIGHT", -16, 0)
-startButton:SetPoint("TOP", timerClock, "TOP", 0, 0)
-startButton:SetText(TEXT.startKey)
-startButton:SetScript("OnClick", function(self)
-    PlaySoundFile(SOUND .. "KeystoneInsert.ogg")
-    Send("STARTKEY")
-    self:Disable()
-end)
 
 local function SetBarShown(shown)
     for _, region in ipairs({ barBackground, barFill, timerDeaths, deathIcon }) do
         if shown then region:Show() else region:Hide() end
     end
     for _, threshold in ipairs(thresholds) do
-        if shown then
-            threshold.tick:Show()
-            threshold.label:Show()
-        else
-            threshold.tick:Hide()
-            threshold.label:Hide()
-        end
+        if shown then threshold.tick:Show() else threshold.tick:Hide() end
     end
+    if shown then timerChests:Show() else timerChests:Hide() end
 end
 
 local warned, expired = false, false
@@ -772,17 +832,11 @@ timerFrame:SetScript("OnUpdate", function()
         timerWait:Show()
         timerClock:SetText(FormatTime(timer.limit))
         timerClock:SetTextColor(0.7, 0.7, 0.7)
-        if (timer.autoStart or -1) >= 0 then
-            timerWait:SetText(format(TEXT.autoStart, FormatTime(timer.autoStart - (GetTime() - timer.receivedAt))))
-        else
-            timerWait:SetText(TEXT.waitingPlayers)
-        end
-        if timer.owner then startButton:Show() else startButton:Hide() end
+        timerWait:SetText(TEXT.waitingPlayers)
         return
     end
     SetBarShown(true)
     timerWait:Hide()
-    startButton:Hide()
 
     local elapsed = TimerElapsed()
     local limit = max(1, timer.limit or 1)
@@ -810,24 +864,25 @@ timerFrame:SetScript("OnUpdate", function()
         end
     end
 
+    local chests = {}
     for _, threshold in ipairs(thresholds) do
         local left = limit * threshold.share - elapsed
         if left > 0 then
-            threshold.label:SetText(format("+%d %s", threshold.upgrade, FormatTime(left)))
-            threshold.label:SetTextColor(1, 0.82, 0)
+            tinsert(chests, format("|cffffd100+%d %s|r", threshold.upgrade, FormatTime(left)))
         else
-            threshold.label:SetText("+" .. threshold.upgrade)
-            threshold.label:SetTextColor(0.5, 0.5, 0.5)
+            tinsert(chests, format("|cff808080+%d|r", threshold.upgrade))
         end
     end
+    timerChests:SetText(table.concat(chests, "   "))
 
     if not timer.finished and not warned and limit - elapsed <= 60 and limit - elapsed > 0 then
         warned = true
         PlaySoundFile(SOUND .. "TimerWarning.ogg")
     end
+    -- The key depletes: the one-minute warning's sound, which reads better than retail's expiry one
     if not timer.finished and not expired and over then
         expired = true
-        PlaySoundFile(SOUND .. "TimeExpired.ogg")
+        PlaySoundFile(SOUND .. "TimerWarning.ogg")
     end
 end)
 
@@ -931,7 +986,7 @@ local function ShowResult(timed, level, dungeon, elapsed, limit, upgrade, newKey
         PlaySoundFile(SOUND .. "NewRecord.ogg")
         PlaySound("LEVELUPSOUND")
     else
-        PlaySoundFile(SOUND .. "TimeExpired.ogg")
+        PlaySoundFile(SOUND .. "TimerWarning.ogg")
     end
     for _, line in ipairs(lines) do
         DEFAULT_CHAT_FRAME:AddMessage("|cffffd100" .. TEXT.title .. ":|r " .. line)
@@ -975,7 +1030,7 @@ local function ReadStatus(state, raid, counts, accepted, level)
     end
 end
 
-local function ReadTimer(level, dungeon, limit, elapsed, deaths, countdownSeconds, owner, autoStart)
+local function ReadTimer(level, dungeon, limit, elapsed, deaths, countdownSeconds)
     local previousDeaths = timer.deaths
     local wasCounting = timer.active and (timer.countdown or -1) > 0
     timer.active = true
@@ -985,17 +1040,7 @@ local function ReadTimer(level, dungeon, limit, elapsed, deaths, countdownSecond
     timer.limit = tonumber(limit) or 0
     timer.elapsed = tonumber(elapsed) or 0
     timer.deaths = tonumber(deaths) or 0
-    local wasWaiting = timer.waiting
     timer.countdown = tonumber(countdownSeconds) or -1
-    timer.waiting = timer.countdown < 0
-    timer.owner = owner == "1"
-    timer.autoStart = tonumber(autoStart) or -1
-    if timer.countdown < 0 then
-        startButton:Enable()
-        if not wasWaiting then
-            DEFAULT_CHAT_FRAME:AddMessage("|cffffd100" .. TEXT.title .. ":|r " .. TEXT.barrierTip)
-        end
-    end
     timer.receivedAt = GetTime()
     if timer.elapsed == 0 then
         warned, expired = false, false
@@ -1033,7 +1078,11 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
             local dungeon, level, timed, duration, limit, dungeonScore = strsplit(":", item)
             dungeon = tonumber(dungeon)
             if dungeon then
-                tinsert(order, dungeon)
+                -- A list answered twice (two "LIST" asked at once, one key line lost) used to append the pool
+                -- again and hang a half-row of dungeons under the tab
+                if not bests[dungeon] then
+                    tinsert(order, dungeon)
+                end
                 bests[dungeon] = { level = tonumber(level) or 0, timed = timed == "1",
                     duration = tonumber(duration) or 0, limit = tonumber(limit) or 0,
                     score = tonumber(dungeonScore) or 0 }
@@ -1043,7 +1092,7 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
         ReadStatus(a, b, c, d, e)
         return
     elseif kind == "T" then
-        ReadTimer(a, b, c, d, e, f, g, h)
+        ReadTimer(a, b, c, d, e, f)
         return
     elseif kind == "E" then
         timer.finished = true
