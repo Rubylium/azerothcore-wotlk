@@ -91,6 +91,14 @@ if ($LASTEXITCODE -ne 0) {
     throw "Custom class generation failed (exit $LASTEXITCODE)."
 }
 
+# Retail-style talent trees (a class with `talentTree` in classes.json): the world SQL the server reads and the
+# client's copy of the trees. Needs the Spell.dbc patchSinisterStrike.ps1 wrote: it checks every rank exists.
+Write-Host 'Generating talent trees...'
+& python (Join-Path $repoRoot 'localTools\talentTree\buildTalentTree.py') | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "Talent tree generation failed (exit $LASTEXITCODE)."
+}
+
 # Every change made to Wow.exe, applied by the installer through Patch-WowExe.ps1: the awesome_wotlk loader (its
 # bytes read from the fork's Patch.h) and the Dungeon Finder roles of the custom classes
 Write-Host 'Generating the Wow.exe patches...'
@@ -127,6 +135,12 @@ if (-not $skipInterfacePatches) {
         throw "Paragon art build failed (exit $LASTEXITCODE)."
     }
 
+    Write-Host 'Compiling talent tree art...'
+    & python (Join-Path $repoRoot 'localTools\interface\buildTalentTreeArt.py') --client $clientPath | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Talent tree art build failed (exit $LASTEXITCODE)."
+    }
+
     Write-Host 'Building interface patches...'
     Push-Location (Join-Path $repoRoot 'localTools\mpq-builder')
     try {
@@ -160,6 +174,9 @@ $sources = @(
     # The interface the server is played with: DragonUI, and Details with its plugins (as installed in the client)
     'Interface\AddOns\DragonUI',
     'Interface\AddOns\DragonUI_Options',
+    # DragonUI's bag tint judged armor and weapons from stock class tables (mail red on a warrior, everything red
+    # on a custom class); ours trusts the tooltip. Listed after the DragonUI folder, so it replaces the stock file
+    'Interface\AddOns\DragonUI\modules\bags_usability.lua',
     # Retail-style raid frames (Blizzard's Compact Raid Frames backported to a stock 3.3.5a client)
     'Interface\AddOns\CompactRaidFrame',
     'Interface\AddOns\Details',

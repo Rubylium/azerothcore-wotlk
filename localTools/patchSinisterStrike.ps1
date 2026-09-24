@@ -35,6 +35,9 @@ $clientVisualKitPath = Join-Path $clientDbcRoot 'SpellVisualKit.dbc'
 $serverSoundPath = Join-Path $serverDbcRoot 'SoundEntries.dbc'
 $soundBackupPath = Join-Path $serverDbcRoot 'SoundEntries.before-combat-rogue.dbc'
 $clientSoundPath = Join-Path $clientDbcRoot 'SoundEntries.dbc'
+$serverEffectNamePath = Join-Path $serverDbcRoot 'SpellVisualEffectName.dbc'
+$effectNameBackupPath = Join-Path $serverDbcRoot 'SpellVisualEffectName.before-oathblade.dbc'
+$clientEffectNamePath = Join-Path $clientDbcRoot 'SpellVisualEffectName.dbc'
 
 # Spell.dbc field indexes used below (3.3.5a, 234 fields)
 $F_Attributes = 4; $F_AttributesEx = 5; $F_CasterAuraState = 20; $F_ProcFlags = 34; $F_ProcChance = 35
@@ -341,10 +344,10 @@ $customSpells = @(
        # Unholy Blight's green haze
        Visual = @{ Clone = 11095 } },
 
-    # Excroissance: never cast by the player. PestifereScripts.cpp pours every point of overhealing a
-    # Pestiféré receives into it and sets the amount itself, so the base points here are only a placeholder.
+    # Excroissance: never cast by the player. PestifereScripts.cpp stores overhealing and 20% of self-healing
+    # in it and sets the amount itself, so the base points here are only a placeholder.
     @{ Id = 90230; Clone = 48707; Name = 'Excroissance'; Icon = 'PestifereTalent_CrouteNecrosee'; FallbackIconSpell = 48707; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = 'Les soins que votre corps ne peut pas utiliser s''accumulent sous votre peau et absorbent les dégâts, jusqu''à 75% de vos points de vie maximum.'
+       Description = 'Les soins excédentaires et 20% des soins que vous vous prodiguez s''accumulent sous votre peau et absorbent les dégâts, jusqu''à 75% de vos points de vie maximum.'
        AuraDescription = 'Absorbe les dégâts.'
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_SchoolAbsorb; BasePoints = 0; Misc = 127 })
        # 20 sec: long enough to be worth banking, short enough that it is never a second health bar
@@ -353,6 +356,15 @@ $customSpells = @(
        Visual = @{ Clone = 11869 } },
 
     # Support spells: never in the spellbook
+    # Inébranlable: the Mythic+ tank's footing. Only the icon and the text live here - MythicDungeonSystem.cpp
+    # applies the mechanic immunities itself, because the aura that carries a whole mask of them resolves that
+    # mask from a hardcoded list of spell ids in the core and a custom spell cannot join it.
+    @{ Id = 90600; Clone = 12975; Name = 'Inébranlable'; FallbackIconSpell = 42292; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Le tank d''un donjon Mythique+ ne peut pas être privé du contrôle de lui-même.'
+       AuraDescription = 'Immunisé aux étourdissements, peurs, charmes et autres pertes de contrôle.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_Dummy })
+       # No duration: it lasts as long as the tank is in the dungeon, and the module takes it away on the way out
+       Fields = @{ 40 = 21 } },
     # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2.5 threat)
     @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = 'Menace générée augmentée.'
@@ -437,6 +449,35 @@ $customSpells = @(
        Fields = @{ 40 = 3 }
        # Necrotic Plague's dark green glow on the bearer, silent
        Visual = @{ Clone = 14858 } },
+    # Jet de sang (talent, healer tree): the healer's reach. A spit at an enemy 30 yards off; mod-pestifere deals its
+    # damage (120% weapon, Nature) and turns 150% of it into healing on the most injured ally
+    @{ Id = 90296; Clone = 12975; Name = 'Jet de sang'; IconPath = 'Interface\Icons\Spell_Shadow_LifeDrain'; FallbackIconSpell = 47541; Cost = 150; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Crache un jet de sang sur un ennemi à 30 mètres au plus : il subit 120% des dégâts de votre arme en dégâts de Nature, et l''allié le plus blessé récupère 150% de ces dégâts.'
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
+       Fields = @{ 46 = 4; 205 = 133; 206 = 1500; 213 = 0; 225 = 8 }
+       # Death Coil's bolt
+       Visual = @{ Clone = 10755 } },
+    # Poussée de sang (talent, healer tree): the burst. An instant heal on the most injured ally, then three hits that
+    # heal three times as much (Hémostase). Off the global cooldown, like Don de sang
+    @{ Id = 90297; Clone = 12975; Name = 'Poussée de sang'; IconPath = 'Interface\Icons\Spell_DeathKnight_BloodTap'; FallbackIconSpell = 45529; Cost = 0; Cooldown = 30000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Rend aussitôt 20% de ses points de vie maximum à l''allié le plus blessé, et vos 3 prochains coups soignent trois fois plus. Ne déclenche pas le temps de recharge global.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       Visual = @{ Clone = 11512 } },
+    # Cal putride: Carapace réactive's hardened skin, 25% more armor for 8 sec
+    @{ Id = 90299; Clone = 12975; Name = 'Cal putride'; IconPath = 'Interface\Icons\Ability_Warrior_ShieldMastery'; FallbackIconSpell = 12975; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Votre peau durcit : armure augmentée de 25% pendant 8 sec.'
+       AuraDescription = 'Armure augmentée de 25%.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_ModResistancePct; Value = 25; Misc = 1 })
+       Fields = @{ 40 = 31 } },
+    # Miasme suffocant (talent, class tree): enemies within 10 yards deal 10% less damage for 8 sec. Plain data: an
+    # area aura on enemies around the caster, like Demoralizing Shout
+    @{ Id = 90298; Clone = 1160; Name = 'Miasme suffocant'; IconPath = 'Interface\Icons\Ability_Creature_Disease_03'; FallbackIconSpell = 1160; Cost = 0; Cooldown = 45000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
+       Description = 'Un miasme suffocant s''échappe de vous : les ennemis à 10 mètres au plus infligent 10% de dégâts en moins pendant 8 sec.'
+       AuraDescription = 'Dégâts infligés réduits de 10%.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 22; Aura = $A_ModDamagePercentDone; Value = -10; Misc = 127 })
+       Fields = @{ 40 = 31; 89 = 15; 92 = 13 }
+       # Unholy Blight's haze
+       Visual = @{ Clone = 11095 } },
     @{ Id = 90308; Clone = 12975; Name = 'Pestilence salvatrice'; Icon = 'PestifereHealer_PestilenceSalvatrice'; FallbackIconSpell = 49194; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Pendant 15 sec, Transfusion soigne jusqu''à 5 alliés blessés et ses soins sont doublés. Ne déclenche pas le temps de recharge global.'
        AuraDescription = 'Transfusion soigne jusqu''à 5 alliés et ses soins sont doublés.'
@@ -735,8 +776,18 @@ foreach ($talent in $pestifereTalents) {
     }
 }
 
+# The Pestiféré's retail-style talent trees (localTools/pestifere/talentTree.json): the rank spells of its new
+# talents. The older ones, marked existing there, keep their rows above.
+$customSpells += & (Join-Path $repoRoot 'localTools\talentTree\TalentRankSpells.ps1') `
+    -TreePath (Join-Path $repoRoot 'localTools\pestifere\talentTree.json') -Family $FAM_PESTIFERE
+
 $necromancerSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\necromancer\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($necromancerSpellSource))
+$oathbladeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\oathblade\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($oathbladeSpellSource))
+
+& python (Join-Path $repoRoot 'localTools\oathblade\buildSounds.py')
+if ($LASTEXITCODE -ne 0) { throw 'Oathblade sound compilation failed.' }
 
 $spellbookSpells = @($customSpells | Where-Object { $_.Spellbook })
 
@@ -746,7 +797,46 @@ $customSounds = @(
        Files = @('DaggerfallImpact01.ogg', 'DaggerfallImpact02.ogg', 'DaggerfallImpact03.ogg', 'DaggerfallImpact04.ogg', 'DaggerfallImpact05.ogg')
        # Near normal combat-effect volume while retaining headroom when several target impacts overlap.
        Volume = 0.85 }
+    @{ Key = 'OathbladeQuickHit'; Clone = 13269; Name = 'Oathblade_Quick_Hit'
+       Directory = 'Sound\Spells\Custom\Oathblade'
+       Format = 'wav'
+       Files = @('1H_Sword_NPC_Hit_Flesh_01.ogg', '1H_Sword_NPC_Hit_Flesh_02.ogg', '1H_Sword_NPC_Hit_Flesh_03.ogg',
+           '1H_Sword_NPC_Hit_Flesh_04.ogg', '1H_Sword_NPC_Hit_Flesh_05.ogg', '1H_Sword_NPC_Hit_Flesh_06.ogg',
+           '1H_Sword_NPC_Hit_Flesh_07.ogg', '1H_Sword_NPC_Hit_Flesh_08.ogg', '1H_Sword_NPC_Hit_Flesh_09.ogg',
+           '1H_Sword_NPC_Hit_Flesh_10.ogg')
+       Volume = 0.82 }
+    @{ Key = 'OathbladeParryHit'; Clone = 13269; Name = 'Oathblade_Parry_Hit'
+       Directory = 'Sound\Spells\Custom\Oathblade'
+       Format = 'wav'
+       Files = @('1h_Sword_CritHit_Metal_Parry_02.ogg', '1h_Sword_CritHit_Metal_Parry_03.ogg',
+           '1h_Sword_CritHit_Metal_Parry_04.ogg', '1h_Sword_CritHit_Metal_Parry_05.ogg')
+       Volume = 0.84 }
+    @{ Key = 'OathbladeHeavyHit'; Clone = 13269; Name = 'Oathblade_Heavy_Hit'
+       Directory = 'Sound\Spells\Custom\Oathblade'
+       Format = 'wav'
+       Files = @('2h_Sword_Hit_Flesh_01.ogg', '2h_Sword_Hit_Flesh_02.ogg', '2h_Sword_Hit_Flesh_03.ogg',
+           '2h_Sword_Hit_Flesh_04.ogg', '2h_Sword_Hit_Flesh_05.ogg', '2h_Sword_Hit_Flesh_06.ogg',
+           '2h_Sword_Hit_Flesh_07.ogg', '2h_Sword_Hit_Flesh_08.ogg', '2h_Sword_Hit_Flesh_09.ogg',
+           '2h_Sword_Hit_Flesh_10.ogg')
+       Volume = 0.90 }
+    @{ Key = 'OathbladeAoE'; Clone = 13269; Name = 'Oathblade_AoE'
+       Directory = 'Sound\Spells\Custom\Oathblade'
+       Format = 'wav'
+       Files = @('sword_aoe1.ogg', 'sword_aoe2.ogg')
+       Volume = 0.80 }
+    @{ Key = 'OathbladeFinisher'; Clone = 13269; Name = 'Oathblade_Finisher'
+       Directory = 'Sound\Spells\Custom\Oathblade\finished_big_hit'
+       Format = 'wav'
+       Files = @('2H_Sword_CritHit_Stone_Body_01.ogg', '2H_Sword_CritHit_Stone_Body_02.ogg',
+           '2H_Sword_CritHit_Stone_Body_03.ogg', '2H_Sword_CritHit_Stone_Body_04.ogg',
+           '2H_Sword_CritHit_Stone_Body_05.ogg')
+       Volume = 0.95 }
 )
+
+# A kit's CharProc parameters are floats; the kit fields are written as raw 32-bit values
+function Get-FloatBits([single]$value) {
+    return [BitConverter]::ToUInt32([BitConverter]::GetBytes($value), 0)
+}
 
 # Custom spell visuals (client only). A spell's Visual clones a stock SpellVisual record and swaps kit slots
 # (Precast, Cast, Impact, State, StateDone, Channel, CasterImpact, TargetImpact) for stock kit ids or the custom
@@ -767,6 +857,72 @@ $customVisualKits = @(
     @{ Key = 'PutrideImpact'; Clone = 10737; Fields = @{ 15 = 158 } }
     # Pestiféré: Heart Strike's blood burst with Mark of Blood's sound, for Saignée
     @{ Key = 'SaigneeImpact'; Clone = 10467; Fields = @{ 15 = 12997 } }
+    # Oathblade. The class is bright blue, so its signature is a frost-blue blade (Frost Strike and
+    # Obliterate); the holy strikes carry the "oath", and the area abilities spin (Divine Storm, Fan of Knives).
+    # Every visual holds exactly one sound, its own recording, and the finishers shake the camera by how rare
+    # they are. See localTools\oathblade\Spells.ps1 for which ability wears which.
+    #
+    #
+    # Everything is blue: every swing leaves a blue weapon trail (CharProc 8, the colour and timing copied from
+    # stock kits that are blue in game: Frost Strike's frost trail, Whirlwind's and Stormstrike's deep blue),
+    # the impacts are frost and arcane, and nothing gold is left (Divine Storm's spin and the Seal hit were).
+    # Kit fields: 2 animation, 3-14 effect models (head, chest, base, hands, breath, weapons, specials, world),
+    # 15 sound, 16 camera shake, 17-20 CharProc, 21-36 its four float parameters (written as raw bits).
+    #
+    # Cast kits: animation, weapon effects, the recording, and the shake
+    # Sinister Strike's swing and animation, with Frost Strike's trail and a frost slash (it was magenta)
+    @{ Key = 'OB_Cast_SwiftCut'; Clone = 10723; Sound = 'OathbladeQuickHit'; Fields = @{ 2 = 17; 5 = 3924 } }
+    @{ Key = 'OB_Cast_Thrust'; Clone = 11860; Sound = 'OathbladeQuickHit'; Fields = @{} }
+    @{ Key = 'OB_Cast_Advance'; Clone = 324; Sound = 'OathbladeQuickHit'; Fields = @{ 5 = 3924 } }
+    @{ Key = 'OB_Cast_Reversal'; Clone = 324; Sound = 'OathbladeParryHit'; Fields = @{ 5 = 3924 } }
+    @{ Key = 'OB_Cast_Zeal'; Clone = 10723; Sound = 'OathbladeHeavyHit'; Fields = @{} }
+    @{ Key = 'OB_Cast_Verdict'; Clone = 10722; Sound = 'OathbladeHeavyHit'; Fields = @{} }
+    # Camera shake, kept light: only Final Edict and the start of the burst move the camera, and only by shake 3,
+    # the smallest one that can be felt (amplitude 2, 0.4 sec, one axis). 5 (amplitude 4) and 79 (10, all three
+    # axes) were both too much. The frost ground trail spreads from the caster under the blow.
+    @{ Key = 'OB_Cast_Edict'; Clone = 10722; Sound = 'OathbladeFinisher'; Fields = @{ 16 = 3; 11 = 4799 } }
+    # The spins: Whirlwind's spin and deep blue trail (was Divine Storm, gold), with a frost ring on the ground
+    @{ Key = 'OB_Cast_Sweep'; Clone = 369; Sound = 'OathbladeAoE'; Fields = @{ 5 = 282 } }
+    @{ Key = 'OB_Cast_Crescent'; Clone = 369; Sound = 'OathbladeAoE'; Fields = @{ 5 = 282; 14 = 4490 } }
+    # Fan of Knives' spin and blades, the blades glowing blue
+    @{ Key = 'OB_Cast_BladeDance'; Clone = 11409; Sound = 'OathbladeAoE'; Fields = @{ 9 = 1644; 10 = 1644 } }
+    # Hungering Cold's frost bursting out of the spin
+    @{ Key = 'OB_Cast_Flourish'; Clone = 369; Sound = 'OathbladeFinisher'; Fields = @{ 5 = 282; 14 = 4533 } }
+    # Impact kits: the effect on the target, silent
+    @{ Key = 'OB_Imp_Frost'; Clone = 10724; Fields = @{ 15 = 0 } }
+    # Arcane rather than the Seal's gold hit
+    @{ Key = 'OB_Imp_Oath'; Clone = 1005; Fields = @{ 15 = 0 } }
+    @{ Key = 'OB_Imp_Verdict'; Clone = 10284; Fields = @{ 15 = 0 } }
+    @{ Key = 'OB_Imp_Edict'; Clone = 10727; Fields = @{ 15 = 0 } }
+    # Frost Strike's burst on every enemy the spin catches (was Divine Storm's gold)
+    @{ Key = 'OB_Imp_Storm'; Clone = 10724; Fields = @{ 15 = 0 } }
+    @{ Key = 'OB_Imp_Knives'; Clone = 11408; Fields = @{ 15 = 0; 5 = 4501 } }
+    # Howling Blast's frost burst (was the warrior's brown shockwave)
+    @{ Key = 'OB_Imp_Shock'; Clone = 10727; Fields = @{ 15 = 0 } }
+    #
+    # Flawless Form, the burst. It should land like a transformation: a blast of frost out of the Oathblade,
+    # the body lit blue and the blades glowing for as long as it lasts, every technique echoed by a crackling
+    # arcane-frost strike, and a shatter when it ends.
+    # Entering it: Howling Blast's explosion around the caster, its roar, and a light camera nudge
+    @{ Key = 'OB_Burst_Cast'; Clone = 10810; Fields = @{ 14 = 4490; 15 = 13167; 16 = 3 } }
+    # While it lasts: Icy Veins' frost aura, both blades glowing blue, and the whole body tinted ice-blue
+    # (CharProc 1 is the tint; colour and fade are Frost Nova's, which is how a frozen target turns blue)
+    @{ Key = 'OB_Burst_State'; Clone = 10991; Fields = @{ 9 = 1644; 10 = 1644; 17 = 1
+        21 = (Get-FloatBits 6711039); 25 = 0; 29 = (Get-FloatBits 1); 33 = (Get-FloatBits 0.5) } }
+    # Its end: the frost shatters off the body
+    @{ Key = 'OB_Burst_End'; Clone = 10727; Fields = @{ 15 = 12879 } }
+    # Every echo of a technique during it: Arcane Barrage's crackling burst over Frost Strike's frost, with the
+    # barrage's sharp report, so the burst sounds as fast as it plays
+    @{ Key = 'OB_Imp_Echo'; Clone = 9849; Fields = @{ 5 = 4501 } }
+    #
+    # The utility abilities, which used to show their clone's look (Blade Ward none, Flourish and Rally Sprint's)
+    # Blade Ward: frost gathered in both hands, then Icebound Fortitude's shell for as long as the ward holds
+    @{ Key = 'OB_Ward_Cast'; Clone = 203; Fields = @{ 15 = 0 } }
+    @{ Key = 'OB_Ward_State'; Clone = 10299; Fields = @{} }
+    # Flourish: an arcane burst at the feet and frost in both hands
+    @{ Key = 'OB_Flourish_Cast'; Clone = 1004; Sound = 'OathbladeQuickHit'; Fields = @{ 6 = 126; 7 = 126 } }
+    # Rally: frost in both hands and Restoration's rising light, with its sound
+    @{ Key = 'OB_Rally_Cast'; Clone = 183; Fields = @{ 5 = 147; 6 = 126; 7 = 126; 15 = 1482 } }
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15
@@ -917,6 +1073,9 @@ if (-not (Test-Path -LiteralPath $visualKitBackupPath)) {
 if (-not (Test-Path -LiteralPath $soundBackupPath)) {
     Copy-Item -LiteralPath $serverSoundPath -Destination $soundBackupPath
 }
+if (-not (Test-Path -LiteralPath $effectNameBackupPath)) {
+    Copy-Item -LiteralPath $serverEffectNamePath -Destination $effectNameBackupPath
+}
 
 # Table DBC without strings: records by id, and appends new records built from copies of existing ones
 function Read-Dbc([string]$path, [string]$name, [int]$fields) {
@@ -998,7 +1157,9 @@ function Add-SoundEntry($dbc, $sound) {
     Set-Field $record 2 (Add-DbcString $dbc.Strings $sound.Name)
     for ($index = 0; $index -lt 10; ++$index) {
         if ($index -lt $sound.Files.Count) {
-            Set-Field $record (3 + $index) (Add-DbcString $dbc.Strings $sound.Files[$index])
+            $fileName = $sound.Files[$index]
+            if ($sound.Format -eq 'wav') { $fileName = [IO.Path]::ChangeExtension($fileName, '.wav') }
+            Set-Field $record (3 + $index) (Add-DbcString $dbc.Strings $fileName)
             Set-Field $record (13 + $index) 1
         }
         else {
@@ -1031,10 +1192,68 @@ foreach ($sound in $customSounds) {
 }
 $visualDbc = Read-Dbc $visualBackupPath 'SpellVisual.dbc' 32
 $visualKitDbc = Read-Dbc $visualKitBackupPath 'SpellVisualKit.dbc' 38
+
+# --- SpellVisualEffectName.dbc: the Oathblade's own blue effect models ---
+#
+# Every effect model an Oathblade kit (OB_*) plays, its own or inherited from the kit it clones, gets a blue copy
+# (localTools\oathblade\buildBlueEffects.py) and a new effect record naming it, and the kit is pointed at that record.
+# The stock models and records are left alone, so no other class's spells change.
+$effectNameDbc = Read-StringDbc $effectNameBackupPath 'SpellVisualEffectName.dbc' 7
+$EffectFields = 3..14
+
+function Get-KitField($kit, [int]$field) {
+    if ($kit.Fields.ContainsKey($field)) { return [uint32]$kit.Fields[$field] }
+    return Read-Field $visualKitDbc.Data $visualKitDbc.Offsets[[int]$kit.Clone] $field
+}
+
+function Get-StringDbcString($dbc, [uint32]$offset) {
+    $start = 20 + $dbc.RecordsSize + $offset
+    $end = [Array]::IndexOf($dbc.Data, [byte]0, $start)
+    return [Text.Encoding]::UTF8.GetString($dbc.Data, $start, $end - $start)
+}
+
+$oathbladeKits = @($customVisualKits | Where-Object { $_.Key -like 'OB_*' })
+$stockEffectIds = [Collections.Generic.SortedSet[uint32]]::new()
+foreach ($kit in $oathbladeKits) {
+    foreach ($field in $EffectFields) {
+        $effectId = Get-KitField $kit $field
+        if ($effectId) { [void]$stockEffectIds.Add($effectId) }
+    }
+}
+$effectList = @(foreach ($effectId in $stockEffectIds) {
+    if (-not $effectNameDbc.Offsets.ContainsKey([int]$effectId)) {
+        throw "SpellVisualEffectName $effectId was not found."
+    }
+    $fileName = Read-Field $effectNameDbc.Data $effectNameDbc.Offsets[[int]$effectId] 2
+    [ordered]@{ id = $effectId; path = Get-StringDbcString $effectNameDbc $fileName }
+})
+$effectListPath = Join-Path ([IO.Path]::GetTempPath()) 'oathblade-effects.json'
+$effectMappingPath = Join-Path ([IO.Path]::GetTempPath()) 'oathblade-effect-mapping.json'
+[IO.File]::WriteAllText($effectListPath, (ConvertTo-Json -InputObject $effectList -Depth 3))
+& python (Join-Path $repoRoot 'localTools\oathblade\buildBlueEffects.py') $effectListPath $effectMappingPath
+if ($LASTEXITCODE -ne 0) { throw 'Oathblade blue effect models failed to build.' }
+$blueEffectIds = @{}
+foreach ($entry in (Get-Content -LiteralPath $effectMappingPath -Raw | ConvertFrom-Json).PSObject.Properties) {
+    $record = [byte[]]::new($effectNameDbc.RecordSize)
+    [Array]::Copy($effectNameDbc.Data, $effectNameDbc.Offsets[[int]$entry.Name], $record, 0, $effectNameDbc.RecordSize)
+    $effectNameDbc.MaxId = $effectNameDbc.MaxId + 1
+    Set-Field $record 0 ([uint32]$effectNameDbc.MaxId)
+    Set-Field $record 1 (Add-DbcString $effectNameDbc.Strings ('Oathblade ' + [IO.Path]::GetFileNameWithoutExtension($entry.Value)))
+    Set-Field $record 2 (Add-DbcString $effectNameDbc.Strings $entry.Value)
+    $effectNameDbc.NewRecords.AddRange($record)
+    $blueEffectIds[[uint32]$entry.Name] = [uint32]$effectNameDbc.MaxId
+}
+
 $kitIdsByKey = @{}
 foreach ($kit in $customVisualKits) {
     $fields = @{}
     foreach ($field in $kit.Fields.Keys) { $fields[$field] = $kit.Fields[$field] }
+    if ($kit.Key -like 'OB_*') {
+        foreach ($field in $EffectFields) {
+            $effectId = Get-KitField $kit $field
+            if ($effectId) { $fields[$field] = $blueEffectIds[$effectId] }
+        }
+    }
     if ($kit.Sound) { $fields[15] = $soundIdsByKey[$kit.Sound] }
     $kitIdsByKey[$kit.Key] = Add-DbcRecordCopy $visualKitDbc $kit.Clone $fields
 }
@@ -1418,6 +1637,18 @@ foreach ($custom in $customSpells) {
         Set-Field $record 211 0
         Set-Field $record 226 0
     }
+    # The Oathblade: 90800-90999, and 91000-91199 for its talent trees (localTools\oathblade\talentTree.json)
+    if ([int]$custom.Id -ge 90800 -and [int]$custom.Id -le 91199) {
+        Set-Field $record 1 0
+        Set-Field $record 12 0
+        Set-Field $record 13 0
+        Set-Field $record 41 3
+        Set-Field $record 208 19
+        Set-Field $record 209 0
+        Set-Field $record 210 0
+        Set-Field $record 211 0
+        Set-Field $record 226 0
+    }
     # The Pestiféré is a rage class built on Death Knight spells: without this every clone keeps its
     # source's rune cost and asks for Blood runes the class can never have.
     if ([int]$custom.Id -ge 90200 -and [int]$custom.Id -le 90399) {
@@ -1558,12 +1789,44 @@ $soundOutput = Get-StringDbcOutput $soundDbc
 [IO.File]::WriteAllBytes($clientVisualKitPath, $visualKitOutput)
 [IO.File]::WriteAllBytes($serverSoundPath, $soundOutput)
 [IO.File]::WriteAllBytes($clientSoundPath, $soundOutput)
+$effectNameOutput = Get-StringDbcOutput $effectNameDbc
+[IO.File]::WriteAllBytes($serverEffectNamePath, $effectNameOutput)
+[IO.File]::WriteAllBytes($clientEffectNamePath, $effectNameOutput)
 
 $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'CombatRogue_*.tga' -ErrorAction SilentlyContinue).Count
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize
 Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisualCount new, $($customVisualKits.Count) new kits)."
+Write-Host "Oathblade: $($blueEffectIds.Count) blue effect models of its own, used by its $($oathbladeKits.Count) kits."
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
 Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."
 Write-Host "Combat rogue icons generated: $generatedIcons (missing ones use stock game icons)."
+
+# --- No Oathblade spell may require combo points -----------------------------------------------------------
+#
+# Every one of them clones a rogue ability, and a rogue finisher carries SPELL_ATTR1_FINISHING_MOVE_DAMAGE
+# (0x00100000) or _DURATION (0x00400000) in AttributesEx. Unless a spell sets that field explicitly it keeps
+# its clone's, and the client then refuses the cast with "requires combo points". This class spends Flow.
+#
+# Read back off the file that was just written, so it checks what shipped rather than what was intended.
+$comboBits = 0x00100000 -bor 0x00400000
+$verifyBytes = [IO.File]::ReadAllBytes($serverSpellPath)
+$verifyCount = [BitConverter]::ToInt32($verifyBytes, 4)
+$verifySize = [BitConverter]::ToInt32($verifyBytes, 12)
+$comboOffenders = [Collections.Generic.List[string]]::new()
+for ($index = 0; $index -lt $verifyCount; ++$index) {
+    $recordAt = 20 + $index * $verifySize
+    $spellId = [BitConverter]::ToUInt32($verifyBytes, $recordAt)
+    if ($spellId -lt 90800 -or $spellId -gt 91199) { continue }
+    $attributesEx = [BitConverter]::ToInt32($verifyBytes, $recordAt + 5 * 4)
+    if ($attributesEx -band $comboBits) {
+        [void]$comboOffenders.Add("$spellId (AttributesEx 0x{0:X8})" -f $attributesEx)
+    }
+}
+if ($comboOffenders.Count) {
+    throw ("Oathblade spells still require combo points: " + ($comboOffenders -join ', ') +
+        ". Set field 5 on them in localTools\oathblade\Spells.ps1 instead of inheriting the clone's.")
+}
+Write-Host "Checked $($comboOffenders.Count + 0) Oathblade spells requiring combo points (expected 0)."
+

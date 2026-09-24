@@ -12,6 +12,9 @@
     "              start gear of its slot (a two-hander replaces the sword): gear for a class starting above 1.",
     "previewOutfit Item ids used only to dress the character-creation model. The generated outfit keeps the",
     "              start class's real item ids, so preview armor is never granted to a new character.",
+    "stockPreviewOutfits (top level) The same for the stock classes: class id -> item ids, dressing every race",
+    "              and gender of that class on the creation screen (keys starting with _ are comments).",
+    "              An entry may be [item id, inventory type] to show an item in another slot (21 main hand).",
     "startLike     { race, class }: every race starts exactly where that race and class do.",
     "classSkill    { id, name, icon }: the class's own skill line, which is its spellbook tab, and the",
     "              carries the template's tabs (a Pestiféré would have Blood, Frost and Unholy).",
@@ -31,6 +34,9 @@
     "                            ranks (one spell id per rank, authored in patchSinisterStrike.ps1),",
     "                            requires { talent: <name>, rank } }. A prerequisite is drawn by the client",
     "                            as a straight line, so keep it in the same column with nothing in between.",
+    "talentTree    Path of a retail-style talent tree (class tree + spec tree) replacing the WotLK talents: the",
+    "              class then gets no stock talent points, and its talentTabs stay empty (the client still needs",
+    "              three). Built by localTools/talentTree/buildTalentTree.py; see localTools/oathblade/talentTree.json.",
     "inheritSpells true (default): the class also starts with the template's abilities and uses its trainers.",
     "              false: only the spells listed in startSpells, for a class with an authored kit.",
     "startSpells   Spells a new character knows: proficiencies and its own abilities.",
@@ -47,6 +53,28 @@
     "detailsCell   Free cell [column, row] of Details' class icon sheet: [2, 2] or [3, 2].",
     "color         Class color as [r, g, b] 0-1, for unit frames and chat."
   ],
+  "stockPreviewOutfits": {
+    "_1": "Warrior: Sanctified Ymirjar Lord's Battlegear, Shadowmourne",
+    "1": [51227, 51229, 51225, 51228, 51226, 50620, 50625, 50611, 50653, 49623],
+    "_2": "Paladin: Sanctified Lightsworn Battlegear, Bryntroll",
+    "2": [51277, 51279, 51275, 51278, 51276, 50667, 50632, 50721, 50653, 50709],
+    "_3": "Hunter: Sanctified Ahn'Kahar Blood Hunter's Battlegear, Zod's Repeating Longbow and Oathbinder",
+    "3": [51286, 51288, 51289, 51287, 51285, 50671, 50652, 50687, 50653, 50638, 50735],
+    "_4": "Rogue: Sanctified Shadowblade Battlegear, Heaven's Fall and a gladiator's dirk",
+    "4": [51252, 51254, 51250, 51253, 51251, 50707, 50607, 50670, 50653, 50736, 51442],
+    "_5": "Priest: Sanctified Crimson Acolyte Regalia, the Royal Scepter of Terenas II and the Sundial",
+    "5": [51255, 51257, 51259, 51258, 51256, 50613, 50699, 50651, 50628, 50734, 50635],
+    "_6": "Death Knight: Sanctified Scourgelord Battlegear, Frostmourne",
+    "6": [51306, 51309, 51310, 51308, 51311, 50620, 50625, 50611, 50653, 33475],
+    "_7": "Shaman: Sanctified Frost Witch's Battlegear, Trauma and a shield",
+    "7": [51242, 51240, 51244, 51236, 51238, 50671, 50652, 50687, 50653, 50685, 50616],
+    "_8": "Mage: Sanctified Bloodmage Regalia, Archus, Greatstaff of Antonidas",
+    "8": [51281, 51284, 51283, 51282, 51280, 50613, 50699, 50651, 50628, 50731],
+    "_9": "Warlock: Sanctified Dark Coven Regalia, Bloodsurge and the Shadow Silk Spindle",
+    "9": [51231, 51234, 51233, 51232, 51230, 50613, 50699, 50651, 50628, 50732, 50719],
+    "_11": "Druid: Sanctified Lasherweave Regalia, Distant Land",
+    "11": [51290, 51292, 51298, 51297, 51301, 50707, 50607, 50670, 50653, 50695]
+  },
   "classes": [
     {
       "id": 12,
@@ -59,114 +87,21 @@
       "startOutfit": [6195, 832, 2978, 3302, 2980, 3188],
       "previewOutfit": [50096, 50098, 50094, 51000, 50097, 51787, 50095, 50415],
       "classSkill": { "id": 900, "name": "Pestiféré", "icon": "Pestifere_Pourriture" },
+      "talentTree": "localTools/pestifere/talentTree.json",
       "talentTabs": [{
         "id": 900,
         "name": "Charnier",
         "background": "PestifereCharnier",
         "icon": "PestifereTalent_CharnierAmbulant",
         "tabPage": 0,
-        "talents": [
-          { "id": 2900, "name": "Peau coriace", "tier": 0, "column": 0, "ranks": [90231, 90232, 90233] },
-          { "id": 2901, "name": "Chair putride", "tier": 0, "column": 1, "ranks": [90212] },
-          { "id": 2902, "name": "Rage fielleuse", "tier": 0, "column": 2, "ranks": [90234, 90235, 90236] },
-
-          { "id": 2903, "name": "Peste virulente", "tier": 1, "column": 1, "ranks": [90214],
-            "requires": { "talent": "Chair putride", "rank": 1 } },
-          { "id": 2904, "name": "Miasme", "tier": 1, "column": 2, "ranks": [90240, 90241, 90242] },
-          { "id": 2905, "name": "Inoculation rapide", "tier": 1, "column": 3, "ranks": [90238, 90239] },
-
-          { "id": 2906, "name": "Mains putrides", "tier": 2, "column": 0, "ranks": [90243, 90244, 90245] },
-          { "id": 2918, "name": "Contagion galopante", "tier": 2, "column": 1, "ranks": [90269, 90270] },
-          { "id": 2907, "name": "Symbiose morbide", "tier": 2, "column": 2, "ranks": [90249, 90250] },
-          { "id": 2908, "name": "Fossoyeur", "tier": 2, "column": 3, "ranks": [90246, 90247, 90248] },
-
-          { "id": 2909, "name": "Métabolisme nécrotique", "tier": 3, "column": 0, "ranks": [90251, 90252, 90253] },
-          { "id": 2919, "name": "Crocs infectés", "tier": 3, "column": 1, "ranks": [90288, 90289, 90290] },
-          { "id": 2911, "name": "Charnier ambulant", "tier": 3, "column": 3, "ranks": [90256] },
-
-          { "id": 2912, "name": "Croûte nécrosée", "tier": 4, "column": 0, "ranks": [90257, 90258, 90259] },
-          { "id": 2913, "name": "Menace contagieuse", "tier": 4, "column": 2, "ranks": [90260, 90261, 90262] },
-          { "id": 2914, "name": "Porteur endurci", "tier": 4, "column": 3, "ranks": [90263, 90264] },
-
-          { "id": 2920, "name": "Fièvre", "tier": 5, "column": 0, "ranks": [90271, 90272, 90273] },
-          { "id": 2915, "name": "Résilience du porteur", "tier": 5, "column": 1, "ranks": [90266, 90267] },
-          { "id": 2916, "name": "Purge cathartique", "tier": 5, "column": 2, "ranks": [90265] },
-          { "id": 2921, "name": "Bile corrosive", "tier": 5, "column": 3, "ranks": [90278, 90279, 90280] },
-
-          { "id": 2922, "name": "Riposte fétide", "tier": 6, "column": 0, "ranks": [90276, 90277] },
-          { "id": 2923, "name": "Hôte parfait", "tier": 6, "column": 1, "ranks": [90281, 90282, 90283] },
-          { "id": 2910, "name": "Détonation en chaîne", "tier": 6, "column": 2, "ranks": [90254, 90255] },
-
-          { "id": 2924, "name": "Pus épais", "tier": 7, "column": 0, "ranks": [90293, 90294, 90295] },
-          { "id": 2925, "name": "Vomissure", "tier": 7, "column": 1, "ranks": [90284] },
-          { "id": 2926, "name": "Charognard", "tier": 7, "column": 2, "ranks": [90274, 90275] },
-
-          { "id": 2927, "name": "Rigor mortis", "tier": 8, "column": 1, "ranks": [90285] },
-          { "id": 2928, "name": "Pandémie prolongée", "tier": 8, "column": 2, "ranks": [90291, 90292] },
-
-          { "id": 2917, "name": "Sépulcre", "tier": 9, "column": 1, "ranks": [90268],
-            "requires": { "talent": "Rigor mortis", "rank": 1 } },
-
-          { "id": 2929, "name": "Avatar de la peste", "tier": 10, "column": 1, "ranks": [90287],
-            "requires": { "talent": "Sépulcre", "rank": 1 } }
-        ]
+        "talents": []
       }, {
         "id": 901,
         "name": "Sangsue",
         "background": "PestifereSangsue",
         "icon": "PestifereHealer_Sangsue",
         "tabPage": 1,
-        "talents": [
-          { "id": 2930, "name": "Humeurs noires", "tier": 0, "column": 0, "ranks": [90320, 90321, 90322] },
-          { "id": 2931, "name": "Transfusion", "tier": 0, "column": 1, "ranks": [90300] },
-          { "id": 2932, "name": "Veines gonflées", "tier": 0, "column": 2, "ranks": [90323, 90324, 90325] },
-
-          { "id": 2933, "name": "Transfusion vigoureuse", "tier": 1, "column": 0, "ranks": [90326, 90327, 90328] },
-          { "id": 2934, "name": "Sangsue", "tier": 1, "column": 1, "ranks": [90302],
-            "requires": { "talent": "Transfusion", "rank": 1 } },
-          { "id": 2935, "name": "Coagulation", "tier": 1, "column": 2, "ranks": [90329, 90330, 90331] },
-          { "id": 2959, "name": "Spores fertiles", "tier": 1, "column": 3, "ranks": [90376, 90377, 90378] },
-
-          { "id": 2936, "name": "Saignée", "tier": 2, "column": 0, "ranks": [90303] },
-          { "id": 2937, "name": "Sangsue vorace", "tier": 2, "column": 1, "ranks": [90332, 90333],
-            "requires": { "talent": "Sangsue", "rank": 1 } },
-          { "id": 2938, "name": "Carapace partagée", "tier": 2, "column": 2, "ranks": [90334] },
-          { "id": 2939, "name": "Triage", "tier": 2, "column": 3, "ranks": [90335, 90336] },
-
-          { "id": 2940, "name": "Saignée profonde", "tier": 3, "column": 0, "ranks": [90337, 90338, 90339],
-            "requires": { "talent": "Saignée", "rank": 1 } },
-          { "id": 2941, "name": "Absorption morbide", "tier": 3, "column": 1, "ranks": [90304] },
-          { "id": 2942, "name": "Anticorps", "tier": 3, "column": 2, "ranks": [90340, 90341, 90342] },
-          { "id": 2943, "name": "Réserve de sang", "tier": 3, "column": 3, "ranks": [90343, 90344, 90345] },
-
-          { "id": 2944, "name": "Sangsue prolifère", "tier": 4, "column": 0, "ranks": [90346, 90347] },
-          { "id": 2945, "name": "Don de sang", "tier": 4, "column": 1, "ranks": [90305] },
-          { "id": 2946, "name": "Détonation salvatrice", "tier": 4, "column": 2, "ranks": [90348, 90349] },
-          { "id": 2947, "name": "Circulation", "tier": 4, "column": 3, "ranks": [90350, 90351, 90352] },
-
-          { "id": 2950, "name": "Sang partagé", "tier": 5, "column": 0, "ranks": [90358, 90359] },
-          { "id": 2948, "name": "Donneur universel", "tier": 5, "column": 1, "ranks": [90353, 90354],
-            "requires": { "talent": "Don de sang", "rank": 1 } },
-          { "id": 2949, "name": "Contagion bénigne", "tier": 5, "column": 2, "ranks": [90355, 90356, 90357] },
-          { "id": 2960, "name": "Brume pestilentielle", "tier": 5, "column": 3, "ranks": [90315] },
-
-          { "id": 2953, "name": "Sangsue géante", "tier": 6, "column": 0, "ranks": [90363, 90364] },
-          { "id": 2951, "name": "Symbiote", "tier": 6, "column": 1, "ranks": [90306] },
-          { "id": 2952, "name": "Force vitale", "tier": 6, "column": 2, "ranks": [90360, 90361, 90362] },
-
-          { "id": 2961, "name": "Pustules multiples", "tier": 7, "column": 0, "ranks": [90379, 90380] },
-          { "id": 2954, "name": "Symbiose parfaite", "tier": 7, "column": 1, "ranks": [90365, 90366],
-            "requires": { "talent": "Symbiote", "rank": 1 } },
-          { "id": 2955, "name": "Sang de l'hôte", "tier": 7, "column": 2, "ranks": [90367, 90368, 90369] },
-
-          { "id": 2956, "name": "Hémophagie", "tier": 8, "column": 1, "ranks": [90370, 90371, 90372] },
-          { "id": 2962, "name": "Essaim vorace", "tier": 8, "column": 2, "ranks": [90381, 90382] },
-
-          { "id": 2957, "name": "Cœur battant", "tier": 9, "column": 1, "ranks": [90375] },
-
-          { "id": 2958, "name": "Pestilence salvatrice", "tier": 10, "column": 1, "ranks": [90308],
-            "requires": { "talent": "Cœur battant", "rank": 1 } }
-        ]
+        "talents": []
       }, {
         "id": 902,
         "name": "Putréfaction",
@@ -209,51 +144,19 @@
       "races": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11],
       "startLevel": 15,
       "startOutfit": [3310, 4786, 10048, 4313, 3645, 14367, 1190, 21934, 21932, 1300, 11288],
+      "previewOutfit": [47789, 47792, 47791, 47790, 47788, 50613, 50699, 50651, 50628, 50648],
       "iconCell": [2, 2],
       "classIcon": "localTools/interface/assets/classes/necromancer.png",
       "detailsCell": [3, 2],
       "color": [0.58, 0.43, 0.72],
+      "talentTree": "localTools/necromancer/talentTree.json",
       "talentTabs": [{
         "id": 903,
         "name": "Légion",
         "background": "DeathKnightUnholy",
         "icon": "NecromancerTalent_MasterOfTheDead",
         "tabPage": 0,
-        "talents": [
-          { "id": 3000, "name": "Savoir interdit", "tier": 0, "column": 0, "ranks": [90500, 90501, 90502, 90503, 90504] },
-          { "id": 3001, "name": "Rituels rapides", "tier": 0, "column": 1, "ranks": [90505, 90506, 90507] },
-          { "id": 3002, "name": "Réservoir d'âmes", "tier": 0, "column": 2, "ranks": [90508, 90509] },
-
-          { "id": 3003, "name": "Artisan des os", "tier": 1, "column": 0, "ranks": [90510, 90511, 90512] },
-          { "id": 3004, "name": "Économie funèbre", "tier": 1, "column": 1, "ranks": [90513, 90514] },
-          { "id": 3005, "name": "Marque profonde", "tier": 1, "column": 2, "ranks": [90515, 90516, 90517] },
-
-          { "id": 3006, "name": "Fer de lance d'os", "tier": 2, "column": 0, "ranks": [90518],
-            "requires": { "talent": "Artisan des os", "rank": 3 } },
-          { "id": 3007, "name": "Commandement impitoyable", "tier": 2, "column": 2, "ranks": [90519, 90520, 90521] },
-          { "id": 3008, "name": "Marche sans fin", "tier": 2, "column": 3, "ranks": [90522, 90523, 90524] },
-
-          { "id": 3009, "name": "Tireurs de la crypte", "tier": 3, "column": 0, "ranks": [90525, 90526, 90527] },
-          { "id": 3010, "name": "Âmes débordantes", "tier": 3, "column": 1, "ranks": [90528, 90529] },
-          { "id": 3011, "name": "Doctrine de la peste", "tier": 3, "column": 2, "ranks": [90530, 90531, 90532] },
-
-          { "id": 3012, "name": "Marée des tombes", "tier": 4, "column": 1, "ranks": [90533] },
-          { "id": 3013, "name": "Cohorte immortelle", "tier": 4, "column": 2, "ranks": [90534, 90535, 90536] },
-          { "id": 3014, "name": "Légion innombrable", "tier": 4, "column": 3, "ranks": [90537, 90538] },
-
-          { "id": 3015, "name": "Frénésie parfaite", "tier": 5, "column": 0, "ranks": [90539, 90540, 90541] },
-          { "id": 3016, "name": "Feu des âmes", "tier": 5, "column": 1, "ranks": [90542, 90543, 90544] },
-          { "id": 3017, "name": "Sceau éternel", "tier": 5, "column": 2, "ranks": [90545, 90546] },
-
-          { "id": 3018, "name": "Chair d'abomination", "tier": 6, "column": 0, "ranks": [90547, 90548, 90549] },
-          { "id": 3019, "name": "Présence du maître", "tier": 6, "column": 1, "ranks": [90550, 90551, 90552, 90553, 90554] },
-          { "id": 3020, "name": "Volonté nécrotique", "tier": 6, "column": 2, "ranks": [90555, 90556, 90557] },
-
-          { "id": 3021, "name": "Moisson vorace", "tier": 7, "column": 1, "ranks": [90558, 90559, 90560] },
-
-          { "id": 3022, "name": "Maître des morts", "tier": 10, "column": 1, "ranks": [90561],
-            "requires": { "talent": "Présence du maître", "rank": 5 } }
-        ]
+        "talents": []
       }, {
         "id": 904,
         "name": "Ossuaire",
@@ -270,6 +173,52 @@
         "talents": []
       }],
       "startSpells": [6603, 90400, 90402, 90422]
+    },
+    {
+      "id": 10,
+      "token": "OATHBLADE",
+      "name": "Oathblade",
+      "comment": "Noble sword duelist with frequent accelerated burst windows",
+      "templateClass": 4,
+      "startClass": 4,
+      "extraSkills": [413, 293],
+      "classSkill": { "id": 902, "name": "Swordcraft", "icon": "Ability_Warrior_SavageBlow" },
+      "inheritSpells": false,
+      "powerType": 3,
+      "spellFamily": 19,
+      "roles": ["damage"],
+      "races": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11],
+      "startLevel": 1,
+      "startOutfit": [25],
+      "previewOutfit": [48433, 48381, 48385, 48382, 48453, 50667, 50632, 50721, 50653, [51448, 21], 51448],
+      "iconCell": [0, 3],
+      "classIcon": "localTools/interface/assets/classes/oathblade.png",
+      "detailsCell": [0, 3],
+      "color": [0.16, 0.56, 1.0],
+      "talentTree": "localTools/oathblade/talentTree.json",
+      "talentTabs": [{
+        "id": 906,
+        "name": "Swordcraft",
+        "background": "RogueCombat",
+        "icon": "Ability_Warrior_SavageBlow",
+        "tabPage": 0,
+        "talents": []
+      }, {
+        "id": 907,
+        "name": "Honor",
+        "background": "PaladinRetribution",
+        "icon": "Spell_Holy_RetributionAura",
+        "tabPage": 1,
+        "talents": []
+      }, {
+        "id": 908,
+        "name": "Aegis",
+        "background": "WarriorProtection",
+        "icon": "Ability_Warrior_DefensiveStance",
+        "tabPage": 2,
+        "talents": []
+      }],
+      "startSpells": [6603, 9078, 9077, 8737, 750, 201, 674, 3127, 90800]
     }
   ]
 }
