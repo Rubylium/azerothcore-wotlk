@@ -53,6 +53,7 @@
 #include "GridNotifiersImpl.h"
 #include "GroupMgr.h"
 #include "GuildMgr.h"
+#include "HitchProfiler.h"
 #include "InstanceSaveMgr.h"
 #include "IPLocation.h"
 #include "ItemEnchantmentMgr.h"
@@ -186,6 +187,7 @@ void World::LoadConfigSettings(bool reload)
 
     // load update time related configs
     sWorldUpdateTime.LoadFromConfig();
+    sHitchProfiler.LoadFromConfig();
 
     ///- Read the player limit and the Message of the day from the config file
     if (!reload)
@@ -1123,6 +1125,7 @@ void World::DetectDBCLang()
 void World::Update(uint32 diff)
 {
     METRIC_TIMER("world_update_time_total");
+    sHitchProfiler.BeginTick(diff, sWorldSessionMgr->GetActiveSessionCount());
 
     ///- Update the game time and check for shutdown time
     _UpdateGameTime();
@@ -1158,12 +1161,14 @@ void World::Update(uint32 diff)
     if (_timers[WUPDATE_WHO_LIST].Passed())
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update who list"));
+        HITCH_PROFILE_SCOPE("Update who list");
         _timers[WUPDATE_WHO_LIST].Reset();
         sWhoListCacheMgr->Update();
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Check quest reset times"));
+        HITCH_PROFILE_SCOPE("Check quest reset times");
 
         /// Handle daily quests reset time
         if (currentGameTime > _nextDailyQuestReset)
@@ -1202,22 +1207,28 @@ void World::Update(uint32 diff)
         ResetGuildCap();
     }
 
-    sScriptMgr->OnPlayerbotUpdate(diff);
+    {
+        HITCH_PROFILE_SCOPE("Update playerbots");
+        sScriptMgr->OnPlayerbotUpdate(diff);
+    }
 
     {
         // pussywizard: handle expired auctions, auctions expired when realm was offline are also handled here (not during loading when many required things aren't loaded yet)
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update expired auctions"));
+        HITCH_PROFILE_SCOPE("Update auctions");
         sAuctionMgr->Update(diff);
     }
 
     if (currentGameTime > _mail_expire_check_timer)
     {
+        HITCH_PROFILE_SCOPE("Expire old mail");
         sMailMgr->ReturnOrDeleteOldMails(true);
         _mail_expire_check_timer = currentGameTime + 6h;
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update sessions"));
+        HITCH_PROFILE_SCOPE("Update sessions");
         sWorldSessionMgr->UpdateSessions(diff);
     }
 
@@ -1239,12 +1250,14 @@ void World::Update(uint32 diff)
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update LFG 0"));
+        HITCH_PROFILE_SCOPE("Update LFG cleanup");
         sLFGMgr->Update(diff, 0); // pussywizard: remove obsolete stuff before finding compatibility during map update
     }
 
     {
         ///- Update objects when the timer has passed (maps, transport, creatures, ...)
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update maps"));
+        HITCH_PROFILE_SCOPE("Update maps");
         sMapMgr->Update(diff);
     }
 
@@ -1260,31 +1273,37 @@ void World::Update(uint32 diff)
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update battlegrounds"));
+        HITCH_PROFILE_SCOPE("Update battlegrounds");
         sBattlegroundMgr->Update(diff);
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update outdoor pvp"));
+        HITCH_PROFILE_SCOPE("Update outdoor pvp");
         sOutdoorPvPMgr->Update(diff);
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update worldstate"));
+        HITCH_PROFILE_SCOPE("Update worldstate");
         sWorldState->Update(diff);
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update battlefields"));
+        HITCH_PROFILE_SCOPE("Update battlefields");
         sBattlefieldMgr->Update(diff);
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update LFG 2"));
+        HITCH_PROFILE_SCOPE("Update LFG proposals");
         sLFGMgr->Update(diff, 2); // pussywizard: handle created proposals
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Process query callbacks"));
+        HITCH_PROFILE_SCOPE("Process query callbacks");
         // execute callbacks from sql queries that were queued recently
         ProcessQueryCallbacks();
     }
@@ -1314,6 +1333,7 @@ void World::Update(uint32 diff)
     if (_timers[WUPDATE_EVENTS].Passed())
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update game events"));
+        HITCH_PROFILE_SCOPE("Update game events");
         _timers[WUPDATE_EVENTS].Reset();                   // to give time for Update() to be processed
         uint32 nextGameEvent = sGameEventMgr->Update();
         _timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);
@@ -1324,6 +1344,7 @@ void World::Update(uint32 diff)
     if (_timers[WUPDATE_PINGDB].Passed())
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Ping MySQL"));
+        HITCH_PROFILE_SCOPE("Ping MySQL");
         _timers[WUPDATE_PINGDB].Reset();
         LOG_DEBUG("sql.driver", "Ping MySQL to keep connection alive");
         CharacterDatabase.KeepAlive();
@@ -1334,18 +1355,21 @@ void World::Update(uint32 diff)
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update instance reset times"));
+        HITCH_PROFILE_SCOPE("Update instance resets");
         // update the instance reset times
         sInstanceSaveMgr->Update();
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Process cli commands"));
+        HITCH_PROFILE_SCOPE("Process CLI commands");
         // And last, but not least handle the issued cli commands
         ProcessCliCommands();
     }
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update world scripts"));
+        HITCH_PROFILE_SCOPE("Update world scripts");
         sScriptMgr->OnWorldUpdate(diff);
     }
 
@@ -1369,10 +1393,13 @@ void World::Update(uint32 diff)
 
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update metrics"));
+        HITCH_PROFILE_SCOPE("Update metrics");
         // Stats logger update
         sMetric->Update();
         METRIC_VALUE("update_time_diff", diff);
     }
+
+    sHitchProfiler.EndTick();
 }
 
 // Internally uses setFloatConfig. Retained for backwards compatibility

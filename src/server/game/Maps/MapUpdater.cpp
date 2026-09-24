@@ -17,6 +17,7 @@
 
 #include "MapUpdater.h"
 #include "DatabaseEnv.h"
+#include "HitchProfiler.h"
 #include "LFGMgr.h"
 #include "Log.h"
 #include "Map.h"
@@ -43,7 +44,11 @@ public:
     void call() override
     {
         METRIC_TIMER("map_update_time_diff", METRIC_TAG("map_id", std::to_string(m_map.GetId())));
+        auto const start = std::chrono::steady_clock::now();
         m_map.Update(m_diff, s_diff);
+        uint64 const durationUs = uint64(std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - start).count());
+        sHitchProfiler.RecordMapUpdate(m_map.GetId(), m_map.GetInstanceId(), durationUs);
         m_updater.update_finished();
     }
 

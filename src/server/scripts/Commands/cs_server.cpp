@@ -20,6 +20,7 @@
 #include "Common.h"
 #include "GameTime.h"
 #include "GitRevision.h"
+#include "HitchProfiler.h"
 #include "Log.h"
 #include "MapMgr.h"
 #include "ModuleMgr.h"
@@ -79,11 +80,20 @@ public:
             { "security",     HandleServerSetSecurityCommand,    rbac::RBAC_PERM_COMMAND_SERVER_SET_SECURITY, Console::Yes },
         };
 
+        static ChatCommandTable serverHitchCommandTable =
+        {
+            { "enable",        HandleServerHitchEnableCommand,    rbac::RBAC_PERM_COMMAND_SERVER_DEBUG, Console::Yes },
+            { "disable",       HandleServerHitchDisableCommand,   rbac::RBAC_PERM_COMMAND_SERVER_DEBUG, Console::Yes },
+            { "threshold",     HandleServerHitchThresholdCommand, rbac::RBAC_PERM_COMMAND_SERVER_DEBUG, Console::Yes },
+            { "",              HandleServerHitchStatusCommand,    rbac::RBAC_PERM_COMMAND_SERVER_DEBUG, Console::Yes }
+        };
+
         static ChatCommandTable serverCommandTable =
         {
             { "corpses",      HandleServerCorpsesCommand,        rbac::RBAC_PERM_COMMAND_SERVER_CORPSES,  Console::Yes },
             { "debug",        HandleServerDebugCommand,          rbac::RBAC_PERM_COMMAND_SERVER_DEBUG,    Console::Yes },
             { "exit",         HandleServerExitCommand,           rbac::RBAC_PERM_COMMAND_SERVER_EXIT,     Console::Yes },
+            { "hitch",        serverHitchCommandTable },
             { "idlerestart",  serverIdleRestartCommandTable },
             { "idleshutdown", serverIdleShutdownCommandTable },
             { "info",         HandleServerInfoCommand,           rbac::RBAC_PERM_COMMAND_SERVER_INFO,     Console::Yes },
@@ -108,6 +118,44 @@ public:
         {
             map->RemoveOldCorpses();
         });
+        return true;
+    }
+
+    static bool HandleServerHitchStatusCommand(ChatHandler* handler)
+    {
+        HitchProfilerSnapshot const snapshot = sHitchProfiler.GetSnapshot();
+        handler->PSendSysMessage("Hitch profiler: {}. Threshold: {}ms. Captured: {}. Last hitch: {}ms.",
+            snapshot.enabled ? "enabled" : "disabled", snapshot.thresholdMs, snapshot.hitchCount, snapshot.lastHitchMs);
+        handler->PSendSysMessage("World tick: {}. Current section: {}.",
+            snapshot.tickActive ? "active" : "idle", snapshot.currentSection);
+        handler->SendSysMessage("Detailed reports: Hitches.log");
+        return true;
+    }
+
+    static bool HandleServerHitchEnableCommand(ChatHandler* handler)
+    {
+        sHitchProfiler.SetEnabled(true);
+        handler->SendSysMessage("Hitch profiler enabled.");
+        return true;
+    }
+
+    static bool HandleServerHitchDisableCommand(ChatHandler* handler)
+    {
+        sHitchProfiler.SetEnabled(false);
+        handler->SendSysMessage("Hitch profiler disabled.");
+        return true;
+    }
+
+    static bool HandleServerHitchThresholdCommand(ChatHandler* handler, uint32 thresholdMs)
+    {
+        if (thresholdMs < 50 || thresholdMs > 10000)
+        {
+            handler->SendErrorMessage("Threshold must be between 50 and 10000 milliseconds.");
+            return false;
+        }
+
+        sHitchProfiler.SetThreshold(thresholdMs);
+        handler->PSendSysMessage("Hitch profiler threshold set to {}ms for this server session.", thresholdMs);
         return true;
     }
 

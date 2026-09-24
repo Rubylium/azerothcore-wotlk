@@ -580,6 +580,43 @@ RecordUpdateTimeDiffInterval = 300000
 MinRecordUpdateTimeDiff = 100
 
 #
+#    HitchProfiler.Enabled
+#        Description: Records world-thread stalls and their slowest update phases in Hitches.log.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+#
+#    HitchProfiler.ThresholdMs
+#        Description: Completed world ticks at or above this duration are reported.
+#        Default:     200
+#
+#    HitchProfiler.WatchdogMs
+#        Description: While a tick is still running, report its current phase after this duration.
+#        Default:     200
+#
+#    HitchProfiler.SectionThresholdMs
+#        Description: Minimum phase or map duration retained in the per-tick rolling buffer.
+#        Default:     2
+#
+#    HitchProfiler.SampleIntervalMs
+#        Description: Watchdog and process-metric sampling interval. Keep this at 10ms or higher.
+#        Default:     25
+#
+#    HitchProfiler.TopSections
+#    HitchProfiler.TopMaps
+#        Description: Maximum slow phases and maps written for each hitch.
+#        Default:     12 / 8
+#
+
+HitchProfiler.Enabled = 1
+HitchProfiler.ThresholdMs = 200
+HitchProfiler.WatchdogMs = 200
+HitchProfiler.SectionThresholdMs = 2
+HitchProfiler.SampleIntervalMs = 25
+HitchProfiler.TopSections = 12
+HitchProfiler.TopMaps = 8
+
+
+#
 #    IPLocationFile
 #        Description: The path to your IP2Location database CSV file.
 #        Example:     "C:/acore/IP2LOCATION-LITE-DB1.CSV"
@@ -677,6 +714,7 @@ ChatLog.Enable = 0
 Appender.Console=1,4,0,"1 9 3 6 5 8"
 Appender.Server=2,5,0,Server.log,w
 Appender.Playerbots=2,5,0,Playerbots.log,w
+Appender.Hitches=2,5,0,Hitches.log,a
 # Appender.GM=2,5,15,gm_%s.log
 Appender.Errors=2,2,0,Errors.log,w
 # Appender.DB=3,5,0
@@ -704,6 +742,7 @@ Logger.diff=3,Console Server
 Logger.mmaps=4,Server
 Logger.scripts.hotswap=4,Console Server
 Logger.server=4,Console Server
+Logger.server.hitch=4,Console Hitches
 Logger.sql.sql=2,Console Errors
 Logger.sql.updates=4,Console Server Errors
 Logger.sql=4,Console Server
