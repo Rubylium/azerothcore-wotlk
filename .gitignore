@@ -17,7 +17,10 @@
 !/modules/mod-custom-classes
 !/modules/mod-pestifere
 !/modules/mod-necromancer
+!/modules/mod-oathblade
 /build*/
+# TACTTool's download cache of the game files, left at the root by the extractors
+/cache/
 /var/*
 !/var/build/.gitkeep
 !/var/ccache/.gitkeep
