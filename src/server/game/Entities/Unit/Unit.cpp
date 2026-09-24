@@ -29,6 +29,7 @@
 #include "ChatPackets.h"
 #include "ChatTextBuilder.h"
 #include "CombatPackets.h"
+#include "CombatTelemetry.h"
 #include "Common.h"
 #include "ConditionMgr.h"
 #include "Creature.h"
@@ -1231,9 +1232,16 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
             damage = 0;
     }
 
+    // Record actual health removed (never overkill), after all damage modifiers.
+    // The collector is a no-op unless this map has an active M+ run or raid encounter.
+    CombatTelemetry::RecordDamage(attacker, victim, std::min(damage, health), spellProto, damagetype);
+
     if (health <= damage)
     {
         LOG_DEBUG("entities.unit", "DealDamage: victim just died");
+
+        if (victim->IsPlayer())
+            CombatTelemetry::RecordPlayerDeath(victim);
 
         //if (attacker && victim->IsPlayer() && victim != attacker)
         //victim->ToPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED, health); // pussywizard: optimization
