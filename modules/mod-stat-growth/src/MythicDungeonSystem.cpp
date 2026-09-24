@@ -8,6 +8,8 @@
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "Item.h"
+#include "Group.h"
+#include "LFGMgr.h"
 #include "LootMgr.h"
 #include "Mail.h"
 #include "Map.h"
@@ -17,8 +19,10 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
+#include "Timer.h"
 #include "WorldSession.h"
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <set>
 
@@ -31,6 +35,22 @@
 namespace
 {
 constexpr char const* MythicDataKey = "MythicDungeon";
+constexpr char const* HealBudgetKey = "MythicHealBudget";
+
+// Healing one creature gives another. Their heals scale like their spells, and a classic healer's catch up with the
+// levels far more than the health they land on: in a big pull, several priests keeping each other topped off made
+// the pack unkillable (the Scarlet Cathedral: Chaplains, Abbots, Adepts, Protectors healing whoever misses 400 HP).
+// Whatever the number of healers, a trash creature gets back at most this much of its health from them.
+constexpr uint32 CreatureHealCapPct = 3;            // a single heal or tick
+constexpr uint32 CreatureHealBudgetPct = 10;        // everything, per window
+constexpr uint32 CreatureHealWindowMs = 10 * IN_MILLISECONDS;
+
+// What a trash creature has been healed by other creatures in the current window
+struct HealBudget : DataMap::Base
+{
+    uint32 windowStart = 0;
+    uint32 received = 0;
+};
 
 struct MythicCreatureData : DataMap::Base
 {
@@ -125,6 +145,40 @@ uint32 ScaleValue(uint32 value, float factor)
 {
     return static_cast<uint32>(std::min<double>(value * static_cast<double>(factor),
         std::numeric_limits<int32>::max()));
+}
+
+// A heal-over-time tick: the core hands it to the periodic damage hook as well as the heal hook
+bool IsPeriodicHeal(SpellInfo const* spellInfo)
+{
+    return spellInfo &&
+        (spellInfo->HasAura(SPELL_AURA_PERIODIC_HEAL) || spellInfo->HasAura(SPELL_AURA_OBS_MOD_HEALTH)) &&
+        !spellInfo->HasAura(SPELL_AURA_PERIODIC_DAMAGE) && !spellInfo->HasAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT) &&
+        !spellInfo->HasAura(SPELL_AURA_PERIODIC_LEECH);
+}
+
+// Healing a mythic creature gives a trash creature: capped per heal, and by a budget per window (CreatureHealCapPct)
+uint32 LimitCreatureHeal(Unit* target, Unit const* healer, uint32 heal)
+{
+    Creature* patient = target ? target->ToCreature() : nullptr;
+    Creature const* source = healer ? healer->ToCreature() : nullptr;
+    if (!patient || !source || !heal || IsPlayerControlled(patient) || IsPlayerControlled(source) ||
+        IsMythicBoss(patient) || !IsInMythicMap(patient))
+        return heal;
+
+    uint32 const maxHealth = patient->GetMaxHealth();
+    heal = std::min(heal, std::max<uint32>(1, CalculatePct(maxHealth, CreatureHealCapPct)));
+
+    HealBudget* budget = patient->CustomData.GetDefault<HealBudget>(HealBudgetKey);
+    uint32 const now = getMSTime();
+    if (getMSTimeDiff(budget->windowStart, now) >= CreatureHealWindowMs)
+    {
+        budget->windowStart = now;
+        budget->received = 0;
+    }
+    uint32 const allowance = CalculatePct(maxHealth, CreatureHealBudgetPct);
+    heal = budget->received >= allowance ? 0 : std::min(heal, allowance - budget->received);
+    budget->received += heal;
+    return heal;
 }
 
 void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCreatureData& data)
@@ -304,12 +358,16 @@ public:
     void ModifyPeriodicDamageAurasTick(Unit* /*target*/, Unit* attacker, uint32& damage,
         SpellInfo const* spellInfo) override
     {
+        // A heal tick comes through here and through ModifyHealReceived: scaled in both, a creature's Renew
+        // healed for the square of its factor. The heal hook scales it.
+        if (IsPeriodicHeal(spellInfo))
+            return;
         damage = ScaleValue(damage, GetSpellFactor(attacker, spellInfo));
     }
 
-    void ModifyHealReceived(Unit* /*target*/, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
+    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
     {
-        heal = ScaleValue(heal, GetSpellFactor(healer, spellInfo));
+        heal = LimitCreatureHeal(target, healer, ScaleValue(heal, GetSpellFactor(healer, spellInfo)));
     }
 
     void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
@@ -410,6 +468,83 @@ public:
 bool IsMythicCreature(Creature const* creature)
 {
     return creature && !IsPlayerControlled(creature) && IsInMythicMap(creature);
+}
+
+// -----------------------------------------------------------------------------------------------------------
+// Inébranlable - the Mythic+ tank's footing
+// -----------------------------------------------------------------------------------------------------------
+//
+// A stun or a fear on the tank in a timed run is not a test of anyone's skill; it is the pull scattering for
+// reasons nobody could have played around, on a clock. The tank of a mythic group is immune to losing control
+// of itself for as long as it is in there.
+//
+// The immunities are applied from here rather than written into the spell. The aura that carries a whole
+// mask of mechanics - the one the PvP trinket uses - resolves its mask from a hardcoded list of spell ids in
+// SpellInfo.cpp, so a custom spell cannot join it without editing the core. 90400 is therefore only the buff
+// the player sees, and the mechanics below are the substance.
+//
+// Movement is deliberately left alone: a root or a snare does not take control away, it just holds you still,
+// and a tank that cannot be slowed at all is a different decision from the one that was asked for.
+constexpr uint32 SPELL_MYTHIC_TANK_RESOLVE = 90600;
+
+constexpr std::array<Mechanics, 13> MythicTankImmunities = {
+    MECHANIC_CHARM, MECHANIC_DISORIENTED, MECHANIC_FEAR, MECHANIC_SLEEP, MECHANIC_STUN,
+    MECHANIC_FREEZE, MECHANIC_KNOCKOUT, MECHANIC_POLYMORPH, MECHANIC_BANISH, MECHANIC_SHACKLE,
+    MECHANIC_TURN, MECHANIC_HORROR, MECHANIC_SAPPED
+};
+
+bool IsGroupTank(Player* player)
+{
+    if (uint8 const roles = sLFGMgr->GetRoles(player->GetGUID()))
+        return (roles & lfg::PLAYER_ROLE_TANK) != 0;
+
+    // A group put together by hand never ran a role check through the finder, but the group still carries a
+    // role and a main-tank flag per member, and either one is a clear enough statement of who is tanking.
+    Group* group = player->GetGroup();
+    if (!group)
+        return false;
+
+    for (Group::MemberSlot const& member : group->GetMemberSlots())
+        if (member.guid == player->GetGUID())
+            return (member.roles & lfg::PLAYER_ROLE_TANK) || (member.flags & MEMBER_FLAG_MAINTANK);
+
+    return false;
+}
+
+void SetMythicTankResolve(Player* player, bool apply)
+{
+    uint64 mask = 0;
+    for (Mechanics mechanic : MythicTankImmunities)
+    {
+        player->ApplySpellImmune(SPELL_MYTHIC_TANK_RESOLVE, IMMUNITY_MECHANIC, mechanic, apply);
+        mask |= 1ULL << mechanic;
+    }
+
+    if (apply)
+    {
+        // Whatever already had hold of it lets go the moment the buff lands, or the tank would stand there
+        // immune and still stunned until the old aura ran out.
+        player->RemoveAurasWithMechanic(mask);
+        if (!player->HasAura(SPELL_MYTHIC_TANK_RESOLVE))
+            player->CastSpell(player, SPELL_MYTHIC_TANK_RESOLVE, true);
+    }
+    else
+    {
+        player->RemoveAurasDueToSpell(SPELL_MYTHIC_TANK_RESOLVE);
+    }
+}
+
+void UpdateMythicTankResolve(Player* player)
+{
+    if (!player || !player->GetSession())
+        return;
+
+    Map* map = player->FindMap();
+    bool const wanted = map && map->IsMythic() && IsGroupTank(player);
+    if (wanted == player->HasAura(SPELL_MYTHIC_TANK_RESOLVE))
+        return;
+
+    SetMythicTankResolve(player, wanted);
 }
 
 bool IsMythicLootless(Creature const* creature)

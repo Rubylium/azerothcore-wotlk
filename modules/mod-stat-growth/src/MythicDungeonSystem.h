@@ -8,6 +8,9 @@ class Creature;
 bool IsMythicLootless(Creature const* creature);
 bool IsMythicCreature(Creature const* creature);
 
+// Keeps the tank of a Mythic+ group immune to being taken off the pack, and takes it away on the way out
+void UpdateMythicTankResolve(Player* player);
+
 void AddMythicDungeonScripts();
 
 #endif
