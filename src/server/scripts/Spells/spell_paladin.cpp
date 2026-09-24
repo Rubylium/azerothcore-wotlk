@@ -649,6 +649,7 @@ class spell_pal_divine_storm : public SpellScript
     PrepareSpellScript(spell_pal_divine_storm);
 
     uint32 healPct;
+    bool dungeonAoeBonus = false;
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
@@ -658,7 +659,36 @@ class spell_pal_divine_storm : public SpellScript
     bool Load() override
     {
         healPct = GetSpellInfo()->Effects[EFFECT_1].CalcValue(GetCaster());
+        if (GetCaster()->ToPlayer() && GetCaster()->GetMap()->IsNonRaidDungeon())
+            GetSpell()->SetSpellValue(SPELLVALUE_MAX_TARGETS, 6);
         return true;
+    }
+
+    void CountDungeonTargets(std::list<WorldObject*>& targets)
+    {
+        if (!GetCaster()->ToPlayer() || !GetCaster()->GetMap()->IsNonRaidDungeon())
+            return;
+
+        uint32 creatureCount = 0;
+        for (WorldObject* object : targets)
+        {
+            Unit* unit = object->ToUnit();
+            if (unit && unit->ToCreature() && !unit->GetCharmerOrOwnerPlayerOrPlayerItself())
+                ++creatureCount;
+        }
+        dungeonAoeBonus = creatureCount >= 3;
+    }
+
+    void IncreaseDungeonAoeDamage()
+    {
+        Unit* target = GetHitUnit();
+        if (dungeonAoeBonus && target && target->ToCreature() &&
+            !target->GetCharmerOrOwnerPlayerOrPlayerItself())
+        {
+            int32 damage = GetHitDamage();
+            AddPct(damage, 15);
+            SetHitDamage(damage);
+        }
     }
 
     void TriggerHeal()
@@ -670,6 +700,9 @@ class spell_pal_divine_storm : public SpellScript
 
     void Register() override
     {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(
+            spell_pal_divine_storm::CountDungeonTargets, EFFECT_2, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnHit += SpellHitFn(spell_pal_divine_storm::IncreaseDungeonAoeDamage);
         AfterHit += SpellHitFn(spell_pal_divine_storm::TriggerHeal);
     }
 };
