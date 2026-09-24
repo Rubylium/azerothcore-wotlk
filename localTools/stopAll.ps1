@@ -43,7 +43,8 @@ $consoleSignalSource
 [ConsoleSignal]::SetConsoleCtrlHandler(`$null, `$true) | Out-Null
 [ConsoleSignal]::FreeConsole() | Out-Null
 if (-not [ConsoleSignal]::AttachConsole($($process.Id))) { exit 2 }
-if (-not [ConsoleSignal]::GenerateConsoleCtrlEvent(0, 0)) { exit 3 }
+# CTRL_BREAK reaches the server's console handler when CTRL_C is ignored by its detached process.
+if (-not [ConsoleSignal]::GenerateConsoleCtrlEvent(1, 0)) { exit 3 }
 Start-Sleep -Milliseconds 750
 [ConsoleSignal]::FreeConsole() | Out-Null
 exit 0
@@ -57,7 +58,9 @@ exit 0
         -Wait `
         -PassThru
 
-    if ($signalProcess.ExitCode -ne 0) {
+    # CTRL_BREAK can terminate the helper console process as it signals the attached console.
+    # The server's actual exit is authoritative; never force-kill it merely for the helper's code.
+    if ($signalProcess.ExitCode -ne 0 -and -not $process.WaitForExit(5000)) {
         throw "Could not send the graceful stop signal to $($process.ProcessName) (exit $($signalProcess.ExitCode))."
     }
 
