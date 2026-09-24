@@ -421,7 +421,8 @@ public:
     {
         // Warden's Oath: behind Blade Ward, every strike mends the Oathblade
         if (Player* striker = attacker ? attacker->ToPlayer() : nullptr)
-            if (damage && victim != attacker && IsOathblade(striker) && striker->HasAura(SPELL_BLADE_WARD) &&
+            if (damage && victim != attacker && IsOathblade(striker) && striker->IsAlive() &&
+                striker->HasAura(SPELL_BLADE_WARD) &&
                 striker->HasAura(SPELL_TALENT_WARDENS_OATH))
                 striker->ModifyHealth(int32(CalculatePct(damage, 15)));
 

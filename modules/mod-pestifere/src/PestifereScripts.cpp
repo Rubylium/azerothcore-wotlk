@@ -1484,7 +1484,9 @@ public:
         if (damage >= victim->GetHealth())
             PassRotOn(victim);
 
-        if (Player* striker = GetPestifere(attacker); striker && attacker != victim)
+        // Only a living striker: a fallen Pestiféré's rot keeps ticking, and health given to a corpse that has not
+        // released stands it back up without bringing it to life (stuck, neither dead nor alive)
+        if (Player* striker = GetPestifere(attacker); striker && attacker != victim && striker->IsAlive())
             if (int32 const leech = GetTalentValue(striker, TALENT_SYMBIOSE_PARASITAIRE))
                 striker->ModifyHealth(int32(CalculatePct(damage, leech)));
 
