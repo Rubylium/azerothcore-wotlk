@@ -38,6 +38,26 @@ public:
 
         void OnGameObjectCreate(GameObject* gameobject) override
         {
+            // A Mythic run's doors stand open: its levers and the cannon are a player's to work, and the bots that
+            // fill the group would stand before them forever. The cove's iron door is gone, as the cannon leaves it.
+            if (instance->IsMythic())
+            {
+                switch (gameobject->GetEntry())
+                {
+                    case GO_FACTORY_DOOR:
+                    case GO_HEAVY_DOOR_1:
+                    case GO_HEAVY_DOOR_2:
+                    case GO_FOUNDRY_DOOR:
+                    case GO_MAST_ROOM_DOOR:
+                        gameobject->SetGoState(GO_STATE_ACTIVE);
+                        gameobject->SetLootState(GO_ACTIVATED);
+                        return;
+                    case GO_IRON_CLAD_DOOR:
+                        gameobject->DespawnOrUnsummon();
+                        return;
+                }
+            }
+
             switch (gameobject->GetEntry())
             {
                 case GO_HEAVY_DOOR_1:
