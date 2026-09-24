@@ -2046,6 +2046,36 @@ function ToggleTalentFrame(...)
     return stockToggleTalentFrame(...)
 end
 
+-- The other ways in. The micro button's stock handler does not come through ToggleTalentFrame, so it is wrapped
+-- here, before the interface addons (DragonUI's micro menu keeps the handler it finds). And should anything still
+-- show the WotLK window (Blizzard_TalentUI, loaded on demand), it closes and this one opens instead.
+if TalentMicroButton then
+    local stockClick = TalentMicroButton:GetScript("OnClick")
+    TalentMicroButton:SetScript("OnClick", function(self, ...)
+        if HasTree() then
+            return TalentTree_Toggle()
+        end
+        if stockClick then
+            return stockClick(self, ...)
+        end
+    end)
+end
+
+local function RedirectStockWindow()
+    if not PlayerTalentFrame or PlayerTalentFrame.talentTreeRedirect then
+        return
+    end
+    PlayerTalentFrame.talentTreeRedirect = true
+    PlayerTalentFrame:HookScript("OnShow", function(self)
+        if HasTree() then
+            HideUIPanel(self)
+            if not (frame and frame:IsShown()) then
+                TalentTree_Toggle()
+            end
+        end
+    end)
+end
+
 -- Unspent points: the micro button glows until they are spent
 local microGlow
 local function UpdateMicroButton()
@@ -2142,8 +2172,13 @@ listener:RegisterEvent("CHAT_MSG_ADDON")
 listener:RegisterEvent("PLAYER_ENTERING_WORLD")
 listener:RegisterEvent("PLAYER_REGEN_ENABLED")
 listener:RegisterEvent("PLAYER_REGEN_DISABLED")
+listener:RegisterEvent("ADDON_LOADED")
 listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
-    if event == "CHAT_MSG_ADDON" then
+    if event == "ADDON_LOADED" then
+        if prefix == "Blizzard_TalentUI" then
+            RedirectStockWindow()
+        end
+    elseif event == "CHAT_MSG_ADDON" then
         if prefix ~= PREFIX or sender ~= UnitName("player") or not HasTree() then
             return
         end
