@@ -52,6 +52,15 @@ local SOUND_RESET     = "Glyph_MajorDestroy"     -- audibly the reverse of Major
 local SOUND_DENIED    = "igQuestFailed"
 
 local ART = "Interface\\Paragon\\"
+local MORPHEUS = "Fonts\\MORPHEUS.ttf"
+local POINT_FONT_SIZE = 26
+
+-- The three kinds of node, as the tooltip and the legend name them
+local NODE_KINDS = {
+    [0] = { label = "Mineur", color = { 0.75, 0.75, 0.75 }, ring = "Paragon-Node-Minor" },
+    [1] = { label = "Notable", color = { 0.35, 0.65, 1 }, ring = "Paragon-Node-Notable" },
+    [2] = { label = "Clé de voûte", color = { 1, 0.5, 0 }, ring = "Paragon-Node-Keystone" },
+}
 
 local state = {
     open = false,
@@ -65,7 +74,11 @@ local state = {
 }
 
 local frame, canvas, board, hud, pointText, spentText, statusText
+local pointGlow, spentFill, bonusPanel, bonusText
 local nodeButtons, linkTextures = {}, {}
+-- The nodes one click away, kept by refreshAll: they breathe while there are points to spend
+local reachableButtons = {}
+local shownAvailable
 local adjacency = {}
 local animations = {}
 
@@ -276,26 +289,89 @@ local function refreshLinks()
     end
 end
 
+-- The figure swells and settles when points come in, so a gain is seen even with the eye on the board
+local function popPoints()
+    addAnimation({
+        duration = 0.45,
+        step = function(_, progress)
+            local swell = progress < 0.3 and (progress / 0.3) or (1 - (progress - 0.3) / 0.7)
+            pointText:SetFont(MORPHEUS, POINT_FONT_SIZE + 14 * swell)
+        end,
+        finish = function() pointText:SetFont(MORPHEUS, POINT_FONT_SIZE) end,
+    })
+end
+
 local function refreshHeader()
-    -- The orb is what is left to spend; the line under it is what is already on the board. Both were bare
-    -- numbers before, and an unlabelled "6 / 50" under a big figure reads as the point total.
+    -- What is left to spend, big; what is already on the board, as a gauge against the cap
     pointText:SetText(state.available)
-    spentText:SetFormattedText("%d / %d |cff888888dépensés|r", state.spent, state.cap)
+    pointText:SetTextColor(unpack(state.available > 0 and { 1, 1, 1 } or { 0.6, 0.6, 0.6 }))
+    spentText:SetFormattedText("%d / %d |cffaaaaaadépensés|r", state.spent, state.cap)
+    local share = state.cap > 0 and math.min(1, state.spent / state.cap) or 0
+    spentFill:SetWidth(math.max(1, spentFill.full * share))
 
     local banked = state.earned - state.cap
     if banked > 0 then
-        statusText:SetFormattedText("|cff888888%d point(s) en réserve|r", banked)
+        statusText:SetFormattedText("|cff888888%d en réserve|r", banked)
     else
         statusText:SetText("")
     end
+
+    if shownAvailable and state.available > shownAvailable and frame:IsShown() then
+        popPoints()
+    end
+    shownAvailable = state.available
+end
+
+-- Everything the board gives, added up: the flat stats of the minor nodes summed by stat ("+8 Force" five times
+-- is "+40 Force"), the notables and keystones by name
+local function refreshBonus()
+    if not bonusText then return end
+
+    local totals, order, majors = {}, {}, {}
+    for id, node in pairs(ParagonBoard.nodes) do
+        if isAllocated(id) and not node.free then
+            local amount, stat = string.match(node.description or "", "^%+(%d+)%s+(.+)$")
+            if node.type == 0 and amount then
+                if not totals[stat] then
+                    totals[stat] = 0
+                    table.insert(order, stat)
+                end
+                totals[stat] = totals[stat] + tonumber(amount)
+            else
+                local kind = NODE_KINDS[node.type] or NODE_KINDS[0]
+                table.insert(majors, string.format("|cff%02x%02x%02x%s|r", kind.color[1] * 255,
+                    kind.color[2] * 255, kind.color[3] * 255, node.name))
+            end
+        end
+    end
+
+    table.sort(order)
+    local lines = {}
+    for _, stat in ipairs(order) do
+        table.insert(lines, string.format("|cff00ff00+%d|r %s", totals[stat], stat))
+    end
+    if #majors > 0 then
+        table.sort(majors)
+        table.insert(lines, " ")
+        for _, name in ipairs(majors) do
+            table.insert(lines, name)
+        end
+    end
+    bonusText:SetText(#lines > 0 and table.concat(lines, "\n") or "|cff888888Aucun nœud acquis pour l'instant.|r")
+    bonusPanel:SetHeight(math.min(380, bonusText:GetStringHeight() + 44))
 end
 
 local function refreshAll()
+    reachableButtons = {}
     for id in pairs(ParagonBoard.nodes) do
         refreshNode(id)
+        if nodeButtons[id] and isReachable(id) then
+            table.insert(reachableButtons, nodeButtons[id])
+        end
     end
     refreshLinks()
     refreshHeader()
+    refreshBonus()
 end
 
 --------------------------------------------------------------------------------
@@ -333,20 +409,27 @@ local function onNodeEnter(self)
     local side = (centre and centre > UIParent:GetWidth() * 0.6) and "ANCHOR_LEFT" or "ANCHOR_RIGHT"
     GameTooltip:SetOwner(self, side)
     GameTooltip:AddLine(node.name, 1, 0.82, 0.35)
+    local kind = NODE_KINDS[node.type] or NODE_KINDS[0]
+    GameTooltip:AddLine(kind.label, kind.color[1], kind.color[2], kind.color[3])
     GameTooltip:AddLine(node.description, 1, 1, 1, true)
     if isAllocated(self.nodeId) then
         GameTooltip:AddLine("Acquis.", 0.4, 1, 0.4)
     elseif isReachable(self.nodeId) then
         GameTooltip:AddLine("Coût : 1 point.", 0.7, 0.8, 1)
+        if state.available > 0 then
+            GameTooltip:AddLine("Clic : acquérir", 0.5, 1, 0.5)
+        end
     else
         GameTooltip:AddLine("Pas encore accessible.", 0.7, 0.4, 0.4)
     end
     GameTooltip:Show()
+    self.hovered = true
     self.glow:SetAlpha(math.min(1, self.glow:GetAlpha() + 0.35))
 end
 
 local function onNodeLeave(self)
     GameTooltip:Hide()
+    self.hovered = false
     refreshNode(self.nodeId)
 end
 
@@ -480,48 +563,109 @@ local function createChrome()
     hud:SetAllPoints(frame)
     hud:SetFrameLevel(frame:GetFrameLevel() + 15)
 
-    local orb = CreateFrame("Frame", nil, hud)
-    orb:SetSize(72, 72)
-    orb:SetPoint("TOPLEFT", frame, "TOPLEFT", 36, -38)
-    local orbBackground = orb:CreateTexture(nil, "ARTWORK")
-    RetailUI.SetAtlas(orbBackground, "ChallengeMode-KeystoneSlotBG")
-    orbBackground:SetAllPoints()
-    local orbFrame = orb:CreateTexture(nil, "OVERLAY")
-    RetailUI.SetAtlas(orbFrame, "ChallengeMode-KeystoneSlotFrame")
-    orbFrame:SetPoint("CENTER")
-    orbFrame:SetSize(76, 76)
-    -- The socket art is a lit keystone slot, far too busy to read a number off. Darkened, it reads as an
-    -- empty socket with the figure sitting in it.
-    orbBackground:SetVertexColor(0.30, 0.32, 0.38)
+    -- The board fades into shadow at the top and bottom, where the header and the controls sit on it, and a
+    -- little at the sides: the tree reads as lit from the middle, and the text over it stays legible
+    local function shade(point, relative, size, vertical, fromTop)
+        local texture = hud:CreateTexture(nil, "BACKGROUND")
+        texture:SetTexture("Interface\\Buttons\\WHITE8X8")
+        texture:SetPoint(point, canvas, point)
+        texture:SetPoint(relative, canvas, relative)
+        if vertical then
+            texture:SetHeight(size)
+            if fromTop then
+                texture:SetGradientAlpha("VERTICAL", 0, 0, 0, 0, 0, 0, 0, 0.88)
+            else
+                texture:SetGradientAlpha("VERTICAL", 0, 0, 0, 0.88, 0, 0, 0, 0)
+            end
+        else
+            texture:SetWidth(size)
+            if point == "TOPLEFT" then
+                texture:SetGradientAlpha("HORIZONTAL", 0, 0, 0, 0.6, 0, 0, 0, 0)
+            else
+                texture:SetGradientAlpha("HORIZONTAL", 0, 0, 0, 0, 0, 0, 0, 0.6)
+            end
+        end
+    end
+    shade("TOPLEFT", "TOPRIGHT", 120, true, true)
+    shade("BOTTOMLEFT", "BOTTOMRIGHT", 90, true, false)
+    shade("TOPLEFT", "BOTTOMLEFT", 60, false)
+    shade("TOPRIGHT", "BOTTOMRIGHT", 60, false)
 
-    -- The number goes in a frame of its own, ABOVE the orb. A child frame draws over every layer of its
-    -- parent, so a font string created on `hud` - as this one was - ends up behind the socket art no matter
-    -- which draw layer it asks for. That is why the count was invisible while the labels around it, which
-    -- fall outside the orb's rectangle, were not.
-    local orbText = CreateFrame("Frame", nil, orb)
-    orbText:SetAllPoints()
-    orbText:SetFrameLevel(orb:GetFrameLevel() + 3)
+    local heading = hud:CreateFontString(nil, "OVERLAY")
+    heading:SetFont(MORPHEUS, 28)
+    heading:SetShadowOffset(1, -1)
+    heading:SetTextColor(1, 0.86, 0.55)
+    heading:SetPoint("TOPLEFT", frame, "TOPLEFT", 34, -34)
+    heading:SetText("Tableau de parangon")
 
-    local orbInk = orbText:CreateTexture(nil, "BACKGROUND")
-    orbInk:SetTexture(ART .. "Paragon-Node-Glow")
-    orbInk:SetVertexColor(0, 0, 0, 0.55)
-    orbInk:SetPoint("CENTER")
-    orbInk:SetSize(52, 52)
+    local intro = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
+    intro:SetWidth(430)
+    intro:SetJustifyH("LEFT")
+    intro:SetTextColor(0.85, 0.8, 0.7)
+    intro:SetText("Chaque point renforce votre personnage pour de bon. Partez de l'Éveil, au centre, et étendez "
+        .. "votre chemin nœud après nœud jusqu'aux clés de voûte.")
 
-    pointText = orbText:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    pointText:SetPoint("CENTER", orbText, "CENTER", 0, 1)
-    pointText:SetTextColor(1, 0.85, 0.35)
+    -- The points to spend, as the board's clock reads: an emblem, the label and the figure beside it, and the
+    -- gauge of what is spent under both
+    -- One column, so its pieces line up: the emblem and the figure on top, the gauge its full width under them
+    local block = CreateFrame("Frame", nil, hud)
+    block:SetSize(210, 96)
+    block:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -32, -34)
 
-    local orbLabel = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    orbLabel:SetPoint("BOTTOM", orb, "TOP", 0, 1)
-    orbLabel:SetText("À dépenser")
-    orbLabel:SetTextColor(0.7, 0.9, 1)
+    local emblem = CreateFrame("Frame", nil, block)
+    emblem:SetSize(46, 46)
+    emblem:SetPoint("TOPLEFT", block, "TOPLEFT", 2, 0)
+    pointGlow = emblem:CreateTexture(nil, "BACKGROUND")
+    pointGlow:SetTexture(ART .. "Paragon-Node-Glow")
+    pointGlow:SetBlendMode("ADD")
+    pointGlow:SetVertexColor(1, 0.78, 0.32)
+    pointGlow:SetPoint("CENTER")
+    pointGlow:SetSize(78, 78)
+    local emblemIcon = emblem:CreateTexture(nil, "ARTWORK")
+    emblemIcon:SetTexture("Interface\\Icons\\ParagonNode_Awakening")
+    emblemIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    emblemIcon:SetPoint("CENTER")
+    emblemIcon:SetSize(46 * ICON_SCALE[1], 46 * ICON_SCALE[1])
+    local emblemRing = emblem:CreateTexture(nil, "OVERLAY")
+    emblemRing:SetTexture(ART .. "Paragon-Node-Notable")
+    emblemRing:SetAllPoints()
 
-    spentText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    spentText:SetPoint("TOP", orb, "BOTTOM", 0, -2)
+    local pointLabel = block:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    pointLabel:SetPoint("TOPLEFT", emblem, "TOPRIGHT", 12, -3)
+    pointLabel:SetText("Points à dépenser")
 
-    statusText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    statusText:SetPoint("TOPLEFT", orb, "BOTTOMLEFT", -10, -22)
+    -- The figure sits on the emblem's lower half, level with its centre line, rather than hanging under the label
+    pointText = block:CreateFontString(nil, "OVERLAY")
+    pointText:SetFont(MORPHEUS, POINT_FONT_SIZE)
+    pointText:SetShadowOffset(1, -1)
+    pointText:SetTextColor(1, 1, 1)
+    pointText:SetJustifyH("LEFT")
+    pointText:SetPoint("BOTTOMLEFT", emblem, "BOTTOMRIGHT", 12, 0)
+
+    local gauge = CreateFrame("Frame", nil, block)
+    gauge:SetSize(210, 12)
+    gauge:SetPoint("TOPLEFT", emblem, "BOTTOMLEFT", -2, -10)
+    gauge:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    gauge:SetBackdropColor(0, 0, 0, 0.65)
+    gauge:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+    spentFill = gauge:CreateTexture(nil, "ARTWORK")
+    spentFill:SetTexture("Interface\\Buttons\\WHITE8X8")
+    spentFill:SetGradient("HORIZONTAL", 0.75, 0.45, 0.1, 1, 0.85, 0.35)
+    spentFill:SetHeight(6)
+    spentFill:SetPoint("LEFT", gauge, "LEFT", 3, 0)
+    spentFill.full = 204
+
+    spentText = block:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    spentText:SetPoint("TOPRIGHT", gauge, "BOTTOMRIGHT", 0, -4)
+
+    statusText = block:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    statusText:SetPoint("TOPLEFT", gauge, "BOTTOMLEFT", 0, -4)
 
     local closeButton = CreateFrame("Button", nil, frame)
     closeButton:SetSize(24, 24)
@@ -640,8 +784,25 @@ local function createFrame()
         self.startH, self.startV = self:GetHorizontalScroll(), self:GetVerticalScroll()
     end)
     canvas:SetScript("OnMouseUp", function(self) self.dragging = false end)
+    local pulseClock = 0
     canvas:SetScript("OnUpdate", function(self, elapsed)
         updateAnimations(elapsed)
+
+        -- With points to spend, the nodes one click away breathe, and so does the emblem: the board shows where
+        -- the next point can go without a single tooltip
+        pulseClock = pulseClock + elapsed
+        local pulse = 0.5 + 0.5 * math.sin(pulseClock * 3)
+        if state.available > 0 then
+            for _, button in ipairs(reachableButtons) do
+                if not button.hovered then
+                    button.glow:SetAlpha(0.18 + 0.4 * pulse)
+                end
+            end
+            pointGlow:SetAlpha(0.35 + 0.45 * pulse)
+        else
+            pointGlow:SetAlpha(0.12)
+        end
+
         -- Release a click the server never answered, rather than wedging every click after it
         if state.pending and GetTime() - (state.pendingAt or 0) > PENDING_TIMEOUT then
             state.pending = nil
@@ -668,10 +829,104 @@ local function createFrame()
 
     createBoard()
 
+    -- A reset gives every point back but takes the whole tree down: it asks first
+    StaticPopupDialogs["PARAGON_RESET"] = {
+        text = "Réinitialiser le tableau de parangon ?\nTous vos points vous seront rendus.",
+        button1 = YES,
+        button2 = NO,
+        OnAccept = function()
+            state.pendingReset = true
+            SendAddonMessage(PREFIX, "RESET", "WHISPER", UnitName("player"))
+        end,
+        timeout = 0,
+        whileDead = 1,
+        hideOnEscape = 1,
+    }
     createButton("Réinitialiser", "BOTTOMLEFT", 24, function()
-        state.pendingReset = true
-        SendAddonMessage(PREFIX, "RESET", "WHISPER", UnitName("player"))
+        StaticPopup_Show("PARAGON_RESET")
     end)
+
+    -- The legend, under the middle of the board: the three kinds of node by their rings
+    -- Sized to what it holds, so it sits truly in the middle, with the hint centred over it
+    local legend = CreateFrame("Frame", nil, hud)
+    legend:SetHeight(30)
+    legend:SetPoint("BOTTOM", frame, "BOTTOM", 0, 14)
+    local previous
+    local legendWidth = 0
+    for kindId = 0, 2 do
+        local kind = NODE_KINDS[kindId]
+        local ring = legend:CreateTexture(nil, "OVERLAY")
+        ring:SetTexture(ART .. kind.ring)
+        local size = 18 + kindId * 4
+        ring:SetSize(size, size)
+        if previous then
+            ring:SetPoint("LEFT", previous, "RIGHT", 16, 0)
+            legendWidth = legendWidth + 16
+        else
+            ring:SetPoint("LEFT", legend, "LEFT", 0, 0)
+        end
+        local label = legend:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("LEFT", ring, "RIGHT", 5, 0)
+        label:SetText(kind.label)
+        label:SetTextColor(kind.color[1], kind.color[2], kind.color[3])
+        legendWidth = legendWidth + size + 5 + label:GetStringWidth()
+        previous = label
+    end
+    legend:SetWidth(legendWidth)
+
+    local hint = hud:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    hint:SetPoint("BOTTOM", legend, "TOP", 0, 4)
+    hint:SetText("Molette : zoom  ·  Clic-glisser : déplacer")
+
+    -- The controls on the right: zoom, back to the hub, and the summary of what the board gives
+    local function control(label, width, onClick)
+        local button = CreateFrame("Button", nil, hud, "UIPanelButtonTemplate")
+        button:SetSize(width, 22)
+        button:SetText(label)
+        button:SetScript("OnClick", function()
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            onClick()
+        end)
+        return button
+    end
+    local zoomIn = control("+", 26, function() setZoom(board:GetScale() + ZOOM_STEP) end)
+    zoomIn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 16)
+    local zoomOut = control("-", 26, function() setZoom(board:GetScale() - ZOOM_STEP) end)
+    zoomOut:SetPoint("RIGHT", zoomIn, "LEFT", -4, 0)
+    local recentre = control("Recentrer", 90, function()
+        setZoom(DEFAULT_ZOOM)
+        centreOn(BOARD_EXTENT / 2, BOARD_EXTENT / 2)
+    end)
+    recentre:SetPoint("RIGHT", zoomOut, "LEFT", -8, 0)
+    local bonusButton = control("Vos bonus", 90, function()
+        if bonusPanel:IsShown() then bonusPanel:Hide() else bonusPanel:Show() end
+    end)
+    bonusButton:SetPoint("RIGHT", recentre, "LEFT", -8, 0)
+
+    -- The summary: every stat the board gives, added up, and the major nodes by name
+    bonusPanel = CreateFrame("Frame", nil, hud)
+    bonusPanel:SetWidth(230)
+    bonusPanel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -140)
+    bonusPanel:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    bonusPanel:SetBackdropColor(0.04, 0.03, 0.02, 0.9)
+    bonusPanel:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+    bonusPanel:EnableMouse(true)
+    bonusPanel:Hide()
+    local bonusTitle = bonusPanel:CreateFontString(nil, "OVERLAY")
+    bonusTitle:SetFont(MORPHEUS, 17)
+    bonusTitle:SetTextColor(1, 0.86, 0.55)
+    bonusTitle:SetPoint("TOPLEFT", 12, -10)
+    bonusTitle:SetText("Vos bonus")
+    bonusText = bonusPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bonusText:SetPoint("TOPLEFT", bonusTitle, "BOTTOMLEFT", 0, -6)
+    bonusText:SetWidth(206)
+    bonusText:SetJustifyH("LEFT")
+    bonusText:SetSpacing(2)
 
     -- Escape closes it. This is how 3.3.5 does it: SetPropagateKeyboardInput arrived two expansions later, and
     -- a hand-rolled OnKeyDown would swallow every other key the frame happens to have focus for.
@@ -783,6 +1038,13 @@ local function handle(message)
             -- Start centred on the hub; the board reads from the middle outward
             setZoom(DEFAULT_ZOOM)
             centreOn(BOARD_EXTENT / 2, BOARD_EXTENT / 2)
+            -- It fades in as the challenge board does, rather than appearing at once
+            frame:SetAlpha(0)
+            addAnimation({
+                duration = 0.25,
+                step = function(_, progress) frame:SetAlpha(1 - (1 - progress) ^ 2) end,
+                finish = function() frame:SetAlpha(1) end,
+            })
         end
         state.opening = false
         return

@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <limits>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -92,6 +93,7 @@ uint32 BoardSignature = 0;
 struct ParagonState : public DataMap::Base
 {
     uint32 earned = 0;                      // everything ever awarded, including past the cap
+    uint32 prestige = 0;                    // how many times this character has reset; each one raises the cap
     std::unordered_set<uint32> allocated;   // paid-for nodes only; free ones are never stored
     bool applied = false;
     std::vector<ParagonProc> procs;         // from the allocated nodes, rebuilt when they change
@@ -105,9 +107,16 @@ ParagonState* GetState(Player* player)
     return player ? player->CustomData.Get<ParagonState>(StateKey) : nullptr;
 }
 
-uint32 PointCap()
+uint32 PointCap(ParagonState const* state)
 {
-    return statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap);
+    uint32 const base = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap);
+    uint32 const per = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige);
+    uint32 const prestige = state ? state->prestige : 0;
+    if (per == 0)
+        return base;
+    if (prestige > (std::numeric_limits<uint32>::max() - base) / per)
+        return std::numeric_limits<uint32>::max();
+    return base + prestige * per;
 }
 
 uint32 SpentPoints(ParagonState const* state)
@@ -121,7 +130,7 @@ uint32 AvailablePoints(ParagonState const* state)
     if (!state)
         return 0;
 
-    uint32 const usable = std::min(state->earned, PointCap());
+    uint32 const usable = std::min(state->earned, PointCap(state));
     uint32 const spent = SpentPoints(state);
     return usable > spent ? usable - spent : 0;
 }
@@ -289,10 +298,11 @@ void ClearBuffs(Player* player, ParagonState* state)
     state->buffs.clear();
 }
 
-void SaveEarned(Player* player, uint32 earned)
+void SaveEarned(Player* player, ParagonState const* state)
 {
-    CharacterDatabase.Execute("REPLACE INTO character_paragon_points (guid, earned) VALUES ({}, {})",
-        player->GetGUID().GetCounter(), earned);
+    CharacterDatabase.Execute(
+        "REPLACE INTO character_paragon_points (guid, earned, prestige) VALUES ({}, {}, {})",
+        player->GetGUID().GetCounter(), state->earned, state->prestige);
 }
 
 // The whole board a character holds, as the frame needs it. Chunked because an addon whisper is capped well
@@ -304,7 +314,7 @@ void SendState(Player* player, bool open)
         return;
 
     Send(player, Acore::StringFormat("{}\t{}\t{}\t{}\t{}\t{}", open ? "OPEN" : "STATE", BoardSignature,
-        PointCap(), AvailablePoints(state), state->earned, SpentPoints(state)));
+        PointCap(state), AvailablePoints(state), state->earned, SpentPoints(state)));
 
     std::string chunk;
     for (uint32 nodeId : state->allocated)
@@ -475,13 +485,18 @@ void LoadParagonForPlayer(Player* player)
 
     ParagonState* state = player->CustomData.GetDefault<ParagonState>(StateKey);
     state->earned = 0;
+    state->prestige = 0;
     state->allocated.clear();
     state->applied = false;
 
     uint32 const guid = player->GetGUID().GetCounter();
     if (QueryResult result = CharacterDatabase.Query(
-            "SELECT earned FROM character_paragon_points WHERE guid = {}", guid))
-        state->earned = result->Fetch()[0].Get<uint32>();
+            "SELECT earned, prestige FROM character_paragon_points WHERE guid = {}", guid))
+    {
+        Field* field = result->Fetch();
+        state->earned = field[0].Get<uint32>();
+        state->prestige = field[1].Get<uint32>();
+    }
 
     if (QueryResult result = CharacterDatabase.Query("SELECT node FROM character_paragon WHERE guid = {}", guid))
         do
@@ -566,7 +581,7 @@ void AwardParagonPoints(Player* player, uint32 count, std::string_view reason)
         return;
 
     state->earned += count;
-    SaveEarned(player, state->earned);
+    SaveEarned(player, state);
 
     ChatHandler chat(player->GetSession());
     uint32 const available = AvailablePoints(state);
@@ -580,7 +595,7 @@ void AwardParagonPoints(Player* player, uint32 count, std::string_view reason)
         chat.PSendSysMessage(french
             ? "|cffa335eeParangon : +{} point ({}), mis de côté.|r |cff888888Limite atteinte ({}).|r"
             : "|cffa335eeParagon: +{} point ({}), banked.|r |cff888888Cap reached ({}).|r",
-            count, reason, PointCap());
+            count, reason, PointCap(state));
 
     Send(player, Acore::StringFormat("POINT\t{}\t{}", available, state->earned));
 }
@@ -602,7 +617,7 @@ void TryAwardParagonPoint(Player* player, Creature* killed)
         return;
 
     ++state->earned;
-    SaveEarned(player, state->earned);
+    SaveEarned(player, state);
 
     ChatHandler chat(player->GetSession());
     uint32 const available = AvailablePoints(state);
@@ -614,7 +629,7 @@ void TryAwardParagonPoint(Player* player, Creature* killed)
         // Banked: the cap is full, but the point was not thrown away.
         chat.PSendSysMessage(IsFrench(player)
             ? "|cffa335eeUn point de parangon est mis de côté.|r |cff888888Limite atteinte ({}).|r"
-            : "|cffa335eeA paragon point is banked.|r |cff888888Cap reached ({}).|r", PointCap());
+            : "|cffa335eeA paragon point is banked.|r |cff888888Cap reached ({}).|r", PointCap(state));
 
     Send(player, Acore::StringFormat("POINT\t{}\t{}", available, state->earned));
 }
@@ -910,9 +925,109 @@ public:
         return true;
     }
 };
+
+// The character select screen shows each character's Prestige and Paragon level (GlueXML/EvolutionsRoster.lua), but
+// the character list the client receives has no field for them. They ride in its guild id, which the client does
+// not use there: the top byte is CharacterListMarker, the next one the Prestige and the low 16 bits the Paragon
+// level (points spent). The client extension DLL (awesome_wotlk, CharacterEvolution.cpp) reads them back for the
+// glue screen.
+constexpr uint32 CharacterListMarker = 0xE7;
+
+class ParagonCharacterListScript : public PlayerScript
+{
+public:
+    ParagonCharacterListScript() : PlayerScript("ParagonCharacterListScript", { PLAYERHOOK_ON_ENUM_GUILD_ID }) { }
+
+    void OnPlayerEnumGuildId(ObjectGuid guid, uint32& guildId) override
+    {
+        uint32 const counter = guid.GetCounter();
+        uint32 prestige = 0;
+        if (QueryResult result = CharacterDatabase.Query(
+                "SELECT prestige FROM character_paragon_points WHERE guid = {}", counter))
+            prestige = result->Fetch()[0].Get<uint32>();
+
+        // Counted as the character will have them once in game: nodes the board no longer has are not
+        uint32 level = 0;
+        if (QueryResult result = CharacterDatabase.Query("SELECT node FROM character_paragon WHERE guid = {}", counter))
+            do
+            {
+                if (Board.count(result->Fetch()[0].Get<uint32>()))
+                    ++level;
+            } while (result->NextRow());
+
+        guildId = CharacterListMarker << 24 | std::min<uint32>(prestige, 0xFF) << 16 | std::min<uint32>(level, 0xFFFF);
+    }
+};
+}
+
+void SuspendParagon(Player* player)
+{
+    ParagonState* state = GetState(player);
+    if (!state || !state->applied)
+        return;
+
+    ClearBuffs(player, state);
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId); node != Board.end())
+            ApplyNode(player, node->second, false);
+    state->applied = false;
+}
+
+void RestoreParagon(Player* player)
+{
+    ApplyStoredParagon(player);
+}
+
+static ParagonState* StateOf(Player* player)
+{
+    if (!player)
+        return nullptr;
+    if (!GetState(player))
+        LoadParagonForPlayer(player);
+    return GetState(player);
+}
+
+uint32 GetParagonPrestige(Player* player)
+{
+    ParagonState const* state = StateOf(player);
+    return state ? state->prestige : 0;
+}
+
+uint32 GetParagonEarned(Player* player)
+{
+    ParagonState const* state = StateOf(player);
+    return state ? state->earned : 0;
+}
+
+uint32 GetParagonSpent(Player* player)
+{
+    return SpentPoints(StateOf(player));
+}
+
+uint32 GetParagonPointCap(Player* player)
+{
+    return PointCap(StateOf(player));
+}
+
+void SetParagonPrestige(Player* player, uint32 prestige)
+{
+    if (ParagonState* state = StateOf(player))
+        state->prestige = prestige;
+}
+
+void SaveParagonPoints(Player* player, CharacterDatabaseTransaction trans)
+{
+    ParagonState const* state = GetState(player);
+    if (!player || !state)
+        return;
+
+    CharacterDatabase.ExecuteOrAppend(trans, Acore::StringFormat(
+        "REPLACE INTO character_paragon_points (guid, earned, prestige) VALUES ({}, {}, {})",
+        player->GetGUID().GetCounter(), state->earned, state->prestige));
 }
 
 void AddParagonScripts()
 {
     new npc_stat_growth_paragon_keeper();
+    new ParagonCharacterListScript();
 }

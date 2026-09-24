@@ -74,6 +74,17 @@ void LearnGladiatorStance(Player* player)
         "|cffc79c6eGladiator Stance learned: double damage dealt and taken in Defensive Stance with a shield.|r");
 }
 
+void OnGladiatorLevelChanged(Player* player, uint8 oldLevel)
+{
+    if (!IsWarrior(player) || player->GetLevel() >= oldLevel)
+        return;
+    if (player->GetLevel() >= GladiatorStanceLevel || !player->HasSpell(GladiatorStance))
+        return;
+
+    player->RemoveAura(GladiatorStance);
+    player->removeSpell(GladiatorStance, SPEC_MASK_ALL, false);
+}
+
 void UpdateGladiatorStance(Player* player)
 {
     if (!IsWarrior(player) || !player->HasAura(GladiatorStance))

@@ -12,6 +12,7 @@
 #include "PersonalLootSystem.h"
 #include "QuickTravelSystem.h"
 #include "ParagonSystem.h"
+#include "PrestigeSystem.h"
 #include "RidingInstructor.h"
 #include "ResourceBoostSystem.h"
 #include "SmartLootSystem.h"
@@ -21,6 +22,7 @@
 #include "VitalityBoostSystem.h"
 
 #include "Chat.h"
+#include "CombatTelemetry.h"
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "Group.h"
@@ -319,6 +321,7 @@ public:
     // auras are removed before anyone can log in
     void OnStartup() override
     {
+        CombatTelemetry::InitializeDatabase();
         CharacterDatabase.DirectExecute("DELETE FROM character_aura WHERE spell IN ({}, {})",
             uint32(lfg::LFG_SPELL_DUNGEON_DESERTER), uint32(lfg::LFG_SPELL_DUNGEON_COOLDOWN));
         LOG_INFO("server.loading", ">> Cleared saved Dungeon Finder deserter and cooldown auras");
@@ -371,6 +374,7 @@ public:
     {
         RememberDungeonArrival(player);
         SendDungeonProgress(player);
+        UpdateMythicTankResolve(player);
     }
 
     bool OnPlayerCanRepopAtGraveyard(Player* player) override
@@ -408,6 +412,8 @@ public:
             LearnAvailableClassSpells(player);
             LearnGladiatorStance(player);
         }
+        else if (player->GetLevel() < oldLevel)
+            OnGladiatorLevelChanged(player, oldLevel);
 
         OnCombatRogueLevelChanged(player, oldLevel);
     }
@@ -492,7 +498,8 @@ class StatGrowthUnitScript : public UnitScript
 public:
     StatGrowthUnitScript() : UnitScript("StatGrowthUnitScript", true, {
         UNITHOOK_ON_DAMAGE,
-        UNITHOOK_ON_UNIT_DEATH
+        UNITHOOK_ON_UNIT_DEATH,
+        UNITHOOK_ON_UNIT_EXIT_COMBAT
     }) { }
 
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
@@ -508,18 +515,30 @@ public:
     {
         OnDungeonProgressUnitDeath(unit);
     }
+
+    void OnUnitExitCombat(Unit* unit) override
+    {
+        CombatTelemetry::AbortRaidEncounter(unit);
+    }
 };
 
 class StatGrowthGlobalScript : public GlobalScript
 {
 public:
     StatGrowthGlobalScript() : GlobalScript("StatGrowthGlobalScript", {
-        GLOBALHOOK_ON_ITEM_DEL_FROM_DB
+        GLOBALHOOK_ON_ITEM_DEL_FROM_DB,
+        GLOBALHOOK_ON_AFTER_UPDATE_ENCOUNTER_STATE
     }) { }
 
     void OnItemDelFromDB(CharacterDatabaseTransaction transaction, ObjectGuid::LowType itemGuid) override
     {
         DeletePersonalLootRoll(transaction, itemGuid);
+    }
+
+    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType, uint32, Unit* source, Difficulty,
+        std::list<DungeonEncounter const*> const*, uint32, bool updated) override
+    {
+        CombatTelemetry::FinishRaidEncounter(map, source, updated);
     }
 };
 
@@ -545,6 +564,7 @@ void AddStatGrowthScripts()
     AddQuickTravelScripts();
     AddRidingInstructorScripts();
     AddParagonScripts();
+    AddPrestigeScripts();
     AddDungeonFinderLockScripts();
     AddMythicDungeonScripts();
     AddMythicItemGenerationScripts();

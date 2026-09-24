@@ -460,7 +460,19 @@ void OnCombatRogueLogin(Player* player)
 
 void OnCombatRogueLevelChanged(Player* player, uint8 oldLevel)
 {
-    if (!IsRogue(player) || player->GetLevel() <= oldLevel)
+    if (!IsRogue(player))
+        return;
+
+    if (player->GetLevel() < oldLevel)
+    {
+        for (AbilityUnlock const& unlock : AbilityUnlocks)
+            if (unlock.level > player->GetLevel() && player->HasSpell(unlock.spellId))
+                player->removeSpell(unlock.spellId, SPEC_MASK_ALL, false);
+        LearnUnlockedAbilities(player);
+        return;
+    }
+
+    if (player->GetLevel() <= oldLevel)
         return;
 
     AnnounceLearned(player, LearnUnlockedAbilities(player));

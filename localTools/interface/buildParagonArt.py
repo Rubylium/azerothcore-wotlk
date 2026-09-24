@@ -81,7 +81,8 @@ def mipChain(image):
     current = image.convert("RGBA")
     while True:
         yield current
-        if min(current.size) == 1:
+        # Down to 1x1: a non-square texture that stopped at 2x1 would have an incomplete chain
+        if max(current.size) == 1:
             return
         current = current.resize(
             (max(1, current.width // 2), max(1, current.height // 2)),
