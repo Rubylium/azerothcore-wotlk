@@ -250,7 +250,7 @@ function CharacterSelect_OnKeyDown(self,key)
 				CharacterSelect_SelectCharacter(numChars);
 			end
 		end
-	elseif ( arg1 == "DOWN" or arg1 == "RIGHT" ) then
+	elseif ( key == "DOWN" or key == "RIGHT" ) then
 		local numChars = GetNumCharacters();
 		if ( numChars > 1 ) then
 			if ( self.selectedIndex < GetNumCharacters() ) then
@@ -387,312 +387,50 @@ function UpdateCharacterSelection(self)
 	if ( (index > 0) and (index <= MAX_CHARACTERS_DISPLAYED) )then
 		_G["CharSelectCharacterButton"..index]:LockHighlight();
 	end
+	-- Evolutions
+	EvolutionsRoster_Select(index);
+	EvolutionsRoster_UpdateHeadline(index);
 end
 
 function UpdateCharacterList()
+    -- Evolutions: the cards are drawn by EvolutionsRoster.lua
+    if ( not CharacterSelect.evolutionsLaidOut ) then
+        EvolutionsRoster_Layout();
+        CharacterSelect.evolutionsLaidOut = true;
+    end
+
     local numChars = GetNumCharacters();
-    local index = 1;
-    local coords;
-
-    for i = 1, MAX_CHARACTERS_DISPLAYED do
-        local button = _G["CharSelectCharacterButton"..i];
-        button:Show();
+    local connected = IsConnectedToServer();
+    CharacterSelect.createIndex = 0;
+    if ( numChars < MAX_CHARACTERS_PER_REALM and connected ) then
+        CharacterSelect.createIndex = numChars + 1;
     end
-    
-    _G["CharacterSelectCharacterFrame"]:SetHeight(620);
+    EvolutionsRoster_SetCount(numChars);
 
-    local GENERAL_BACKGROUND = {
-        texture = "Interface\\Glues\\CharacterSelect\\uicharacterselectglues2x",
-        coords = {0.656250000, 0.965820313, 0.123046875, 0.217285156}
-    };
-
-    for i = 1, MAX_CHARACTERS_DISPLAYED do
-        local button = _G["CharSelectCharacterButton"..i];
-        
-        local generalBg = _G["CharSelectCharacterButton"..i.."GeneralBackground"];
-        if generalBg then generalBg:Hide(); end
-        
-        local background = _G["CharSelectCharacterButton"..i.."Background"];
-        if background then background:Hide(); end
-        
-        local factionIcon = _G["CharSelectCharacterButton"..i.."FactionIcon"];
-        if factionIcon then factionIcon:Hide(); end
-        
-        local nameText = _G["CharSelectCharacterButton"..i.."ButtonTextName"];
-        if nameText then nameText:SetText(""); end
-        
-        local levelText = _G["CharSelectCharacterButton"..i.."ButtonTextLevel"];
-        if levelText then levelText:SetText(""); end
-        
-        local classText = _G["CharSelectCharacterButton"..i.."ButtonTextClass"];
-        if classText then classText:SetText(""); end
-        
-        local zoneText = _G["CharSelectCharacterButton"..i.."ButtonTextZone"];
-        if zoneText then zoneText:SetText(""); end
-        
-        local statusText = _G["CharSelectCharacterButton"..i.."ButtonTextStatus"];
-        if statusText then statusText:SetText(""); end
-
-        local defaultBg = _G["CharSelectCharacterButton"..i.."DefaultBackground"];
-        if defaultBg then defaultBg:Hide(); end
-    end
-
-    local CLASS_COLORS = {
-        -- Español
-        ["GUERRERO"]="|cffC79C6E",["GUERRERA"]="|cffC79C6E",
-        ["PALADIN"]="|cffF58CBA",
-        ["CAZADOR"]="|cffABD473",["CAZADORA"]="|cffABD473",
-        ["PICARO"]="|cffFFF569",["PICARA"]="|cffFFF569",
-        ["SACERDOTE"]="|cffFFFFFF",["SACERDOTISA"]="|cffFFFFFF",
-        ["CABALLERO DE LA MUERTE"]="|cffC41F3B",
-        ["CHAMÃN"]="|cff0070DE",
-        ["MAGO"]="|cff69CCF0",["MAGA"]="|cff69CCF0",
-        ["BRUJO"]="|cff9482C9",["BRUJA"]="|cff9482C9",
-        ["DRUIDA"]="|cffFF7D0A",
-        -- Evolutions: French, the locale this client runs in, both genders where the name differs, and the
-        -- Pestiféré (mod-pestifere, class 12)
-        ["GUERRIER"]="|cffC79C6E",["GUERRIÈRE"]="|cffC79C6E",
-        ["CHASSEUR"]="|cffABD473",["CHASSERESSE"]="|cffABD473",
-        ["VOLEUR"]="|cffFFF569",["VOLEUSE"]="|cffFFF569",
-        ["PRÊTRE"]="|cffFFFFFF",["PRÊTRESSE"]="|cffFFFFFF",
-        ["CHEVALIER DE LA MORT"]="|cffC41F3B",
-        ["CHAMAN"]="|cff0070DE",
-        ["DÉMONISTE"]="|cff9482C9",
-        ["DRUIDE"]="|cffFF7D0A",
-        ["PESTIFÉRÉ"]="|cff6B9445",["PESTIFÉRÉE"]="|cff6B9445",
-        -- English
-        ["WARRIOR"]="|cffC79C6E",
-        ["PALADIN"]="|cffF58CBA",
-        ["HUNTER"]="|cffABD473",
-        ["ROGUE"]="|cffFFF569",
-        ["PRIEST"]="|cffFFFFFF",
-        ["DEATHKNIGHT"]="|cffC41F3B",
-        ["SHAMAN"]="|cff0070DE",
-        ["MAGE"]="|cff69CCF0",
-        ["WARLOCK"]="|cff9482C9",
-        ["DRUID"]="|cffFF7D0A"
-    };
-
-    local function GetCharacterFaction(race)
-        return GetFactionForRaceName(race)
-    end
-
-    local FACTION_ICONS = {
-        ["Alliance"] = "Interface\\Glues\\CharacterSelect\\AllianceLogo",
-        ["Horde"] = "Interface\\Glues\\CharacterSelect\\HordeLogo"
-    };
-
-    for i=1, numChars, 1 do
-        local name, race, class, level, zone, sex, ghost, PCC, PRC, PFC = GetCharacterInfo(i);
+    for index = 1, MAX_CHARACTERS_DISPLAYED do
         local button = _G["CharSelectCharacterButton"..index];
-    
-        if ( not name ) then
-            button:SetText("Erreur : contactez un administrateur");
-        else
-            if ( not zone ) then
-                zone = "";
-            end
-        
-            local faction = GetCharacterFaction(race);
-
-            local defaultBg = _G["CharSelectCharacterButton"..index.."DefaultBackground"];
-            if defaultBg then defaultBg:Hide(); end
-
-            local generalBg = _G["CharSelectCharacterButton"..index.."GeneralBackground"];
-            if not generalBg then
-                generalBg = button:CreateTexture("CharSelectCharacterButton"..index.."GeneralBackground", "BACKGROUND", nil, 1);
-            end
-            generalBg:ClearAllPoints();
-            generalBg:SetPoint("CENTER", button, "CENTER", -22, 1);
-            generalBg:SetSize(243, 62);
-            generalBg:SetTexture(GENERAL_BACKGROUND.texture);
-            generalBg:SetTexCoord(unpack(GENERAL_BACKGROUND.coords));
-            generalBg:Show();
-
-            local background = _G["CharSelectCharacterButton"..index.."Background"];
-            if not background then
-                background = button:CreateTexture("CharSelectCharacterButton"..index.."Background", "OVERLAY", nil, 2);
-            end
-            background:ClearAllPoints();
-            background:SetPoint("CENTER", button, "CENTER", -35, 0);
-            background:SetSize(205, 55);
-            background:Show();
-
-            local factionIcon = _G["CharSelectCharacterButton"..index.."FactionIcon"];
-            if not factionIcon then
-                factionIcon = button:CreateTexture("CharSelectCharacterButton"..index.."FactionIcon", "OVERLAY", nil, 3);
-            end
-            factionIcon:ClearAllPoints();
-            factionIcon:SetPoint("TOPLEFT", button, "TOPLEFT", 170, -5);
-            factionIcon:SetSize(60, 60);
-        
-            if faction == "Alliance" then
-                factionIcon:SetTexture(FACTION_ICONS["Alliance"]);
-            else
-                factionIcon:SetTexture(FACTION_ICONS["Horde"]);
-            end
-            factionIcon:Show();
-
-            -- Nombre
-            local nameText = _G["CharSelectCharacterButton"..index.."ButtonTextName"];
-            if not nameText then
-                nameText = button:CreateFontString("CharSelectCharacterButton"..index.."ButtonTextName", "OVERLAY", "GlueFontNormal");
-            end
-            nameText:ClearAllPoints();
-            nameText:SetPoint("TOPLEFT", button, "TOPLEFT", 0, -8);
-            nameText:SetText(name);
-
-            -- Nivel
-            local levelText = _G["CharSelectCharacterButton"..index.."ButtonTextLevel"];
-            if not levelText then
-                levelText = button:CreateFontString("CharSelectCharacterButton"..index.."ButtonTextLevel", "OVERLAY", "GlueFontNormalSmall");
-            end
-            levelText:ClearAllPoints();
-
-            -- Separador entre nivel y clase
-            local separatorText = _G["CharSelectCharacterButton"..index.."ButtonTextSeparator"];
-            if not separatorText then
-                separatorText = button:CreateFontString("CharSelectCharacterButton"..index.."ButtonTextSeparator", "OVERLAY", "GlueFontNormalSmall");
-            end
-            separatorText:ClearAllPoints();
-            separatorText:SetPoint("TOPLEFT", button, "TOPLEFT", 20, -25);
-            separatorText:SetText("|cffffffff-|r");
-
-            if level < 10 then
-                levelText:SetPoint("TOPLEFT", button, "TOPLEFT", 5, -25);
-                levelText:SetText("|cffffffff"..level.."|r");
-            else
-                levelText:SetPoint("TOPLEFT", button, "TOPLEFT", 0, -25);
-                levelText:SetText("|cffffffff"..level.."|r");
-            end
-
-            -- Clase
-            local classText = _G["CharSelectCharacterButton"..index.."ButtonTextClass"];
-            if not classText then
-                classText = button:CreateFontString("CharSelectCharacterButton"..index.."ButtonTextClass", "OVERLAY", "GlueFontNormalSmall");
-            end
-            classText:ClearAllPoints();
-            classText:SetPoint("TOPLEFT", button, "TOPLEFT", 30, -25);
-        
-            classText:SetWidth(150);
-            classText:SetJustifyH("LEFT");
-            classText:SetWordWrap(false);
-        
-            local classColor = CLASS_COLORS[strupper(class)] or "|cffFFFFFF";
-            classText:SetText(classColor..class.."|r");
-        
-            -- Zona
-            local zoneText = _G["CharSelectCharacterButton"..index.."ButtonTextZone"];
-            if not zoneText then
-                zoneText = button:CreateFontString("CharSelectCharacterButton"..index.."ButtonTextZone", "OVERLAY", "GlueFontNormalSmall");
-            end
-            zoneText:ClearAllPoints();
-            zoneText:SetPoint("TOPLEFT", button, "TOPLEFT", 0, -40);
-        
-            zoneText:SetWidth(180);
-            zoneText:SetJustifyH("LEFT");
-            zoneText:SetWordWrap(false);
-        
-            zoneText:SetText(zone);
-			zoneText:SetTextColor(0.3, 0.3, 0.3);
-
-            -- Estado: Vivo/Muerto
-            local statusText = _G["CharSelectCharacterButton"..index.."ButtonTextStatus"];
-            if not statusText then
-                statusText = button:CreateFontString("CharSelectCharacterButton"..index.."ButtonTextStatus", "OVERLAY", "GlueFontNormalSmall");
-            end
-            statusText:ClearAllPoints();
-        
-            if ghost then
-                statusText:SetPoint("TOPRIGHT", button, "TOPRIGHT", -34, -5);
-                statusText:SetJustifyH("RIGHT");
-                statusText:SetWordWrap(false);
-                statusText:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE");
-                statusText:SetTextColor(1, 0.2, 0.2);
-    
-                local deadText = _G["DEAD_INF"] or 
-                                (_G["GlueStrings"] and _G["GlueStrings"]["DEAD_INF"] and 
-                                 _G["GlueStrings"]["DEAD_INF"][GetLocale()]);
-                statusText:SetText(deadText);
-            else
-                statusText:SetPoint("TOPRIGHT", button, "TOPRIGHT", -34, -5);
-                statusText:SetJustifyH("RIGHT");
-                statusText:SetWordWrap(false);
-                statusText:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE");
-                statusText:SetTextColor(0.2, 1, 0.2);
-                
-                local aliveText = _G["LIFE_INF"] or 
-                                 (_G["GlueStrings"] and _G["GlueStrings"]["LIFE_INF"] and 
-                                  _G["GlueStrings"]["LIFE_INF"][GetLocale()]);
-                statusText:SetText(aliveText);
-            end
-        end
-        
-        button:Show();
-
         _G["CharSelectCharacterCustomize"..index]:Hide();
         _G["CharSelectRaceChange"..index]:Hide();
         _G["CharSelectFactionChange"..index]:Hide();
-        if (PFC) then
-            _G["CharSelectFactionChange"..index]:Show();
-        elseif (PRC) then
-            _G["CharSelectRaceChange"..index]:Show();
-        elseif (PCC) then
-            _G["CharSelectCharacterCustomize"..index]:Show();
+
+        if ( index <= numChars ) then
+            local name, race, class, level, zone, sex, ghost, PCC, PRC, PFC = GetCharacterInfo(index);
+            if ( not name ) then
+                EvolutionsRoster_Paint(button, index, "Erreur : contactez un administrateur", race, class, level or 0,
+                    "", sex, ghost);
+            else
+                EvolutionsRoster_Paint(button, index, name, race, class, level, zone, sex, ghost);
+            end
+            if ( PFC ) then
+                _G["CharSelectFactionChange"..index]:Show();
+            elseif ( PRC ) then
+                _G["CharSelectRaceChange"..index]:Show();
+            elseif ( PCC ) then
+                _G["CharSelectCharacterCustomize"..index]:Show();
+            end
+        else
+            EvolutionsRoster_PaintEmpty(button, index == CharacterSelect.createIndex);
         end
-
-        index = index + 1;
-        if (index > MAX_CHARACTERS_DISPLAYED) then
-            break;
-        end
-    end
-
-    for i = index, MAX_CHARACTERS_DISPLAYED do
-        local button = _G["CharSelectCharacterButton"..i];
-
-        local defaultBg = _G["CharSelectCharacterButton"..i.."DefaultBackground"];
-        if not defaultBg then
-            defaultBg = button:CreateTexture("CharSelectCharacterButton"..i.."DefaultBackground", "BACKGROUND");
-        end
-        defaultBg:ClearAllPoints();
-        defaultBg:SetPoint("CENTER", button, "CENTER", -22, 1);
-        defaultBg:SetSize(242, 61);
-        defaultBg:SetTexture("Interface\\Glues\\CharacterSelect\\uicharacterselectglues2x");
-        defaultBg:SetTexCoord(0.619628906, 0.929199219, 0.242675781, 0.336425781);
-        defaultBg:Show();
-
-        local generalBg = _G["CharSelectCharacterButton"..i.."GeneralBackground"];
-        if generalBg then generalBg:Hide(); end
-        
-        local background = _G["CharSelectCharacterButton"..i.."Background"];
-        if background then background:Hide(); end
-        
-        local factionIcon = _G["CharSelectCharacterButton"..i.."FactionIcon"];
-        if factionIcon then factionIcon:Hide(); end
-        
-        local nameText = _G["CharSelectCharacterButton"..i.."ButtonTextName"];
-        if nameText then nameText:SetText(""); end
-        
-        local levelText = _G["CharSelectCharacterButton"..i.."ButtonTextLevel"];
-        if levelText then levelText:SetText(""); end
-
-        local separatorText = _G["CharSelectCharacterButton"..i.."ButtonTextSeparator"];
-        if separatorText then separatorText:Hide(); end
-
-        local classText = _G["CharSelectCharacterButton"..i.."ButtonTextClass"];
-        if classText then classText:SetText(""); end
-        
-        local zoneText = _G["CharSelectCharacterButton"..i.."ButtonTextZone"];
-        if zoneText then zoneText:SetText(""); end
-        
-        local statusText = _G["CharSelectCharacterButton"..i.."ButtonTextStatus"];
-        if statusText then statusText:SetText(""); end
-
-        _G["CharSelectCharacterCustomize"..i]:Hide();
-        _G["CharSelectRaceChange"..i]:Hide();
-        _G["CharSelectFactionChange"..i]:Hide();
-
-        button:Show();
     end
 
     if ( numChars == 0 ) then
@@ -705,17 +443,6 @@ function UpdateCharacterList()
         CharSelectEnterWorldButton:Enable();
     end
 
-    CharacterSelect.createIndex = 0;
-    local connected = IsConnectedToServer();
-
-    if (numChars < MAX_CHARACTERS_PER_REALM and connected) then
-        CharacterSelect.createIndex = numChars + 1;
-        CharSelectCreateCharacterButton:SetID(CharacterSelect.createIndex);
-        CharSelectCreateCharacterButton:Show();
-    else
-        CharSelectCreateCharacterButton:Hide();
-    end
-
     if ( CharacterSelect.selectLast == 1 ) then
         CharacterSelect.selectLast = 0;
         CharacterSelect_SelectCharacter(numChars, 1);
@@ -726,6 +453,8 @@ function UpdateCharacterList()
         CharacterSelect.selectedIndex = 1;
     end
     CharacterSelect_SelectCharacter(CharacterSelect.selectedIndex, 1);
+    EvolutionsRoster_Select(CharacterSelect.selectedIndex);
+    EvolutionsRoster_UpdateHeadline(CharacterSelect.selectedIndex);
 end
 
 function CharacterSelectButton_OnClick(self)
@@ -733,6 +462,9 @@ function CharacterSelectButton_OnClick(self)
     local numChars = GetNumCharacters();
 
     if ( id <= numChars and id ~= CharacterSelect.selectedIndex ) then
+        CharacterSelect_SelectCharacter(id);
+    elseif ( id == CharacterSelect.createIndex ) then
+        -- Evolutions: the first free slot of the list creates a character
         CharacterSelect_SelectCharacter(id);
     else
         PlaySound("igMainMenuOptionCheckBoxOn");

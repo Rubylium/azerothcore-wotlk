@@ -298,6 +298,11 @@ void ScriptMgr::OnPlayerLfgRoles(Player* player, uint8& roles)
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_LFG_ROLES, script->OnPlayerLfgRoles(player, roles));
 }
 
+void ScriptMgr::OnPlayerEnumGuildId(ObjectGuid guid, uint32& guildId)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_ENUM_GUILD_ID, script->OnPlayerEnumGuildId(guid, guildId));
+}
+
 void ScriptMgr::OnPlayerRemoveFromBattleground(Player* player, Battleground* bg)
 {
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_REMOVE_FROM_BATTLEGROUND, script->OnPlayerRemoveFromBattleground(player, bg));

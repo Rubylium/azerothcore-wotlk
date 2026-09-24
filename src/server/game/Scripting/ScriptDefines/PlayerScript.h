@@ -224,6 +224,7 @@ enum PlayerHook
     PLAYERHOOK_ON_LEARN_TAXI_NODE,
     PLAYERHOOK_ON_BEFORE_GET_LEVEL_FOR_XP_GAIN,
     PLAYERHOOK_ON_LFG_ROLES,
+    PLAYERHOOK_ON_ENUM_GUILD_ID,
     PLAYERHOOK_END
 };
 
@@ -391,6 +392,17 @@ public:
      * @param roles The lfg::LfgRoles mask the client sent, which the script may change
      */
     virtual void OnPlayerLfgRoles(Player* /*player*/, uint8& /*roles*/) { }
+
+    /**
+     * @brief Called for every character of the character list (SMSG_CHAR_ENUM) with the guild id it sends.
+     *
+     * The client does nothing with a character's guild on the character select screen (it learns it again once
+     * in the world), so this field can carry data of a script's own to a client that knows to look for it.
+     *
+     * @param guid The character
+     * @param guildId The guild id the list sends for it, which the script may replace
+     */
+    virtual void OnPlayerEnumGuildId(ObjectGuid /*guid*/, uint32& /*guildId*/) { }
 
     // Called when a player is removed from battleground
     virtual void OnPlayerRemoveFromBattleground(Player* /*player*/, Battleground* /*bg*/) { }

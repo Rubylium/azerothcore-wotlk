@@ -48,3 +48,5 @@ GlueLocalizationPost.xml
 # character creation screen has declared the class button template
 CustomClasses.lua
 CustomClassesGlue.lua
+# Evolutions: the character list
+EvolutionsRoster.lua

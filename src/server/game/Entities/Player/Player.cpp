@@ -1217,7 +1217,9 @@ bool Player::BuildEnumData(PreparedQueryResult result, WorldPacket* data)
     *data << fields[14].Get<float>();                          // y
     *data << fields[15].Get<float>();                          // z
 
-    *data << uint32(fields[16].Get<uint32>());                 // guild id
+    uint32 guildId = fields[16].Get<uint32>();
+    sScriptMgr->OnPlayerEnumGuildId(guid, guildId);
+    *data << uint32(guildId);                                // guild id, unused by the client here
 
     if (playerFlags & PLAYER_FLAGS_RESTING)
         playerFlags |= CHARACTER_FLAG_RESTING;
