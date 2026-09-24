@@ -33,6 +33,7 @@ local TEXT = french and {
     heroicTag = "HÉROÏQUE",
     itemLevel = "Butin de niveau d'objet %d",
     paragon = "+%d Parangon",
+    essences = "+%d essences",
     rewards = "Récompenses",
     take = "Relever le défi",
     claim = "Récupérer",
@@ -89,6 +90,7 @@ local TEXT = french and {
     heroicTag = "HEROIC",
     itemLevel = "Drops item level %d",
     paragon = "+%d Paragon",
+    essences = "+%d essences",
     rewards = "Rewards",
     take = "Take the challenge",
     claim = "Claim",
@@ -429,6 +431,13 @@ local function CreateCard(index)
     paragon:SetTextColor(0.64, 0.21, 0.93)
     card.paragon = paragon
 
+    -- Essences, under the paragon points, in the essences' green
+    local essences = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    essences:SetPoint("TOPRIGHT", paragon, "BOTTOMRIGHT", 0, -2)
+    essences:SetJustifyH("RIGHT")
+    essences:SetTextColor(0.3, 1, 0.45)
+    card.essences = essences
+
     local satchel = CreateFrame("Button", nil, card)
     satchel:SetSize(30, 30)
     satchel:SetPoint("RIGHT", card, "RIGHT", -14, 0)
@@ -531,6 +540,7 @@ local function FillCard(card, mission)
     card.itemLevel:SetText(mission.itemLevel > 0 and format(TEXT.itemLevel, mission.itemLevel) or "")
     card.gold:SetText(Money(mission.gold))
     card.paragon:SetText(mission.paragon > 0 and format(TEXT.paragon, mission.paragon) or "")
+    card.essences:SetText(mission.essences > 0 and format(TEXT.essences, mission.essences) or "")
 
     local done = mission.state == STATE_CLAIMED
     card.art:SetDesaturated(done)
@@ -622,7 +632,8 @@ local function Refresh(animate)
         if reward then
             row.icon:SetTexture(DungeonTexture(reward.dungeon, "LFGIcon-"))
             row.text:SetText(reward.name .. "  " .. Money(reward.gold) .. (reward.paragon > 0 and
-                ("  |cffa335ee" .. format(TEXT.paragon, reward.paragon) .. "|r") or ""))
+                ("  |cffa335ee" .. format(TEXT.paragon, reward.paragon) .. "|r") or "") .. (reward.essences > 0 and
+                ("  |cff4dff73" .. format(TEXT.essences, reward.essences) .. "|r") or ""))
             row.button:SetScript("OnClick", function()
                 Send("CLAIM\t" .. reward.rotation .. "\t" .. reward.boss)
             end)
@@ -908,7 +919,7 @@ local function ShowBoard(open)
 end
 
 -- Claiming: the satchel jumps out of its card in a burst of light, and the gold with it
-local function AnimateClaim(boss, gold, paragon)
+local function AnimateClaim(boss, gold, paragon, essences)
     PlaySound("igQuestListComplete")
     PlaySound("LOOTWINDOWCOINSOUND")
     if not frame or not frame:IsShown() then
@@ -918,7 +929,8 @@ local function AnimateClaim(boss, gold, paragon)
     for _, card in ipairs(cards) do
         if card.mission and card.mission.boss == boss then
             card.popText:SetText("+" .. Money(gold) .. (paragon > 0 and
-                ("\n|cffa335ee" .. format(TEXT.paragon, paragon) .. "|r") or ""))
+                ("\n|cffa335ee" .. format(TEXT.paragon, paragon) .. "|r") or "") .. ((essences or 0) > 0 and
+                ("\n|cff4dff73" .. format(TEXT.essences, essences) .. "|r") or ""))
             Tween(0.9, 0, function(p)
                 local grow = OutBack(min(1, p * 1.6))
                 card.popIcon:SetSize(30 + 34 * grow, 30 + 34 * grow)
@@ -1114,7 +1126,7 @@ end
 -- Messages ----------------------------------------------------------------------------------------------------------
 
 local function Handle(message)
-    local kind, a, b, c, d, e, f, g, h, i, j = strsplit("\t", message)
+    local kind, a, b, c, d, e, f, g, h, i, j, k = strsplit("\t", message)
     if kind == "B" then
         incoming.rotation = tonumber(a) or 0
         incoming.left = tonumber(b) or 0
@@ -1134,6 +1146,7 @@ local function Handle(message)
             itemLevel = tonumber(h) or 0,
             paragon = tonumber(i) or 0,
             name = j or "",
+            essences = tonumber(k) or 0,
         })
     elseif kind == "R" then
         tinsert(incoming.rewards, {
@@ -1143,6 +1156,7 @@ local function Handle(message)
             gold = tonumber(d) or 0,
             paragon = tonumber(e) or 0,
             name = f or "",
+            essences = tonumber(g) or 0,
         })
     elseif kind == "E" then
         local previousChallenge = state.challenge
@@ -1174,7 +1188,7 @@ local function Handle(message)
     elseif kind == "P" then
         OnEvent(tonumber(a) or 0, tonumber(b) or 0, tonumber(c) or 0, d or "")
     elseif kind == "C" then
-        AnimateClaim(tonumber(b) or 0, tonumber(c) or 0, tonumber(d) or 0)
+        AnimateClaim(tonumber(b) or 0, tonumber(c) or 0, tonumber(d) or 0, tonumber(e) or 0)
     elseif kind == "X" then
         state.starting = nil
         ShowError(a)
