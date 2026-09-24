@@ -1,5 +1,33 @@
 [
   {
+    "Title": "Les arbres de talents font peau neuve",
+    "Date": "2026-09-24",
+    "Tag": "Talents",
+    "Image": "talents",
+    "Body": "L'Oathblade, le Nécromancien et le Pestiféré découvrent une toute nouvelle fenêtre de talents, inspirée du jeu actuel : un arbre de classe à gauche, un arbre de spécialisation à droite, chacun avec ses propres points. Il y a bien plus de talents que de points : à vous de choisir entre un profil monocible ou de zone, offensif ou défensif. Certains talents proposent un choix entre deux effets, des paliers se débloquent à mesure que vous investissez, et un code de talents permet de partager votre construction. Rien n'est définitif tant que vous n'avez pas cliqué sur Appliquer."
+  },
+  {
+    "Title": "Pestiféré : tank ou soigneur, à vous de choisir",
+    "Date": "2026-09-24",
+    "Tag": "Classe",
+    "Image": "pestifere",
+    "Body": "La fenêtre de talents du Pestiféré s'ouvre désormais sur un onglet Spécialisation : Charnier pour tanker, Sangsue pour soigner. Chaque spécialisation garde ses propres talents, en changer ne coûte rien. Le tank choisit s'il veut être plus résistant (réduction des dégâts, armure qui se renforce sous les coups, points de vie) ou plus meurtrier. Le soigneur gagne du répondant : Poussée de sang pour les soins d'urgence et Jet de sang pour soigner à distance. Vos anciens talents ont été remboursés : pensez à répartir vos points, et à choisir Sangsue si vous soignez."
+  },
+  {
+    "Title": "Le Nécromancien se relève",
+    "Date": "2026-09-24",
+    "Tag": "Classe",
+    "Image": "necromancer",
+    "Body": "Le Nécromancien est entièrement repensé. Trait d'âme devient un sort incanté d'une seconde qui accumule les Âmes ; à 10 Âmes, Levée des morts fait surgir du sol une escouade complète : deux guerriers squelettes, un archer maudit et un mage de peste. Mais vos serviteurs se décomposent sans cesse : c'est à vous de les garder en vie en drainant vos ennemis avec Drain d'âme et en leur ordonnant de charger avec Ordre de mort, qui les soigne. Un nouvel arbre de talents complète le tout."
+  },
+  {
+    "Title": "Mythique+ : les soigneurs ennemis calmés",
+    "Date": "2026-09-24",
+    "Tag": "Donjons",
+    "Image": "mythicplus",
+    "Body": "Dans les grands groupes d'ennemis, notamment à la Cathédrale écarlate, les prêtres adverses soignaient leurs alliés bien trop fort et bien trop souvent : certains packs remontaient sans cesse à pleine vie. Les soins que les monstres se donnent entre eux sont désormais plafonnés : les packs tombent enfin sous vos coups."
+  },
+  {
     "Title": "Mythique+ : la course contre la montre commence",
     "Date": "2026-09-19",
     "Tag": "Donjons",

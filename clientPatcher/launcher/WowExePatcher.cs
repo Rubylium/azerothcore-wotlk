@@ -23,7 +23,11 @@ namespace Evolutions
 
                 if (Matches(bytes, patch.Offset, patched))
                     continue;
-                if (!Matches(bytes, patch.Offset, stock))
+                // An earlier version of our own patch is neither stock nor the current patched bytes: the role
+                // table gained Oathblade after Pestiféré, and every Wow.exe patched in between was refused as
+                // "modified by another tool". So the test is per byte: each must be stock or ours. Only a byte
+                // that is neither is someone else's change.
+                if (!IsStockOrPatched(bytes, patch.Offset, stock, patched))
                     throw new InvalidDataException(
                         $"Wow.exe a été modifié par un autre outil à l'endroit de « {patch.Name} » ({patch.Va}). " +
                         "Rien n'a été changé.");
@@ -49,6 +53,17 @@ namespace Evolutions
                 if (!Matches(written, patch.Offset, patched))
                     throw new IOException($"L'écriture de « {patch.Name} » dans Wow.exe a échoué.");
             return pending.Count;
+        }
+
+        static bool IsStockOrPatched(byte[] bytes, long offset, byte[] stock, byte[] patched)
+        {
+            if (stock.Length != patched.Length)
+                return Matches(bytes, offset, stock);
+
+            for (int i = 0; i < patched.Length; ++i)
+                if (bytes[offset + i] != stock[i] && bytes[offset + i] != patched[i])
+                    return false;
+            return true;
         }
 
         static bool Matches(byte[] bytes, long offset, byte[] expected)

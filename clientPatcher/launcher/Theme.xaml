@@ -3,12 +3,12 @@
 
     <FontFamily x:Key="Display">pack://application:,,,/Evolutions;component/Assets/Fonts/#Cinzel</FontFamily>
 
-    <SolidColorBrush x:Key="Base" Color="#FF080A0F" />
-    <SolidColorBrush x:Key="Text" Color="#FFF2EEE6" />
-    <SolidColorBrush x:Key="Soft" Color="#FFC9C4BA" />
-    <SolidColorBrush x:Key="Muted" Color="#FF8D93A0" />
-    <SolidColorBrush x:Key="Gold" Color="#FFE8BE60" />
-    <SolidColorBrush x:Key="GoldLight" Color="#FFF8DB8B" />
+    <SolidColorBrush x:Key="Base" Color="#FF120C09" />
+    <SolidColorBrush x:Key="Text" Color="#FFF6EDE2" />
+    <SolidColorBrush x:Key="Soft" Color="#FFD9CBB8" />
+    <SolidColorBrush x:Key="Muted" Color="#FFA3907C" />
+    <SolidColorBrush x:Key="Gold" Color="#FFE8B45A" />
+    <SolidColorBrush x:Key="GoldLight" Color="#FFF8D48B" />
     <SolidColorBrush x:Key="Online" Color="#FF4ADE80" />
     <SolidColorBrush x:Key="Offline" Color="#FFEF5A4A" />
     <LinearGradientBrush x:Key="GoldBrush" StartPoint="0,0" EndPoint="0,1">
@@ -20,12 +20,12 @@
         <Setter Property="Foreground" Value="{StaticResource Text}" />
         <Setter Property="FontFamily" Value="Segoe UI" />
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Placement" Value="Right" />
-        <Setter Property="HorizontalOffset" Value="8" />
+        <Setter Property="Placement" Value="Bottom" />
+        <Setter Property="VerticalOffset" Value="6" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
-                    <Border CornerRadius="6" Background="#F0151922" BorderBrush="#26FFFFFF" BorderThickness="1"
+                    <Border CornerRadius="6" Background="#F71A1310" BorderBrush="#33F0C8A0" BorderThickness="1"
                             Padding="10,6">
                         <ContentPresenter />
                     </Border>

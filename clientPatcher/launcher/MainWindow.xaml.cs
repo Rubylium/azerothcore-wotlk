@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -24,12 +25,17 @@ namespace Evolutions
     {
         static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
         static readonly string[] NewsImages = { "icecrown", "ulduar", "wintergrasp", "malygos", "argent", "ruby",
-            "raidfinder", "mythicplus" };
+            "raidfinder", "mythicplus", "talents", "necromancer", "pestifere" };
 
         readonly Settings settings = Settings.Load();
         readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
         readonly bool selfUpdate;
         readonly DispatcherTimer realmTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        // The featured article turns over on its own; hovering it holds it still
+        readonly DispatcherTimer featuredTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        List<NewsView> featuredNews = new List<NewsView>();
+        int featuredIndex;
+        bool realmChecked;
         readonly AnimatedGifPlayer animatedBackdrop;
 
         Manifest manifest;
@@ -38,6 +44,9 @@ namespace Evolutions
         bool repairRequested;
         Action playAction;
         Stopwatch transferClock;
+
+        // Development switch (--page): the page to open on instead of home
+        public static string StartPage;
 
         public MainWindow(bool selfUpdate)
         {
@@ -57,11 +66,16 @@ namespace Evolutions
             };
             Closed += (sender, args) => animatedBackdrop.Dispose();
             realmTimer.Tick += async (sender, args) => await CheckRealmAsync();
+            featuredTimer.Tick += (sender, args) => ShowFeatured(featuredIndex + 1);
             Loaded += async (sender, args) =>
             {
                 ShowNews(settings.News);
                 ShowVersion(settings.Version);
                 ShowSettings();
+                if (StartPage == "news")
+                    NavNews.IsChecked = true;
+                else if (StartPage == "settings")
+                    NavSettings.IsChecked = true;
                 animatedBackdrop.Start();
                 _ = LoadAnimatedBackdropAsync();
                 realmTimer.Start();
@@ -150,7 +164,9 @@ namespace Evolutions
                 repairRequested = false;
 
                 SetProgress(1, 1);
-                SetState("Prêt à jouer", "Version " + manifest.Version, "JOUER", Play);
+                // No version here: the title bar already says it, and a second copy was just noise
+                SetState("Prêt à jouer", "", "JOUER", Play);
+                ShowReady(true);
             }
             catch (UnauthorizedAccessException)
             {
@@ -182,11 +198,47 @@ namespace Evolutions
 
         void SetState(string status, string detail, string action, Action onAction)
         {
+            // Every state but "ready" is working towards something, so the bar belongs there
+            ShowReady(false);
             StatusText.Text = status;
             DetailText.Text = detail;
-            PlayText.Text = action;
+            ShowAction(action);
             playAction = onAction;
             PlayButton.IsEnabled = onAction != null;
+        }
+
+        // The button says what it will do and, underneath, what that involves - as Ascension's did. The icon
+        // follows the action: play, download, retry.
+        void ShowAction(string action)
+        {
+            PlayText.Text = SentenceCase(action);
+            string icon, caption;
+            switch (action)
+            {
+                case "JOUER": icon = "\uF5B0"; caption = "WRATH OF THE LICH KING"; break;
+                case "VÉRIFICATION": icon = "\uE895"; caption = "RECHERCHE EN COURS"; break;
+                case "MISE À JOUR": icon = "\uE896"; caption = "VÉRIFICATION DES FICHIERS"; break;
+                case "INSTALLER": icon = "\uE896"; caption = "CHOISIR LE DOSSIER DU JEU"; break;
+                case "RÉESSAYER": icon = "\uE72C"; caption = "NOUVELLE TENTATIVE"; break;
+                default: icon = "\uF5B0"; caption = ""; break;
+            }
+            PlayIcon.Text = icon;
+            // The play triangle sits heavy on its left edge; nudged right it looks centred in the ring
+            PlayIcon.Margin = new Thickness(icon == "\uF5B0" ? 2 : 0, 0, 0, 0);
+            PlaySub.Text = caption;
+            PlaySub.Visibility = caption.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // "MISE À JOUR" -> "Mise à jour"
+        static string SentenceCase(string text) =>
+            string.IsNullOrEmpty(text) ? text : text.Substring(0, 1) + text.Substring(1).ToLower(French);
+
+        // At rest the progress bar steps aside: a full bar under "Prêt à jouer" read as something that had just
+        // finished loading, forever.
+        void ShowReady(bool ready)
+        {
+            ProgressTrack.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
+            StatusIcon.Text = ready ? "\uE73E" : "\uE946";
         }
 
         void SetBusy(bool isBusy)
@@ -213,6 +265,7 @@ namespace Evolutions
             double seconds = Math.Max(transferClock.Elapsed.TotalSeconds, 0.25);
             DetailText.Text = string.Format(French, "{0} sur {1} · {2}/s", Size(done), Size(total),
                 Size((long)(done / seconds)));
+            PlaySub.Text = "TÉLÉCHARGEMENT · " + Size(total).ToUpper(French);
         }
 
         static string Size(long bytes) =>
@@ -230,7 +283,10 @@ namespace Evolutions
             launching = true;
             playAction = null;
             PlayButton.IsHitTestVisible = false;
-            PlayText.Text = "LANCEMENT…";
+            PlayText.Text = "Lancement…";
+            PlaySub.Text = "DÉMARRAGE DU JEU";
+            PlayIcon.Visibility = Visibility.Collapsed;
+            PlayRing.Visibility = Visibility.Collapsed;
             LaunchSpinner.Visibility = Visibility.Visible;
             LaunchSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360,
                 TimeSpan.FromMilliseconds(850))
@@ -273,6 +329,8 @@ namespace Evolutions
                 launching = false;
                 LaunchSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, null);
                 LaunchSpinner.Visibility = Visibility.Collapsed;
+                PlayIcon.Visibility = Visibility.Visible;
+                PlayRing.Visibility = Visibility.Visible;
                 PlayButton.IsHitTestVisible = true;
                 SetState("Impossible de lancer World of Warcraft", exception.Message, "RÉESSAYER", Play);
             }
@@ -354,9 +412,13 @@ namespace Evolutions
             string realmlist = settings.Realmlist;
             if (string.IsNullOrWhiteSpace(realmlist))
             {
-                ShowRealm(null, "Adresse inconnue");
+                ShowRealm(null, "Adresse du royaume manquante");
                 return;
             }
+
+            // Only the first check says so: the 30 second checks after it would otherwise flicker the card
+            if (!realmChecked)
+                ShowRealmChecking();
 
             string host = realmlist.Trim();
             int port = 3724;
@@ -381,7 +443,8 @@ namespace Evolutions
                     online = false;
                 }
             }
-            ShowRealm(online, online ? "Latence " + clock.ElapsedMilliseconds + " ms" : "Réessai dans 30 s");
+            realmChecked = true;
+            ShowRealm(online, online ? "Latence " + clock.ElapsedMilliseconds + " ms" : "Nouvel essai dans 30 s");
         }
 
         void ShowRealm(bool? online, string detail)
@@ -392,6 +455,7 @@ namespace Evolutions
             RealmHalo.Fill = brush;
             RealmState.Text = online == true ? "En ligne" : online == false ? "Hors ligne" : "Inconnu";
             RealmDetail.Text = detail;
+            RealmRetry.Visibility = online == false ? Visibility.Visible : Visibility.Collapsed;
 
             // A slow pulse while the realm is up
             RealmHalo.BeginAnimation(OpacityProperty, online == true
@@ -401,6 +465,30 @@ namespace Evolutions
                     RepeatBehavior = RepeatBehavior.Forever,
                 }
                 : null);
+        }
+
+        // The first answer is still on its way: gold, and a quicker pulse than the online one
+        void ShowRealmChecking()
+        {
+            Brush brush = (Brush)FindResource("Gold");
+            RealmDot.Fill = brush;
+            RealmHalo.Fill = brush;
+            RealmState.Text = "Vérification…";
+            RealmDetail.Text = "";
+            RealmRetry.Visibility = Visibility.Collapsed;
+            RealmHalo.BeginAnimation(OpacityProperty, new DoubleAnimation(0.5, 0.1, TimeSpan.FromSeconds(0.7))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+            });
+        }
+
+        async void OnRealmRetry(object sender, RoutedEventArgs e)
+        {
+            realmChecked = false;
+            realmTimer.Stop();
+            await CheckRealmAsync();
+            realmTimer.Start();
         }
 
         // News -----------------------------------------------------------------------------------------------------
@@ -419,12 +507,98 @@ namespace Evolutions
                         "il s'occupe du reste.",
                 }, 0));
 
-            NewsView featured = views[0];
+            // The featured spot rotates through the newest few and the cards carry on from there, so nothing is
+            // on the home page twice - it used to feature an article and then show it again as the first card.
+            // The cards take priority: as many featured articles as leave four for them.
+            int featuredCount = Math.Max(1, Math.Min(3, views.Count - 4));
+            featuredNews = views.Take(featuredCount).ToList();
+            NewsCards.ItemsSource = views.Skip(featuredCount).Take(4).ToList();
+            NewsList.ItemsSource = views;
+            NewsBadge.Visibility = IsRecent(news) ? Visibility.Visible : Visibility.Collapsed;
+
+            BuildFeaturedDots();
+            featuredIndex = 0;
+            SetFeatured(featuredNews[0]);
+            featuredTimer.Stop();
+            if (featuredNews.Count > 1)
+                featuredTimer.Start();
+        }
+
+        void SetFeatured(NewsView featured)
+        {
             FeaturedTagText.Text = featured.Tag;
             FeaturedTitle.Text = featured.Title;
-            FeaturedBody.Text = featured.Body;
-            NewsCards.ItemsSource = views.Take(3).ToList();
-            NewsList.ItemsSource = views;
+            FeaturedImage.ImageSource = featured.Image;
+            for (int index = 0; index < FeaturedDots.Children.Count; ++index)
+            {
+                var dot = (Border)FeaturedDots.Children[index];
+                bool current = index == featuredIndex;
+                dot.Background = (Brush)FindResource(current ? "Gold" : "Muted");
+                dot.Opacity = current ? 1 : 0.45;
+                dot.Width = current ? 18 : 7;
+            }
+        }
+
+        // Fades the current article out and the next one in
+        void ShowFeatured(int index)
+        {
+            if (featuredNews.Count == 0)
+                return;
+            featuredIndex = ((index % featuredNews.Count) + featuredNews.Count) % featuredNews.Count;
+            NewsView next = featuredNews[featuredIndex];
+
+            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(220));
+            fadeOut.Completed += (sender, args) =>
+            {
+                SetFeatured(next);
+                Featured.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(360)));
+            };
+            Featured.BeginAnimation(OpacityProperty, fadeOut);
+        }
+
+        void BuildFeaturedDots()
+        {
+            FeaturedDots.Children.Clear();
+            FeaturedDots.Visibility = featuredNews.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            for (int index = 0; index < featuredNews.Count; ++index)
+            {
+                int target = index;
+                // A pill rather than a circle, so the current one can stretch to show where you are
+                var dot = new Border
+                {
+                    Width = 7,
+                    Height = 7,
+                    CornerRadius = new CornerRadius(3.5),
+                    Margin = new Thickness(0, 0, 7, 0),
+                    Cursor = Cursors.Hand,
+                    Background = (Brush)FindResource("Muted"),
+                };
+                dot.MouseLeftButtonUp += (sender, args) =>
+                {
+                    // The card under the dots opens the news page; a dot only turns the carousel
+                    args.Handled = true;
+                    featuredTimer.Stop();
+                    ShowFeatured(target);
+                    featuredTimer.Start();
+                };
+                FeaturedDots.Children.Add(dot);
+            }
+        }
+
+        void OnFeaturedEnter(object sender, MouseEventArgs e) => featuredTimer.Stop();
+
+        void OnFeaturedClick(object sender, MouseButtonEventArgs e) => NavNews.IsChecked = true;
+
+        // The top bar's "Nouveau" badge: the newest article is less than two weeks old
+        static bool IsRecent(List<NewsItem> news) =>
+            news != null && news.Any(item => DateTime.TryParseExact(item.Date, "yyyy-MM-dd",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime date) &&
+                (DateTime.Today - date).TotalDays <= 14);
+
+        void OnFeaturedLeave(object sender, MouseEventArgs e)
+        {
+            if (featuredNews.Count > 1)
+                featuredTimer.Start();
         }
 
         void ShowVersion(string version)
@@ -461,6 +635,22 @@ namespace Evolutions
         void OnNewsCardClick(object sender, RoutedEventArgs e) => NavNews.IsChecked = true;
 
         void OnOpenNews(object sender, RoutedEventArgs e) => NavNews.IsChecked = true;
+
+        // The Play button's chevron: the game tools from the settings page, one click from home
+        void OnPlayMenu(object sender, RoutedEventArgs e)
+        {
+            PlayMenuRepair.IsEnabled = RepairButton.IsEnabled;
+            PlayMenuCache.IsEnabled = CacheButton.IsEnabled;
+            PlayMenuFolder.IsEnabled = OpenFolderButton.IsEnabled;
+            PlayMenu.PlacementTarget = PlayMenuButton;
+            PlayMenu.Placement = PlacementMode.Bottom;
+            // Right edges lined up; the menu's own margin leaves a little air under the button
+            PlayMenu.HorizontalOffset = PlayMenuButton.ActualWidth - PlayMenu.Width;
+            PlayMenu.VerticalOffset = 0;
+            PlayMenu.IsOpen = true;
+        }
+
+        void OnPlayMenuSettings(object sender, RoutedEventArgs e) => NavSettings.IsChecked = true;
 
         // Settings -------------------------------------------------------------------------------------------------
 
@@ -529,7 +719,6 @@ namespace Evolutions
             bool home = page == HomePage;
             var fade = TimeSpan.FromMilliseconds(250);
             Veil.BeginAnimation(OpacityProperty, new DoubleAnimation(home ? 0 : 1, fade));
-            Logo.BeginAnimation(OpacityProperty, new DoubleAnimation(home ? 1 : 0, fade));
             ((Storyboard)FindResource("PageIn")).Begin(page);
         }
 
@@ -557,7 +746,7 @@ namespace Evolutions
             {
                 try
                 {
-                    int dark = 1, round = 2, border = 0x002A2622;
+                    int dark = 1, round = 2, border = 0x00161E2A;
                     DwmSetWindowAttribute(window, UseImmersiveDarkMode, ref dark, sizeof(int));
                     DwmSetWindowAttribute(window, WindowCornerPreference, ref round, sizeof(int));
                     DwmSetWindowAttribute(window, BorderColor, ref border, sizeof(int));

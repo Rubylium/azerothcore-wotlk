@@ -1,8 +1,10 @@
 param(
     # Default: bump the patch number of the latest release
     [string]$version,
-    # Address players connect to; empty keeps whatever their client already uses
-    [string]$realmlist = '',
+    # Address players connect to. The launcher writes it into their realmlist.wtf and Config.wtf, and pings it
+    # for the realm card's status. It used to default to empty, which left every release without an address:
+    # the realm card could only ever say "Adresse inconnue". Pass '' to leave players' clients as they are.
+    [string]$realmlist = '87.91.69.235',
     # Publish the newest package in dist instead of building a new one
     [switch]$skipBuild,
     # Publish this package from dist (e.g. CustomWotLKClientPatch-1.0.24.zip): a launcher-only release keeps the
@@ -23,6 +25,9 @@ param(
 # never deleted.
 
 $ErrorActionPreference = 'Stop'
+# gh colorizes JSON when it still sees a console. Windows PowerShell then cannot parse the release list.
+$env:NO_COLOR = '1'
+$env:GH_FORCE_TTY = '0'
 $patcherRoot = $PSScriptRoot
 $gh = 'C:\Program Files\GitHub CLI\gh.exe'
 $work = Join-Path $patcherRoot '.release'
@@ -151,8 +156,15 @@ $launcherPath = Join-Path $patcherRoot 'launcher\bin\Release\net48\Evolutions.ex
 # 3. What the latest release already holds
 $previous = $null
 $previousTag = $null
-$releases = & $gh release list --repo $repository --limit 1 --json tagName,isLatest 2>$null | ConvertFrom-Json
-if ($LASTEXITCODE -eq 0 -and $releases) {
+# stderr has to stay off the pipeline: under Windows PowerShell, 2>$null on gh feeds ConvertFrom-Json a
+# non-JSON token and the publish stops before a release exists.
+$releaseJson = & $gh release list --repo $repository --limit 1 --json tagName,isLatest 2>&1 |
+    Where-Object { $_ -is [string] }
+$releases = $null
+if ($LASTEXITCODE -eq 0 -and $releaseJson) {
+    $releases = @(($releaseJson -join "`n") | ConvertFrom-Json)
+}
+if ($releases) {
     $previousTag = $releases[0].tagName
     Invoke-Gh release download $previousTag --repo $repository --pattern manifest.json --dir $work --clobber
     $previous = Get-Content -LiteralPath (Join-Path $work 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json

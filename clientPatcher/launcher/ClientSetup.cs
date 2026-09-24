@@ -39,19 +39,38 @@ namespace Evolutions
                 File.WriteAllText(path, content, Encoding.ASCII);
             }
 
-            // Config.wtf keeps the last realmlist too, and the client prefers it
+            // Config.wtf keeps the last realmlist too, and the client prefers it. It also remembers the realm by
+            // name: the realm was renamed from AzerothCore to Evolutions, and a client still asking for the old name
+            // would open the realm list instead of logging straight in.
             string config = Path.Combine(gameFolder, "WTF", "Config.wtf");
             if (File.Exists(config))
             {
                 var lines = File.ReadAllLines(config).ToList();
-                int index = lines.FindIndex(line => line.StartsWith("SET realmList ", StringComparison.OrdinalIgnoreCase));
-                string entry = "SET realmList \"" + realmlist.Trim() + "\"";
-                if (index >= 0 && lines[index] != entry)
-                {
-                    lines[index] = entry;
+                bool changed = SetConfigEntry(lines, "realmList", realmlist.Trim(), false);
+                changed |= SetConfigEntry(lines, "realmName", RealmName, true);
+                if (changed)
                     File.WriteAllLines(config, lines);
-                }
             }
+        }
+
+        public const string RealmName = "Evolutions";
+
+        // Replaces a "SET name "value"" line of Config.wtf, or adds it when asked to; true if the file changed
+        static bool SetConfigEntry(List<string> lines, string name, string value, bool add)
+        {
+            string entry = "SET " + name + " \"" + value + "\"";
+            int index = lines.FindIndex(line => line.StartsWith("SET " + name + " ", StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                if (lines[index] == entry)
+                    return false;
+                lines[index] = entry;
+                return true;
+            }
+            if (!add)
+                return false;
+            lines.Add(entry);
+            return true;
         }
 
         // Every character's AddOns.txt lists our addons as enabled
