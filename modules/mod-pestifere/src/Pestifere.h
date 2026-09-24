@@ -61,8 +61,11 @@ enum Spells : uint32
     SPELL_VOMISSURE                 = 90284,
     SPELL_AVATAR_DE_LA_PESTE        = 90287,
 
-    // Rigor mortis's cooldown, a debuff while it cannot save the carrier again
-    SPELL_RIGOR_MORTIS_COOLDOWN     = 90286,
+    // Talent actives of the retail-style trees (localTools/pestifere/talentTree.json)
+    SPELL_JET_DE_SANG               = 90296,    // the healer's reach: a spit whose damage heals the most injured
+    SPELL_POUSSEE_DE_SANG           = 90297,    // the healer's burst
+    SPELL_MIASME_SUFFOCANT          = 90298,    // pure data: enemies around deal less damage
+    SPELL_CAL_PUTRIDE               = 90299,    // Carapace réactive's armor
 
     // The healer tree "Sangsue" (pestifere-healer.DESIGN.md). The actives are their talent's rank spell.
     SPELL_TRANSFUSION_HEAL          = 90301,    // names Transfusion's healing in the combat log
@@ -131,8 +134,18 @@ constexpr Talent<3> TALENT_BILE_CORROSIVE = { { { 90278, 2 }, { 90279, 4 }, { 90
 constexpr Talent<3> TALENT_HOTE_PARFAIT = { { { 90281, 1 }, { 90282, 2 }, { 90283, 3 } } };
 // % more absorbed by Carapace suintante
 constexpr Talent<3> TALENT_PUS_EPAIS = { { { 90293, 10 }, { 90294, 20 }, { 90295, 30 } } };
-// Learned: a killing blow leaves the carrier at 1 health instead, once every 3 min
-constexpr Talent<1> TALENT_RIGOR_MORTIS = { { { 90285, 1 } } };
+// % chance a melee hit taken hardens the skin (Cal putride)
+constexpr Talent<1> TALENT_CARAPACE_REACTIVE = { { { 91214, 20 } } };
+// Frappe putride sows a third stack of rot
+constexpr Talent<1> TALENT_CONTAGION_ETERNELLE = { { { 91246, 1 } } };
+// % of all damage dealt that heals the Pestiféré
+constexpr Talent<1> TALENT_SYMBIOSE_PARASITAIRE = { { { 91247, 10 } } };
+// % more healing from Jet de sang
+constexpr Talent<2> TALENT_VEINES_OUVERTES = { { { 91260, 15 }, { 91261, 30 } } };
+// Jet de sang also heals the second most injured ally, for this % of it
+constexpr Talent<1> TALENT_SANG_PROJETE = { { { 91264, 50 } } };
+// % of Jet de sang's cooldown taken off
+constexpr Talent<1> TALENT_CRACHAT_URGENCE = { { { 91265, 50 } } };
 
 // The "Sangsue" healer tree (pestifere-healer.DESIGN.md section 3). Talents missing here are data only: Humeurs
 // noires, Veines gonflées, Anticorps, Circulation, Force vitale (auras), Sangsue vorace and Saignée profonde
@@ -277,6 +290,9 @@ void GiveRagePoints(Player* player, float rage);
 
 // Teaches every ability the player's level unlocks; returns how many were newly learned
 uint32 LearnUnlockedAbilities(Player* player);
+
+// Drops abilities the new level has not reached, then teaches whatever that level still allows
+void ForgetAbilitiesAboveLevel(Player* player, uint8 level);
 
 // --- The healer (PestifereHealer.cpp): every heal picks its own target ---
 

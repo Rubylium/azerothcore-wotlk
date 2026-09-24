@@ -33,6 +33,9 @@
 
 #include "Pestifere.h"
 
+#include "Chat.h"
+#include "WorldSession.h"
+
 #include "Item.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
@@ -159,6 +162,19 @@ constexpr uint32 CHAIR_ENEMY_HEALING_PENALTY = 20;      // % less healing receiv
 // Excroissance (90230): healing a Pestiféré cannot use is not thrown away, it sets under the skin as an absorb.
 // Capped as a share of maximum health, so a quiet stretch at full health cannot bank an second health bar.
 constexpr uint32 EXCROISSANCE_CAP_PCT = 75;
+constexpr uint32 EXCROISSANCE_SELF_HEAL_PCT = 20;
+
+// 3.3.5 has no absorb API. A raid frame cannot ask how big a shield is, so the one the client patch ships
+// is told instead: every time the growth changes size the number goes out on the addon channel, and
+// PestifereShield.lua feeds it into the raid frame's own absorb overlay.
+constexpr char const* SHIELD_PREFIX = "PestifereShield";
+constexpr char const* ShieldEchoKey = "PestifereShieldEcho";
+
+struct ShieldEcho : public DataMap::Base
+{
+    uint32 sent = 0;
+};
+
 
 // Peste virulente (90215): damage plague
 constexpr int32 PESTE_DAMAGE_DONE_BASE = 6;             // % damage done at Virulence 1
@@ -175,6 +191,33 @@ Player* GetPestifere(Unit* unit)
 {
     Player* player = unit ? unit->ToPlayer() : nullptr;
     return IsPestifere(player) ? player : nullptr;
+}
+
+uint32 CurrentShield(Player* player)
+{
+    Aura* growth = player->GetAura(SPELL_EXCROISSANCE, player->GetGUID());
+    AuraEffect const* shell = growth ? growth->GetEffect(EFFECT_0) : nullptr;
+    return shell ? uint32(std::max(0, shell->GetAmount())) : 0;
+}
+
+// Sent only when the size actually moves. It changes on every heal received and every hit taken, and most
+// of those leave it exactly where it was.
+void PushShield(Unit* unit)
+{
+    Player* player = GetPestifere(unit);
+    if (!player || !player->GetSession())
+        return;
+
+    uint32 const amount = CurrentShield(player);
+    ShieldEcho* echo = player->CustomData.GetDefault<ShieldEcho>(ShieldEchoKey);
+    if (echo->sent == amount)
+        return;
+    echo->sent = amount;
+
+    WorldPacket packet;
+    std::string const payload = std::string(SHIELD_PREFIX) + "\t" + std::to_string(amount);
+    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player, payload);
+    player->GetSession()->SendPacket(&packet);
 }
 
 int32 ScaleByVirulence(uint8 virulence, int32 base, int32 step)
@@ -491,6 +534,9 @@ class PestifereFrappePutrideSpellScript : public SpellScript
         // The strike's own stack comes from its trigger effect; this is the second one. Two a strike is what makes
         // the rot ripen inside a Morsure fétide cycle -- at one, the cap took 18 sec and the rotation stalled.
         AddRot(caster, target, 1);
+        // Contagion éternelle: a third
+        if (GetTalentValue(caster, TALENT_CONTAGION_ETERNELLE))
+            AddRot(caster, target, 1);
 
         if (int32 const bonus = GetTalentValue(caster, TALENT_FOSSOYEUR); bonus && IsWieldingTwoHand(caster))
         {
@@ -763,6 +809,51 @@ class PestifereCarapaceSuintanteAuraScript : public AuraScript
         DoEffectCalcAmount += AuraEffectCalcAmountFn(PestifereCarapaceSuintanteAuraScript::CalculateAbsorb, EFFECT_0,
             SPELL_AURA_SCHOOL_ABSORB);
         AfterEffectApply += AuraEffectApplyFn(PestifereCarapaceSuintanteAuraScript::HandleApply, EFFECT_0,
+            SPELL_AURA_SCHOOL_ABSORB, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------------------------
+// 90230 Excroissance - what the growth soaks, reported as healing
+// -----------------------------------------------------------------------------------------------------------------
+//
+// 3.3.5 cannot show an absorb. There is no UnitGetTotalAbsorbs for a raid frame to read, and the combat log
+// never names the aura that soaked a hit - a damage event carries an "absorbed" number and nothing to say
+// what did the absorbing. So the shield worked and was invisible everywhere except the buff bar.
+//
+// Sending a heal log for what it eats is how the live game presents an absorb on a meter, and here it is the
+// only way the growth shows up at all. It is a packet and nothing else: no health is restored, no threat is
+// made, and the absorb itself has already happened by the time this runs.
+
+class PestifereExcroissanceAuraScript : public AuraScript
+{
+    PrepareAuraScript(PestifereExcroissanceAuraScript);
+
+    void Report(AuraEffect* /*aurEff*/, DamageInfo& /*dmgInfo*/, uint32& absorbAmount)
+    {
+        Unit* owner = GetUnitOwner();
+        if (!owner || !absorbAmount)
+            return;
+
+        SpellInfo const* spellInfo = GetSpellInfo();
+        HealInfo healInfo(owner, owner, absorbAmount, spellInfo, SpellSchoolMask(spellInfo->SchoolMask));
+        healInfo.SetEffectiveHeal(absorbAmount);
+        owner->SendHealSpellLog(healInfo);
+
+        // what is left of it, so the bar on the raid frame shrinks as it is eaten
+        PushShield(owner);
+    }
+
+    // And goes away when the growth does, whether it was spent or simply ran out
+    void Clear(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        PushShield(GetUnitOwner());
+    }
+
+    void Register() override
+    {
+        AfterEffectAbsorb += AuraEffectAbsorbFn(PestifereExcroissanceAuraScript::Report, EFFECT_0);
+        AfterEffectRemove += AuraEffectApplyFn(PestifereExcroissanceAuraScript::Clear, EFFECT_0,
             SPELL_AURA_SCHOOL_ABSORB, AURA_EFFECT_HANDLE_REAL);
     }
 };
@@ -1381,9 +1472,10 @@ public:
         UNITHOOK_ON_BEFORE_ROLL_MELEE_OUTCOME_AGAINST
     }) { }
 
-    // A killing blow, seen before it lands: Charognard passes the victim's rot on, Rigor mortis saves a carrier.
-    // Then Rage fielleuse and Métabolisme nécrotique turn the damage a Pestiféré takes into rage. The core already
-    // pays the normal rage for a hit from someone else, and none for the carrier's own plagues.
+    // A killing blow, seen before it lands: Charognard passes the victim's rot on. Symbiose parasitaire heals a
+    // Pestiféré for what it deals; Carapace réactive hardens one that is struck. Then Rage fielleuse and Métabolisme
+    // nécrotique turn the damage a Pestiféré takes into rage. The core already pays the normal rage for a hit from
+    // someone else, and none for the carrier's own plagues.
     uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, DamageEffectType damagetype) override
     {
         if (!victim || !damage)
@@ -1392,12 +1484,18 @@ public:
         if (damage >= victim->GetHealth())
             PassRotOn(victim);
 
+        if (Player* striker = GetPestifere(attacker); striker && attacker != victim)
+            if (int32 const leech = GetTalentValue(striker, TALENT_SYMBIOSE_PARASITAIRE))
+                striker->ModifyHealth(int32(CalculatePct(damage, leech)));
+
         Player* pestifere = GetPestifere(victim);
         if (!pestifere)
             return damage;
 
-        if (damage >= pestifere->GetHealth() && CheatDeath(pestifere))
-            damage = pestifere->GetHealth() - 1;
+        if (attacker && attacker != victim && damagetype == DIRECT_DAMAGE)
+            if (int32 const chance = GetTalentValue(pestifere, TALENT_CARAPACE_REACTIVE))
+                if (roll_chance_i(chance))
+                    pestifere->CastSpell(pestifere, SPELL_CAL_PUTRIDE, true);
 
         int32 share = 0;
         if (attacker != victim)
@@ -1481,13 +1579,12 @@ public:
 
         // Last, on whatever the plagues left of it, and on a Pestiféré's own heals too: at full health those
         // are the ones overhealing hardest.
-        StoreOverheal(target, heal, spellInfo);
+        StoreHealing(target, healer, heal, spellInfo);
     }
 
-    // Excroissance: the surplus of a heal sets under the skin instead of being wasted. Détonation healing a
-    // tank who is already full, Chair putride ticking, a healer topping off a pull that never hurt - all of it
-    // becomes an absorb, up to EXCROISSANCE_CAP_PCT of maximum health, and rots away if it is not spent.
-    static void StoreOverheal(Unit* target, uint32 heal, SpellInfo const* spellInfo)
+    // Excroissance stores all overhealing plus a share of every self-heal. A self-heal may therefore contribute
+    // both parts when it overflows: the unused healing and 20% of the heal itself.
+    static void StoreHealing(Unit* target, Unit* healer, uint32 heal, SpellInfo const* spellInfo)
     {
         Player* pestifere = GetPestifere(target);
         if (!pestifere || !heal)
@@ -1500,7 +1597,10 @@ public:
         uint32 const maxHealth = pestifere->GetMaxHealth();
         uint32 const health = pestifere->GetHealth();
         uint32 const missing = maxHealth > health ? maxHealth - health : 0;
-        if (heal <= missing)
+        uint32 const overhealing = heal > missing ? heal - missing : 0;
+        uint32 const selfHealingShare = target == healer ? CalculatePct(heal, EXCROISSANCE_SELF_HEAL_PCT) : 0;
+        uint32 const storedHealing = overhealing + selfHealingShare;
+        if (!storedHealing)
             return;
 
         uint32 const cap = CalculatePct(maxHealth, EXCROISSANCE_CAP_PCT);
@@ -1511,7 +1611,7 @@ public:
         if (held >= cap)
             return;
 
-        uint32 const amount = std::min(cap, held + (heal - missing));
+        uint32 const amount = std::min(cap, held + storedHealing);
         if (!shell)
         {
             pestifere->CastCustomSpell(SPELL_EXCROISSANCE, SPELLVALUE_BASE_POINT0, int32(amount), pestifere,
@@ -1526,10 +1626,11 @@ public:
             growth->RefreshDuration();
         }
 
-        // Set rather than let the spell's own data decide: the amount is what the overheal put there, and
+        // Set rather than let the spell's own data decide: the amount is what healing stored there, and
         // SetAmount also stops anything recalculating it from base points later.
         shell->SetAmount(int32(amount));
         growth->SetNeedClientUpdateForTargets();
+        PushShield(pestifere);
     }
 
 private:
@@ -1558,19 +1659,6 @@ private:
         if (nearest)
             AddRot(caster, nearest, stacks);
     }
-
-    // Rigor mortis: the blow leaves the carrier at 1 health and eats its plagues instead, once every 3 min
-    static bool CheatDeath(Player* pestifere)
-    {
-        if (!GetTalentValue(pestifere, TALENT_RIGOR_MORTIS) || pestifere->HasAura(SPELL_RIGOR_MORTIS_COOLDOWN))
-            return false;
-
-        for (Plague const& plague : Plagues)
-            pestifere->RemoveAura(plague.selfSpellId, pestifere->GetGUID());
-
-        pestifere->AddAura(SPELL_RIGOR_MORTIS_COOLDOWN, pestifere);
-        return true;
-    }
 };
 
 // -----------------------------------------------------------------------------------------------------------------
@@ -1598,6 +1686,8 @@ public:
     {
         if (player->GetLevel() > oldLevel)
             LearnUnlockedAbilities(player);
+        else if (player->GetLevel() < oldLevel)
+            ForgetAbilitiesAboveLevel(player, player->GetLevel());
     }
 
     // Back in a fight: the plagues are carried again for as long as it lasts
@@ -1641,6 +1731,7 @@ void AddPestifereScripts()
     RegisterSpellScript(PestifereRipostePurulenteSpellScript);
     RegisterSpellScript(PestifereFlaqueDeBileAuraScript);
     RegisterSpellScript(PestifereCarapaceSuintanteAuraScript);
+    RegisterSpellScript(PestifereExcroissanceAuraScript);
     RegisterSpellScript(PestifereBondPutrideSpellScript);
     RegisterSpellScript(PestifereVomissureSpellScript);
     RegisterSpellScript(PestifereAvatarDeLaPesteAuraScript);

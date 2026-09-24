@@ -685,6 +685,96 @@ class PestifereDonDeSangSpellScript : public SpellScript
 };
 
 // -----------------------------------------------------------------------------------------------------------------
+// 90296 Jet de sang - the healer's reach: a spit at an enemy 30 yards off, its damage turned into healing
+// -----------------------------------------------------------------------------------------------------------------
+
+// Weapon damage it deals, and how much of that the most injured ally gets back
+constexpr float JET_DE_SANG_WEAPON_SCALE = 1.2f;
+constexpr uint32 JET_DE_SANG_HEAL_PCT = 150;
+
+class PestifereJetDeSangSpellScript : public SpellScript
+{
+    PrepareSpellScript(PestifereJetDeSangSpellScript);
+
+    void HandleHit()
+    {
+        Player* healer = AsPestifere(GetCaster());
+        if (!healer)
+            return;
+        SetHitDamage(std::max<int32>(1, int32(float(healer->CalculateDamage(BASE_ATTACK, false, true)) *
+            JET_DE_SANG_WEAPON_SCALE)));
+    }
+
+    void HandleAfterHit()
+    {
+        Player* healer = AsPestifere(GetCaster());
+        if (!healer || GetHitDamage() <= 0)
+            return;
+
+        // Veines ouvertes
+        uint32 heal = CalculatePct(uint32(GetHitDamage()), JET_DE_SANG_HEAL_PCT);
+        heal += CalculatePct(heal, GetTalentValue(healer, TALENT_VEINES_OUVERTES));
+        // Sang projeté: the second most injured gets its share too
+        int32 const splash = GetTalentValue(healer, TALENT_SANG_PROJETE);
+        std::vector<Unit*> const allies = GetInjuredAllies(healer, HEAL_RANGE, splash ? 2 : 1);
+        for (std::size_t index = 0; index < allies.size(); ++index)
+            HealAlly(healer, allies[index], index == 0 ? heal : CalculatePct(heal, splash), GetSpellInfo()->Id);
+    }
+
+    void HandleAfterCast()
+    {
+        // Crachat d'urgence
+        if (Player* healer = AsPestifere(GetCaster()))
+            if (int32 const cut = GetTalentValue(healer, TALENT_CRACHAT_URGENCE))
+                healer->ModifySpellCooldown(GetSpellInfo()->Id,
+                    -int32(CalculatePct(GetSpellInfo()->RecoveryTime, cut)));
+    }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(PestifereJetDeSangSpellScript::HandleHit);
+        AfterHit += SpellHitFn(PestifereJetDeSangSpellScript::HandleAfterHit);
+        AfterCast += SpellCastFn(PestifereJetDeSangSpellScript::HandleAfterCast);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------------------------
+// 90297 Poussée de sang - the healer's burst: an instant heal, then three hits that heal three times as much
+// -----------------------------------------------------------------------------------------------------------------
+
+constexpr uint32 POUSSEE_DE_SANG_HEAL_PCT = 20;
+
+class PestiferePousseeDeSangSpellScript : public SpellScript
+{
+    PrepareSpellScript(PestiferePousseeDeSangSpellScript);
+
+    void HandleSurge(SpellEffIndex /*effIndex*/)
+    {
+        Player* healer = AsPestifere(GetCaster());
+        if (!healer)
+            return;
+
+        std::vector<Unit*> const allies = GetInjuredAllies(healer, HEAL_RANGE, 1);
+        if (!allies.empty())
+        {
+            Unit* ally = allies.front();
+            HealAlly(healer, ally, CalculatePct(ally->GetMaxHealth(), POUSSEE_DE_SANG_HEAL_PCT), GetSpellInfo()->Id);
+            ally->SendPlaySpellVisual(KIT_DON_DE_SANG);
+        }
+
+        // Hémostase, whenever it was last triggered
+        if (Aura* burst = healer->AddAura(SPELL_HEMOSTASE, healer))
+            burst->SetStackAmount(HEMOSTASE_CHARGES);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(PestiferePousseeDeSangSpellScript::HandleSurge, EFFECT_0,
+            SPELL_EFFECT_DUMMY);
+    }
+};
+
+// -----------------------------------------------------------------------------------------------------------------
 // 90306 Symbiote - bound to the friendly target, or else to whoever is tanking; one at a time
 // -----------------------------------------------------------------------------------------------------------------
 
@@ -964,6 +1054,8 @@ void AddPestifereHealerScripts()
     RegisterSpellScript(PestifereSangsueAuraScript);
     RegisterSpellScript(PestifereAbsorptionMorbideSpellScript);
     RegisterSpellScript(PestifereDonDeSangSpellScript);
+    RegisterSpellScript(PestifereJetDeSangSpellScript);
+    RegisterSpellScript(PestiferePousseeDeSangSpellScript);
     RegisterSpellScript(PestifereSymbioteSpellScript);
     RegisterSpellScript(PestifereSymbioteAuraScript);
     RegisterSpellScript(PestifereCoagulationAuraScript);

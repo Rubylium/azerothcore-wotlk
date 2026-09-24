@@ -147,4 +147,15 @@ uint32 LearnUnlockedAbilities(Player* player)
     }
     return learned;
 }
+
+void ForgetAbilitiesAboveLevel(Player* player, uint8 level)
+{
+    if (!IsPestifere(player))
+        return;
+
+    for (AbilityUnlock const& unlock : AbilityUnlocks)
+        if (unlock.level > level && player->HasSpell(unlock.spellId))
+            player->removeSpell(unlock.spellId, SPEC_MASK_ALL, false);
+    LearnUnlockedAbilities(player);
+}
 }
