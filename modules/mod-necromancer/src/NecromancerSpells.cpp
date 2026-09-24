@@ -30,16 +30,11 @@ int32 SpellDamage(Player* player, uint32 spellId, float levelScale, float spellP
         GetSpellDamageMultiplier(player, spellId, area) * DAMAGE_SCALE));
 }
 
-uint8 SoulCost(uint32 spellId)
+// The cooldown the cast just started, taken down by a talent. Runs after the cast, once it exists.
+void ShortenCooldown(Player* player, uint32 spellId, int32 milliseconds)
 {
-    switch (spellId)
-    {
-        case SPELL_RAISE_SKELETON: return 2;
-        case SPELL_RAISE_DEADEYE: return 3;
-        case SPELL_RAISE_PLAGUE_MAGE: return 4;
-        case SPELL_CREATE_ABOMINATION: return 8;
-        default: return 0;
-    }
+    if (milliseconds > 0)
+        player->ModifySpellCooldown(spellId, -milliseconds);
 }
 
 class NecromancerAbilitySpellScript : public SpellScript
@@ -51,16 +46,25 @@ class NecromancerAbilitySpellScript : public SpellScript
         Player* player = GetNecromancer(GetCaster());
         if (!player)
             return SPELL_FAILED_DONT_REPORT;
-        uint8 const cost = SoulCost(GetSpellInfo()->Id);
-        if (cost && GetSouls(player) < cost)
-            return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
-        if (GetSpellInfo()->Id == SPELL_SACRIFICIAL_PACT && !CountMinions(player))
-            return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
-        if (GetSpellInfo()->Id == SPELL_CORPSE_EXPLOSION)
+        switch (GetSpellInfo()->Id)
         {
-            Unit* target = GetExplTargetUnit();
-            if (!target || !target->HasAura(SPELL_DEATHLY_BRAND, player->GetGUID()))
-                return SPELL_FAILED_TARGET_AURASTATE;
+            case SPELL_RAISE_DEAD:
+                if (GetSouls(player) < GetRaiseDeadCost(player))
+                    return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+                break;
+            case SPELL_SACRIFICIAL_PACT:
+                if (!CountMinions(player) || (CountMinions(player) == 1 && HasAbomination(player)))
+                    return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+                break;
+            case SPELL_CORPSE_EXPLOSION:
+            {
+                Unit* target = GetExplTargetUnit();
+                if (!target || !target->HasAura(SPELL_DEATHLY_BRAND, player->GetGUID()))
+                    return SPELL_FAILED_TARGET_AURASTATE;
+                break;
+            }
+            default:
+                break;
         }
         return SPELL_CAST_OK;
     }
@@ -71,18 +75,31 @@ class NecromancerAbilitySpellScript : public SpellScript
         Unit* target = GetHitUnit();
         if (!player || !target)
             return;
-        if (GetSpellInfo()->Id == SPELL_SOUL_BOLT || GetSpellInfo()->Id == SPELL_DEATHLY_BRAND)
-            DirectMinionsAt(player, target);
         switch (GetSpellInfo()->Id)
         {
             case SPELL_SOUL_BOLT:
-                SetHitDamage(SpellDamage(player, SPELL_SOUL_BOLT, 7.5f, 0.55f));
-                AddSouls(player, 1);
+            {
+                DirectMinionsAt(player, target);
+                float multiplier = 1.0f;
+                // Exécution funèbre
+                if (target->HealthBelowPct(35))
+                    multiplier += float(GetTalentValue(player, { { 90443, 15 }, { 90444, 30 } })) / 100.0f;
+                // Main de la mort
+                if (player->HasAura(TALENT_HAND_OF_DEATH))
+                    multiplier += 0.03f * float(CountMinions(player));
+                SetHitDamage(int32(float(SpellDamage(player, SPELL_SOUL_BOLT, 8.0f, 0.60f)) * multiplier));
+                AddGeneratedSouls(player, 1);
+                // Fil d'âme
+                if (player->HasAura(TALENT_SOUL_THREAD))
+                    HealMostWoundedMinion(player, 10);
                 break;
+            }
             case SPELL_DEATHLY_BRAND:
-                AddSouls(player, 1);
+                DirectMinionsAt(player, target);
+                AddGeneratedSouls(player, 1);
                 if (Aura* brand = target->GetAura(SPELL_DEATHLY_BRAND, player->GetGUID()))
                 {
+                    // Sceau éternel
                     int32 const extension = GetTalentValue(player, { { 90545, 3 }, { 90546, 6 } }) * IN_MILLISECONDS;
                     brand->SetMaxDuration(18000 + extension);
                     brand->SetDuration(18000 + extension);
@@ -103,49 +120,70 @@ class NecromancerAbilitySpellScript : public SpellScript
         if (!player)
             return;
         uint32 const id = GetSpellInfo()->Id;
-        uint8 const cost = SoulCost(id);
-        if (cost && !SpendSouls(player, cost))
-            return;
-
         switch (id)
         {
-            case SPELL_RAISE_SKELETON: SummonMinion(player, MinionKind::Skeleton); break;
-            case SPELL_RAISE_DEADEYE: SummonMinion(player, MinionKind::Archer); break;
-            case SPELL_RAISE_PLAGUE_MAGE: SummonMinion(player, MinionKind::Mage); break;
-            case SPELL_CREATE_ABOMINATION: SummonMinion(player, MinionKind::Abomination); break;
+            case SPELL_RAISE_DEAD:
+                if (SpendSouls(player, GetRaiseDeadCost(player)))
+                {
+                    // Nécropole: the army already out is mended, and Ordre de mort is ready to throw them all in
+                    if (player->HasAura(TALENT_NECROPOLIS))
+                    {
+                        HealMinions(player, 25);
+                        player->RemoveSpellCooldown(SPELL_DEATH_COMMAND, true);
+                    }
+                    RaiseSquad(player);
+                }
+                break;
+            case SPELL_CREATE_ABOMINATION:
+                SummonMinion(player, MinionKind::Abomination);
+                break;
             case SPELL_SOUL_TAP:
-                RestoreMana(player, 20);
+                // Esprit tourmenté
+                RestoreMana(player, uint8(20 + GetTalentValue(player, { { 90584, 10 }, { 90585, 20 } })));
                 AddSouls(player, 2);
+                // Ponction vorace
+                if (player->HasAura(TALENT_HUNGRY_SOULS))
+                    ShortenCooldown(player, id, 10 * IN_MILLISECONDS);
                 break;
             case SPELL_DEATH_COMMAND:
-                CommandMinions(player, GetExplTargetUnit(), 6000);
+            {
+                bool const masterOfTombs = player->HasAura(TALENT_MASTER_OF_TOMBS);
+                CommandMinions(player, GetExplTargetUnit(), 6000, masterOfTombs ? 50 : 30);
+                if (masterOfTombs)
+                    ShortenCooldown(player, id, 4 * IN_MILLISECONDS);
+                // Commandant
+                if (player->HasAura(TALENT_COMMANDER))
+                    StartCommander(player, 6000);
                 break;
+            }
             case SPELL_CORPSE_EXPLOSION:
                 ExplodeBrand(player, GetExplTargetUnit());
                 break;
             case SPELL_SOUL_HARVEST:
                 Harvest(player);
+                // Faux des âmes
+                ShortenCooldown(player, id, GetTalentValue(player, { { 90441, 4 }, { 90442, 8 } }) * IN_MILLISECONDS);
                 break;
             case SPELL_SACRIFICIAL_PACT:
-                if (SacrificeOldestMinion(player))
-                {
-                    player->ModifyHealth(int32(CalculatePct(player->GetMaxHealth(), 20)));
-                    RestoreMana(player, 25);
-                    AddSouls(player, 2);
-                }
+                Sacrifice(player);
+                // Pacte des ombres
+                ShortenCooldown(player, id, GetTalentValue(player, { { 90573, 10 }, { 90574, 20 } }) * IN_MILLISECONDS);
                 break;
             case SPELL_BLACK_VOLLEY:
                 BlackVolley(player, GetExplTargetUnit());
                 break;
             case SPELL_ARMY_OF_THE_DAMNED:
-                for (uint8 i = 0; i < 3; ++i) SummonMinion(player, MinionKind::Skeleton);
-                for (uint8 i = 0; i < 2; ++i) SummonMinion(player, MinionKind::Archer);
-                ExtendMinionDurations(player, 15000);
+                RaiseSquad(player);
+                HealMinions(player, 100);
+                // Marche implacable
+                if (player->HasAura(TALENT_RELENTLESS_MARCH))
+                    ShortenCooldown(player, id, 60 * IN_MILLISECONDS);
                 break;
             case SPELL_GRAVE_TIDE:
                 SummonMinion(player, MinionKind::Skeleton);
                 SummonMinion(player, MinionKind::Skeleton);
-                CommandMinions(player, player->GetSelectedUnit(), 6000);
+                CommandMinions(player, player->GetSelectedUnit(), 6000,
+                    player->HasAura(TALENT_MASTER_OF_TOMBS) ? 50 : 30);
                 break;
             case SPELL_MASTER_OF_THE_DEAD:
                 RefreshMinionDurations(player);
@@ -161,12 +199,16 @@ class NecromancerAbilitySpellScript : public SpellScript
             return;
         int32 damage = SpellDamage(player, SPELL_CORPSE_EXPLOSION, 7.0f, 0.45f, true);
         damage = int32(float(damage) * (1.0f + std::min<uint32>(10, CountMinions(player)) * 0.04f));
+        bool const contagion = player->HasAura(TALENT_CONTAGION);
         for (Unit* enemy : GetEnemiesAround(player, center, 10.0f, 8))
         {
             player->CastCustomSpell(SPELL_FUNERAL_BLAST, SPELLVALUE_BASE_POINT0, damage, enemy, TRIGGERED_FULL_MASK);
+            // Contagion
+            if (contagion && enemy->IsAlive())
+                ApplyNecroticRot(player, enemy, NECROTIC_ROT_MAX_STACKS);
             // The blast sows what it just consumed: everything caught in it starts carrying the brand. The
             // target it went off on does not - it pays the mark again, which is what keeps the button honest.
-            if (enemy == center)
+            if (enemy == center || !enemy->IsAlive())
                 continue;
             if (Aura* spread = player->AddAura(SPELL_DEATHLY_BRAND, enemy))
             {
@@ -179,7 +221,8 @@ class NecromancerAbilitySpellScript : public SpellScript
 
     static void Harvest(Player* player)
     {
-        std::size_t const limit = 5 + std::size_t(GetTalentValue(player, { { 90558, 1 }, { 90559, 2 }, { 90560, 3 } }));
+        // Moisson vorace: one more target a rank
+        std::size_t const limit = 5 + std::size_t(GetTalentValue(player, { { 90558, 1 }, { 90559, 2 } }));
         int32 const baseDamage = SpellDamage(player, SPELL_SOUL_HARVEST, 6.0f, 0.35f, true);
         uint8 souls = 0;
         for (Unit* enemy : GetEnemiesAround(player, player, 12.0f, limit))
@@ -190,7 +233,33 @@ class NecromancerAbilitySpellScript : public SpellScript
             player->CastCustomSpell(SPELL_FUNERAL_BLAST, SPELLVALUE_BASE_POINT0, damage, enemy, TRIGGERED_FULL_MASK);
             ++souls;
         }
-        AddSouls(player, souls);
+        AddSouls(player, std::min<uint8>(5, souls));
+    }
+
+    // The weakest minion bursts where it stands; the Nécromancien drinks what it held
+    static void Sacrifice(Player* player)
+    {
+        Position where;
+        if (!SacrificeWeakestMinion(player, where))
+            return;
+
+        int32 damage = SpellDamage(player, SPELL_SACRIFICIAL_PACT, 7.0f, 0.45f, true);
+        // Sacrifice exalté
+        if (player->HasAura(TALENT_EXALTED_SACRIFICE))
+            damage = int32(float(damage) * 1.5f);
+        // Enemies around the fallen minion: the search runs from the Nécromancien, wide enough to hold any spot
+        // his army can stand on, and keeps what is within 8 yards of the burst
+        for (Unit* enemy : GetEnemiesAround(player, player, 50.0f, 40))
+            if (enemy->GetExactDist(&where) <= 8.0f)
+                player->CastCustomSpell(SPELL_FUNERAL_BLAST, SPELLVALUE_BASE_POINT0, damage, enemy,
+                    TRIGGERED_FULL_MASK);
+
+        player->ModifyHealth(int32(CalculatePct(player->GetMaxHealth(), 20)));
+        RestoreMana(player, 25);
+        AddSouls(player, 2);
+        // Sang pour sang
+        if (player->HasAura(TALENT_BLOOD_FOR_BLOOD))
+            HealMinions(player, 30);
     }
 
     static void BlackVolley(Player* player, Unit* center)
@@ -231,8 +300,9 @@ class NecromancerPeriodicAuraScript : public AuraScript
         uint32 const spellId = GetSpellInfo()->Id;
         int32 amount;
         if (spellId == SPELL_DEATHLY_BRAND)
+            // Marque profonde
             amount = SpellDamage(player, spellId, 1.8f, 0.13f)
-                * (100 + GetTalentValue(player, { { 90515, 10 }, { 90516, 20 }, { 90517, 30 } })) / 100;
+                * (100 + GetTalentValue(player, { { 90515, 15 }, { 90516, 30 } })) / 100;
         else if (spellId == SPELL_NECROTIC_ROT)
             // Per stack, and counted as area damage so Doctrine de la peste pays for the pack it is rotting.
             amount = SpellDamage(player, spellId, 0.45f, 0.033f, true) * int32(GetStackAmount());
@@ -256,16 +326,41 @@ class NecromancerPeriodicAuraScript : public AuraScript
         target->SendPeriodicAuraLog(&log);
 
         Unit::DealDamage(player, target, damage, nullptr, DOT, spellInfo->GetSchoolMask(), spellInfo, true);
-        if (spellId == SPELL_SOUL_DRAIN)
-            RestoreMana(player, 3);
+
+        if (spellId == SPELL_DEATHLY_BRAND)
+        {
+            // Nécrose
+            int32 const chance = GetTalentValue(player, { { 90439, 10 }, { 90440, 20 } });
+            if (chance && roll_chance_i(chance))
+                AddSouls(player, 1);
+        }
+        else if (spellId == SPELL_SOUL_DRAIN)
+            Transfuse(player, damage);
+    }
+
+    // Drain d'âme is what keeps the army standing: every pulse pours the stolen life into the minions
+    void Transfuse(Player* player, uint32 damage)
+    {
+        // Transfusion
+        uint32 const heal = DRAIN_HEAL_PERCENT * (100 + GetTalentValue(player, { { 90564, 25 }, { 90565, 50 } }));
+        HealMinions(player, std::max<uint32>(1, heal / 100));
+        RestoreMana(player, 3);
+        // Siphon vital
+        if (int32 const siphon = GetTalentValue(player, { { 90571, 15 }, { 90572, 30 } }))
+        {
+            HealInfo healInfo(player, player, CalculatePct(damage, siphon), GetSpellInfo(),
+                GetSpellInfo()->GetSchoolMask());
+            player->HealBySpell(healInfo);
+        }
     }
 
     void HandleRemove(AuraEffect const* /*effect*/, AuraEffectHandleModes /*mode*/)
     {
         if (GetSpellInfo()->Id != SPELL_SOUL_DRAIN || GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
             return;
+        // A drain carried to its end: one Âme, and Drain gourmand a second
         if (Player* player = GetNecromancer(GetCaster()))
-            AddSouls(player, 2);
+            AddSouls(player, player->HasAura(TALENT_GREEDY_DRAIN) ? 2 : 1);
     }
 
     void Register() override
@@ -285,10 +380,23 @@ public:
     uint32 DealDamage(Unit* /*attacker*/, Unit* victim, uint32 damage, DamageEffectType /*type*/) override
     {
         Player* player = victim ? victim->ToPlayer() : nullptr;
-        if (!IsNecromancer(player) || CountMinions(player) < 3)
+        if (!IsNecromancer(player) || !damage)
             return damage;
-        int32 reduction = GetTalentValue(player, { { 90555, 3 }, { 90556, 6 }, { 90557, 9 } });
-        return reduction ? uint32(CalculatePct(damage, 100 - reduction)) : damage;
+
+        uint32 const minions = CountMinions(player);
+        int32 reduction = 0;
+        // Volonté nécrotique
+        if (minions >= 3)
+            reduction += GetTalentValue(player, { { 90555, 3 }, { 90556, 6 } });
+        // Linceul d'os
+        if (player->HasAura(SPELL_BONE_SHROUD))
+            reduction += 30;
+        // Garde de chair
+        if (player->HasAura(TALENT_FLESH_GUARD) && HasAbomination(player))
+            reduction += 10;
+        if (reduction)
+            damage = uint32(CalculatePct(damage, 100 - std::min<int32>(75, reduction)));
+        return damage;
     }
 };
 
@@ -310,6 +418,8 @@ public:
     {
         if (player->GetLevel() > oldLevel)
             LearnUnlockedAbilities(player);
+        else if (player->GetLevel() < oldLevel)
+            ForgetAbilitiesAboveLevel(player, player->GetLevel());
     }
     void OnPlayerCreatureKill(Player* player, Creature* killed) override { RewardMarkedKill(player, killed); }
     void OnPlayerCreatureKilledByPet(Player* player, Creature* killed) override { RewardMarkedKill(player, killed); }

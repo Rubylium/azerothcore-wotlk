@@ -24,6 +24,20 @@ namespace
 std::mutex minionMutex;
 std::unordered_map<ObjectGuid, std::deque<ObjectGuid>> ownerMinions;
 
+// A raised minion climbs out of the ground (the Death Knight ghoul's rise) before it does anything: it holds
+// still for this long so the emerge animation plays out instead of being cut by its first step
+constexpr uint32 RISE_MS = 1400;
+// SpellVisualKit of Raise Dead's ghoul (spell 52150, visual 9311): the earth bursting open under it
+constexpr uint32 SPELL_VISUAL_KIT_SUMMON_GHOULS = 9491;
+// Nothing lives past this, decay or not; Décomposition is meant to end them long before
+constexpr uint32 MINION_MAX_LIFETIME_MS = 60 * IN_MILLISECONDS;
+
+enum MinionData : uint32
+{
+    DATA_COMMAND = 1,       // Ordre de mort: the damage bonus runs this long
+    DATA_MASTER = 2         // Maître des morts: empowered and not decaying for this long
+};
+
 uint32 GetEntry(MinionKind kind)
 {
     switch (kind)
@@ -41,17 +55,6 @@ bool IsOrdinary(Creature const* creature)
     return creature && creature->GetEntry() != NPC_ABOMINATION;
 }
 
-MinionKind GetKind(Creature const* creature)
-{
-    switch (creature->GetEntry())
-    {
-        case NPC_CURSED_ARCHER: return MinionKind::Archer;
-        case NPC_PLAGUE_MAGE: return MinionKind::Mage;
-        case NPC_ABOMINATION: return MinionKind::Abomination;
-        default: return MinionKind::Skeleton;
-    }
-}
-
 std::vector<Creature*> ResolveMinions(Player* owner)
 {
     std::vector<ObjectGuid> guids;
@@ -66,10 +69,11 @@ std::vector<Creature*> ResolveMinions(Player* owner)
     std::deque<ObjectGuid> alive;
     for (ObjectGuid guid : guids)
         if (Creature* creature = ObjectAccessor::GetCreature(*owner, guid))
-        {
-            minions.push_back(creature);
-            alive.push_back(guid);
-        }
+            if (creature->IsAlive())
+            {
+                minions.push_back(creature);
+                alive.push_back(guid);
+            }
 
     // A minion is only struck off the list when it dies; one that ran out of time, was sacrificed or was
     // evicted by the army cap stayed on it and counted against the cap forever. The list is what is left.
@@ -85,7 +89,8 @@ std::vector<Creature*> ResolveMinions(Player* owner)
 
 uint32 GetArmyCap(Player const* owner)
 {
-    return 8u + uint32(GetTalentValue(owner, { { 90537, 1 }, { 90538, 2 } }));
+    // Ossuaire vivant: the squad brings a third skeleton, and the army has room for it
+    return 8u + (owner->HasAura(TALENT_LIVING_OSSUARY) ? 1u : 0u);
 }
 
 // What makes a raised creature the Nécromancien's, and able to fight at all.
@@ -107,6 +112,12 @@ void BindToOwner(Creature* minion, Player* owner)
     minion->SetReactState(REACT_AGGRESSIVE);
 }
 
+void Heal(Creature* minion, uint32 amount)
+{
+    if (minion && minion->IsAlive() && amount)
+        minion->SetHealth(std::min<uint32>(minion->GetMaxHealth(), minion->GetHealth() + amount));
+}
+
 class NecromancerMinionAI : public ScriptedAI
 {
 public:
@@ -119,15 +130,32 @@ public:
         {
             BindToOwner(me, owner);
             Scale(owner);
-            me->GetMotionMaster()->MoveFollow(owner, FollowDistance(), frand(0.0f, float(M_PI * 2.0)),
-                MOTION_SLOT_ACTIVE);
         }
     }
 
     void JustDied(Unit* /*killer*/) override
     {
-        if (Player* owner = GetOwner())
-            RemoveMinion(owner->GetGUID(), me->GetGUID());
+        // It crumbles, and is gone a moment later rather than lying there for the corpse's full decay
+        me->DespawnOrUnsummon(3s);
+        Player* owner = GetOwner();
+        if (!owner)
+            return;
+        RemoveMinion(owner->GetGUID(), me->GetGUID());
+
+        // Dernier souffle
+        if (owner->HasAura(TALENT_LAST_BREATH))
+            AddSouls(owner, 1);
+
+        // Fosse commune: what falls bursts, and the burst is the Nécromancien's
+        if (owner->HasAura(TALENT_MASS_GRAVE))
+        {
+            float const spellPower =
+                float(std::max<int32>(0, owner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SHADOW)));
+            int32 const damage = std::max<int32>(1, int32((float(owner->GetLevel()) * 4.0f + spellPower * 0.25f) *
+                GetSpellDamageMultiplier(owner, SPELL_FUNERAL_BLAST, true) * DAMAGE_SCALE));
+            for (Unit* enemy : GetEnemiesAround(owner, me, 8.0f, 6))
+                owner->CastCustomSpell(SPELL_FUNERAL_BLAST, SPELLVALUE_BASE_POINT0, damage, enemy, TRIGGERED_FULL_MASK);
+        }
     }
 
     void IsSummonedBy(WorldObject* summoner) override
@@ -143,21 +171,30 @@ public:
     // A minion that is being beaten on fights back: ScriptedAI does nothing with this by itself
     void AttackedBy(Unit* attacker) override
     {
-        if (!me->GetVictim() && attacker && me->IsValidAttackTarget(attacker))
+        if (!riseTimer && !me->GetVictim() && attacker && me->IsValidAttackTarget(attacker))
             AttackStart(attacker);
+    }
+
+    // Melee leech: the brand and Crocs avides turn a share of every swing into the minion's own health. Ranged
+    // minions deal their damage through a spell credited to their master, so theirs is healed in CastRanged.
+    void DamageDealt(Unit* victim, uint32& damage, DamageEffectType /*damageType*/,
+        SpellSchoolMask /*schoolMask*/) override
+    {
+        if (Player* owner = GetOwner())
+            Heal(me, CalculatePct(damage, LeechPercent(owner, victim)));
     }
 
     void SetData(uint32 type, uint32 value) override
     {
-        if (type == 1)
+        if (type == DATA_COMMAND)
             commandTimer = value;
-        else if (type == 2)
+        else if (type == DATA_MASTER)
             masterTimer = value;
     }
 
     void AttackStart(Unit* target) override
     {
-        if (!target)
+        if (!target || riseTimer)
             return;
         if (kind == MinionKind::Archer || kind == MinionKind::Mage)
             ScriptedAI::AttackStartCaster(target, kind == MinionKind::Mage ? 22.0f : 26.0f);
@@ -175,10 +212,23 @@ public:
             return;
         }
 
+        // Still climbing out of the ground
+        if (riseTimer)
+        {
+            riseTimer = riseTimer > diff ? riseTimer - diff : 0;
+            if (!riseTimer)
+                me->GetMotionMaster()->MoveFollow(owner, FollowDistance(), frand(0.0f, float(M_PI * 2.0)),
+                    MOTION_SLOT_ACTIVE);
+            return;
+        }
+
         commandTimer = commandTimer > diff ? commandTimer - diff : 0;
         masterTimer = masterTimer > diff ? masterTimer - diff : 0;
         scaleTimer = scaleTimer > diff ? scaleTimer - diff : 0;
         attackTimer = attackTimer > diff ? attackTimer - diff : 0;
+
+        if (Decay(owner, diff))
+            return;
 
         if (me->GetDistance(owner) > 45.0f)
         {
@@ -221,6 +271,8 @@ public:
             me->GetMotionMaster()->Clear();
             AttackStart(preferred);
             target = preferred;
+            // The brand bonus and Marque dévorante are part of the weapon: rescale for the new target
+            Scale(owner);
         }
 
         if (!target)
@@ -246,7 +298,10 @@ public:
             RestoreMana(owner, 1);
         DoMeleeAttackIfReady();
         if (swinging)
+        {
             ApplyNecroticRot(owner, target);
+            Feed(owner);
+        }
     }
 
 private:
@@ -263,11 +318,57 @@ private:
         return kind == MinionKind::Archer || kind == MinionKind::Mage ? 6.0f : 2.0f;
     }
 
+    // Décomposition: the army is always dying, and only the Nécromancien keeps it standing. Returns whether the
+    // minion fell to it.
+    bool Decay(Player* owner, uint32 diff)
+    {
+        decayTimer += diff;
+        if (decayTimer < IN_MILLISECONDS)
+            return false;
+        decayTimer -= IN_MILLISECONDS;
+
+        // Maître des morts suspends it, and so does Légion frénétique with Horde affamée
+        if (masterTimer || (owner->HasAura(SPELL_FRENZIED_LEGION) && owner->HasAura(TALENT_HUNGRY_HORDE)))
+            return false;
+
+        float percent = float(kind == MinionKind::Abomination ? ABOMINATION_DECAY_PERCENT : DECAY_PERCENT);
+        // Décomposition ralentie
+        percent *= 1.0f - float(GetTalentValue(owner, { { 90522, 15 }, { 90523, 30 } })) / 100.0f;
+        uint32 const loss = std::max<uint32>(1, uint32(float(me->GetMaxHealth()) * percent / 100.0f));
+        if (me->GetHealth() <= loss)
+        {
+            me->KillSelf(false);
+            return true;
+        }
+        me->SetHealth(me->GetHealth() - loss);
+        return false;
+    }
+
+    uint32 LeechPercent(Player const* owner, Unit const* victim) const
+    {
+        uint32 percent = uint32(GetTalentValue(owner, { { 90594, 10 }, { 90595, 20 } }));
+        if (victim && victim->HasAura(SPELL_DEATHLY_BRAND, owner->GetGUID()))
+            percent += BRAND_LEECH_PERCENT;
+        return percent;
+    }
+
+    // What the brand is worth against the current target: 15%, and Marque dévorante on top
+    float BrandMultiplier(Player const* owner, Unit const* victim) const
+    {
+        if (!victim || !victim->HasAura(SPELL_DEATHLY_BRAND, owner->GetGUID()))
+            return 1.0f;
+        return 1.15f + float(GetTalentValue(owner, { { 90597, 10 }, { 90598, 20 } })) / 100.0f;
+    }
+
     float ActiveMultiplier(Player const* owner) const
     {
         float multiplier = GetMinionDamageMultiplier(owner, kind);
+        // Présence du maître: only within 30 yards of him
+        if (me->GetDistance(owner) <= 30.0f)
+            multiplier *= 1.0f + float(GetTalentValue(owner, { { 90550, 4 }, { 90551, 8 } })) / 100.0f;
+        // Ordre de mort, and Commandement impitoyable on top of it
         if (commandTimer)
-            multiplier *= 1.25f + float(GetTalentValue(owner, { { 90519, 5 }, { 90520, 10 }, { 90521, 15 } })) / 100.0f;
+            multiplier *= 1.25f + float(GetTalentValue(owner, { { 90519, 10 }, { 90520, 20 } })) / 100.0f;
         if (masterTimer)
             multiplier *= 1.50f;
         return multiplier;
@@ -281,13 +382,14 @@ private:
             * GetMinionHealthMultiplier(owner, kind);
         if (kind == MinionKind::Abomination)
             health *= 2.4f;
+        // Keeps the same share of its health when the maximum moves, so rescaling never heals or wounds it
+        float const share = me->GetMaxHealth() ? float(me->GetHealth()) / float(me->GetMaxHealth()) : 1.0f;
         me->SetMaxHealth(uint32(health));
-        if (me->GetHealth() > me->GetMaxHealth() || me->GetHealth() == 0)
-            me->SetHealth(me->GetMaxHealth());
+        me->SetHealth(std::max<uint32>(1, uint32(health * std::min(1.0f, share))));
         me->SetArmor(int32(40 + owner->GetLevel() * 35));
 
         float baseDamage = (4.0f + float(owner->GetLevel()) * 1.45f + spellPower * 0.10f)
-            * ActiveMultiplier(owner) * DAMAGE_SCALE;
+            * ActiveMultiplier(owner) * BrandMultiplier(owner, me->GetVictim()) * DAMAGE_SCALE;
         if (kind == MinionKind::Abomination)
             baseDamage *= 1.8f;
         me->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, baseDamage * 0.85f);
@@ -299,33 +401,47 @@ private:
     void CastRanged(Player* owner, Unit* target)
     {
         float const spellPower = float(std::max<int32>(0, owner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SHADOW)));
-        int32 damage = int32((6.0f + owner->GetLevel() * 2.0f + spellPower * 0.16f)
+        int32 const damage = int32((6.0f + owner->GetLevel() * 2.0f + spellPower * 0.16f)
             * ActiveMultiplier(owner) * DAMAGE_SCALE);
-        if (target->HasAura(SPELL_DEATHLY_BRAND, owner->GetGUID()))
-            damage = int32(float(damage) * 1.15f);
 
         if (kind == MinionKind::Mage)
         {
             // The plague mage is where the rot spreads fastest: its salvo rots every enemy it splashes.
-            for (Unit* enemy : GetEnemiesAround(owner, target, 8.0f, 4))
+            // Armée pestilentielle widens it.
+            std::size_t const targets = owner->HasAura(TALENT_PESTILENT_ARMY) ? 6 : 4;
+            for (Unit* enemy : GetEnemiesAround(owner, target, 8.0f, targets))
             {
-                me->CastCustomSpell(SPELL_PLAGUE_VOLLEY, SPELLVALUE_BASE_POINT0, damage, enemy,
+                int32 const dealt = int32(float(damage) * BrandMultiplier(owner, enemy));
+                me->CastCustomSpell(SPELL_PLAGUE_VOLLEY, SPELLVALUE_BASE_POINT0, dealt, enemy,
                     TRIGGERED_FULL_MASK, nullptr, nullptr, owner->GetGUID());
                 ApplyNecroticRot(owner, enemy);
+                Heal(me, CalculatePct(uint32(dealt), LeechPercent(owner, enemy)));
             }
         }
         else
         {
-            me->CastCustomSpell(SPELL_SPECTRAL_BOLT, SPELLVALUE_BASE_POINT0, damage, target,
+            int32 const dealt = int32(float(damage) * BrandMultiplier(owner, target));
+            me->CastCustomSpell(SPELL_SPECTRAL_BOLT, SPELLVALUE_BASE_POINT0, dealt, target,
                 TRIGGERED_FULL_MASK, nullptr, nullptr, owner->GetGUID());
             ApplyNecroticRot(owner, target);
+            Heal(me, CalculatePct(uint32(dealt), LeechPercent(owner, target)));
         }
 
         if ((owner->HasAura(SPELL_FRENZIED_LEGION) || masterTimer) && roll_chance_i(20))
             RestoreMana(owner, 1);
+        Feed(owner);
+    }
+
+    // Nuée affamée: now and then an attack tears a soul loose for the master
+    static void Feed(Player* owner)
+    {
+        if (owner->HasAura(TALENT_HUNGRY_SWARM) && roll_chance_i(5))
+            AddSouls(owner, 1);
     }
 
     MinionKind kind;
+    uint32 riseTimer = RISE_MS;
+    uint32 decayTimer = 0;
     uint32 commandTimer = 0;
     uint32 masterTimer = 0;
     uint32 scaleTimer = 0;
@@ -369,38 +485,57 @@ TempSummon* SummonMinion(Player* owner, MinionKind kind, uint32 durationMs)
                 }
     }
 
-    uint32 extension = uint32(GetTalentValue(owner, { { 90505, 2 }, { 90506, 4 }, { 90507, 6 } }) +
-        GetTalentValue(owner, { { 90522, 2 }, { 90523, 4 }, { 90524, 6 } })) * IN_MILLISECONDS;
-    if (!durationMs)
-        durationMs = (kind == MinionKind::Abomination ? 35 : 30) * IN_MILLISECONDS;
-    Position position = owner->GetNearPosition(frand(1.5f, 3.0f), frand(0.0f, float(M_PI * 2.0)));
-    TempSummon* summon = owner->SummonCreature(GetEntry(kind), position, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN,
-        durationMs + extension);
+    // In the arc before the Nécromancien, where he sees them climb out: behind him the burst fills the camera
+    Position position = owner->GetNearPosition(frand(2.5f, 5.0f), frand(-1.2f, 1.2f));
+    // Timed, not timed-or-dead: that one restarts its clock whenever the minion is in combat, so it never ran out
+    TempSummon* summon = owner->SummonCreature(GetEntry(kind), position, TEMPSUMMON_TIMED_DESPAWN,
+        durationMs ? durationMs : MINION_MAX_LIFETIME_MS);
     if (!summon)
         return nullptr;
 
     summon->SetOwnerGUID(owner->GetGUID());
     summon->SetCreatorGUID(owner->GetGUID());
+    summon->SetFacingToObject(owner);
     BindToOwner(summon, owner);
+    // Out of the ground, like the Death Knight's ghouls: the earth bursts and the minion climbs out of it
+    summon->SendPlaySpellVisual(SPELL_VISUAL_KIT_SUMMON_GHOULS);
+    summon->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
     {
         std::lock_guard<std::mutex> lock(minionMutex);
         ownerMinions[owner->GetGUID()].push_back(summon->GetGUID());
     }
-    if (Unit* target = owner->GetSelectedUnit())
-        if (owner->IsValidAttackTarget(target))
-            summon->AI()->AttackStart(target);
     return summon;
+}
+
+void RaiseSquad(Player* owner)
+{
+    uint8 const skeletons = owner->HasAura(TALENT_LIVING_OSSUARY) ? 3 : 2;
+    for (uint8 i = 0; i < skeletons; ++i)
+        SummonMinion(owner, MinionKind::Skeleton);
+    SummonMinion(owner, MinionKind::Archer);
+    SummonMinion(owner, MinionKind::Mage);
+
+    // Seigneur de la Légion
+    if (owner->HasAura(TALENT_LORD_OF_THE_LEGION))
+        StartLordOfTheLegion(owner, 10 * IN_MILLISECONDS);
 }
 
 uint32 CountMinions(Player* owner) { return owner ? uint32(ResolveMinions(owner).size()) : 0; }
 
-void CommandMinions(Player* owner, Unit* target, uint32 durationMs)
+bool HasAbomination(Player* owner)
+{
+    for (Creature* minion : ResolveMinions(owner))
+        if (minion->GetEntry() == NPC_ABOMINATION)
+            return true;
+    return false;
+}
+
+void CommandMinions(Player* owner, Unit* target, uint32 durationMs, uint32 healPercent)
 {
     for (Creature* minion : ResolveMinions(owner))
     {
-        minion->SetHealth(std::min<uint32>(minion->GetMaxHealth(),
-            minion->GetHealth() + CalculatePct(minion->GetMaxHealth(), 30)));
-        minion->AI()->SetData(1, durationMs);
+        Heal(minion, CalculatePct(minion->GetMaxHealth(), healPercent));
+        minion->AI()->SetData(DATA_COMMAND, durationMs);
         if (target && minion->IsValidAttackTarget(target))
             minion->AI()->AttackStart(target);
     }
@@ -420,33 +555,44 @@ void DirectMinionsAt(Player* owner, Unit* target)
         }
 }
 
-bool SacrificeOldestMinion(Player* owner)
+void HealMinions(Player* owner, uint32 percent)
 {
     for (Creature* minion : ResolveMinions(owner))
-        if (IsOrdinary(minion))
-        {
-            if (TempSummon* summon = minion->ToTempSummon())
-                summon->UnSummon();
-            return true;
-        }
-    return false;
+        Heal(minion, CalculatePct(minion->GetMaxHealth(), percent));
 }
 
-void ExtendMinionDurations(Player* owner, uint32 durationMs)
+void HealMostWoundedMinion(Player* owner, uint32 percent)
 {
+    Creature* weakest = nullptr;
     for (Creature* minion : ResolveMinions(owner))
-        if (TempSummon* summon = minion->ToTempSummon())
-            summon->SetTimer(summon->GetTimer() + durationMs);
+        if (!weakest || minion->GetHealthPct() < weakest->GetHealthPct())
+            weakest = minion;
+    if (weakest)
+        Heal(weakest, CalculatePct(weakest->GetMaxHealth(), percent));
 }
 
+bool SacrificeWeakestMinion(Player* owner, Position& where)
+{
+    Creature* weakest = nullptr;
+    for (Creature* minion : ResolveMinions(owner))
+        if (IsOrdinary(minion) && (!weakest || minion->GetHealthPct() < weakest->GetHealthPct()))
+            weakest = minion;
+    if (!weakest)
+        return false;
+    where = weakest->GetPosition();
+    if (TempSummon* summon = weakest->ToTempSummon())
+        summon->UnSummon();
+    return true;
+}
+
+// Maître des morts: the whole army back to full, empowered and not decaying for 20 seconds
 void RefreshMinionDurations(Player* owner)
 {
     for (Creature* minion : ResolveMinions(owner))
-        if (TempSummon* summon = minion->ToTempSummon())
-        {
-            summon->SetTimer(std::max<uint32>(summon->GetTimer(), 30000));
-            summon->AI()->SetData(2, 20000);
-        }
+    {
+        minion->SetHealth(minion->GetMaxHealth());
+        minion->AI()->SetData(DATA_MASTER, 20000);
+    }
 }
 
 void CleanupMinions(Player* owner)
@@ -471,6 +617,7 @@ void RemoveMinion(ObjectGuid ownerGuid, ObjectGuid minionGuid)
     if (guids.empty())
         ownerMinions.erase(itr);
 }
+
 }
 
 void AddNecromancerMinionScripts()
