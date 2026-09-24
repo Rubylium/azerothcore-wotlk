@@ -4,4 +4,5 @@
 CustomClasses = {
     [12] = { token = "PESTIFERE", name = "Pestiféré", color = { 0.420, 0.580, 0.270 }, iconCell = { 3, 2 }, roles = { tank = true, healer = true, damage = true }, detailsCell = { 2, 2 } },
     [13] = { token = "NECROMANCER", name = "Nécromancien", color = { 0.580, 0.430, 0.720 }, iconCell = { 2, 2 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 3, 2 } },
+    [10] = { token = "OATHBLADE", name = "Oathblade", color = { 0.160, 0.560, 1.000 }, iconCell = { 0, 3 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 0, 3 } },
 }

@@ -7,11 +7,14 @@ function getPatchFiles(repoRoot) {
     const iconRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled');
     const pestifereIconRoot = path.join(repoRoot, 'modules', 'mod-pestifere', 'client-assets', 'compiled', 'icons');
     const necromancerIconRoot = path.join(repoRoot, 'modules', 'mod-necromancer', 'client-assets', 'compiled', 'icons');
+    const oathbladeSoundRoot = path.join(repoRoot, 'modules', 'mod-oathblade', 'client-assets', 'sounds');
+    const oathbladeCompiledSoundRoot = path.join(repoRoot, 'modules', 'mod-oathblade', 'client-assets', 'compiled', 'sounds');
     const pestifereTalentRoot = path.join(repoRoot, 'modules', 'mod-pestifere', 'client-assets', 'compiled',
         'talentframe');
 
     const files = [
         'Spell.dbc', 'SkillLineAbility.dbc', 'SpellIcon.dbc', 'SpellVisual.dbc', 'SpellVisualKit.dbc', 'SoundEntries.dbc',
+        'SpellVisualEffectName.dbc',
     ].map((name) => ({
         source: path.join(dbcRoot, name),
         archive: `DBFilesClient\\${name}`,
@@ -46,6 +49,41 @@ function getPatchFiles(repoRoot) {
         }
     };
     addSoundFiles(soundRoot);
+    const addOathbladeSounds = (directory) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const source = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                addOathbladeSounds(source);
+                continue;
+            }
+            if (!entry.name.toLowerCase().endsWith('.ogg')) {
+                continue;
+            }
+            const relative = path.relative(oathbladeSoundRoot, source).replace(/\.ogg$/i, '.wav');
+            files.push({
+                source: path.join(oathbladeCompiledSoundRoot, relative),
+                archive: `Sound\\Spells\\Custom\\Oathblade\\${relative.split(path.sep).join('\\')}`,
+            });
+        }
+    };
+    addOathbladeSounds(oathbladeSoundRoot);
+
+    // The Oathblade's blue copies of the effect models its spells play (localTools/oathblade/buildBlueEffects.py)
+    const oathbladeEffectRoot = path.join(repoRoot, 'modules', 'mod-oathblade', 'client-assets', 'compiled', 'spells');
+    const addOathbladeEffects = (directory) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const source = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                addOathbladeEffects(source);
+                continue;
+            }
+            const relative = path.relative(oathbladeEffectRoot, source).split(path.sep).join('\\');
+            files.push({ source, archive: `Spells\\Oathblade\\${relative}` });
+        }
+    };
+    if (fs.existsSync(oathbladeEffectRoot)) {
+        addOathbladeEffects(oathbladeEffectRoot);
+    }
 
     return files;
 }

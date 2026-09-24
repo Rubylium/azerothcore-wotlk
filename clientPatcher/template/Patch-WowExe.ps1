@@ -33,6 +33,20 @@ function Test-Range([byte[]]$bytes, [int]$offset, [byte[]]$expected) {
     return $true
 }
 
+function Test-CompatibleRoleRange([byte[]]$bytes, [int]$offset, [byte[]]$stock, [byte[]]$patched) {
+    # Existing installs may already carry the older Pestiféré-only table. Accept only bytes that are
+    # either stock or ours at each position; every unrelated modification still aborts the patch.
+    if ($stock.Length -ne $patched.Length) {
+        return $false
+    }
+    for ($i = 0; $i -lt $patched.Length; ++$i) {
+        if ($bytes[$offset + $i] -ne $stock[$i] -and $bytes[$offset + $i] -ne $patched[$i]) {
+            return $false
+        }
+    }
+    return $true
+}
+
 $spec = Get-Content -LiteralPath $SpecPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $exePath = Join-Path $ClientPath $spec.file
 if (-not (Test-Path -LiteralPath $exePath)) {
@@ -52,7 +66,9 @@ foreach ($patch in $spec.patches) {
     if (Test-Range $bytes $offset $patched) {
         continue
     }
-    if (-not (Test-Range $bytes $offset $stock)) {
+    $compatibleRoles = $patch.name -like 'Dungeon Finder roles:*' -and
+        (Test-CompatibleRoleRange $bytes $offset $stock $patched)
+    if (-not (Test-Range $bytes $offset $stock) -and -not $compatibleRoles) {
         throw ("$exePath has been modified where '{0}' goes ({1}), by something this installer does not know. " +
             "Nothing was changed.") -f $patch.name, $patch.va
     }

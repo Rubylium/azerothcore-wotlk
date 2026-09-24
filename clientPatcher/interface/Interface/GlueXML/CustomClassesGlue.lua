@@ -31,6 +31,12 @@ local CLASS_INFORMATION = {
             .. " une armée de morts au corps à corps comme à distance.",
         Roles = "Dégâts à distance.",
     },
+    OATHBLADE = {
+        Name = "Oathblade",
+        Description = "Un escrimeur noble dont les techniques précises construisent un rythme qui explose en"
+            .. " brèves séquences de coups fulgurants.",
+        Roles = "Dégâts de mêlée.",
+    },
 }
 
 local function iconCoords(cell)

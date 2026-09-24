@@ -25,11 +25,11 @@
       "patched": "e9dba40d00909090"
     },
     {
-      "name": "Dungeon Finder roles: Pestiféré (12)",
+      "name": "Dungeon Finder roles: Pestiféré (12), Oathblade (10)",
       "va": "0x00A394AF",
       "offset": 6519983,
       "stock": "000b0f09090d0b0d0909000f00d00200",
-      "patched": "000b0f09090d0b0d0909000f0fd00200"
+      "patched": "000b0f09090d0b0d0909090f0fd00200"
     }
   ]
 }

@@ -98,6 +98,9 @@ void BuildEquipmentCatalog()
 
 uint32 GetPreferredArmorSubclass(Player const* player)
 {
+    if (player->getClass() == 10) // Oathblade: knight armor, despite Rogue combat formulas.
+        return player->GetLevel() >= 40 ? ITEM_SUBCLASS_ARMOR_PLATE : ITEM_SUBCLASS_ARMOR_MAIL;
+
     // A custom class wears the armor of the class it is built on (see mod-custom-classes)
     switch (sObjectMgr->GetClassFormulaTemplate(player->getClass()))
     {
@@ -159,7 +162,7 @@ int32 GetPhysicalStatScore(ItemTemplate const& itemTemplate, uint8 classId)
     int32 score = stamina * 2 + attackPower + rangedAttackPower;
 
     // A custom class values the stats of the class it is built on (see mod-custom-classes)
-    switch (sObjectMgr->GetClassFormulaTemplate(classId))
+    switch (classId == 10 ? CLASS_WARRIOR : sObjectMgr->GetClassFormulaTemplate(classId))
     {
         case CLASS_ROGUE:
         case CLASS_HUNTER:
@@ -297,6 +300,11 @@ bool IsHandHeld(uint32 inventoryType)
 bool FitsWeaponStyle(Player const* player, ItemTemplate const& candidate)
 {
     uint32 const type = candidate.InventoryType;
+    // Oathblade's techniques require a one-handed sword. Do not offer two-handers,
+    // daggers, axes or shields simply because the inherited rogue proficiencies allow them.
+    if (player->getClass() == 10 && (candidate.Class == ITEM_CLASS_WEAPON || IsHandHeld(type)))
+        return candidate.Class == ITEM_CLASS_WEAPON &&
+            candidate.SubClass == ITEM_SUBCLASS_WEAPON_SWORD && IsOneHandWeapon(type);
     if (!IsHandHeld(type))
         return true;
 

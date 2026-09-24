@@ -56,6 +56,11 @@ public:
         if (templateClass == ownClass)
             return std::nullopt;
 
+        // Oathblade borrows Rogue combat formulas, but its mail/plate armor
+        // progression is that of a knight, not a leather-wearing Rogue.
+        if (ownClass == 10 && context == CLASS_CONTEXT_EQUIP_ARMOR_CLASS)
+            return playerClass == ownClass || playerClass == CLASS_PALADIN;
+
         // A class trainer teaches the template's spells, so only a class that starts from that kit uses one
         bool const usesTemplate = context == CLASS_CONTEXT_CLASS_TRAINER
             ? (sObjectMgr->GetSpellClassMask(ownClass) & (1 << (templateClass - 1))) != 0

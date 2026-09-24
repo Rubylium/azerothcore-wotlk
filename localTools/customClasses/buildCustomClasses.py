@@ -215,6 +215,21 @@ def add_skills(dbc, definition):
         dbc.records.append(row)
         next_id += 1
 
+    # Some custom classes use the template's combat formulas but a different armor
+    # progression. These rows must exist before inventory loads, not only at login.
+    for skill_id in definition.get('extraSkills', []):
+        if any(dbc.field(record, 1) == skill_id and dbc.field(record, 3) & class_bit
+               for record in dbc.records):
+            continue
+        source = next((record for record in dbc.records
+                       if dbc.field(record, 1) == skill_id and dbc.field(record, 3) & (1 << 1)), None)
+        assert source, f'no Paladin skill row for {skill_id}'
+        row = bytearray(source)
+        dbc.set_field(row, 0, next_id)
+        dbc.set_field(row, 3, class_bit)
+        dbc.records.append(row)
+        next_id += 1
+
     if not own_skill:
         return
 
@@ -294,23 +309,13 @@ def add_start_outfit(dbc, definition):
     """
     preview_items = definition.get('previewOutfit', [])
     start_items = definition.get('startOutfit', [])
-    preview = []
     by_id = {}
     items = None
     if preview_items or start_items:
-        items = Dbc(os.path.join(CLIENT_DBC_CACHE, 'Item.dbc'))
-        by_id = {items.field(record, 0): record for record in items.records}
+        items, by_id = client_items()
     for item_id in start_items:
         assert item_id in by_id, f'start outfit item {item_id} is not in Item.dbc'
-    if preview_items:
-        assert len(preview_items) <= START_OUTFIT_ITEM_COUNT, 'previewOutfit has too many items'
-        for item_id in preview_items:
-            assert item_id in by_id, f'preview outfit item {item_id} is not in Item.dbc'
-            item = by_id[item_id]
-            display_id = items.field(item, ITEM_DISPLAY_INFO)
-            inventory_type = items.field(item, ITEM_INVENTORY_TYPE)
-            assert display_id and inventory_type, f'preview outfit item {item_id} cannot be displayed'
-            preview.append((display_id, inventory_type))
+    preview = preview_displays(preview_items)
 
     source_records = list(dbc.records)
     exact = {}
@@ -348,14 +353,68 @@ def add_start_outfit(dbc, definition):
                     dbc.set_field(row, START_OUTFIT_INVENTORY_TYPE + index,
                                   items.field(item, ITEM_INVENTORY_TYPE) if item else -1)
             if preview:
-                for index in range(START_OUTFIT_ITEM_COUNT):
-                    dbc.set_field(row, START_OUTFIT_DISPLAY + index, 0)
-                    dbc.set_field(row, START_OUTFIT_INVENTORY_TYPE + index, 0)
-                for index, (display_id, inventory_type) in enumerate(preview):
-                    dbc.set_field(row, START_OUTFIT_DISPLAY + index, display_id)
-                    dbc.set_field(row, START_OUTFIT_INVENTORY_TYPE + index, inventory_type)
+                dress(dbc, row, preview)
             dbc.records.append(row)
             next_id += 1
+
+
+_client_items = None
+
+
+def client_items():
+    """The client's Item.dbc, and its rows by item id"""
+    global _client_items
+    if _client_items is None:
+        items = Dbc(os.path.join(CLIENT_DBC_CACHE, 'Item.dbc'))
+        _client_items = items, {items.field(record, 0): record for record in items.records}
+    return _client_items
+
+
+def preview_displays(item_ids):
+    """(display id, inventory type) of each item, to dress a creation model with"""
+    if not item_ids:
+        return []
+    assert len(item_ids) <= START_OUTFIT_ITEM_COUNT, 'a preview outfit has too many items'
+    items, by_id = client_items()
+    preview = []
+    for entry in item_ids:
+        # [item id, inventory type] shows the item in another slot than its own: the same off-hand sword in the
+        # main hand (21) makes a matching pair, which two copies of a one-hander cannot (the second is not shown)
+        item_id, slot = (entry[0], entry[1]) if isinstance(entry, list) else (entry, None)
+        assert item_id in by_id, f'preview outfit item {item_id} is not in Item.dbc'
+        item = by_id[item_id]
+        display_id = items.field(item, ITEM_DISPLAY_INFO)
+        inventory_type = slot or items.field(item, ITEM_INVENTORY_TYPE)
+        assert display_id and inventory_type, f'preview outfit item {item_id} cannot be displayed'
+        preview.append((display_id, inventory_type))
+    return preview
+
+
+def dress(dbc, row, preview):
+    """Replaces what a start outfit row shows (never the items it gives, fields 2-25) with the preview"""
+    for index in range(START_OUTFIT_ITEM_COUNT):
+        dbc.set_field(row, START_OUTFIT_DISPLAY + index, 0)
+        dbc.set_field(row, START_OUTFIT_INVENTORY_TYPE + index, 0)
+    for index, (display_id, inventory_type) in enumerate(preview):
+        dbc.set_field(row, START_OUTFIT_DISPLAY + index, display_id)
+        dbc.set_field(row, START_OUTFIT_INVENTORY_TYPE + index, inventory_type)
+
+
+def dress_stock_previews(outfits):
+    """CharStartOutfit.dbc pass for the stock classes: stockPreviewOutfits (class id -> item ids) dresses every
+    race and gender of that class on the creation screen. Only the display fields change, so a new character
+    still starts in its real gear, and the server (which reads only the item ids) is unaffected."""
+    previews = {int(class_id): preview_displays(item_ids) for class_id, item_ids in outfits.items()
+                if not class_id.startswith('_')}
+
+    def finish(dbc):
+        for index, record in enumerate(dbc.records):
+            class_id = (dbc.field(record, 1) >> 8) & 0xFF
+            if class_id in previews:
+                row = bytearray(record)
+                dress(dbc, row, previews[class_id])
+                dbc.records[index] = row
+    return finish
 
 
 def talent_tabs(definition):
@@ -497,11 +556,13 @@ def extend_gt_table(block_size):
     return mutate
 
 
-def build_dbc(source_dir, target_path, name, definitions, mutate):
+def build_dbc(source_dir, target_path, name, definitions, mutate, finish=None):
     dbc = Dbc(backup(os.path.join(source_dir, name)) if source_dir == SERVER_DBC
               else os.path.join(source_dir, name))
     for definition in definitions:
         mutate(dbc, definition)
+    if finish:
+        finish(dbc)
     dbc.write(target_path)
     return dbc
 
@@ -676,7 +737,8 @@ def main():
     parser.add_argument('--client', default='C:\\Users\\alexi\\Documents\\GitHub\\CleanWOTLK')
     args = parser.parse_args()
 
-    definitions = json.load(open(DEFINITIONS, encoding='utf8'))['classes']
+    root = json.load(open(DEFINITIONS, encoding='utf8'))
+    definitions = root['classes']
     for definition in definitions:
         assert definition['id'] in CUSTOM_SLOTS, f"class id {definition['id']} is not a custom slot"
 
@@ -690,13 +752,14 @@ def main():
 
     builders = [('ChrClasses.dbc', add_class_row), ('CharBaseInfo.dbc', add_race_pairs),
                 ('SkillLine.dbc', add_class_skill_line),
-                ('SkillRaceClassInfo.dbc', add_skills), ('CharStartOutfit.dbc', add_start_outfit)]
+                ('SkillRaceClassInfo.dbc', add_skills),
+                ('CharStartOutfit.dbc', add_start_outfit, dress_stock_previews(root.get('stockPreviewOutfits', {})))]
     builders += [(name, extend_gt_table(block)) for name, block in GT_TABLES.items()]
     builders.append(('TalentTab.dbc', add_talent_tab))
-    for name, mutate in builders:
+    for name, mutate, *finish in builders:
         # The client copy keeps the client's own localized strings; the server copy keeps the server's
-        build_dbc(CLIENT_DBC_CACHE, os.path.join(CLIENT_DBC_OUT, name), name, definitions, mutate)
-        build_dbc(SERVER_DBC, os.path.join(SERVER_DBC, name), name, definitions, mutate)
+        build_dbc(CLIENT_DBC_CACHE, os.path.join(CLIENT_DBC_OUT, name), name, definitions, mutate, *finish)
+        build_dbc(SERVER_DBC, os.path.join(SERVER_DBC, name), name, definitions, mutate, *finish)
     talent_rows = build_talent_grid(definitions)
 
     os.makedirs(os.path.dirname(SQL_OUT), exist_ok=True)

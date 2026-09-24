@@ -25,7 +25,7 @@ DEFINITIONS = os.path.join(REPO, 'localTools', 'customClasses', 'classes.json')
 OUTPUT = os.path.join(REPO, 'clientPatcher', 'addons', 'Details', 'images')
 CELL = 32
 # The cells a custom class may take: the two empty ones of row 3. Every other cell is a stock class icon.
-FREE_CELLS = {(2, 2), (3, 2)}
+FREE_CELLS = {(2, 2), (3, 2), (0, 3)}
 # The alpha sheets cut every icon to the same soft-cornered shape: borrow it from the warrior cell
 MASK_CELL = (0, 0)
 SHEETS = {

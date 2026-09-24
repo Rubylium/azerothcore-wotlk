@@ -62,14 +62,20 @@ local function iconCoords(class)
     return { 0.75, 1, 0.75, 1 }
 end
 
--- Writes the custom classes into one set of class tables, keeping any value already there
+-- Writes the custom classes into one set of class tables.
+--
+-- The colour is always written, never "kept if already there". class_colors is saved in Details' profile, so
+-- the first colour a custom class was ever registered with was written into every player's SavedVariables -
+-- and a keep-if-present check then preserved that first colour forever. When the Oathblade moved from its
+-- warrior tan to bright blue, Details went on drawing tan for anyone who had logged in before. The class
+-- colour is the server's to decide, and CustomClasses is where it is decided.
 local function addClasses(colors, coords)
     if not CustomClasses then
         return
     end
 
     for _, class in pairs(CustomClasses) do
-        if type(colors) == "table" and not rawget(colors, class.token) then
+        if type(colors) == "table" then
             colors[class.token] = { class.color[1], class.color[2], class.color[3] }
         end
         if type(coords) == "table" then
