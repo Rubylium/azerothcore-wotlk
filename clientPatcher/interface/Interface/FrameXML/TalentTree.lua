@@ -1828,20 +1828,17 @@ local function CreateWindow()
     ground:SetPoint("TOPLEFT", 2, -2)
     ground:SetPoint("BOTTOMRIGHT", -2, 2)
 
-    local art = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
+    -- Each piece of the backdrop has a layer of its own: the black ground, the painting, the shades over it (the
+    -- window's metal frame is OVERLAY). Sublevels within one layer are not kept reliably by this client: the
+    -- ground would come back over the painting once it was set again, and the window went black.
+    local art = frame:CreateTexture(nil, "BORDER")
     art:SetPoint("TOPLEFT", 2, -2)
     art:SetPoint("BOTTOMRIGHT", -2, 2)
     frame.art = art
-    -- Set again on every show: on a cold texture cache the first SetTexture of this large art sometimes never
-    -- draws until the texture is set anew
-    frame:HookScript("OnShow", function()
-        frame.shownBackground = nil
-        PaintBackground()
-    end)
 
     -- The trees read over the art: a soft darkening under each
     for side = 1, 2 do
-        local shade = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
+        local shade = frame:CreateTexture(nil, "ARTWORK")
         shade:SetTexture("Interface\\Buttons\\WHITE8X8")
         shade:SetPoint("TOP", frame, "TOP", 0, -2)
         shade:SetPoint("BOTTOM", frame, "BOTTOM", 0, 2)
@@ -1971,6 +1968,10 @@ local function CreateWindow()
 
     frame:SetScript("OnShow", function()
         PlaySound(SOUND_OPEN)
+        -- Set again on every show: on a cold texture cache the first SetTexture of this large art sometimes never
+        -- draws until the texture is set anew
+        frame.shownBackground = nil
+        PaintBackground()
         local fit = min(1, (UIParent:GetHeight() - 30) / HEIGHT, (UIParent:GetWidth() - 30) / WIDTH)
         fit = fit * WINDOW_SCALE
         frame:SetScale(fit)
