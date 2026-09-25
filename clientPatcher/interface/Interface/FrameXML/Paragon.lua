@@ -487,6 +487,9 @@ local function createNode(id, node)
     button:SetScript("OnLeave", onNodeLeave)
     button:SetScript("OnClick", function(self) allocate(self.nodeId) end)
 
+    button.boardX, button.boardY, button.nodeType = x, y, node.type
+    button.culledIn = true
+    button.detailShown = true
     nodeButtons[id] = button
 end
 
@@ -524,7 +527,7 @@ local function createBoard()
             local bx, by = nodePosition(b)
             placeLink(texture, board, ax, ay, bx, by)
             table.insert(linkTextures, { texture = texture, a = link[1], b = link[2],
-                ax = ax, ay = ay, bx = bx, by = by })
+                ax = ax, ay = ay, bx = bx, by = by, culledIn = true })
         end
     end
 
@@ -761,12 +764,78 @@ local function createButton(label, anchorPoint, offsetX, onClick)
     return button
 end
 
+-- Only what is in the window is shown. The board is over a thousand nodes of four textures each plus nearly two
+-- thousand links, and 3.3.5 lays out and draws every shown region of a scroll child on every scroll step, on
+-- screen or not: with all of them live, panning ran at a handful of frames a second. A hidden region costs
+-- nothing, so everything outside the view (plus a margin, so nothing pops in at the edge) is hidden.
+--
+-- The view is snapped to a coarse grid and the pass only runs when that snapped rectangle moves, so a drag
+-- walks the lists a few times a second rather than every frame.
+local CULL_STEP = 120
+local CULL_MARGIN = 120
+-- Zoomed out past this, the small nodes lose their shadow disc and glow: at that size they are specks, and
+-- those two layers are half of every node's textures. Their alpha and colour still show their state.
+local DETAIL_ZOOM = 0.45
+local cullKey
+
+local function updateCulling(force)
+    if not board or not canvas then return end
+    local scale = board:GetScale()
+    local width, height = canvas:GetWidth(), canvas:GetHeight()
+    if not width or width <= 0 then return end
+
+    local h, v = canvas:GetHorizontalScroll(), canvas:GetVerticalScroll()
+    local left = math.floor((h - CULL_MARGIN) / CULL_STEP) * CULL_STEP
+    local right = math.ceil((h + width / scale + CULL_MARGIN) / CULL_STEP) * CULL_STEP
+    -- Nodes are placed from the board's bottom left; the vertical scroll counts down from its top
+    local top = BOARD_EXTENT - v
+    local high = math.ceil((top + CULL_MARGIN) / CULL_STEP) * CULL_STEP
+    local low = math.floor((top - height / scale - CULL_MARGIN) / CULL_STEP) * CULL_STEP
+    local detail = scale >= DETAIL_ZOOM
+
+    local key = left .. ":" .. right .. ":" .. low .. ":" .. high .. (detail and "+" or "-")
+    if key == cullKey and not force then return end
+    cullKey = key
+
+    for _, button in pairs(nodeButtons) do
+        local x, y = button.boardX, button.boardY
+        local inside = x >= left and x <= right and y >= low and y <= high
+        if inside ~= button.culledIn then
+            button.culledIn = inside
+            if inside then button:Show() else button:Hide() end
+        end
+        if inside and button.nodeType == 0 and detail ~= button.detailShown then
+            button.detailShown = detail
+            if detail then
+                button.backing:Show()
+                button.glow:Show()
+            else
+                button.backing:Hide()
+                button.glow:Hide()
+            end
+        end
+    end
+
+    for _, link in ipairs(linkTextures) do
+        local inside = math.max(link.ax, link.bx) >= left and math.min(link.ax, link.bx) <= right
+            and math.max(link.ay, link.by) >= low and math.min(link.ay, link.by) <= high
+        if inside ~= link.culledIn then
+            link.culledIn = inside
+            if inside then link.texture:Show() else link.texture:Hide() end
+        end
+    end
+end
+
 local function panTo(x, y)
     local scale = board:GetScale()
     local maxX = math.max(0, BOARD_EXTENT - canvas:GetWidth() / scale)
     local maxY = math.max(0, BOARD_EXTENT - canvas:GetHeight() / scale)
-    canvas:SetHorizontalScroll(math.max(0, math.min(maxX, x)))
-    canvas:SetVerticalScroll(math.max(0, math.min(maxY, y)))
+    x = math.max(0, math.min(maxX, x))
+    y = math.max(0, math.min(maxY, y))
+    -- A drag calls this every frame, moving or not; setting the same scroll again still re-lays the board out
+    if x ~= canvas:GetHorizontalScroll() then canvas:SetHorizontalScroll(x) end
+    if y ~= canvas:GetVerticalScroll() then canvas:SetVerticalScroll(y) end
+    updateCulling()
 end
 
 -- What sits in the middle of the viewport, in board coordinates.
