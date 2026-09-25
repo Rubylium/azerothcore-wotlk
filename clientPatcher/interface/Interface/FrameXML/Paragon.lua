@@ -15,9 +15,9 @@ local WINDOW_WIDTH, WINDOW_HEIGHT = 940, 640
 -- floats on top of the board instead of sitting in a margin beside it.
 local CANVAS_LEFT, CANVAS_TOP = 2, 21
 local CANVAS_RIGHT, CANVAS_BOTTOM = 2, 2
--- The outermost node sits at radius 780 and is drawn 80 across, so 1700 holds the board with nothing spare.
--- Slack here is empty ground to pan into, and it is what let the board shrink away from the viewport.
-local BOARD_EXTENT = 1700
+-- The board's size comes with the board (ParagonBoard.lua): its outermost node plus a margin, so there is no
+-- empty ground to pan into, which is what let the board shrink away from the viewport.
+local BOARD_EXTENT = ParagonBoard.extent or 1700
 local NODE_SIZE = { [0] = 44, [1] = 60, [2] = 80 }
 -- Fraction of the node the icon is drawn at, per socket. Each is wider than that socket's hole, so the ring
 -- drawing over it crops the square icon into the circle of the hole; an icon smaller than the hole just
@@ -29,7 +29,9 @@ local ICON_SCALE = { [0] = 0.57, [1] = 0.57, [2] = 0.47 }
 -- each one is a texture with the bar already drawn into it at LINK_THICKNESS board units (buildParagonArt.py).
 local SPARK_SIZE = 28
 
-local MIN_ZOOM, MAX_ZOOM, ZOOM_STEP = 0.4, 1.8, 0.12
+-- Zoomed right out, the whole board of three zones fits the window; the nodes are specks then, but the shape
+-- of a build across the whole thing is worth being able to see.
+local MIN_ZOOM, MAX_ZOOM, ZOOM_STEP = 0.2, 1.8, 0.12
 -- Opens showing the hub and the first few rings rather than the whole board. Fitting all 217 nodes in the
 -- window puts them at 17 pixels, which is unreadable; the far half of the tree is meant to be panned to.
 local DEFAULT_ZOOM = 0.85
@@ -64,7 +66,10 @@ local NODE_KINDS = {
 
 local state = {
     open = false,
-    cap = 50,
+    cap = 100,
+    level = 0,                              -- paragon level: experience at the level cap
+    experience = 0,
+    needed = 1,
     available = 0,
     earned = 0,
     spent = 0,
@@ -75,6 +80,7 @@ local state = {
 
 local frame, canvas, board, hud, pointText, spentText, statusText
 local pointGlow, spentFill, bonusPanel, bonusText
+local levelText, levelFill, levelBarText
 local nodeButtons, linkTextures = {}, {}
 -- The nodes one click away, kept by refreshAll: they breathe while there are points to spend
 local reachableButtons = {}
@@ -316,6 +322,13 @@ local function refreshHeader()
         statusText:SetText("")
     end
 
+    if levelText then
+        levelText:SetFormattedText("Niveau de parangon %d", state.level)
+        local share = state.needed > 0 and math.min(1, state.experience / state.needed) or 0
+        levelFill:SetWidth(math.max(1, levelFill.full * share))
+        levelBarText:SetFormattedText("%d / %d", state.experience, state.needed)
+    end
+
     if shownAvailable and state.available > shownAvailable and frame:IsShown() then
         popPoints()
     end
@@ -484,6 +497,25 @@ local function createBoard()
         createNode(id, node)
     end
 
+    -- Each zone named where it begins, in the empty wedge straight above the hub, so the name sits between
+    -- two branches rather than on top of one
+    for index, zone in ipairs(ParagonBoard.zones or {}) do
+        if zone.radius > 0 then
+            local label = board:CreateFontString(nil, "BACKGROUND")
+            label:SetFont(MORPHEUS, 40 + index * 8)
+            label:SetShadowOffset(2, -2)
+            label:SetTextColor(1, 0.86, 0.55)
+            label:SetAlpha(0.55)
+            label:SetPoint("CENTER", board, "BOTTOMLEFT", BOARD_EXTENT / 2, BOARD_EXTENT / 2 + zone.radius)
+            label:SetText(zone.name)
+            local divider = board:CreateTexture(nil, "BACKGROUND")
+            RetailUI.SetAtlas(divider, "ChallengeMode-ThinDivider")
+            divider:SetSize(320 + index * 60, 12)
+            divider:SetPoint("TOP", label, "BOTTOM", 0, -6)
+            divider:SetAlpha(0.7)
+        end
+    end
+
     for _, link in ipairs(ParagonBoard.links) do
         local a, b = ParagonBoard.nodes[link[1]], ParagonBoard.nodes[link[2]]
         if a and b then
@@ -604,13 +636,13 @@ local function createChrome()
     intro:SetJustifyH("LEFT")
     intro:SetTextColor(0.85, 0.8, 0.7)
     intro:SetText("Chaque point renforce votre personnage pour de bon. Partez de l'Éveil, au centre, et étendez "
-        .. "votre chemin nœud après nœud jusqu'aux clés de voûte.")
+        .. "votre chemin nœud après nœud : l'Ascension puis la Transcendance attendent au-delà.")
 
     -- The points to spend, as the board's clock reads: an emblem, the label and the figure beside it, and the
     -- gauge of what is spent under both
     -- One column, so its pieces line up: the emblem and the figure on top, the gauge its full width under them
     local block = CreateFrame("Frame", nil, hud)
-    block:SetSize(210, 96)
+    block:SetSize(210, 140)
     block:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -32, -34)
 
     local emblem = CreateFrame("Frame", nil, block)
@@ -666,6 +698,41 @@ local function createChrome()
 
     statusText = block:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     statusText:SetPoint("TOPLEFT", gauge, "BOTTOMLEFT", 0, -4)
+
+    -- The paragon level, as the challenge board's timer: experience at the level cap fills it, and every
+    -- level is a point
+    levelText = block:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    levelText:SetPoint("TOPLEFT", gauge, "BOTTOMLEFT", 0, -24)
+    levelText:SetTextColor(1, 0.82, 0.3)
+    local levelBar = CreateFrame("Frame", nil, block)
+    levelBar:SetSize(210, 14)
+    levelBar:SetPoint("TOPLEFT", levelText, "BOTTOMLEFT", -2, -4)
+    levelBar:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    levelBar:SetBackdropColor(0, 0, 0, 0.65)
+    levelBar:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+    levelFill = levelBar:CreateTexture(nil, "ARTWORK")
+    levelFill:SetTexture("Interface\\Buttons\\WHITE8X8")
+    levelFill:SetGradient("HORIZONTAL", 0.75, 0.45, 0.1, 1, 0.85, 0.35)
+    levelFill:SetHeight(8)
+    levelFill:SetPoint("LEFT", levelBar, "LEFT", 3, 0)
+    levelFill.full = 204
+    levelBarText = levelBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    levelBarText:SetPoint("CENTER", levelBar, "CENTER", 0, 0)
+    levelBarText:SetTextColor(1, 0.9, 0.7)
+    levelBar:EnableMouse(true)
+    levelBar:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("Niveau de parangon", 1, 0.82, 0.3)
+        GameTooltip:AddLine("Au niveau maximum, l'expérience des monstres remplit cette barre. Chaque niveau "
+            .. "de parangon rapporte un point.", 1, 0.9, 0.7, true)
+        GameTooltip:Show()
+    end)
+    levelBar:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local closeButton = CreateFrame("Button", nil, frame)
     closeButton:SetSize(24, 24)
@@ -906,7 +973,7 @@ local function createFrame()
     -- The summary: every stat the board gives, added up, and the major nodes by name
     bonusPanel = CreateFrame("Frame", nil, hud)
     bonusPanel:SetWidth(230)
-    bonusPanel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -140)
+    bonusPanel:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -184)
     bonusPanel:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -1067,6 +1134,22 @@ local function handle(message)
         return
     end
 
+    if command == "PXP" then
+        local level, experience, needed = rest:match("^(%d+)\t(%d+)\t(%d+)$")
+        if level then
+            state.level, state.experience = tonumber(level), tonumber(experience)
+            state.needed = math.max(1, tonumber(needed))
+            if frame and frame:IsShown() then refreshHeader() end
+        end
+        return
+    end
+
+    if command == "PLEVEL" then
+        local level = tonumber(rest)
+        if level then ShowParagonLevelToast(level) end
+        return
+    end
+
     if command == "ERROR" then
         state.pending = nil
         state.pendingReset = nil
@@ -1074,6 +1157,83 @@ local function handle(message)
         UIErrorsFrame:AddMessage(rest, 1, 0.3, 0.3, 1, 3)
         return
     end
+end
+
+--------------------------------------------------------------------------------
+-- Level-up toast
+--------------------------------------------------------------------------------
+
+-- A paragon level is announced on screen, board open or not: in the challenge board's materials, a card that
+-- eases down from the top, holds, and fades.
+local toast
+function ShowParagonLevelToast(level)
+    if not toast then
+        toast = CreateFrame("Frame", nil, UIParent)
+        toast:SetSize(320, 74)
+        toast:SetFrameStrata("HIGH")
+        toast:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 16,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 },
+        })
+        toast:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
+        toast:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+
+        local glow = toast:CreateTexture(nil, "BACKGROUND")
+        RetailUI.SetAtlas(glow, "ChallengeMode-SoftYellowGlow")
+        glow:SetBlendMode("ADD")
+        glow:SetPoint("CENTER")
+        glow:SetSize(420, 140)
+        glow:SetAlpha(0.5)
+
+        local icon = toast:CreateTexture(nil, "ARTWORK")
+        icon:SetTexture("Interface\\Icons\\ParagonNode_Awakening")
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        icon:SetSize(44, 44)
+        icon:SetPoint("LEFT", 16, 0)
+        local iconFrame = CreateFrame("Frame", nil, toast)
+        iconFrame:SetPoint("TOPLEFT", icon, "TOPLEFT", -4, 4)
+        iconFrame:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 4, -4)
+        iconFrame:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
+        iconFrame:SetBackdropBorderColor(0.85, 0.7, 0.4, 1)
+
+        toast.title = toast:CreateFontString(nil, "OVERLAY")
+        toast.title:SetFont(MORPHEUS, 22)
+        toast.title:SetShadowOffset(1, -1)
+        toast.title:SetTextColor(1, 0.86, 0.55)
+        toast.title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 14, 2)
+        toast.text = toast:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        toast.text:SetTextColor(0.85, 0.8, 0.7)
+        toast.text:SetPoint("TOPLEFT", toast.title, "BOTTOMLEFT", 0, -4)
+        toast.text:SetText("Un point de parangon à dépenser.")
+
+        toast:SetScript("OnUpdate", function(self, elapsed)
+            self.elapsed = self.elapsed + elapsed
+            local t = self.elapsed
+            local offset, alpha
+            if t < 0.35 then
+                local progress = 1 - (1 - t / 0.35) ^ 3          -- OutCubic, as the boards open
+                offset, alpha = 30 * (1 - progress), progress
+            elseif t < 4.35 then
+                offset, alpha = 0, 1
+            elseif t < 5.1 then
+                offset, alpha = 0, 1 - (t - 4.35) / 0.75
+            else
+                self:Hide()
+                return
+            end
+            self:ClearAllPoints()
+            self:SetPoint("TOP", UIParent, "TOP", 0, -150 + offset)
+            self:SetAlpha(alpha)
+        end)
+    end
+
+    toast.title:SetFormattedText("Niveau de parangon %d", level)
+    toast.elapsed = 0
+    toast:SetAlpha(0)
+    toast:Show()
+    PlaySound(SOUND_KEYSTONE)
 end
 
 local listener = CreateFrame("Frame")
