@@ -13,6 +13,12 @@ local ART = "Interface\\Prestige\\"
 local MORPHEUS = "Fonts\\MORPHEUS.ttf"
 local SHARD_ICON = "Interface\\Icons\\INV_Enchant_ShardPrismaticLarge"
 local HEIRLOOM_COLOR = { 0.9, 0.8, 0.5 }
+-- The challenge board's palette: gold headings and frames on dark, parchment text, muted greys for what is not
+-- available. Colour is left to the icons and the heirloom gold.
+local GOLD = { 1, 0.82, 0.3 }
+local BORDER = { 0.75, 0.6, 0.35 }
+local PARCHMENT = { 1, 0.9, 0.7 }
+local MUTED = { 0.62, 0.57, 0.5 }
 
 -- The halo behind the medallion is a sequence of pre-turned frames: a texture cannot be rotated in 3.3.5, so
 -- buildPrestigeArt.py bakes the rotation in and this cycles them.
@@ -272,7 +278,7 @@ local function CreateMedallion()
     current:SetPoint("TOP", emblem, "BOTTOM", 0, -2)
     current:SetText(TEXT.current)
 
-    local capLabel = Label(frame, "GameFontNormalSmall", 0.65, 0.78, 0.95)
+    local capLabel = Label(frame, "GameFontNormalSmall", 0.7, 0.65, 0.5)
     capLabel:SetPoint("TOP", current, "BOTTOM", 0, -10)
     capLabel:SetText(TEXT.cap)
 
@@ -285,7 +291,7 @@ local function CreateMedallion()
     ui.capArrow:SetSize(22, 22)
     ui.capArrow:SetPoint("CENTER")
     ui.capText = Label(capRow, "GameFontNormalLarge", 1, 0.84, 0.4)
-    ui.capNext = Label(capRow, "GameFontNormalLarge", 0.6, 1, 0.55)
+    ui.capNext = Label(capRow, "GameFontNormalLarge", PARCHMENT[1], PARCHMENT[2], PARCHMENT[3])
     ui.capNext:SetPoint("LEFT", ui.capArrow, "RIGHT", 10, 1)
     ui.capRow = capRow
 end
@@ -395,11 +401,11 @@ end
 -- The prestige page ------------------------------------------------------------------------------------------------
 
 local function Column(page, title, lines, x, width, color, kind)
-    local panel = Panel(page, color[1] * 0.7, color[2] * 0.7, color[3] * 0.7, 0.75)
+    local panel = Panel(page, BORDER[1], BORDER[2], BORDER[3], 0.85)
     panel:SetPoint("TOPLEFT", page, "TOPLEFT", x, -104)
     panel:SetSize(width, 214)
 
-    local header = Label(panel, "GameFontNormal", color[1], color[2], color[3])
+    local header = Label(panel, "GameFontNormal", GOLD[1], GOLD[2], GOLD[3])
     header:SetPoint("TOP", panel, "TOP", 0, -12)
     header:SetText(title)
 
@@ -408,19 +414,24 @@ local function Column(page, title, lines, x, width, color, kind)
         local row = CreateFrame("Frame", nil, panel)
         row:SetSize(width - 24, 30)
         row:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -34 - (index - 1) * 34)
+        -- Drawn markers in the column's tone: a plus to gain, a dot to keep, a dash to lose
         local mark = row:CreateTexture(nil, "OVERLAY")
+        mark:SetTexture(1, 1, 1, 1)
+        mark:SetVertexColor(color[1], color[2], color[3], 0.95)
         if kind == "keep" then
-            RetailUI.SetAtlas(mark, "ui-questtracker-tracker-check-2x")
-            mark:SetSize(14, 14)
-        elseif kind == "gain" then
-            mark:SetTexture("Interface\\Buttons\\UI-PlusButton-Up")
-            mark:SetSize(16, 16)
+            mark:SetSize(5, 5)
+            mark:SetPoint("LEFT", row, "LEFT", 5, 0)
         else
-            mark:SetTexture(1, 1, 1, 1)
             mark:SetSize(10, 2)
-            mark:SetVertexColor(color[1], color[2], color[3], 0.95)
+            mark:SetPoint("LEFT", row, "LEFT", 3, 0)
         end
-        mark:SetPoint("LEFT", row, "LEFT", 2, 0)
+        if kind == "gain" then
+            local stem = row:CreateTexture(nil, "OVERLAY")
+            stem:SetTexture(1, 1, 1, 1)
+            stem:SetVertexColor(color[1], color[2], color[3], 0.95)
+            stem:SetSize(2, 10)
+            stem:SetPoint("CENTER", mark, "CENTER")
+        end
         local text = Label(row, "GameFontHighlightSmall", 0.88, 0.85, 0.76)
         text:SetPoint("LEFT", row, "LEFT", 24, 0)
         text:SetPoint("RIGHT", row, "RIGHT")
@@ -452,9 +463,9 @@ local function CreatePrestigePage(page)
     intro:SetText(TEXT.intro)
 
     local width = 172
-    ui.gainColumn = Column(page, TEXT.gain, TEXT.gains, 0, width, { 1, 0.82, 0.3 }, "gain")
-    ui.keepColumn = Column(page, TEXT.keep, TEXT.keeps, width + 12, width, { 0.55, 0.85, 0.5 }, "keep")
-    ui.loseColumn = Column(page, TEXT.lose, TEXT.loses, 2 * (width + 12), width, { 0.9, 0.45, 0.38 }, "lose")
+    ui.gainColumn = Column(page, TEXT.gain, TEXT.gains, 0, width, GOLD, "gain")
+    ui.keepColumn = Column(page, TEXT.keep, TEXT.keeps, width + 12, width, PARCHMENT, "keep")
+    ui.loseColumn = Column(page, TEXT.lose, TEXT.loses, 2 * (width + 12), width, MUTED, "lose")
 
     ui.requirement = Label(page, "GameFontNormal")
     ui.requirement:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 6, 44)
@@ -583,7 +594,7 @@ local function ResetBuyButton(card)
 end
 
 local function CreateCard(index)
-    local card = Panel(cardHolder, 0.55, 0.45, 0.28, 0.9)
+    local card = Panel(cardHolder, BORDER[1], BORDER[2], BORDER[3], 0.92)
     card:SetSize(CARD_WIDTH, CARD_HEIGHT)
     card:EnableMouse(true)
 
@@ -654,7 +665,7 @@ local function CreateCard(index)
     buy:SetScript("OnLeave", function() GameTooltip:Hide() end)
     card.buy = buy
 
-    card.unusable = Label(card, "GameFontDisableSmall", 0.85, 0.35, 0.3)
+    card.unusable = Label(card, "GameFontDisableSmall", MUTED[1], MUTED[2], MUTED[3])
     card.unusable:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -14, 16)
     card.unusable:SetText(TEXT.unusable)
 
@@ -676,7 +687,7 @@ local function CreateCard(index)
     end)
     card:SetScript("OnLeave", function(self)
         GameTooltip:Hide()
-        self:SetBackdropBorderColor(0.55, 0.45, 0.28, 1)
+        self:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
         local from = glow:GetAlpha()
         Tween(0.25, 0, function(p) glow:SetAlpha(from * (1 - p)) end, nil, "hover" .. index)
     end)
@@ -715,7 +726,7 @@ local function LayoutShop(animate)
         if affordable then
             card.cost:SetTextColor(1, 0.92, 0.6)
         else
-            card.cost:SetTextColor(0.85, 0.3, 0.25)
+            card.cost:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
         end
         card.icon:SetDesaturated(not offer.usable)
         card:SetAlpha(offer.usable and 1 or 0.6)
@@ -926,12 +937,12 @@ local function Refresh()
     local allowed = state.can == 1 and not state.pending
     if allowed then
         ui.requirement:SetText(TEXT.ready)
-        ui.requirement:SetTextColor(0.55, 0.9, 0.5)
+        ui.requirement:SetTextColor(PARCHMENT[1], PARCHMENT[2], PARCHMENT[3])
         ui.prestigeButton:Enable()
         ui.buttonGlow:Show()
     else
         ui.requirement:SetText(TEXT.reasons[state.reason] or TEXT.unavailable)
-        ui.requirement:SetTextColor(0.95, 0.4, 0.35)
+        ui.requirement:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
         ui.prestigeButton:Disable()
         ui.buttonGlow:Hide()
     end
@@ -1190,7 +1201,7 @@ local function Handle(message)
             end
         end
         local data = ItemData(item)
-        Status(TEXT.bought:format(data and data.link or ("item " .. item)), 0.55, 0.9, 0.5)
+        Status(TEXT.bought:format(data and data.link or ("item " .. item)), PARCHMENT[1], PARCHMENT[2], PARCHMENT[3])
         RefreshShards(true)
         LayoutShop(false)
         return
@@ -1199,7 +1210,7 @@ local function Handle(message)
     if command == "BUYFAIL" then
         state.buying = nil
         PlaySound(SOUND_DENIED)
-        Status(TEXT.failures[tonumber(rest)] or TEXT.failures[4], 0.95, 0.4, 0.35)
+        Status(TEXT.failures[tonumber(rest)] or TEXT.failures[4], MUTED[1], MUTED[2], MUTED[3])
         return
     end
 
