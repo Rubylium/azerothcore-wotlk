@@ -193,22 +193,37 @@ end)
 
 local function Panel(parent, r, g, b, alpha)
     local panel = CreateFrame("Frame", nil, parent)
+    -- The challenge board's card: the tooltip's ground and edge, dark, in a gold-brown frame
     panel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 14,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
-    panel:SetBackdropColor(0.03, 0.025, 0.02, alpha or 0.85)
-    panel:SetBackdropBorderColor(r or 0.6, g or 0.5, b or 0.3, 1)
+    panel:SetBackdropColor(0.04, 0.03, 0.02, alpha or 0.92)
+    panel:SetBackdropBorderColor(r or 0.75, g or 0.6, b or 0.35, 1)
     return panel
 end
 
 local function Divider(parent, width)
     local divider = parent:CreateTexture(nil, "ARTWORK")
     RetailUI.SetAtlas(divider, "ChallengeMode-ThinDivider")
-    divider:SetSize(width, 10)
+    divider:SetSize(width, 12)
     return divider
+end
+
+-- An icon in the challenge board's thin gold frame (its card icons)
+local function FramedIcon(parent, size)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetSize(size, size)
+    holder:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
+    holder:SetBackdropBorderColor(0.85, 0.7, 0.4, 1)
+    local icon = holder:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 3, -3)
+    icon:SetPoint("BOTTOMRIGHT", -3, 3)
+    icon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
+    holder.icon = icon
+    return holder
 end
 
 local function Label(parent, template, r, g, b)
@@ -297,15 +312,15 @@ local function CreateMedallion()
 end
 
 local function CreateShardPanel()
-    local panel = Panel(frame, HEIRLOOM_COLOR[1] * 0.8, HEIRLOOM_COLOR[2] * 0.8, HEIRLOOM_COLOR[3] * 0.8, 0.8)
+    local panel = Panel(frame)
     panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -266)
     panel:SetSize(LEFT_WIDTH - 4, 286)
     ui.shardPanel = panel
 
     -- The éclat: an icon in its own glow, which flares when éclats come in
-    local iconHolder = CreateFrame("Frame", nil, panel)
-    iconHolder:SetSize(46, 46)
+    local iconHolder = FramedIcon(panel, 46)
     iconHolder:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
+    iconHolder.icon:SetTexture(SHARD_ICON)
     local flare = panel:CreateTexture(nil, "BORDER")
     RetailUI.SetAtlas(flare, "ChallengeMode-SoftYellowGlow")
     flare:SetBlendMode("ADD")
@@ -313,16 +328,6 @@ local function CreateShardPanel()
     flare:SetPoint("BOTTOMRIGHT", iconHolder, "BOTTOMRIGHT", 22, -22)
     flare:SetAlpha(0.35)
     ui.shardFlare = flare
-    local icon = iconHolder:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints()
-    icon:SetTexture(SHARD_ICON)
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    local border = iconHolder:CreateTexture(nil, "OVERLAY")
-    border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    border:SetBlendMode("ADD")
-    border:SetVertexColor(HEIRLOOM_COLOR[1], HEIRLOOM_COLOR[2], HEIRLOOM_COLOR[3])
-    border:SetPoint("TOPLEFT", -18, 18)
-    border:SetPoint("BOTTOMRIGHT", 18, -18)
     iconHolder:EnableMouse(true)
     iconHolder:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -343,26 +348,27 @@ local function CreateShardPanel()
     shardsLabel:SetPoint("TOPLEFT", ui.shards, "BOTTOMLEFT", 0, -1)
     shardsLabel:SetText(TEXT.shards)
 
-    -- Kills towards the next éclat
-    local bar = CreateFrame("StatusBar", nil, panel)
+    -- Kills towards the next éclat, drawn as the challenge board's timer bar
+    local bar = CreateFrame("Frame", nil, panel)
     bar:SetSize(LEFT_WIDTH - 40, 12)
     bar:SetPoint("TOP", panel, "TOP", 0, -80)
-    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    bar:SetStatusBarColor(HEIRLOOM_COLOR[1], HEIRLOOM_COLOR[2] * 0.9, HEIRLOOM_COLOR[3] * 0.6)
-    bar:SetMinMaxValues(0, 1)
-    local barBack = bar:CreateTexture(nil, "BACKGROUND")
-    barBack:SetAllPoints()
-    barBack:SetTexture(0, 0, 0, 0.6)
-    local barBorder = CreateFrame("Frame", nil, bar)
-    barBorder:SetPoint("TOPLEFT", -3, 3)
-    barBorder:SetPoint("BOTTOMRIGHT", 3, -3)
-    barBorder:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
-    barBorder:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
-    local spark = bar:CreateTexture(nil, "OVERLAY")
-    spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
-    spark:SetBlendMode("ADD")
-    spark:SetSize(16, 28)
-    ui.barSpark = spark
+    bar:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    bar:SetBackdropColor(0, 0, 0, 0.65)
+    bar:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
+    local fill = bar:CreateTexture(nil, "ARTWORK")
+    fill:SetTexture("Interface\\Buttons\\WHITE8X8")
+    fill:SetGradient("HORIZONTAL", 0.75, 0.45, 0.1, 1, 0.85, 0.35)
+    fill:SetHeight(6)
+    fill:SetPoint("LEFT", bar, "LEFT", 3, 0)
+    fill:SetWidth(1)
+    bar.fill = fill
+    bar.full = LEFT_WIDTH - 46
+    bar.value = 0
     ui.bar = bar
     ui.barText = Label(panel, "GameFontHighlightSmall", 0.8, 0.78, 0.7)
     ui.barText:SetPoint("TOP", bar, "BOTTOM", 0, -5)
@@ -370,7 +376,7 @@ local function CreateShardPanel()
     local divider = Divider(panel, LEFT_WIDTH - 40)
     divider:SetPoint("TOP", bar, "BOTTOM", 0, -26)
 
-    local earn = Label(panel, "GameFontNormal", 1, 0.82, 0.3)
+    local earn = Label(panel, "GameFontNormal", GOLD[1], GOLD[2], GOLD[3])
     earn:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -128)
     earn:SetText(TEXT.earn)
 
@@ -381,15 +387,15 @@ local function CreateShardPanel()
         local row = CreateFrame("Frame", nil, panel)
         row:SetSize(LEFT_WIDTH - 40, 30)
         row:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -146 - (index - 1) * 34)
-        local rowIcon = row:CreateTexture(nil, "ARTWORK")
-        rowIcon:SetSize(24, 24)
+        local rowIcon = FramedIcon(row, 28)
         rowIcon:SetPoint("LEFT")
-        rowIcon:SetTexture(icons[index])
-        rowIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        local text = Label(row, "GameFontHighlight", 0.9, 0.87, 0.78)
+        rowIcon.icon:SetTexture(icons[index])
+        local text = Label(row, "GameFontHighlight", PARCHMENT[1], PARCHMENT[2], PARCHMENT[3])
         text:SetPoint("LEFT", rowIcon, "RIGHT", 10, 0)
         text:SetPoint("RIGHT", row, "RIGHT")
+        text:SetHeight(30)
         text:SetJustifyH("LEFT")
+        text:SetJustifyV("MIDDLE")
         ui.earnRows[index] = text
     end
 
@@ -450,14 +456,14 @@ end
 
 local function CreatePrestigePage(page)
     local heading = page:CreateFontString(nil, "OVERLAY")
-    heading:SetFont(MORPHEUS, 24)
+    heading:SetFont(MORPHEUS, 28)
     heading:SetShadowOffset(1, -1)
-    heading:SetTextColor(1, 0.88, 0.6)
+    heading:SetTextColor(1, 0.86, 0.55)
     heading:SetPoint("TOPLEFT", page, "TOPLEFT", 4, -8)
     heading:SetText(TEXT.heading)
 
-    local intro = Label(page, "GameFontHighlight", 0.82, 0.78, 0.68)
-    intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -8)
+    local intro = Label(page, "GameFontHighlightSmall", 0.85, 0.8, 0.7)
+    intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
     intro:SetWidth(540)
     intro:SetJustifyH("LEFT")
     intro:SetText(TEXT.intro)
@@ -492,7 +498,7 @@ local function CreatePrestigePage(page)
     ui.prestigeButton = button
 
     -- The confirmation slides up over the bottom of the page
-    local confirm = Panel(page, 0.85, 0.55, 0.25, 0.97)
+    local confirm = Panel(page, nil, nil, nil, 0.97)
     confirm:SetSize(540, 108)
     confirm:SetFrameLevel(page:GetFrameLevel() + 20)
     confirm:Hide()
@@ -527,6 +533,7 @@ local function CreatePrestigePage(page)
     ui.showConfirm = function(show)
         state.confirming = show
         if show then
+            ui.requirement:Hide()
             confirm:Show()
             Tween(0.3, 0, function(p)
                 confirm:SetPoint("BOTTOM", page, "BOTTOM", 0, -60 + 90 * OutBack(p))
@@ -536,7 +543,10 @@ local function CreatePrestigePage(page)
             Tween(0.2, 0, function(p)
                 confirm:SetPoint("BOTTOM", page, "BOTTOM", 0, 30 - 60 * p)
                 confirm:SetAlpha(1 - p)
-            end, function() confirm:Hide() end, "confirm")
+            end, function()
+                confirm:Hide()
+                ui.requirement:Show()
+            end, "confirm")
         end
         ui.refresh()
     end
@@ -606,18 +616,9 @@ local function CreateCard(index)
     glow:SetAlpha(0)
     card.glow = glow
 
-    local iconFrame = CreateFrame("Frame", nil, card)
-    iconFrame:SetSize(40, 40)
-    iconFrame:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -12)
-    card.icon = iconFrame:CreateTexture(nil, "ARTWORK")
-    card.icon:SetAllPoints()
-    card.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    local iconBorder = iconFrame:CreateTexture(nil, "OVERLAY")
-    iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    iconBorder:SetBlendMode("ADD")
-    iconBorder:SetVertexColor(HEIRLOOM_COLOR[1], HEIRLOOM_COLOR[2], HEIRLOOM_COLOR[3])
-    iconBorder:SetPoint("TOPLEFT", -15, 15)
-    iconBorder:SetPoint("BOTTOMRIGHT", 15, -15)
+    local iconFrame = FramedIcon(card, 44)
+    iconFrame:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
+    card.icon = iconFrame.icon
 
     card.name = Label(card, "GameFontNormalSmall", HEIRLOOM_COLOR[1], HEIRLOOM_COLOR[2], HEIRLOOM_COLOR[3])
     card.name:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", 8, 1)
@@ -770,14 +771,14 @@ end
 
 local function CreateShopPage(page)
     local heading = page:CreateFontString(nil, "OVERLAY")
-    heading:SetFont(MORPHEUS, 24)
+    heading:SetFont(MORPHEUS, 28)
     heading:SetShadowOffset(1, -1)
-    heading:SetTextColor(HEIRLOOM_COLOR[1], HEIRLOOM_COLOR[2], HEIRLOOM_COLOR[3])
+    heading:SetTextColor(1, 0.86, 0.55)
     heading:SetPoint("TOPLEFT", page, "TOPLEFT", 4, -8)
     heading:SetText(TEXT.shopHeading)
 
-    local intro = Label(page, "GameFontHighlightSmall", 0.82, 0.78, 0.68)
-    intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -6)
+    local intro = Label(page, "GameFontHighlightSmall", 0.85, 0.8, 0.7)
+    intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
     intro:SetWidth(510)
     intro:SetJustifyH("LEFT")
     intro:SetText(TEXT.shopIntro)
@@ -793,10 +794,17 @@ local function CreateShopPage(page)
         text:SetText(label)
         button:SetWidth(text:GetStringWidth() + 22)
         button:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            edgeSize = 10, insets = { left = 2, right = 2, top = 2, bottom = 2 },
+            tile = true, tileSize = 16, edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
         })
+        local lit = button:CreateTexture(nil, "BACKGROUND", nil, -1)
+        RetailUI.SetAtlas(lit, "ChallengeMode-SoftYellowGlow")
+        lit:SetBlendMode("ADD")
+        lit:SetPoint("TOPLEFT", -12, 10)
+        lit:SetPoint("BOTTOMRIGHT", 12, -10)
+        button.lit = lit
         if previous then
             button:SetPoint("LEFT", previous, "RIGHT", 6, 0)
         else
@@ -815,9 +823,14 @@ local function CreateShopPage(page)
     ui.refreshCategories = function()
         for index, button in ipairs(ui.categoryButtons) do
             local chosen = index == state.category
-            button:SetBackdropColor(chosen and 0.35 or 0.06, chosen and 0.28 or 0.05, chosen and 0.12 or 0.04, 0.9)
-            button:SetBackdropBorderColor(chosen and 1 or 0.5, chosen and 0.85 or 0.42, chosen and 0.45 or 0.28, 1)
-            button.text:SetTextColor(chosen and 1 or 0.8, chosen and 0.92 or 0.72, chosen and 0.6 or 0.55)
+            button:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
+            button:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
+            button.lit:SetAlpha(chosen and 0.6 or 0)
+            if chosen then
+                button.text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+            else
+                button.text:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+            end
         end
     end
 
@@ -903,11 +916,11 @@ local function RefreshShards(animate)
 
     local per = max(1, state.killsPerShard)
     local target = state.killProgress / per
-    local from = ui.bar:GetValue()
+    local from = ui.bar.value
     Tween(0.5, 0, function(p)
         local value = from + (target - from) * OutCubic(p)
-        ui.bar:SetValue(value)
-        ui.barSpark:SetPoint("CENTER", ui.bar, "LEFT", ui.bar:GetWidth() * value, 0)
+        ui.bar.value = value
+        ui.bar.fill:SetWidth(max(1, ui.bar.full * value))
     end, nil, "bar")
     ui.barText:SetFormattedText(TEXT.nextShard, state.killProgress, per)
     ui.earnRows[1]:SetFormattedText(TEXT.perLevel, state.perLevel)
@@ -947,6 +960,7 @@ local function Refresh()
         ui.buttonGlow:Hide()
     end
     if state.pending then ui.confirmButton:Disable() else ui.confirmButton:Enable() end
+    if state.confirming then ui.requirement:Hide() else ui.requirement:Show() end
     if state.confirming and not allowed and not state.pending then
         state.confirming = false
         ui.confirm:Hide()
@@ -974,20 +988,11 @@ local function CreateWindow()
     ground:SetPoint("TOPLEFT", 2, -21)
     ground:SetPoint("BOTTOMRIGHT", -2, 2)
 
-    local marble = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
-    marble:SetTexture(RetailUIFiles["ui-background-marble"], true)
-    marble:SetHorizTile(true)
-    marble:SetVertTile(true)
-    marble:SetPoint("TOPLEFT", 6, -24)
-    marble:SetPoint("BOTTOMRIGHT", -6, 6)
-
-    -- The left column sits on a darker, warm band
-    local band = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
-    band:SetTexture("Interface\\Buttons\\WHITE8X8")
-    band:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -24)
-    band:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 8, 8)
-    band:SetWidth(LEFT_WIDTH + 24)
-    band:SetGradientAlpha("HORIZONTAL", 0.1, 0.06, 0.02, 0.75, 0.05, 0.03, 0.01, 0.25)
+    local parchment = frame:CreateTexture(nil, "BORDER")
+    RetailUI.SetAtlas(parchment, "questbg-parchment")
+    parchment:SetPoint("TOPLEFT", 8, -26)
+    parchment:SetPoint("BOTTOMRIGHT", -8, 8)
+    parchment:SetVertexColor(0.34, 0.28, 0.22)
 
     RetailUI.ApplyNineSlice(frame, false)
 
@@ -1078,7 +1083,7 @@ local function Open()
         PlaySound(SOUND_OPEN)
         Tween(0.28, 0, function(p)
             frame:SetAlpha(p)
-            frame:SetScale(0.94 + 0.06 * OutBack(p))
+            frame:SetScale(0.94 + 0.06 * OutCubic(p))
         end, nil, "open")
         -- The medallion lands with a small bounce
         Tween(0.5, 0.05, function(p) ui.emblem:SetScale(0.7 + 0.3 * OutBack(p)) end, nil, "emblem")
