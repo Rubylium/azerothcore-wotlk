@@ -2,6 +2,8 @@
 -- Stormwind's Trade District opens it: four missions that change every 20 minutes, each a challenge against one raid
 -- boss, fought at once with bots. A challenge won leaves its reward here: gold and a satchel.
 -- A banner at the top of the screen follows the challenge itself, from the group being assembled to the way home.
+-- Every mission comes in tiers, Défi I to X, picked on the dial at the top of the board: the same boss with more
+-- health and damage, fewer attempts, and a bigger reward. Winning at the highest tier open opens the next.
 
 local PREFIX = "Challenge"
 local SOUND = "Sound\\Interface\\MythicPlus\\"
@@ -10,7 +12,7 @@ local SATCHEL = 4573
 local SATCHEL_ICON = "Interface\\Icons\\INV_Misc_Bag_07"
 local ROLE_TANK, ROLE_HEALER, ROLE_DAMAGE = 2, 4, 8
 
-local WIDTH, HEIGHT = 840, 540
+local WIDTH, HEIGHT = 840, 588
 local CARD_WIDTH, CARD_HEIGHT, CARD_GAP = 184, 322, 16
 local ROTATION_SECONDS = 20 * 60
 
@@ -18,6 +20,21 @@ local STATE_OPEN, STATE_UNDERWAY, STATE_WON, STATE_CLAIMED = 0, 1, 2, 3
 -- RaidFinder::ChallengeEvent
 local EVENT_ARRIVED, EVENT_KILLED, EVENT_RETURNING, EVENT_WIPED, EVENT_WON, EVENT_FAILED = 1, 2, 3, 4, 5, 6
 local EVENT_PULLING = 7
+
+-- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
+local TIER_MIN, TIER_MAX = 1, 10
+local TIER_ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
+local TIER_GUARANTEED_ITEM = 7
+-- ChallengeBoard.cpp SatchelExtraItemChance, by raid mode (10, 25, 10 heroic, 25 heroic)
+local SATCHEL_ITEM_CHANCE = { [0] = 35, 45, 50, 60 }
+
+local function TierHealth(tier) return 1.4 ^ (tier - 1) end
+local function TierDamage(tier) return 1.2 ^ (tier - 1) end
+local function TierWipes(tier) return tier >= 9 and 1 or tier >= 6 and 2 or 3 end
+local function TierGoldPercent(tier) return 100 + 30 * (tier - 1) end
+local function TierExtraEssences(tier) return 3 * (tier - 1) end
+local function TierExtraParagon(tier) return floor((tier - 1) / 2) end
+local function TierExtraItemChance(tier) return 7 * (tier - 1) end
 
 local french = GetLocale() == "frFR"
 local TEXT = french and {
@@ -57,6 +74,17 @@ local TEXT = french and {
     pulling = "Le tank engage le combat dans %d",
     wiped = "Le groupe est tombé. Tentatives restantes : %d",
     won = "Défi réussi ! Votre récompense vous attend au tableau.",
+    tier = "Défi %s",
+    tierBoss = "Boss : points de vie ×%s · dégâts ×%s · %d tentative%s",
+    tierNext = "Remportez un défi en Défi %s pour ouvrir le palier suivant.",
+    tierTop = "Le palier ultime.",
+    tierOpened = "Nouveau palier ouvert : Défi %s !",
+    tierTitle = "Paliers des défis",
+    tierHelp = "Le même boss, plus coriace à chaque palier, et mieux payé. Remporter un défi au plus haut palier "
+        .. "ouvert ouvre le suivant.",
+    tierReward = "Récompense : or +%d%%, +%d essences, +%d parangon",
+    satchelChance = "Butin du boss : %d%% de chances.",
+    satchelSure = "Un butin du boss assuré, un second à %d%%.",
     failed = {
         [1] = "Défi échoué : trop de tentatives.",
         [2] = "Défi échoué : le temps est écoulé.",
@@ -76,6 +104,7 @@ local TEXT = french and {
         [11] = "Aucune récompense à récupérer.",
         [12] = "Vos sacs sont pleins.",
         [13] = "Un membre du groupe n'a pas le niveau requis.",
+        [14] = "Ce palier n'est pas encore ouvert.",
     },
 } or {
     title = "Challenge Board",
@@ -114,6 +143,17 @@ local TEXT = french and {
     pulling = "The tank pulls in %d",
     wiped = "The group fell. Attempts left: %d",
     won = "Challenge won! Your reward waits at the board.",
+    tier = "Tier %s",
+    tierBoss = "Boss: health ×%s · damage ×%s · %d attempt%s",
+    tierNext = "Win a challenge at tier %s to open the next one.",
+    tierTop = "The ultimate tier.",
+    tierOpened = "New tier open: tier %s!",
+    tierTitle = "Challenge tiers",
+    tierHelp = "The same boss, tougher at every tier, and better paid. Winning a challenge at the highest tier open "
+        .. "opens the next.",
+    tierReward = "Reward: gold +%d%%, +%d essences, +%d paragon",
+    satchelChance = "Boss drop: %d%% chance.",
+    satchelSure = "One boss drop for sure, a second at %d%%.",
     failed = {
         [1] = "Challenge failed: too many attempts.",
         [2] = "Challenge failed: time ran out.",
@@ -133,6 +173,7 @@ local TEXT = french and {
         [11] = "No reward to claim.",
         [12] = "Your bags are full.",
         [13] = "A group member is below the required level.",
+        [14] = "That tier is not open yet.",
     },
 }
 
@@ -145,9 +186,13 @@ local state = {
     missions = {},
     rewards = {},
     shownRotation = nil,
+    openTier = TIER_MIN,        -- the highest tier open to the player in their bracket
+    tier = nil,                 -- the tier picked on the dial (the highest open until they pick another)
+    currentTier = 0,            -- the tier of the challenge they are in
 }
 
 local frame, cards, rewardRows, emptyText, timerText, timerFill, errorText, quitButton, roleButtons
+local dial
 local banner
 local incoming = { missions = {}, rewards = {} }
 
@@ -217,6 +262,32 @@ local function SetAtlas(texture, name)
     local atlas = RetailUIAtlas[name]
     texture:SetTexture(atlas[1])
     texture:SetTexCoord(atlas[4], atlas[5], atlas[6], atlas[7])
+end
+
+-- A decimal the way the player's language writes it
+local function Decimal(value)
+    local text = format("%.2f", value):gsub("0+$", ""):gsub("%.$", "")
+    return french and text:gsub("%.", ",") or text
+end
+
+local function TierName(tier)
+    return format(TEXT.tier, TIER_ROMAN[tier] or tostring(tier))
+end
+
+-- What a mission pays at a tier: the server sends Défi I's
+local function MissionReward(mission, tier)
+    return floor(mission.gold * TierGoldPercent(tier) / 100), mission.paragon + TierExtraParagon(tier),
+        mission.essences + TierExtraEssences(tier)
+end
+
+-- The tier a card shows: the one it was won at, the challenge's own while under way, or the dial's
+local function CardTier(mission)
+    if mission.wonAt and mission.wonAt > 0 then
+        return mission.wonAt
+    elseif mission.state == STATE_UNDERWAY and state.currentTier > 0 then
+        return state.currentTier
+    end
+    return state.tier or state.openTier
 end
 
 -- Tweens: every animation of the board and the banner, driven by one clock ---------------------------------------
@@ -317,7 +388,14 @@ end
 local function CardTooltipSatchel(owner)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:SetHyperlink("item:" .. SATCHEL)
-    GameTooltip:AddLine(TEXT.satchelHint, 0.2, 1, 0.2, true)
+    GameTooltip:AddLine(TEXT.satchelHint, 1, 0.9, 0.7, true)
+    local mission = owner:GetParent().mission
+    if mission then
+        local tier = CardTier(mission)
+        local chance = min(100, (SATCHEL_ITEM_CHANCE[mission.difficulty] or 35) + TierExtraItemChance(tier))
+        GameTooltip:AddLine(tier >= TIER_GUARANTEED_ITEM and format(TEXT.satchelSure, chance) or
+            format(TEXT.satchelChance, chance), 1, 0.82, 0.3, true)
+    end
     GameTooltip:Show()
 end
 
@@ -522,7 +600,7 @@ local function LayoutCards(count)
     local left = (WIDTH - total) / 2
     for index, card in ipairs(cards) do
         card.x = left + (index - 1) * (CARD_WIDTH + CARD_GAP)
-        card.y = -118
+        card.y = -162
         card:ClearAllPoints()
         card:SetPoint("TOPLEFT", frame, "TOPLEFT", card.x, card.y)
     end
@@ -535,12 +613,15 @@ local function FillCard(card, mission)
     card.name:SetText(mission.name)
     card.raid:SetText(DungeonName(mission.dungeon))
     local heroic = mission.difficulty >= 2
+    local tier = CardTier(mission)
     card.size:SetText(format(TEXT.players, mission.players, heroic and TEXT.heroic or TEXT.normal))
-    card.kind:SetText(heroic and (TEXT.challenge .. "  |cffff8000" .. TEXT.heroicTag .. "|r") or TEXT.challenge)
+    local kind = TEXT.challenge .. " " .. (TIER_ROMAN[tier] or "")
+    card.kind:SetText(heroic and (kind .. "  |cffff8000" .. TEXT.heroicTag .. "|r") or kind)
     card.itemLevel:SetText(mission.itemLevel > 0 and format(TEXT.itemLevel, mission.itemLevel) or "")
-    card.gold:SetText(Money(mission.gold))
-    card.paragon:SetText(mission.paragon > 0 and format(TEXT.paragon, mission.paragon) or "")
-    card.essences:SetText(mission.essences > 0 and format(TEXT.essences, mission.essences) or "")
+    local gold, paragon, essences = MissionReward(mission, tier)
+    card.gold:SetText(Money(gold))
+    card.paragon:SetText(paragon > 0 and format(TEXT.paragon, paragon) or "")
+    card.essences:SetText(essences > 0 and format(TEXT.essences, essences) or "")
 
     local done = mission.state == STATE_CLAIMED
     card.art:SetDesaturated(done)
@@ -564,7 +645,7 @@ local function FillCard(card, mission)
             end
             PlaySound("igMainMenuOptionCheckBoxOn")
             state.starting = mission.boss
-            Send("START\t" .. mission.boss .. "\t" .. roles)
+            Send("START\t" .. mission.boss .. "\t" .. roles .. "\t" .. (state.tier or state.openTier))
         end)
     elseif mission.state == STATE_WON then
         button:Show()
@@ -579,7 +660,7 @@ local function FillCard(card, mission)
         if mission.state == STATE_UNDERWAY then
             card.status:SetTextColor(0.45, 0.75, 1)
         else
-            card.status:SetTextColor(0.3, 1, 0.3)
+            card.status:SetTextColor(1, 0.86, 0.55)
         end
     end
 end
@@ -631,7 +712,8 @@ local function Refresh(animate)
         local reward = state.rewards[index]
         if reward then
             row.icon:SetTexture(DungeonTexture(reward.dungeon, "LFGIcon-"))
-            row.text:SetText(reward.name .. "  " .. Money(reward.gold) .. (reward.paragon > 0 and
+            row.text:SetText(reward.name .. " |cffffd24d" .. (TIER_ROMAN[reward.tier] or "I") .. "|r  " ..
+                Money(reward.gold) .. (reward.paragon > 0 and
                 ("  |cffa335ee" .. format(TEXT.paragon, reward.paragon) .. "|r") or "") .. (reward.essences > 0 and
                 ("  |cff4dff73" .. format(TEXT.essences, reward.essences) .. "|r") or ""))
             row.button:SetScript("OnClick", function()
@@ -646,6 +728,9 @@ local function Refresh(animate)
 
     SetShown(quitButton, state.challenge ~= 0)
     RefreshRoles()
+    if dial then
+        dial.Refresh()
+    end
 
     if animate then
         AnimateCardsIn()
@@ -771,6 +856,105 @@ local function CreateBoard()
     divider:SetHeight(12)
     divider:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -100)
     divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -100)
+
+    -- The tier dial: an arrow either side of the tier's name, what it does to the boss under it. Only the tiers open
+    -- can be picked; the one after the highest says how to open it.
+    dial = CreateFrame("Frame", nil, frame)
+    dial:SetSize(460, 52)
+    dial:SetPoint("TOP", frame, "TOP", 0, -108)
+    dial:EnableMouse(true)
+
+    local dialGlow = dial:CreateTexture(nil, "BACKGROUND")
+    SetAtlas(dialGlow, "ChallengeMode-SoftYellowGlow")
+    dialGlow:SetBlendMode("ADD")
+    dialGlow:SetPoint("CENTER", dial, "TOP", 0, -16)
+    dialGlow:SetSize(250, 64)
+
+    local tierText = dial:CreateFontString(nil, "OVERLAY")
+    tierText:SetFont(MORPHEUS, 26)
+    tierText:SetShadowOffset(1, -1)
+    tierText:SetTextColor(1, 0.86, 0.55)
+    tierText:SetPoint("CENTER", dial, "TOP", 0, -16)
+
+    local tierInfo = dial:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    tierInfo:SetPoint("TOP", tierText, "BOTTOM", 0, -4)
+    tierInfo:SetTextColor(0.85, 0.8, 0.7)
+
+    local function Arrow(direction)
+        local button = CreateFrame("Button", nil, dial)
+        button:SetSize(30, 30)
+        local page = direction < 0 and "Prev" or "Next"
+        button:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Up")
+        button:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Down")
+        button:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Disabled")
+        button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+        button:SetPoint("CENTER", dial, "TOP", direction * 104, -16)
+        button:SetScript("OnClick", function()
+            local tier = (state.tier or state.openTier) + direction
+            if tier < TIER_MIN or tier > state.openTier then
+                return
+            end
+            state.tier = tier
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            Refresh(false)
+            -- The new tier's name swells and settles, and the rewards on the cards with it
+            Tween(0.3, 0, function(p)
+                tierText:SetFont(MORPHEUS, 26 + 8 * (1 - OutCubic(p)))
+                for _, card in ipairs(cards) do
+                    card.gold:SetAlpha(0.3 + 0.7 * p)
+                    card.paragon:SetAlpha(0.3 + 0.7 * p)
+                    card.essences:SetAlpha(0.3 + 0.7 * p)
+                end
+            end)
+        end)
+        return button
+    end
+    local previousTier = Arrow(-1)
+    local nextTier = Arrow(1)
+
+    dial.Refresh = function()
+        local tier = min(state.tier or state.openTier, state.openTier)
+        state.tier = tier
+        tierText:SetText(TierName(tier))
+        local wipes = TierWipes(tier)
+        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier)), Decimal(TierDamage(tier)), wipes,
+            wipes > 1 and "s" or ""))
+        -- The higher the tier, the brighter the dial
+        dialGlow:SetAlpha(0.18 + 0.05 * tier)
+        SetEnabled(previousTier, tier > TIER_MIN and state.challenge == 0)
+        SetEnabled(nextTier, tier < state.openTier and state.challenge == 0)
+    end
+
+    dial:SetScript("OnEnter", function(self)
+        local tier = state.tier or state.openTier
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine(TEXT.tierTitle, 1, 0.82, 0.3)
+        GameTooltip:AddLine(TEXT.tierHelp, 1, 0.9, 0.7, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(TierName(tier), 1, 0.86, 0.55)
+        GameTooltip:AddLine(format(TEXT.tierReward, TierGoldPercent(tier) - 100, TierExtraEssences(tier),
+            TierExtraParagon(tier)), 0.85, 0.8, 0.7, true)
+        GameTooltip:AddLine(" ")
+        if state.openTier >= TIER_MAX then
+            GameTooltip:AddLine(TEXT.tierTop, 0.62, 0.57, 0.5, true)
+        else
+            GameTooltip:AddLine(format(TEXT.tierNext, TIER_ROMAN[state.openTier]), 0.62, 0.57, 0.5, true)
+        end
+        GameTooltip:Show()
+    end)
+    dial:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- A tier just opened: the dial moves to it and its name bursts
+    dial.Opened = function(tier)
+        state.tier = tier
+        dial.Refresh()
+        PlaySoundFile(SOUND .. "NewRecord.ogg")
+        UIErrorsFrame:AddMessage(format(TEXT.tierOpened, TIER_ROMAN[tier]), 1, 0.86, 0.55, 1)
+        Tween(0.8, 0, function(p)
+            tierText:SetFont(MORPHEUS, 26 + 14 * (1 - OutCubic(p)))
+            dialGlow:SetAlpha((0.18 + 0.05 * tier) + 0.6 * (1 - p))
+        end)
+    end
 
     cards = {}
     for index = 1, 4 do
@@ -1063,7 +1247,10 @@ local function ShowBanner(title, text, dungeon, hideAfter)
     end)
 end
 
-local function OnEvent(event, boss, value, name)
+local function OnEvent(event, boss, value, name, tier)
+    if tier and tier > TIER_MIN then
+        name = name .. " · " .. TierName(tier)
+    end
     local mission = FindMission(boss)
     local dungeon = mission and mission.dungeon or banner and banner.dungeon
     if banner then
@@ -1132,6 +1319,8 @@ local function Handle(message)
         incoming.left = tonumber(b) or 0
         incoming.bracket = tonumber(c) or 0
         incoming.challenge = tonumber(d) or 0
+        incoming.openTier = tonumber(e) or TIER_MIN
+        incoming.currentTier = tonumber(f) or 0
         incoming.missions = {}
         incoming.rewards = {}
     elseif kind == "M" then
@@ -1147,6 +1336,7 @@ local function Handle(message)
             paragon = tonumber(i) or 0,
             name = j or "",
             essences = tonumber(k) or 0,
+            wonAt = tonumber((select(13, strsplit("\t", message)))) or 0,
         })
     elseif kind == "R" then
         tinsert(incoming.rewards, {
@@ -1157,6 +1347,7 @@ local function Handle(message)
             paragon = tonumber(e) or 0,
             name = f or "",
             essences = tonumber(g) or 0,
+            tier = tonumber(h) or TIER_MIN,
         })
     elseif kind == "E" then
         local previousChallenge = state.challenge
@@ -1168,6 +1359,11 @@ local function Handle(message)
         state.missions = incoming.missions
         state.rewards = incoming.rewards
         state.asked = false
+        state.currentTier = incoming.currentTier or 0
+        -- A tier opened since the last board: the dial moves up to it
+        local opened = state.openTier and (incoming.openTier or TIER_MIN) > state.openTier and state.seenBoard
+        state.openTier = incoming.openTier or TIER_MIN
+        state.seenBoard = true
         -- The answer to this player's own START: the card gets its stamp
         if state.challenge ~= 0 and previousChallenge == 0 and state.starting == state.challenge then
             state.starting = nil
@@ -1181,12 +1377,18 @@ local function Handle(message)
         elseif frame and frame:IsShown() then
             ShowBoard(false)
         end
+        if opened and dial and frame:IsShown() then
+            dial.Opened(state.openTier)
+            Refresh(false)
+        elseif opened then
+            state.tier = state.openTier
+        end
     elseif kind == "H" then
         if frame and frame:IsShown() then
             frame:Hide()
         end
     elseif kind == "P" then
-        OnEvent(tonumber(a) or 0, tonumber(b) or 0, tonumber(c) or 0, d or "")
+        OnEvent(tonumber(a) or 0, tonumber(b) or 0, tonumber(c) or 0, d or "", tonumber(e) or 0)
     elseif kind == "C" then
         AnimateClaim(tonumber(b) or 0, tonumber(c) or 0, tonumber(d) or 0, tonumber(e) or 0)
     elseif kind == "X" then
