@@ -178,6 +178,16 @@ OUTER_ZONES = [
     },
 ]
 OUTER_FIRST_ID = 2000
+# Points that must already be spent on the board before a node can be taken, by zone and node type. Without it the
+# strongest nodes were a straight run from the hub: ten points to a first keystone, sixteen to an Ascension one,
+# twenty-four to an Apotheosis, with nothing spent on the way. The gate makes the far board something reached by
+# building a character first. Zone 0 is Eveil, 1 Ascension, 2 Transcendance.
+REQUIRED_SPENT = {
+    0: {MINOR: 0, NOTABLE: 0, KEYSTONE: 20},
+    1: {MINOR: 30, NOTABLE: 40, KEYSTONE: 55},
+    2: {MINOR: 65, NOTABLE: 75, KEYSTONE: 95},
+}
+
 # A node's reach is drawn this far past the outermost ring, so the frame can pan to its edge
 BOARD_MARGIN = 160
 
@@ -517,6 +527,8 @@ def build():
             links.add((min(a, b), max(a, b)))
 
     build_outer(nodes, links, branches)
+    for node in nodes:
+        node["required"] = 0 if node["free"] else REQUIRED_SPENT[node.get("zone", 0)][node["type"]]
 
     # An outer icon is "custom|stock": the custom one once its PNG is in, the stock one until then
     waiting = set()
@@ -592,6 +604,7 @@ def build_outer(nodes, links, branches):
                                      "description": "+%d %s" % (value, STAT_NAME[stat])}
                         node = make_node(node_id, node_type, x, y, stat, plain=plain)
                     node["branch"] = branch_name
+                    node["zone"] = zone_index + 1
                     nodes.append(node)
                     slots.append(node_id)
                     node_id += 1
@@ -616,6 +629,7 @@ def build_outer(nodes, links, branches):
             y = int(round(radius * math.sin(math.radians(angle + 30))))
             node = make_node(node_id, NOTABLE, x, y, stat, chosen=bridge)
             node["branch"] = ""
+            node["zone"] = zone_index + 1
             nodes.append(node)
             left = bridge_rows[branch_index][-1]
             right = bridge_rows[(branch_index + 1) % len(BRANCHES)][0]
@@ -628,7 +642,7 @@ def signature(nodes, links):
     """Must match LoadParagonBoard in ParagonSystem.cpp, wraparound included."""
     total = 0
     for node in nodes:
-        total += node["id"] * 31 + node["value"] * 7 + node["stat"] + node["effect"] * 3
+        total += node["id"] * 31 + node["value"] * 7 + node["stat"] + node["effect"] * 3 + node["required"] * 5
     for a, b in links:
         total += a * 13 + b * 17
     return total % (2 ** 32)
@@ -654,10 +668,10 @@ def write_lua(nodes, links, stamp):
     ]
     for node in nodes:
         lines.append(
-            "        [%d] = { type = %d, x = %d, y = %d, effect = %d, stat = %d, value = %d,"
+            "        [%d] = { type = %d, x = %d, y = %d, effect = %d, stat = %d, value = %d, required = %d,"
             " free = %s, icon = %s, name = %s, description = %s }," % (
                 node["id"], node["type"], node["x"], node["y"], node["effect"], node["stat"],
-                node["value"], "true" if node["free"] else "false",
+                node["value"], node["required"], "true" if node["free"] else "false",
                 lua_string("Interface" + chr(92) + "Icons" + chr(92) + node["icon"]),
                 lua_string(node["name"]), lua_string(node["description"])))
     lines += ["    },", "    links = {"]
@@ -689,8 +703,10 @@ def main():
            counts[NOTABLE], counts[KEYSTONE]),
         "-- %d points from the hub." % (len(RINGS) + sum(len(z["rings"]) for z in OUTER_ZONES)),
         "",
-        "-- Schema lives here too, so this file never depends on another one having run first.",
-        "CREATE TABLE IF NOT EXISTS `paragon_node` (",
+        "-- Schema lives here too, so this file never depends on another one having run first. The board is generated",
+        "-- data with nothing of the players in it, so it is dropped and rebuilt whole: a new column needs no migration.",
+        "DROP TABLE IF EXISTS `paragon_node`;",
+        "CREATE TABLE `paragon_node` (",
         "    `id` INT UNSIGNED NOT NULL,",
         "    `type` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 minor, 1 notable, 2 keystone',",
         "    `x` SMALLINT NOT NULL DEFAULT 0,",
@@ -703,6 +719,7 @@ def main():
         "    `duration` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'milliseconds',",
         "    `cooldown` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'milliseconds',",
         "    `free` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'costs no point, always allocated',",
+        "    `required` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'points already spent before it can be taken',",
         "    `icon` VARCHAR(128) NOT NULL DEFAULT '',",
         "    `name` VARCHAR(64) NOT NULL DEFAULT '',",
         "    `description` VARCHAR(255) NOT NULL DEFAULT '',",
@@ -719,12 +736,12 @@ def main():
         "DELETE FROM `paragon_node`;",
         "",
         "INSERT INTO `paragon_node` (`id`, `type`, `x`, `y`, `effect`, `stat`, `value`, `value2`,"
-        " `chance`, `duration`, `cooldown`, `free`, `icon`, `name`, `description`) VALUES",
+        " `chance`, `duration`, `cooldown`, `free`, `required`, `icon`, `name`, `description`) VALUES",
     ]
 
-    rows = ["    (%d, %d, %d, %d, %d, %d, %d, %d, %g, %d, %d, %d, '%s', '%s', '%s')" % (
+    rows = ["    (%d, %d, %d, %d, %d, %d, %d, %d, %g, %d, %d, %d, %d, '%s', '%s', '%s')" % (
         n["id"], n["type"], n["x"], n["y"], n["effect"], n["stat"], n["value"], n["value2"],
-        n["chance"], n["duration"], n["cooldown"], n["free"],
+        n["chance"], n["duration"], n["cooldown"], n["free"], n["required"],
         escape("Interface" + chr(92) + "Icons" + chr(92) + n["icon"]),
         escape(n["name"]), escape(n["description"])) for n in nodes]
     lines.append(",\n".join(rows) + ";")

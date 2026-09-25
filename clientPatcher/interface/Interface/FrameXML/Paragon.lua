@@ -110,9 +110,15 @@ local function isAllocated(id)
     return state.allocated[id] == true
 end
 
--- Reachable means "next to something already held", which is the same rule the server enforces.
+-- Points a node needs spent on the board before it can be taken (the far zones and the keystones)
+local function isGated(id)
+    local node = ParagonBoard.nodes[id]
+    return node and (node.required or 0) > state.spent
+end
+
+-- Reachable means "next to something already held" and past its gate, the same rules the server enforces.
 local function isReachable(id)
-    if isAllocated(id) then return false end
+    if isAllocated(id) or isGated(id) then return false end
     for _, neighbour in ipairs(adjacency[id] or {}) do
         if isAllocated(neighbour) then return true end
     end
@@ -425,15 +431,20 @@ local function onNodeEnter(self)
     local kind = NODE_KINDS[node.type] or NODE_KINDS[0]
     GameTooltip:AddLine(kind.label, kind.color[1], kind.color[2], kind.color[3])
     GameTooltip:AddLine(node.description, 1, 1, 1, true)
+    local required = node.required or 0
+    if required > 0 and not isAllocated(self.nodeId) then
+        GameTooltip:AddLine(string.format("Requiert %d points dépensés sur le tableau (%d / %d).", required,
+            math.min(state.spent, required), required), 1, 0.82, 0.3, true)
+    end
     if isAllocated(self.nodeId) then
-        GameTooltip:AddLine("Acquis.", 0.4, 1, 0.4)
+        GameTooltip:AddLine("Acquis.", 1, 0.86, 0.55)
     elseif isReachable(self.nodeId) then
-        GameTooltip:AddLine("Coût : 1 point.", 0.7, 0.8, 1)
+        GameTooltip:AddLine("Coût : 1 point.", 0.85, 0.8, 0.7)
         if state.available > 0 then
-            GameTooltip:AddLine("Clic : acquérir", 0.5, 1, 0.5)
+            GameTooltip:AddLine("Clic : acquérir", 1, 0.82, 0.3)
         end
     else
-        GameTooltip:AddLine("Pas encore accessible.", 0.7, 0.4, 0.4)
+        GameTooltip:AddLine("Pas encore accessible.", 0.62, 0.57, 0.5)
     end
     GameTooltip:Show()
     self.hovered = true
