@@ -4,6 +4,8 @@
 -- A banner at the top of the screen follows the challenge itself, from the group being assembled to the way home.
 -- Every mission comes in tiers, Défi I to X, picked on the dial at the top of the board: the same boss with more
 -- health and damage, fewer attempts, and a bigger reward. Winning at the highest tier open opens the next.
+-- The Donjons tab posts dungeons of the Mythic+ pool: one taken up here runs as a key at the player's level, and once
+-- it is done a reward waits here, on top of the key's own.
 
 local PREFIX = "Challenge"
 local SOUND = "Sound\\Interface\\MythicPlus\\"
@@ -20,6 +22,10 @@ local STATE_OPEN, STATE_UNDERWAY, STATE_WON, STATE_CLAIMED = 0, 1, 2, 3
 -- RaidFinder::ChallengeEvent
 local EVENT_ARRIVED, EVENT_KILLED, EVENT_RETURNING, EVENT_WIPED, EVENT_WON, EVENT_FAILED = 1, 2, 3, 4, 5, 6
 local EVENT_PULLING = 7
+-- A dungeon challenge completed (ChallengeBoard.cpp EVENT_DUNGEON_WON)
+local EVENT_DUNGEON_WON = 20
+local KIND_DUNGEON = 2
+local KEYSTONE_ICON = "Interface\\Icons\\INV_Relics_Hourglass"
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -74,6 +80,23 @@ local TEXT = french and {
     pulling = "Le tank engage le combat dans %d",
     wiped = "Le groupe est tombé. Tentatives restantes : %d",
     won = "Défi réussi ! Votre récompense vous attend au tableau.",
+    tabRaids = "Raids",
+    tabDungeons = "Donjons",
+    headingDungeons = "Donjons",
+    introDungeons = "Choisissez un donjon du Mythique+ et lancez-le d'ici, à votre clé. Terminez-le : une récompense "
+        .. "de plus vous attend au tableau, en plus de celle du donjon.",
+    dungeonTag = "DONJON",
+    mythicTag = "MYTHIQUE+",
+    key = "Votre clé",
+    dungeonKey = "Mythique+ · clé +%d",
+    dungeonTime = "Temps imparti : %d min",
+    timedBonus = "Terminé à temps : l'or et les essences ×1,5, et un point de parangon de plus.",
+    launch = "Lancer le donjon",
+    dungeonsLocked = "Les défis de donjon s'ouvrent au niveau 80.\nRevenez plus tard, aventurier.",
+    dungeonWon = "Défi de donjon réussi ! Votre récompense vous attend au tableau.",
+    wonTimed = "Réussi à temps, clé +%d",
+    wonLate = "Réussi hors temps, clé +%d",
+    satchelDungeon = "De l'or : l'objet du donjon, la clé vous l'a déjà donné.",
     tier = "Défi %s",
     tierBoss = "Boss : points de vie ×%s · dégâts ×%s · %d tentative%s",
     tierNext = "Remportez un défi en Défi %s pour ouvrir le palier suivant.",
@@ -105,6 +128,7 @@ local TEXT = french and {
         [12] = "Vos sacs sont pleins.",
         [13] = "Un membre du groupe n'a pas le niveau requis.",
         [14] = "Ce palier n'est pas encore ouvert.",
+        [15] = "Les défis de donjon s'ouvrent au niveau 80.",
     },
 } or {
     title = "Challenge Board",
@@ -143,6 +167,23 @@ local TEXT = french and {
     pulling = "The tank pulls in %d",
     wiped = "The group fell. Attempts left: %d",
     won = "Challenge won! Your reward waits at the board.",
+    tabRaids = "Raids",
+    tabDungeons = "Dungeons",
+    headingDungeons = "Dungeons",
+    introDungeons = "Pick a Mythic+ dungeon and set out from here, at your key. Complete it: one more reward waits "
+        .. "for you at the board, on top of the dungeon's own.",
+    dungeonTag = "DUNGEON",
+    mythicTag = "MYTHIC+",
+    key = "Your key",
+    dungeonKey = "Mythic+ · key +%d",
+    dungeonTime = "Time limit: %d min",
+    timedBonus = "Completed in time: gold and essences ×1.5, and one more paragon point.",
+    launch = "Set out",
+    dungeonsLocked = "Dungeon challenges open at level 80.\nCome back later, adventurer.",
+    dungeonWon = "Dungeon challenge complete! Your reward waits at the board.",
+    wonTimed = "Completed in time, key +%d",
+    wonLate = "Completed over time, key +%d",
+    satchelDungeon = "Gold: the dungeon's item, the key already gave you.",
     tier = "Tier %s",
     tierBoss = "Boss: health ×%s · damage ×%s · %d attempt%s",
     tierNext = "Win a challenge at tier %s to open the next one.",
@@ -174,6 +215,7 @@ local TEXT = french and {
         [12] = "Your bags are full.",
         [13] = "A group member is below the required level.",
         [14] = "That tier is not open yet.",
+        [15] = "Dungeon challenges open at level 80.",
     },
 }
 
@@ -189,12 +231,16 @@ local state = {
     openTier = TIER_MIN,        -- the highest tier open to the player in their bracket
     tier = nil,                 -- the tier picked on the dial (the highest open until they pick another)
     currentTier = 0,            -- the tier of the challenge they are in
+    page = "raids",             -- the tab shown: "raids" or "dungeons"
+    key = 2,                    -- the player's Mythic+ key level
+    contract = 0,               -- the dungeon challenge they took up (Dungeon Finder entry), 0 for none
+    dungeons = {},
 }
 
 local frame, cards, rewardRows, emptyText, timerText, timerFill, errorText, quitButton, roleButtons
-local dial
+local dial, keyStrip, dungeonCards, tabs
 local banner
-local incoming = { missions = {}, rewards = {} }
+local incoming = { missions = {}, rewards = {}, dungeons = {} }
 
 local function Send(body)
     SendAddonMessage(PREFIX, body, "WHISPER", UnitName("player"))
@@ -390,7 +436,9 @@ local function CardTooltipSatchel(owner)
     GameTooltip:SetHyperlink("item:" .. SATCHEL)
     GameTooltip:AddLine(TEXT.satchelHint, 1, 0.9, 0.7, true)
     local mission = owner:GetParent().mission
-    if mission then
+    if mission and mission.kind == KIND_DUNGEON then
+        GameTooltip:AddLine(TEXT.satchelDungeon, 1, 0.82, 0.3, true)
+    elseif mission then
         local tier = CardTier(mission)
         local chance = min(100, (SATCHEL_ITEM_CHANCE[mission.difficulty] or 35) + TierExtraItemChance(tier))
         GameTooltip:AddLine(tier >= TIER_GUARANTEED_ITEM and format(TEXT.satchelSure, chance) or
@@ -595,10 +643,10 @@ local function CreateCard(index)
     return card
 end
 
-local function LayoutCards(count)
+local function LayoutCards(count, set)
     local total = count * CARD_WIDTH + max(0, count - 1) * CARD_GAP
     local left = (WIDTH - total) / 2
-    for index, card in ipairs(cards) do
+    for index, card in ipairs(set or cards) do
         card.x = left + (index - 1) * (CARD_WIDTH + CARD_GAP)
         card.y = -162
         card:ClearAllPoints()
@@ -665,9 +713,65 @@ local function FillCard(card, mission)
     end
 end
 
+-- A dungeon challenge on a card: the dungeon's art, the key it runs at and its time, the reward at that key
+local function FillDungeonCard(card, dungeon)
+    card.mission = dungeon
+    SetBackground(card.art, dungeon.dungeon)
+    card.icon:SetTexture(DungeonTexture(dungeon.dungeon, "LFGIcon-"))
+    card.name:SetText(DungeonName(dungeon.dungeon))
+    card.kind:SetText(TEXT.dungeonTag .. "  |cffff8000" .. TEXT.mythicTag .. "|r")
+    if dungeon.wonLevel > 0 then
+        card.raid:SetText(format(dungeon.wonTimed and TEXT.wonTimed or TEXT.wonLate, dungeon.wonLevel))
+    else
+        card.raid:SetText(format(TEXT.dungeonKey, state.key))
+    end
+    card.size:SetText(format(TEXT.dungeonTime, floor(dungeon.limit / 60)))
+    card.itemLevel:SetText("")
+    card.gold:SetText(Money(dungeon.gold))
+    card.paragon:SetText(dungeon.paragon > 0 and format(TEXT.paragon, dungeon.paragon) or "")
+    card.essences:SetText(dungeon.essences > 0 and format(TEXT.essences, dungeon.essences) or "")
+
+    local done = dungeon.state == STATE_CLAIMED
+    card.art:SetDesaturated(done)
+    card.icon:SetDesaturated(done)
+    SetShown(card.check, done)
+    SetShown(card.glow, dungeon.state == STATE_WON)
+    card:SetBackdropBorderColor(unpack(dungeon.state == STATE_WON and { 1, 0.82, 0.25, 1 } or
+        dungeon.state == STATE_UNDERWAY and { 1, 0.86, 0.55, 1 } or { 0.75, 0.6, 0.35, 1 }))
+
+    local button = card.button
+    button:SetScript("OnClick", nil)
+    card.status:SetText("")
+    if dungeon.state == STATE_OPEN then
+        button:Show()
+        button:SetText(TEXT.launch)
+        SetEnabled(button, state.challenge == 0)
+        button:SetScript("OnClick", function()
+            local roles = RolesMask()
+            if roles == 0 then
+                return ShowError(8)
+            end
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            state.startingDungeon = dungeon.dungeon
+            Send("DUNGEON\t" .. dungeon.dungeon .. "\t" .. roles)
+        end)
+    elseif dungeon.state == STATE_WON then
+        button:Show()
+        button:SetText(TEXT.claim)
+        SetEnabled(button, true)
+        button:SetScript("OnClick", function()
+            Send("CLAIM\t" .. state.rotation .. "\t" .. dungeon.dungeon)
+        end)
+    else
+        button:Hide()
+        card.status:SetText(dungeon.state == STATE_UNDERWAY and TEXT.underway or TEXT.claimed)
+        card.status:SetTextColor(1, 0.86, 0.55)
+    end
+end
+
 -- Cards drop in one after the other: each falls a little and fades in
 local function AnimateCardsIn()
-    for index, card in ipairs(cards) do
+    for index, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission then
             card:SetAlpha(0)
             Tween(0.42, (index - 1) * 0.08, function(p)
@@ -684,23 +788,45 @@ local function Refresh(animate)
         return
     end
 
+    local dungeonsPage = state.page == "dungeons"
     local shown = min(#state.missions, #cards)
-    LayoutCards(max(shown, 1))
+    LayoutCards(max(shown, 1), cards)
     for index, card in ipairs(cards) do
         local mission = state.missions[index]
-        if mission then
+        if mission and not dungeonsPage then
             FillCard(card, mission)
             card:Show()
         else
-            card.mission = nil
+            card.mission = mission and card.mission or nil
             card:Hide()
         end
     end
 
-    if state.bracket == 0 then
+    local shownDungeons = min(#state.dungeons, #dungeonCards)
+    LayoutCards(max(shownDungeons, 1), dungeonCards)
+    for index, card in ipairs(dungeonCards) do
+        local dungeon = state.dungeons[index]
+        if dungeon and dungeonsPage then
+            FillDungeonCard(card, dungeon)
+            card:Show()
+        else
+            card:Hide()
+        end
+    end
+
+    SetShown(dial, not dungeonsPage and state.bracket ~= 0)
+    SetShown(keyStrip, dungeonsPage and shownDungeons > 0)
+    if keyStrip:IsShown() then
+        keyStrip.Refresh()
+    end
+
+    if dungeonsPage and shownDungeons == 0 then
+        emptyText:SetText(state.bracket < 80 and TEXT.dungeonsLocked or TEXT.empty)
+        emptyText:Show()
+    elseif not dungeonsPage and state.bracket == 0 then
         emptyText:SetText(TEXT.locked)
         emptyText:Show()
-    elseif shown == 0 then
+    elseif not dungeonsPage and shown == 0 then
         emptyText:SetText(TEXT.empty)
         emptyText:Show()
     else
@@ -712,7 +838,11 @@ local function Refresh(animate)
         local reward = state.rewards[index]
         if reward then
             row.icon:SetTexture(DungeonTexture(reward.dungeon, "LFGIcon-"))
-            row.text:SetText(reward.name .. " |cffffd24d" .. (TIER_ROMAN[reward.tier] or "I") .. "|r  " ..
+            local name, grade = reward.name, TIER_ROMAN[reward.tier] or "I"
+            if reward.kind == KIND_DUNGEON then
+                name, grade = DungeonName(reward.dungeon), "+" .. reward.level
+            end
+            row.text:SetText(name .. " |cffffd24d" .. grade .. "|r  " ..
                 Money(reward.gold) .. (reward.paragon > 0 and
                 ("  |cffa335ee" .. format(TEXT.paragon, reward.paragon) .. "|r") or "") .. (reward.essences > 0 and
                 ("  |cff4dff73" .. format(TEXT.essences, reward.essences) .. "|r") or ""))
@@ -800,6 +930,7 @@ local function CreateBoard()
     heading:SetTextColor(1, 0.86, 0.55)
     heading:SetPoint("TOPLEFT", frame, "TOPLEFT", 34, -40)
     heading:SetText(TEXT.heading)
+    frame.heading = heading
 
     local intro = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
@@ -807,6 +938,7 @@ local function CreateBoard()
     intro:SetJustifyH("LEFT")
     intro:SetTextColor(0.85, 0.8, 0.7)
     intro:SetText(TEXT.intro)
+    frame.intro = intro
 
     -- The board's clock: a watch, the time left before the missions change beside it, and a bar running down with it
     -- underneath both. The watch has a column of its own: the label used to run under it.
@@ -961,6 +1093,66 @@ local function CreateBoard()
         cards[index] = CreateCard(index)
     end
 
+    -- The dungeons page: the player's key in the Mythic+ tab's own slot, beside what finishing in time adds
+    keyStrip = CreateFrame("Frame", nil, frame)
+    keyStrip:SetSize(520, 52)
+    keyStrip:SetPoint("TOP", frame, "TOP", 0, -108)
+    keyStrip:Hide()
+
+    local slot = CreateFrame("Frame", nil, keyStrip)
+    slot:SetSize(52, 52)
+    slot:SetPoint("LEFT", keyStrip, "LEFT", 0, 0)
+    local slotBackground = slot:CreateTexture(nil, "BORDER")
+    SetAtlas(slotBackground, "ChallengeMode-KeystoneSlotBG")
+    slotBackground:SetSize(46, 46)
+    slotBackground:SetPoint("CENTER")
+    local slotIcon = slot:CreateTexture(nil, "ARTWORK")
+    slotIcon:SetTexture(KEYSTONE_ICON)
+    slotIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    slotIcon:SetSize(30, 30)
+    slotIcon:SetPoint("CENTER")
+    local slotFrame = slot:CreateTexture(nil, "OVERLAY")
+    SetAtlas(slotFrame, "ChallengeMode-KeystoneSlotFrame")
+    slotFrame:SetSize(52, 52)
+    slotFrame:SetPoint("CENTER")
+    local slotGlow = slot:CreateTexture(nil, "OVERLAY", nil, 1)
+    SetAtlas(slotGlow, "ChallengeMode-KeystoneSlotFrameGlow")
+    slotGlow:SetSize(52, 52)
+    slotGlow:SetPoint("CENTER")
+    slotGlow:SetBlendMode("ADD")
+
+    local keyLabel = keyStrip:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    keyLabel:SetPoint("TOPLEFT", slot, "TOPRIGHT", 8, -6)
+    keyLabel:SetText(TEXT.key)
+    local keyText = keyStrip:CreateFontString(nil, "OVERLAY")
+    keyText:SetFont(MORPHEUS, 26)
+    keyText:SetShadowOffset(1, -1)
+    keyText:SetTextColor(1, 0.86, 0.55)
+    keyText:SetPoint("TOPLEFT", keyLabel, "BOTTOMLEFT", 0, -1)
+
+    local bonus = keyStrip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bonus:SetPoint("LEFT", slot, "RIGHT", 120, 0)
+    bonus:SetPoint("RIGHT", keyStrip, "RIGHT", 0, 0)
+    bonus:SetJustifyH("LEFT")
+    bonus:SetTextColor(0.85, 0.8, 0.7)
+    bonus:SetText(TEXT.timedBonus)
+
+    local pulse = 0
+    keyStrip:SetScript("OnUpdate", function(_, elapsed)
+        pulse = pulse + elapsed
+        slotGlow:SetAlpha(0.25 + 0.25 * math.sin(pulse * 2))
+    end)
+    keyStrip.Refresh = function()
+        keyText:SetText("+" .. state.key)
+    end
+
+    dungeonCards = {}
+    for index = 1, 4 do
+        local card = CreateCard(index)
+        card.isDungeon = true
+        dungeonCards[index] = card
+    end
+
     emptyText = frame:CreateFontString(nil, "OVERLAY")
     emptyText:SetFont(MORPHEUS, 20)
     emptyText:SetTextColor(0.9, 0.8, 0.6)
@@ -1044,6 +1236,35 @@ local function CreateBoard()
         rewardRows[index] = row
     end
 
+    -- The tabs under the window, as on the character sheet: the raid missions and the dungeon challenges
+    tabs = {}
+    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons }) do
+        local tab = CreateFrame("Button", "ChallengeBoardFrameTab" .. index, frame, "CharacterFrameTabButtonTemplate")
+        tab:SetID(index)
+        tab:SetText(label)
+        PanelTemplates_TabResize(tab, 12)
+        if index == 1 then
+            tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 24, 4)
+        else
+            tab:SetPoint("LEFT", tabs[index - 1], "RIGHT", -16, 0)
+        end
+        tab:SetScript("OnClick", function(self)
+            local page = self:GetID() == 2 and "dungeons" or "raids"
+            if page == state.page then
+                return
+            end
+            PlaySound("igCharacterInfoTab")
+            state.page = page
+            PanelTemplates_SetTab(frame, self:GetID())
+            frame.heading:SetText(page == "dungeons" and TEXT.headingDungeons or TEXT.heading)
+            frame.intro:SetText(page == "dungeons" and TEXT.introDungeons or TEXT.intro)
+            Refresh(true)
+        end)
+        tabs[index] = tab
+    end
+    PanelTemplates_SetNumTabs(frame, 2)
+    PanelTemplates_SetTab(frame, 1)
+
     -- The clock ticks, the waiting rewards breathe, and a new board is asked for when the time runs out
     local clock = 0
     frame:SetScript("OnUpdate", function(_, elapsed)
@@ -1057,9 +1278,11 @@ local function CreateBoard()
         end
 
         local pulse = 0.5 + 0.5 * math.sin(clock * 3)
-        for _, card in ipairs(cards) do
-            if card.glow:IsShown() then
-                card.glow:SetAlpha(0.35 + 0.45 * pulse)
+        for _, set in ipairs({ cards, dungeonCards }) do
+            for _, card in ipairs(set) do
+                if card.glow:IsShown() then
+                    card.glow:SetAlpha(0.35 + 0.45 * pulse)
+                end
             end
         end
     end)
@@ -1110,7 +1333,7 @@ local function AnimateClaim(boss, gold, paragon, essences)
         return
     end
 
-    for _, card in ipairs(cards) do
+    for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission and card.mission.boss == boss then
             card.popText:SetText("+" .. Money(gold) .. (paragon > 0 and
                 ("\n|cffa335ee" .. format(TEXT.paragon, paragon) .. "|r") or "") .. ((essences or 0) > 0 and
@@ -1134,7 +1357,7 @@ local function AnimateAccepted(boss)
         return
     end
 
-    for _, card in ipairs(cards) do
+    for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission and card.mission.boss == boss then
             card.stamp:SetText(TEXT.accepted)
             Tween(0.35, 0, function(p)
@@ -1257,6 +1480,12 @@ local function OnEvent(event, boss, value, name, tier)
         banner.dungeon = dungeon or banner.dungeon
     end
 
+    if event == EVENT_DUNGEON_WON then
+        PlaySound("LEVELUPSOUND")
+        ShowBanner(DungeonName(boss), TEXT.dungeonWon, boss, 6)
+        return
+    end
+
     if event == EVENT_ARRIVED then
         PlaySoundFile(SOUND .. "ChallengeStart.ogg")
         ShowBanner(name, format(TEXT.fight, name), dungeon)
@@ -1321,6 +1550,9 @@ local function Handle(message)
         incoming.challenge = tonumber(d) or 0
         incoming.openTier = tonumber(e) or TIER_MIN
         incoming.currentTier = tonumber(f) or 0
+        incoming.key = tonumber(g) or 2
+        incoming.contract = tonumber(h) or 0
+        incoming.dungeons = {}
         incoming.missions = {}
         incoming.rewards = {}
     elseif kind == "M" then
@@ -1338,6 +1570,19 @@ local function Handle(message)
             essences = tonumber(k) or 0,
             wonAt = tonumber((select(13, strsplit("\t", message)))) or 0,
         })
+    elseif kind == "D" then
+        tinsert(incoming.dungeons, {
+            kind = KIND_DUNGEON,
+            dungeon = tonumber(a) or 0,
+            boss = tonumber(a) or 0,
+            state = tonumber(b) or 0,
+            gold = tonumber(c) or 0,
+            paragon = tonumber(d) or 0,
+            essences = tonumber(e) or 0,
+            limit = tonumber(f) or 0,
+            wonLevel = tonumber(g) or 0,
+            wonTimed = g ~= nil and h == "1",
+        })
     elseif kind == "R" then
         tinsert(incoming.rewards, {
             rotation = tonumber(a) or 0,
@@ -1348,6 +1593,8 @@ local function Handle(message)
             name = f or "",
             essences = tonumber(g) or 0,
             tier = tonumber(h) or TIER_MIN,
+            kind = tonumber(i) or 1,
+            level = tonumber(j) or 0,
         })
     elseif kind == "E" then
         local previousChallenge = state.challenge
@@ -1360,6 +1607,16 @@ local function Handle(message)
         state.rewards = incoming.rewards
         state.asked = false
         state.currentTier = incoming.currentTier or 0
+        state.key = incoming.key or 2
+        state.dungeons = incoming.dungeons or {}
+        -- The answer to this player's own DUNGEON: the card gets its stamp
+        local previousContract = state.contract
+        state.contract = incoming.contract or 0
+        if state.startingDungeon and state.contract == state.startingDungeon and previousContract ~= state.contract then
+            local dungeon = state.startingDungeon
+            state.startingDungeon = nil
+            AnimateAccepted(dungeon)
+        end
         -- A tier opened since the last board: the dial moves up to it
         local opened = state.openTier and (incoming.openTier or TIER_MIN) > state.openTier and state.seenBoard
         state.openTier = incoming.openTier or TIER_MIN
