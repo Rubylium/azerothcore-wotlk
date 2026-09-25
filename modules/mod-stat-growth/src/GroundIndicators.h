@@ -32,13 +32,32 @@ namespace GroundIndicators
         [[nodiscard]] bool Contains(Position const& point, float margin = 0.0f) const;
     };
 
+    // Particles over an area while its warning runs, in the colours of what is coming: the red says where, the
+    // particles say what. Stock spell visuals played at the feet of invisible emitters spread over the area.
+    enum class Theme : uint8
+    {
+        None,
+        Shadow,
+        Fire,
+        Frost,
+        Nature,
+        Arcane,
+        Holy
+    };
+    // The theme of a spell school mask (SpellSchoolMask); None for a plain physical one
+    Theme ThemeOf(uint32 schoolMask);
+    // Particles over area for durationMs. The Show functions do it themselves when given a theme.
+    void ShowParticles(Unit* owner, Area const& area, Theme theme, uint32 durationMs);
+    // The theme's burst on the ground at where: for the moment something lands
+    void Burst(Unit* owner, Position const& where, Theme theme);
+
     // Each draws the area for durationMs and returns it as drawn. owner is the unit the indicator belongs to (it
-    // is summoned by it).
-    Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs);
+    // is summoned by it). With a theme, particles of it rise over the area while it is drawn.
+    Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme = Theme::None);
     Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                       uint32 durationMs);
+                       uint32 durationMs, Theme theme = Theme::None);
     Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                  uint32 durationMs);
+                  uint32 durationMs, Theme theme = Theme::None);
     // A circle that follows carrier wherever it goes: whoever carries it should take it away from the others.
     // Read its position back with CurrentArea when it resolves.
     Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs);
@@ -60,5 +79,6 @@ void AddGroundIndicatorScripts();
 // OnyxiaRework.cpp: Onyxia's fight rebuilt on the indicators
 void AddOnyxiaReworkScripts();
 void AddBronjahmReworkScripts();
+void AddDevourerReworkScripts();
 
 #endif

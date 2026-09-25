@@ -1,5 +1,8 @@
 #include "GroundIndicators.h"
 
+#include "PassiveAI.h"
+#include "Random.h"
+
 #include "MythicDungeonSystem.h"
 
 #include "Chat.h"
@@ -208,6 +211,150 @@ ShapeSpell const& NearestShape(ShapeSpell const* begin, ShapeSpell const* end, f
     return *best;
 }
 
+// Particles: stock spell visual kits that play only a model at a unit's feet (SpellVisualKit's base effect and
+// nothing else), found in the client's DBCs. A warning kit is replayed on every emitter while the area is drawn; a
+// burst kit once, where something lands.
+struct ThemeKits
+{
+    uint32 warning;
+    uint32 burst;
+};
+
+ThemeKits KitsOf(GroundIndicators::Theme theme)
+{
+    using Theme = GroundIndicators::Theme;
+    switch (theme)
+    {
+        case Theme::Shadow: return { 3129, 6776 };      // Shadow_Precast_Med_Base, ShadowFury_Impact_Base
+        case Theme::Fire:   return { 845, 54 };         // HellFire_Impact_Base, FlameStrike_ImpactDD_Med_Base
+        case Theme::Frost:  return { 9764, 160 };       // Ritual_Frost_Precast_Base, Frost_Nova_Area
+        case Theme::Nature: return { 11761, 8059 };     // AcidCloudBreath_GroundSmoke, PoisonElemental_Impact_Base
+        case Theme::Arcane: return { 6887, 988 };       // Ritual_Arcane_Precast_Base, ArcaneExplosion_Base
+        case Theme::Holy:   return { 7005, 9263 };      // Holy_Precast_High_Base, Consecration_Impact_Base
+        default:            return { 0, 0 };
+    }
+}
+
+// How often a warning kit is replayed on an emitter, and how many emitters an area may take
+constexpr uint32 ParticlePulseMs = 1100;
+constexpr std::size_t MaxEmitters = 28;
+// Emitters stand about this far apart
+constexpr float EmitterSpacing = 6.0f;
+
+// An invisible emitter: it plays its kit every intervalMs (once, when intervalMs is 0), a moment after it is created
+// so the client has it before the first one
+struct ParticleEmitterAI : public NullCreatureAI
+{
+    ParticleEmitterAI(Creature* creature, uint32 kit, uint32 intervalMs, uint32 firstMs)
+        : NullCreatureAI(creature), _kit(kit), _interval(intervalMs), _timer(firstMs) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!_kit)
+            return;
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+
+        me->SendPlaySpellVisual(_kit);
+        if (_interval)
+            _timer = _interval;
+        else
+            _kit = 0;
+    }
+
+private:
+    uint32 _kit;
+    uint32 _interval;
+    uint32 _timer;
+};
+
+Position OnGround(Unit* owner, float x, float y, float z)
+{
+    float ground = owner->GetMap()->GetHeight(owner->GetPhaseMask(), x, y, z + 6.0f, true, 30.0f);
+    if (ground <= INVALID_HEIGHT)
+        ground = z;
+    return Position(x, y, ground);
+}
+
+void SpawnEmitter(Unit* owner, Position const& where, uint32 kit, uint32 intervalMs, uint32 durationMs)
+{
+    TempSummon* emitter = owner->SummonCreature(NPC_GROUND_INDICATOR, where, TEMPSUMMON_TIMED_DESPAWN, durationMs);
+    if (!emitter)
+        return;
+
+    // Pulses spread over the interval, so an area shimmers rather than blinking all at once
+    uint32 const first = 150 + (intervalMs ? urand(0, intervalMs) : 0);
+    emitter->AIM_Initialize(new ParticleEmitterAI(emitter, kit, intervalMs, first));
+}
+
+// The spots an area's emitters stand on: spread over its shape about EmitterSpacing apart
+std::vector<Position> EmitterSpots(Unit* owner, GroundIndicators::Area const& area)
+{
+    using Kind = GroundIndicators::Area::Kind;
+    std::vector<Position> spots;
+    Position const& origin = area.origin;
+    float const z = origin.GetPositionZ();
+    auto add = [&](float x, float y)
+    {
+        if (spots.size() < MaxEmitters)
+            spots.push_back(OnGround(owner, x, y, z));
+    };
+
+    switch (area.kind)
+    {
+        case Kind::Circle:
+        {
+            add(origin.GetPositionX(), origin.GetPositionY());
+            for (float share : { 0.55f, 0.9f })
+            {
+                float const ring = area.radius * share;
+                if (ring < EmitterSpacing * 0.6f)
+                    continue;
+                uint32 const count = std::max<uint32>(4, uint32(2.0f * float(M_PI) * ring / EmitterSpacing));
+                float const turn = share * 1.3f;
+                for (uint32 index = 0; index < count; ++index)
+                {
+                    float const angle = turn + 2.0f * float(M_PI) * index / count;
+                    add(origin.GetPositionX() + std::cos(angle) * ring, origin.GetPositionY() + std::sin(angle) * ring);
+                }
+            }
+            break;
+        }
+        case Kind::Rectangle:
+        {
+            float const facing = origin.GetOrientation();
+            std::vector<float> across = { 0.0f };
+            if (area.width > EmitterSpacing * 1.2f)
+                across = { -area.width / 4.0f, area.width / 4.0f };
+            for (float along = EmitterSpacing / 2.0f; along < area.radius; along += EmitterSpacing)
+                for (float side : across)
+                    add(origin.GetPositionX() + std::cos(facing) * along - std::sin(facing) * side,
+                        origin.GetPositionY() + std::sin(facing) * along + std::cos(facing) * side);
+            break;
+        }
+        case Kind::Cone:
+        {
+            float const facing = origin.GetOrientation();
+            for (float along = EmitterSpacing * 0.7f; along <= area.radius; along += EmitterSpacing)
+            {
+                float const span = area.arc * 0.8f;
+                uint32 const count = std::max<uint32>(1, uint32(span * along / EmitterSpacing));
+                for (uint32 index = 0; index < count; ++index)
+                {
+                    float const angle = count == 1 ? facing :
+                        facing - span / 2.0f + span * float(index) / float(count - 1);
+                    add(origin.GetPositionX() + std::cos(angle) * along, origin.GetPositionY() + std::sin(angle) * along);
+                }
+            }
+            break;
+        }
+    }
+    return spots;
+}
+
 // The stalker that shows spellId at a size of scale yards; it goes away by itself after durationMs
 Creature* Place(Unit* owner, Position const& position, float orientation, uint32 spellId, float scale,
                 uint32 durationMs)
@@ -372,8 +519,12 @@ void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
         GroundIndicators::Area cone = MakeArea(GroundIndicators::Area::Kind::Cone, *caster, facing, area.radius);
         cone.arc = shape.size * float(M_PI) / 180.0f;
         if (stalker)
+        {
             Remember(caster, spellInfo->Id, { stalker->GetGUID(), 0, Register(caster, nullptr, cone,
                 durationMs) });
+            GroundIndicators::ShowParticles(caster, cone, GroundIndicators::ThemeOf(spellInfo->GetSchoolMask()),
+                durationMs);
+        }
         return;
     }
 
@@ -402,8 +553,13 @@ void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
     }
 
     if (Creature* stalker = Place(caster, center, 0.0f, SPELL_INDICATOR_CIRCLE, area.radius, durationMs))
-        Remember(caster, spellInfo->Id, { stalker->GetGUID(), 0, Register(caster, nullptr,
-            MakeArea(GroundIndicators::Area::Kind::Circle, center, 0.0f, area.radius), durationMs) });
+    {
+        GroundIndicators::Area const circle = MakeArea(GroundIndicators::Area::Kind::Circle, center, 0.0f,
+            area.radius);
+        Remember(caster, spellInfo->Id, { stalker->GetGUID(), 0, Register(caster, nullptr, circle, durationMs) });
+        GroundIndicators::ShowParticles(caster, circle, GroundIndicators::ThemeOf(spellInfo->GetSchoolMask()),
+            durationMs);
+    }
 }
 
 // Raids whose creatures' abilities are read too, as in a mythic dungeon (a raid's scripted mechanics, not cast
@@ -658,16 +814,56 @@ bool Area::Contains(Position const& point, float margin) const
     return false;
 }
 
-Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs)
+Theme ThemeOf(uint32 schoolMask)
+{
+    if (schoolMask & SPELL_SCHOOL_MASK_SHADOW)
+        return Theme::Shadow;
+    if (schoolMask & SPELL_SCHOOL_MASK_FIRE)
+        return Theme::Fire;
+    if (schoolMask & SPELL_SCHOOL_MASK_FROST)
+        return Theme::Frost;
+    if (schoolMask & SPELL_SCHOOL_MASK_NATURE)
+        return Theme::Nature;
+    if (schoolMask & SPELL_SCHOOL_MASK_ARCANE)
+        return Theme::Arcane;
+    if (schoolMask & SPELL_SCHOOL_MASK_HOLY)
+        return Theme::Holy;
+    return Theme::None;
+}
+
+void ShowParticles(Unit* owner, Area const& area, Theme theme, uint32 durationMs)
+{
+    uint32 const kit = KitsOf(theme).warning;
+    if (!kit || !owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+
+    for (Position const& spot : EmitterSpots(owner, area))
+        SpawnEmitter(owner, spot, kit, ParticlePulseMs, durationMs);
+}
+
+void Burst(Unit* owner, Position const& where, Theme theme)
+{
+    uint32 const kit = KitsOf(theme).burst;
+    if (!kit || !owner || !owner->IsInWorld())
+        return;
+
+    SpawnEmitter(owner, OnGround(owner, where.GetPositionX(), where.GetPositionY(), where.GetPositionZ()), kit, 0,
+                 3000);
+}
+
+Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme)
 {
     Area area = MakeArea(Area::Kind::Circle, center, 0.0f, radius);
     if (Creature* stalker = Place(owner, center, 0.0f, SPELL_INDICATOR_CIRCLE, radius, durationMs))
+    {
         Register(owner, nullptr, area, durationMs);
+        ShowParticles(owner, area, theme, durationMs);
+    }
     return area;
 }
 
 Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                   uint32 durationMs)
+                   uint32 durationMs, Theme theme)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
@@ -675,18 +871,24 @@ Area ShowRectangle(Unit* owner, Position const& start, float orientation, float 
     Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
     area.width = length / shape.size;
     if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
+    {
         Register(owner, nullptr, area, durationMs);
+        ShowParticles(owner, area, theme, durationMs);
+    }
     return area;
 }
 
 Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-              uint32 durationMs)
+              uint32 durationMs, Theme theme)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
+    {
         Register(owner, nullptr, area, durationMs);
+        ShowParticles(owner, area, theme, durationMs);
+    }
     return area;
 }
 
@@ -964,7 +1166,9 @@ private:
         circle.shown = true;
         circle.stalker = stalker->GetGUID();
         circle.radius = radius;
-        circle.areaId = Register(caster, nullptr, MakeArea(GroundIndicators::Area::Kind::Circle, *pool, 0.0f, radius),
+        GroundIndicators::Area const area = MakeArea(GroundIndicators::Area::Kind::Circle, *pool, 0.0f, radius);
+        circle.areaId = Register(caster, nullptr, area, uint32(duration));
+        GroundIndicators::ShowParticles(caster, area, GroundIndicators::ThemeOf(spellInfo->GetSchoolMask()),
             uint32(duration));
     }
 };

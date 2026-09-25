@@ -384,7 +384,7 @@ private:
         float const facing = victim ? me->GetAngle(victim) : me->GetOrientation();
         BeginWindup(facing);
         GroundIndicators::Area const area = GroundIndicators::ShowCone(me, *me, facing, FlameBreathRadius,
-            FlameBreathArc, FlameBreathWarningMs);
+            FlameBreathArc, FlameBreathWarningMs, GroundIndicators::Theme::Fire);
         scheduler.Schedule(Milliseconds(FlameBreathWarningMs), [this, area, facing](TaskContext)
         {
             me->SetFacingTo(facing);
@@ -401,7 +401,7 @@ private:
         float const behind = Position::NormalizeOrientation(facing + float(M_PI));
         BeginWindup(facing);
         GroundIndicators::Area const area = GroundIndicators::ShowCone(me, *me, behind, TailSweepRadius,
-            TailSweepArc, TailSweepWarningMs);
+            TailSweepArc, TailSweepWarningMs, GroundIndicators::Theme::Fire);
         scheduler.Schedule(Milliseconds(TailSweepWarningMs), [this, area](TaskContext)
         {
             me->SendPlaySpellVisual(KIT_TAIL_SWEEP);
@@ -474,7 +474,7 @@ private:
         {
             float const facing = Position::NormalizeOrientation(base + arm * float(M_PI) / 2.0f);
             lines.push_back(GroundIndicators::ShowRectangle(me, origin, facing, DeepBreathLength, DeepBreathWidth,
-                DeepBreathWarningMs));
+                DeepBreathWarningMs, GroundIndicators::Theme::Fire));
         }
 
         scheduler.Schedule(Milliseconds(DeepBreathWarningMs), [this, origin, base, wave, lines](TaskContext)
@@ -519,7 +519,7 @@ private:
                 continue;
 
             GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, *player, FireRainRadius,
-                FireRainWarningMs);
+                FireRainWarningMs, GroundIndicators::Theme::Fire);
             scheduler.Schedule(Milliseconds(FireRainWarningMs), [this, area](TaskContext)
             {
                 PlayOnGround(area.origin, KIT_FIRE_EXPLOSION);
@@ -545,7 +545,7 @@ private:
             std::sin(normal) * side * LairHalfWidth;
         Position const start = Ground(startX, startY);
         GroundIndicators::Area const half = GroundIndicators::ShowRectangle(me, start, axis, 2.0f * LairHalfLength,
-            2.0f * LairHalfWidth, EruptionWarningMs);
+            2.0f * LairHalfWidth, EruptionWarningMs, GroundIndicators::Theme::Fire);
 
         scheduler.Schedule(Milliseconds(EruptionWarningMs), [this, axis, side, first, half, normal](TaskContext)
         {

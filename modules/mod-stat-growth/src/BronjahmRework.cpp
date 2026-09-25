@@ -329,7 +329,7 @@ private:
         BeginWindup(facing);
         me->SendPlaySpellVisual(KIT_CLEAVE_CAST);
         GroundIndicators::Area const area = GroundIndicators::ShowCone(me, *me, facing, CleaveRadius, CleaveArc,
-            CleaveWarningMs);
+            CleaveWarningMs, GroundIndicators::Theme::Shadow);
         scheduler.Schedule(Milliseconds(CleaveWarningMs), [this, area, facing](TaskContext)
         {
             me->SetFacingTo(facing);
@@ -350,7 +350,7 @@ private:
         for (Player* player : Players())
         {
             GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, *player, BlastRadius,
-                BlastWarningMs);
+                BlastWarningMs, GroundIndicators::Theme::Shadow);
             scheduler.Schedule(Milliseconds(BlastWarningMs), [this, area](TaskContext)
             {
                 PlayOnGround(area.origin, KIT_SHADOW_BURST);
@@ -434,7 +434,8 @@ private:
         for (uint32 arm = 0; arm < 4; ++arm)
         {
             float const facing = Position::NormalizeOrientation(base + arm * float(M_PI) / 2.0f);
-            beams.push_back(GroundIndicators::ShowRectangle(me, origin, facing, BeamLength, BeamWidth, BeamWarningMs));
+            beams.push_back(GroundIndicators::ShowRectangle(me, origin, facing, BeamLength, BeamWidth, BeamWarningMs,
+                GroundIndicators::Theme::Shadow));
         }
 
         scheduler.Schedule(Milliseconds(BeamWarningMs), [this, origin, base, wave, beams](TaskContext)
@@ -486,7 +487,7 @@ private:
         std::vector<GroundIndicators::Area> quarters;
         for (float turn : { 0.0f, float(M_PI) })
             quarters.push_back(GroundIndicators::ShowCone(me, *me, Position::NormalizeOrientation(base + turn),
-                NovaRadius, NovaArc, NovaWarningMs));
+                NovaRadius, NovaArc, NovaWarningMs, GroundIndicators::Theme::Shadow));
 
         scheduler.Schedule(Milliseconds(NovaWarningMs), [this, base, first, quarters](TaskContext)
         {
