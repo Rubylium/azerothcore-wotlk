@@ -255,8 +255,13 @@ public:
 
         // What the master is fighting, what it has selected, and failing both, whoever is hitting the master:
         // a Nécromancien casts rather than swings, so it often has no victim of its own, and a minion that
-        // waited for one stood by while its master was beaten
-        Unit* const candidates[] = { owner->GetVictim(), owner->GetSelectedUnit(), owner->getAttackerForHelper() };
+        // waited for one stood by while its master was beaten. Its selection only once it is fighting it:
+        // clicking on a creature is not an order, and sent the whole army at anything the master looked at.
+        // Its spells send them (DirectMinionsAt), and Ordre de mort commands them.
+        Unit* selected = owner->GetSelectedUnit();
+        if (selected && !selected->IsInCombatWith(owner))
+            selected = nullptr;
+        Unit* const candidates[] = { owner->GetVictim(), selected, owner->getAttackerForHelper() };
         Unit* preferred = nullptr;
         for (Unit* candidate : candidates)
             if (candidate && candidate->IsAlive() && me->IsValidAttackTarget(candidate))
