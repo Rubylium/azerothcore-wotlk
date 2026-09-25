@@ -53,6 +53,15 @@
     "detailsCell   Free cell [column, row] of Details' class icon sheet: [2, 2] or [3, 2].",
     "color         Class color as [r, g, b] 0-1, for unit frames and chat."
   ],
+  "stockTalentTrees": [
+    {
+      "_comment": "A stock class moved to the retail-style talent trees: its WotLK talents are gone. family is its SpellFamilyName, for the rank spells' modifiers.",
+      "id": 8,
+      "token": "MAGE",
+      "family": 3,
+      "talentTree": "localTools/mage/talentTree.json"
+    }
+  ],
   "stockPreviewOutfits": {
     "_1": "Warrior: Sanctified Ymirjar Lord's Battlegear, Shadowmourne",
     "1": [51227, 51229, 51225, 51228, 51226, 50620, 50625, 50611, 50653, 49623],

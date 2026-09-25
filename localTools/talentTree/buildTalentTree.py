@@ -1,4 +1,5 @@
-"""Builds the retail-style talent trees of every custom class that has one (`talentTree` in classes.json).
+"""Builds the retail-style talent trees of every class that has one: the custom classes' (`talentTree` in
+classes.json) and the stock classes moved to them (`stockTalentTrees` in classes.json, the Mage first).
 
 A tree is data: the server reads it from the world database and the talent window from a Lua table shipped in
 the interface patch, and both come out of this script from the same JSON, so they cannot drift apart without the
@@ -82,6 +83,18 @@ def check(definition, spells):
                 assert by_id[parent]['row'] < node['row'], f'{where}: parent {parent} is not above it'
             if node['row'] > 0:
                 assert node.get('parents'), f'{where}: only the first row may have no parent'
+        for pick in tree.get('botBuild', []):
+            node_id, option = bot_pick(pick)
+            assert node_id in by_id, f"{tree['name']}: bot build names node {node_id}, not in the tree"
+            if by_id[node_id]['kind'] == 'choice':
+                assert 1 <= option <= len(by_id[node_id]['options']), f"{tree['name']}: bot build option {pick}"
+
+
+def bot_pick(pick):
+    """A bot build entry: a node id (every rank of it, in order), or "<node>:<option>" for a choice."""
+    text = str(pick)
+    node_id, _, option = text.partition(':')
+    return int(node_id), int(option or 1)
 
 
 def signature(definition):
@@ -140,6 +153,7 @@ def build_sql(definitions):
         '    `Gate2Cost` TINYINT UNSIGNED NOT NULL DEFAULT 0,',
         "    `Signature` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'of the whole class, matched by the client',",
         "    `SpecSpells` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'a spec tree: learned while it is the chosen one',",
+        "    `BotOrder` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'the order a bot takes its nodes in (node or node:option)',",
         "    `Name` VARCHAR(64) NOT NULL DEFAULT '',",
         '    PRIMARY KEY (`ClassId`, `TreeId`)',
         ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;',
@@ -165,14 +179,16 @@ def build_sql(definitions):
         stamp = signature(definition)
         lines.append(f'DELETE FROM `custom_talent_tree` WHERE `ClassId` = {class_id};')
         lines.append('INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, '
-                     '`Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `Name`) VALUES')
+                     '`Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, '
+                     '`Name`) VALUES')
         rows = []
         for tree in definition['trees']:
             gates = (tree.get('gates', []) + [{'row': 0, 'cost': 0}] * 2)[:2]
             rows.append(f"({class_id}, {tree['id']}, {TREE_KINDS[tree['kind']]}, {tree['firstLevel']}, "
                         f"{tree['levelStep']}, {gates[0]['row']}, {gates[0]['cost']}, {gates[1]['row']}, "
                         f"{gates[1]['cost']}, {stamp}, "
-                        f"'{','.join(str(spell) for spell in tree.get('specSpells', []))}', {sql_string(tree['name'])})")
+                        f"'{','.join(str(spell) for spell in tree.get('specSpells', []))}', "
+                        f"'{','.join(str(pick) for pick in tree.get('botBuild', []))}', {sql_string(tree['name'])})")
         lines.append(',\n'.join(rows) + ';')
         lines.append('')
         lines.append(f'DELETE FROM `custom_talent_node` WHERE `ClassId` = {class_id};')
@@ -243,9 +259,9 @@ def build_lua(definitions):
 
 
 def main():
-    classes = json.load(open(CLASSES, encoding='utf8'))['classes']
+    classes = json.load(open(CLASSES, encoding='utf8'))
     definitions = []
-    for entry in classes:
+    for entry in classes['classes'] + classes.get('stockTalentTrees', []):
         if not entry.get('talentTree'):
             continue
         definition = json.load(open(os.path.join(REPO, entry['talentTree']), encoding='utf8'))

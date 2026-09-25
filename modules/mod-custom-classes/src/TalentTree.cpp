@@ -19,8 +19,10 @@
 #include <vector>
 
 // Retail-style talent trees for the custom classes that have one (`talentTree` in
-// localTools/customClasses/classes.json; the Oathblade first). Such a class gets no WotLK talent points: a class tree
-// and a spec tree take their place, each with its own points, and the window drawing them is FrameXML/TalentTree.lua.
+// localTools/customClasses/classes.json; the Oathblade first), and for the stock classes moved to them
+// (`stockTalentTrees` there; the Mage). Such a class gets no WotLK talent points: a class tree and a spec tree take
+// their place, each with its own points, and the window drawing them is FrameXML/TalentTree.lua. A stock class's
+// WotLK talents are taken back from anyone who still has them.
 //
 // The trees are data (custom_talent_tree, custom_talent_node, written by localTools/talentTree/buildTalentTree.py).
 // A character's build is one digit per node, in the data's order: the rank taken, or for a choice node the option
@@ -34,6 +36,12 @@
 // (SpecSpells) learned while it is the chosen one: its core abilities, and how a class's scripts know which
 // specialization is on.
 // The chosen tree is saved with the build, as node 0.
+//
+// A node that teaches an ability, and a spec tree's spells, come in ranks like any trainer spell (Pyroblast, Ice
+// Barrier): the character holds the highest rank its level allows, and losing the node takes every rank.
+//
+// Bots have no window: each tree names the order a bot takes its nodes in (BotOrder), and a bot's build is filled
+// from it, as far as its level's points go, whenever it logs in, levels or changes specialization.
 //
 // Addon whispers, prefix "TalentTree":
 //   client -> server  OPEN                    the state, please
@@ -74,11 +82,19 @@ struct TreeGate
     uint8 cost = 0;
 };
 
+// A step of a tree's bot order: a node, every rank of it, or one option of a choice node
+struct BotPick
+{
+    uint16 node = 0;
+    uint8 option = 1;
+};
+
 struct Tree
 {
     uint8 id = 0;
     bool spec = false;              // a spec tree (else the class tree)
     std::vector<uint32> specSpells; // learned while this spec tree is the chosen specialization
+    std::vector<BotPick> botOrder;
     uint8 firstLevel = 10;
     uint8 levelStep = 2;
     std::array<TreeGate, 2> gates{};
@@ -280,6 +296,21 @@ void SetSpell(Player* player, uint32 spellId, bool wanted)
         player->removeSpell(spellId, SPEC_MASK_ALL, false);
 }
 
+// An ability and its ranks: wanted, every rank up to the highest the character's level allows (as a trainer teaches
+// them, one after the other), none above; not wanted, none at all
+void SetAbility(Player* player, uint32 spellId, bool wanted)
+{
+    uint32 const first = sSpellMgr->GetFirstSpellInChain(spellId);
+    bool reachable = wanted;
+    for (uint32 rank = first; rank; rank = sSpellMgr->GetNextSpellInChain(rank))
+    {
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(rank);
+        if (rank != first && (!spellInfo || spellInfo->SpellLevel > player->GetLevel()))
+            reachable = false;
+        SetSpell(player, rank, reachable);
+    }
+}
+
 // Makes the character's spells match a build: each node's current rank (or chosen option) learned, every other
 // spell of the trees removed, so a lower rank, a refunded node or the other option never lingers. Only the class tree
 // and the chosen spec tree count; the other spec trees keep their picks in the build, unlearned.
@@ -290,17 +321,27 @@ void Reconcile(Player* player, ClassTrees const& data, std::string const& build,
         for (Tree const& tree : data.trees)
             if (tree.spec && (tree.id == specialization) == wanted)
                 for (uint32 spellId : tree.specSpells)
-                    SetSpell(player, spellId, wanted);
+                    SetAbility(player, spellId, wanted);
 
-    for (std::size_t position = 0; position < data.nodes.size(); ++position)
-    {
-        TreeNode const& node = data.nodes[position];
-        Tree const* tree = FindTree(data, node.tree);
-        bool const counts = !tree || !tree->spec || tree->id == specialization;
-        uint8 const value = !counts || node.minLevel > player->GetLevel() ? 0 : Value(build, position);
-        for (std::size_t index = 0; index < node.spells.size(); ++index)
-            SetSpell(player, node.spells[index], std::size_t(value) == index + 1);
-    }
+    // Every rank taken off first, then the wanted ones learned: two nodes may teach the same ability (a choice's
+    // option and another node), and the one wanting it has the last word
+    for (bool const wanted : { false, true })
+        for (std::size_t position = 0; position < data.nodes.size(); ++position)
+        {
+            TreeNode const& node = data.nodes[position];
+            Tree const* tree = FindTree(data, node.tree);
+            bool const counts = !tree || !tree->spec || tree->id == specialization;
+            uint8 const value = !counts || node.minLevel > player->GetLevel() ? 0 : Value(build, position);
+            for (std::size_t index = 0; index < node.spells.size(); ++index)
+            {
+                if ((std::size_t(value) == index + 1) != wanted)
+                    continue;
+                if (node.kind == NodeKind::Active)
+                    SetAbility(player, node.spells[index], wanted);
+                else
+                    SetSpell(player, node.spells[index], wanted);
+            }
+        }
 }
 
 TalentTreeState* GetState(Player* player)
@@ -454,6 +495,67 @@ void ChangeSpecialization(Player* player, ClassTrees const& data, TalentTreeStat
     ReconcileActive(player, data, state);
 }
 
+bool IsBot(Player* player)
+{
+    return player->GetSession() && player->GetSession()->IsBot();
+}
+
+// A bot's build: its trees' bot orders taken in turn, each node ranked as far as it goes, until the level's points
+// run out. Only the class tree and the chosen specialization's tree are filled.
+void FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state)
+{
+    uint8 const slot = ActiveSlot(player);
+    uint8 const specialization = Specialization(data, state->specializations[slot]);
+    std::string build(data.nodes.size(), '0');
+    uint16 offender = 0;
+    for (Tree const& tree : data.trees)
+    {
+        if (tree.spec && tree.id != specialization)
+            continue;
+
+        for (BotPick const& pick : tree.botOrder)
+        {
+            auto const position = data.positions.find(pick.node);
+            if (position == data.positions.end())
+                continue;
+
+            TreeNode const& node = data.nodes[position->second];
+            char& digit = build[position->second];
+            if (node.kind == NodeKind::Choice)
+            {
+                char const before = digit;
+                digit = char('0' + std::min<std::size_t>(pick.option, node.spells.size()));
+                if (Validate(data, build, player->GetLevel(), offender) != BuildError::None)
+                    digit = before;
+                continue;
+            }
+
+            while (std::size_t(digit - '0') < node.spells.size())
+            {
+                ++digit;
+                if (Validate(data, build, player->GetLevel(), offender) != BuildError::None)
+                {
+                    --digit;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (build == state->builds[slot])
+        return;
+    state->builds[slot] = build;
+    SaveBuild(player, data, state, slot);
+}
+
+// A class moved from WotLK talents to the trees (the Mage) takes the WotLK ones back: the active talent slot's here,
+// the other slot's when the character switches to it
+void WipeStockTalents(Player* player)
+{
+    if (!player->GetTalentMap().empty())
+        player->resetTalents(true);
+}
+
 void HandleSpecialization(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view argument)
 {
     Optional<uint8> const tree = Acore::StringTo<uint8>(argument);
@@ -501,7 +603,7 @@ void LoadTrees()
 
     QueryResult trees = WorldDatabase.Query(
         "SELECT `ClassId`, `TreeId`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, "
-        "`Signature`, `Kind`, `SpecSpells` FROM `custom_talent_tree` ORDER BY `ClassId`, `TreeId`");
+        "`Signature`, `Kind`, `SpecSpells`, `BotOrder` FROM `custom_talent_tree` ORDER BY `ClassId`, `TreeId`");
     if (!trees)
     {
         LOG_INFO("server.loading", ">> No talent trees (localTools/talentTree/buildTalentTree.py writes them)");
@@ -523,6 +625,18 @@ void LoadTrees()
         for (std::string_view token : Acore::Tokenize(field[10].Get<std::string_view>(), ',', false))
             if (Optional<uint32> spellId = Acore::StringTo<uint32>(token))
                 tree.specSpells.push_back(*spellId);
+        for (std::string_view token : Acore::Tokenize(field[11].Get<std::string_view>(), ',', false))
+        {
+            std::vector<std::string_view> const parts = Acore::Tokenize(token, ':', false);
+            Optional<uint16> const node = parts.empty() ? Optional<uint16>() : Acore::StringTo<uint16>(parts[0]);
+            if (!node)
+                continue;
+            BotPick pick;
+            pick.node = *node;
+            if (parts.size() > 1)
+                pick.option = Acore::StringTo<uint8>(parts[1]).value_or(1);
+            tree.botOrder.push_back(pick);
+        }
         if (tree.spec)
             data.specTrees.push_back(tree.id);
         data.trees.push_back(tree);
@@ -611,7 +725,10 @@ public:
         if (!data)
             return;
 
+        WipeStockTalents(player);
         LoadForPlayer(player, *data);
+        if (IsBot(player))
+            FillBotBuild(player, *data, GetState(player));
         TrimAndReconcile(player, *data, GetState(player));
         SendState(player, false);
     }
@@ -625,6 +742,8 @@ public:
         if (!data || !state)
             return;
 
+        if (IsBot(player))
+            FillBotBuild(player, *data, state);
         TrimAndReconcile(player, *data, state);
         SendState(player, false);
     }
@@ -637,6 +756,9 @@ public:
         if (!data || !state)
             return;
 
+        WipeStockTalents(player);
+        if (IsBot(player))
+            FillBotBuild(player, *data, state);
         ReconcileActive(player, *data, state);
         SendState(player, false);
     }
@@ -670,8 +792,42 @@ void SetTalentSpecialization(Player* player, uint8 tree)
     TalentTreeState* state = GetState(player);
     if (!data || !state || std::find(data->specTrees.begin(), data->specTrees.end(), tree) == data->specTrees.end())
         return;
+    if (IsBot(player))
+    {
+        uint8 const slot = ActiveSlot(player);
+        state->specializations[slot] = tree;
+        FillBotBuild(player, *data, state);
+        SaveBuild(player, *data, state, slot);
+        ReconcileActive(player, *data, state);
+        return;
+    }
     ChangeSpecialization(player, *data, state, tree);
     SendState(player, false);
+}
+
+// Whether a class has talent trees at all (it then has no WotLK talents)
+bool HasTalentTrees(uint8 classId)
+{
+    return GetTrees(classId) != nullptr;
+}
+
+// The specialization as an index among the class's spec trees (0 for the first), -1 for a class without trees. The
+// Mage's spec trees come in the order of its WotLK talent tabs, so this is the tab the bots' strategies expect.
+int8 GetTalentSpecializationIndex(Player* player)
+{
+    ClassTrees const* data = player ? GetTrees(player->getClass()) : nullptr;
+    if (!data || data->specTrees.empty())
+        return -1;
+    uint8 const tree = GetTalentSpecialization(player);
+    auto const itr = std::find(data->specTrees.begin(), data->specTrees.end(), tree);
+    return itr == data->specTrees.end() ? 0 : int8(itr - data->specTrees.begin());
+}
+
+void SetTalentSpecializationIndex(Player* player, uint8 index)
+{
+    ClassTrees const* data = player ? GetTrees(player->getClass()) : nullptr;
+    if (data && index < data->specTrees.size())
+        SetTalentSpecialization(player, data->specTrees[index]);
 }
 
 void AddTalentTreeScripts()

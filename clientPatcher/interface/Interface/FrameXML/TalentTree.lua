@@ -175,6 +175,14 @@ local frame, bar, applyButton, undoButton, resetButton, statusText, searchBox, s
 local flyout, specPage
 local shownAvailable = {}
 
+-- The stock classes, for those moved to the trees (the Mage): their id and their cell in RoundClasses, which follows
+-- CLASS_ICON_TCOORDS (localTools/interface/makeRoundClassIcons.py)
+local STOCK_CLASSES = {
+    WARRIOR = { 1, { 0, 0 } }, PALADIN = { 2, { 0, 2 } }, HUNTER = { 3, { 0, 1 } }, ROGUE = { 4, { 2, 0 } },
+    PRIEST = { 5, { 2, 1 } }, DEATHKNIGHT = { 6, { 1, 2 } }, SHAMAN = { 7, { 1, 1 } }, MAGE = { 8, { 1, 0 } },
+    WARLOCK = { 9, { 3, 1 } }, DRUID = { 11, { 3, 0 } },
+}
+
 local function PlayerClassId()
     local _, token = UnitClass("player")
     for id, custom in pairs(CustomClasses or {}) do
@@ -182,6 +190,16 @@ local function PlayerClassId()
             return id
         end
     end
+    return STOCK_CLASSES[token] and STOCK_CLASSES[token][1]
+end
+
+-- The class's round icon on RoundClasses
+local function ClassIconCell()
+    if CustomClasses and CustomClasses[classId] then
+        return CustomClasses[classId].iconCell
+    end
+    local _, token = UnitClass("player")
+    return STOCK_CLASSES[token] and STOCK_CLASSES[token][2] or { 0, 0 }
 end
 
 local function Load()
@@ -1856,7 +1874,7 @@ local function CreateWindow()
 
     portrait = frame:CreateTexture(nil, "OVERLAY", nil, -1)
     portrait:SetTexture(ROUND_CLASSES)
-    local cell = CustomClasses[classId] and CustomClasses[classId].iconCell or { 0, 0 }
+    local cell = ClassIconCell()
     portrait:SetTexCoord(cell[1] / 4, (cell[1] + 1) / 4, cell[2] / 4, (cell[2] + 1) / 4)
     portrait:SetSize(58, 58)
     portrait:SetPoint("TOPLEFT", frame, "TOPLEFT", -6, 8)

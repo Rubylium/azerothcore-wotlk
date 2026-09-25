@@ -15,6 +15,7 @@ CREATE TABLE `custom_talent_tree` (
     `Gate2Cost` TINYINT UNSIGNED NOT NULL DEFAULT 0,
     `Signature` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'of the whole class, matched by the client',
     `SpecSpells` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'a spec tree: learned while it is the chosen one',
+    `BotOrder` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'the order a bot takes its nodes in (node or node:option)',
     `Name` VARCHAR(64) NOT NULL DEFAULT '',
     PRIMARY KEY (`ClassId`, `TreeId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -35,10 +36,10 @@ CREATE TABLE IF NOT EXISTS `custom_talent_node` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DELETE FROM `custom_talent_tree` WHERE `ClassId` = 12;
-INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `Name`) VALUES
-(12, 1, 0, 10, 2, 4, 8, 7, 20, 30932898, '', 'Pestiféré'),
-(12, 2, 1, 11, 2, 4, 8, 7, 20, 30932898, '90212,90214', 'Charnier'),
-(12, 3, 1, 11, 2, 4, 8, 7, 20, 30932898, '90300,90302', 'Sangsue');
+INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, `Name`) VALUES
+(12, 1, 0, 10, 2, 4, 8, 7, 20, 30932898, '', '', 'Pestiféré'),
+(12, 2, 1, 11, 2, 4, 8, 7, 20, 30932898, '90212,90214', '', 'Charnier'),
+(12, 3, 1, 11, 2, 4, 8, 7, 20, 30932898, '90300,90302', '', 'Sangsue');
 
 DELETE FROM `custom_talent_node` WHERE `ClassId` = 12;
 INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Row`, `Col`, `Kind`, `MinLevel`, `Spells`, `Parents`, `Name`) VALUES
@@ -132,9 +133,9 @@ INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Ro
 (12, 330, 3, 87, 9, 3, 1, 0, '90308', '328,329', 'Pestilence salvatrice');
 
 DELETE FROM `custom_talent_tree` WHERE `ClassId` = 13;
-INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `Name`) VALUES
-(13, 1, 0, 10, 2, 4, 8, 7, 20, 14344197, '', 'Nécromancien'),
-(13, 2, 1, 11, 2, 4, 8, 7, 20, 14344197, '', 'Légion');
+INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, `Name`) VALUES
+(13, 1, 0, 10, 2, 4, 8, 7, 20, 14344197, '', '', 'Nécromancien'),
+(13, 2, 1, 11, 2, 4, 8, 7, 20, 14344197, '', '', 'Légion');
 
 DELETE FROM `custom_talent_node` WHERE `ClassId` = 13;
 INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Row`, `Col`, `Kind`, `MinLevel`, `Spells`, `Parents`, `Name`) VALUES
@@ -198,9 +199,9 @@ INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Ro
 (13, 230, 2, 57, 9, 3, 0, 0, '90454', '228,229', 'Seigneur de la Légion');
 
 DELETE FROM `custom_talent_tree` WHERE `ClassId` = 10;
-INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `Name`) VALUES
-(10, 1, 0, 10, 2, 4, 8, 7, 20, 14777594, '', 'Oathblade'),
-(10, 2, 1, 11, 2, 4, 8, 7, 20, 14777594, '', 'Swordcraft');
+INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, `Name`) VALUES
+(10, 1, 0, 10, 2, 4, 8, 7, 20, 14777594, '', '', 'Oathblade'),
+(10, 2, 1, 11, 2, 4, 8, 7, 20, 14777594, '', '', 'Swordcraft');
 
 DELETE FROM `custom_talent_node` WHERE `ClassId` = 10;
 INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Row`, `Col`, `Kind`, `MinLevel`, `Spells`, `Parents`, `Name`) VALUES
@@ -262,3 +263,125 @@ INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Ro
 (10, 228, 2, 55, 8, 2, 2, 70, '90961,91064', '223,225', 'Perfect Execution / Edict Mastery'),
 (10, 229, 2, 56, 8, 4, 2, 0, '91065,91066', '225,227', 'Blade Tempest / Relentless Storm'),
 (10, 230, 2, 57, 9, 3, 0, 0, '91067', '228,229', 'Flawless Mastery');
+
+DELETE FROM `custom_talent_tree` WHERE `ClassId` = 8;
+INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, `Name`) VALUES
+(8, 1, 0, 10, 2, 4, 8, 7, 20, 21597259, '', '101,103,104,102,105,108,107,106:1,109,111,110,115,114,113,112,116,118,117,121,119,120,122,125,124,123,126,127,128:1', 'Mage'),
+(8, 2, 1, 11, 2, 4, 8, 7, 20, 21597259, '44425', '201,202,203,205,206,207,209,210,213,212,215,216,218,219,220,217:1,221,222,223,224,227,226,228:2,211,214,204,208,225', 'Arcanes'),
+(8, 3, 1, 11, 2, 4, 8, 7, 20, 21597259, '11366', '301,303,304,302,306,307,305,308,309,311,313,312,314,315,317,318,316,320,319,321,322,323,324,326,327,325,328:1,310', 'Feu'),
+(8, 4, 1, 11, 2, 4, 8, 7, 20, 21597259, '31687,70937', '401,403,402,404,406,407,405,408,410,411,409,413,414,412,416,418,417,419,420,421,422,424,423,425,427,426:2,428:2,415', 'Givre');
+
+DELETE FROM `custom_talent_node` WHERE `ClassId` = 8;
+INSERT INTO `custom_talent_node` (`ClassId`, `NodeId`, `TreeId`, `Position`, `Row`, `Col`, `Kind`, `MinLevel`, `Spells`, `Parents`, `Name`) VALUES
+(8, 101, 1, 0, 0, 3, 0, 0, '92000,92001', '', 'Concentration arcanique'),
+(8, 102, 1, 1, 1, 1, 0, 0, '92002', '101', 'Clignotement rapide'),
+(8, 103, 1, 2, 1, 3, 0, 0, '92003,92004', '101', 'Érudition'),
+(8, 104, 1, 3, 1, 5, 0, 0, '11255,12598', '101', 'Contresort amélioré'),
+(8, 105, 1, 4, 2, 0, 0, 0, '31574,31575,54354', '102', 'Cape prismatique'),
+(8, 106, 1, 5, 2, 2, 2, 0, '92005,92006', '102,103', 'Glace ancienne / Glace régénératrice'),
+(8, 107, 1, 6, 2, 4, 1, 0, '92100', '103,104', 'Distorsion temporelle'),
+(8, 108, 1, 7, 2, 6, 0, 0, '92007,92008', '104', 'Magie débordante'),
+(8, 109, 1, 8, 3, 1, 0, 0, '31569,31570', '105,106', 'Clignotement amélioré'),
+(8, 110, 1, 9, 3, 3, 0, 0, '92009', '106,107', 'Images multiples'),
+(8, 111, 1, 10, 3, 5, 0, 0, '44394,44395,44396', '107,108', 'Absorption d''incantateur'),
+(8, 112, 1, 11, 4, 0, 0, 0, '92010,92011', '109', 'Givre tenace'),
+(8, 113, 1, 12, 4, 2, 1, 0, '92101', '109,110', 'Invisibilité supérieure'),
+(8, 114, 1, 13, 4, 4, 1, 0, '92102', '110,111', 'Altération du temps'),
+(8, 115, 1, 14, 4, 6, 0, 0, '92012,92013', '111', 'Évocation rapide'),
+(8, 116, 1, 15, 5, 1, 0, 0, '92014,92015', '112,113', 'Célérité arcanique'),
+(8, 117, 1, 16, 5, 3, 0, 0, '92016', '113,114', 'Cautérisation'),
+(8, 118, 1, 17, 5, 5, 0, 0, '11189,28332', '114,115', 'Protection de givre'),
+(8, 119, 1, 18, 6, 0, 0, 0, '92017', '116', 'Flux d''incantation'),
+(8, 120, 1, 19, 6, 2, 0, 0, '92018', '116,117', 'Contresort vif'),
+(8, 121, 1, 20, 6, 4, 0, 0, '92019,92020,92021', '117,118', 'Précision cristalline'),
+(8, 122, 1, 21, 6, 6, 0, 0, '92022', '118', 'Déplacement fulgurant'),
+(8, 123, 1, 22, 7, 1, 0, 0, '92023,92024', '119,120', 'Écrans magiques'),
+(8, 124, 1, 23, 7, 3, 0, 0, '29074,29075,29076', '120,121', 'Maître des éléments'),
+(8, 125, 1, 24, 7, 5, 0, 0, '92025,92026', '121,122', 'Érudit universel'),
+(8, 126, 1, 25, 8, 2, 0, 0, '54747,54749', '123,124', 'Volonté inébranlable'),
+(8, 127, 1, 26, 8, 4, 0, 0, '92027', '124,125', 'Maîtrise temporelle'),
+(8, 128, 1, 27, 9, 3, 2, 0, '92028,92029', '126,127', 'Archimage / Temps suspendu'),
+(8, 201, 2, 28, 0, 3, 0, 0, '11213,12574,12575,12576,12577', '', 'Concentration des arcanes'),
+(8, 202, 2, 29, 1, 1, 0, 0, '11222,12839,12840', '201', 'Focalisation des arcanes'),
+(8, 203, 2, 30, 1, 3, 1, 0, '12043', '201', 'Présence spirituelle'),
+(8, 204, 2, 31, 1, 5, 0, 0, '18462,18463,18464', '201', 'Méditation arcanique'),
+(8, 205, 2, 32, 2, 0, 0, 0, '11242,12467,12469', '202', 'Impact des sorts'),
+(8, 206, 2, 33, 2, 2, 0, 0, '31571,31572', '202,203', 'Puissance des arcanes'),
+(8, 207, 2, 34, 2, 4, 0, 0, '29447,55339,55340', '203,204', 'Tourmenter les faibles'),
+(8, 208, 2, 35, 2, 6, 0, 0, '44397,44398,44399', '204', 'Esprit de l''étudiant'),
+(8, 209, 2, 36, 3, 1, 0, 0, '31579,31582,31583', '205,206', 'Renforcement des arcanes'),
+(8, 210, 2, 37, 3, 3, 1, 0, '12042', '206,207', 'Pouvoir des arcanes'),
+(8, 211, 2, 38, 3, 5, 0, 0, '92030', '207,208', 'Harmonie arcanique'),
+(8, 212, 2, 39, 4, 0, 0, 0, '44378,44379', '209', 'Flux arcaniques'),
+(8, 213, 2, 40, 4, 2, 0, 0, '44404,54486,54488,54489,54490', '209,210', 'Barrage de projectiles'),
+(8, 214, 2, 41, 4, 4, 1, 0, '92110', '210,211', 'Toucher du mage'),
+(8, 215, 2, 42, 4, 6, 0, 0, '44400,44402,44403', '211', 'Présence du Néant'),
+(8, 216, 2, 43, 5, 1, 0, 0, '31584,31585,31586,31587,31588', '212,213', 'Maîtrise de l''esprit'),
+(8, 217, 2, 44, 5, 3, 2, 0, '31589,92111', '213,214', 'Lenteur / Onde de choc arcanique'),
+(8, 218, 2, 45, 5, 5, 0, 0, '35578,35581', '214,215', 'Puissance des sorts'),
+(8, 219, 2, 46, 6, 0, 0, 0, '92031', '216', 'Surtension'),
+(8, 220, 2, 47, 6, 2, 0, 0, '92032,92033', '216,217', 'Barrage amélioré'),
+(8, 221, 2, 48, 6, 4, 1, 0, '92112', '217,218', 'Tempête du Néant'),
+(8, 222, 2, 49, 6, 6, 0, 0, '92034', '218', 'Clarté pure'),
+(8, 223, 2, 50, 7, 1, 0, 0, '92035', '219,220', 'Toucher amplifié'),
+(8, 224, 2, 51, 7, 3, 0, 0, '92036', '220,221', 'Bombardement arcanique'),
+(8, 225, 2, 52, 7, 5, 0, 0, '92037', '221,222', 'Esprit prompt'),
+(8, 226, 2, 53, 8, 2, 0, 0, '92038', '223,224', 'Esprit éclairé'),
+(8, 227, 2, 54, 8, 4, 0, 0, '15058,15059,15060', '224,225', 'Instabilité arcanique'),
+(8, 228, 2, 55, 9, 3, 2, 0, '92039,92040', '226,227', 'Surcharge du Néant / Avatar arcanique'),
+(8, 301, 3, 56, 0, 3, 0, 0, '11119,11120,12846,12847,12848', '', 'Enflammer'),
+(8, 302, 3, 57, 1, 1, 0, 0, '11078,11080', '301', 'Trait de feu amélioré'),
+(8, 303, 3, 58, 1, 3, 0, 0, '44445,44446,44448', '301', 'Chaleur continue'),
+(8, 304, 3, 59, 1, 5, 0, 0, '11115,11367,11368', '301', 'Masse critique'),
+(8, 305, 3, 60, 2, 0, 0, 0, '18459,18460,54734', '302', 'Incinération'),
+(8, 306, 3, 61, 2, 2, 0, 0, '11069,12338,12339,12340,12341', '302,303', 'Boule de feu améliorée'),
+(8, 307, 3, 62, 2, 4, 0, 0, '11124,12378,12398,12399,12400', '303,304', 'Puissance du feu'),
+(8, 308, 3, 63, 2, 6, 0, 0, '11108,12349,12350', '304', 'Monde en flammes'),
+(8, 309, 3, 64, 3, 1, 0, 0, '11103,12357,12358', '305,306', 'Impact'),
+(8, 310, 3, 65, 3, 3, 0, 0, '92041', '306,307', 'Trait de feu à charges'),
+(8, 311, 3, 66, 3, 5, 1, 0, '11113', '307,308', 'Vague explosive'),
+(8, 312, 3, 67, 4, 0, 0, 0, '34293,34295,34296', '309', 'Pyromane'),
+(8, 313, 3, 68, 4, 2, 0, 0, '11095,12872,12873', '309,310', 'Brûlure améliorée'),
+(8, 314, 3, 69, 4, 4, 1, 0, '92120', '310,311', 'Combustion'),
+(8, 315, 3, 70, 4, 6, 0, 0, '31679,31680', '311', 'Furie en fusion'),
+(8, 316, 3, 71, 5, 1, 0, 0, '92042', '312,313', 'Allumeur'),
+(8, 317, 3, 72, 5, 3, 1, 0, '31661', '313,314', 'Souffle du dragon'),
+(8, 318, 3, 73, 5, 5, 0, 0, '31656,31657,31658', '314,315', 'Feu surpuissant'),
+(8, 319, 3, 74, 6, 0, 0, 0, '92043', '316', 'Braises'),
+(8, 320, 3, 75, 6, 2, 1, 0, '44457', '316,317', 'Bombe vivante'),
+(8, 321, 3, 76, 6, 4, 1, 0, '92121', '317,318', 'Flammes du phénix'),
+(8, 322, 3, 77, 6, 6, 0, 0, '44442,44443', '318', 'Initiateur'),
+(8, 323, 3, 78, 7, 1, 0, 0, '92044', '319,320', 'Toucher brûlant'),
+(8, 324, 3, 79, 7, 3, 0, 0, '44449,44469,44470,44471,44472', '320,321', 'Épuisement'),
+(8, 325, 3, 80, 7, 5, 0, 0, '92045', '321,322', 'Bombe en chaîne'),
+(8, 326, 3, 81, 8, 2, 0, 0, '64353,64357', '323,324', 'Représailles ardentes'),
+(8, 327, 3, 82, 8, 4, 1, 0, '92122', '324,325', 'Météore'),
+(8, 328, 3, 83, 9, 3, 2, 0, '92046,92047', '326,327', 'Bénédiction du roi-soleil / Maître de la flamme'),
+(8, 401, 4, 84, 0, 3, 0, 0, '11170,12982,12983', '', 'Fracasser'),
+(8, 402, 4, 85, 1, 1, 0, 0, '11070,12473,16763,16765,16766', '401', 'Éclair de givre amélioré'),
+(8, 403, 4, 86, 1, 3, 0, 0, '44543,44545', '401', 'Doigts de givre'),
+(8, 404, 4, 87, 1, 5, 0, 0, '11207,12672,15047', '401', 'Éclats de glace'),
+(8, 405, 4, 88, 2, 0, 0, 0, '11071,12496,12497', '402', 'Morsure du froid'),
+(8, 406, 4, 89, 2, 2, 0, 0, '11151,12952,12953', '402,403', 'Glace perçante'),
+(8, 407, 4, 90, 2, 4, 1, 0, '12472', '403,404', 'Veines glaciales'),
+(8, 408, 4, 91, 2, 6, 0, 0, '11175,12569,12571', '404', 'Permafrost'),
+(8, 409, 4, 92, 3, 1, 0, 0, '11185,12487,12488', '405,406', 'Blizzard amélioré'),
+(8, 410, 4, 93, 3, 3, 0, 0, '44546,44548,44549', '406,407', 'Gel du cerveau'),
+(8, 411, 4, 94, 3, 5, 1, 0, '11426', '407,408', 'Barrière de glace'),
+(8, 412, 4, 95, 4, 0, 0, 0, '11160,12518,12519', '409', 'Canalisation du givre'),
+(8, 413, 4, 96, 4, 2, 1, 0, '11958', '409,410', 'Morsure de glace'),
+(8, 414, 4, 97, 4, 4, 0, 0, '11180,28592,28593', '410,411', 'Froid hivernal'),
+(8, 415, 4, 98, 4, 6, 0, 0, '44745,54787', '411', 'Barrière fracassée'),
+(8, 416, 4, 99, 5, 1, 0, 0, '31674,31675,31676,31677,31678', '412,413', 'Vents arctiques'),
+(8, 417, 4, 100, 5, 3, 1, 0, '92130', '413,414', 'Tempête de comètes'),
+(8, 418, 4, 101, 5, 5, 0, 0, '31667,31668,31669', '414,415', 'Cœur gelé'),
+(8, 419, 4, 102, 6, 0, 0, 0, '44566,44567,44568,44570,44571', '416', 'Glacé jusqu''aux os'),
+(8, 420, 4, 103, 6, 2, 0, 0, '31682,31683', '416,417', 'Éclair de givre surpuissant'),
+(8, 421, 4, 104, 6, 4, 0, 0, '44557,44560,44561', '417,418', 'Hiver durable'),
+(8, 422, 4, 105, 6, 6, 0, 0, '55091,55092', '418', 'Froid comme la glace'),
+(8, 423, 4, 106, 7, 1, 0, 0, '92050', '419,420', 'Glace fendue'),
+(8, 424, 4, 107, 7, 3, 1, 0, '44572', '420,421', 'Congélation'),
+(8, 425, 4, 108, 7, 5, 0, 0, '92051', '421,422', 'Veines gelées'),
+(8, 426, 4, 109, 8, 2, 2, 0, '92052,92053', '423,424', 'Hiver solitaire / Élémentaire amélioré'),
+(8, 427, 4, 110, 8, 4, 0, 0, '92054', '424,425', 'Congélation rapide'),
+(8, 428, 4, 111, 9, 3, 2, 0, '92055,92056', '426,427', 'Froid mordant / Stalactites');

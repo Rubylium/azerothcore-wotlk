@@ -84,7 +84,9 @@ ANIMATIONS = {
     'talents-animations-particles': ('anim-particles', 0.5),
 }
 MASKS = {'talents-node-circle-mask': 'circle', 'talents-node-choice-mask': 'choice'}
-BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw'}
+BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw',
+               'mage-arcane': 'talents-background-mage-arcane', 'mage-fire': 'talents-background-mage-fire',
+               'mage-frost': 'talents-background-mage-frost'}
 # The specialization page's figures: the right of each spec's painting, from this fraction of its width
 SPEC_ART_LEFT = 0.62
 SPEC_ART_WIDTH = 400
@@ -340,7 +342,8 @@ def main():
 
     # The trees: which icons they need, which link shapes, which backgrounds
     trees = []
-    for entry in json.load(open(CLASSES, encoding='utf8'))['classes']:
+    classes = json.load(open(CLASSES, encoding='utf8'))
+    for entry in classes['classes'] + classes.get('stockTalentTrees', []):
         if entry.get('talentTree'):
             trees.append(json.load(open(os.path.join(REPO, entry['talentTree']), encoding='utf8')))
 
@@ -356,7 +359,9 @@ def main():
                 dark = style['shade']
                 image = shade(image, dark['left'], dark['right'], dark['vignette'])
             return image
-        return recolour(retail.piece(BACKGROUNDS[style['from']]), style['hue'])
+        piece = retail.piece(BACKGROUNDS[style['from']])
+        # A class that has retail backgrounds of its own (the Mage) keeps their colours
+        return recolour(piece, style['hue']) if 'hue' in style else piece.convert('RGBA')
 
     # Keyed by class id, and by "<class>-<tree>" for a spec tree with a painting of its own (shown while that
     # specialization is the one in view). A class with several specializations also gets each one's figure, cut
