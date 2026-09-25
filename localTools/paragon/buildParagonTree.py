@@ -4,9 +4,14 @@ The board is data, not code: the server reads `paragon_node` and `paragon_node_l
 them, so reshaping the tree is a rerun of this script rather than a rebuild. Node positions are in canvas units
 with the start node at the origin; the client scales them to the window.
 
-Shape: a hub with six branches radiating out, one stat each, in eight rings. Minor nodes carry the branch out,
-notables sit at the junctions, and each branch ends in a single keystone. Adjacent branches are stitched
-together at rings two and three, so a build can cross between neighbours instead of only running outward.
+Shape: a hub with six branches radiating out, one stat each. Minor nodes carry the branch out, notables sit at
+the junctions, and keystones close each zone. Three zones, each further and stronger than the last:
+- Éveil, rings 1-8: the first board. Adjacent branches are stitched together at rings two and three.
+- Ascension, rings 9-16: the branch widens; bigger numbers, and the first effects that change a fight.
+- Transcendance, rings 17-24: the far edge, where a character becomes something else. Its keystones are the
+  Apothéoses.
+Bridge nodes join neighbouring branches in the middle of the two outer zones, so a build can cross over there too.
+The first zone's node ids never change: an allocation made on the first board stays valid.
 
 Every icon is checked against the client's SpellIcon.dbc before anything is written: a name that is not in the
 client renders as a green question mark in game, which is hard to spot and easy to ship.
@@ -35,6 +40,8 @@ MINOR, NOTABLE, KEYSTONE = 0, 1, 2
 # Mythic+ run of essence farming, and a keystone is worth more than that: nothing on the board is filler.
 # Effect ids, matching ParagonEffect in ParagonSystem.cpp. Change one and change the other.
 E_STAT, E_ARMOR, E_ARMOR_PCT, E_GUARD, E_RETALIATE, E_LAST_STAND, E_FURY, E_SURGE = range(8)
+# The outer zones' effects
+E_DAMAGE, E_REDUCTION, E_LEECH, E_DOUBLE, E_EXECUTE, E_EXPLODE, E_UNDYING, E_HEALTH = range(8, 16)
 
 # What a plain node is worth. The board is mostly these: a tree of nothing but procs would be noise, and the
 # quiet nodes are what make the loud ones feel like arriving somewhere.
@@ -149,6 +156,192 @@ RINGS = [
     (780, 3, ()),
 ]
 KEYSTONE_RING, KEYSTONE_SLOT = 7, 1
+
+# The two outer zones, ring by ring outward from the first board's edge (radius 780): radius, nodes per branch,
+# notable slots. Each zone ends in a keystone at `keystone` (ring index within the zone, slot).
+OUTER_ZONES = [
+    {
+        "name": "Ascension",
+        "rings": [(870, 7, ()), (960, 7, (1, 5)), (1050, 9, ()), (1140, 9, (4,)), (1230, 11, (2, 8)),
+                  (1320, 11, ()), (1410, 9, (0, 8)), (1500, 7, ())],
+        "keystone": (7, 3),
+        "bridge_ring": 3,
+        "minor": 20, "notable": 70, "armor": (400, 1500),
+    },
+    {
+        "name": "Transcendance",
+        "rings": [(1590, 7, ()), (1680, 9, (2, 6)), (1770, 9, ()), (1860, 11, (1, 9)), (1950, 11, (5,)),
+                  (2040, 9, (0, 8)), (2130, 7, (3,)), (2220, 3, ())],
+        "keystone": (7, 1),
+        "bridge_ring": 3,
+        "minor": 45, "notable": 160, "armor": (900, 3500),
+    },
+]
+OUTER_FIRST_ID = 2000
+# A node's reach is drawn this far past the outermost ring, so the frame can pan to its edge
+BOARD_MARGIN = 160
+
+
+def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
+    seconds = duration // 1000
+    if effect == E_DAMAGE:
+        return "Augmente tous vos dégâts de %d%%." % value
+    if effect == E_REDUCTION:
+        return "Réduit tous les dégâts subis de %d%%." % value
+    if effect == E_LEECH:
+        return "Vous rend %d%% des dégâts que vous infligez sous forme de points de vie." % value
+    if effect == E_DOUBLE:
+        return "%d%% de chances que vos coups infligent %d%% de dégâts supplémentaires." % (chance, value)
+    if effect == E_EXECUTE:
+        return "Vos dégâts sont augmentés de %d%% contre les cibles sous %d%% de vie." % (value, value2)
+    if effect == E_EXPLODE:
+        return ("Tuer un ennemi le fait exploser : %d%% de ses points de vie maximum infligés aux ennemis à "
+                "moins de %d mètres." % (value, value2))
+    if effect == E_UNDYING:
+        return ("Un coup qui devrait vous tuer vous laisse à 1 point de vie, et vous êtes insensible aux dégâts "
+                "pendant %d s. %d min de recharge." % (seconds, cooldown // 60000))
+    if effect == E_HEALTH:
+        return "Augmente vos points de vie maximum de %d%%." % value
+    if effect == E_FURY:
+        return ("%d%% de chances en infligeant des dégâts d'augmenter tous vos dégâts de %d%% pendant %d s."
+                % (chance, value, seconds))
+    if effect == E_SURGE:
+        return "Tuer un ennemi octroie %d en puissance d'attaque et des sorts pendant %d s." % (value, seconds)
+    if effect == E_RETALIATE:
+        return "%d%% de chances quand vous êtes touché de renvoyer %d%% des dégâts à l'attaquant." % (chance, value)
+    if effect == E_GUARD:
+        return ("%d%% de chances quand vous êtes touché d'augmenter votre armure de %d%% pendant %d s."
+                % (chance, value, seconds))
+    if effect == E_LAST_STAND:
+        return ("Sous %d%% de vie, vous subissez %d%% de dégâts en moins pendant %d s. %d min de recharge."
+                % (value2, value, seconds, cooldown // 60000))
+    if effect == E_ARMOR:
+        return "+%d Armure" % value
+    raise ValueError(effect)
+
+
+# The outer zones' own icons (client-assets/source/icons, prompts in localTools/paragon/paragonIconPrompts.txt).
+# Until a PNG exists the node falls back to the stock icon written next to it, so art never blocks the board.
+CUSTOM_ICON = {
+    "Force brute": "BruteForce", "Double frappe": "DoubleStrike", "Coup de grâce": "CoupDeGrace",
+    "Colère contenue": "PentUpWrath", "Colosse": "Colossus",
+    "Force titanesque": "TitanicStrength", "Frappes jumelles": "TwinStrikes", "Exécuteur": "Executioner",
+    "Onde de choc": "Shockwave", "Apothéose : Titan": "ApotheosisTitan",
+    "Curée sanglante": "BloodyQuarry", "Soif de sang": "Bloodthirst", "Carcasse explosive": "ExplodingCarcass",
+    "Élan meurtrier": "MurderousDrive", "Carnage": "Carnage",
+    "Frénésie du massacre": "SlaughterFrenzy", "Festin": "Feast", "Réaction en chaîne": "ChainReaction",
+    "Instinct du prédateur": "PredatorInstinct", "Apothéose : Cataclysme": "ApotheosisCataclysm",
+    "Contre-attaque": "Counterattack", "Lames agiles": "NimbleBlades", "Esquive parfaite": "PerfectDodge",
+    "Précision mortelle": "DeadlyPrecision", "Épines": "Thorns",
+    "Vengeance": "Vengeance", "Tourbillon de lames": "BladeWhirl", "Insaisissable": "Elusive",
+    "Saignée": "Bloodletting", "Apothéose : Miroir": "ApotheosisMirror",
+    "Peau de pierre": "Stoneskin", "Vigueur": "Vigor", "Écailles de granit": "GraniteScales",
+    "Robustesse": "Sturdiness", "Bastion": "Bastion",
+    "Peau d'adamantite": "AdamantiteSkin", "Colossal": "Colossal", "Dernier rempart": "LastRampart",
+    "Endurance infinie": "EndlessEndurance", "Apothéose : Immortel": "ApotheosisImmortal",
+    "Puissance arcanique": "ArcanePotency", "Afflux": "Influx", "Désintégration": "Disintegration",
+    "Écho": "Echo", "Surcharge": "Overload",
+    "Maîtrise absolue": "AbsoluteMastery", "Tempête arcanique": "ArcaneStorm", "Double incantation": "Doublecast",
+    "Siphon": "Siphon", "Apothéose : Singularité": "ApotheosisSingularity",
+    "Rémanence": "Remanence", "Esprit fortifié": "FortifiedMind", "Illumination": "Illumination",
+    "Aura protectrice": "ProtectiveAura", "Clarté": "Clarity",
+    "Communion": "Communion", "Transcendance de l'âme": "SoulTranscendence", "Révélation": "Revelation",
+    "Savoir interdit": "ForbiddenKnowledge", "Apothéose : Éternité": "ApotheosisEternity",
+    "Carrefour": "Crossroads", "Confluence": "Confluence",
+}
+# The plain nodes of each outer zone wear their branch's icon with the zone's name after it
+ZONE_ICON_SUFFIX = ["Ascension", "Transcendence"]
+
+
+def outer(effect, name, icon, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
+    icon = "ParagonNode_%s|%s" % (CUSTOM_ICON[name], icon)
+    return special(effect, name, describe(effect, value, value2, chance, duration, cooldown), icon,
+                   value=value, value2=value2, chance=chance, duration=duration, cooldown=cooldown)
+
+
+# Each branch's notables and keystone in the two outer zones, dealt out in order like the first zone's. Ascension is
+# where a build starts to change how a fight goes; Transcendance is where it stops being fair.
+OUTER_SPECIALS = {
+    "Force": [
+        ([outer(E_DAMAGE, "Force brute", "Ability_Warrior_InnerRage", value=4),
+          outer(E_DOUBLE, "Double frappe", "Ability_DualWield", value=100, chance=6.0),
+          outer(E_EXECUTE, "Coup de grâce", "Ability_Warrior_DecisiveStrike", value=15, value2=30),
+          outer(E_DAMAGE, "Colère contenue", "Ability_Warrior_BloodFrenzy", value=5)],
+         outer(E_DOUBLE, "Colosse", "Ability_Warrior_Rampage", value=100, chance=15.0)),
+        ([outer(E_DAMAGE, "Force titanesque", "Spell_Shadow_UnholyStrength", value=8),
+          outer(E_DOUBLE, "Frappes jumelles", "Ability_Warrior_PunishingBlow", value=100, chance=10.0),
+          outer(E_EXECUTE, "Exécuteur", "Ability_Rogue_Eviscerate", value=30, value2=35),
+          outer(E_EXPLODE, "Onde de choc", "Ability_Warrior_Cleave", value=20, value2=8)],
+         outer(E_DOUBLE, "Apothéose : Titan", "INV_Sword_48", value=150, chance=30.0)),
+    ],
+    "Puissance": [
+        ([outer(E_SURGE, "Curée sanglante", "Ability_Rogue_MurderSpree", value=600, duration=20000),
+          outer(E_LEECH, "Soif de sang", "Spell_Shadow_LifeDrain02", value=3),
+          outer(E_EXPLODE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=10, value2=6),
+          outer(E_DAMAGE, "Élan meurtrier", "Ability_Warrior_Warcry", value=4)],
+         outer(E_EXPLODE, "Carnage", "Spell_Deathknight_BloodBoil", value=25, value2=8)),
+        ([outer(E_SURGE, "Frénésie du massacre", "Spell_Shadow_UnholyFrenzy", value=1500, duration=20000),
+          outer(E_LEECH, "Festin", "Spell_Shadow_SoulLeech_3", value=6),
+          outer(E_EXPLODE, "Réaction en chaîne", "Spell_Fire_Incinerate", value=35, value2=10),
+          outer(E_DAMAGE, "Instinct du prédateur", "Ability_Hunter_Pet_Devilsaur", value=8)],
+         outer(E_EXPLODE, "Apothéose : Cataclysme", "Spell_Fire_MeteorStorm", value=75, value2=12)),
+    ],
+    "Agilité": [
+        ([outer(E_RETALIATE, "Contre-attaque", "Ability_Warrior_Revenge", value=50, chance=20.0),
+          outer(E_DOUBLE, "Lames agiles", "Ability_Rogue_SliceDice", value=100, chance=5.0),
+          outer(E_REDUCTION, "Esquive parfaite", "Ability_Rogue_Feint", value=4),
+          outer(E_DAMAGE, "Précision mortelle", "Ability_Rogue_Feint", value=4)],
+         outer(E_RETALIATE, "Épines", "Spell_Nature_Thorns", value=100, chance=35.0)),
+        ([outer(E_RETALIATE, "Vengeance", "Ability_Warrior_Revenge", value=100, chance=30.0),
+          outer(E_DOUBLE, "Tourbillon de lames", "Ability_Rogue_MurderSpree", value=100, chance=8.0),
+          outer(E_REDUCTION, "Insaisissable", "Spell_Arcane_PrismaticCloak", value=6),
+          outer(E_LEECH, "Saignée", "Spell_Shadow_LifeDrain02", value=4)],
+         outer(E_RETALIATE, "Apothéose : Miroir", "Spell_Holy_AshesToAshes", value=200, chance=50.0)),
+    ],
+    "Carapace": [
+        ([outer(E_REDUCTION, "Peau de pierre", "Ability_Warrior_DefensiveStance", value=5),
+          outer(E_HEALTH, "Vigueur", "Spell_Holy_BlessingOfStamina", value=5),
+          outer(E_GUARD, "Écailles de granit", "Spell_Holy_PowerWordShield", value=25, chance=20.0, duration=8000),
+          outer(E_HEALTH, "Robustesse", "Spell_Nature_Reincarnation", value=4)],
+         outer(E_REDUCTION, "Bastion", "Ability_Warrior_ShieldWall", value=12)),
+        ([outer(E_REDUCTION, "Peau d'adamantite", "Spell_Holy_DivineIntervention", value=8),
+          outer(E_HEALTH, "Colossal", "Spell_Holy_Heroism", value=10),
+          outer(E_LAST_STAND, "Dernier rempart", "Spell_Holy_LayOnHands", value=60, value2=40, duration=10000,
+                cooldown=60000),
+          outer(E_HEALTH, "Endurance infinie", "Spell_Nature_Reincarnation", value=8)],
+         outer(E_UNDYING, "Apothéose : Immortel", "Spell_Holy_GuardianSpirit", duration=4000, cooldown=120000)),
+    ],
+    "Arcanes": [
+        ([outer(E_DAMAGE, "Puissance arcanique", "Spell_Arcane_ArcanePotency", value=4),
+          outer(E_FURY, "Afflux", "Spell_Arcane_ArcaneTorrent", value=20, chance=15.0, duration=10000),
+          outer(E_EXECUTE, "Désintégration", "Spell_Arcane_Blast", value=15, value2=30),
+          outer(E_DOUBLE, "Écho", "Spell_Nature_LightningOverload", value=100, chance=5.0)],
+         outer(E_FURY, "Surcharge", "Spell_Fire_Fireball02", value=35, chance=25.0, duration=12000)),
+        ([outer(E_DAMAGE, "Maîtrise absolue", "Spell_Arcane_MindMastery", value=8),
+          outer(E_FURY, "Tempête arcanique", "Spell_Nature_Bloodlust", value=40, chance=20.0, duration=12000),
+          outer(E_DOUBLE, "Double incantation", "Spell_Nature_LightningOverload", value=100, chance=10.0),
+          outer(E_LEECH, "Siphon", "Spell_Shadow_SiphonMana", value=4)],
+         outer(E_DOUBLE, "Apothéose : Singularité", "Spell_Shadow_Twilight", value=200, chance=25.0)),
+    ],
+    "Intellect": [
+        ([outer(E_LEECH, "Rémanence", "Spell_Shadow_LifeDrain02", value=3),
+          outer(E_HEALTH, "Esprit fortifié", "Spell_Holy_MindVision", value=4),
+          outer(E_SURGE, "Illumination", "Spell_Holy_SurgeOfLight", value=600, duration=20000),
+          outer(E_REDUCTION, "Aura protectrice", "Spell_Holy_PowerWordShield", value=3)],
+         outer(E_LEECH, "Clarté", "Spell_Holy_BorrowedTime", value=8)),
+        ([outer(E_LEECH, "Communion", "Spell_Shadow_SoulLeech_3", value=6),
+          outer(E_HEALTH, "Transcendance de l'âme", "Spell_Holy_SealOfMight", value=8),
+          outer(E_SURGE, "Révélation", "Spell_Holy_Crusade", value=1500, duration=20000),
+          outer(E_DAMAGE, "Savoir interdit", "Spell_Arcane_MindMastery", value=6)],
+         outer(E_LEECH, "Apothéose : Éternité", "Achievement_Boss_Algalon_01", value=20)),
+    ],
+}
+
+# The nodes between two branches, in the middle of each outer zone
+BRIDGES = [
+    outer(E_HEALTH, "Carrefour", "Spell_Holy_BlessingOfStamina", value=3),
+    outer(E_DAMAGE, "Confluence", "Spell_Arcane_PrismaticCloak", value=5),
+]
 BRANCH_SPREAD = 26.0          # hard cap on the half-angle a branch may occupy
 NODE_SPACING = 95.0           # canvas units between neighbours in a ring, before the cap
 BRANCH_GAP = 70.0             # canvas units of clear space between one branch and the next
@@ -196,6 +389,11 @@ def build():
     wanted = {icon for branch in BRANCHES for icon in branch[4]}
     wanted |= {s["icon"] for branch in BRANCHES for s in branch[5]}
     wanted |= {branch[6]["icon"] for branch in BRANCHES}
+    for zones in OUTER_SPECIALS.values():
+        for notables, keystone in zones:
+            wanted |= {s["icon"].split("|")[-1] for s in notables}
+            wanted.add(keystone["icon"].split("|")[-1])
+    wanted |= {b["icon"].split("|")[-1] for b in BRIDGES}
     missing_custom = sorted({i for i in wanted
                              if i.startswith(ICON_PREFIX) and i.lower() not in ours})
     if missing_custom:
@@ -318,7 +516,112 @@ def build():
             a, b = rings[ring][-1], neighbour[ring][0]
             links.add((min(a, b), max(a, b)))
 
+    build_outer(nodes, links, branches)
+
+    # An outer icon is "custom|stock": the custom one once its PNG is in, the stock one until then
+    waiting = set()
+    for node in nodes:
+        if "|" in node["icon"]:
+            custom, stock = node["icon"].split("|")
+            if custom.lower() in ours:
+                node["icon"] = custom
+            else:
+                node["icon"] = stock
+                waiting.add(custom)
+    if waiting:
+        print("  %d custom icons not drawn yet, standing in with stock ones (prompts: paragonIconPrompts.txt)"
+              % len(waiting))
     return nodes, sorted(links)
+
+
+def place(radius, angle, count, slot):
+    """A ring slot's position, spread the same way as the first zone's"""
+    clearance = (360.0 / len(BRANCHES) - math.degrees(BRANCH_GAP / radius)) / 2.0
+    spread = min(BRANCH_SPREAD, math.degrees((count - 1) * NODE_SPACING / (2.0 * radius)), max(0.0, clearance))
+    offset = 0.0 if count == 1 else (slot / (count - 1.0) - 0.5) * 2.0 * spread
+    theta = math.radians(angle + offset)
+    return int(round(radius * math.cos(theta))), int(round(radius * math.sin(theta)))
+
+
+def make_node(node_id, node_type, x, y, stat, chosen=None, plain=None):
+    node = {"id": node_id, "type": node_type, "x": x, "y": y, "stat": stat, "free": 0}
+    if chosen:
+        node.update({"effect": chosen["effect"], "value": chosen["value"], "value2": chosen["value2"],
+                     "chance": chosen["chance"], "duration": chosen["duration"], "cooldown": chosen["cooldown"],
+                     "icon": chosen["icon"], "name": chosen["name"], "description": chosen["description"]})
+    else:
+        node.update(plain)
+        node.update({"value2": 0, "chance": 0.0, "duration": 0, "cooldown": 0})
+    return node
+
+
+def build_outer(nodes, links, branches):
+    """Ascension and Transcendance: each branch carries on outward from the first board's edge"""
+    node_id = OUTER_FIRST_ID
+    ends = [rings[-1] for rings in branches]             # each branch's last ring so far
+    for zone_index, zone in enumerate(OUTER_ZONES):
+        bridge_rows = []
+        for branch_index, (angle, stat, scale, branch_name, icons, _, _) in enumerate(BRANCHES):
+            notables, keystone = OUTER_SPECIALS[branch_name][zone_index]
+            remaining = list(notables)
+            previous = ends[branch_index]
+            zone_rings = []
+            for ring_index, (radius, count, notable_slots) in enumerate(zone["rings"]):
+                slots = []
+                for slot in range(count):
+                    x, y = place(radius, angle, count, slot)
+                    if (ring_index, slot) == zone["keystone"]:
+                        node = make_node(node_id, KEYSTONE, x, y, stat, chosen=keystone)
+                    elif slot in notable_slots and remaining:
+                        node = make_node(node_id, NOTABLE, x, y, stat, chosen=remaining.pop(0))
+                    else:
+                        node_type = NOTABLE if slot in notable_slots else MINOR
+                        zone_icon = "%s%s%s|%s" % (icons[0], ZONE_ICON_SUFFIX[zone_index],
+                                                   "Major" if node_type == NOTABLE else "", icons[node_type])
+                        if branch_name == ARMOR_BRANCH:
+                            amount = zone["armor"][0 if node_type == MINOR else 1]
+                            plain = {"effect": E_ARMOR, "value": amount, "icon": zone_icon,
+                                     "name": "Carapace" if node_type == MINOR else "Carapace majeure",
+                                     "branch": branch_name, "description": "+%d Armure" % amount}
+                        else:
+                            base = zone["minor"] if node_type == MINOR else zone["notable"]
+                            value = int(round(base * scale))
+                            plain = {"effect": E_STAT, "value": value, "icon": zone_icon,
+                                     "name": branch_name if node_type == MINOR else "%s majeur" % branch_name,
+                                     "branch": branch_name,
+                                     "description": "+%d %s" % (value, STAT_NAME[stat])}
+                        node = make_node(node_id, node_type, x, y, stat, plain=plain)
+                    node["branch"] = branch_name
+                    nodes.append(node)
+                    slots.append(node_id)
+                    node_id += 1
+
+                for left, right in zip(slots, slots[1:]):
+                    links.add((left, right))
+                # Each node of the ring before reaches the nearest of this one, by angle
+                for index, inner in enumerate(previous):
+                    position = index / max(len(previous) - 1.0, 1.0)
+                    target = slots[int(round(position * (len(slots) - 1)))]
+                    links.add((min(inner, target), max(inner, target)))
+                previous = slots
+                zone_rings.append(slots)
+            ends[branch_index] = previous
+            bridge_rows.append(zone_rings[zone["bridge_ring"]])
+
+        # A bridge node halfway between each branch and the next, in the middle of the zone
+        bridge = BRIDGES[zone_index]
+        radius = zone["rings"][zone["bridge_ring"]][0]
+        for branch_index, (angle, stat, *_rest) in enumerate(BRANCHES):
+            x = int(round(radius * math.cos(math.radians(angle + 30))))
+            y = int(round(radius * math.sin(math.radians(angle + 30))))
+            node = make_node(node_id, NOTABLE, x, y, stat, chosen=bridge)
+            node["branch"] = ""
+            nodes.append(node)
+            left = bridge_rows[branch_index][-1]
+            right = bridge_rows[(branch_index + 1) % len(BRANCHES)][0]
+            links.add((min(left, node_id), max(left, node_id)))
+            links.add((min(right, node_id), max(right, node_id)))
+            node_id += 1
 
 
 def signature(nodes, links):
@@ -332,6 +635,8 @@ def signature(nodes, links):
 
 
 def write_lua(nodes, links, stamp):
+    extent = 2 * (max(max(abs(n["x"]), abs(n["y"])) for n in nodes) + BOARD_MARGIN)
+    zones = [("Éveil", 0)] + [(zone["name"], zone["rings"][0][0] - 45) for zone in OUTER_ZONES]
     lines = [
         "-- Generated by localTools/paragon/buildParagonTree.py -- do not edit by hand.",
         "--",
@@ -342,6 +647,9 @@ def write_lua(nodes, links, stamp):
         "",
         "ParagonBoard = {",
         "    signature = %d," % stamp,
+        "    extent = %d," % extent,
+        "    zones = { %s }," % ", ".join("{ name = %s, radius = %d }" % (lua_string(name), radius)
+                                          for name, radius in zones),
         "    nodes = {",
     ]
     for node in nodes:
@@ -375,12 +683,11 @@ def main():
     lines = [
         "-- Generated by localTools/paragon/buildParagonTree.py -- do not edit by hand.",
         "--",
-        "-- The paragon board: a hub and six stat branches of %d rings each, neighbouring branches stitched"
-        % len(RINGS),
-        "-- together partway out. %d nodes (%d minor, %d notable, %d keystone) against a 50 point cap, so most"
-        % (len(nodes), counts[MINOR], counts[NOTABLE], counts[KEYSTONE]),
-        "-- of the board stays permanently out of reach and what to give up is the whole choice. A keystone",
-        "-- sits %d points from the hub." % len(RINGS),
+        "-- The paragon board: a hub and six stat branches through three zones (Éveil, Ascension,",
+        "-- Transcendance), %d rings deep. %d nodes (%d minor, %d notable, %d keystone); the far edge sits"
+        % (len(RINGS) + sum(len(z["rings"]) for z in OUTER_ZONES), len(nodes), counts[MINOR],
+           counts[NOTABLE], counts[KEYSTONE]),
+        "-- %d points from the hub." % (len(RINGS) + sum(len(z["rings"]) for z in OUTER_ZONES)),
         "",
         "-- Schema lives here too, so this file never depends on another one having run first.",
         "CREATE TABLE IF NOT EXISTS `paragon_node` (",

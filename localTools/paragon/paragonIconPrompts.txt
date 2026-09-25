@@ -1,0 +1,445 @@
+PARAGON BOARD ICONS - prompts for the image generator
+=====================================================
+
+One prompt per icon. Save each result as a square PNG (1024x1024 is what the existing icons use) with
+exactly the file name given, in:
+    modules/mod-stat-growth/client-assets/source/icons/
+Then run:
+    python localTools/paragon/buildParagonIcons.py
+    python localTools/paragon/buildParagonTree.py
+The board uses a stock icon for any of these that is not there yet, so they can be done in any order.
+
+The icon is drawn inside a round socket, so keep the subject in the middle ~70% of the square.
+
+Tiers: Ascension icons are the middle zone, Transcendance the outer zone, Apotheosis the six final
+keystones - each should look clearly more powerful than the one before.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_BruteForce.png    (Force brute - +4% damage)
+
+A massive armoured fist smashing through a stone slab, shards flying. palette of molten orange, ember red and dark steel, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_DoubleStrike.png    (Double frappe - chance for a hit to deal double)
+
+Two greatswords crossing mid-swing with twin impact flashes. palette of molten orange, ember red and dark steel, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_CoupDeGrace.png    (Coup de grace - more damage to low health targets)
+
+A heavy executioner axe coming down in a single decisive arc of fire. palette of molten orange, ember red and dark steel, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PentUpWrath.png    (Colere contenue - +5% damage)
+
+A clenched gauntlet trembling with barely contained fire leaking between the fingers. palette of molten orange, ember red and dark steel, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Colossus.png    (Colosse - keystone: 15% chance for double damage)
+
+A towering armoured giant silhouette raising a colossal hammer against a burning sky. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_TitanicStrength.png    (Force titanesque - +8% damage)
+
+A titan's forearm of living bronze and magma veins lifting a boulder. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_TwinStrikes.png    (Frappes jumelles - 10% chance for double damage)
+
+Two blazing blades striking at the same instant, mirrored comet trails. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Executioner.png    (Executeur - +30% damage to targets under 35% health)
+
+A hooded executioner's glowing greataxe planted in cracked burning ground. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Shockwave.png    (Onde de choc - kills explode)
+
+A hammer striking the ground releasing a ring-shaped shockwave of fire and rock. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ApotheosisTitan.png    (Apotheose : Titan - 30% chance for a hit to deal 250%)
+
+A titan of molten metal and starlight swinging a planet-sized blade through the cosmos. palette of molten orange, ember red and dark steel, Apotheosis: the ultimate power of its path, a divine cosmic scene, blinding radiant core, crown-like halo of light, awe-inspiring and overwhelming. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_BloodyQuarry.png    (Curee sanglante - kills grant big attack and spell power)
+
+A hunting spear dripping crimson over a fallen beast, red mist rising. palette of deep crimson, blood red and black iron, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Bloodthirst.png    (Soif de sang - 3% leech)
+
+A fanged mouth of red energy drinking a stream of blood droplets. palette of deep crimson, blood red and black iron, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ExplodingCarcass.png    (Carcasse explosive - kills explode)
+
+A monster carcass bursting apart in a crimson and orange explosion. palette of deep crimson, blood red and black iron, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_MurderousDrive.png    (Elan meurtrier - +4% damage)
+
+A charging warrior blurred with red speed lines and a bloodied blade. palette of deep crimson, blood red and black iron, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Carnage.png    (Carnage - keystone: kills explode for 25% of max health)
+
+A battlefield of shattered corpses erupting in a chain of red explosions. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_SlaughterFrenzy.png    (Frenesie du massacre - kills grant huge attack and spell power)
+
+A berserker's eyes glowing red amid a whirlwind of blood and steel. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Feast.png    (Festin - 6% leech)
+
+A dark chalice overflowing with glowing red life essence. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ChainReaction.png    (Reaction en chaine - big kill explosions)
+
+A chain of three consecutive explosions linked by crimson lightning. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PredatorInstinct.png    (Instinct du predateur - +8% damage)
+
+The snarling head of a monstrous devilsaur with glowing red eyes. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ApotheosisCataclysm.png    (Apotheose : Cataclysme - kills explode for 75% of max health)
+
+A world cracking open, a crimson meteor storm raining on a burning battlefield. palette of deep crimson, blood red and black iron, Apotheosis: the ultimate power of its path, a divine cosmic scene, blinding radiant core, crown-like halo of light, awe-inspiring and overwhelming. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Counterattack.png    (Contre-attaque - chance to reflect damage)
+
+A curved dagger parrying a blow with a teal spark and turning it back. palette of teal, sea green and silver, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_NimbleBlades.png    (Lames agiles - chance for double damage)
+
+Two slim daggers spinning in the air leaving teal ribbon trails. palette of teal, sea green and silver, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PerfectDodge.png    (Esquive parfaite - -4% damage taken)
+
+A cloaked rogue silhouette sidestepping an arrow, afterimages in teal. palette of teal, sea green and silver, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_DeadlyPrecision.png    (Precision mortelle - +4% damage)
+
+A dagger tip aimed at a glowing weak point, target reticle of light. palette of teal, sea green and silver, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Thorns.png    (Epines - keystone: 35% chance to reflect 100%)
+
+A barrier of glowing green-teal thorny vines lashing outward. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Vengeance.png    (Vengeance - 30% chance to reflect 100%)
+
+A shattered shield reforming into blades that fly back at the attacker. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_BladeWhirl.png    (Tourbillon de lames - chance for double damage)
+
+A vortex of countless daggers spinning around a central point. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Elusive.png    (Insaisissable - -6% damage taken)
+
+A figure dissolving into teal smoke and prismatic shards as blades pass through. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Bloodletting.png    (Saignee - 4% leech)
+
+A slim blade drawing a thin ribbon of glowing life energy back to its wielder. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ApotheosisMirror.png    (Apotheose : Miroir - 50% chance to reflect 200%)
+
+A colossal crystal mirror reflecting a storm of blades back into the stars. palette of teal, sea green and silver, Apotheosis: the ultimate power of its path, a divine cosmic scene, blinding radiant core, crown-like halo of light, awe-inspiring and overwhelming. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Stoneskin.png    (Peau de pierre - -5% damage taken)
+
+An arm covered in interlocking plates of living stone, cracks glowing gold. palette of granite grey, earthen brown and warm gold, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Vigor.png    (Vigueur - +5% max health)
+
+A glowing heart of warm gold encased in a stone ribcage. palette of granite grey, earthen brown and warm gold, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_GraniteScales.png    (Ecailles de granit - chance for +25% armour)
+
+Overlapping granite dragon scales with golden edges. palette of granite grey, earthen brown and warm gold, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Sturdiness.png    (Robustesse - +4% max health)
+
+A massive oak root wrapped around a stone, unbreakable, warm golden light. palette of granite grey, earthen brown and warm gold, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Bastion.png    (Bastion - keystone: -12% damage taken)
+
+An immense stone fortress wall with a golden shield emblem, arrows shattering on it. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_AdamantiteSkin.png    (Peau d'adamantite - -8% damage taken)
+
+A gauntlet of dark adamantite metal gleaming with golden runes. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Colossal.png    (Colossal - +10% max health)
+
+A mountain-sized stone guardian rising from the earth. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_LastRampart.png    (Dernier rempart - big damage reduction under 40% health)
+
+A lone kneeling knight holding up a cracked golden tower shield against a wave of fire. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_EndlessEndurance.png    (Endurance infinie - +8% max health)
+
+An ouroboros of golden stone coiled around a beating heart of light. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ApotheosisImmortal.png    (Apotheose : Immortel - a lethal hit leaves you at 1 health, immune for 4 s)
+
+A warrior of stone and starlight standing unbroken as a spectral scythe shatters against a golden aura. palette of granite grey, earthen brown and warm gold, Apotheosis: the ultimate power of its path, a divine cosmic scene, blinding radiant core, crown-like halo of light, awe-inspiring and overwhelming. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArcanePotency.png    (Puissance arcanique - +4% damage)
+
+A floating violet crystal pulsing with arcane runes. palette of violet, arcane blue and white sparks, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Influx.png    (Afflux - chance for +20% damage)
+
+A torrent of arcane energy pouring into an open hand. palette of violet, arcane blue and white sparks, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Disintegration.png    (Desintegration - more damage to low health targets)
+
+A violet beam unravelling a target into floating fragments. palette of violet, arcane blue and white sparks, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Echo.png    (Echo - chance for double damage)
+
+A spell sigil duplicated into a second transparent echo. palette of violet, arcane blue and white sparks, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Overload.png    (Surcharge - keystone: chance for +35% damage)
+
+An arcane orb cracking open with violet lightning spilling out. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_AbsoluteMastery.png    (Maitrise absolue - +8% damage)
+
+A mage's hand conducting a complex rotating arcane astrolabe of runes. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArcaneStorm.png    (Tempete arcanique - chance for +40% damage)
+
+A swirling storm of violet lightning and arcane missiles over a tower. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Doublecast.png    (Double incantation - chance for double damage)
+
+Two identical fireballs of violet flame launched side by side. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Siphon.png    (Siphon - 4% leech)
+
+Violet threads of energy drawn from a target into a glowing crystal. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ApotheosisSingularity.png    (Apotheose : Singularite - 25% chance for a hit to deal 300%)
+
+A black hole of violet light devouring stars, arcane rings orbiting it. palette of violet, arcane blue and white sparks, Apotheosis: the ultimate power of its path, a divine cosmic scene, blinding radiant core, crown-like halo of light, awe-inspiring and overwhelming. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Remanence.png    (Remanence - 3% leech)
+
+A fading golden afterimage of a healing rune lingering in the air. palette of holy gold, pale blue and white light, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_FortifiedMind.png    (Esprit fortifie - +4% max health)
+
+A glowing brain-shaped rune protected by a shield of light. palette of holy gold, pale blue and white light, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Illumination.png    (Illumination - kills grant attack and spell power)
+
+An open tome radiating a beam of holy golden light. palette of holy gold, pale blue and white light, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ProtectiveAura.png    (Aura protectrice - -3% damage taken)
+
+A translucent golden dome of light with holy runes. palette of holy gold, pale blue and white light, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Clarity.png    (Clarte - keystone: 8% leech)
+
+A perfect crystal prism splitting a beam of white light into gold. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Communion.png    (Communion - 6% leech)
+
+Two hands of light meeting, a golden spark between them. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_SoulTranscendence.png    (Transcendance de l'ame - +8% max health)
+
+A radiant soul rising out of a body in a pillar of gold light. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Revelation.png    (Revelation - kills grant huge attack and spell power)
+
+An eye of pure golden light opening in the sky above clouds. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ForbiddenKnowledge.png    (Savoir interdit - +6% damage)
+
+A chained ancient book bursting open with blue and gold glyphs. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ApotheosisEternity.png    (Apotheose : Eternite - 20% leech)
+
+A celestial titan's face of starlight and gold, eternal, surrounded by orbiting constellations. palette of holy gold, pale blue and white light, Apotheosis: the ultimate power of its path, a divine cosmic scene, blinding radiant core, crown-like halo of light, awe-inspiring and overwhelming. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Crossroads.png    (Carrefour - bridge node, +3% max health)
+
+A glowing golden crossroads of two paths of light meeting under a star. palette of gold and pearl white, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_Confluence.png    (Confluence - bridge node, +5% damage)
+
+Two rivers of light, gold and pearl, flowing together into one radiant stream. palette of gold and pearl white, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_StrengthAscension.png    (Force (Ascension, minor) - plain stat node)
+
+An armoured fist of steel, simple and clean. palette of molten orange, ember red and dark steel, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_StrengthAscensionMajor.png    (Force (Ascension, major) - bigger plain stat node)
+
+An armoured fist of steel, ornate and more imposing, glowing brighter. palette of molten orange, ember red and dark steel, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_StrengthTranscendence.png    (Force (Transcendance, minor) - plain stat node)
+
+An armoured fist of steel, simple and clean. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_StrengthTranscendenceMajor.png    (Force (Transcendance, major) - bigger plain stat node)
+
+An armoured fist of steel, ornate and more imposing, glowing brighter. palette of molten orange, ember red and dark steel, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PowerAscension.png    (Puissance (Ascension, minor) - plain stat node)
+
+A spiked war gauntlet gripping a blade, simple and clean. palette of deep crimson, blood red and black iron, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PowerAscensionMajor.png    (Puissance (Ascension, major) - bigger plain stat node)
+
+A spiked war gauntlet gripping a blade, ornate and more imposing, glowing brighter. palette of deep crimson, blood red and black iron, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PowerTranscendence.png    (Puissance (Transcendance, minor) - plain stat node)
+
+A spiked war gauntlet gripping a blade, simple and clean. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_PowerTranscendenceMajor.png    (Puissance (Transcendance, major) - bigger plain stat node)
+
+A spiked war gauntlet gripping a blade, ornate and more imposing, glowing brighter. palette of deep crimson, blood red and black iron, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_AgilityAscension.png    (Agilite (Ascension, minor) - plain stat node)
+
+A curved dagger in motion, simple and clean. palette of teal, sea green and silver, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_AgilityAscensionMajor.png    (Agilite (Ascension, major) - bigger plain stat node)
+
+A curved dagger in motion, ornate and more imposing, glowing brighter. palette of teal, sea green and silver, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_AgilityTranscendence.png    (Agilite (Transcendance, minor) - plain stat node)
+
+A curved dagger in motion, simple and clean. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_AgilityTranscendenceMajor.png    (Agilite (Transcendance, major) - bigger plain stat node)
+
+A curved dagger in motion, ornate and more imposing, glowing brighter. palette of teal, sea green and silver, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArmorAscension.png    (Carapace (Ascension, minor) - plain stat node)
+
+A heavy stone and gold breastplate, simple and clean. palette of granite grey, earthen brown and warm gold, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArmorAscensionMajor.png    (Carapace (Ascension, major) - bigger plain stat node)
+
+A heavy stone and gold breastplate, ornate and more imposing, glowing brighter. palette of granite grey, earthen brown and warm gold, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArmorTranscendence.png    (Carapace (Transcendance, minor) - plain stat node)
+
+A heavy stone and gold breastplate, simple and clean. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArmorTranscendenceMajor.png    (Carapace (Transcendance, major) - bigger plain stat node)
+
+A heavy stone and gold breastplate, ornate and more imposing, glowing brighter. palette of granite grey, earthen brown and warm gold, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArcaneAscension.png    (Arcanes (Ascension, minor) - plain stat node)
+
+An arcane rune crystal, simple and clean. palette of violet, arcane blue and white sparks, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArcaneAscensionMajor.png    (Arcanes (Ascension, major) - bigger plain stat node)
+
+An arcane rune crystal, ornate and more imposing, glowing brighter. palette of violet, arcane blue and white sparks, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArcaneTranscendence.png    (Arcanes (Transcendance, minor) - plain stat node)
+
+An arcane rune crystal, simple and clean. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_ArcaneTranscendenceMajor.png    (Arcanes (Transcendance, major) - bigger plain stat node)
+
+An arcane rune crystal, ornate and more imposing, glowing brighter. palette of violet, arcane blue and white sparks, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_IntellectAscension.png    (Intellect (Ascension, minor) - plain stat node)
+
+A glowing eye rune of holy light, simple and clean. palette of holy gold, pale blue and white light, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_IntellectAscensionMajor.png    (Intellect (Ascension, major) - bigger plain stat node)
+
+A glowing eye rune of holy light, ornate and more imposing, glowing brighter. palette of holy gold, pale blue and white light, Ascension tier: gilded and brighter than a normal icon, faint golden runes in the air. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_IntellectTranscendence.png    (Intellect (Transcendance, minor) - plain stat node)
+
+A glowing eye rune of holy light, simple and clean. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
+
+----------------------------------------------------------------------------------------------------
+ParagonNode_IntellectTranscendenceMajor.png    (Intellect (Transcendance, major) - bigger plain stat node)
+
+A glowing eye rune of holy light, ornate and more imposing, glowing brighter. palette of holy gold, pale blue and white light, Transcendance tier: mythic, celestial and otherworldly, cosmic starfield and radiant light bleeding from the subject, the most powerful icon in the set. Square World of Warcraft Wrath of the Lich King style spell icon, hand-painted digital painting, bold readable silhouette centred in the frame, dramatic rim lighting, rich saturated colours, dark vignetted painterly background, no text, no letters, no border, no frame, no UI, fills the whole square, 1024x1024.
