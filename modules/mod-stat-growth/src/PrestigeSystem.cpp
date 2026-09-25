@@ -11,6 +11,7 @@
 #include "ParagonSystem.h"
 #include "PersonalLootSystem.h"
 #include "Player.h"
+#include "PrestigeShop.h"
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
 #include "SharedDefines.h"
@@ -352,6 +353,8 @@ public:
 void SendPrestigeWindow(Player* player)
 {
     SendState(player);
+    SendPrestigeShards(player);
+    SendPrestigeShop(player);
 }
 
 void HandlePrestigeAddonMessage(Player* player, uint32 language, std::string const& message)
@@ -367,9 +370,12 @@ void HandlePrestigeAddonMessage(Player* player, uint32 language, std::string con
 
     if (body == "OPEN")
     {
-        SendState(player);
+        SendPrestigeWindow(player);
         return;
     }
+
+    if (HandlePrestigeShopMessage(player, body))
+        return;
 
     if (body != "PRESTIGE")
         return;
@@ -389,4 +395,5 @@ void AddPrestigeScripts()
 {
     new npc_stat_growth_prestige_keeper();
     new PrestigePlayerScript();
+    AddPrestigeShopScripts();
 }
