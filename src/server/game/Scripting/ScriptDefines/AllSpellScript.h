@@ -37,6 +37,7 @@ enum AllSpellHook
     ALLSPELLHOOK_ON_CAST_CANCEL,
     ALLSPELLHOOK_ON_CAST,
     ALLSPELLHOOK_ON_PREPARE,
+    ALLSPELLHOOK_ON_CAST_TIME,
     ALLSPELLHOOK_END
 };
 
@@ -103,6 +104,9 @@ public:
     virtual void OnSpellCast(Spell* /*spell*/, Unit* /*caster*/, SpellInfo const* /*spellInfo*/, bool /*skipCheck*/) { }
 
     virtual void OnSpellPrepare(Spell* /*spell*/, Unit* /*caster*/, SpellInfo const* /*spellInfo*/) { }
+
+    // The cast time of a spell being prepared (not one cast directly by a trigger), which a script may change
+    virtual void OnSpellCastTime(Spell* /*spell*/, Unit* /*caster*/, SpellInfo const* /*spellInfo*/, int32& /*castTime*/) { }
 };
 
 // Compatibility for old scripts

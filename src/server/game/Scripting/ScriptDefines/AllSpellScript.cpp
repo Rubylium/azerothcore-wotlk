@@ -84,6 +84,11 @@ void ScriptMgr::OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* spellIn
     CALL_ENABLED_HOOKS(AllSpellScript, ALLSPELLHOOK_ON_CAST, script->OnSpellCast(spell, caster, spellInfo, skipCheck));
 }
 
+void ScriptMgr::OnSpellCastTime(Spell* spell, Unit* caster, SpellInfo const* spellInfo, int32& castTime)
+{
+    CALL_ENABLED_HOOKS(AllSpellScript, ALLSPELLHOOK_ON_CAST_TIME, script->OnSpellCastTime(spell, caster, spellInfo, castTime));
+}
+
 void ScriptMgr::OnSpellPrepare(Spell* spell, Unit* caster, SpellInfo const* spellInfo)
 {
     CALL_ENABLED_HOOKS(AllSpellScript, ALLSPELLHOOK_ON_PREPARE, script->OnSpellPrepare(spell, caster, spellInfo));
