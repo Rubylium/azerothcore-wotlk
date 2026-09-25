@@ -1240,80 +1240,44 @@ local function handle(message)
 end
 
 --------------------------------------------------------------------------------
--- Level-up toast
+-- Level-up alert
 --------------------------------------------------------------------------------
 
--- A paragon level is announced on screen, board open or not: in the challenge board's materials, a card that
--- eases down from the top, holds, and fades.
-local toast
+-- A paragon level is announced the way the game announces an achievement: the stock achievement alert (FrameXML
+-- AlertFrames.xml), with its own art, glow, shine and fade, above the action bars. The header says what it is, the
+-- shield carries the point it pays, and a click opens the board.
+local ALERT_ICON = "Interface\\Icons\\ParagonNode_Awakening"
+local ALERT_FRENCH = GetLocale() == "frFR"
+local alert
+
+local function OpenBoardFromAlert()
+    SendAddonMessage(PREFIX, "OPEN", "WHISPER", UnitName("player"))
+end
+
 function ShowParagonLevelToast(level)
-    if not toast then
-        toast = CreateFrame("Frame", nil, UIParent)
-        toast:SetSize(320, 74)
-        toast:SetFrameStrata("HIGH")
-        toast:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 16,
-            insets = { left = 4, right = 4, top = 4, bottom = 4 },
-        })
-        toast:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
-        toast:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
-
-        local glow = toast:CreateTexture(nil, "BACKGROUND")
-        RetailUI.SetAtlas(glow, "ChallengeMode-SoftYellowGlow")
-        glow:SetBlendMode("ADD")
-        glow:SetPoint("CENTER")
-        glow:SetSize(420, 140)
-        glow:SetAlpha(0.5)
-
-        local icon = toast:CreateTexture(nil, "ARTWORK")
-        icon:SetTexture("Interface\\Icons\\ParagonNode_Awakening")
-        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        icon:SetSize(44, 44)
-        icon:SetPoint("LEFT", 16, 0)
-        local iconFrame = CreateFrame("Frame", nil, toast)
-        iconFrame:SetPoint("TOPLEFT", icon, "TOPLEFT", -4, 4)
-        iconFrame:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 4, -4)
-        iconFrame:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
-        iconFrame:SetBackdropBorderColor(0.85, 0.7, 0.4, 1)
-
-        toast.title = toast:CreateFontString(nil, "OVERLAY")
-        toast.title:SetFont(MORPHEUS, 22)
-        toast.title:SetShadowOffset(1, -1)
-        toast.title:SetTextColor(1, 0.86, 0.55)
-        toast.title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 14, 2)
-        toast.text = toast:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        toast.text:SetTextColor(0.85, 0.8, 0.7)
-        toast.text:SetPoint("TOPLEFT", toast.title, "BOTTOMLEFT", 0, -4)
-        toast.text:SetText("Un point de parangon à dépenser.")
-
-        toast:SetScript("OnUpdate", function(self, elapsed)
-            self.elapsed = self.elapsed + elapsed
-            local t = self.elapsed
-            local offset, alpha
-            if t < 0.35 then
-                local progress = 1 - (1 - t / 0.35) ^ 3          -- OutCubic, as the boards open
-                offset, alpha = 30 * (1 - progress), progress
-            elseif t < 4.35 then
-                offset, alpha = 0, 1
-            elseif t < 5.1 then
-                offset, alpha = 0, 1 - (t - 4.35) / 0.75
-            else
-                self:Hide()
-                return
-            end
-            self:ClearAllPoints()
-            self:SetPoint("TOP", UIParent, "TOP", 0, -150 + offset)
-            self:SetAlpha(alpha)
-        end)
+    if not alert then
+        alert = CreateFrame("Button", "ParagonLevelAlertFrame", UIParent, "AchievementAlertFrameTemplate")
+        alert:SetScript("OnClick", OpenBoardFromAlert)
+        alert:SetScript("OnHide", nil)
+        _G[alert:GetName() .. "IconTexture"]:SetTexture(ALERT_ICON)
+        _G[alert:GetName() .. "Unlocked"]:SetText(ALERT_FRENCH and "Niveau de parangon" or "Paragon level")
+        local shield = _G[alert:GetName() .. "Shield"]
+        shield.icon:SetTexture([[Interface\AchievementFrame\UI-Achievement-Shields]])
+        alert.points = _G[alert:GetName() .. "ShieldPoints"]
     end
 
-    toast.title:SetFormattedText("Niveau de parangon %d", level)
-    toast.elapsed = 0
-    toast:SetAlpha(0)
-    toast:Show()
-    PlaySound(SOUND_KEYSTONE)
+    -- Where an achievement alert would stand, above one already on show
+    alert:ClearAllPoints()
+    if AchievementAlertFrame1 and AchievementAlertFrame1:IsShown() then
+        alert:SetPoint("BOTTOM", AchievementAlertFrame1, "TOP", 0, -10)
+    else
+        alert:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 128)
+    end
+
+    _G[alert:GetName() .. "Name"]:SetText(format(ALERT_FRENCH and "Niveau %d atteint" or "Level %d reached", level))
+    alert.points:SetText("+1")
+    AlertFrame_AnimateIn(alert)
+    PlaySound("LEVELUPSOUND")
 end
 
 local listener = CreateFrame("Frame")
