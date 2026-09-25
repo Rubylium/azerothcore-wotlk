@@ -47,7 +47,13 @@ namespace GroundIndicators
 
     // Whether unit stands in an area it should leave: in one of the red areas around it, or carrying one next to
     // another player. If so, escape is the nearest spot where it would not.
-    bool FindEscape(Unit* unit, Position& escape);
+    //
+    // A tank holds its ground against a trash creature's circle around itself while that creature is attacking the
+    // tank: the creature follows it out, so stepping away only drags the pack and brings the next circle along, and
+    // a hall of casters doing it in turn chased a tank to its death. The melee around it step out instead. A tank
+    // carrying a circle does not run from the group either; the group leaves it. Bosses' circles, and every area
+    // laid elsewhere, a tank still dodges.
+    bool FindEscape(Unit* unit, Position& escape, bool tank = false);
 }
 
 void AddGroundIndicatorScripts();

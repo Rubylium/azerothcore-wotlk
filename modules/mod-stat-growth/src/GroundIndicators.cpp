@@ -115,6 +115,7 @@ struct ActiveArea
     uint64 id = 0;
     uint32 mapId = 0;
     uint32 instanceId = 0;
+    ObjectGuid owner;           // the creature whose ability it is
     ObjectGuid carrier;
     float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
     GroundIndicators::Area area;
@@ -139,6 +140,7 @@ uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, 
     active.mapId = owner->GetMapId();
     active.instanceId = owner->GetInstanceId();
     active.carrier = carrier ? carrier->GetGUID() : ObjectGuid::Empty;
+    active.owner = owner->GetGUID();
     active.area = area;
     active.endMs = NowMs() + durationMs;
 
@@ -562,6 +564,23 @@ struct Candidate
     float cost = 0.0f;
 };
 
+// Whether a tank stands its ground in this area: a circle around a trash creature that is attacking it. See
+// FindEscape in GroundIndicators.h.
+bool HeldByTank(Unit* tank, ActiveArea const& entry)
+{
+    // Laid at its feet, or carried by the creature itself (a damaging aura around it)
+    if (entry.area.kind != GroundIndicators::Area::Kind::Circle ||
+        (!entry.carrier.IsEmpty() && entry.carrier != entry.owner))
+        return false;
+
+    Creature* owner = ObjectAccessor::GetCreature(*tank, entry.owner);
+    if (!owner || !owner->IsAlive() || owner->GetVictim() != tank || owner->IsDungeonBoss() || owner->isWorldBoss())
+        return false;
+
+    // Around the creature itself, not a spot it aimed at elsewhere
+    return entry.area.Contains(owner->GetPosition(), 0.0f);
+}
+
 bool InAnyArea(std::vector<ActiveArea> const& areas, Position const& point, ObjectGuid ignoredCarrier, float margin)
 {
     for (ActiveArea const& entry : areas)
@@ -689,20 +708,25 @@ Area CurrentArea(Unit* carrier, Area const& area)
     return current;
 }
 
-bool FindEscape(Unit* unit, Position& escape)
+bool FindEscape(Unit* unit, Position& escape, bool tank)
 {
     if (!unit || !unit->IsInWorld() || !unit->IsAlive())
         return false;
 
-    std::vector<ActiveArea> const areas = AreasAround(unit);
+    std::vector<ActiveArea> areas = AreasAround(unit);
+    if (tank)
+        areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
+            { return HeldByTank(unit, entry); }), areas.end());
     if (areas.empty())
         return false;
 
-    // A circle this unit carries: it is the others who must not be in it
+    // A circle this unit carries: it is the others who must not be in it. A tank does not run from its group
+    // with one; they step away from it.
     float carried = 0.0f;
-    for (ActiveArea const& entry : areas)
-        if (entry.carrier == unit->GetGUID())
-            carried = std::max(carried, entry.area.radius);
+    if (!tank)
+        for (ActiveArea const& entry : areas)
+            if (entry.carrier == unit->GetGUID())
+                carried = std::max(carried, entry.area.radius);
 
     Position const here = unit->GetPosition();
     bool const inside = InAnyArea(areas, here, unit->GetGUID(), InsideMargin);
