@@ -463,11 +463,66 @@ float HarmfulRadiusAround(SpellInfo const* spellInfo, Unit* caster)
     return radius;
 }
 
+// In a mythic dungeon an instant ability that hurts everyone in an area gets this long a cast, so it can be drawn
+// before it lands (the retail Mythic+ way): without it, about half of the pool's dangerous abilities - Whirlwind, War
+// Stomp, Frost Nova, the breaths - came with no warning at all
+constexpr int32 MythicWindUpMs = 1000;
+
+// Whether a spell does something worth stepping out of: damage, a knockback, a loss of control, damage over time.
+// A shout that only lowers attack power is not.
+bool IsDangerous(SpellInfo const* spellInfo)
+{
+    for (uint8 effIndex = 0; effIndex < MAX_SPELL_EFFECTS; ++effIndex)
+    {
+        SpellEffectInfo const& effect = spellInfo->Effects[effIndex];
+        switch (effect.Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_HEALTH_LEECH:
+            case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
+            case SPELL_EFFECT_WEAPON_DAMAGE:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+            case SPELL_EFFECT_KNOCK_BACK:
+            case SPELL_EFFECT_KNOCK_BACK_DEST:
+                return true;
+            default:
+                break;
+        }
+
+        switch (effect.ApplyAuraName)
+        {
+            case SPELL_AURA_PERIODIC_DAMAGE:
+            case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
+            case SPELL_AURA_MOD_CONFUSE:
+            case SPELL_AURA_MOD_FEAR:
+            case SPELL_AURA_MOD_STUN:
+            case SPELL_AURA_MOD_ROOT:
+            case SPELL_AURA_MOD_SILENCE:
+                return true;
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
 class GroundIndicatorSpellScript : public AllSpellScript
 {
 public:
     GroundIndicatorSpellScript() : AllSpellScript("GroundIndicatorSpellScript",
-        { ALLSPELLHOOK_ON_PREPARE, ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_CAST_CANCEL }) { }
+        { ALLSPELLHOOK_ON_PREPARE, ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_CAST_CANCEL, ALLSPELLHOOK_ON_CAST_TIME }) { }
+
+    void OnSpellCastTime(Spell* spell, Unit* caster, SpellInfo const* spellInfo, int32& castTime) override
+    {
+        if (castTime > 0 || spellInfo->IsChanneled() || spell->IsTriggered() || !ShouldShow(caster) ||
+            !caster->GetMap()->IsMythic() || !caster->IsInCombat() || !IsDangerous(spellInfo))
+            return;
+
+        SpellArea area;
+        if (FindArea(spell, caster, area))
+            castTime = MythicWindUpMs;
+    }
 
     void OnSpellPrepare(Spell* spell, Unit* caster, SpellInfo const* /*spellInfo*/) override
     {
