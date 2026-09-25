@@ -1244,6 +1244,34 @@ foreach ($entry in (Get-Content -LiteralPath $effectMappingPath -Raw | ConvertFr
     $blueEffectIds[[uint32]$entry.Name] = [uint32]$effectNameDbc.MaxId
 }
 
+# --- The red ground indicators of enemy abilities (localTools\groundIndicators) ---
+#
+# One spell per shape: a hidden, never-ending dummy aura (cloned from Beam Target State, 62898) whose state kit
+# plays the shape's model at its owner's feet. The server puts it on an invisible stalker scaled to the ability's
+# size (modules/mod-stat-growth/src/GroundIndicators.cpp). The effect record copies the stock ground ring's (5240:
+# scale 1), the kit the one that ring's aura plays (12338) with nothing else in it.
+$indicatorConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\groundIndicators\shapes.json') -Raw | ConvertFrom-Json
+foreach ($shape in $indicatorConfig.shapes) {
+    $record = [byte[]]::new($effectNameDbc.RecordSize)
+    [Array]::Copy($effectNameDbc.Data, $effectNameDbc.Offsets[5240], $record, 0, $effectNameDbc.RecordSize)
+    $effectNameDbc.MaxId = $effectNameDbc.MaxId + 1
+    Set-Field $record 0 ([uint32]$effectNameDbc.MaxId)
+    Set-Field $record 1 (Add-DbcString $effectNameDbc.Strings "Evolutions Indicator $($shape.key)")
+    Set-Field $record 2 (Add-DbcString $effectNameDbc.Strings "Spells\Evolutions\GI_$($shape.key).mdx")
+    $effectNameDbc.NewRecords.AddRange($record)
+
+    $kitFields = @{ 15 = 0; 16 = 0 }
+    foreach ($field in $EffectFields) { $kitFields[$field] = 0 }
+    $kitFields[5] = [uint32]$effectNameDbc.MaxId
+    $customVisualKits += @{ Key = "GI_$($shape.key)"; Clone = 12338; Fields = $kitFields }
+    # A carried circle is an aura on the player carrying it: its buff tells them what to do
+    $description = if ($shape.carried) { 'Vous portez une zone de danger : éloignez-vous des autres joueurs.' }
+        else { 'Ne restez pas dans la zone rouge.' }
+    $customSpells += @{ Id = [int]$shape.spell; Clone = 62898; Name = 'Zone de danger'; Cost = 0; Cooldown = 0; Level = 0
+        Spellbook = $false; Description = $description; AuraDescription = $description
+        Visual = @{ Clone = 13273; State = "GI_$($shape.key)" } }
+}
+
 $kitIdsByKey = @{}
 foreach ($kit in $customVisualKits) {
     $fields = @{}

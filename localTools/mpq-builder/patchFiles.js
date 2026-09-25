@@ -85,6 +85,12 @@ function getPatchFiles(repoRoot) {
         addOathbladeEffects(oathbladeEffectRoot);
     }
 
+    // The red ground indicators of enemy abilities (localTools/groundIndicators/buildGroundIndicators.py)
+    const indicatorRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'indicators');
+    for (const name of fs.readdirSync(indicatorRoot).sort()) {
+        files.push({ source: path.join(indicatorRoot, name), archive: `Spells\\Evolutions\\${name}` });
+    }
+
     return files;
 }
 

@@ -7,6 +7,7 @@
 #include "ExperienceBoostSystem.h"
 #include "FortuneBoostSystem.h"
 #include "GladiatorStanceSystem.h"
+#include "GroundIndicators.h"
 #include "MythicDungeonSystem.h"
 #include "MythicItemGeneration.h"
 #include "PersonalLootSystem.h"
@@ -567,6 +568,7 @@ void AddStatGrowthScripts()
     AddPrestigeScripts();
     AddDungeonFinderLockScripts();
     AddMythicDungeonScripts();
+    AddGroundIndicatorScripts();
     AddMythicItemGenerationScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
