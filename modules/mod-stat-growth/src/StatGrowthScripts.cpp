@@ -574,6 +574,7 @@ void AddStatGrowthScripts()
     AddGroundIndicatorScripts();
     AddExperienceRateCommand();
     AddOnyxiaReworkScripts();
+    AddBronjahmReworkScripts();
     AddMythicItemGenerationScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();

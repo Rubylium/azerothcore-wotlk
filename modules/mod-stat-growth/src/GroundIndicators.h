@@ -59,5 +59,6 @@ namespace GroundIndicators
 void AddGroundIndicatorScripts();
 // OnyxiaRework.cpp: Onyxia's fight rebuilt on the indicators
 void AddOnyxiaReworkScripts();
+void AddBronjahmReworkScripts();
 
 #endif
