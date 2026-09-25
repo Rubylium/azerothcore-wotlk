@@ -45,6 +45,8 @@ enum UnitHook
     UNITHOOK_ON_UNIT_EXIT_COMBAT,
     UNITHOOK_ON_UNIT_DEATH,
     UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM,
+    UNITHOOK_MODIFY_SPELL_CRIT_CHANCE,
+    UNITHOOK_ON_SPELL_DAMAGE_DONE,
     UNITHOOK_END
 };
 
@@ -84,6 +86,13 @@ public:
     virtual void ModifyFinalDamage(Unit* /*attacker*/, Unit* /*victim*/, uint32& /*damage*/, uint32& /*absorb*/, SpellInfo const* /*spellInfo*/) { }
 
     virtual uint32 DealDamage(Unit* /*AttackerUnit*/, Unit* /*pVictim*/, uint32 damage, DamageEffectType /*damagetype*/) { return damage; }
+
+    // Called once a spell's chance to critically strike victim is known (the caster's and the victim's parts), before
+    // it is rolled. A class's talents can force or deny a crit against some targets.
+    virtual void ModifySpellCritChance(Unit const* /*caster*/, Unit const* /*victim*/, SpellInfo const* /*spellInfo*/, float& /*critChance*/) { }
+
+    // Called after a spell's direct damage has been dealt, with whether it was a critical strike
+    virtual void OnSpellDamageDone(Unit* /*caster*/, Unit* /*victim*/, SpellInfo const* /*spellInfo*/, uint32 /*damage*/, bool /*critical*/) { }
 
     virtual void OnBeforeRollMeleeOutcomeAgainst(Unit const* /*attacker*/, Unit const* /*victim*/, WeaponAttackType /*attType*/, int32& /*attackerMaxSkillValueForLevel*/, int32& /*victimMaxSkillValueForLevel*/, int32& /*attackerWeaponSkill*/, int32& /*victimDefenseSkill*/, int32& /*crit_chance*/, int32& /*miss_chance*/, int32& /*dodge_chance*/, int32& /*parry_chance*/, int32& /*block_chance*/ ) {   };
 

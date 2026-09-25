@@ -49,6 +49,16 @@ void ScriptMgr::ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, Spe
     CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_MODIFY_HEAL_RECEIVED, script->ModifyHealReceived(target, healer, heal, spellInfo));
 }
 
+void ScriptMgr::ModifySpellCritChance(Unit const* caster, Unit const* victim, SpellInfo const* spellInfo, float& critChance)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_MODIFY_SPELL_CRIT_CHANCE, script->ModifySpellCritChance(caster, victim, spellInfo, critChance));
+}
+
+void ScriptMgr::OnSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage, bool critical)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_SPELL_DAMAGE_DONE, script->OnSpellDamageDone(caster, victim, spellInfo, damage, critical));
+}
+
 void ScriptMgr::ModifyFinalDamage(Unit* attacker, Unit* victim, uint32& damage, uint32& absorb, SpellInfo const* spellInfo)
 {
     CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_MODIFY_FINAL_DAMAGE, script->ModifyFinalDamage(attacker, victim, damage, absorb, spellInfo));

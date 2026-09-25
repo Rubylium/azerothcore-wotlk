@@ -2894,6 +2894,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
             procVictim |= PROC_FLAG_TAKEN_DAMAGE;
 
             caster->DealSpellDamage(&damageInfo, true, this);
+            sScriptMgr->OnSpellDamageDone(caster, damageInfo.target, m_spellInfo, damageInfo.damage,
+                (damageInfo.HitInfo & SPELL_HIT_TYPE_CRIT) != 0);
 
             // do procs after damage, eg healing effects
             // no need to check if target is alive, done in procdamageandspell
