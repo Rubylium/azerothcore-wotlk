@@ -575,6 +575,7 @@ void AddStatGrowthScripts()
     AddExperienceRateCommand();
     AddOnyxiaReworkScripts();
     AddBronjahmReworkScripts();
+    AddDevourerReworkScripts();
     AddMythicItemGenerationScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
