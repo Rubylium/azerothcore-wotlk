@@ -860,9 +860,11 @@ public:
             IsPlayerControlled(creature) || !InIndicatorMap(creature))
             return;
 
-        // A hazard of the players' foes: its own faction, or whoever put the aura on it (a boss arming a trigger)
+        // A hazard of the players' foes: its own, or put on it by one of them (a boss arming a trigger). Never an aura
+        // the players put there: a shadow priest's Mind Sear sits on the mob it is channelled on and pulses around it,
+        // which read as a danger to the players and followed the mob about while the tank ran from it.
         Unit* caster = aura->GetCaster();
-        if (!creature->IsHostileToPlayers() && !(caster && caster->IsHostileToPlayers()))
+        if (!caster || !ShouldShow(caster))
             return;
 
         CreatureHazards* hazards = creature->CustomData.GetDefault<CreatureHazards>(HazardDataKey);
