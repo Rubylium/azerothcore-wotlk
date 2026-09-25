@@ -15,6 +15,8 @@
 #include "GridNotifiersImpl.h"
 #include "Random.h"
 #include "SharedDefines.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "StatGrowthConfig.h"
 #include "StatGrowthSystem.h"
 #include "StringFormat.h"
@@ -70,6 +72,21 @@ constexpr uint32 MaxLeechPct = 50;
 constexpr uint32 ParagonXpBase = 150000;
 constexpr uint32 ParagonXpPerLevel = 7500;
 
+// The procs' own spells (localTools/patchSinisterStrike.ps1). The damage and heal ones are never cast: they name
+// what the board deals or heals, so it reaches the combat log, floating text and meters such as Details. The buffs
+// mark what is running, with the proc's duration; the effect itself is computed here.
+constexpr uint32 SPELL_PARAGON_EXPLOSION = 90650;
+constexpr uint32 SPELL_PARAGON_RETALIATE = 90651;
+constexpr uint32 SPELL_PARAGON_DOUBLE_STRIKE = 90652;
+constexpr uint32 SPELL_PARAGON_EXECUTE = 90653;
+constexpr uint32 SPELL_PARAGON_LEECH = 90654;
+constexpr uint32 SPELL_PARAGON_FURY = 90655;
+constexpr uint32 SPELL_PARAGON_SURGE = 90656;
+constexpr uint32 SPELL_PARAGON_GUARD = 90657;
+constexpr uint32 SPELL_PARAGON_LAST_STAND = 90658;
+constexpr uint32 SPELL_PARAGON_UNDYING = 90659;
+constexpr uint32 SPELL_PARAGON_UNDYING_SPENT = 90660;
+
 // Stock SpellVisualKit ids, played where the effect happens so it is seen and not only read in the log
 constexpr uint32 VisualExplosion = 984;     // Blast Wave's ring of fire
 constexpr uint32 VisualUndying = 417;       // Divine Shield's flash
@@ -86,6 +103,7 @@ struct ParagonNode
     uint32 duration = 0;        // milliseconds
     uint32 cooldown = 0;        // milliseconds
     bool free = false;
+    uint32 required = 0;        // points already spent on the board before this one can be taken
 };
 
 // A proc a character currently owns, lifted out of the board so a damage event does not have to walk every
@@ -134,7 +152,74 @@ struct ParagonState : public DataMap::Base
 
     uint32 level = 0;                       // paragon level: experience earned at the level cap
     uint32 experience = 0;                  // towards the next level
+
+    // Damage the procs owe, dealt on the character's next update rather than from inside the hit or the death that
+    // set them off: dealing damage from within the damage hook, or from a kill, can kill a unit the core is still in
+    // the middle of handling
+    struct PendingHit
+    {
+        ObjectGuid target;
+        uint32 spellId = 0;
+        uint32 amount = 0;
+        SpellSchoolMask school = SPELL_SCHOOL_MASK_NORMAL;
+    };
+    std::vector<PendingHit> pending;
 };
+
+// Set while the board deals its own damage, so that damage is neither boosted by the board nor sets off more procs,
+// and a kill it makes does not explode again: one pull of trash would otherwise chain through the instance.
+// Per thread, because maps update on several.
+thread_local bool DealingProcDamage = false;
+
+void QueueHit(ParagonState* state, Unit* target, uint32 spellId, uint64 amount, SpellSchoolMask school)
+{
+    if (!target || !amount)
+        return;
+    state->pending.push_back({ target->GetGUID(), spellId,
+        static_cast<uint32>(std::min<uint64>(amount, std::numeric_limits<uint32>::max())), school });
+}
+
+// Damage under one of the board's own spells: logged as that spell, so it can be read and counted
+void DealProcDamage(Player* player, Unit* target, uint32 spellId, uint32 amount, SpellSchoolMask school)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+    if (!spellInfo)
+    {
+        Unit::DealDamage(player, target, amount, nullptr, SPELL_DIRECT_DAMAGE, school, nullptr, false);
+        return;
+    }
+
+    SpellNonMeleeDamage log(player, target, spellInfo, school);
+    log.damage = amount;
+    Unit::DealDamageMods(target, log.damage, &log.absorb);
+    player->SendSpellNonMeleeDamageLog(&log);
+    player->DealSpellDamage(&log, false);
+}
+
+// A buff marker for a running proc, lasting as long as the proc does
+void ShowBuff(Player* player, uint32 spellId, uint32 durationMs)
+{
+    if (!durationMs)
+        return;
+    if (Aura* aura = player->AddAura(spellId, player))
+    {
+        aura->SetMaxDuration(static_cast<int32>(durationMs));
+        aura->SetDuration(static_cast<int32>(durationMs));
+    }
+}
+
+uint32 BuffSpell(ParagonEffect effect)
+{
+    switch (effect)
+    {
+        case ParagonEffect::FuryOnHit: return SPELL_PARAGON_FURY;
+        case ParagonEffect::SurgeOnKill: return SPELL_PARAGON_SURGE;
+        case ParagonEffect::GuardOnHit: return SPELL_PARAGON_GUARD;
+        case ParagonEffect::LastStand: return SPELL_PARAGON_LAST_STAND;
+        case ParagonEffect::Undying: return SPELL_PARAGON_UNDYING;
+        default: return 0;
+    }
+}
 
 uint32 ExperienceForLevel(uint32 level)
 {
@@ -341,6 +426,8 @@ void StartBuff(Player* player, ParagonState* state, ParagonProc const& proc, std
     }
 
     state->buffs.push_back(buff);
+    if (uint32 const marker = BuffSpell(proc.effect))
+        ShowBuff(player, marker, proc.duration);
 
     if (!announce.empty())
         ChatHandler(player->GetSession()).PSendSysMessage("|cffa335ee%s|r", std::string(announce).c_str());
@@ -368,9 +455,19 @@ void ExpireBuffs(Player* player, ParagonState* state)
 void ClearBuffs(Player* player, ParagonState* state)
 {
     for (ParagonBuff const& buff : state->buffs)
+    {
         if (buff.effect == ParagonEffect::GuardOnHit)
             ApplyArmor(player, buff.applied, false);
+        else if (buff.effect == ParagonEffect::SurgeOnKill)
+        {
+            ApplyPermanentStat(player, PermanentStat::AttackPower, static_cast<uint32>(buff.applied), false);
+            ApplyPermanentStat(player, PermanentStat::SpellPower, static_cast<uint32>(buff.applied), false);
+        }
+        if (uint32 const marker = BuffSpell(buff.effect))
+            player->RemoveAurasDueToSpell(marker);
+    }
     state->buffs.clear();
+    state->pending.clear();
 }
 
 void SaveEarned(Player* player, ParagonState const* state)
@@ -501,7 +598,7 @@ void LoadParagonBoard()
     BoardSignature = 0;
 
     QueryResult nodes = WorldDatabase.Query(
-        "SELECT id, type, effect, stat, value, value2, chance, duration, cooldown, free FROM paragon_node");
+        "SELECT id, type, effect, stat, value, value2, chance, duration, cooldown, free, required FROM paragon_node");
     if (!nodes)
     {
         LOG_INFO("server.loading", ">> Paragon board is empty (run localTools/paragon/buildParagonTree.py)");
@@ -522,6 +619,7 @@ void LoadParagonBoard()
         node.duration = field[7].Get<uint32>();
         node.cooldown = field[8].Get<uint32>();
         node.free = field[9].Get<uint8>() != 0;
+        node.required = field[10].Get<uint16>();
         if (node.effect >= static_cast<uint8>(ParagonEffect::Count))
         {
             LOG_ERROR("sql.sql", "paragon_node {} has effect {}, which does not exist", node.id, node.effect);
@@ -530,7 +628,7 @@ void LoadParagonBoard()
         Board[node.id] = node;
 
         // Cheap order-independent signature, matched against the client's copy of the board
-        BoardSignature += node.id * 31 + node.value * 7 + node.stat + node.effect * 3;
+        BoardSignature += node.id * 31 + node.value * 7 + node.stat + node.effect * 3 + node.required * 5;
     } while (nodes->NextRow());
 
     uint32 links = 0;
@@ -808,6 +906,15 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
         return;
     }
 
+    // The far board is reached by building a character, not by a straight run from the hub
+    if (SpentPoints(state) < entry->second.required)
+    {
+        Send(player, std::string("ERROR\t") + Acore::StringFormat(french
+            ? "Ce noeud demande {} points déjà dépensés sur le tableau." : "This node needs {} points already spent.",
+            entry->second.required));
+        return;
+    }
+
     if (!IsReachable(state, nodeId))
     {
         Send(player, std::string("ERROR\t") + (french ? "Ce noeud n'est pas accessible."
@@ -854,6 +961,7 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
 
     uint32 const now = GameTime::GetGameTimeMS().count();
     bool const french = IsFrench(player);
+    (void)french;
 
     // While Undying holds, nothing lands at all
     if (HasBuff(state, ParagonEffect::Undying))
@@ -878,16 +986,13 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
                 // Refreshing rather than stacking: a tank is hit constantly, and stacking would mean the
                 // armour never settles anywhere a healer could read.
                 if (!HasBuff(state, ParagonEffect::GuardOnHit) && roll_chance_f(proc.chance))
-                    StartBuff(player, state, proc, french ? "Carapace : armure renforcée." : "");
+                    StartBuff(player, state, proc, "");
                 break;
 
             case ParagonEffect::RetaliateOnHit:
-                if (roll_chance_f(proc.chance) && attacker->IsAlive())
-                {
-                    uint32 const back = std::max<uint32>(1, damage * proc.value / 100);
-                    Unit::DealDamage(player, attacker, back, nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL,
-                        nullptr, false);
-                }
+                if (!DealingProcDamage && roll_chance_f(proc.chance) && attacker->IsAlive())
+                    QueueHit(state, attacker, SPELL_PARAGON_RETALIATE,
+                        std::max<uint64>(1, uint64(damage) * proc.value / 100), SPELL_SCHOOL_MASK_HOLY);
                 break;
 
             case ParagonEffect::LastStand:
@@ -906,8 +1011,7 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
                 buff.expiresAt = now + proc.duration;
                 buff.applied = static_cast<int32>(proc.value);
                 state->buffs.push_back(buff);
-                ChatHandler(player->GetSession()).PSendSysMessage(french
-                    ? "|cffa335eeDernier rempart !|r" : "|cffa335eeLast Stand!|r");
+                ShowBuff(player, SPELL_PARAGON_LAST_STAND, proc.duration);
                 break;
             }
 
@@ -925,8 +1029,8 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
                 buff.expiresAt = now + proc.duration;
                 state->buffs.push_back(buff);
                 player->SendPlaySpellVisual(VisualUndying);
-                ChatHandler(player->GetSession()).PSendSysMessage(french
-                    ? "|cffa335eeImmortel : la mort vous refuse.|r" : "|cffa335eeUndying: death refuses you.|r");
+                ShowBuff(player, SPELL_PARAGON_UNDYING, proc.duration);
+                ShowBuff(player, SPELL_PARAGON_UNDYING_SPENT, proc.cooldown);
                 break;
             }
 
@@ -939,7 +1043,7 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 {
     Player* player = attacker ? attacker->ToPlayer() : nullptr;
-    if (!player || !damage || !victim || attacker == victim)
+    if (!player || !damage || !victim || attacker == victim || DealingProcDamage)
         return;
 
     ParagonState* state = GetState(player);
@@ -970,20 +1074,27 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
                 buff.expiresAt = GameTime::GetGameTimeMS().count() + proc.duration;
                 buff.applied = static_cast<int32>(proc.value);
                 state->buffs.push_back(buff);
+                ShowBuff(player, SPELL_PARAGON_FURY, proc.duration);
                 break;
             }
-            case ParagonEffect::DoubleStrike:
-                if (roll_chance_f(proc.chance))
-                    dealt = dealt * (100 + proc.value) / 100;
-                break;
-            case ParagonEffect::Execute:
-                if (victim->GetHealthPct() < static_cast<float>(proc.value2))
-                    dealt = dealt * (100 + proc.value) / 100;
-                break;
             default:
                 break;
         }
     }
+
+    // The strikes that are their own hits: dealt a moment after this one, under their own name, so they can be seen
+    // and counted rather than folded silently into the hit that set them off
+    uint64 extra = 0;
+    uint64 finishing = 0;
+    for (ParagonProc const& proc : state->procs)
+    {
+        if (proc.effect == ParagonEffect::DoubleStrike && roll_chance_f(proc.chance))
+            extra += dealt * proc.value / 100;
+        else if (proc.effect == ParagonEffect::Execute && victim->GetHealthPct() < static_cast<float>(proc.value2))
+            finishing += dealt * proc.value / 100;
+    }
+    QueueHit(state, victim, SPELL_PARAGON_DOUBLE_STRIKE, extra, SPELL_SCHOOL_MASK_NORMAL);
+    QueueHit(state, victim, SPELL_PARAGON_EXECUTE, finishing, SPELL_SCHOOL_MASK_NORMAL);
 
     damage = static_cast<uint32>(std::min<uint64>(dealt, std::numeric_limits<uint32>::max()));
 
@@ -991,7 +1102,17 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     {
         uint64 const healed = uint64(damage) * std::min(state->leechPct, MaxLeechPct) / 100;
         if (healed)
-            player->ModifyHealth(static_cast<int32>(std::min<uint64>(healed, player->GetMaxHealth())));
+        {
+            // A spell heal, not a silent ModifyHealth, so it is logged and counted
+            uint32 const amount = static_cast<uint32>(std::min<uint64>(healed, player->GetMaxHealth()));
+            if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_PARAGON_LEECH))
+            {
+                HealInfo healInfo(player, player, amount, spellInfo, spellInfo->GetSchoolMask());
+                player->HealBySpell(healInfo);
+            }
+            else
+                player->ModifyHealth(static_cast<int32>(amount));
+        }
     }
 }
 
@@ -1004,12 +1125,10 @@ void OnParagonKill(Player* player, Unit* killed)
     if (!HasCombatEffects(state))
         return;
 
-    // The corpse goes up. Kills made by the blast itself do not blast again, or one pull of trash would chain
-    // through the whole instance in a single frame.
-    static bool exploding = false;
-    if (state->explosionPct && state->explosionRange && !exploding)
+    // The corpse goes up. A kill the blast itself made does not blast again (DealingProcDamage).
+    if (state->explosionPct && state->explosionRange && !DealingProcDamage)
     {
-        uint32 const blast = static_cast<uint32>(uint64(killed->GetMaxHealth()) * state->explosionPct / 100);
+        uint64 const blast = uint64(killed->GetMaxHealth()) * state->explosionPct / 100;
         float const range = static_cast<float>(state->explosionRange);
         std::list<Unit*> targets;
         Acore::AnyUnfriendlyUnitInObjectRangeCheck check(killed, player, range);
@@ -1017,12 +1136,9 @@ void OnParagonKill(Player* player, Unit* killed)
         Cell::VisitObjects(killed, searcher, range);
 
         killed->SendPlaySpellVisual(VisualExplosion);
-        exploding = true;
         for (Unit* target : targets)
-            if (blast && target != killed && target->IsAlive() && player->IsValidAttackTarget(target))
-                Unit::DealDamage(player, target, blast, nullptr, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_FIRE,
-                    nullptr, false);
-        exploding = false;
+            if (target != killed && target->IsAlive() && player->IsValidAttackTarget(target))
+                QueueHit(state, target, SPELL_PARAGON_EXPLOSION, blast, SPELL_SCHOOL_MASK_FIRE);
     }
 
     for (ParagonProc const& proc : state->procs)
@@ -1049,6 +1165,7 @@ void OnParagonKill(Player* player, Unit* killed)
         ApplyPermanentStat(player, PermanentStat::AttackPower, proc.value, true);
         ApplyPermanentStat(player, PermanentStat::SpellPower, proc.value, true);
         state->buffs.push_back(buff);
+        ShowBuff(player, SPELL_PARAGON_SURGE, proc.duration);
     }
 }
 
@@ -1101,7 +1218,23 @@ void AddParagonExperience(Player* player, uint32 amount)
 void UpdateParagonBuffs(Player* player)
 {
     ParagonState* state = GetState(player);
-    if (!state || state->buffs.empty())
+    if (!state)
+        return;
+
+    if (!state->pending.empty())
+    {
+        std::vector<ParagonState::PendingHit> hits;
+        hits.swap(state->pending);
+        DealingProcDamage = true;
+        for (ParagonState::PendingHit const& hit : hits)
+            if (Unit* target = ObjectAccessor::GetUnit(*player, hit.target);
+                target && target->IsAlive() && target->IsInWorld() && player->IsInMap(target) &&
+                player->IsValidAttackTarget(target))
+                DealProcDamage(player, target, hit.spellId, hit.amount, hit.school);
+        DealingProcDamage = false;
+    }
+
+    if (state->buffs.empty())
         return;
 
     uint32 const now = GameTime::GetGameTimeMS().count();
@@ -1120,6 +1253,8 @@ void UpdateParagonBuffs(Player* player)
             ApplyPermanentStat(player, PermanentStat::SpellPower,
                 static_cast<uint32>(buff.applied), false);
         }
+        if (uint32 const marker = BuffSpell(buff.effect))
+            player->RemoveAurasDueToSpell(marker);
 
         state->buffs.erase(state->buffs.begin() + (index - 1));
     }

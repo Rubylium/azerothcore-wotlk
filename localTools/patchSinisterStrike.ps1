@@ -365,6 +365,37 @@ $customSpells = @(
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_Dummy })
        # No duration: it lasts as long as the tank is in the dungeon, and the module takes it away on the way out
        Fields = @{ 40 = 21 } },
+    # The paragon board's procs (ParagonSystem.cpp), 90650-90669. The damage and heal ones are never cast: they name
+    # what the module deals or heals, so it shows in the combat log, floating text and meters such as Details. The
+    # buffs are markers of what is running, applied with the proc's own duration; the effect itself is the module's.
+    @{ Id = 90650; Clone = 2983; Name = 'Explosion de parangon'; Icon = 'ParagonNode_ExplodingCarcass'; FallbackIconSpell = 11113; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Le cadavre explose et blesse les ennemis proches.' },
+    @{ Id = 90651; Clone = 2983; Name = 'Représailles de parangon'; Icon = 'ParagonNode_Riposte'; FallbackIconSpell = 6572; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Renvoie une partie des dégâts subis à l''attaquant.' },
+    @{ Id = 90652; Clone = 2983; Name = 'Double frappe'; Icon = 'ParagonNode_DoubleStrike'; FallbackIconSpell = 1680; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Le coup frappe une seconde fois.' },
+    @{ Id = 90653; Clone = 2983; Name = 'Coup de grâce'; Icon = 'ParagonNode_Executioner'; FallbackIconSpell = 20647; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Dégâts supplémentaires contre une cible affaiblie.' },
+    @{ Id = 90654; Clone = 2983; Name = 'Vol de vie de parangon'; Icon = 'ParagonNode_Bloodthirst'; FallbackIconSpell = 689; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Rend une partie des dégâts infligés sous forme de points de vie.' },
+    @{ Id = 90655; Clone = 2983; CantCancel = $true; Name = 'Furie du parangon'; Icon = 'ParagonNode_Fury'; FallbackIconSpell = 12292; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Dégâts infligés augmentés.'; AuraDescription = 'Dégâts infligés augmentés.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90656; Clone = 2983; CantCancel = $true; Name = 'Élan du parangon'; Icon = 'ParagonNode_Momentum'; FallbackIconSpell = 33697; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Puissance d''attaque et des sorts augmentées.'; AuraDescription = 'Puissance d''attaque et des sorts augmentées.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90657; Clone = 2983; CantCancel = $true; Name = 'Écaille de pierre'; Icon = 'ParagonNode_Stonescale'; FallbackIconSpell = 71; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Armure augmentée.'; AuraDescription = 'Armure augmentée.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90658; Clone = 2983; CantCancel = $true; Name = 'Rempart du parangon'; Icon = 'ParagonNode_Bulwark'; FallbackIconSpell = 871; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Dégâts subis réduits.'; AuraDescription = 'Dégâts subis réduits.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90659; Clone = 2983; CantCancel = $true; Name = 'Immortel'; Icon = 'ParagonNode_ApotheosisImmortal'; FallbackIconSpell = 642; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'La mort vous refuse : aucun dégât ne vous atteint.'; AuraDescription = 'La mort vous refuse : aucun dégât ne vous atteint.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90660; Clone = 2983; CantCancel = $true; Name = 'Immortel épuisé'; Icon = 'ParagonNode_ApotheosisImmortal'; FallbackIconSpell = 25771; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Immortel ne peut pas se déclencher à nouveau pour l''instant.'; AuraDescription = 'Immortel ne peut pas se déclencher à nouveau pour l''instant.'
+       Fields = @{ 40 = 21 } },
     # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2.5 threat)
     @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = 'Menace générée augmentée.'
