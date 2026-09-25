@@ -569,6 +569,7 @@ void AddStatGrowthScripts()
     AddDungeonFinderLockScripts();
     AddMythicDungeonScripts();
     AddGroundIndicatorScripts();
+    AddOnyxiaReworkScripts();
     AddMythicItemGenerationScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
