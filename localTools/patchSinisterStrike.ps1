@@ -816,6 +816,14 @@ $necromancerSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTo
 $customSpells += & ([ScriptBlock]::Create($necromancerSpellSource))
 $oathbladeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\oathblade\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($oathbladeSpellSource))
+# The Mage on its retail-style talent trees (localTools/mage/talentTree.json): abilities, auras and talent ranks
+$mageSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\mage\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($mageSpellSource))
+
+# The Mage's reagents, gone: Arcane Powder (Arcane Brilliance, Dalaran Brilliance, Ritual of Refreshment), the Runes
+# of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class
+# already asks for none.
+$mageFreeReagents = @(17020, 17031, 17032, 17056)
 
 & python (Join-Path $repoRoot 'localTools\oathblade\buildSounds.py')
 if ($LASTEXITCODE -ne 0) { throw 'Oathblade sound compilation failed.' }
@@ -1439,6 +1447,14 @@ for ($index = 0; $index -lt $recordCount; ++$index) {
     }
     if ($fallbackIconSpells.Contains([int]$spellId)) {
         $iconIdsBySpell[[int]$spellId] = Read-Field $records $offset $F_SpellIconID
+    }
+    if ((Read-Field $records $offset 208) -eq 3) {
+        for ($slot = 0; $slot -lt 8; ++$slot) {
+            if ($mageFreeReagents -contains [int](Read-Field $records $offset (52 + $slot))) {
+                Write-Field $records $offset (52 + $slot) 0
+                Write-Field $records $offset (60 + $slot) 0
+            }
+        }
     }
     if ($sinisterStrikeRanks -contains $spellId) {
         Write-Field $records $offset $F_ManaCost 0
