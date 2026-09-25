@@ -15,6 +15,10 @@ class Unit;
 // granted flat. A node is worth several essences at least, so every point is an event; the point cap is what
 // keeps that from running away. Prestige raises it (Paragon.PointsPerPrestige each reset).
 //
+// Points come from bosses, from finished keys and from paragon levels: at the level cap, experience keeps
+// filling a bar, and every level of it is a point. The board has three zones, and the outer two are where a
+// character stops being merely strong.
+//
 // The board itself is data (paragon_node, paragon_node_link) and the client draws whatever the server sends,
 // so reshaping the tree is a rerun of localTools/paragon/buildParagonTree.py, not a rebuild.
 
@@ -64,6 +68,12 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage);
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage);
 void OnParagonKill(Player* player, Unit* killed);
 void UpdateParagonBuffs(Player* player);
+
+// The outer zones' maximum health, applied where the module already adjusts it (OnPlayerAfterUpdateMaxHealth).
+void ApplyParagonHealth(Player* player, float& value);
+
+// Experience earned at the level cap fills the paragon bar; each paragon level is a point.
+void AddParagonExperience(Player* player, uint32 amount);
 
 void AddParagonScripts();
 

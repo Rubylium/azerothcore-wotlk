@@ -436,6 +436,8 @@ public:
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit*, uint8) override
     {
         ApplyExperienceBoost(player, amount);
+        // At the level cap the core throws this away; the paragon bar takes it instead
+        AddParagonExperience(player, amount);
     }
 
     void OnPlayerBeforeRegeneratePower(Player* player, Powers power, float& amount) override
@@ -451,6 +453,7 @@ public:
     void OnPlayerAfterUpdateMaxHealth(Player* player, float& value) override
     {
         ApplyVitalityBoost(player, value);
+        ApplyParagonHealth(player, value);
     }
 
     void OnPlayerMoneyChanged(Player* player, int32& amount) override

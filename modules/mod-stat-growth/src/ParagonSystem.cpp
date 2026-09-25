@@ -11,11 +11,14 @@
 #include "Map.h"
 #include "Player.h"
 #include "GameTime.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "Random.h"
 #include "SharedDefines.h"
 #include "StatGrowthConfig.h"
 #include "StatGrowthSystem.h"
 #include "StringFormat.h"
+#include "World.h"
 #include "WorldSession.h"
 
 #include <algorithm>
@@ -46,8 +49,30 @@ enum class ParagonEffect : uint8
     LastStand,          // dropping below `value2`% health: take `value`% less damage for `duration`, on cooldown
     FuryOnHit,          // dealing damage: `chance` to deal `value`% more for `duration`
     SurgeOnKill,        // killing something: `value` attack and spell power for `duration`
+    // The outer zones (Ascension, Transcendance): the nodes that make a character something else.
+    DamagePct,          // `value`% more damage dealt, always
+    ReductionPct,       // `value`% less damage taken, always; the total is capped at MaxReductionPct
+    Leech,              // `value`% of the damage dealt comes back as health; the total is capped at MaxLeechPct
+    DoubleStrike,       // dealing damage: `chance` for the hit to deal `value`% more
+    Execute,            // `value`% more damage against targets under `value2`% health
+    Explosion,          // killing something: `value`% of its maximum health to enemies within `value2` yards
+    Undying,            // a lethal hit leaves 1 health and no damage lands for `duration`, on `cooldown`
+    HealthPct,          // `value`% more maximum health
     Count
 };
+
+// However the outer zones stack, a character can still be hurt and cannot heal off every hit in full.
+constexpr uint32 MaxReductionPct = 75;
+constexpr uint32 MaxLeechPct = 50;
+
+// Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows a little each
+// level, so the first few come quickly and the hundredth is a commitment.
+constexpr uint32 ParagonXpBase = 150000;
+constexpr uint32 ParagonXpPerLevel = 7500;
+
+// Stock SpellVisualKit ids, played where the effect happens so it is seen and not only read in the log
+constexpr uint32 VisualExplosion = 984;     // Blast Wave's ring of fire
+constexpr uint32 VisualUndying = 417;       // Divine Shield's flash
 
 struct ParagonNode
 {
@@ -98,7 +123,30 @@ struct ParagonState : public DataMap::Base
     bool applied = false;
     std::vector<ParagonProc> procs;         // from the allocated nodes, rebuilt when they change
     std::vector<ParagonBuff> buffs;         // currently running
+
+    // The always-on effects of the outer zones, summed from the allocation with the procs
+    uint32 damagePct = 0;
+    uint32 reductionPct = 0;
+    uint32 leechPct = 0;
+    uint32 healthPct = 0;
+    uint32 explosionPct = 0;
+    uint32 explosionRange = 0;
+
+    uint32 level = 0;                       // paragon level: experience earned at the level cap
+    uint32 experience = 0;                  // towards the next level
 };
+
+uint32 ExperienceForLevel(uint32 level)
+{
+    return ParagonXpBase + ParagonXpPerLevel * level;
+}
+
+// Whether anything on the damage path has work to do for this character
+bool HasCombatEffects(ParagonState const* state)
+{
+    return state && state->applied && (!state->procs.empty() || state->damagePct || state->reductionPct
+        || state->leechPct || state->explosionPct);
+}
 
 constexpr char const* StateKey = "ParagonState";
 
@@ -219,9 +267,12 @@ void ApplyNode(Player* player, ParagonNode const& node, bool apply)
 // be wasteful, and damage events are the hottest path this module has.
 void RebuildProcs(ParagonState* state)
 {
-    state->procs.clear();
     if (!state)
         return;
+
+    state->procs.clear();
+    state->damagePct = state->reductionPct = state->leechPct = state->healthPct = 0;
+    state->explosionPct = state->explosionRange = 0;
 
     for (uint32 nodeId : state->allocated)
     {
@@ -229,10 +280,34 @@ void RebuildProcs(ParagonState* state)
         if (entry == Board.end())
             continue;
 
-        ParagonEffect const effect = static_cast<ParagonEffect>(entry->second.effect);
-        if (effect == ParagonEffect::Stat || effect == ParagonEffect::Armor
-            || effect == ParagonEffect::ArmorPct)
-            continue;
+        ParagonNode const& node = entry->second;
+        ParagonEffect const effect = static_cast<ParagonEffect>(node.effect);
+        switch (effect)
+        {
+            case ParagonEffect::Stat:
+            case ParagonEffect::Armor:
+            case ParagonEffect::ArmorPct:
+                continue;
+            case ParagonEffect::DamagePct:
+                state->damagePct += node.value;
+                continue;
+            case ParagonEffect::ReductionPct:
+                state->reductionPct += node.value;
+                continue;
+            case ParagonEffect::Leech:
+                state->leechPct += node.value;
+                continue;
+            case ParagonEffect::HealthPct:
+                state->healthPct += node.value;
+                continue;
+            case ParagonEffect::Explosion:
+                // One blast per kill, however many nodes feed it: the percentages add up, the widest reach wins
+                state->explosionPct += node.value;
+                state->explosionRange = std::max(state->explosionRange, node.value2);
+                continue;
+            default:
+                break;
+        }
 
         ParagonProc proc;
         proc.effect = effect;
@@ -331,26 +406,28 @@ void SendState(Player* player, bool open)
     if (!chunk.empty())
         Send(player, "NODES\t" + chunk);
 
+    Send(player, Acore::StringFormat("PXP\t{}\t{}\t{}", state->level, state->experience,
+        ExperienceForLevel(state->level)));
     Send(player, "DONE");
 }
 
-// A bot is handed the stat a real board of this size would be worth rather than a board of its own: it has no
-// UI to spend points in, nobody would ever see its tree, and 200 bots each carrying an allocation table would
-// be a lot of rows for something invisible. What matters is that a bot party keeps pace with the player.
-uint32 AverageNodeValue()
+// A bot is handed the stat a real board would be worth rather than a board of its own: it has no UI to spend
+// points in, nobody would ever see its tree, and 200 bots each carrying an allocation table would be a lot of
+// rows for something invisible. What matters is that a bot party keeps pace with the player.
+//
+// Counted from the stat nodes the player actually holds rather than points times an average: a point in the
+// outer zones is worth several in the first, so the same count is a very different board.
+uint32 StatValueOf(ParagonState const* state)
 {
-    if (Board.empty())
+    if (!state)
         return 0;
 
-    uint64 total = 0;
-    uint32 counted = 0;
-    for (auto const& [id, node] : Board)
-        if (!node.free && node.value)
-        {
-            total += node.value;
-            ++counted;
-        }
-    return counted ? static_cast<uint32>(total / counted) : 0;
+    uint32 total = 0;
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId);
+            node != Board.end() && node->second.effect == static_cast<uint8>(ParagonEffect::Stat))
+            total += node->second.value;
+    return total;
 }
 
 PermanentStat BotStat(Player* bot)
@@ -498,6 +575,16 @@ void LoadParagonForPlayer(Player* player)
         state->prestige = field[1].Get<uint32>();
     }
 
+    state->level = 0;
+    state->experience = 0;
+    if (QueryResult result = CharacterDatabase.Query(
+            "SELECT level, experience FROM character_paragon_experience WHERE guid = {}", guid))
+    {
+        Field* field = result->Fetch();
+        state->level = field[0].Get<uint32>();
+        state->experience = field[1].Get<uint32>();
+    }
+
     if (QueryResult result = CharacterDatabase.Query("SELECT node FROM character_paragon WHERE guid = {}", guid))
         do
         {
@@ -533,6 +620,7 @@ void ApplyStoredParagon(Player* player)
 
     RebuildProcs(state);
     state->applied = true;
+    player->UpdateMaxHealth();
 }
 
 void ApplyBotParagon(Player* bot)
@@ -542,18 +630,18 @@ void ApplyBotParagon(Player* bot)
 
     // The group's real players decide how much: a bot party is meant to keep pace with the person it is
     // playing with, not with the board it cannot see.
-    uint32 points = 0;
+    uint32 value = 0;
     uint32 counted = 0;
     if (Group* group = bot->GetGroup())
         for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
             if (Player* member = ref->GetSource();
                 member && member->GetSession() && !member->GetSession()->IsBot())
             {
-                points += SpentPoints(GetState(member));
+                value += StatValueOf(GetState(member));
                 ++counted;
             }
 
-    uint32 const target = counted ? (points / counted) * AverageNodeValue() : 0;
+    uint32 const target = counted ? value / counted : 0;
     BotParagon* applied = bot->CustomData.GetDefault<BotParagon>(BotKey);
     PermanentStat const stat = BotStat(bot);
     if (applied->applied == target && applied->stat == stat)
@@ -689,6 +777,7 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
         state->allocated.clear();
         ClearBuffs(player, state);
         RebuildProcs(state);
+        player->UpdateMaxHealth();
         CharacterDatabase.Execute("DELETE FROM character_paragon WHERE guid = {}",
             player->GetGUID().GetCounter());
 
@@ -729,6 +818,8 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
     state->allocated.insert(nodeId);
     ApplyNode(player, entry->second, true);
     RebuildProcs(state);
+    if (entry->second.effect == static_cast<uint8>(ParagonEffect::HealthPct))
+        player->UpdateMaxHealth();
     CharacterDatabase.Execute("REPLACE INTO character_paragon (guid, node) VALUES ({}, {})",
         player->GetGUID().GetCounter(), nodeId);
 
@@ -758,17 +849,26 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
         return;
 
     ParagonState* state = GetState(player);
-    if (!state || state->procs.empty())
+    if (!HasCombatEffects(state))
         return;
 
     uint32 const now = GameTime::GetGameTimeMS().count();
     bool const french = IsFrench(player);
+
+    // While Undying holds, nothing lands at all
+    if (HasBuff(state, ParagonEffect::Undying))
+    {
+        damage = 0;
+        return;
+    }
 
     // Damage reduction is applied before anything rolls, so a proc that fires on this hit does not also
     // soften the hit that set it off.
     for (ParagonBuff const& buff : state->buffs)
         if (buff.effect == ParagonEffect::LastStand && buff.applied > 0)
             damage = damage * (100 - std::min<int32>(buff.applied, 90)) / 100;
+    if (state->reductionPct)
+        damage = damage * (100 - std::min(state->reductionPct, MaxReductionPct)) / 100;
 
     for (ParagonProc& proc : state->procs)
     {
@@ -811,6 +911,25 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
                 break;
             }
 
+            case ParagonEffect::Undying:
+            {
+                // Checked last, against the hit as it will actually land. Never a revive: the character is
+                // simply not allowed to die from this hit, and is left on 1 health to get out.
+                if (damage < player->GetHealth() || now < proc.readyAt)
+                    break;
+
+                damage = player->GetHealth() > 1 ? player->GetHealth() - 1 : 0;
+                proc.readyAt = now + proc.cooldown;
+                ParagonBuff buff;
+                buff.effect = ParagonEffect::Undying;
+                buff.expiresAt = now + proc.duration;
+                state->buffs.push_back(buff);
+                player->SendPlaySpellVisual(VisualUndying);
+                ChatHandler(player->GetSession()).PSendSysMessage(french
+                    ? "|cffa335eeImmortel : la mort vous refuse.|r" : "|cffa335eeUndying: death refuses you.|r");
+                break;
+            }
+
             default:
                 break;
         }
@@ -824,25 +943,55 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
         return;
 
     ParagonState* state = GetState(player);
-    if (!state || state->procs.empty())
+    if (!HasCombatEffects(state))
         return;
+
+    // Worked in 64 bits: the outer zones multiply several times over, and a big hit times a big bonus is past
+    // what 32 bits hold before it is divided back down.
+    uint64 dealt = damage;
+    if (state->damagePct)
+        dealt = dealt * (100 + state->damagePct) / 100;
 
     for (ParagonBuff const& buff : state->buffs)
         if (buff.effect == ParagonEffect::FuryOnHit && buff.applied > 0)
-            damage = damage * (100 + buff.applied) / 100;
+            dealt = dealt * (100 + buff.applied) / 100;
 
     for (ParagonProc& proc : state->procs)
     {
-        if (proc.effect != ParagonEffect::FuryOnHit)
-            continue;
-        if (HasBuff(state, ParagonEffect::FuryOnHit) || !roll_chance_f(proc.chance))
-            continue;
+        switch (proc.effect)
+        {
+            case ParagonEffect::FuryOnHit:
+            {
+                if (HasBuff(state, ParagonEffect::FuryOnHit) || !roll_chance_f(proc.chance))
+                    break;
 
-        ParagonBuff buff;
-        buff.effect = ParagonEffect::FuryOnHit;
-        buff.expiresAt = GameTime::GetGameTimeMS().count() + proc.duration;
-        buff.applied = static_cast<int32>(proc.value);
-        state->buffs.push_back(buff);
+                ParagonBuff buff;
+                buff.effect = ParagonEffect::FuryOnHit;
+                buff.expiresAt = GameTime::GetGameTimeMS().count() + proc.duration;
+                buff.applied = static_cast<int32>(proc.value);
+                state->buffs.push_back(buff);
+                break;
+            }
+            case ParagonEffect::DoubleStrike:
+                if (roll_chance_f(proc.chance))
+                    dealt = dealt * (100 + proc.value) / 100;
+                break;
+            case ParagonEffect::Execute:
+                if (victim->GetHealthPct() < static_cast<float>(proc.value2))
+                    dealt = dealt * (100 + proc.value) / 100;
+                break;
+            default:
+                break;
+        }
+    }
+
+    damage = static_cast<uint32>(std::min<uint64>(dealt, std::numeric_limits<uint32>::max()));
+
+    if (state->leechPct && player->IsAlive())
+    {
+        uint64 const healed = uint64(damage) * std::min(state->leechPct, MaxLeechPct) / 100;
+        if (healed)
+            player->ModifyHealth(static_cast<int32>(std::min<uint64>(healed, player->GetMaxHealth())));
     }
 }
 
@@ -852,8 +1001,29 @@ void OnParagonKill(Player* player, Unit* killed)
         return;
 
     ParagonState* state = GetState(player);
-    if (!state || state->procs.empty())
+    if (!HasCombatEffects(state))
         return;
+
+    // The corpse goes up. Kills made by the blast itself do not blast again, or one pull of trash would chain
+    // through the whole instance in a single frame.
+    static bool exploding = false;
+    if (state->explosionPct && state->explosionRange && !exploding)
+    {
+        uint32 const blast = static_cast<uint32>(uint64(killed->GetMaxHealth()) * state->explosionPct / 100);
+        float const range = static_cast<float>(state->explosionRange);
+        std::list<Unit*> targets;
+        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(killed, player, range);
+        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(killed, targets, check);
+        Cell::VisitObjects(killed, searcher, range);
+
+        killed->SendPlaySpellVisual(VisualExplosion);
+        exploding = true;
+        for (Unit* target : targets)
+            if (blast && target != killed && target->IsAlive() && player->IsValidAttackTarget(target))
+                Unit::DealDamage(player, target, blast, nullptr, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_FIRE,
+                    nullptr, false);
+        exploding = false;
+    }
 
     for (ParagonProc const& proc : state->procs)
     {
@@ -879,6 +1049,52 @@ void OnParagonKill(Player* player, Unit* killed)
         ApplyPermanentStat(player, PermanentStat::AttackPower, proc.value, true);
         ApplyPermanentStat(player, PermanentStat::SpellPower, proc.value, true);
         state->buffs.push_back(buff);
+    }
+}
+
+void ApplyParagonHealth(Player* player, float& value)
+{
+    ParagonState const* state = GetState(player);
+    if (state && state->applied && state->healthPct)
+        value *= 1.0f + state->healthPct / 100.0f;
+}
+
+void AddParagonExperience(Player* player, uint32 amount)
+{
+    if (!player || !amount || !player->GetSession() || player->GetSession()->IsBot())
+        return;
+    if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled))
+        return;
+    if (player->GetLevel() < sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
+        return;
+
+    ParagonState* state = GetState(player);
+    if (!state)
+        return;
+
+    uint32 gained = 0;
+    uint64 experience = uint64(state->experience) + amount;
+    while (experience >= ExperienceForLevel(state->level))
+    {
+        experience -= ExperienceForLevel(state->level);
+        ++state->level;
+        ++gained;
+    }
+    state->experience = static_cast<uint32>(experience);
+
+    CharacterDatabase.Execute(
+        "REPLACE INTO character_paragon_experience (guid, level, experience) VALUES ({}, {}, {})",
+        player->GetGUID().GetCounter(), state->level, state->experience);
+
+    Send(player, Acore::StringFormat("PXP\t{}\t{}\t{}", state->level, state->experience,
+        ExperienceForLevel(state->level)));
+
+    if (gained)
+    {
+        Send(player, Acore::StringFormat("PLEVEL\t{}", state->level));
+        AwardParagonPoints(player, gained, IsFrench(player)
+            ? Acore::StringFormat("niveau de parangon {}", state->level)
+            : Acore::StringFormat("paragon level {}", state->level));
     }
 }
 
