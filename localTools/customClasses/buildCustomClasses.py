@@ -196,7 +196,12 @@ def add_race_pairs(dbc, definition):
 
 
 def add_skills(dbc, definition):
-    """Copies the template class's skill rows (weapons, armor, defense, languages) to the new class.
+    """Gives the new class the template class's skill rows (weapons, armor, defense, languages).
+
+    The class's bit is added to the template's own rows rather than to copies of them: Wow.exe keeps a single
+    SkillRaceClassInfo row per skill and race, the last one in the file, so a copied row appended for a custom
+    class hid that skill from every stock class sharing the race - a Human rogue or mage lost its weapons, its
+    armor and Common, and could not even type a GM command ("Vous ne connaissez pas cette langue").
 
     A class with its own class skill (`classSkill`) does not take the template's: those are the template's
     spellbook tabs - a Pestiféré must not carry Blood, Frost and Unholy around.
@@ -205,15 +210,14 @@ def add_skills(dbc, definition):
     class_bit = 1 << (definition['id'] - 1)
     own_skill = definition.get('classSkill')
     dropped = definition.get('_templateClassSkills', set()) if own_skill else set()
-    next_id = dbc.max_id() + 1
-    for record in list(dbc.records):
-        if not dbc.field(record, 3) & template_bit or dbc.field(record, 1) in dropped:
-            continue
-        row = bytearray(record)
-        dbc.set_field(row, 0, next_id)
-        dbc.set_field(row, 3, class_bit)
-        dbc.records.append(row)
-        next_id += 1
+
+    def grant(record):
+        mask = dbc.field(record, 3) | class_bit
+        dbc.set_field(record, 3, mask - (1 << 32) if mask >= 1 << 31 else mask)
+
+    for record in dbc.records:
+        if dbc.field(record, 3) & template_bit and dbc.field(record, 1) not in dropped:
+            grant(record)
 
     # Some custom classes use the template's combat formulas but a different armor
     # progression. These rows must exist before inventory loads, not only at login.
@@ -224,11 +228,7 @@ def add_skills(dbc, definition):
         source = next((record for record in dbc.records
                        if dbc.field(record, 1) == skill_id and dbc.field(record, 3) & (1 << 1)), None)
         assert source, f'no Paladin skill row for {skill_id}'
-        row = bytearray(source)
-        dbc.set_field(row, 0, next_id)
-        dbc.set_field(row, 3, class_bit)
-        dbc.records.append(row)
-        next_id += 1
+        grant(source)
 
     if not own_skill:
         return
@@ -238,7 +238,7 @@ def add_skills(dbc, definition):
                    if dbc.field(record, 3) & template_bit and dbc.field(record, 1) in dropped), None)
     source = source or next(record for record in dbc.records if dbc.field(record, 3) & template_bit)
     row = bytearray(source)
-    dbc.set_field(row, 0, next_id)
+    dbc.set_field(row, 0, dbc.max_id() + 1)
     dbc.set_field(row, 1, own_skill['id'])
     dbc.set_field(row, 2, -1)
     dbc.set_field(row, 3, class_bit)
