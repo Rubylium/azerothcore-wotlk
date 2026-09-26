@@ -77,6 +77,10 @@ constexpr uint32 MaxSplashTargets = 4;
 // uncapped, a tank sent a whole pull's damage back several times over. Each reflection is held to a share of the
 // character's own maximum health, which grows with the character and not with the key.
 constexpr uint32 MaxRetaliateHealthPct = 4;
+// Double strike is one roll per hit, on the nodes' chances summed and capped here, and strikes at most once: each node
+// used to roll on its own, and four of them with the Titan's 150% came to three quarters more on every hit, 40% of a
+// tank's damage. Capped, the strikes are at most a fifth of what a character deals.
+constexpr float MaxDoubleStrikeChance = 25.0f;
 
 // Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows a little each
 // level, so the first few come quickly and the hundredth is a commitment.
@@ -1125,15 +1129,21 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 
     // The strikes that are their own hits: dealt a moment after this one, under their own name, so they can be seen
     // and counted rather than folded silently into the hit that set them off
-    uint64 extra = 0;
     uint64 finishing = 0;
+    float strikeChance = 0.0f;
+    uint32 strikePct = 0;
     for (ParagonProc const& proc : state->procs)
     {
-        if (proc.effect == ParagonEffect::DoubleStrike && roll_chance_f(proc.chance))
-            extra += dealt * proc.value / 100;
+        if (proc.effect == ParagonEffect::DoubleStrike)
+        {
+            strikeChance += proc.chance;
+            strikePct = std::max(strikePct, proc.value);
+        }
         else if (proc.effect == ParagonEffect::Execute && victim->GetHealthPct() < static_cast<float>(proc.value2))
             finishing += dealt * proc.value / 100;
     }
+    uint64 const extra = strikePct && roll_chance_f(std::min(strikeChance, MaxDoubleStrikeChance))
+        ? dealt * strikePct / 100 : 0;
     QueueHit(state, victim, SPELL_PARAGON_DOUBLE_STRIKE, extra, SPELL_SCHOOL_MASK_NORMAL);
     QueueHit(state, victim, SPELL_PARAGON_EXECUTE, finishing, SPELL_SCHOOL_MASK_NORMAL);
 

@@ -202,7 +202,8 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     if effect == E_LEECH:
         return "Vous rend %d%% des dégâts que vous infligez sous forme de points de vie." % value
     if effect == E_DOUBLE:
-        return "%d%% de chances que vos coups infligent %d%% de dégâts supplémentaires." % (chance, value)
+        return ("%d%% de chances que vos coups infligent %d%% de dégâts supplémentaires. Les chances de double "
+                "frappe s'additionnent, jusqu'à 25%%." % (chance, value))
     if effect == E_EXECUTE:
         return "Vos dégâts sont augmentés de %d%% contre les cibles sous %d%% de vie." % (value, value2)
     if effect == E_EXPLODE:
@@ -282,15 +283,15 @@ def outer(effect, name, icon, value=0, value2=0, chance=0.0, duration=0, cooldow
 OUTER_SPECIALS = {
     "Force": [
         ([outer(E_DAMAGE, "Force brute", "Ability_Warrior_InnerRage", value=4),
-          outer(E_DOUBLE, "Double frappe", "Ability_DualWield", value=100, chance=6.0),
+          outer(E_DOUBLE, "Double frappe", "Ability_DualWield", value=100, chance=5.0),
           outer(E_EXECUTE, "Coup de grâce", "Ability_Warrior_DecisiveStrike", value=15, value2=30),
           outer(E_DAMAGE, "Colère contenue", "Ability_Warrior_BloodFrenzy", value=5)],
-         outer(E_DOUBLE, "Colosse", "Ability_Warrior_Rampage", value=100, chance=15.0)),
+         outer(E_DOUBLE, "Colosse", "Ability_Warrior_Rampage", value=100, chance=8.0)),
         ([outer(E_DAMAGE, "Force titanesque", "Spell_Shadow_UnholyStrength", value=8),
-          outer(E_DOUBLE, "Frappes jumelles", "Ability_Warrior_PunishingBlow", value=100, chance=10.0),
+          outer(E_DOUBLE, "Frappes jumelles", "Ability_Warrior_PunishingBlow", value=100, chance=6.0),
           outer(E_EXECUTE, "Exécuteur", "Ability_Rogue_Eviscerate", value=30, value2=35),
           outer(E_EXPLODE, "Onde de choc", "Ability_Warrior_Cleave", value=10, value2=8)],
-         outer(E_DOUBLE, "Apothéose : Titan", "INV_Sword_48", value=150, chance=30.0)),
+         outer(E_DOUBLE, "Apothéose : Titan", "INV_Sword_48", value=100, chance=12.0)),
     ],
     "Puissance": [
         ([outer(E_SURGE, "Curée sanglante", "Ability_Rogue_MurderSpree", value=600, duration=20000),
@@ -306,12 +307,12 @@ OUTER_SPECIALS = {
     ],
     "Agilité": [
         ([outer(E_RETALIATE, "Contre-attaque", "Ability_Warrior_Revenge", value=50, chance=20.0),
-          outer(E_DOUBLE, "Lames agiles", "Ability_Rogue_SliceDice", value=100, chance=5.0),
+          outer(E_DOUBLE, "Lames agiles", "Ability_Rogue_SliceDice", value=100, chance=4.0),
           outer(E_REDUCTION, "Esquive parfaite", "Ability_Rogue_Feint", value=4),
           outer(E_DAMAGE, "Précision mortelle", "Ability_Rogue_Feint", value=4)],
          outer(E_RETALIATE, "Épines", "Spell_Nature_Thorns", value=100, chance=35.0)),
         ([outer(E_RETALIATE, "Vengeance", "Ability_Warrior_Revenge", value=100, chance=30.0),
-          outer(E_DOUBLE, "Tourbillon de lames", "Ability_Rogue_MurderSpree", value=100, chance=8.0),
+          outer(E_DOUBLE, "Tourbillon de lames", "Ability_Rogue_MurderSpree", value=100, chance=5.0),
           outer(E_REDUCTION, "Insaisissable", "Spell_Arcane_PrismaticCloak", value=6),
           outer(E_LEECH, "Saignée", "Spell_Shadow_LifeDrain02", value=4)],
          outer(E_RETALIATE, "Apothéose : Miroir", "Spell_Holy_AshesToAshes", value=200, chance=50.0)),
@@ -333,13 +334,13 @@ OUTER_SPECIALS = {
         ([outer(E_DAMAGE, "Puissance arcanique", "Spell_Arcane_ArcanePotency", value=4),
           outer(E_FURY, "Afflux", "Spell_Arcane_ArcaneTorrent", value=20, chance=15.0, duration=10000),
           outer(E_EXECUTE, "Désintégration", "Spell_Arcane_Blast", value=15, value2=30),
-          outer(E_DOUBLE, "Écho", "Spell_Nature_LightningOverload", value=100, chance=5.0)],
+          outer(E_DOUBLE, "Écho", "Spell_Nature_LightningOverload", value=100, chance=4.0)],
          outer(E_FURY, "Surcharge", "Spell_Fire_Fireball02", value=35, chance=25.0, duration=12000)),
         ([outer(E_DAMAGE, "Maîtrise absolue", "Spell_Arcane_MindMastery", value=8),
           outer(E_FURY, "Tempête arcanique", "Spell_Nature_Bloodlust", value=40, chance=20.0, duration=12000),
-          outer(E_DOUBLE, "Double incantation", "Spell_Nature_LightningOverload", value=100, chance=10.0),
+          outer(E_DOUBLE, "Double incantation", "Spell_Nature_LightningOverload", value=100, chance=6.0),
           outer(E_LEECH, "Siphon", "Spell_Shadow_SiphonMana", value=4)],
-         outer(E_DOUBLE, "Apothéose : Singularité", "Spell_Shadow_Twilight", value=200, chance=25.0)),
+         outer(E_DOUBLE, "Apothéose : Singularité", "Spell_Shadow_Twilight", value=100, chance=12.0)),
     ],
     "Intellect": [
         ([outer(E_LEECH, "Rémanence", "Spell_Shadow_LifeDrain02", value=3),
