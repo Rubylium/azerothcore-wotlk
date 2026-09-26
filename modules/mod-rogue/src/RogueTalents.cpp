@@ -121,6 +121,10 @@ constexpr float CrimsonTempestBleedPerPoint = 0.3f;     // the whole bleed, over
 // Assassinat lives on its bleeds: Rupture and Garrote deal this much more (WotLK's values were made for a tenth of
 // the attack power a character reaches here)
 constexpr int32 AssassinationBleedBonusPct = 150;
+// Assassinat's energy (retail's Venomous Wounds, built in): a bleed ticking on a poisoned enemy gives this much, at
+// most once per BleedEnergyGapMs whatever the number of dots up
+constexpr uint32 AssassinationBleedEnergy = 3;
+constexpr uint32 BleedEnergyGapMs = 500;
 constexpr uint32 CrimsonTempestTickMs = 2000;
 constexpr float BlackPowderPerPoint = 0.05f;
 constexpr uint32 BlackPowderFlatPerPoint = 80;
@@ -143,6 +147,7 @@ struct RogueState : public DataMap::Base
     uint8 shurikenPoints = 0;
     uint32 poisonTimer = 5000;       // Poisons tenaces: the next refresh of the weapons' poisons
     uint32 virulenceTimer = 0;       // Virulence: the next count of the afflictions
+    uint32 bleedEnergyAt = 0;        // Assassinat: when a bleed tick may give energy again
     // A finisher's combo points, read when it begins: an instant spell has spent them by the time its cast hook runs
     uint32 finisherSpell = 0;
     uint8 finisherPoints = 0;
@@ -714,8 +719,17 @@ public:
 
         damage = uint32(damage * DamageBonus(player, target, spellInfo, false));
 
-        if (IsBleed(spellInfo) && player->HasAura(TALENT_VENOMOUS_WOUNDS) && IsPoisonedBy(target, player))
-            Energize(player, spellInfo->Id, 5);
+        if (IsBleed(spellInfo) && IsPoisonedBy(target, player))
+        {
+            if (player->HasAura(TALENT_VENOMOUS_WOUNDS))
+                Energize(player, spellInfo->Id, 5);
+            RogueState* state = GetState(player);
+            if (IsAssassination(player) && NowMs() >= state->bleedEnergyAt)
+            {
+                state->bleedEnergyAt = NowMs() + BleedEnergyGapMs;
+                Energize(player, spellInfo->Id, AssassinationBleedEnergy);
+            }
+        }
     }
 
     void OnAuraApply(Unit* unit, Aura* aura) override
