@@ -6,6 +6,10 @@
 -- under the window: the class tree always shows on the left, and the right shows the spec tree of the specialization
 -- in view. Choosing one is the server's SPEC message; each talent slot keeps its own.
 --
+-- Loadouts (retail's): builds saved under a name on the server, up to 10. Choosing one opens it as a plan, drawn with
+-- the level cap's points so a whole build can be made at any level; applying it places as much of it as the
+-- character's level allows, and a little more after each level-up (the server works it out, LAPPLY).
+--
 -- The trees are TalentTreeData.lua and the art TalentTreeArt.lua, both generated. A build is edited here and only
 -- sent when applied: the server checks the whole of it and answers with the state it now holds, so what is drawn
 -- after an apply is always the server's. The rules below mirror TalentTree.cpp's so the window never offers a click
@@ -89,6 +93,19 @@ local TEXT = french and {
     specChanged = "Spécialisation : %s",
     specHint = "Vos talents de chaque spécialisation sont conservés : les retrouver ne coûte rien.",
     roles = { tank = "Tank", healer = "Soigneur", damage = "Dégâts" },
+    loadout = "Configuration",
+    current = "Talents actuels",
+    newLoadout = "Nouvelle configuration…",
+    saveLoadout = "Enregistrer",
+    deleteLoadout = "Supprimer",
+    applyLoadout = "Appliquer la configuration",
+    planning = "« %s » : configuration planifiée au niveau 80. Appliquer place autant de points que votre "
+        .. "niveau le permet.",
+    loadoutName = "Nom de la configuration :",
+    loadoutApplied = "Configuration « %s » : %d / %d points placés.",
+    loadoutFull = "Vous avez déjà 10 configurations : supprimez-en une.",
+    loadoutOtherSpec = "Appliquer « %s » ? Votre spécialisation deviendra %s.",
+    loadoutDelete = "Supprimer la configuration « %s » ?",
     errors = {
         [1] = "Ces talents n'ont pas pu être lus : réessayez.",
         [2] = "Impossible de changer vos talents en combat.",
@@ -99,6 +116,7 @@ local TEXT = french and {
         [7] = "Votre spécialisation a changé entre-temps.",
         [8] = "Les talents ne sont pas disponibles.",
         [9] = "Cette spécialisation n'existe pas.",
+        [10] = "Cette configuration n'a pas pu être enregistrée ou n'existe plus.",
     },
 } or {
     title = "Talents",
@@ -141,6 +159,18 @@ local TEXT = french and {
     specChanged = "Specialization: %s",
     specHint = "Each specialization keeps its own talents: going back to one costs nothing.",
     roles = { tank = "Tank", healer = "Healer", damage = "Damage" },
+    loadout = "Loadout",
+    current = "Current talents",
+    newLoadout = "New loadout…",
+    saveLoadout = "Save",
+    deleteLoadout = "Delete",
+    applyLoadout = "Apply loadout",
+    planning = "\"%s\": planned at level 80. Applying places as many points as your level allows.",
+    loadoutName = "Loadout name:",
+    loadoutApplied = "Loadout \"%s\": %d / %d points placed.",
+    loadoutFull = "You already have 10 loadouts: delete one first.",
+    loadoutOtherSpec = "Apply \"%s\"? Your specialization will become %s.",
+    loadoutDelete = "Delete the loadout \"%s\"?",
     errors = {
         [1] = "Those talents could not be read: try again.",
         [2] = "You can't change your talents in combat.",
@@ -151,6 +181,7 @@ local TEXT = french and {
         [7] = "Your specialization changed meanwhile.",
         [8] = "Talents are not available.",
         [9] = "That specialization does not exist.",
+        [10] = "That loadout could not be saved, or no longer exists.",
     },
 }
 
@@ -169,7 +200,18 @@ local state = {
     specTrees = { 0, 0 },   -- the spec tree (its id) each talent group has chosen
     viewed = 1,             -- which group the window shows
     pending = {},           -- the active group's build as edited here
+    loadouts = {},          -- the server's, in slot order: { slot, tree, name, build }
+    planning = nil,         -- a loadout open as a plan: { slot, name, original, stash (the edits it replaced) }
 }
+
+-- The level cap: a loadout is planned with its points
+local MAX_LEVEL = 80
+local MAX_LOADOUTS = 10
+
+-- The level the window's rules use: the character's, or the cap while a loadout is planned
+local function RuleLevel()
+    return state.planning and MAX_LEVEL or state.level
+end
 
 local frame, bar, applyButton, undoButton, resetButton, statusText, searchBox, specButtons, shareBox, portrait
 local flyout, specPage
@@ -296,14 +338,14 @@ local function Spent(values, tree, belowRow)
     return spent
 end
 
-local function Available(values, tree)
-    return PointsAt(tree, state.level) - Spent(values, tree)
+local function Available(values, tree, level)
+    return PointsAt(tree, level or RuleLevel()) - Spent(values, tree)
 end
 
 -- Why a node could not hold a point right now, or nil: the server's Validate, node by node
 local function Blocker(values, node)
     local def = node.def
-    if (def.level or 0) > state.level then
+    if (def.level or 0) > RuleLevel() then
         return "level"
     end
     for _, gate in ipairs(node.tree.def.gates) do
@@ -381,7 +423,7 @@ local function Editable()
 end
 
 local function IsDirty()
-    local committed = state.builds[state.spec]
+    local committed = state.planning and state.planning.original or state.builds[state.spec]
     for index = 1, #nodes do
         if (state.pending[index] or 0) ~= (committed[index] or 0) then
             return true
@@ -720,8 +762,10 @@ end
 local function PaintBar()
     local dirty = state.viewed == state.spec and IsDirty()
     local editable = Editable()
-    applyButton:SetEnabled(dirty and editable and not UnitAffectingCombat("player"))
-    SetShown(applyButton.glow, dirty and editable)
+    local planning = state.planning ~= nil
+    applyButton:SetText(planning and TEXT.applyLoadout or TEXT.apply)
+    applyButton:SetEnabled((dirty or planning) and editable and not UnitAffectingCombat("player"))
+    SetShown(applyButton.glow, (dirty or planning) and editable)
     undoButton:SetEnabled(dirty)
     undoButton:SetAlpha(dirty and 1 or 0.35)
     local empty = true
@@ -743,8 +787,14 @@ local function PaintBar()
     elseif state.viewed ~= state.spec then
         statusText:SetText(TEXT.viewing)
         statusText:SetTextColor(0.6, 0.6, 0.6)
+    elseif planning then
+        statusText:SetText(format(TEXT.planning, state.planning.name))
+        statusText:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
     else
         statusText:SetText("")
+    end
+    if frame.loadoutRefresh then
+        frame.loadoutRefresh()
     end
 
     for index, button in ipairs(specButtons) do
@@ -1024,7 +1074,37 @@ local function Send(body)
     SendAddonMessage(PREFIX, body, "WHISPER", UnitName("player"))
 end
 
+local function SpecTreeId(group)
+    local spec = SpecOf(group)
+    return spec and spec.def.id or 0
+end
+
+local function SaveLoadout(slot, name, values)
+    Send("LSAVE\t" .. slot .. "\t" .. name .. "\t" .. SpecTreeId(state.spec) .. "\t" .. Serialize(values))
+end
+
+-- A planned loadout: saved when edited, then placed as far as the level allows
+local function ApplyLoadout()
+    local plan = state.planning
+    if UnitAffectingCombat("player") then
+        return Refuse(nil, TEXT.combat)
+    end
+    local code, offender = Validate(state.pending)
+    if code then
+        return Refuse(offender, TEXT.errors[code])
+    end
+    if IsDirty() then
+        SaveLoadout(plan.slot, plan.name, state.pending)
+        plan.original = Copy(state.pending)
+    end
+    applyButton:Disable()
+    Send("LAPPLY\t" .. plan.slot)
+end
+
 local function Apply()
+    if state.planning and Editable() then
+        return ApplyLoadout()
+    end
     if not Editable() or not IsDirty() then
         return
     end
@@ -1426,7 +1506,7 @@ local function CreateBar()
     undoButton = IconButton("button-undo", 26, function()
         if IsDirty() then
             local before = Looks()
-            state.pending = Copy(state.builds[state.spec])
+            state.pending = Copy(state.planning and state.planning.original or state.builds[state.spec])
             PlaySound(SOUND_UNLEARN)
             HideFlyout()
             Paint(true)
@@ -1829,6 +1909,209 @@ CreateSpecPage = function()
     PanelTemplates_SetTab(frame, 2)
 end
 
+-- Loadouts -----------------------------------------------------------------------------------------------------------
+
+local function FindLoadout(slot)
+    for _, loadout in ipairs(state.loadouts) do
+        if loadout.slot == slot then
+            return loadout
+        end
+    end
+end
+
+local function LeavePlan()
+    if not state.planning then
+        return
+    end
+    state.pending = state.planning.stash or Copy(state.builds[state.spec])
+    state.planning = nil
+    HideFlyout()
+    Paint(true)
+end
+
+-- A loadout of the active specialization opens as a plan; one of another asks, then is applied (the server changes
+-- the specialization first)
+local function OpenLoadout(loadout)
+    if not Editable() then
+        return Refuse(nil, state.viewed ~= state.spec and TEXT.viewing or nil)
+    end
+    if #specs > 0 and loadout.tree ~= SpecTreeId(state.spec) then
+        local target = SpecById(loadout.tree)
+        StaticPopup_Show("TALENTTREE_LOADOUT_OTHER_SPEC", loadout.name, target and target.def.name or "?",
+            { slot = loadout.slot })
+        return
+    end
+    local values = {}
+    if not Parse(loadout.build, values) then
+        return Refuse(nil, TEXT.errors[10])
+    end
+    local before = Looks()
+    local stash = state.planning and state.planning.stash or Copy(state.pending)
+    state.planning = { slot = loadout.slot, name = loadout.name, original = Copy(values), stash = stash }
+    state.pending = values
+    PlaySound(SOUND_CHOICE)
+    HideFlyout()
+    Paint(true)
+    Ripple(before)
+end
+
+local function NewLoadout(name)
+    name = name and name:gsub("[|\t\n]", ""):match("^%s*(.-)%s*$") or ""
+    if name == "" then
+        return
+    end
+    local slot
+    for candidate = 1, MAX_LOADOUTS do
+        if not FindLoadout(candidate) then
+            slot = candidate
+            break
+        end
+    end
+    if not slot then
+        return Refuse(nil, TEXT.loadoutFull)
+    end
+    -- From what is on screen: the plan being edited, or the talents
+    state.openOnArrival = slot
+    SaveLoadout(slot, name, state.pending)
+end
+
+StaticPopupDialogs["TALENTTREE_LOADOUT_NAME"] = {
+    text = TEXT.loadoutName,
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    hasEditBox = 1,
+    maxLetters = 32,
+    OnShow = function(self)
+        self.editBox:SetText("")
+        self.editBox:SetFocus()
+    end,
+    OnAccept = function(self)
+        NewLoadout(self.editBox:GetText())
+    end,
+    EditBoxOnEnterPressed = function(self)
+        NewLoadout(self:GetText())
+        self:GetParent():Hide()
+    end,
+    EditBoxOnEscapePressed = function(self)
+        self:GetParent():Hide()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+StaticPopupDialogs["TALENTTREE_LOADOUT_OTHER_SPEC"] = {
+    text = TEXT.loadoutOtherSpec,
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    OnAccept = function(_, data)
+        if data and data.slot then
+            LeavePlan()
+            Send("LAPPLY\t" .. data.slot)
+        end
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+StaticPopupDialogs["TALENTTREE_LOADOUT_DELETE"] = {
+    text = TEXT.loadoutDelete,
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    OnAccept = function(_, data)
+        if data and data.slot then
+            LeavePlan()
+            Send("LDEL\t" .. data.slot)
+        end
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+-- The picker at the window's top left, with Save and Delete beside it while a loadout is open
+local function CreateLoadoutPicker()
+    local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("TOPLEFT", frame, "TOPLEFT", 64, -30)
+    label:SetText(TEXT.loadout)
+
+    local picker = CreateFrame("Frame", "TalentTreeLoadoutPicker", frame, "UIDropDownMenuTemplate")
+    picker:SetPoint("TOPLEFT", label, "BOTTOMLEFT", -18, -2)
+    picker:SetFrameLevel(frame:GetFrameLevel() + 20)
+    UIDropDownMenu_SetWidth(picker, 190)
+    UIDropDownMenu_Initialize(picker, function()
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = TEXT.current
+        info.checked = state.planning == nil
+        info.func = function() LeavePlan() end
+        UIDropDownMenu_AddButton(info)
+
+        for _, loadout in ipairs(state.loadouts) do
+            info = UIDropDownMenu_CreateInfo()
+            local spec = #specs > 1 and SpecById(loadout.tree)
+            info.text = loadout.name .. (spec and loadout.tree ~= SpecTreeId(state.spec)
+                and ("  |cff888888(" .. spec.def.name .. ")|r") or "")
+            info.checked = state.planning and state.planning.slot == loadout.slot
+            info.func = function() OpenLoadout(loadout) end
+            UIDropDownMenu_AddButton(info)
+        end
+
+        info = UIDropDownMenu_CreateInfo()
+        info.text = "|cff00ccff" .. TEXT.newLoadout .. "|r"
+        info.notCheckable = 1
+        info.func = function()
+            if not Editable() then
+                return Refuse(nil, state.viewed ~= state.spec and TEXT.viewing or nil)
+            end
+            StaticPopup_Show("TALENTTREE_LOADOUT_NAME")
+        end
+        UIDropDownMenu_AddButton(info)
+    end)
+
+    local save = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    save:SetSize(96, 22)
+    save:SetPoint("LEFT", picker, "RIGHT", -8, 2)
+    save:SetText(TEXT.saveLoadout)
+    save:SetFrameLevel(frame:GetFrameLevel() + 20)
+    save:SetScript("OnClick", function()
+        local plan = state.planning
+        if not plan then
+            return
+        end
+        local code, offender = Validate(state.pending)
+        if code then
+            return Refuse(offender, TEXT.errors[code])
+        end
+        SaveLoadout(plan.slot, plan.name, state.pending)
+        plan.original = Copy(state.pending)
+        PlaySound(SOUND_APPLY)
+        PaintBar()
+    end)
+
+    local delete = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    delete:SetSize(96, 22)
+    delete:SetPoint("LEFT", save, "RIGHT", 4, 0)
+    delete:SetText(TEXT.deleteLoadout)
+    delete:SetFrameLevel(frame:GetFrameLevel() + 20)
+    delete:SetScript("OnClick", function()
+        if state.planning then
+            StaticPopup_Show("TALENTTREE_LOADOUT_DELETE", state.planning.name, nil, { slot = state.planning.slot })
+        end
+    end)
+
+    frame.loadoutRefresh = function()
+        UIDropDownMenu_SetText(picker, state.planning and state.planning.name or TEXT.current)
+        SetShown(save, state.planning ~= nil)
+        SetShown(delete, state.planning ~= nil)
+        if state.planning and IsDirty() then
+            save:Enable()
+        else
+            save:Disable()
+        end
+    end
+end
+
 local function CreateWindow()
     frame = CreateFrame("Frame", "TalentTreeFrame", UIParent)
     frame:SetSize(WIDTH, HEIGHT)
@@ -1911,6 +2194,7 @@ local function CreateWindow()
     end
     CreateBar()
     CreateFlyout()
+    CreateLoadoutPicker()
 
     local embers = frame:CreateTexture(nil, "OVERLAY", nil, 5)
     Piece(embers, "anim-particles")
@@ -2117,7 +2401,8 @@ local function UpdateMicroButton()
     end
     local unspent = false
     for _, tree in ipairs(trees) do
-        if (tree.side == 1 or tree == SpecOf(state.spec)) and Available(state.builds[state.spec], tree) > 0 then
+        if (tree.side == 1 or tree == SpecOf(state.spec))
+            and Available(state.builds[state.spec], tree, state.level) > 0 then
             unspent = true
         end
     end
@@ -2143,6 +2428,16 @@ local function OnState(signature, spec, specCount, level, applied, first, second
     if state.viewed > state.specCount then
         state.viewed = state.spec
     end
+
+    -- A plan stays open through the state's news; an apply closes it
+    if state.planning and applied ~= "1" then
+        if frame and frame:IsShown() then
+            Paint(false)
+        end
+        UpdateMicroButton()
+        return
+    end
+    state.planning = nil
 
     if applied == "1" then
         local changed = {}
@@ -2205,6 +2500,30 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
             OnState(a, b, c, d, e, f, g, h, i)
         elseif kind == "E" then
             OnError(a, b)
+        elseif kind == "LC" then
+            wipe(state.loadouts)
+        elseif kind == "L" then
+            local loadout = { slot = tonumber(a), tree = tonumber(b) or 0, name = c or "?", build = d or "" }
+            if loadout.slot then
+                tinsert(state.loadouts, loadout)
+                -- A loadout just made opens as a plan
+                if state.openOnArrival == loadout.slot and frame and frame:IsShown() then
+                    state.openOnArrival = nil
+                    OpenLoadout(loadout)
+                end
+            end
+            if frame and frame:IsShown() then
+                PaintBar()
+            end
+        elseif kind == "LA" then
+            local loadout = FindLoadout(tonumber(a))
+            local text = format(TEXT.loadoutApplied, loadout and loadout.name or "?", tonumber(b) or 0,
+                tonumber(c) or 0)
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffd100" .. text .. "|r")
+            if statusText then
+                statusText:SetText(text)
+                statusText:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+            end
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
         if HasTree() then

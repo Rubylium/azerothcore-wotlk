@@ -11,6 +11,7 @@
 #include "StringConvert.h"
 #include "StringFormat.h"
 #include "Tokenize.h"
+#include "World.h"
 #include "WorldScript.h"
 #include "WorldSession.h"
 
@@ -50,9 +51,17 @@
 //   client -> server  OPEN                    the state, please
 //                     APPLY <spec> <build>    make this the active build
 //                     SPEC <tree>             make this spec tree the active slot's specialization
+//                     LSAVE <slot> <name> <tree> <build>   save a loadout: a build planned at the level cap, for
+//                                             the class tree and one specialization, under a name (slot 1-10)
+//                     LDEL <slot>             delete a loadout
+//                     LAPPLY <slot>           apply a loadout: its specialization, then as much of its build as
+//                                             the level's points allow (again after a level-up: a little more)
 //   server -> client  S <signature> <active spec> <spec count> <level> <applied> <build 1> <build 2>
 //                       <specialization 1> <specialization 2>
 //                     E <error> <node>
+//                     LC                      the loadouts follow (after OPEN, and after every change to them)
+//                     L <slot> <tree> <name> <build>   one loadout (its build in the window's digit format)
+//                     LA <slot> <applied> <total>      a loadout applied: points placed of those it holds
 namespace
 {
 constexpr std::string_view Prefix = "TalentTree";
@@ -76,8 +85,13 @@ enum class BuildError : uint8
     Level       = 6,    // a node's own level requirement
     Spec        = 7,    // sent for a spec that is no longer the active one
     Unavailable = 8,
-    NoSpec      = 9     // a specialization this class does not have
+    NoSpec      = 9,    // a specialization this class does not have
+    Loadout     = 10    // a loadout that does not exist, or a name or build that could not be read
 };
+
+// Loadouts a character keeps
+constexpr uint8 MaxLoadouts = 10;
+constexpr std::size_t MaxLoadoutName = 32;
 
 struct TreeGate
 {
@@ -129,10 +143,19 @@ constexpr uint16 SpecializationNode = 0;
 std::unordered_map<uint8, ClassTrees> Classes;
 
 // A character's builds, one per talent spec slot (dual specialization). Kept on the player, so it dies with them.
+struct Loadout
+{
+    uint8 slot = 0;
+    std::string name;
+    uint8 specialization = 0;
+    std::string build;          // the window's digit format; only the class tree and its specialization's digits
+};
+
 struct TalentTreeState : public DataMap::Base
 {
     std::array<std::string, MAX_TALENT_SPECS> builds;
     std::array<uint8, MAX_TALENT_SPECS> specializations{};     // spec tree id per slot, 0 for the first
+    std::vector<Loadout> loadouts;
 };
 
 constexpr char const* StateKey = "TalentTreeState";
@@ -457,6 +480,33 @@ void LoadForPlayer(Player* player, ClassTrees const& data)
                 continue;
             state->builds[spec][position->second] = char('0' + value);
         } while (result->NextRow());
+
+    state->loadouts.clear();
+    if (QueryResult result = CharacterDatabase.Query(
+            "SELECT slot, name, specialization, build FROM character_talent_loadout WHERE guid = {} ORDER BY slot",
+            player->GetGUID().GetCounter()))
+        do
+        {
+            Field* field = result->Fetch();
+            Loadout loadout;
+            loadout.slot = field[0].Get<uint8>();
+            loadout.name = field[1].Get<std::string>();
+            loadout.specialization = field[2].Get<uint8>();
+            loadout.build.assign(data.nodes.size(), '0');
+            for (std::string_view pair : Acore::Tokenize(field[3].Get<std::string_view>(), ',', false))
+            {
+                std::vector<std::string_view> const parts = Acore::Tokenize(pair, ':', false);
+                Optional<uint16> const nodeId = parts.size() == 2 ? Acore::StringTo<uint16>(parts[0]) : std::nullopt;
+                Optional<uint8> const value = parts.size() == 2 ? Acore::StringTo<uint8>(parts[1]) : std::nullopt;
+                auto const position = nodeId ? data.positions.find(*nodeId) : data.positions.end();
+                // A node the trees no longer have is dropped, like in a build
+                if (position == data.positions.end() || !value || *value > 9 ||
+                    std::size_t(*value) > data.nodes[position->second].spells.size())
+                    continue;
+                loadout.build[position->second] = char('0' + *value);
+            }
+            state->loadouts.push_back(std::move(loadout));
+        } while (result->NextRow());
 }
 
 void HandleApply(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view arguments)
@@ -625,6 +675,193 @@ void HandleSpecialization(Player* player, ClassTrees const& data, TalentTreeStat
     SendState(player, true);
 }
 
+// --- Loadouts ---------------------------------------------------------------------------------------------------
+
+bool IsInLoadout(ClassTrees const& data, TreeNode const& node, uint8 specialization)
+{
+    Tree const* tree = FindTree(data, node.tree);
+    return tree && (!tree->spec || tree->id == specialization);
+}
+
+void SendLoadouts(Player* player, TalentTreeState const* state)
+{
+    Send(player, "LC");
+    for (Loadout const& loadout : state->loadouts)
+        Send(player, Acore::StringFormat("L\t{}\t{}\t{}\t{}", loadout.slot, loadout.specialization, loadout.name,
+            loadout.build));
+}
+
+Loadout* FindLoadout(TalentTreeState* state, uint8 slot)
+{
+    for (Loadout& loadout : state->loadouts)
+        if (loadout.slot == slot)
+            return &loadout;
+    return nullptr;
+}
+
+// A name as the window may show it: no tabs or escape codes, trimmed, at most MaxLoadoutName characters
+std::string CleanName(std::string_view raw)
+{
+    std::string name;
+    for (char const c : raw)
+        if (c != '\t' && c != '|' && c != '\n' && c != '\r')
+            name += c;
+    std::size_t const first = name.find_first_not_of(' ');
+    if (first == std::string::npos)
+        return {};
+    name = name.substr(first, name.find_last_not_of(' ') - first + 1);
+    if (name.size() > MaxLoadoutName)
+    {
+        // Cut on a character boundary: never in the middle of an accented letter
+        std::size_t cut = MaxLoadoutName;
+        while (cut > 0 && (static_cast<unsigned char>(name[cut]) & 0xC0) == 0x80)
+            --cut;
+        name.resize(cut);
+    }
+    return name;
+}
+
+void HandleLoadoutSave(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view arguments)
+{
+    std::vector<std::string_view> const parts = Acore::Tokenize(arguments, '\t', true);
+    if (parts.size() != 4)
+        return SendError(player, BuildError::Loadout, 0);
+
+    Optional<uint8> const slot = Acore::StringTo<uint8>(parts[0]);
+    std::string const name = CleanName(parts[1]);
+    Optional<uint8> const tree = Acore::StringTo<uint8>(parts[2]);
+    if (!slot || *slot < 1 || *slot > MaxLoadouts || name.empty() || !tree)
+        return SendError(player, BuildError::Loadout, 0);
+    uint8 const specialization = data.specTrees.empty() ? 0 : *tree;
+    if (!data.specTrees.empty() &&
+        std::find(data.specTrees.begin(), data.specTrees.end(), specialization) == data.specTrees.end())
+        return SendError(player, BuildError::NoSpec, 0);
+
+    // Planned at the level cap: legal there, and only the class tree and its specialization's nodes are kept
+    std::string build(parts[3]);
+    if (build.size() != data.nodes.size())
+        return SendError(player, BuildError::Malformed, 0);
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+        if (!IsInLoadout(data, data.nodes[position], specialization))
+            build[position] = '0';
+    uint16 offender = 0;
+    BuildError const error = Validate(data, build, uint8(sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL)), offender);
+    if (error != BuildError::None)
+        return SendError(player, error, offender);
+
+    Loadout* loadout = FindLoadout(state, *slot);
+    if (!loadout)
+    {
+        state->loadouts.push_back({});
+        loadout = &state->loadouts.back();
+        loadout->slot = *slot;
+    }
+    loadout->name = name;
+    loadout->specialization = specialization;
+    loadout->build = build;
+    std::sort(state->loadouts.begin(), state->loadouts.end(),
+        [](Loadout const& a, Loadout const& b) { return a.slot < b.slot; });
+
+    std::string pairs;
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+        if (uint8 const value = Value(build, position))
+            pairs += Acore::StringFormat("{}{}:{}", pairs.empty() ? "" : ",", data.nodes[position].id, value);
+    std::string escaped = name;
+    CharacterDatabase.EscapeString(escaped);
+    CharacterDatabase.Execute("REPLACE INTO character_talent_loadout (guid, slot, name, specialization, build) "
+        "VALUES ({}, {}, '{}', {}, '{}')", player->GetGUID().GetCounter(), *slot, escaped, specialization, pairs);
+    SendLoadouts(player, state);
+}
+
+void HandleLoadoutDelete(Player* player, TalentTreeState* state, std::string_view argument)
+{
+    Optional<uint8> const slot = Acore::StringTo<uint8>(argument);
+    if (!slot)
+        return SendError(player, BuildError::Loadout, 0);
+    std::erase_if(state->loadouts, [slot](Loadout const& loadout) { return loadout.slot == *slot; });
+    CharacterDatabase.Execute("DELETE FROM character_talent_loadout WHERE guid = {} AND slot = {}",
+        player->GetGUID().GetCounter(), *slot);
+    SendLoadouts(player, state);
+}
+
+// Applies a loadout: its specialization, then its nodes in the order a player would take them (row by row, each
+// ranked as far as it goes), each rank only while the build stays legal at the character's level. At the level cap
+// that is the whole loadout; while levelling, as much as the points allow, and a little more after each level-up.
+void HandleLoadoutApply(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view argument)
+{
+    Optional<uint8> const slotId = Acore::StringTo<uint8>(argument);
+    Loadout const* loadout = slotId ? FindLoadout(state, *slotId) : nullptr;
+    if (!loadout)
+        return SendError(player, BuildError::Loadout, 0);
+    if (player->IsInCombat())
+        return SendError(player, BuildError::Combat, 0);
+
+    uint8 const slot = ActiveSlot(player);
+    if (!data.specTrees.empty() && Specialization(data, state->specializations[slot]) != loadout->specialization)
+        ChangeSpecialization(player, data, state, loadout->specialization);
+
+    std::vector<std::size_t> order;
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+        if (IsInLoadout(data, data.nodes[position], loadout->specialization))
+            order.push_back(position);
+    std::stable_sort(order.begin(), order.end(), [&data](std::size_t a, std::size_t b)
+    {
+        TreeNode const& left = data.nodes[a];
+        TreeNode const& right = data.nodes[b];
+        bool const leftClass = !FindTree(data, left.tree) || !FindTree(data, left.tree)->spec;
+        bool const rightClass = !FindTree(data, right.tree) || !FindTree(data, right.tree)->spec;
+        if (leftClass != rightClass)
+            return leftClass;
+        return left.row < right.row;
+    });
+
+    std::string build = state->builds[slot];
+    for (std::size_t position : order)
+        build[position] = '0';
+
+    uint8 const level = player->GetLevel();
+    uint16 offender = 0;
+    uint32 total = 0;
+    uint32 placed = 0;
+    for (std::size_t position : order)
+        total += Cost(data.nodes[position], Value(loadout->build, position));
+
+    // Twice over: a node whose parent sits later in the same row gets its turn the second time
+    for (int pass = 0; pass < 2; ++pass)
+        for (std::size_t position : order)
+        {
+            TreeNode const& node = data.nodes[position];
+            uint8 const wanted = Value(loadout->build, position);
+            char& digit = build[position];
+            if (!wanted || Value(build, position) >= wanted)
+                continue;
+            if (node.kind == NodeKind::Choice)
+            {
+                digit = char('0' + wanted);
+                if (Validate(data, build, level, offender) != BuildError::None)
+                    digit = '0';
+                continue;
+            }
+            while (Value(build, position) < wanted)
+            {
+                ++digit;
+                if (Validate(data, build, level, offender) != BuildError::None)
+                {
+                    --digit;
+                    break;
+                }
+            }
+        }
+    for (std::size_t position : order)
+        placed += Cost(data.nodes[position], Value(build, position));
+
+    state->builds[slot] = build;
+    SaveBuild(player, data, state, slot);
+    ReconcileActive(player, data, state);
+    SendState(player, true);
+    Send(player, Acore::StringFormat("LA\t{}\t{}\t{}", loadout->slot, placed, total));
+}
+
 void HandleMessage(Player* player, uint32 language, std::string const& message)
 {
     if (language != LANG_ADDON || !message.starts_with(Prefix))
@@ -642,7 +879,20 @@ void HandleMessage(Player* player, uint32 language, std::string const& message)
         return SendError(player, BuildError::Unavailable, 0);
 
     if (body == "OPEN")
-        return SendState(player, false);
+    {
+        SendState(player, false);
+        return SendLoadouts(player, state);
+    }
+
+    constexpr std::string_view loadoutSave = "LSAVE\t";
+    if (body.starts_with(loadoutSave))
+        return HandleLoadoutSave(player, *data, state, body.substr(loadoutSave.size()));
+    constexpr std::string_view loadoutDelete = "LDEL\t";
+    if (body.starts_with(loadoutDelete))
+        return HandleLoadoutDelete(player, state, body.substr(loadoutDelete.size()));
+    constexpr std::string_view loadoutApply = "LAPPLY\t";
+    if (body.starts_with(loadoutApply))
+        return HandleLoadoutApply(player, *data, state, body.substr(loadoutApply.size()));
 
     constexpr std::string_view apply = "APPLY\t";
     if (body.starts_with(apply))
@@ -844,6 +1094,7 @@ public:
     void OnPlayerDelete(ObjectGuid guid, uint32 /*accountId*/) override
     {
         CharacterDatabase.Execute("DELETE FROM character_talent_tree WHERE guid = {}", guid.GetCounter());
+        CharacterDatabase.Execute("DELETE FROM character_talent_loadout WHERE guid = {}", guid.GetCounter());
     }
 };
 }
