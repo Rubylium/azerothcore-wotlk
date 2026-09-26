@@ -42,6 +42,7 @@ MINOR, NOTABLE, KEYSTONE = 0, 1, 2
 E_STAT, E_ARMOR, E_ARMOR_PCT, E_GUARD, E_RETALIATE, E_LAST_STAND, E_FURY, E_SURGE = range(8)
 # The outer zones' effects
 E_DAMAGE, E_REDUCTION, E_LEECH, E_DOUBLE, E_EXECUTE, E_EXPLODE, E_UNDYING, E_HEALTH = range(8, 16)
+E_KILL_STREAK, E_SPLASH = range(16, 18)
 
 # What a plain node is worth. The board is mostly these: a tree of nothing but procs would be noise, and the
 # quiet nodes are what make the loud ones feel like arriving somewhere.
@@ -207,6 +208,12 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     if effect == E_EXPLODE:
         return ("Tuer un ennemi le fait exploser : %d%% de ses points de vie maximum infligés aux ennemis à "
                 "moins de %d mètres." % (value, value2))
+    if effect == E_KILL_STREAK:
+        return ("Tuer un ennemi augmente vos dégâts de %d%% pendant %d s, cumulable %d fois. Chaque victime "
+                "relance la durée." % (value, seconds, value2))
+    if effect == E_SPLASH:
+        return ("%d%% des dégâts de vos coups sont aussi infligés à 4 autres ennemis au plus, à moins de %d mètres "
+                "de votre cible." % (value, value2))
     if effect == E_UNDYING:
         return ("Un coup qui devrait vous tuer vous laisse à 1 point de vie, et vous êtes insensible aux dégâts "
                 "pendant %d s. %d min de recharge." % (seconds, cooldown // 60000))
@@ -281,20 +288,20 @@ OUTER_SPECIALS = {
         ([outer(E_DAMAGE, "Force titanesque", "Spell_Shadow_UnholyStrength", value=8),
           outer(E_DOUBLE, "Frappes jumelles", "Ability_Warrior_PunishingBlow", value=100, chance=10.0),
           outer(E_EXECUTE, "Exécuteur", "Ability_Rogue_Eviscerate", value=30, value2=35),
-          outer(E_EXPLODE, "Onde de choc", "Ability_Warrior_Cleave", value=20, value2=8)],
+          outer(E_EXPLODE, "Onde de choc", "Ability_Warrior_Cleave", value=10, value2=8)],
          outer(E_DOUBLE, "Apothéose : Titan", "INV_Sword_48", value=150, chance=30.0)),
     ],
     "Puissance": [
         ([outer(E_SURGE, "Curée sanglante", "Ability_Rogue_MurderSpree", value=600, duration=20000),
           outer(E_LEECH, "Soif de sang", "Spell_Shadow_LifeDrain02", value=3),
-          outer(E_EXPLODE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=10, value2=6),
+          outer(E_EXPLODE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=5, value2=6),
           outer(E_DAMAGE, "Élan meurtrier", "Ability_Warrior_Warcry", value=4)],
-         outer(E_EXPLODE, "Carnage", "Spell_Deathknight_BloodBoil", value=25, value2=8)),
+         outer(E_KILL_STREAK, "Carnage", "Spell_Deathknight_BloodBoil", value=2, value2=8, duration=15000)),
         ([outer(E_SURGE, "Frénésie du massacre", "Spell_Shadow_UnholyFrenzy", value=1500, duration=20000),
           outer(E_LEECH, "Festin", "Spell_Shadow_SoulLeech_3", value=6),
-          outer(E_EXPLODE, "Réaction en chaîne", "Spell_Fire_Incinerate", value=35, value2=10),
+          outer(E_KILL_STREAK, "Réaction en chaîne", "Spell_Fire_Incinerate", value=1, value2=10, duration=15000),
           outer(E_DAMAGE, "Instinct du prédateur", "Ability_Hunter_Pet_Devilsaur", value=8)],
-         outer(E_EXPLODE, "Apothéose : Cataclysme", "Spell_Fire_MeteorStorm", value=75, value2=12)),
+         outer(E_SPLASH, "Apothéose : Cataclysme", "Spell_Fire_MeteorStorm", value=15, value2=10)),
     ],
     "Agilité": [
         ([outer(E_RETALIATE, "Contre-attaque", "Ability_Warrior_Revenge", value=50, chance=20.0),

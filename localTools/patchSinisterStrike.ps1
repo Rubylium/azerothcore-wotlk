@@ -396,6 +396,11 @@ $customSpells = @(
     @{ Id = 90660; Clone = 2983; CantCancel = $true; Name = 'Immortel épuisé'; Icon = 'ParagonNode_ApotheosisImmortal'; FallbackIconSpell = 25771; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Immortel ne peut pas se déclencher à nouveau pour l''instant.'; AuraDescription = 'Immortel ne peut pas se déclencher à nouveau pour l''instant.'
        Fields = @{ 40 = 21 } },
+    @{ Id = 90661; Clone = 2983; CantCancel = $true; Name = 'Carnage'; Icon = 'ParagonNode_Carnage'; FallbackIconSpell = 48721; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 10; Spellbook = $false
+       Description = 'Dégâts infligés augmentés à chaque victime.'; AuraDescription = 'Dégâts infligés augmentés à chaque victime.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90662; Clone = 2983; Name = 'Cataclysme'; Icon = 'ParagonNode_ApotheosisCataclysm'; FallbackIconSpell = 42940; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une partie de vos coups frappe aussi les ennemis proches de votre cible.' },
     # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2.5 threat)
     @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = 'Menace générée augmentée.'

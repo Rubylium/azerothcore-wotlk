@@ -60,12 +60,19 @@ enum class ParagonEffect : uint8
     Explosion,          // killing something: `value`% of its maximum health to enemies within `value2` yards
     Undying,            // a lethal hit leaves 1 health and no damage lands for `duration`, on `cooldown`
     HealthPct,          // `value`% more maximum health
+    KillStreak,         // killing something: a stack of `value`% more damage, up to `value2` stacks, for `duration`
+    Splash,             // dealing damage: `value`% of the hit to up to MaxSplashTargets other enemies within `value2` yards
     Count
 };
 
 // However the outer zones stack, a character can still be hurt and cannot heal off every hit in full.
 constexpr uint32 MaxReductionPct = 75;
 constexpr uint32 MaxLeechPct = 50;
+// The explosion scales with what died, not with the character: on a Mythic+ pack at a high key a mob has more health
+// than a player deals in several seconds, and a few nodes of it summed turned every kill into a one-shot of the pack.
+// It stays a small bonus; the nodes past it scale with the character's own damage instead (KillStreak, Splash).
+constexpr uint32 MaxExplosionPct = 15;
+constexpr uint32 MaxSplashTargets = 4;
 
 // Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows a little each
 // level, so the first few come quickly and the hundredth is a commitment.
@@ -86,6 +93,8 @@ constexpr uint32 SPELL_PARAGON_GUARD = 90657;
 constexpr uint32 SPELL_PARAGON_LAST_STAND = 90658;
 constexpr uint32 SPELL_PARAGON_UNDYING = 90659;
 constexpr uint32 SPELL_PARAGON_UNDYING_SPENT = 90660;
+constexpr uint32 SPELL_PARAGON_KILL_STREAK = 90661;
+constexpr uint32 SPELL_PARAGON_SPLASH = 90662;
 
 // Stock SpellVisualKit ids, played where the effect happens so it is seen and not only read in the log
 constexpr uint32 VisualExplosion = 984;     // Blast Wave's ring of fire
@@ -149,6 +158,15 @@ struct ParagonState : public DataMap::Base
     uint32 healthPct = 0;
     uint32 explosionPct = 0;
     uint32 explosionRange = 0;
+    uint32 killStreakPct = 0;               // per stack, summed over the nodes
+    uint32 killStreakMax = 0;               // the most stacks any node allows
+    uint32 killStreakDuration = 0;
+    uint32 splashPct = 0;
+    uint32 splashRange = 0;
+
+    // The kill streak currently running: one counter rather than a buff per kill
+    uint32 killStreakStacks = 0;
+    uint32 killStreakExpiresAt = 0;
 
     uint32 level = 0;                       // paragon level: experience earned at the level cap
     uint32 experience = 0;                  // towards the next level
@@ -230,7 +248,7 @@ uint32 ExperienceForLevel(uint32 level)
 bool HasCombatEffects(ParagonState const* state)
 {
     return state && state->applied && (!state->procs.empty() || state->damagePct || state->reductionPct
-        || state->leechPct || state->explosionPct);
+        || state->leechPct || state->explosionPct || state->killStreakPct || state->splashPct);
 }
 
 constexpr char const* StateKey = "ParagonState";
@@ -358,6 +376,8 @@ void RebuildProcs(ParagonState* state)
     state->procs.clear();
     state->damagePct = state->reductionPct = state->leechPct = state->healthPct = 0;
     state->explosionPct = state->explosionRange = 0;
+    state->killStreakPct = state->killStreakMax = state->killStreakDuration = 0;
+    state->splashPct = state->splashRange = 0;
 
     for (uint32 nodeId : state->allocated)
     {
@@ -389,6 +409,16 @@ void RebuildProcs(ParagonState* state)
                 // One blast per kill, however many nodes feed it: the percentages add up, the widest reach wins
                 state->explosionPct += node.value;
                 state->explosionRange = std::max(state->explosionRange, node.value2);
+                continue;
+            case ParagonEffect::KillStreak:
+                // One streak, however many nodes feed it: each stack is worth their sum, the longest one wins
+                state->killStreakPct += node.value;
+                state->killStreakMax = std::max(state->killStreakMax, node.value2);
+                state->killStreakDuration = std::max(state->killStreakDuration, node.duration);
+                continue;
+            case ParagonEffect::Splash:
+                state->splashPct += node.value;
+                state->splashRange = std::max(state->splashRange, node.value2);
                 continue;
             default:
                 break;
@@ -468,6 +498,9 @@ void ClearBuffs(Player* player, ParagonState* state)
     }
     state->buffs.clear();
     state->pending.clear();
+    if (state->killStreakStacks)
+        player->RemoveAurasDueToSpell(SPELL_PARAGON_KILL_STREAK);
+    state->killStreakStacks = state->killStreakExpiresAt = 0;
 }
 
 void SaveEarned(Player* player, ParagonState const* state)
@@ -1060,6 +1093,9 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
         if (buff.effect == ParagonEffect::FuryOnHit && buff.applied > 0)
             dealt = dealt * (100 + buff.applied) / 100;
 
+    if (state->killStreakStacks && state->killStreakPct)
+        dealt = dealt * (100 + state->killStreakStacks * state->killStreakPct) / 100;
+
     for (ParagonProc& proc : state->procs)
     {
         switch (proc.effect)
@@ -1096,6 +1132,29 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     QueueHit(state, victim, SPELL_PARAGON_DOUBLE_STRIKE, extra, SPELL_SCHOOL_MASK_NORMAL);
     QueueHit(state, victim, SPELL_PARAGON_EXECUTE, finishing, SPELL_SCHOOL_MASK_NORMAL);
 
+    // A share of the hit, never of anything's health: it scales with the character, and a pack is hurt no faster than
+    // the character hurts its target. The splash's own hits are proc damage, so they do not splash again.
+    if (state->splashPct && state->splashRange)
+    {
+        uint64 const share = dealt * state->splashPct / 100;
+        float const range = static_cast<float>(state->splashRange);
+        std::list<Unit*> targets;
+        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(victim, player, range);
+        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(victim, targets, check);
+        Cell::VisitObjects(victim, searcher, range);
+
+        uint32 hit = 0;
+        for (Unit* target : targets)
+        {
+            if (hit >= MaxSplashTargets)
+                break;
+            if (target == victim || !target->IsAlive() || !player->IsValidAttackTarget(target))
+                continue;
+            QueueHit(state, target, SPELL_PARAGON_SPLASH, share, SPELL_SCHOOL_MASK_FIRE);
+            ++hit;
+        }
+    }
+
     damage = static_cast<uint32>(std::min<uint64>(dealt, std::numeric_limits<uint32>::max()));
 
     if (state->leechPct && player->IsAlive())
@@ -1128,7 +1187,7 @@ void OnParagonKill(Player* player, Unit* killed)
     // The corpse goes up. A kill the blast itself made does not blast again (DealingProcDamage).
     if (state->explosionPct && state->explosionRange && !DealingProcDamage)
     {
-        uint64 const blast = uint64(killed->GetMaxHealth()) * state->explosionPct / 100;
+        uint64 const blast = uint64(killed->GetMaxHealth()) * std::min(state->explosionPct, MaxExplosionPct) / 100;
         float const range = static_cast<float>(state->explosionRange);
         std::list<Unit*> targets;
         Acore::AnyUnfriendlyUnitInObjectRangeCheck check(killed, player, range);
@@ -1139,6 +1198,16 @@ void OnParagonKill(Player* player, Unit* killed)
         for (Unit* target : targets)
             if (target != killed && target->IsAlive() && player->IsValidAttackTarget(target))
                 QueueHit(state, target, SPELL_PARAGON_EXPLOSION, blast, SPELL_SCHOOL_MASK_FIRE);
+    }
+
+    // Each kill adds a stack and restarts the timer; the stacks go all at once when it runs out
+    if (state->killStreakPct && state->killStreakMax && state->killStreakDuration)
+    {
+        state->killStreakStacks = std::min(state->killStreakStacks + 1, state->killStreakMax);
+        state->killStreakExpiresAt = GameTime::GetGameTimeMS().count() + state->killStreakDuration;
+        ShowBuff(player, SPELL_PARAGON_KILL_STREAK, state->killStreakDuration);
+        if (Aura* aura = player->GetAura(SPELL_PARAGON_KILL_STREAK))
+            aura->SetStackAmount(static_cast<uint8>(state->killStreakStacks));
     }
 
     for (ParagonProc const& proc : state->procs)
@@ -1234,10 +1303,16 @@ void UpdateParagonBuffs(Player* player)
         DealingProcDamage = false;
     }
 
+    uint32 const now = GameTime::GetGameTimeMS().count();
+    if (state->killStreakStacks && state->killStreakExpiresAt <= now)
+    {
+        state->killStreakStacks = state->killStreakExpiresAt = 0;
+        player->RemoveAurasDueToSpell(SPELL_PARAGON_KILL_STREAK);
+    }
+
     if (state->buffs.empty())
         return;
 
-    uint32 const now = GameTime::GetGameTimeMS().count();
     for (std::size_t index = state->buffs.size(); index > 0; --index)
     {
         ParagonBuff& buff = state->buffs[index - 1];

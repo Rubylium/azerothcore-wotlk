@@ -6,7 +6,7 @@
 -- client patched out of step says so instead of quietly drawing the wrong tree.
 
 ParagonBoard = {
-    signature = 179447017,
+    signature = 179446123,
     extent = 4760,
     zones = { { name = "Éveil", radius = 0 }, { name = "Ascension", radius = 825 }, { name = "Transcendance", radius = 1545 } },
     nodes = {
@@ -324,7 +324,7 @@ ParagonBoard = {
         [2094] = { type = 0, x = 797, y = 816, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2095] = { type = 0, x = 726, y = 879, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2096] = { type = 0, x = 650, y = 936, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
-        [2097] = { type = 1, x = 570, y = 987, effect = 13, stat = 5, value = 10, required = 40, free = false, icon = "Interface\\Icons\\ParagonNode_ExplodingCarcass", name = "Carcasse explosive", description = "Tuer un ennemi le fait exploser : 10% de ses points de vie maximum infligés aux ennemis à moins de 6 mètres." },
+        [2097] = { type = 1, x = 570, y = 987, effect = 13, stat = 5, value = 5, required = 40, free = false, icon = "Interface\\Icons\\ParagonNode_ExplodingCarcass", name = "Carcasse explosive", description = "Tuer un ennemi le fait exploser : 5% de ses points de vie maximum infligés aux ennemis à moins de 6 mètres." },
         [2098] = { type = 0, x = 486, y = 1031, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2099] = { type = 0, x = 398, y = 1068, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2100] = { type = 0, x = 308, y = 1098, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
@@ -363,7 +363,7 @@ ParagonBoard = {
         [2133] = { type = 0, x = 982, y = 1134, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2134] = { type = 0, x = 908, y = 1194, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2135] = { type = 0, x = 831, y = 1249, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
-        [2136] = { type = 2, x = 750, y = 1299, effect = 13, stat = 5, value = 25, required = 55, free = false, icon = "Interface\\Icons\\ParagonNode_Carnage", name = "Carnage", description = "Tuer un ennemi le fait exploser : 25% de ses points de vie maximum infligés aux ennemis à moins de 8 mètres." },
+        [2136] = { type = 2, x = 750, y = 1299, effect = 16, stat = 5, value = 2, required = 55, free = false, icon = "Interface\\Icons\\ParagonNode_Carnage", name = "Carnage", description = "Tuer un ennemi augmente vos dégâts de 2% pendant 15 s, cumulable 8 fois. Chaque victime relance la durée." },
         [2137] = { type = 0, x = 666, y = 1344, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2138] = { type = 0, x = 580, y = 1383, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
         [2139] = { type = 0, x = 491, y = 1417, effect = 0, stat = 5, value = 40, required = 30, free = false, icon = "Interface\\Icons\\ParagonNode_PowerAscension", name = "Puissance", description = "+40 Puissance d'attaque" },
@@ -687,7 +687,7 @@ ParagonBoard = {
         [2457] = { type = 0, x = 1858, y = 95, effect = 0, stat = 0, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_StrengthTranscendence", name = "Force", description = "+45 Force" },
         [2458] = { type = 0, x = 1850, y = 190, effect = 0, stat = 0, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_StrengthTranscendence", name = "Force", description = "+45 Force" },
         [2459] = { type = 0, x = 1838, y = 284, effect = 0, stat = 0, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_StrengthTranscendence", name = "Force", description = "+45 Force" },
-        [2460] = { type = 1, x = 1821, y = 377, effect = 13, stat = 0, value = 20, required = 75, free = false, icon = "Interface\\Icons\\ParagonNode_Shockwave", name = "Onde de choc", description = "Tuer un ennemi le fait exploser : 20% de ses points de vie maximum infligés aux ennemis à moins de 8 mètres." },
+        [2460] = { type = 1, x = 1821, y = 377, effect = 13, stat = 0, value = 10, required = 75, free = false, icon = "Interface\\Icons\\ParagonNode_Shockwave", name = "Onde de choc", description = "Tuer un ennemi le fait exploser : 10% de ses points de vie maximum infligés aux ennemis à moins de 8 mètres." },
         [2461] = { type = 0, x = 1800, y = 470, effect = 0, stat = 0, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_StrengthTranscendence", name = "Force", description = "+45 Force" },
         [2462] = { type = 0, x = 1892, y = -470, effect = 0, stat = 0, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_StrengthTranscendence", name = "Force", description = "+45 Force" },
         [2463] = { type = 0, x = 1913, y = -378, effect = 0, stat = 0, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_StrengthTranscendence", name = "Force", description = "+45 Force" },
@@ -745,7 +745,7 @@ ParagonBoard = {
         [2515] = { type = 0, x = 628, y = 1655, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2516] = { type = 0, x = 538, y = 1686, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2517] = { type = 0, x = 1307, y = 1324, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
-        [2518] = { type = 1, x = 1237, y = 1389, effect = 13, stat = 5, value = 35, required = 75, free = false, icon = "Interface\\Icons\\ParagonNode_ChainReaction", name = "Réaction en chaîne", description = "Tuer un ennemi le fait exploser : 35% de ses points de vie maximum infligés aux ennemis à moins de 10 mètres." },
+        [2518] = { type = 1, x = 1237, y = 1389, effect = 16, stat = 5, value = 1, required = 75, free = false, icon = "Interface\\Icons\\ParagonNode_ChainReaction", name = "Réaction en chaîne", description = "Tuer un ennemi augmente vos dégâts de 1% pendant 15 s, cumulable 10 fois. Chaque victime relance la durée." },
         [2519] = { type = 0, x = 1165, y = 1450, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2520] = { type = 0, x = 1089, y = 1508, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2521] = { type = 0, x = 1011, y = 1561, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
@@ -783,7 +783,7 @@ ParagonBoard = {
         [2553] = { type = 0, x = 896, y = 1932, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2554] = { type = 0, x = 809, y = 1970, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2555] = { type = 0, x = 1191, y = 1873, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
-        [2556] = { type = 2, x = 1110, y = 1923, effect = 13, stat = 5, value = 75, required = 95, free = false, icon = "Interface\\Icons\\ParagonNode_ApotheosisCataclysm", name = "Apothéose : Cataclysme", description = "Tuer un ennemi le fait exploser : 75% de ses points de vie maximum infligés aux ennemis à moins de 12 mètres." },
+        [2556] = { type = 2, x = 1110, y = 1923, effect = 17, stat = 5, value = 15, required = 95, free = false, icon = "Interface\\Icons\\ParagonNode_ApotheosisCataclysm", name = "Apothéose : Cataclysme", description = "15% des dégâts de vos coups sont aussi infligés à 4 autres ennemis au plus, à moins de 10 mètres de votre cible." },
         [2557] = { type = 0, x = 1027, y = 1968, effect = 0, stat = 5, value = 90, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_PowerTranscendence", name = "Puissance", description = "+90 Puissance d'attaque" },
         [2558] = { type = 0, x = -537, y = 1497, effect = 0, stat = 1, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_AgilityTranscendence", name = "Agilité", description = "+45 Agilité" },
         [2559] = { type = 0, x = -625, y = 1462, effect = 0, stat = 1, value = 45, required = 65, free = false, icon = "Interface\\Icons\\ParagonNode_AgilityTranscendence", name = "Agilité", description = "+45 Agilité" },
