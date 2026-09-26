@@ -310,34 +310,31 @@ end
 
 -- Rank pips: one ember per rank, lit once forged ------------------------------------------------------------------
 
--- A pip is a small bronze frame around an ember that lights up: drawn, since the client has no indicator art
-local function CreatePips(parent, size, gap)
-    local pips = {}
+-- The rank track: a slim bar of eight segments, each lit once its rank is forged (gold for a masterpiece)
+local function CreateTrack(parent, width, height)
+    local track = { width = width }
+    local gap = 2
+    local segment = (width - (MAX_RANK - 1) * gap) / MAX_RANK
     for index = 1, MAX_RANK do
-        local frame = parent:CreateTexture(nil, "ARTWORK")
-        frame:SetTexture(0.55, 0.42, 0.24, 1)
-        frame:SetSize(size, size)
-        frame:SetPoint("LEFT", parent, "LEFT", (index - 1) * (size + gap), 0)
-        local ember = parent:CreateTexture(nil, "OVERLAY")
-        ember:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
-        ember:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
-        pips[index] = { frame = frame, ember = ember }
+        local cell = parent:CreateTexture(nil, "ARTWORK")
+        cell:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+        cell:SetSize(segment, height)
+        cell:SetPoint("LEFT", parent, "LEFT", (index - 1) * (segment + gap), 0)
+        track[index] = cell
     end
-    pips.width = MAX_RANK * size + (MAX_RANK - 1) * gap
-    return pips
+    return track
 end
 
-local function SetPips(pips, rank, maxRank)
+local function SetTrack(track, rank, maxRank)
     for index = 1, MAX_RANK do
-        local pip = pips[index]
-        SetShown(pip.frame, index <= maxRank)
-        SetShown(pip.ember, index <= maxRank)
+        local cell = track[index]
+        SetShown(cell, index <= maxRank)
         if index > rank then
-            pip.ember:SetTexture(0.1, 0.07, 0.05, 1)
+            cell:SetVertexColor(0.16, 0.12, 0.08)
         elseif rank >= MAX_RANK then
-            pip.ember:SetTexture(1, 0.86, 0.4, 1)
+            cell:SetVertexColor(1, 0.84, 0.36)
         else
-            pip.ember:SetTexture(1, 0.55, 0.15, 1)
+            cell:SetVertexColor(0.95, 0.5, 0.12)
         end
     end
 end
@@ -436,11 +433,10 @@ local function CreateRow(index)
     detail:SetTextColor(0.8, 0.74, 0.62)
     row.detail = detail
 
-    local pipHolder = CreateFrame("Frame", nil, row)
-    pipHolder:SetSize(100, 8)
-    pipHolder:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -8, 5)
-    row.pips = CreatePips(pipHolder, 8, 2)
-    pipHolder:SetWidth(row.pips.width)
+    local trackHolder = CreateFrame("Frame", nil, row)
+    trackHolder:SetSize(72, 4)
+    trackHolder:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -8, 7)
+    row.track = CreateTrack(trackHolder, 72, 4)
 
     row:SetScript("OnClick", function(self)
         if not state.working then
@@ -493,7 +489,7 @@ local function RefreshList()
         row.name:SetTextColor(QualityColor(quality))
         row.detail:SetText(format("%s %d · %s", TEXT.itemLevel, item.itemLevel,
             IsWorn(item) and TEXT.worn or TEXT.bags))
-        SetPips(row.pips, item.rank, state.maxRank)
+        SetTrack(row.track, item.rank, state.maxRank)
         SetShown(row.selectedGlow, key == state.selected)
         row:Show()
     end
@@ -529,7 +525,7 @@ function RefreshAnvil(animate)
     anvil.icon:SetTexture(icon)
     anvil.name:SetText(name or "…")
     anvil.name:SetTextColor(QualityColor(quality))
-    SetPips(anvil.pips, item.rank, state.maxRank)
+    SetTrack(anvil.track, item.rank, state.maxRank)
     anvil.rank:SetText(format(TEXT.rank, item.rank, state.maxRank))
     anvil.money:SetText(GetCoinTextureString(GetMoney()))
     anvil.invested:SetText(item.invested > 0 and format(TEXT.invested, GetCoinTextureString(item.invested)) or "")
@@ -589,6 +585,12 @@ local function Strike(index, golden)
         local size = 60 + (golden and 150 or 90) * OutCubic(p)
         spark:SetSize(size, size)
         spark:SetAlpha(1 - p)
+    end)
+    local ring = anvil.ring
+    Tween(0.45, 0, function(p)
+        local size = 70 + 170 * OutCubic(p)
+        ring:SetSize(size, size)
+        ring:SetAlpha(0.9 * (1 - p))
     end)
     local holder = anvil.iconHolder
     Tween(0.12, 0, function(p)
@@ -695,8 +697,7 @@ end
 
 local function AnimateForge(item, result, onDone)
     state.working = true
-    anvil.fire:SetAlpha(0)
-    Tween(0.5, 0, function(p) anvil.fire:SetAlpha(0.35 + 0.65 * p) end)
+    Tween(0.5, 0, function(p) anvil.halo:SetAlpha(0.8 * p) end)
     local strikes = HAMMER_STRIKES + (result.masterwork and 1 or 0)
     for strike = 1, strikes do
         Tween(0.01, HAMMER_DELAY + (strike - 1) * HAMMER_GAP, nil, function()
@@ -710,7 +711,7 @@ local function AnimateForge(item, result, onDone)
         RefreshList()
         onDone()
     end)
-    Tween(0.8, quench, function(p) anvil.fire:SetAlpha(1 - p) end, function()
+    Tween(0.8, quench, function(p) anvil.halo:SetAlpha(0.8 * (1 - p)) end, function()
         state.working = false
         RefreshAnvil(false)
     end)
@@ -876,7 +877,7 @@ local function CreateForge()
     emptyText:SetText(TEXT.empty)
     emptyText:Hide()
 
-    -- The anvil, on the right: the forge's embers glow under it while the blacksmith works
+    -- The anvil, on the right: the forge's fire rises behind the piece while the blacksmith works
     anvil = CreateFrame("Frame", nil, frame)
     anvil:SetPoint("TOPLEFT", listBox, "TOPRIGHT", 16, 0)
     anvil:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 24)
@@ -886,28 +887,6 @@ local function CreateForge()
     })
     anvil:SetBackdropColor(0.05, 0.03, 0.02, 0.85)
     anvil:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
-
-    -- The forge's embers: a soft glow at the foot of the anvil, and the fire that rises while the smith works
-    local embers = anvil:CreateTexture(nil, "BORDER")
-    embers:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Alert-Glow")
-    embers:SetTexCoord(0, 0.782, 0.39, 0.782)
-    embers:SetBlendMode("ADD")
-    embers:SetVertexColor(0.8, 0.32, 0.06)
-    embers:SetAlpha(0.45)
-    embers:SetPoint("BOTTOMLEFT", 4, 4)
-    embers:SetPoint("BOTTOMRIGHT", -4, 4)
-    embers:SetHeight(110)
-
-    local fire = anvil:CreateTexture(nil, "BORDER", nil, 1)
-    fire:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Alert-Glow")
-    fire:SetTexCoord(0, 0.782, 0.39, 0.782)
-    fire:SetBlendMode("ADD")
-    fire:SetVertexColor(1, 0.45, 0.1)
-    fire:SetPoint("BOTTOMLEFT", 4, 4)
-    fire:SetPoint("BOTTOMRIGHT", -4, 4)
-    fire:SetHeight(260)
-    fire:SetAlpha(0)
-    anvil.fire = fire
 
     local pick = anvil:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     pick:SetPoint("CENTER")
@@ -940,6 +919,25 @@ local function CreateForge()
     masterGlow:SetSize(130, 130)
     masterGlow:SetAlpha(0)
     anvil.masterGlow = masterGlow
+
+    -- The forge's fire, rising behind the piece while the smith works: a burst of flame-coloured rays
+    local halo = iconHolder:CreateTexture(nil, "BACKGROUND", nil, 2)
+    halo:SetTexture("Interface\\Cooldown\\starburst")
+    halo:SetBlendMode("ADD")
+    halo:SetVertexColor(1, 0.45, 0.1)
+    halo:SetPoint("CENTER")
+    halo:SetSize(190, 190)
+    halo:SetAlpha(0)
+    anvil.halo = halo
+
+    -- Each blow's shockwave: a ring running out from the piece
+    local ring = iconHolder:CreateTexture(nil, "OVERLAY", nil, 3)
+    ring:SetTexture("Interface\\Cooldown\\ping4")
+    ring:SetBlendMode("ADD")
+    ring:SetVertexColor(1, 0.6, 0.25)
+    ring:SetPoint("CENTER")
+    ring:SetAlpha(0)
+    anvil.ring = ring
 
     local glow = iconHolder:CreateTexture(nil, "BACKGROUND", nil, 1)
     glow:SetTexture("Interface\\Cooldown\\star4")
@@ -989,14 +987,13 @@ local function CreateForge()
     levels:SetPoint("TOP", levelLabel, "BOTTOM", 0, -2)
     anvil.levels = levels
 
-    local pipHolder = CreateFrame("Frame", nil, content)
-    pipHolder:SetSize(100, 12)
-    anvil.pips = CreatePips(pipHolder, 12, 4)
-    pipHolder:SetWidth(anvil.pips.width)
-    pipHolder:SetPoint("TOP", levels, "BOTTOM", 0, -8)
+    local trackHolder = CreateFrame("Frame", nil, content)
+    trackHolder:SetSize(200, 7)
+    trackHolder:SetPoint("TOP", levels, "BOTTOM", 0, -10)
+    anvil.track = CreateTrack(trackHolder, 200, 7)
 
     local rank = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    rank:SetPoint("TOP", pipHolder, "BOTTOM", 0, -5)
+    rank:SetPoint("TOP", trackHolder, "BOTTOM", 0, -6)
     rank:SetTextColor(0.85, 0.78, 0.62)
     anvil.rank = rank
 
@@ -1221,62 +1218,103 @@ hooksecurefunc(GameTooltip, "SetInventoryItem", function(tooltip, unit, slot)
     end
 end)
 
--- The Forge on the world map ---------------------------------------------------------------------------------------
--- An anvil where the master smith stands, on each capital's map, on the zones around them and on the continents. The
--- spots are his spawns (mod-forge forge_master.sql) placed on each map with WorldMapArea.dbc's bounds, by the map's
--- area id (GetCurrentMapAreaID).
+-- The Forge on the maps ---------------------------------------------------------------------------------------------
+-- An anvil where the master smith stands: on the world map (each capital, the zones around it, both continents), and
+-- on the minimap while in those, pointing the way from the minimap's edge when he is out of its reach. Maps are known
+-- by their file name (GetMapInfo), and placed with their WorldMapArea.dbc bounds: a map's left and right edges are
+-- world Y, its top and bottom world X. Works with the default map and minimap, and with DragonUI's, which keep the
+-- same frames (WorldMapButton, Minimap).
 
-local MAP_SPOTS = {
-    [301] = { { 0.6370, 0.3652 } },                         -- Stormwind City
-    [321] = { { 0.8142, 0.2167 } },                         -- Orgrimmar
-    [341] = { { 0.4959, 0.4384 } },                         -- Ironforge
-    [30] = { { 0.2649, 0.2071 } },                          -- Elwynn Forest
-    [27] = { { 0.5904, 0.2813 } },                          -- Dun Morogh
-    [14] = { { 0.4309, 0.7217 }, { 0.4732, 0.5885 } },      -- Eastern Kingdoms
-    [13] = { { 0.5948, 0.4373 } },                          -- Kalimdor
+-- The smith's spawns (mod-forge forge_master.sql), and the maps where he is worth pointing at
+local SMITHS = {
+    { continent = 0, x = -8418.887, y = 616.072, maps = { Stormwind = true, Elwynn = true } },
+    { continent = 1, x = 2071.138, y = -4822.572, maps = { Ogrimmar = true, Durotar = true } },
+    { continent = 0, x = -4800.548, y = -1105.697, maps = { Ironforge = true, DunMorogh = true } },
 }
-local CITY_MAPS = { [301] = true, [321] = true, [341] = true }
 
-local mapPins = {}
+local MAP_BOUNDS = {
+    Stormwind = { continent = 0, left = 1722.92, right = -14.58, top = -7995.83, bottom = -9154.17, city = true },
+    Ogrimmar = { continent = 1, left = -3680.60, right = -5083.21, top = 2273.88, bottom = 1338.46, city = true },
+    Ironforge = { continent = 0, left = -713.59, right = -1504.22, top = -4569.24, bottom = -5096.85, city = true },
+    Elwynn = { continent = 0, left = 1535.42, right = -1935.42, top = -7939.58, bottom = -10254.17 },
+    DunMorogh = { continent = 0, left = 1802.08, right = -3122.92, top = -3877.08, bottom = -7160.42 },
+    Durotar = { continent = 1, left = -1962.50, right = -7250.00, top = 1808.33, bottom = -1716.67 },
+    Azeroth = { continent = 0, left = 18171.97, right = -22569.21, top = 11176.34, bottom = -15973.34 },
+    Kalimdor = { continent = 1, left = 17066.60, right = -19733.21, top = 12799.90, bottom = -11733.30 },
+}
 
-local function CreateMapPin(index)
-    local pin = CreateFrame("Button", nil, WorldMapButton)
-    pin:SetFrameLevel(WorldMapButton:GetFrameLevel() + 6)
+-- Where a world position falls on a map, 0-1 from its top left; nil when off it
+local function MapPosition(bounds, x, y)
+    local px = (bounds.left - y) / (bounds.left - bounds.right)
+    local py = (bounds.top - x) / (bounds.top - bounds.bottom)
+    if px < 0 or px > 1 or py < 0 or py > 1 then
+        return nil
+    end
+    return px, py
+end
+
+local function ShowSmithTooltip(tooltip, owner)
+    tooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    tooltip:AddLine(TEXT.mapTitle, 1, 0.82, 0)
+    tooltip:AddLine(TEXT.mapSmith, 1, 1, 1)
+    tooltip:AddLine(TEXT.mapHint, 0.85, 0.78, 0.62)
+    tooltip:Show()
+end
+
+local function CreateAnvilPin(parent, tooltip)
+    local pin = CreateFrame("Button", nil, parent)
     local icon = pin:CreateTexture(nil, "OVERLAY")
     icon:SetAllPoints()
     icon:SetTexture("Interface\\Minimap\\Tracking\\Repair")
-    pin:SetScript("OnEnter", function(self)
-        WorldMapTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        WorldMapTooltip:AddLine(TEXT.mapTitle, 1, 0.82, 0)
-        WorldMapTooltip:AddLine(TEXT.mapSmith, 1, 1, 1)
-        WorldMapTooltip:AddLine(TEXT.mapHint, 0.85, 0.78, 0.62)
-        WorldMapTooltip:Show()
-    end)
-    pin:SetScript("OnLeave", function() WorldMapTooltip:Hide() end)
-    mapPins[index] = pin
+    pin.icon = icon
+    pin:SetScript("OnEnter", function(self) ShowSmithTooltip(_G[tooltip], self) end)
+    pin:SetScript("OnLeave", function() _G[tooltip]:Hide() end)
     return pin
 end
 
+-- The world map ----------------------------------------------------------------------------------------------------
+
+local mapPins = {}
+
 local function UpdateMapPins()
-    local area = GetCurrentMapAreaID()
-    local spots = MAP_SPOTS[area] or {}
+    local bounds = MAP_BOUNDS[GetMapInfo() or ""]
     local width, height = WorldMapButton:GetWidth(), WorldMapButton:GetHeight()
-    local size = CITY_MAPS[area] and 22 or 16
-    for index, spot in ipairs(spots) do
-        local pin = mapPins[index] or CreateMapPin(index)
-        pin:SetSize(size, size)
-        pin:ClearAllPoints()
-        pin:SetPoint("CENTER", WorldMapButton, "TOPLEFT", spot[1] * width, -spot[2] * height)
-        pin:Show()
+    -- The same size on screen however the map is scaled (DragonUI scales the canvas)
+    local pinScale = UIParent:GetEffectiveScale() / WorldMapButton:GetEffectiveScale()
+    local size = bounds and bounds.city and 22 or 16
+    local shown = 0
+    for _, smith in ipairs(SMITHS) do
+        local px, py
+        if bounds and bounds.continent == smith.continent then
+            px, py = MapPosition(bounds, smith.x, smith.y)
+        end
+        if px then
+            shown = shown + 1
+            local pin = mapPins[shown]
+            if not pin then
+                pin = CreateAnvilPin(WorldMapButton, "WorldMapTooltip")
+                mapPins[shown] = pin
+            end
+            pin:SetFrameLevel(WorldMapButton:GetFrameLevel() + 6)
+            pin:SetScale(pinScale)
+            pin:SetSize(size, size)
+            pin:ClearAllPoints()
+            pin:SetPoint("CENTER", WorldMapButton, "TOPLEFT", px * width / pinScale, -py * height / pinScale)
+            pin:Show()
+        end
     end
-    for index = #spots + 1, #mapPins do
+    for index = shown + 1, #mapPins do
         mapPins[index]:Hide()
     end
 end
 
 local mapWatcher = CreateFrame("Frame")
 mapWatcher:RegisterEvent("WORLD_MAP_UPDATE")
-mapWatcher:SetScript("OnEvent", UpdateMapPins)
+mapWatcher:SetScript("OnEvent", function()
+    if WorldMapFrame:IsShown() then
+        UpdateMapPins()
+    end
+end)
 WorldMapFrame:HookScript("OnShow", UpdateMapPins)
 -- The map changes size between its full and windowed views
 for _, name in ipairs({ "WorldMapFrame_SetFullMapView", "WorldMapFrame_SetQuestMapView", "WorldMap_ToggleSizeUp",
@@ -1285,6 +1323,121 @@ for _, name in ipairs({ "WorldMapFrame_SetFullMapView", "WorldMapFrame_SetQuestM
         hooksecurefunc(name, UpdateMapPins)
     end
 end
+
+-- The minimap ------------------------------------------------------------------------------------------------------
+
+-- The minimap's diameter in yards at each zoom level, indoors and outdoors (the client's own figures)
+local MINIMAP_YARDS = {
+    indoor = { [0] = 300, 240, 180, 120, 80, 50 },
+    outdoor = { [0] = 466.6667, 400, 333.3333, 266.6667, 200, 133.3333 },
+}
+
+local minimapPin = CreateAnvilPin(Minimap, "GameTooltip")
+minimapPin:SetSize(16, 16)
+minimapPin:Hide()
+
+-- Indoors and outdoors keep a zoom each; which one the minimap is on shows when they differ (briefly moved
+-- otherwise). Asked again only when the place or the zoom changes.
+local indoors = false
+local function UpdateIndoors()
+    local zoom = Minimap:GetZoom()
+    if GetCVar("minimapZoom") == GetCVar("minimapInsideZoom") then
+        Minimap:SetZoom(zoom < 2 and zoom + 1 or zoom - 1)
+    end
+    indoors = tonumber(GetCVar("minimapZoom")) ~= Minimap:GetZoom()
+    Minimap:SetZoom(zoom)
+end
+
+-- The maps the minimap pin shows on
+local SMITH_MAPS = {}
+for _, smith in ipairs(SMITHS) do
+    for name in pairs(smith.maps) do
+        SMITH_MAPS[name] = true
+    end
+end
+
+-- Where the player is, in world yards; nil away from the smith's maps. The world map is put back on the player's
+-- zone when it closes and when the zone changes; in between, reading the position disturbs nothing.
+local playerMap, playerX, playerY
+local function UpdatePlayerPosition()
+    if WorldMapFrame:IsShown() then
+        return
+    end
+    local name = GetMapInfo()
+    local bounds = MAP_BOUNDS[name or ""]
+    local px, py = GetPlayerMapPosition("player")
+    if not bounds or not SMITH_MAPS[name] or (px == 0 and py == 0) then
+        playerMap = nil
+        return
+    end
+    playerMap = name
+    playerX = bounds.top - py * (bounds.top - bounds.bottom)
+    playerY = bounds.left - px * (bounds.left - bounds.right)
+end
+
+local function UpdateMinimapPin()
+    UpdatePlayerPosition()
+    local smith
+    for _, candidate in ipairs(SMITHS) do
+        if playerMap and candidate.maps[playerMap] then
+            smith = candidate
+        end
+    end
+    if not smith then
+        minimapPin:Hide()
+        return
+    end
+
+    -- East and south of the player, in yards, turned with the minimap when it turns
+    local east = playerY - smith.y
+    local south = playerX - smith.x
+    if GetCVar("rotateMinimap") == "1" then
+        local facing = GetPlayerFacing()
+        local sine, cosine = math.sin(facing), math.cos(facing)
+        east, south = east * cosine - south * sine, east * sine + south * cosine
+    end
+
+    local zoom = Minimap:GetZoom()
+    local yards = (indoors and MINIMAP_YARDS.indoor or MINIMAP_YARDS.outdoor)[zoom] or 466.6667
+    local perYard = Minimap:GetWidth() / yards
+    local x, y = east * perYard, -south * perYard
+    local radius = Minimap:GetWidth() / 2 - 8
+    local distance = math.sqrt(x * x + y * y)
+    -- Out of the minimap's reach: on its edge, pointing the way
+    if distance > radius then
+        x, y = x * radius / distance, y * radius / distance
+        minimapPin:SetAlpha(0.75)
+    else
+        minimapPin:SetAlpha(1)
+    end
+    minimapPin:SetFrameLevel(Minimap:GetFrameLevel() + 5)
+    minimapPin:ClearAllPoints()
+    minimapPin:SetPoint("CENTER", Minimap, "CENTER", x, y)
+    minimapPin:Show()
+end
+
+local minimapClock = 0
+local minimapWatcher = CreateFrame("Frame")
+minimapWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+minimapWatcher:RegisterEvent("ZONE_CHANGED")
+minimapWatcher:RegisterEvent("ZONE_CHANGED_INDOORS")
+minimapWatcher:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+minimapWatcher:RegisterEvent("MINIMAP_UPDATE_ZOOM")
+minimapWatcher:SetScript("OnEvent", function()
+    if not WorldMapFrame:IsShown() then
+        SetMapToCurrentZone()
+    end
+    UpdateIndoors()
+    UpdateMinimapPin()
+end)
+WorldMapFrame:HookScript("OnHide", SetMapToCurrentZone)
+minimapWatcher:SetScript("OnUpdate", function(_, elapsed)
+    minimapClock = minimapClock + elapsed
+    if minimapClock >= 0.1 then
+        minimapClock = 0
+        UpdateMinimapPin()
+    end
+end)
 
 -- Messages ---------------------------------------------------------------------------------------------------------
 

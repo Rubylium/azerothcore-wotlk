@@ -975,9 +975,9 @@ $customVisualKits = @(
     @{ Key = 'FORGE_Embers1'; Clone = 8607; Fields = @{ 15 = 0 } }
     @{ Key = 'FORGE_Embers2'; Clone = 8607; Fields = @{ 6 = 3899; 7 = 3899; 15 = 0 } }
     @{ Key = 'FORGE_Embers3'; Clone = 8171; Fields = @{ 3 = 0; 6 = 3478; 7 = 3478; 15 = 0 } }
-    # The master smith's hammer on the anvil: the one-hand strike (animation 17), Fire Blast's molten burst at the
-    # hammer hand, and Sunder Armor's clang of metal (a kit with no chest effect)
-    @{ Key = 'FORGE_Strike'; Clone = 556; Fields = @{ 2 = 17; 4 = 0; 7 = 321 } }
+    # The master smith's hammer on the anvil: the capitals' smiths' own anvil work (animation 136, the one emote 233
+    # loops), Fire Blast's molten burst at the hammer hand, and Sunder Armor's clang of metal (no chest effect)
+    @{ Key = 'FORGE_Strike'; Clone = 556; Fields = @{ 2 = 136; 4 = 0; 7 = 321 } }
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15
