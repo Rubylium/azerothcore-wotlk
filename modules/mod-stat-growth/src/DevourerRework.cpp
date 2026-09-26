@@ -121,16 +121,23 @@ constexpr uint32 BlastsPerWave = 5;
 constexpr uint32 BlastWaveMs = 1500;
 constexpr float BlastSpread = 28.0f;
 
-// Damage, before the mythic scaling of a key (MythicDungeonSystem.cpp scales it like any creature spell): heroic, and
-// normal at NormalPercent of it. Heroic players of the Forge have 20-25k health.
+// Damage. In a mythic key, a share of the reference health (MythicTuning.h: what a damage dealer has at that key),
+// the same danger at every key; the budgets are in .agents/plans/mplus-damage-audit/forge-of-souls.ANALYSIS.md.
+// Elsewhere, the heroic amount (normal at NormalPercent of it): heroic players of the Forge have 20-25k health.
+struct AbilityDamage
+{
+    uint32 heroic;
+    float mythicPercent;
+};
+
 constexpr uint32 NormalPercent = 60;
-constexpr uint32 StrikeDamage = 10000;
-constexpr uint32 WailDamage = 8000;
-constexpr uint32 ScreamDamage = 7000;           // to everyone else in the circle
-constexpr uint32 ScreamCarrierDamage = 1500;    // to the one carrying it
-constexpr uint32 SiphonDamage = 9000;
-constexpr uint32 HarvestDamage = 12000;
-constexpr uint32 BlastDamage = 7000;
+constexpr AbilityDamage StrikeDamage = { 10000, 55.0f };
+constexpr AbilityDamage WailDamage = { 8000, 44.0f };
+constexpr AbilityDamage ScreamDamage = { 7000, 45.0f };         // to everyone else in the circle
+constexpr AbilityDamage ScreamCarrierDamage = { 1500, 10.0f };  // to the one carrying it
+constexpr AbilityDamage SiphonDamage = { 9000, 50.0f };
+constexpr AbilityDamage HarvestDamage = { 12000, 64.0f };
+constexpr AbilityDamage BlastDamage = { 7000, 31.0f };
 
 struct boss_devourer_of_souls_evolutions : public BossAI
 {
@@ -322,10 +329,13 @@ private:
         return me->GetMap()->IsHeroic() ? heroic : heroic * NormalPercent / 100;
     }
 
-    // Deals damage as the named spell: resistances, absorbs and the key's scaling apply, and it reads as that spell
-    void Burn(Unit* target, uint32 spellId, uint32 amount)
+    // Deals damage as the named spell: defensives, resistances and absorbs apply, and it reads as that spell
+    void Burn(Unit* target, uint32 spellId, AbilityDamage const& damage)
     {
-        MythicTuning::DealAbilityDamage(me, target, spellId, amount);
+        if (me->GetMap()->IsMythic())
+            MythicTuning::DealReferenceDamage(me, target, spellId, damage.mythicPercent);
+        else
+            MythicTuning::DealAbilityDamage(me, target, spellId, Amount(damage.heroic));
     }
 
     std::vector<Player*> Players()
@@ -347,7 +357,7 @@ private:
         return inside;
     }
 
-    void BurnIn(std::vector<GroundIndicators::Area> const& areas, uint32 spellId, uint32 amount)
+    void BurnIn(std::vector<GroundIndicators::Area> const& areas, uint32 spellId, AbilityDamage const& damage)
     {
         std::vector<Player*> burned;
         for (GroundIndicators::Area const& area : areas)
@@ -355,7 +365,7 @@ private:
                 if (std::find(burned.begin(), burned.end(), player) == burned.end())
                     burned.push_back(player);
         for (Player* player : burned)
-            Burn(player, spellId, amount);
+            Burn(player, spellId, damage);
     }
 
     Position Ground(float x, float y) const
@@ -396,7 +406,7 @@ private:
             for (Player* player : PlayersIn(line))
             {
                 player->SendPlaySpellVisual(KIT_STRIKE_HIT);
-                Burn(player, SPELL_SOUL_STRIKE, Amount(StrikeDamage));
+                Burn(player, SPELL_SOUL_STRIKE, StrikeDamage);
             }
             EndWindup();
         });
@@ -425,7 +435,7 @@ private:
                 for (Player* hit : PlayersIn(area))
                 {
                     hit->SendPlaySpellVisual(KIT_WAIL_HIT);
-                    Burn(hit, SPELL_WAIL_OF_SOULS, Amount(WailDamage));
+                    Burn(hit, SPELL_WAIL_OF_SOULS, WailDamage);
                 }
             });
         }
@@ -448,10 +458,10 @@ private:
 
                 carrier->SendPlaySpellVisual(KIT_SCREAM_HIT);
                 GroundIndicators::Burst(me, *carrier, GroundIndicators::Theme::Shadow);
-                Burn(carrier, SPELL_SOUL_SCREAM, Amount(ScreamCarrierDamage));
+                Burn(carrier, SPELL_SOUL_SCREAM, ScreamCarrierDamage);
                 for (Player* player : PlayersIn(GroundIndicators::CurrentArea(carrier, area)))
                     if (player != carrier)
-                        Burn(player, SPELL_SOUL_SCREAM, Amount(ScreamDamage));
+                        Burn(player, SPELL_SOUL_SCREAM, ScreamDamage);
             });
         }
     }
@@ -474,7 +484,7 @@ private:
                 scheduler.Schedule(Milliseconds(SiphonWarningMs), [this, cone, step](TaskContext)
                 {
                     BurstAlong(cone, 8.0f, SiphonRadius, 9.0f);
-                    BurnIn({ cone }, SPELL_SIPHON_SOUL, Amount(SiphonDamage));
+                    BurnIn({ cone }, SPELL_SIPHON_SOUL, SiphonDamage);
                     if (step + 1 == SiphonSteps)
                         EndWindup();
                 });
@@ -500,7 +510,7 @@ private:
         scheduler.Schedule(Milliseconds(HarvestWarningMs), [this, half, facing, first](TaskContext)
         {
             BurstAlong(half, 8.0f, HarvestRadius, 10.0f);
-            BurnIn({ half }, SPELL_HARVEST_SOUL, Amount(HarvestDamage));
+            BurnIn({ half }, SPELL_HARVEST_SOUL, HarvestDamage);
             if (first)
                 HarvestHalf(Position::NormalizeOrientation(facing + float(M_PI)), false);
             else
@@ -535,7 +545,7 @@ private:
                     scheduler.Schedule(Milliseconds(BlastWarningMs), [this, area](TaskContext)
                     {
                         GroundIndicators::Burst(me, area.origin, GroundIndicators::Theme::Shadow);
-                        BurnIn({ area }, SPELL_SOUL_BLAST, Amount(BlastDamage));
+                        BurnIn({ area }, SPELL_SOUL_BLAST, BlastDamage);
                     });
                 }
             });

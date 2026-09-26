@@ -22,7 +22,8 @@
 //
 // Phase 1, the Forge (100-60%): Shadow Cleave, a cone at the tank he holds still for (step aside); Soul Blast, a
 // circle under every player (move); Soul Sever, a circle following one player that bursts on whoever is still next to
-// them (take it away); Soul Siphon, a small pulse on the whole group.
+// them (take it away); Soul Siphon, a small pulse on the whole group; Soul Rend, a small circle on the tank he holds
+// still for, then a heavy hit on the tank alone (a defensive cooldown; the others keep off the tank).
 // Intermission, the Harvest (60%): he goes back to the middle of the room and cannot be hurt, and four waves of beams
 // sweep out of him, each turned from the one before (stand between the lines, then move).
 // Phase 2, the Storm (60-0%): Shadow Nova, two opposite quarters of the room erupting, then the other two (cross over
@@ -37,12 +38,13 @@ constexpr uint32 NPC_WORLD_TRIGGER = 22515;
 // Only named in the combat log: the damage is dealt by the script, on the areas it drew
 enum Spells
 {
-    SPELL_SHADOW_CLEAVE     = 29832,
+    SPELL_SHADOW_CLEAVE     = 70670,    // school damage: a weapon spell (29832) would not be scaled
     SPELL_SOUL_BLAST        = 50992,
     SPELL_SOUL_SEVER        = 45917,
     SPELL_SOUL_FLAY         = 45442,
     SPELL_SHADOW_NOVA       = 30852,
     SPELL_SOUL_SIPHON       = 7290,
+    SPELL_SOUL_REND         = 3405,
 };
 
 // Stock spell visual kits of those spells, played where each ability lands
@@ -67,6 +69,7 @@ enum Events
     EVENT_SOUL_SEVER,
     EVENT_SOUL_SIPHON,
     EVENT_SHADOW_NOVA,
+    EVENT_SOUL_REND,
 };
 
 enum Phases
@@ -101,17 +104,28 @@ constexpr uint32 BeamWaves = 4;
 constexpr float NovaRadius = 45.0f;
 constexpr float NovaArc = 90.0f;
 constexpr uint32 NovaWarningMs = 3000;
+constexpr float SoulRendRadius = 3.0f;
+constexpr uint32 SoulRendWarningMs = 2000;
 
-// Damage, before the mythic scaling of a key (MythicDungeonSystem.cpp scales it like any creature spell): heroic, and
-// normal at NormalPercent of it. Heroic players of the Forge have 20-25k health.
+// Damage. In a mythic key, a share of the reference health (MythicTuning.h: what a damage dealer has at that key),
+// the same danger at every key; the budgets are in .agents/plans/mplus-damage-audit/forge-of-souls.ANALYSIS.md.
+// Elsewhere, the heroic amount (normal at NormalPercent of it): heroic players of the Forge have 20-25k health.
+struct AbilityDamage
+{
+    uint32 heroic;
+    float mythicPercent;
+};
+
 constexpr uint32 NormalPercent = 60;
-constexpr uint32 CleaveDamage = 9000;
-constexpr uint32 BlastDamage = 7000;
-constexpr uint32 SeverDamage = 9000;            // to everyone else in the circle
-constexpr uint32 SeverCarrierDamage = 3000;     // to the one carrying it
-constexpr uint32 FlayDamage = 10000;
-constexpr uint32 NovaDamage = 11000;
-constexpr uint32 SiphonDamage = 2000;
+constexpr AbilityDamage CleaveDamage = { 9000, 54.0f };
+constexpr AbilityDamage BlastDamage = { 7000, 35.0f };
+constexpr AbilityDamage SeverDamage = { 9000, 60.0f };          // to everyone else in the circle
+constexpr AbilityDamage SeverCarrierDamage = { 3000, 12.0f };   // to the one carrying it
+constexpr AbilityDamage FlayDamage = { 10000, 55.0f };
+constexpr AbilityDamage NovaDamage = { 11000, 58.0f };
+constexpr AbilityDamage SiphonDamage = { 2000, 12.0f };
+// The tank buster: 45% of a tank's health (a tank has about 1.45 times the reference)
+constexpr AbilityDamage SoulRendDamage = { 12000, 65.0f };
 
 struct boss_bronjahm_evolutions : public BossAI
 {
@@ -180,7 +194,7 @@ struct boss_bronjahm_evolutions : public BossAI
         while (uint32 eventId = events.ExecuteEvent())
         {
             // One held ability at a time: while he stands still for one, the next waits
-            if (_windup && (eventId == EVENT_CLEAVE || eventId == EVENT_SHADOW_NOVA))
+            if (_windup && (eventId == EVENT_CLEAVE || eventId == EVENT_SHADOW_NOVA || eventId == EVENT_SOUL_REND))
             {
                 events.ScheduleEvent(eventId, 1s);
                 continue;
@@ -204,6 +218,7 @@ private:
                 events.ScheduleEvent(EVENT_SOUL_BLAST, 12s);
                 events.ScheduleEvent(EVENT_SOUL_SEVER, 20s);
                 events.ScheduleEvent(EVENT_SOUL_SIPHON, 15s);
+                events.ScheduleEvent(EVENT_SOUL_REND, 18s);
                 break;
             case PHASE_STORM:
                 events.ScheduleEvent(EVENT_SHADOW_NOVA, 6s);
@@ -211,6 +226,7 @@ private:
                 events.ScheduleEvent(EVENT_SOUL_BLAST, 16s);
                 events.ScheduleEvent(EVENT_SOUL_SEVER, 22s);
                 events.ScheduleEvent(EVENT_SOUL_SIPHON, 10s);
+                events.ScheduleEvent(EVENT_SOUL_REND, 20s);
                 break;
             default:
                 break;
@@ -241,6 +257,10 @@ private:
             case EVENT_SHADOW_NOVA:
                 ShadowNova();
                 events.ScheduleEvent(EVENT_SHADOW_NOVA, 24s);
+                break;
+            case EVENT_SOUL_REND:
+                SoulRend();
+                events.ScheduleEvent(EVENT_SOUL_REND, storm ? 20s : 22s);
                 break;
             default:
                 break;
@@ -274,10 +294,13 @@ private:
         return me->GetMap()->IsHeroic() ? heroic : heroic * NormalPercent / 100;
     }
 
-    // Deals damage as the named spell: resistances, absorbs and the key's scaling apply, and it reads as that spell
-    void Burn(Unit* target, uint32 spellId, uint32 amount)
+    // Deals damage as the named spell: defensives, resistances and absorbs apply, and it reads as that spell
+    void Burn(Unit* target, uint32 spellId, AbilityDamage const& damage)
     {
-        MythicTuning::DealAbilityDamage(me, target, spellId, amount);
+        if (me->GetMap()->IsMythic())
+            MythicTuning::DealReferenceDamage(me, target, spellId, damage.mythicPercent);
+        else
+            MythicTuning::DealAbilityDamage(me, target, spellId, Amount(damage.heroic));
     }
 
     std::vector<Player*> Players()
@@ -330,8 +353,33 @@ private:
             for (Player* player : PlayersIn(area))
             {
                 player->SendPlaySpellVisual(KIT_CLEAVE_HIT);
-                Burn(player, SPELL_SHADOW_CLEAVE, Amount(CleaveDamage));
+                Burn(player, SPELL_SHADOW_CLEAVE, CleaveDamage);
             }
+            EndWindup();
+        });
+    }
+
+    // Soul Rend: the tank buster. A small circle on the tank while he holds still for it, then a hit on the tank
+    // only: the moment for a defensive cooldown. The circle keeps the others off the tank.
+    void SoulRend()
+    {
+        Unit* tank = me->GetVictim();
+        if (!tank)
+            return;
+
+        BeginWindup(me->GetAngle(tank));
+        me->SendPlaySpellVisual(KIT_BLAST_PRECAST);
+        me->TextEmote("%s begins to rend the soul of his foe!", nullptr, true);
+        GroundIndicators::ShowCarriedCircle(me, tank, SoulRendRadius, SoulRendWarningMs);
+        ObjectGuid const tankGuid = tank->GetGUID();
+        scheduler.Schedule(Milliseconds(SoulRendWarningMs), [this, tankGuid](TaskContext)
+        {
+            if (Unit* target = ObjectAccessor::GetUnit(*me, tankGuid))
+                if (target->IsAlive())
+                {
+                    target->SendPlaySpellVisual(KIT_SEVER_BURST);
+                    Burn(target, SPELL_SOUL_REND, SoulRendDamage);
+                }
             EndWindup();
         });
     }
@@ -348,7 +396,7 @@ private:
             {
                 PlayOnGround(area.origin, KIT_SHADOW_BURST);
                 for (Player* hit : PlayersIn(area))
-                    Burn(hit, SPELL_SOUL_BLAST, Amount(BlastDamage));
+                    Burn(hit, SPELL_SOUL_BLAST, BlastDamage);
             });
         }
     }
@@ -374,10 +422,10 @@ private:
                     return;
 
                 carrier->SendPlaySpellVisual(KIT_SEVER_BURST);
-                Burn(carrier, SPELL_SOUL_SEVER, Amount(SeverCarrierDamage));
+                Burn(carrier, SPELL_SOUL_SEVER, SeverCarrierDamage);
                 for (Player* player : PlayersIn(GroundIndicators::CurrentArea(carrier, area)))
                     if (player != carrier)
-                        Burn(player, SPELL_SOUL_SEVER, Amount(SeverDamage));
+                        Burn(player, SPELL_SOUL_SEVER, SeverDamage);
             });
         }
     }
@@ -389,7 +437,7 @@ private:
         for (Player* player : Players())
         {
             player->SendPlaySpellVisual(KIT_SIPHON_HIT);
-            Burn(player, SPELL_SOUL_SIPHON, Amount(SiphonDamage));
+            Burn(player, SPELL_SOUL_SIPHON, SiphonDamage);
         }
     }
 
@@ -448,7 +496,7 @@ private:
                     if (std::find(burned.begin(), burned.end(), player) == burned.end())
                         burned.push_back(player);
             for (Player* player : burned)
-                Burn(player, SPELL_SOUL_FLAY, Amount(FlayDamage));
+                Burn(player, SPELL_SOUL_FLAY, FlayDamage);
 
             if (wave + 1 < BeamWaves)
                 BeamWave(base + float(M_PI) / 8.0f, wave + 1);
@@ -500,7 +548,7 @@ private:
                     if (std::find(burned.begin(), burned.end(), player) == burned.end())
                         burned.push_back(player);
             for (Player* player : burned)
-                Burn(player, SPELL_SHADOW_NOVA, Amount(NovaDamage));
+                Burn(player, SPELL_SHADOW_NOVA, NovaDamage);
 
             if (first)
                 NovaPair(base + float(M_PI) / 2.0f, false);
