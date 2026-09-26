@@ -396,6 +396,7 @@ public:
         UpdatePersonalLootAddonHandshake(player, diff);
         UpdateParagonBuffs(player);
         UpdateCombatRogue(player, diff);
+        UpdateMythicTankResolve(player, diff);
     }
 
     void OnPlayerBeforeSendChatMessage(Player* player, uint32&, uint32& language, std::string& message) override

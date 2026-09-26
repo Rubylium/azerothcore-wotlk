@@ -18,6 +18,8 @@
 #include "ParagonSystem.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "SpellAuraEffects.h"
+#include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "Timer.h"
 #include "WorldSession.h"
@@ -484,7 +486,8 @@ bool IsMythicCreature(Creature const* creature)
 // the player sees, and the mechanics below are the substance.
 //
 // Movement is deliberately left alone: a root or a snare does not take control away, it just holds you still,
-// and a tank that cannot be slowed at all is a different decision from the one that was asked for.
+// and a tank that cannot be slowed at all is a different decision from the one that was asked for. A knockback does
+// take it away, and throws the pack's position with it, so it is refused too.
 constexpr uint32 SPELL_MYTHIC_TANK_RESOLVE = 90600;
 
 constexpr std::array<Mechanics, 13> MythicTankImmunities = {
@@ -492,22 +495,81 @@ constexpr std::array<Mechanics, 13> MythicTankImmunities = {
     MECHANIC_FREEZE, MECHANIC_KNOCKOUT, MECHANIC_POLYMORPH, MECHANIC_BANISH, MECHANIC_SHACKLE,
     MECHANIC_TURN, MECHANIC_HORROR, MECHANIC_SAPPED
 };
+// Many creature spells stun or fear through the aura alone, with no mechanic set on the spell: the mechanic list
+// never saw them, and they went through. The aura types themselves are refused as well.
+constexpr std::array<AuraType, 6> MythicTankAuraImmunities = {
+    SPELL_AURA_MOD_STUN, SPELL_AURA_MOD_FEAR, SPELL_AURA_MOD_CONFUSE, SPELL_AURA_MOD_CHARM, SPELL_AURA_MOD_POSSESS,
+    SPELL_AURA_AOE_CHARM
+};
+constexpr std::array<SpellEffects, 2> MythicTankEffectImmunities = {
+    SPELL_EFFECT_KNOCK_BACK, SPELL_EFFECT_KNOCK_BACK_DEST
+};
+
+// Threat in a dungeon or a raid. A board-boosted damage dealer outdamages a tank several times over, and the tank's
+// stance was built for WotLK numbers: the tank's presence doubles its threat, and everyone else in a group with a
+// tank makes less of it. The paragon board's tank nodes add to the presence.
+constexpr uint32 SPELL_TANK_PRESENCE = 90664;
+constexpr uint32 SPELL_GROUP_DISCRETION = 90665;
+constexpr int32 TankThreatPct = 100;
+constexpr int32 DiscretionThreatPct = -40;
+
+constexpr uint32 RoleUpdateMs = 2000;
+constexpr uint8 ClassPestifere = 12;
+constexpr uint32 SPELL_PESTIFERE_CARAPACE_NECROSEE = 90211;
+constexpr uint32 SPELL_DEFENSIVE_STANCE = 71;
+constexpr uint32 SPELL_RIGHTEOUS_FURY = 25780;
+constexpr uint32 SPELL_FROST_PRESENCE = 48263;
+
+// Per character: when the roles are next looked at, and whether the immunities are on (they are not an aura, so
+// dying does not take them off, and the aura being gone says nothing about them)
+struct MythicRoleState : public DataMap::Base
+{
+    uint32 nextUpdate = 0;
+    bool resolve = false;
+};
+
+// Tanking right now: a tank stance, form or presence, or the Pestiféré's Carapace nécrosée
+bool IsInTankStance(Player* player)
+{
+    switch (player->getClass())
+    {
+        case CLASS_WARRIOR: return player->HasAura(SPELL_DEFENSIVE_STANCE);
+        case CLASS_PALADIN: return player->HasAura(SPELL_RIGHTEOUS_FURY);
+        case CLASS_DEATH_KNIGHT: return player->HasAura(SPELL_FROST_PRESENCE);
+        case CLASS_DRUID:
+            return player->GetShapeshiftForm() == FORM_BEAR || player->GetShapeshiftForm() == FORM_DIREBEAR;
+        case ClassPestifere: return player->HasAura(SPELL_PESTIFERE_CARAPACE_NECROSEE, player->GetGUID());
+        default: return false;
+    }
+}
 
 bool IsGroupTank(Player* player)
 {
     if (uint8 const roles = sLFGMgr->GetRoles(player->GetGUID()))
-        return (roles & lfg::PLAYER_ROLE_TANK) != 0;
+        if (roles & lfg::PLAYER_ROLE_TANK)
+            return true;
 
     // A group put together by hand never ran a role check through the finder, but the group still carries a
     // role and a main-tank flag per member, and either one is a clear enough statement of who is tanking.
+    if (Group* group = player->GetGroup())
+        for (Group::MemberSlot const& member : group->GetMemberSlots())
+            if (member.guid == player->GetGUID() &&
+                ((member.roles & lfg::PLAYER_ROLE_TANK) || (member.flags & MEMBER_FLAG_MAINTANK)))
+                return true;
+
+    // Nobody set a role at all, which is most groups made by hand: whoever is in a tank stance is the tank
+    return IsInTankStance(player);
+}
+
+bool GroupHasTank(Player* player)
+{
     Group* group = player->GetGroup();
     if (!group)
         return false;
-
-    for (Group::MemberSlot const& member : group->GetMemberSlots())
-        if (member.guid == player->GetGUID())
-            return (member.roles & lfg::PLAYER_ROLE_TANK) || (member.flags & MEMBER_FLAG_MAINTANK);
-
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        if (Player* member = ref->GetSource(); member && member != player && member->IsInMap(player) &&
+            IsGroupTank(member))
+            return true;
     return false;
 }
 
@@ -519,32 +581,80 @@ void SetMythicTankResolve(Player* player, bool apply)
         player->ApplySpellImmune(SPELL_MYTHIC_TANK_RESOLVE, IMMUNITY_MECHANIC, mechanic, apply);
         mask |= 1ULL << mechanic;
     }
+    for (AuraType aura : MythicTankAuraImmunities)
+        player->ApplySpellImmune(SPELL_MYTHIC_TANK_RESOLVE, IMMUNITY_STATE, aura, apply);
+    for (SpellEffects effect : MythicTankEffectImmunities)
+        player->ApplySpellImmune(SPELL_MYTHIC_TANK_RESOLVE, IMMUNITY_EFFECT, effect, apply);
 
     if (apply)
     {
         // Whatever already had hold of it lets go the moment the buff lands, or the tank would stand there
         // immune and still stunned until the old aura ran out.
         player->RemoveAurasWithMechanic(mask);
-        if (!player->HasAura(SPELL_MYTHIC_TANK_RESOLVE))
-            player->CastSpell(player, SPELL_MYTHIC_TANK_RESOLVE, true);
+        for (AuraType aura : MythicTankAuraImmunities)
+            player->RemoveAurasByType(aura);
     }
     else
-    {
         player->RemoveAurasDueToSpell(SPELL_MYTHIC_TANK_RESOLVE);
+}
+
+// A threat aura at `amount` percent, or none at 0
+void SetThreatAura(Player* player, uint32 spellId, int32 amount)
+{
+    Aura* aura = player->GetAura(spellId);
+    if (!amount)
+    {
+        if (aura)
+            player->RemoveAurasDueToSpell(spellId);
+        return;
     }
+    if (!aura)
+        aura = player->AddAura(spellId, player);
+    if (AuraEffect* effect = aura ? aura->GetEffect(EFFECT_0) : nullptr; effect && effect->GetAmount() != amount)
+        effect->ChangeAmount(amount);
+}
+
+void UpdateMythicRoles(Player* player, bool now)
+{
+    MythicRoleState* state = player->CustomData.GetDefault<MythicRoleState>("MythicRoles");
+    uint32 const msNow = getMSTime();
+    if (!now && msNow < state->nextUpdate)
+        return;
+    state->nextUpdate = msNow + RoleUpdateMs;
+
+    Map* map = player->FindMap();
+    bool const instance = map && map->IsDungeon();
+    bool const tank = instance && IsGroupTank(player);
+
+    bool const resolve = tank && map->IsMythic();
+    if (resolve != state->resolve)
+    {
+        SetMythicTankResolve(player, resolve);
+        state->resolve = resolve;
+    }
+    // The buff is only what the player sees: dying takes it off, the immunities stay, and it comes back here
+    if (resolve && player->IsAlive() && !player->HasAura(SPELL_MYTHIC_TANK_RESOLVE))
+        player->CastSpell(player, SPELL_MYTHIC_TANK_RESOLVE, true);
+
+    bool const alive = player->IsAlive();
+    SetThreatAura(player, SPELL_TANK_PRESENCE,
+        tank && alive ? TankThreatPct + static_cast<int32>(GetParagonThreatPct(player)) : 0);
+    SetThreatAura(player, SPELL_GROUP_DISCRETION,
+        instance && alive && !tank && GroupHasTank(player) ? DiscretionThreatPct : 0);
 }
 
 void UpdateMythicTankResolve(Player* player)
 {
     if (!player || !player->GetSession())
         return;
+    UpdateMythicRoles(player, true);
+}
 
-    Map* map = player->FindMap();
-    bool const wanted = map && map->IsMythic() && IsGroupTank(player);
-    if (wanted == player->HasAura(SPELL_MYTHIC_TANK_RESOLVE))
+void UpdateMythicTankResolve(Player* player, uint32 /*diff*/)
+{
+    if (!player || !player->GetSession() || !player->IsInWorld())
         return;
-
-    SetMythicTankResolve(player, wanted);
+    UpdateMythicRoles(player, false);
 }
 
 bool IsMythicLootless(Creature const* creature)
