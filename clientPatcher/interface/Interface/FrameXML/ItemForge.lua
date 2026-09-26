@@ -1,34 +1,54 @@
 -- The Forge (server: modules/mod-forge Forge.cpp, protocol at the top of it). The player brings a piece of high-end
--- gear to the blacksmith and pays him in gold; it goes back on the anvil and comes out 4 item levels higher, up to
--- 8 times. Opened with .forge for now.
+-- gear to the master smith and pays him in gold; it goes back on the anvil and comes out 4 item levels higher, up to
+-- 8 times. Opened by talking to the smith at his anvil in each capital, or with .forge.
 --
--- Left: every piece the Forge takes, worn first, then the bags. Right: the anvil, with the piece picked, what it
--- will become, and the blacksmith's price. Every sound is the smithy's: bellows when the forge opens, metal set down
--- on the anvil, coins handed over, the hammer three times, and the hiss of the quench.
+-- It is meant to feel like an event, and every sound is the smithy's: bellows when the forge opens, metal set down
+-- on the anvil, coins handed over, the hammer three times (the smith strikes in the world at the same moments), and
+-- the hiss of the quench. Every second rank rings out; a masterwork strikes a fourth, golden blow and takes two ranks;
+-- the eighth makes the piece a masterpiece, announced across the screen.
+--
+-- Forged gear shows it outside the window too: its icon smoulders in the bags and on the character sheet, more with
+-- every rank, and its tooltip tells what the smith was paid for it. The smith remembers his customers: the window
+-- shows the player's standing with him, what it brings, and how far the next one is.
 
 local PREFIX = "Forge"
 local MORPHEUS = "Fonts\\MORPHEUS.ttf"
-local GENERATED_ITEM_BASE = 0x10000     -- MythicDungeon.h: forged items are generated entries
+local GENERATED_ITEM_BASE = 0x10000     -- MythicDungeon.h
+local MYTHIC_VARIANTS = 128             -- MythicDungeon.h, GeneratedItemVariants
+local MAX_RANK = 8                      -- MythicDungeon.h, ForgeRanks
 
 local SOUND_BELLOW_IN = "Sound\\Doodad\\BellowIn.wav"
 local SOUND_BELLOW_OUT = "Sound\\Doodad\\BellowOut.wav"
 local SOUND_PUT_DOWN = "Sound\\interface\\PickUp\\PutDownLArgeMEtal.wav"
 local SOUND_COINS = "Sound\\Interface\\LootCoinSmall.wav"
 local SOUND_HAMMER = { "Sound\\Doodad\\DalaranForgeArmsHammer1.wav", "Sound\\Doodad\\DalaranForgeArmsHammer2.wav",
-    "Sound\\Doodad\\DalaranForgeArmsHammer3.wav" }
+    "Sound\\Doodad\\DalaranForgeArmsHammer3.wav", "Sound\\Doodad\\DalaranForgeArmsHammer4.wav" }
 local SOUND_QUENCH = "Sound\\Doodad\\JewelCraft_Grinder01Steam1.wav"
 local SOUND_FORGE_FIRE = "Sound\\Doodad\\BE_Forge01.wav"
+local SOUND_MILESTONE = "Sound\\Spells\\LevelUp.wav"
+local SOUND_MASTERWORK = "Sound\\interface\\levelup2.wav"
+local SOUND_MASTERPIECE = "Sound\\Spells\\AchievmentSound1.wav"
 
-local WIDTH, HEIGHT = 760, 500
+local WIDTH, HEIGHT = 780, 540
 local LIST_WIDTH, ROW_HEIGHT = 300, 46
-local HAMMER_STRIKES, HAMMER_GAP = 3, 0.42
+-- The server's smith strikes at the same moments (Forge.cpp HammerStrikes)
+local HAMMER_DELAY, HAMMER_GAP, HAMMER_STRIKES = 0.25, 0.42, 3
+
+-- The smith's standings (Forge.cpp Standings): the gold paid in all, the discount, the masterwork chance
+local STANDINGS = {
+    { gold = 0, discount = 0, masterwork = 0 },
+    { gold = 5000, discount = 5, masterwork = 0 },
+    { gold = 15000, discount = 5, masterwork = 5 },
+    { gold = 35000, discount = 10, masterwork = 5 },
+    { gold = 75000, discount = 10, masterwork = 10 },
+}
 
 local french = GetLocale() == "frFR"
 local TEXT = french and {
     title = "La Forge",
     heading = "La Forge",
-    intro = "Confiez votre équipement au maître forgeron : contre de l'or, il le remet sur l'enclume et le rend plus "
-        .. "puissant. Chaque passage à la forge ajoute 4 niveaux d'objet, jusqu'à %d fois.",
+    intro = "Confiez votre équipement au maître forgeron : contre de l'or, il le remet sur l'enclume et le rend "
+        .. "plus puissant. Chaque passage à la forge ajoute 4 niveaux d'objet, jusqu'à %d fois.",
     list = "Votre équipement",
     empty = "Rien à forger.\n\nLe forgeron ne travaille que l'équipement des défis les plus rudes : "
         .. "épique, de niveau d'objet 200 ou plus, et le butin du Mythique+.",
@@ -39,11 +59,28 @@ local TEXT = french and {
     rank = "Rang %d/%d",
     price = "Prix du forgeron",
     purse = "Votre bourse",
+    invested = "Déjà investi : %s",
     forge = "Forger",
     working = "Le forgeron est à l'œuvre…",
-    maxed = "Le forgeron ne peut rien en tirer de plus.",
+    maxed = "Un chef-d'œuvre : le forgeron ne peut rien en tirer de plus.",
     done = "%s sort de la forge : niveau d'objet %d !",
+    gains = "La forge y ajoutera",
     preview = "Après la forge",
+    masterwork = "Coup de maître ! Deux rangs pour le prix d'un.",
+    milestone = "Rang %d : la pièce prend du caractère.",
+    masterpiece = "Chef-d'œuvre !",
+    masterpieceLine = "Forgé %d/%d · niveau d'objet %d",
+    standingLabel = "Renommée auprès du forgeron",
+    standingNames = { "Client de passage", "Client régulier", "Client estimé", "Ami de la forge",
+        "Légende de l'enclume" },
+    standingNext = "%s / %s po",
+    standingTop = "%s po versés",
+    perkNone = "Payez le forgeron : il se souviendra de vous.",
+    perkDiscount = "Remise de %d %%",
+    perkMasterwork = "Coup de maître : %d %%",
+    standingUp = "Renommée : %s",
+    tooltipInvested = "Or investi à la forge : %s",
+    tooltipRank = "Forgé %d/%d",
     errors = {
         [1] = "Cette pièce n'est plus là.",
         [2] = "Le forgeron ne travaille pas cette pièce.",
@@ -67,11 +104,27 @@ local TEXT = french and {
     rank = "Rank %d/%d",
     price = "Blacksmith's price",
     purse = "Your purse",
+    invested = "Already invested: %s",
     forge = "Forge",
     working = "The blacksmith is at work…",
-    maxed = "The blacksmith can get nothing more out of it.",
+    maxed = "A masterpiece: the blacksmith can get nothing more out of it.",
     done = "%s comes out of the forge: item level %d!",
+    gains = "The forge will add",
     preview = "After the forge",
+    masterwork = "A masterwork! Two ranks for the price of one.",
+    milestone = "Rank %d: the piece takes on character.",
+    masterpiece = "Masterpiece!",
+    masterpieceLine = "Forged %d/%d · item level %d",
+    standingLabel = "Standing with the blacksmith",
+    standingNames = { "Passing customer", "Regular", "Valued customer", "Friend of the forge", "Legend of the anvil" },
+    standingNext = "%s / %s g",
+    standingTop = "%s g paid",
+    perkNone = "Pay the blacksmith: he will remember you.",
+    perkDiscount = "%d%% discount",
+    perkMasterwork = "Masterwork: %d%%",
+    standingUp = "Standing: %s",
+    tooltipInvested = "Gold invested at the forge: %s",
+    tooltipRank = "Forged %d/%d",
     errors = {
         [1] = "That piece is no longer there.",
         [2] = "The blacksmith does not work that piece.",
@@ -82,9 +135,9 @@ local TEXT = french and {
     },
 }
 
-local state = { items = {}, maxRank = 8, selected = nil, working = false }
+local state = { items = {}, maxRank = MAX_RANK, selected = nil, working = false, spent = 0, standing = 0 }
 local incoming
-local frame, rows, listChild, emptyText, anvil
+local frame, rows, listChild, emptyText, anvil, standing, banner
 
 local function Send(body)
     SendAddonMessage(PREFIX, body, "WHISPER", UnitName("player"))
@@ -106,6 +159,18 @@ end
 
 local function Key(bag, slot)
     return bag .. ":" .. slot
+end
+
+-- A number the way the player's language writes it: 12 345 or 12,345
+local function Thousands(value)
+    local text = tostring(floor(value))
+    local separator = french and " " or ","
+    local result = text:reverse():gsub("(%d%d%d)", "%1" .. separator):reverse()
+    return (result:gsub("^" .. separator, ""))
+end
+
+local function Gold(copper)
+    return Thousands(floor((copper or 0) / 10000))
 end
 
 -- Tweens: every animation of the window, driven by one clock ------------------------------------------------------
@@ -147,10 +212,12 @@ driver:SetScript("OnUpdate", function(_, elapsed)
     end
 end)
 
--- Where an item lies, the way the default UI names it ------------------------------------------------------------
+-- Where an item lies ------------------------------------------------------------------------------------------------
+-- The server names a place by bag and slot: bag 255 is the character, its slots 0-18 worn and 23-38 the backpack;
+-- bags 19-22 are the four bags. The default UI numbers them otherwise; these convert.
 
-local BACKPACK_START, BACKPACK_END = 23, 38     -- INVENTORY_SLOT_ITEM_START / END - 1
-local BAG_START = 19                            -- INVENTORY_SLOT_BAG_START
+local BACKPACK_START = 23
+local BAG_START = 19
 
 local function SetItemTooltip(tooltip, item)
     if item.bag == 255 and item.slot < BAG_START then
@@ -162,8 +229,32 @@ local function SetItemTooltip(tooltip, item)
     end
 end
 
+local function KeyOfContainer(container, slot)
+    if container == 0 then
+        return Key(255, BACKPACK_START + slot - 1)
+    end
+    return Key(BAG_START + container - 1, slot - 1)
+end
+
+local function KeyOfInventory(inventorySlot)
+    return Key(255, inventorySlot - 1)
+end
+
 local function IsWorn(item)
     return item.bag == 255 and item.slot < BAG_START
+end
+
+-- An item's forged ranks: a real item's entry says it; a Mythic+ variant's, only the server's list knows
+local function RankOf(itemId, key)
+    if not itemId or itemId < GENERATED_ITEM_BASE then
+        return 0
+    end
+    local block = floor(itemId / GENERATED_ITEM_BASE)
+    if block > MYTHIC_VARIANTS then
+        return min(block - MYTHIC_VARIANTS, MAX_RANK)
+    end
+    local item = key and state.items[key]
+    return item and item.rank or 0
 end
 
 -- The item's name and icon; a forged entry the client has not learnt yet comes a moment later
@@ -177,33 +268,106 @@ local function QualityColor(quality)
     return color.r, color.g, color.b
 end
 
+-- The smith's standing ----------------------------------------------------------------------------------------------
+
+local function StandingPerks(index)
+    local tier = STANDINGS[index]
+    local perks = {}
+    if tier.discount > 0 then
+        tinsert(perks, format(TEXT.perkDiscount, tier.discount))
+    end
+    if tier.masterwork > 0 then
+        tinsert(perks, format(TEXT.perkMasterwork, tier.masterwork))
+    end
+    return #perks > 0 and table.concat(perks, "  ·  ") or TEXT.perkNone
+end
+
+local function RefreshStanding()
+    if not standing then
+        return
+    end
+    local index = state.standing + 1
+    local gold = floor(state.spent / 10000)
+    local next = STANDINGS[index + 1]
+    standing.name:SetText(TEXT.standingNames[index])
+    standing.perks:SetText(StandingPerks(index))
+    if next then
+        local from = STANDINGS[index].gold
+        standing.fill:SetWidth(max(1, standing.bar:GetWidth() * min(1, (gold - from) / (next.gold - from))))
+        standing.value:SetText(format(TEXT.standingNext, Thousands(gold), Thousands(next.gold)))
+    else
+        standing.fill:SetWidth(standing.bar:GetWidth())
+        standing.value:SetText(format(TEXT.standingTop, Thousands(gold)))
+    end
+end
+
 -- Rank pips: one ember per rank, lit once forged ------------------------------------------------------------------
 
 local function CreatePips(parent, size, gap)
     local pips = {}
-    for index = 1, 8 do
+    for index = 1, MAX_RANK do
         local pip = parent:CreateTexture(nil, "OVERLAY")
-        pip:SetTexture("Interface\\COMMON\\Indicator-Gray")
         pip:SetSize(size, size)
         pip:SetPoint("LEFT", parent, "LEFT", (index - 1) * (size + gap), 0)
         pips[index] = pip
     end
-    pips.width = 8 * size + 7 * gap
+    pips.width = MAX_RANK * size + (MAX_RANK - 1) * gap
     return pips
 end
 
 local function SetPips(pips, rank, maxRank)
-    for index = 1, 8 do
+    for index = 1, MAX_RANK do
         local pip = pips[index]
         SetShown(pip, index <= maxRank)
         if index <= rank then
             pip:SetTexture("Interface\\COMMON\\Indicator-Yellow")
-            pip:SetVertexColor(1, 0.72, 0.3)
+            if rank >= MAX_RANK then
+                pip:SetVertexColor(1, 0.9, 0.45)
+            else
+                pip:SetVertexColor(1, 0.66, 0.28)
+            end
         else
             pip:SetTexture("Interface\\COMMON\\Indicator-Gray")
             pip:SetVertexColor(0.7, 0.62, 0.5)
         end
     end
+end
+
+-- What the next rank adds: the stats of the two entries, compared ---------------------------------------------------
+
+local function StatGains(fromEntry, toEntry)
+    local before = GetItemStats("item:" .. fromEntry)
+    local after = GetItemStats("item:" .. toEntry)
+    if not before or not after then
+        return nil
+    end
+    local gains = {}
+    for stat, value in pairs(after) do
+        local gain = value - (before[stat] or 0)
+        local name = _G[stat]
+        if gain > 0.05 and name then
+            tinsert(gains, { name = name, gain = gain })
+        end
+    end
+    sort(gains, function(a, b) return a.gain > b.gain end)
+    return gains
+end
+
+local function ShowGains(item)
+    local lines = anvil.gains
+    local gains = item.nextEntry ~= 0 and StatGains(item.entry, item.nextEntry)
+    anvil.gainsPending = item.nextEntry ~= 0 and not gains
+    for index, line in ipairs(lines) do
+        local gain = gains and gains[index]
+        if gain then
+            local amount = gain.gain >= 10 and format("%d", gain.gain + 0.5) or format("%.1f", gain.gain)
+            line:SetText(format("|cffffd060+%s|r %s", amount, gain.name))
+            line:Show()
+        else
+            line:Hide()
+        end
+    end
+    SetShown(anvil.gainsLabel, gains and #gains > 0)
 end
 
 -- The list ---------------------------------------------------------------------------------------------------------
@@ -305,6 +469,9 @@ local function OrderedKeys()
 end
 
 local function RefreshList()
+    if not frame then
+        return
+    end
     local keys = OrderedKeys()
     for index, key in ipairs(keys) do
         local row = rows[index] or CreateRow(index)
@@ -326,6 +493,7 @@ local function RefreshList()
     end
     listChild:SetHeight(max(1, #keys * ROW_HEIGHT))
     SetShown(emptyText, #keys == 0)
+    RefreshStanding()
 
     if state.selected and not state.items[state.selected] then
         state.selected = nil
@@ -355,6 +523,8 @@ function RefreshAnvil(animate)
     SetPips(anvil.pips, item.rank, state.maxRank)
     anvil.rank:SetText(format(TEXT.rank, item.rank, state.maxRank))
     anvil.money:SetText(GetCoinTextureString(GetMoney()))
+    anvil.invested:SetText(item.invested > 0 and format(TEXT.invested, GetCoinTextureString(item.invested)) or "")
+    anvil.masterGlow:SetAlpha(item.rank >= MAX_RANK and 0.55 or 0)
 
     local maxed = item.nextEntry == 0
     if maxed then
@@ -369,8 +539,9 @@ function RefreshAnvil(animate)
     end
     SetShown(anvil.costLabel, not maxed)
     SetEnabled(anvil.button, not maxed and not state.working and GetMoney() >= item.cost)
+    ShowGains(item)
 
-    -- What it becomes: the next rank's own tooltip, beside the anvil
+    -- What it becomes: the next rank's own tooltip, beside the window
     local preview = anvil.preview
     if maxed then
         preview:Hide()
@@ -394,53 +565,192 @@ function RefreshAnvil(animate)
     end
 end
 
--- The blacksmith at work: three blows of the hammer, sparks on each, then the quench, and the piece comes out
--- glowing with its new item level
-local function Spark()
+-- The smith at work -------------------------------------------------------------------------------------------------
+
+-- One blow of the hammer: sparks off the piece, the piece jolts on the anvil
+local function Strike(index, golden)
+    PlaySoundFile(SOUND_HAMMER[index])
     local spark = anvil.spark
-    spark:SetAlpha(1)
+    if golden then
+        spark:SetVertexColor(1, 0.92, 0.55)
+    else
+        spark:SetVertexColor(1, 0.75, 0.35)
+    end
     Tween(0.35, 0, function(p)
-        local size = 60 + 90 * OutCubic(p)
+        local size = 60 + (golden and 150 or 90) * OutCubic(p)
         spark:SetSize(size, size)
         spark:SetAlpha(1 - p)
     end)
-    local icon = anvil.iconHolder
+    local holder = anvil.iconHolder
     Tween(0.12, 0, function(p)
-        icon:ClearAllPoints()
-        icon:SetPoint("CENTER", anvil.content, "TOP", 0, -104 - 5 * (1 - p))
+        holder:ClearAllPoints()
+        holder:SetPoint("CENTER", anvil.content, "TOP", 0, -104 - 5 * (1 - p))
     end)
 end
 
-local function AnimateForge(item, onDone)
+-- The piece comes out of the quench: a flash as big as the moment
+local function Flash(size, red, green, blue)
+    local glow = anvil.glow
+    glow:SetVertexColor(red, green, blue)
+    Tween(0.9, 0, function(p)
+        glow:SetAlpha(1 - p)
+        glow:SetSize(70 + size * OutCubic(p), 70 + size * OutCubic(p))
+    end)
+end
+
+-- A piece of the banner: the masterpiece, or a new standing with the smith
+local function ShowBanner(icon, title, line, detail, red, green, blue)
+    if not banner then
+        banner = CreateFrame("Frame", "ItemForgeBanner", UIParent)
+        banner:SetSize(480, 104)
+        banner:SetPoint("TOP", UIParent, "TOP", 0, -150)
+        banner:SetFrameStrata("DIALOG")
+        banner:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = false, edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        banner:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
+        banner:SetBackdropBorderColor(1, 0.82, 0.35, 1)
+        banner:Hide()
+
+        local shine = banner:CreateTexture(nil, "BACKGROUND", nil, 1)
+        shine:SetTexture("Interface\\Buttons\\WHITE8X8")
+        shine:SetPoint("TOPLEFT", 4, -4)
+        shine:SetPoint("BOTTOMRIGHT", -4, 4)
+        shine:SetGradientAlpha("VERTICAL", 0.75, 0.4, 0.08, 0.35, 0.75, 0.4, 0.08, 0)
+
+        local star = banner:CreateTexture(nil, "ARTWORK")
+        star:SetTexture("Interface\\Cooldown\\star4")
+        star:SetBlendMode("ADD")
+        star:SetSize(150, 150)
+        star:SetPoint("CENTER", banner, "LEFT", 58, 0)
+        banner.star = star
+
+        local bannerIcon = banner:CreateTexture(nil, "OVERLAY")
+        bannerIcon:SetSize(56, 56)
+        bannerIcon:SetPoint("CENTER", banner, "LEFT", 58, 0)
+        bannerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        banner.icon = bannerIcon
+
+        local border = banner:CreateTexture(nil, "OVERLAY", nil, 1)
+        border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+        border:SetPoint("TOPLEFT", bannerIcon, "TOPLEFT", -17, 17)
+        border:SetPoint("BOTTOMRIGHT", bannerIcon, "BOTTOMRIGHT", 17, -17)
+
+        local bannerTitle = banner:CreateFontString(nil, "OVERLAY")
+        bannerTitle:SetFont(MORPHEUS, 30)
+        bannerTitle:SetShadowOffset(1, -1)
+        bannerTitle:SetPoint("TOPLEFT", banner, "TOPLEFT", 110, -14)
+        banner.title = bannerTitle
+
+        local bannerLine = banner:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        bannerLine:SetPoint("TOPLEFT", bannerTitle, "BOTTOMLEFT", 0, -4)
+        bannerLine:SetPoint("RIGHT", banner, "RIGHT", -16, 0)
+        bannerLine:SetJustifyH("LEFT")
+        banner.line = bannerLine
+
+        local bannerDetail = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        bannerDetail:SetPoint("TOPLEFT", bannerLine, "BOTTOMLEFT", 0, -4)
+        bannerDetail:SetTextColor(0.85, 0.78, 0.62)
+        banner.detail = bannerDetail
+    end
+
+    banner.icon:SetTexture(icon)
+    banner.title:SetText(title)
+    banner.title:SetTextColor(1, 0.86, 0.45)
+    banner.line:SetText(line)
+    banner.line:SetTextColor(red, green, blue)
+    banner.detail:SetText(detail)
+    banner.shown = (banner.shown or 0) + 1
+    local showing = banner.shown
+    banner:Show()
+    banner:SetAlpha(0)
+    Tween(0.35, 0, function(p)
+        banner:SetAlpha(p)
+        banner:SetScale(1.25 - 0.25 * OutBack(p))
+        banner.star:SetAlpha(1 - 0.6 * p)
+    end)
+    Tween(0.8, 4.2, function(p)
+        if banner.shown == showing then
+            banner:SetAlpha(1 - p)
+        end
+    end, function()
+        if banner.shown == showing then
+            banner:Hide()
+        end
+    end)
+end
+
+local function AnimateForge(item, result, onDone)
     state.working = true
     PlaySoundFile(SOUND_FORGE_FIRE)
     anvil.fire:SetAlpha(0)
     Tween(0.5, 0, function(p) anvil.fire:SetAlpha(0.35 + 0.65 * p) end)
-    for strike = 1, HAMMER_STRIKES do
-        Tween(0.01, 0.25 + (strike - 1) * HAMMER_GAP, nil, function()
-            PlaySoundFile(SOUND_HAMMER[strike])
-            Spark()
+    local strikes = HAMMER_STRIKES + (result.masterwork and 1 or 0)
+    for strike = 1, strikes do
+        Tween(0.01, HAMMER_DELAY + (strike - 1) * HAMMER_GAP, nil, function()
+            Strike(strike, strike > HAMMER_STRIKES)
         end)
     end
-    local quench = 0.25 + HAMMER_STRIKES * HAMMER_GAP + 0.15
+    local quench = HAMMER_DELAY + strikes * HAMMER_GAP + 0.15
     Tween(0.01, quench, nil, function()
         PlaySoundFile(SOUND_QUENCH)
         -- The list that came with the news is shown now, out of the quench
         RefreshList()
         onDone()
     end)
-    Tween(0.8, quench, function(p)
-        anvil.fire:SetAlpha(1 - p)
-        anvil.glow:SetAlpha(1 - p)
-        local size = 70 + 60 * OutCubic(p)
-        anvil.glow:SetSize(size, size)
-    end, function()
+    Tween(0.8, quench, function(p) anvil.fire:SetAlpha(1 - p) end, function()
         state.working = false
         RefreshAnvil(false)
     end)
 end
 
 -- The window -------------------------------------------------------------------------------------------------------
+
+local function CreateStanding(parent)
+    standing = CreateFrame("Frame", nil, parent)
+    standing:SetSize(250, 64)
+    standing:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -30, -38)
+
+    local label = standing:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("TOPLEFT")
+    label:SetText(TEXT.standingLabel)
+
+    local name = standing:CreateFontString(nil, "OVERLAY")
+    name:SetFont(MORPHEUS, 18)
+    name:SetShadowOffset(1, -1)
+    name:SetTextColor(1, 0.86, 0.55)
+    name:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
+    standing.name = name
+
+    local bar = CreateFrame("Frame", nil, standing)
+    bar:SetSize(250, 12)
+    bar:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+    bar:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false, edgeSize = 8, insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    bar:SetBackdropColor(0, 0, 0, 0.7)
+    bar:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+    standing.bar = bar
+
+    local fill = bar:CreateTexture(nil, "ARTWORK")
+    fill:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    fill:SetVertexColor(0.95, 0.66, 0.2)
+    fill:SetPoint("TOPLEFT", 2, -2)
+    fill:SetPoint("BOTTOMLEFT", 2, 2)
+    fill:SetWidth(1)
+    standing.fill = fill
+
+    local value = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    value:SetPoint("CENTER")
+    standing.value = value
+
+    local perks = standing:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    perks:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -3)
+    perks:SetTextColor(0.85, 0.78, 0.62)
+    standing.perks = perks
+end
 
 local function CreateForge()
     frame = CreateFrame("Frame", "ItemForgeFrame", UIParent)
@@ -517,19 +827,21 @@ local function CreateForge()
 
     local intro = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
-    intro:SetWidth(WIDTH - 150)
+    intro:SetWidth(390)
     intro:SetJustifyH("LEFT")
     intro:SetTextColor(0.85, 0.8, 0.7)
     frame.intro = intro
 
+    CreateStanding(frame)
+
     -- The list of gear, down the left
     local listLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    listLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 26, -104)
+    listLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 26, -112)
     listLabel:SetText(TEXT.list)
 
     local listBox = CreateFrame("Frame", nil, frame)
-    listBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -122)
-    listBox:SetSize(LIST_WIDTH, HEIGHT - 146)
+    listBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -130)
+    listBox:SetSize(LIST_WIDTH, HEIGHT - 154)
     listBox:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = false, edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 },
@@ -575,7 +887,7 @@ local function CreateForge()
     fire:SetTexture("Interface\\Buttons\\WHITE8X8")
     fire:SetPoint("BOTTOMLEFT", 4, 4)
     fire:SetPoint("BOTTOMRIGHT", -4, 4)
-    fire:SetHeight(300)
+    fire:SetHeight(320)
     fire:SetGradientAlpha("VERTICAL", 1, 0.45, 0.08, 0.55, 1, 0.45, 0.08, 0)
     fire:SetAlpha(0)
     anvil.fire = fire
@@ -594,7 +906,7 @@ local function CreateForge()
     name:SetFont(MORPHEUS, 20)
     name:SetShadowOffset(1, -1)
     name:SetPoint("TOP", content, "TOP", 0, -20)
-    name:SetWidth(360)
+    name:SetWidth(380)
     anvil.name = name
 
     local iconHolder = CreateFrame("Frame", nil, content)
@@ -602,10 +914,19 @@ local function CreateForge()
     iconHolder:SetPoint("CENTER", content, "TOP", 0, -104)
     anvil.iconHolder = iconHolder
 
-    local glow = iconHolder:CreateTexture(nil, "BACKGROUND")
+    -- A masterpiece's golden radiance, behind it for good
+    local masterGlow = iconHolder:CreateTexture(nil, "BACKGROUND")
+    masterGlow:SetTexture("Interface\\Cooldown\\star4")
+    masterGlow:SetBlendMode("ADD")
+    masterGlow:SetVertexColor(1, 0.85, 0.4)
+    masterGlow:SetPoint("CENTER")
+    masterGlow:SetSize(130, 130)
+    masterGlow:SetAlpha(0)
+    anvil.masterGlow = masterGlow
+
+    local glow = iconHolder:CreateTexture(nil, "BACKGROUND", nil, 1)
     glow:SetTexture("Interface\\Cooldown\\star4")
     glow:SetBlendMode("ADD")
-    glow:SetVertexColor(1, 0.6, 0.2)
     glow:SetPoint("CENTER")
     glow:SetSize(70, 70)
     glow:SetAlpha(0)
@@ -625,7 +946,6 @@ local function CreateForge()
     local spark = iconHolder:CreateTexture(nil, "OVERLAY", nil, 2)
     spark:SetTexture("Interface\\Cooldown\\star4")
     spark:SetBlendMode("ADD")
-    spark:SetVertexColor(1, 0.8, 0.4)
     spark:SetPoint("CENTER")
     spark:SetSize(60, 60)
     spark:SetAlpha(0)
@@ -643,25 +963,41 @@ local function CreateForge()
     iconHolder:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local levelLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    levelLabel:SetPoint("TOP", iconHolder, "BOTTOM", 0, -14)
+    levelLabel:SetPoint("TOP", iconHolder, "BOTTOM", 0, -12)
     levelLabel:SetText(TEXT.itemLevel)
 
     local levels = content:CreateFontString(nil, "OVERLAY")
     levels:SetFont(MORPHEUS, 30)
     levels:SetShadowOffset(1, -1)
-    levels:SetPoint("TOP", levelLabel, "BOTTOM", 0, -4)
+    levels:SetPoint("TOP", levelLabel, "BOTTOM", 0, -2)
     anvil.levels = levels
 
     local pipHolder = CreateFrame("Frame", nil, content)
     pipHolder:SetSize(100, 12)
     anvil.pips = CreatePips(pipHolder, 12, 4)
     pipHolder:SetWidth(anvil.pips.width)
-    pipHolder:SetPoint("TOP", levels, "BOTTOM", 0, -12)
+    pipHolder:SetPoint("TOP", levels, "BOTTOM", 0, -10)
 
     local rank = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    rank:SetPoint("TOP", pipHolder, "BOTTOM", 0, -6)
+    rank:SetPoint("TOP", pipHolder, "BOTTOM", 0, -5)
     rank:SetTextColor(0.85, 0.78, 0.62)
     anvil.rank = rank
+
+    -- What the next rank adds, stat by stat
+    local gainsLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    gainsLabel:SetPoint("TOP", rank, "BOTTOM", 0, -12)
+    gainsLabel:SetText(TEXT.gains)
+    anvil.gainsLabel = gainsLabel
+    anvil.gains = {}
+    for index = 1, 6 do
+        local line = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local column, row = (index - 1) % 2, floor((index - 1) / 2)
+        line:SetPoint("TOPLEFT", gainsLabel, "BOTTOM", column == 0 and -160 or 12, -6 - row * 15)
+        line:SetWidth(150)
+        line:SetJustifyH(column == 0 and "RIGHT" or "LEFT")
+        line:SetTextColor(0.9, 0.84, 0.7)
+        anvil.gains[index] = line
+    end
 
     local costLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     costLabel:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 24, 84)
@@ -681,6 +1017,11 @@ local function CreateForge()
     money:SetPoint("LEFT", purseLabel, "RIGHT", 8, 0)
     anvil.money = money
 
+    local invested = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    invested:SetPoint("TOPLEFT", purseLabel, "BOTTOMLEFT", 0, -6)
+    invested:SetTextColor(0.8, 0.74, 0.62)
+    anvil.invested = invested
+
     local button = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     button:SetSize(170, 30)
     button:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -24, 22)
@@ -691,7 +1032,6 @@ local function CreateForge()
             return
         end
         PlaySoundFile(SOUND_COINS)
-        state.pending = state.selected
         SetEnabled(button, false)
         anvil.status:SetText(TEXT.working)
         Send(format("U\t%d\t%d\t%d", item.bag, item.slot, item.entry))
@@ -699,7 +1039,7 @@ local function CreateForge()
     anvil.button = button
 
     local status = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    status:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 24, 30)
+    status:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 24, 34)
     status:SetPoint("RIGHT", button, "LEFT", -12, 0)
     status:SetJustifyH("LEFT")
     status:SetTextColor(1, 0.72, 0.35)
@@ -723,14 +1063,17 @@ local function CreateForge()
         GameTooltip:Hide()
         anvil.preview:Hide()
     end)
-    -- A forged entry the client did not know yet has its name a moment later
+    -- A forged entry the client did not know yet has its name and stats a moment later
     local wait = 0
     frame:SetScript("OnUpdate", function(_, elapsed)
         wait = wait + elapsed
-        if wait < 1 then
+        if wait < 1 or state.working then
             return
         end
         wait = 0
+        if anvil.gainsPending then
+            RefreshAnvil(false)
+        end
         for _, row in ipairs(rows) do
             if row:IsShown() and row.name:GetText() == "…" then
                 RefreshList()
@@ -748,56 +1091,195 @@ local function CreateForge()
     tinsert(UISpecialFrames, "ItemForgeFrame")
 end
 
+-- Forged gear outside the window: its icon smoulders --------------------------------------------------------------
+-- A glow around the icon of every forged piece, in the bags and on the character sheet, growing with its rank: a
+-- faint ember, then a warm glow, then a flame that breathes, then a masterpiece's golden radiance.
+
+local glowing = {}
+
+local function IconGlow(button, rank)
+    local glow = button.forgeGlow
+    if rank <= 0 then
+        if glow then
+            glow:Hide()
+            glowing[glow] = nil
+        end
+        return
+    end
+    if not glow then
+        glow = button:CreateTexture(nil, "OVERLAY")
+        glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        glow:SetBlendMode("ADD")
+        glow:SetPoint("CENTER")
+        button.forgeGlow = glow
+    end
+    local size = button:GetWidth() * 1.85
+    glow:SetSize(size, size)
+    if rank >= MAX_RANK then
+        glow:SetVertexColor(1, 0.86, 0.4)
+        glow.base, glow.pulse = 0.85, 0.15
+    elseif rank >= 5 then
+        glow:SetVertexColor(1, 0.5, 0.12)
+        glow.base, glow.pulse = 0.7, 0.2
+    elseif rank >= 3 then
+        glow:SetVertexColor(1, 0.45, 0.1)
+        glow.base, glow.pulse = 0.5, 0
+    else
+        glow:SetVertexColor(0.9, 0.35, 0.08)
+        glow.base, glow.pulse = 0.28, 0
+    end
+    glow:SetAlpha(glow.base)
+    glow:Show()
+    glowing[glow] = glow.pulse > 0 or nil
+end
+
+-- The flames breathe
+local breath = 0
+driver:HookScript("OnUpdate", function(_, elapsed)
+    breath = breath + elapsed
+    local wave = 0.5 + 0.5 * math.sin(breath * 3)
+    for glow in pairs(glowing) do
+        if glow:IsVisible() then
+            glow:SetAlpha(glow.base - glow.pulse + 2 * glow.pulse * wave)
+        end
+    end
+end)
+
+hooksecurefunc("ContainerFrame_Update", function(container)
+    local bag = container:GetID()
+    local name = container:GetName()
+    for index = 1, container.size or 0 do
+        local button = _G[name .. "Item" .. index]
+        if button then
+            local slot = button:GetID()
+            IconGlow(button, RankOf(GetContainerItemID(bag, slot), KeyOfContainer(bag, slot)))
+        end
+    end
+end)
+
+hooksecurefunc("PaperDollItemSlotButton_Update", function(button)
+    local slot = button:GetID()
+    IconGlow(button, RankOf(GetInventoryItemID("player", slot), KeyOfInventory(slot)))
+end)
+
+local function RefreshIcons()
+    for index = 1, NUM_CONTAINER_FRAMES do
+        local container = _G["ContainerFrame" .. index]
+        if container and container:IsShown() then
+            ContainerFrame_Update(container)
+        end
+    end
+    if PaperDollFrame and PaperDollFrame:IsShown() then
+        for _, slotName in ipairs({ "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot", "WristSlot",
+                "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot", "Finger0Slot", "Finger1Slot", "Trinket0Slot",
+                "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot", "RangedSlot" }) do
+            local button = _G["Character" .. slotName]
+            if button then
+                PaperDollItemSlotButton_Update(button)
+            end
+        end
+    end
+end
+
+-- The tooltip of a forged piece the player carries: what it cost, and a Mythic+ piece's rank (a real item's is its
+-- entry, already tagged by MythicItemTag.lua)
+local function TagTooltip(tooltip, key)
+    local item = state.items[key]
+    if not item or item.invested <= 0 then
+        return
+    end
+    if item.entry >= GENERATED_ITEM_BASE and floor(item.entry / GENERATED_ITEM_BASE) <= MYTHIC_VARIANTS then
+        tooltip:AddLine(format(TEXT.tooltipRank, item.rank, state.maxRank), 1, 0.62, 0.25)
+    end
+    tooltip:AddLine(format(TEXT.tooltipInvested, GetCoinTextureString(item.invested)), 0.85, 0.78, 0.62)
+    tooltip:Show()
+end
+
+hooksecurefunc(GameTooltip, "SetBagItem", function(tooltip, container, slot)
+    TagTooltip(tooltip, KeyOfContainer(container, slot))
+end)
+hooksecurefunc(GameTooltip, "SetInventoryItem", function(tooltip, unit, slot)
+    if unit == "player" then
+        TagTooltip(tooltip, KeyOfInventory(slot))
+    end
+end)
+
 -- Messages ---------------------------------------------------------------------------------------------------------
 
 local function ShowError(code)
     PlaySound("igQuestFailed")
     UIErrorsFrame:AddMessage(TEXT.errors[tonumber(code)] or TEXT.errors[1], 1, 0.3, 0.2, 1)
-    state.pending = nil
     if frame and frame:IsShown() then
         RefreshAnvil(false)
     end
 end
 
--- The blacksmith is done: the piece keeps its place, its entry and rank move on
-local function OnForged(bag, slot, entry, rank, itemLevel)
-    local key = Key(bag, slot)
-    state.pending = nil
+-- The smith is done: the piece keeps its place, its entry and rank move on. The bigger the moment, the bigger the
+-- show - a masterwork, every second rank, the masterpiece, a new standing with the smith.
+local function OnForged(result)
     if not frame or not frame:IsShown() then
         return
     end
+    local key = Key(result.bag, result.slot)
     state.selected = key
-    AnimateForge(state.items[key], function()
-        local name = ItemInfo(entry)
-        local message = format(TEXT.done, name or "", itemLevel)
-        UIErrorsFrame:AddMessage(message, 1, 0.72, 0.35, 1)
-        -- The level jumps up out of the quench
+    AnimateForge(state.items[key], result, function()
+        local name, _, icon = ItemInfo(result.entry)
+        UIErrorsFrame:AddMessage(format(TEXT.done, name or "", result.itemLevel), 1, 0.72, 0.35, 1)
         Tween(0.35, 0, function(p)
             anvil.levels:SetFont(MORPHEUS, 30 + 14 * (1 - OutCubic(p)))
         end)
+
+        if result.rank >= MAX_RANK then
+            PlaySoundFile(SOUND_MASTERPIECE)
+            Flash(220, 1, 0.9, 0.5)
+            ShowBanner(icon, TEXT.masterpiece, name or "", format(TEXT.masterpieceLine, result.rank, MAX_RANK,
+                result.itemLevel), QualityColor(select(2, ItemInfo(result.entry))))
+        elseif result.masterwork then
+            PlaySoundFile(SOUND_MASTERWORK)
+            Flash(180, 1, 0.9, 0.55)
+            anvil.status:SetText(TEXT.masterwork)
+        elseif result.rank % 2 == 0 then
+            PlaySoundFile(SOUND_MILESTONE)
+            Flash(140, 1, 0.7, 0.3)
+            anvil.status:SetText(format(TEXT.milestone, result.rank))
+        else
+            Flash(70, 1, 0.6, 0.2)
+        end
+
+        if result.newStanding > 0 then
+            Tween(0.01, result.rank >= MAX_RANK and 5.2 or 0.6, nil, function()
+                PlaySoundFile(SOUND_MASTERWORK)
+                ShowBanner("Interface\\Icons\\Trade_BlackSmithing",
+                    format(TEXT.standingUp, TEXT.standingNames[result.newStanding + 1]), StandingPerks(
+                    result.newStanding + 1), "", 1, 0.82, 0.35)
+            end)
+        end
     end)
 end
 
 local function Handle(message)
-    local kind, a, b, c, d, e, f, g, h = strsplit("\t", message)
+    local kind, a, b, c, d, e, f, g, h, i = strsplit("\t", message)
     if kind == "O" then
         incoming = {}
     elseif kind == "I" and incoming then
         local item = {
             bag = tonumber(a) or 0, slot = tonumber(b) or 0, entry = tonumber(c) or 0, rank = tonumber(d) or 0,
             itemLevel = tonumber(e) or 0, nextEntry = tonumber(f) or 0, nextItemLevel = tonumber(g) or 0,
-            cost = tonumber(h) or 0,
+            cost = tonumber(h) or 0, invested = tonumber(i) or 0,
         }
         incoming[Key(item.bag, item.slot)] = item
     elseif kind == "E" then
         state.items = incoming or {}
         incoming = nil
         state.maxRank = tonumber(b) or state.maxRank
-        if not frame then
-            if a ~= "1" then
-                return
-            end
+        state.spent = tonumber(c) or 0
+        state.standing = tonumber(d) or 0
+        RefreshIcons()
+        if a == "1" and not frame then
             CreateForge()
+        end
+        if not frame then
+            return
         end
         frame.intro:SetText(format(TEXT.intro, state.maxRank))
         if a == "1" and not frame:IsShown() then
@@ -808,16 +1290,46 @@ local function Handle(message)
             RefreshList()
         end
     elseif kind == "D" then
-        OnForged(tonumber(a) or 0, tonumber(b) or 0, tonumber(c) or 0, tonumber(d) or 0, tonumber(e) or 0)
+        OnForged({
+            bag = tonumber(a) or 0, slot = tonumber(b) or 0, entry = tonumber(c) or 0, rank = tonumber(d) or 0,
+            itemLevel = tonumber(e) or 0, masterwork = f == "1", newStanding = tonumber(g) or 0,
+        })
     elseif kind == "X" then
         ShowError(a)
     end
 end
 
+-- The list is asked for at login and whenever the gear moves, so the icons and tooltips know every forged piece's
+-- rank and cost; at most once every two seconds
+local pendingAsk
+local asker = CreateFrame("Frame")
+asker:Hide()
+asker:SetScript("OnUpdate", function(self, elapsed)
+    pendingAsk = pendingAsk - elapsed
+    if pendingAsk <= 0 then
+        self:Hide()
+        Send("L")
+    end
+end)
+
+local function AskSoon(delay)
+    if not asker:IsShown() then
+        pendingAsk = delay or 2
+        asker:Show()
+    end
+end
+
 local listener = CreateFrame("Frame")
 listener:RegisterEvent("CHAT_MSG_ADDON")
-listener:SetScript("OnEvent", function(_, _, prefix, message, _, sender)
-    if prefix == PREFIX and sender == UnitName("player") then
-        Handle(message)
+listener:RegisterEvent("PLAYER_ENTERING_WORLD")
+listener:RegisterEvent("BAG_UPDATE")
+listener:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
+    if event == "CHAT_MSG_ADDON" then
+        if prefix == PREFIX and sender == UnitName("player") then
+            Handle(message)
+        end
+    elseif not state.working then
+        AskSoon(event == "PLAYER_ENTERING_WORLD" and 3 or 2)
     end
 end)

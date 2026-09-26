@@ -822,6 +822,9 @@ $customSpells += & ([ScriptBlock]::Create($mageSpellSource))
 # The Rogue on its retail-style talent trees (localTools/rogue/talentTree.json): abilities, auras and talent ranks
 $rogueSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\rogue\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($rogueSpellSource))
+# The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
+$forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
 
 # The Mage's reagents, gone: Arcane Powder (Arcane Brilliance, Dalaran Brilliance, Ritual of Refreshment), the Runes
 # of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class
@@ -965,6 +968,16 @@ $customVisualKits = @(
     @{ Key = 'OB_Flourish_Cast'; Clone = 1004; Sound = 'OathbladeQuickHit'; Fields = @{ 6 = 126; 7 = 126 } }
     # Rally: frost in both hands and Restoration's rising light, with its sound
     @{ Key = 'OB_Rally_Cast'; Clone = 183; Fields = @{ 5 = 147; 6 = 126; 7 = 126; 15 = 1482 } }
+    #
+    # The Forge (mod-forge, localTools/forge/Spells.ps1): the embers of worn forged gear, Stratholme's smouldering
+    # embers as Feet of Flame (8607) and Complete Immolation (8171) wear them, without their looping fire sound -
+    # at the feet, then the feet and both hands, then the chest, the feet and both hands
+    @{ Key = 'FORGE_Embers1'; Clone = 8607; Fields = @{ 15 = 0 } }
+    @{ Key = 'FORGE_Embers2'; Clone = 8607; Fields = @{ 6 = 3899; 7 = 3899; 15 = 0 } }
+    @{ Key = 'FORGE_Embers3'; Clone = 8171; Fields = @{ 3 = 0; 6 = 3478; 7 = 3478; 15 = 0 } }
+    # The master smith's hammer on the anvil: the one-hand strike (animation 17), Fire Blast's molten burst at the
+    # hammer hand, and Sunder Armor's clang of metal (a kit with no chest effect)
+    @{ Key = 'FORGE_Strike'; Clone = 556; Fields = @{ 2 = 17; 4 = 0; 7 = 321 } }
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15
