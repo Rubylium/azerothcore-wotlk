@@ -97,13 +97,21 @@ constexpr std::array<Milliseconds, 3> HammerStrikes = { 250ms, 670ms, 1090ms }; 
 constexpr Milliseconds QuenchLine = 1450ms;
 constexpr float SmithReach = 40.0f;
 
-// Worn forged gear smoulders: the ranks forged on everything worn, and the aura each count reaches
+// Worn forged armour smoulders: the ranks forged on the armour and jewellery worn (fourteen slots, 112 ranks at most;
+// the weapons have their own glow and do not count), and the aura each count reaches. The first takes three
+// masterpieces' worth, the last all but one piece a masterpiece.
 struct Embers
 {
     uint32 ranks;
     uint32 spell;
 };
-constexpr std::array<Embers, 3> EmberTiers = { { { 24, 92400 }, { 64, 92401 }, { 112, 92402 } } };
+constexpr std::array<Embers, 5> EmberTiers = { {
+    { 24, 92400 },      // embers at the feet
+    { 48, 92401 },      // and in the hands
+    { 72, 92402 },      // a molten heart and a ring of heat on the ground
+    { 88, 92404 },      // the head aflame, a column of heat rising
+    { 104, 92405 },     // Avatar of the Forge: golden wings and a pillar of light
+} };
 
 // A forged weapon glows more with every rank: the look of a stock enchantment, shown in the visible item's temporary
 // enchantment (a real temporary enchantment, a poison or an oil, keeps its own). Sharpened's shine, Fiery Weapon's
@@ -369,9 +377,10 @@ void UpdateVisuals(Player* player, ForgeState const* state)
     for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
         if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
         {
-            ranks += RankOf(state, item);
             if (IsWeaponSlot(slot))
                 ShowGlow(player, state, slot, item);
+            else if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD)
+                ranks += RankOf(state, item);
         }
 
     uint32 wanted = 0;
