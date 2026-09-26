@@ -4941,7 +4941,9 @@ uint32 Player::DurabilityRepair(uint16 pos, bool cost, float discountMod, bool g
         {
             ItemTemplate const* ditemProto = item->GetTemplate();
 
-            DurabilityCostsEntry const* dcost = sDurabilityCostsStore.LookupEntry(ditemProto->ItemLevel);
+            // The table stops at item level 300: generated Mythic+ and forged items above it cost what 300 does
+            DurabilityCostsEntry const* dcost = sDurabilityCostsStore.LookupEntry(
+                std::min<uint32>(ditemProto->ItemLevel, sDurabilityCostsStore.GetNumRows() - 1));
             if (!dcost)
             {
                 LOG_ERROR("entities.player", "RepairDurability: Wrong item lvl {}", ditemProto->ItemLevel);

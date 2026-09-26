@@ -671,7 +671,10 @@ void WorldSession::HandleSellItemOpcode(WorldPackets::Item::SellItem& packet)
 
                     if (LostDurability > 0)
                     {
-                        DurabilityCostsEntry const* dcost = sDurabilityCostsStore.LookupEntry(pProto->ItemLevel);
+                        // The table stops at item level 300: generated Mythic+ and forged items above it cost
+                        // what 300 does
+                        DurabilityCostsEntry const* dcost = sDurabilityCostsStore.LookupEntry(
+                            std::min<uint32>(pProto->ItemLevel, sDurabilityCostsStore.GetNumRows() - 1));
                         if (!dcost)
                         {
                             _player->SendSellError(SELL_ERR_CANT_SELL_ITEM, creature, packet.ItemGuid, 0);
