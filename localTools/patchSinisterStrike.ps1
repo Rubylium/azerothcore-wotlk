@@ -401,6 +401,19 @@ $customSpells = @(
        Fields = @{ 40 = 21 } },
     @{ Id = 90662; Clone = 2983; Name = 'Cataclysme'; Icon = 'ParagonNode_ApotheosisCataclysm'; FallbackIconSpell = 42940; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Une partie de vos coups frappe aussi les ennemis proches de votre cible.' },
+    @{ Id = 90663; Clone = 2983; CantCancel = $true; Name = 'Rancune'; Icon = 'ParagonNode_Bastion'; FallbackIconSpell = 25228; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Les coups subis vous emplissent de rancune.'; AuraDescription = 'Puissance d''attaque et des sorts augmentées par les coups subis.'
+       Fields = @{ 40 = 21 } },
+    # Threat in dungeons and raids (mod-stat-growth MythicDungeonSystem.cpp): the tank's presence and everyone else's
+    # discretion. The module sets the amount; the paragon board's tank nodes add to the presence.
+    @{ Id = 90664; Clone = 2983; CantCancel = $true; Name = 'Présence du gardien'; FallbackIconSpell = 71; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Le tank du groupe génère davantage de menace.'; AuraDescription = 'Menace générée augmentée.'
+       Effects = @(@{ Index = 0; Aura = $A_ModThreat; Value = 100; Misc = 127 })
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90665; Clone = 2983; CantCancel = $true; Name = 'Discrétion'; FallbackIconSpell = 1038; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Laissez le tank tenir les ennemis.'; AuraDescription = 'Menace générée réduite : le tank de votre groupe tient les ennemis.'
+       Effects = @(@{ Index = 0; Aura = $A_ModThreat; Value = -40; Misc = 127 })
+       Fields = @{ 40 = 21 } },
     # Carapace nécrosée's threat: the tank's presence, carried with the plague (x2.5 threat)
     @{ Id = 90209; Clone = 2983; Name = 'Carapace nécrosée'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = 'Menace générée augmentée.'

@@ -42,7 +42,7 @@ MINOR, NOTABLE, KEYSTONE = 0, 1, 2
 E_STAT, E_ARMOR, E_ARMOR_PCT, E_GUARD, E_RETALIATE, E_LAST_STAND, E_FURY, E_SURGE = range(8)
 # The outer zones' effects
 E_DAMAGE, E_REDUCTION, E_LEECH, E_DOUBLE, E_EXECUTE, E_EXPLODE, E_UNDYING, E_HEALTH = range(8, 16)
-E_KILL_STREAK, E_SPLASH = range(16, 18)
+E_KILL_STREAK, E_SPLASH, E_THREAT, E_GRUDGE = range(16, 20)
 
 # What a plain node is worth. The board is mostly these: a tree of nothing but procs would be noise, and the
 # quiet nodes are what make the loud ones feel like arriving somewhere.
@@ -167,7 +167,7 @@ OUTER_ZONES = [
                   (1320, 11, ()), (1410, 9, (0, 8)), (1500, 7, ())],
         "keystone": (7, 3),
         "bridge_ring": 3,
-        "minor": 20, "notable": 70, "armor": (400, 1500),
+        "minor": 20, "notable": 70, "armor": (150, 500),
     },
     {
         "name": "Transcendance",
@@ -175,7 +175,7 @@ OUTER_ZONES = [
                   (2040, 9, (0, 8)), (2130, 7, (3,)), (2220, 3, ())],
         "keystone": (7, 1),
         "bridge_ring": 3,
-        "minor": 45, "notable": 160, "armor": (900, 3500),
+        "minor": 45, "notable": 160, "armor": (300, 1100),
     },
 ]
 OUTER_FIRST_ID = 2000
@@ -198,7 +198,7 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     if effect == E_DAMAGE:
         return "Augmente tous vos dégâts de %d%%." % value
     if effect == E_REDUCTION:
-        return "Réduit tous les dégâts subis de %d%%." % value
+        return "Réduit tous les dégâts subis de %d%% (réductions du parangon plafonnées à 25%%)." % value
     if effect == E_LEECH:
         return "Vous rend %d%% des dégâts que vous infligez sous forme de points de vie." % value
     if effect == E_DOUBLE:
@@ -215,6 +215,11 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     if effect == E_SPLASH:
         return ("%d%% des dégâts de vos coups sont aussi infligés à 4 autres ennemis au plus, à moins de %d mètres "
                 "de votre cible." % (value, value2))
+    if effect == E_THREAT:
+        return "Augmente la menace que vous générez de %d%%." % value
+    if effect == E_GRUDGE:
+        return ("Les coups subis vous emplissent de rancune : vous gagnez en puissance d'attaque et des sorts %d%% des "
+                "dégâts subis ces dernières secondes, jusqu'à %d%% de vos points de vie maximum." % (value, value2))
     if effect == E_UNDYING:
         return ("Un coup qui devrait vous tuer vous laisse à 1 point de vie, et vous êtes insensible aux dégâts "
                 "pendant %d s. %d min de recharge." % (seconds, cooldown // 60000))
@@ -254,7 +259,7 @@ CUSTOM_ICON = {
     "Précision mortelle": "DeadlyPrecision", "Épines": "Thorns",
     "Vengeance": "Vengeance", "Tourbillon de lames": "BladeWhirl", "Insaisissable": "Elusive",
     "Saignée": "Bloodletting", "Apothéose : Miroir": "ApotheosisMirror",
-    "Peau de pierre": "Stoneskin", "Vigueur": "Vigor", "Écailles de granit": "GraniteScales",
+    "Peau de pierre": "Stoneskin", "Présence imposante": "Stoneskin", "Défi éternel": "AdamantiteSkin", "Vigueur": "Vigor", "Écailles de granit": "GraniteScales",
     "Robustesse": "Sturdiness", "Bastion": "Bastion",
     "Peau d'adamantite": "AdamantiteSkin", "Colossal": "Colossal", "Dernier rempart": "LastRampart",
     "Endurance infinie": "EndlessEndurance", "Apothéose : Immortel": "ApotheosisImmortal",
@@ -318,12 +323,12 @@ OUTER_SPECIALS = {
          outer(E_RETALIATE, "Apothéose : Miroir", "Spell_Holy_AshesToAshes", value=200, chance=50.0)),
     ],
     "Carapace": [
-        ([outer(E_REDUCTION, "Peau de pierre", "Ability_Warrior_DefensiveStance", value=5),
+        ([outer(E_THREAT, "Présence imposante", "Ability_Warrior_DefensiveStance", value=25),
           outer(E_HEALTH, "Vigueur", "Spell_Holy_BlessingOfStamina", value=5),
           outer(E_GUARD, "Écailles de granit", "Spell_Holy_PowerWordShield", value=25, chance=20.0, duration=8000),
           outer(E_HEALTH, "Robustesse", "Spell_Nature_Reincarnation", value=4)],
-         outer(E_REDUCTION, "Bastion", "Ability_Warrior_ShieldWall", value=12)),
-        ([outer(E_REDUCTION, "Peau d'adamantite", "Spell_Holy_DivineIntervention", value=8),
+         outer(E_GRUDGE, "Bastion", "Ability_Warrior_ShieldWall", value=15, value2=8)),
+        ([outer(E_THREAT, "Défi éternel", "Spell_Holy_DivineIntervention", value=40),
           outer(E_HEALTH, "Colossal", "Spell_Holy_Heroism", value=10),
           outer(E_LAST_STAND, "Dernier rempart", "Spell_Holy_LayOnHands", value=60, value2=40, duration=10000,
                 cooldown=60000),

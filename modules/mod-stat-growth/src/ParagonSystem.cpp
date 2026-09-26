@@ -24,6 +24,7 @@
 #include "WorldSession.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <limits>
 #include <string_view>
@@ -62,11 +63,15 @@ enum class ParagonEffect : uint8
     HealthPct,          // `value`% more maximum health
     KillStreak,         // killing something: a stack of `value`% more damage, up to `value2` stacks, for `duration`
     Splash,             // dealing damage: `value`% of the hit to up to MaxSplashTargets other enemies within `value2` yards
+    ThreatPct,          // `value`% more threat generated, always (mod-stat-growth's tank aura carries it)
+    Grudge,             // `value`% of the damage taken lately as attack and spell power, up to `value2`% of max health
     Count
 };
 
-// However the outer zones stack, a character can still be hurt and cannot heal off every hit in full.
-constexpr uint32 MaxReductionPct = 75;
+// However the outer zones stack, a character can still be hurt and cannot heal off every hit in full. The reduction
+// is low on purpose: it multiplies with armour, which a geared tank already has at WotLK's 75% cap, and at 75% on top
+// of that a tank took a sixteenth of every hit. The tank nodes give threat and Rancune instead.
+constexpr uint32 MaxReductionPct = 25;
 constexpr uint32 MaxLeechPct = 50;
 // The explosion scales with what died, not with the character: on a Mythic+ pack at a high key a mob has more health
 // than a player deals in several seconds, and a few nodes of it summed turned every kill into a one-shot of the pack.
@@ -103,6 +108,11 @@ constexpr uint32 SPELL_PARAGON_UNDYING = 90659;
 constexpr uint32 SPELL_PARAGON_UNDYING_SPENT = 90660;
 constexpr uint32 SPELL_PARAGON_KILL_STREAK = 90661;
 constexpr uint32 SPELL_PARAGON_SPLASH = 90662;
+constexpr uint32 SPELL_PARAGON_GRUDGE = 90663;
+
+// Rancune: what was taken fades by half every GrudgeHalfLifeMs, so "lately" means the last several seconds
+constexpr uint32 GrudgeTickMs = 500;
+constexpr double GrudgeHalfLifeMs = 5000.0;
 
 // Stock SpellVisualKit ids, played where the effect happens so it is seen and not only read in the log
 constexpr uint32 VisualExplosion = 984;     // Blast Wave's ring of fire
@@ -171,6 +181,14 @@ struct ParagonState : public DataMap::Base
     uint32 killStreakDuration = 0;
     uint32 splashPct = 0;
     uint32 splashRange = 0;
+    uint32 threatPct = 0;
+    uint32 grudgePct = 0;
+    uint32 grudgeCapPct = 0;
+
+    // Rancune running: the damage taken lately, fading, and the attack and spell power it has handed out
+    double grudgePool = 0.0;
+    uint32 grudgeApplied = 0;
+    uint32 grudgeTickAt = 0;
 
     // The kill streak currently running: one counter rather than a buff per kill
     uint32 killStreakStacks = 0;
@@ -256,7 +274,7 @@ uint32 ExperienceForLevel(uint32 level)
 bool HasCombatEffects(ParagonState const* state)
 {
     return state && state->applied && (!state->procs.empty() || state->damagePct || state->reductionPct
-        || state->leechPct || state->explosionPct || state->killStreakPct || state->splashPct);
+        || state->leechPct || state->explosionPct || state->killStreakPct || state->splashPct || state->grudgePct);
 }
 
 constexpr char const* StateKey = "ParagonState";
@@ -386,6 +404,7 @@ void RebuildProcs(ParagonState* state)
     state->explosionPct = state->explosionRange = 0;
     state->killStreakPct = state->killStreakMax = state->killStreakDuration = 0;
     state->splashPct = state->splashRange = 0;
+    state->threatPct = state->grudgePct = state->grudgeCapPct = 0;
 
     for (uint32 nodeId : state->allocated)
     {
@@ -427,6 +446,13 @@ void RebuildProcs(ParagonState* state)
             case ParagonEffect::Splash:
                 state->splashPct += node.value;
                 state->splashRange = std::max(state->splashRange, node.value2);
+                continue;
+            case ParagonEffect::ThreatPct:
+                state->threatPct += node.value;
+                continue;
+            case ParagonEffect::Grudge:
+                state->grudgePct += node.value;
+                state->grudgeCapPct = std::max(state->grudgeCapPct, node.value2);
                 continue;
             default:
                 break;
@@ -509,6 +535,14 @@ void ClearBuffs(Player* player, ParagonState* state)
     if (state->killStreakStacks)
         player->RemoveAurasDueToSpell(SPELL_PARAGON_KILL_STREAK);
     state->killStreakStacks = state->killStreakExpiresAt = 0;
+    if (state->grudgeApplied)
+    {
+        ApplyPermanentStat(player, PermanentStat::AttackPower, state->grudgeApplied, false);
+        ApplyPermanentStat(player, PermanentStat::SpellPower, state->grudgeApplied, false);
+        player->RemoveAurasDueToSpell(SPELL_PARAGON_GRUDGE);
+    }
+    state->grudgePool = 0.0;
+    state->grudgeApplied = 0;
 }
 
 void SaveEarned(Player* player, ParagonState const* state)
@@ -1019,6 +1053,10 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
     if (state->reductionPct)
         damage = damage * (100 - std::min(state->reductionPct, MaxReductionPct)) / 100;
 
+    // Rancune counts what actually lands
+    if (state->grudgePct)
+        state->grudgePool += damage;
+
     for (ParagonProc& proc : state->procs)
     {
         switch (proc.effect)
@@ -1299,6 +1337,53 @@ void AddParagonExperience(Player* player, uint32 amount)
     }
 }
 
+// Rancune: the damage taken lately, fading, turned into attack and spell power. Scaled on the hits it answers, like
+// Cataclysm's Vengeance, so a tank's threat keeps up with a harder key, but held to a share of the tank's own health.
+void UpdateGrudge(Player* player, ParagonState* state, uint32 now)
+{
+    if (!state->grudgePct && !state->grudgeApplied)
+        return;
+    if (now < state->grudgeTickAt)
+        return;
+    uint32 const elapsed = state->grudgeTickAt ? now - state->grudgeTickAt + GrudgeTickMs : GrudgeTickMs;
+    state->grudgeTickAt = now + GrudgeTickMs;
+
+    state->grudgePool *= std::pow(0.5, elapsed / GrudgeHalfLifeMs);
+    if (!player->IsInCombat() || !player->IsAlive())
+        state->grudgePool = 0.0;
+
+    uint32 const cap = player->GetMaxHealth() * state->grudgeCapPct / 100;
+    uint32 const wanted = std::min(static_cast<uint32>(state->grudgePool * state->grudgePct / 100.0), cap);
+
+    // Re-applied only on a real change: every step is a stat update the client is told about
+    uint32 const step = std::max<uint32>(25, state->grudgeApplied / 20);
+    if (wanted == state->grudgeApplied ||
+        (wanted && wanted + step > state->grudgeApplied && state->grudgeApplied + step > wanted))
+        return;
+
+    if (state->grudgeApplied)
+    {
+        ApplyPermanentStat(player, PermanentStat::AttackPower, state->grudgeApplied, false);
+        ApplyPermanentStat(player, PermanentStat::SpellPower, state->grudgeApplied, false);
+    }
+    state->grudgeApplied = wanted;
+    if (wanted)
+    {
+        ApplyPermanentStat(player, PermanentStat::AttackPower, wanted, true);
+        ApplyPermanentStat(player, PermanentStat::SpellPower, wanted, true);
+        if (!player->HasAura(SPELL_PARAGON_GRUDGE))
+            player->AddAura(SPELL_PARAGON_GRUDGE, player);
+    }
+    else
+        player->RemoveAurasDueToSpell(SPELL_PARAGON_GRUDGE);
+}
+
+uint32 GetParagonThreatPct(Player* player)
+{
+    ParagonState const* state = GetState(player);
+    return state && state->applied ? state->threatPct : 0;
+}
+
 void UpdateParagonBuffs(Player* player)
 {
     ParagonState* state = GetState(player);
@@ -1319,6 +1404,7 @@ void UpdateParagonBuffs(Player* player)
     }
 
     uint32 const now = GameTime::GetGameTimeMS().count();
+    UpdateGrudge(player, state, now);
     if (state->killStreakStacks && state->killStreakExpiresAt <= now)
     {
         state->killStreakStacks = state->killStreakExpiresAt = 0;

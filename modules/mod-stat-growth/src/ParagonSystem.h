@@ -56,6 +56,9 @@ void AwardParagonPoints(Player* player, uint32 count, std::string_view reason);
 // on their own best stat, so a bot party keeps pace with the player filling theirs.
 void ApplyBotParagon(Player* bot);
 
+// The extra threat the board's tank nodes give, in percent (mod-stat-growth's tank aura applies it)
+uint32 GetParagonThreatPct(Player* player);
+
 // "Paragon\t..." addon whispers from the frame: OPEN, ALLOC <node>, RESET.
 void HandleParagonAddonMessage(Player* player, uint32 language, std::string const& message);
 
