@@ -331,7 +331,7 @@
           "spells": [
             92311
           ],
-          "text": "Marque la cible et lui ajoute 5 points de combo. Si elle meurt dans la minute, le temps de recharge est réinitialisé. 1 min de recharge.",
+          "text": "Marque la cible et lui ajoute 5 points de combo. Si elle meurt dans la minute, le temps de recharge est réinitialisé. 30 s de recharge.",
           "parents": [
             109,
             110
@@ -753,7 +753,9 @@
       "levelStep": 2,
       "specSpells": [
         1329,
-        92191
+        92191,
+        92192,
+        92330
       ],
       "backgroundArt": {
         "from": "rogue-assassination"
@@ -998,7 +1000,7 @@
           "spells": [
             14177
           ],
-          "text": "Votre prochaine technique offensive est un coup critique assuré.",
+          "text": "Votre prochaine technique offensive est un coup critique assuré. 30 s de recharge.",
           "parents": [
             205,
             206
@@ -1092,7 +1094,7 @@
           "spells": [
             92312
           ],
-          "text": "Marque la cible pendant 20 s : vos attaques lui infligent 20% de dégâts en plus, et vous récupérez 60 points d'énergie. 2 min de recharge.",
+          "text": "Marque la cible pendant 10 s : vos attaques lui infligent 20% de dégâts en plus, et vous récupérez 40 points d'énergie. 30 s de recharge.",
           "parents": [
             209,
             210
@@ -1305,7 +1307,7 @@
           "spells": [
             92313
           ],
-          "text": "Vos Rupture et Garrot sur la cible lui infligent sur-le-champ tous leurs dégâts restants. 45 s de recharge.",
+          "text": "Vos Rupture, Garrot et Tempête cramoisie sur la cible lui infligent sur-le-champ tous leurs dégâts restants. 30 s de recharge.",
           "parents": [
             217,
             218
@@ -1409,7 +1411,7 @@
           "spells": [
             92238
           ],
-          "text": "Réduit de 1 min le temps de recharge de Sang-froid, qui vous rend aussi 25 points d'énergie.",
+          "text": "Réduit de 10 s le temps de recharge de Sang-froid, qui vous rend aussi 25 points d'énergie.",
           "aura": {
             "type": 107,
             "misc": 11,
@@ -1420,7 +1422,7 @@
             ]
           },
           "auraValues": [
-            -60000
+            -10000
           ],
           "parents": [
             223,
@@ -2271,7 +2273,10 @@
       "levelStep": 2,
       "specSpells": [
         51713,
-        92191
+        92191,
+        92193,
+        92321,
+        92340
       ],
       "backgroundArt": {
         "from": "rogue-subtlety"
@@ -2600,13 +2605,13 @@
           "row": 4,
           "col": 4,
           "kind": "active",
-          "name": "Tempête de shurikens",
-          "icon": "Ability_Rogue_FanOfKnives",
+          "name": "Technique secrète",
+          "icon": "Ability_Rogue_ShadowStrikes",
           "existing": true,
           "spells": [
-            92321
+            92341
           ],
-          "text": "Projette des shurikens sur tous les ennemis à 10 m : dégâts d'arme, et 1 point de combo par ennemi touché, jusqu'à 5.",
+          "text": "Coup de grâce : vous et deux ombres de vous frappez tous les ennemis à 10 m, plus fort par point de combo. 30 s de recharge.",
           "parents": [
             410,
             411
@@ -2720,7 +2725,7 @@
           "spells": [
             92322
           ],
-          "text": "Pendant 20 s, vos attaques automatiques infligent 50% de dégâts en plus et vos techniques génèrent 1 point de combo de plus. 3 min de recharge.",
+          "text": "Pendant 10 s, vos attaques automatiques infligent 50% de dégâts en plus et vos techniques génèrent 1 point de combo de plus. 30 s de recharge.",
           "parents": [
             416,
             417
@@ -2778,7 +2783,7 @@
           "spells": [
             92256
           ],
-          "text": "Tempête de shurikens ralentit aussi de 30% les ennemis touchés pendant 8 s.",
+          "text": "Tempête de shurikens et Poudre noire ralentissent aussi de 30% les ennemis touchés pendant 8 s.",
           "parents": [
             419,
             420
@@ -2794,7 +2799,7 @@
           "spells": [
             92257
           ],
-          "text": "Danse de l'ombre dure 2 s de plus et son temps de recharge est réduit de 20 s.",
+          "text": "Danse de l'ombre dure 2 s de plus et son temps de recharge est réduit de 6 s.",
           "aura": [
             {
               "type": 107,
@@ -2817,7 +2822,7 @@
                 0
               ],
               "values": [
-                -20000
+                -6000
               ]
             }
           ],

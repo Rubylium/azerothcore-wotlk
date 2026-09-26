@@ -1,6 +1,9 @@
 #include "AllSpellScript.h"
+#include "CellImpl.h"
 #include "DBCStores.h"
 #include "GameTime.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "Item.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -15,6 +18,7 @@
 #include "UnitScript.h"
 
 #include <algorithm>
+#include <list>
 #include <vector>
 
 // The Rogue's talents on the retail-style trees (localTools/rogue/talentTree.json) that spell data cannot carry, and
@@ -73,11 +77,19 @@ enum Spells : uint32
     SPELL_DEEPER_DAGGERS        = 92324,
     SPELL_NIGHT_TERRORS         = 92325,
     SPELL_SHADOW_FOCUS          = 92326,
+    SPELL_ASSASSINATION_PASSIVE = 92192,
+    SPELL_SUBTLETY_PASSIVE      = 92193,
+    SPELL_CRIMSON_TEMPEST       = 92330,
+    SPELL_CRIMSON_TEMPEST_BLEED = 92331,
+    SPELL_VIRULENCE             = 92332,
+    SPELL_BLACK_POWDER          = 92340,
+    SPELL_SECRET_TECHNIQUE      = 92341,
 
     // Stock
     SPELL_COLD_BLOOD            = 14177,
     SPELL_MUTILATE              = 1329,
     SPELL_SHADOW_DANCE          = 51713,
+    SPELL_FAN_OF_KNIVES         = 51723,
 };
 
 // Rogue family flags of the stock spells the talents watch (SpellFamilyFlags words 0 and 1)
@@ -100,6 +112,24 @@ constexpr uint32 PoisonRefreshMs = 5 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 PoisonDurationMs = HOUR * IN_MILLISECONDS;
 constexpr uint8 ShurikenMaxPoints = 5;
 
+// The specs' area kits (Assassinat: bleeds and poisons everywhere; Finesse: Shuriken Storm, Black Powder, Secret
+// Technique). Amounts are shares of the rogue's attack power per combo point spent, so they grow with the character.
+constexpr float AreaRadius = 10.0f;
+constexpr float CrimsonTempestHitPerPoint = 0.03f;      // the slash on every enemy
+constexpr float CrimsonTempestBleedPerPoint = 0.06f;    // the whole bleed, over 2 s per point
+constexpr uint32 CrimsonTempestTickMs = 2000;
+constexpr float BlackPowderPerPoint = 0.05f;
+constexpr uint32 BlackPowderFlatPerPoint = 80;
+constexpr float SecretTechniquePerPoint = 0.04f;        // each of its three strikes
+constexpr uint32 SecretTechniqueFlatPerPoint = 60;
+constexpr uint32 SecretTechniqueStrikes = 3;
+// Envenom carries the target's bleeds to this many enemies around it that do not have them
+constexpr uint32 SpreadTargets = 4;
+// Virulence: 2% damage per affliction of the rogue on its enemies (the aura's own amount), up to this many
+constexpr uint8 VirulenceMaxStacks = 15;
+constexpr float VirulenceRange = 40.0f;
+constexpr uint32 VirulenceUpdateMs = 1000;
+
 // A character's state for its talents. Kept on the player, so it dies with the session.
 struct RogueState : public DataMap::Base
 {
@@ -108,6 +138,7 @@ struct RogueState : public DataMap::Base
     ObjectGuid shurikenTarget;       // Tempête de shurikens: where its combo points go, and how many it gave
     uint8 shurikenPoints = 0;
     uint32 poisonTimer = 5000;       // Poisons tenaces: the next refresh of the weapons' poisons
+    uint32 virulenceTimer = 0;       // Virulence: the next count of the afflictions
 };
 
 constexpr char const* StateKey = "RogueTalentState";
@@ -182,7 +213,185 @@ void DealNamed(Player* player, Unit* target, uint32 spellId, uint32 amount)
 
 bool IsBleed(SpellInfo const* spellInfo)
 {
-    return HasFlag0(spellInfo, FLAG0_RUPTURE | FLAG0_GARROTE);
+    return HasFlag0(spellInfo, FLAG0_RUPTURE | FLAG0_GARROTE) ||
+        (spellInfo && spellInfo->Id == SPELL_CRIMSON_TEMPEST_BLEED);
+}
+
+bool IsAssassination(Player* player)
+{
+    return player->HasAura(SPELL_ASSASSINATION_PASSIVE);
+}
+
+std::list<Unit*> EnemiesAround(Player* player, WorldObject* center, float range)
+{
+    std::list<Unit*> found;
+    Acore::AnyUnfriendlyUnitInObjectRangeCheck check(center, player, range);
+    Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(center, found, check);
+    Cell::VisitObjects(center, searcher, range);
+    std::list<Unit*> enemies;
+    for (Unit* unit : found)
+        if (unit->IsAlive() && player->IsValidAttackTarget(unit) && !unit->IsTotem())
+            enemies.push_back(unit);
+    return enemies;
+}
+
+// Damage an ability of the kit works out, dealt as that ability: the rogue's damage bonuses (Symbols of Death,
+// Virulence, ...) and the target's, a critical strike on the rogue's melee chance, armour for physical ones
+void DealAbility(Player* player, Unit* target, uint32 spellId, uint32 amount)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+    if (!spellInfo || !amount || !target->IsAlive())
+        return;
+
+    uint32 damage = player->SpellDamageBonusDone(target, spellInfo, amount, SPELL_DIRECT_DAMAGE, EFFECT_0);
+    damage = target->SpellDamageBonusTaken(player, spellInfo, damage, SPELL_DIRECT_DAMAGE);
+    bool const crit = roll_chance_f(player->GetUnitCriticalChance(BASE_ATTACK, target));
+    SpellNonMeleeDamage log(player, target, spellInfo, spellInfo->GetSchoolMask());
+    player->CalculateSpellDamageTaken(&log, int32(damage), spellInfo, BASE_ATTACK, crit);
+    Unit::DealDamageMods(target, log.damage, &log.absorb);
+    player->SendSpellNonMeleeDamageLog(&log);
+    player->DealSpellDamage(&log, true);
+}
+
+uint32 PerPoint(Player* player, float apShare, uint32 flat, uint8 comboPoints)
+{
+    float const ap = player->GetTotalAttackPowerValue(BASE_ATTACK);
+    return uint32((ap * apShare + float(flat)) * comboPoints);
+}
+
+// Puts an aura of the rogue on a unit with the amount and time left it is given (a bleed spread or set by the kit)
+void PlaceBleed(Player* player, Unit* target, uint32 spellId, int32 amount, int32 duration)
+{
+    Aura* aura = player->AddAura(spellId, target);
+    if (!aura)
+        return;
+    aura->SetMaxDuration(std::max(duration, 1));
+    aura->SetDuration(std::max(duration, 1));
+    for (uint8 index = 0; index < MAX_SPELL_EFFECTS; ++index)
+        if (AuraEffect* effect = aura->GetEffect(index))
+            if (effect->GetAuraType() == SPELL_AURA_PERIODIC_DAMAGE)
+                effect->ChangeAmount(amount);
+}
+
+// Tempête cramoisie: a slash and a bleed on every enemy around the rogue, the bleed longer with every point
+void CrimsonTempest(Player* player, uint8 comboPoints)
+{
+    int32 const durationMs = int32(2000 * (1 + comboPoints));
+    uint32 const ticks = std::max<uint32>(1, uint32(durationMs) / CrimsonTempestTickMs);
+    uint32 const hit = PerPoint(player, CrimsonTempestHitPerPoint, 0, comboPoints);
+    int32 const tick = int32(PerPoint(player, CrimsonTempestBleedPerPoint, 0, comboPoints) / ticks);
+    for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+    {
+        DealAbility(player, enemy, SPELL_CRIMSON_TEMPEST, hit);
+        PlaceBleed(player, enemy, SPELL_CRIMSON_TEMPEST_BLEED, std::max(tick, 1), durationMs);
+    }
+}
+
+// Poudre noire: shadow damage to every enemy around the rogue
+void BlackPowder(Player* player, uint8 comboPoints)
+{
+    uint32 const damage = PerPoint(player, BlackPowderPerPoint, BlackPowderFlatPerPoint, comboPoints);
+    bool const terrors = player->HasAura(TALENT_NIGHT_TERRORS);
+    for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+    {
+        DealAbility(player, enemy, SPELL_BLACK_POWDER, damage);
+        if (terrors && enemy->IsAlive())
+            player->AddAura(SPELL_NIGHT_TERRORS, enemy);
+    }
+}
+
+// Technique secrète: the rogue and two shadows of it strike every enemy around, one after the other
+void SecretTechnique(Player* player, uint8 comboPoints)
+{
+    uint32 const damage = PerPoint(player, SecretTechniquePerPoint, SecretTechniqueFlatPerPoint, comboPoints);
+    for (uint32 strike = 0; strike < SecretTechniqueStrikes; ++strike)
+        player->m_Events.AddEventAtOffset([player, damage]()
+        {
+            if (!player->IsAlive() || !player->IsInWorld())
+                return;
+            for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+                DealAbility(player, enemy, SPELL_SECRET_TECHNIQUE, damage);
+        }, Milliseconds(300 * strike));
+}
+
+// Assassinat: Envenom carries the target's bleeds to the enemies around it that do not have them yet, with the time
+// and damage they have left there
+void SpreadBleeds(Player* player, Unit* target)
+{
+    struct Bleed
+    {
+        uint32 spellId;
+        int32 amount;
+        int32 duration;
+    };
+    std::vector<Bleed> bleeds;
+    for (AuraEffect const* effect : target->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
+        if (effect->GetCasterGUID() == player->GetGUID() && IsBleed(effect->GetSpellInfo()))
+            bleeds.push_back({ effect->GetId(), effect->GetAmount(), effect->GetBase()->GetDuration() });
+    if (bleeds.empty())
+        return;
+
+    for (Bleed const& bleed : bleeds)
+    {
+        uint32 spread = 0;
+        for (Unit* enemy : EnemiesAround(player, target, AreaRadius))
+        {
+            if (spread >= SpreadTargets)
+                break;
+            if (enemy == target || enemy->HasAura(bleed.spellId, player->GetGUID()))
+                continue;
+            PlaceBleed(player, enemy, bleed.spellId, bleed.amount, bleed.duration);
+            ++spread;
+        }
+    }
+}
+
+// Assassinat: Fan of Knives puts the rogue's weapon poisons on every enemy it hits
+void PoisonFromWeapons(Player* player, Unit* victim)
+{
+    for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK })
+    {
+        Item* item = player->GetWeaponForAttack(attackType);
+        SpellItemEnchantmentEntry const* enchant = item ?
+            sSpellItemEnchantmentStore.LookupEntry(item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT)) : nullptr;
+        if (!enchant)
+            continue;
+        for (uint8 index = 0; index < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++index)
+            if (enchant->type[index] == ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
+                if (SpellInfo const* poison = sSpellMgr->GetSpellInfo(enchant->spellid[index]))
+                    if (poison->Dispel == DISPEL_POISON)
+                        player->CastSpell(victim, poison->Id, TRIGGERED_FULL_MASK, item);
+    }
+}
+
+// Virulence: a stack for every bleed and poison of the rogue on the enemies around it
+void UpdateVirulence(Player* player)
+{
+    uint32 count = 0;
+    if (player->IsInCombat())
+        for (Unit* enemy : EnemiesAround(player, player, VirulenceRange))
+            for (auto const& [id, application] : enemy->GetAppliedAuras())
+            {
+                Aura const* aura = application->GetBase();
+                if (aura->GetCasterGUID() != player->GetGUID())
+                    continue;
+                SpellInfo const* spellInfo = aura->GetSpellInfo();
+                if (IsBleed(spellInfo) || spellInfo->Dispel == DISPEL_POISON)
+                    ++count;
+            }
+
+    uint8 const stacks = uint8(std::min<uint32>(count, VirulenceMaxStacks));
+    Aura* aura = player->GetAura(SPELL_VIRULENCE);
+    if (!stacks)
+    {
+        if (aura)
+            player->RemoveAurasDueToSpell(SPELL_VIRULENCE);
+        return;
+    }
+    if (!aura)
+        aura = player->AddAura(SPELL_VIRULENCE, player);
+    if (aura && aura->GetStackAmount() != stacks)
+        aura->SetStackAmount(stacks);
 }
 
 // A weapon strike that awards combo points (not Premeditation or Marqué pour la mort). Hemorrhage's combo point is
@@ -273,6 +482,10 @@ void OnFinisher(Player* player, SpellInfo const* spellInfo, Unit* target, uint8 
         for (AuraEffect const* effect : target->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
             if (effect->GetCasterGUID() == player->GetGUID() && IsBleed(effect->GetSpellInfo()))
                 effect->GetBase()->RefreshDuration();
+
+    // Assassinat: Envenom carries the bleeds to the enemies around
+    if (target && HasFlag1(spellInfo, FLAG1_ENVENOM) && IsAssassination(player))
+        SpreadBleeds(player, target);
 }
 
 // Maître des armes: the strike again, a moment later (a triggered cast: no cost, and it does not roll again)
@@ -354,6 +567,18 @@ public:
                 if (target)
                     Exsanguinate(player, target);
                 return;
+            case SPELL_CRIMSON_TEMPEST:
+                if (uint8 const comboPoints = player->GetComboPoints())
+                    CrimsonTempest(player, comboPoints);
+                break;
+            case SPELL_BLACK_POWDER:
+                if (uint8 const comboPoints = player->GetComboPoints())
+                    BlackPowder(player, comboPoints);
+                break;
+            case SPELL_SECRET_TECHNIQUE:
+                if (uint8 const comboPoints = player->GetComboPoints())
+                    SecretTechnique(player, comboPoints);
+                break;
             case SPELL_SHURIKEN_STORM:
             {
                 // Its combo points go on the rogue's target when it has one, else on the first enemy hit
@@ -511,7 +736,15 @@ public:
                            bool /*critical*/) override
     {
         Player* player = RoguePlayer(caster);
-        if (!player || !victim || !spellInfo || spellInfo->Id != SPELL_SHURIKEN_STORM)
+        if (!player || !victim || !spellInfo)
+            return;
+
+        if (spellInfo->Id == SPELL_FAN_OF_KNIVES && victim->IsAlive() && IsAssassination(player))
+        {
+            PoisonFromWeapons(player, victim);
+            return;
+        }
+        if (spellInfo->Id != SPELL_SHURIKEN_STORM)
             return;
 
         if (player->HasAura(TALENT_NIGHT_TERRORS))
@@ -554,6 +787,17 @@ public:
         }
 
         RogueState* state = GetState(player);
+        if (state->virulenceTimer > diff)
+            state->virulenceTimer -= diff;
+        else
+        {
+            state->virulenceTimer = VirulenceUpdateMs;
+            if (IsAssassination(player))
+                UpdateVirulence(player);
+            else if (player->HasAura(SPELL_VIRULENCE))
+                player->RemoveAurasDueToSpell(SPELL_VIRULENCE);
+        }
+
         if (state->poisonTimer > diff)
         {
             state->poisonTimer -= diff;
