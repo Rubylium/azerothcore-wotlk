@@ -38,26 +38,34 @@ constexpr uint32 MaxItemLevel = 284;
 constexpr uint32 GeneratedItemBase = 0x10000;
 constexpr uint32 GeneratedItemVariants = 128;
 
-// Mythic+ (key level 2 and up) on top of Mythique 0: health and damage grow 8% a level, compounded, up to +10,
-// then by 10% of the +10 value a level up to +20, then 12% a level compounded again: past +20 the paragon board makes
-// a character grow without end, and a linear climb let a strong group walk up to +30. Keys have no ceiling; the
-// creature code clamps health to 32 bits.
-constexpr int32 CompoundedLevels = 10;
+// Mythic+ (key level 2 and up) on top of Mythique 0. Up to +10 a key is a matter of gear: health and damage grow 8%
+// a level, compounded. Past +10 it is a matter of paragon: every level asks for ParagonPerLevel more points spent on
+// the board (+20 asks for 50, +30 for 100: a prestige, 10 points of cap, every two levels), and the creatures grow by what those points are worth to a character -
+// about 1% of its power each, compounded (ParagonPointPower) - and by the key's better loot (KeyGearGrowth a level).
+// So a character at the recommended paragon meets every key the way it met +10 - the key never looks at a
+// character's own paragon, so every point gained still makes the same key easier - and the player reads the ladder as
+// "this key wants that much paragon". The client shows the same numbers (MythicPlus.lua, ChallengeBoard.lua).
+// Keys have no ceiling; the creature code clamps health to 32 bits.
+constexpr int32 GearLevels = 10;
 constexpr float CompoundedGrowth = 1.08f;
-constexpr int32 LinearLevels = 20;
-constexpr float LinearGrowth = 0.10f;
-constexpr float SteepGrowth = 1.12f;
+constexpr uint32 ParagonPerLevel = 5;
+constexpr float ParagonPointPower = 1.01f;
+constexpr float KeyGearGrowth = 1.01f;
+
+inline uint32 GetRecommendedParagon(int32 level)
+{
+    return level > GearLevels ? ParagonPerLevel * static_cast<uint32>(level - GearLevels) : 0;
+}
 
 inline float GetLevelScaling(int32 level)
 {
     if (level <= 0)
         return 1.0f;
 
-    float const compounded = std::pow(CompoundedGrowth, static_cast<float>(std::min(level, CompoundedLevels)));
-    float const linear = 1.0f + LinearGrowth *
-        static_cast<float>(std::clamp(level, CompoundedLevels, LinearLevels) - CompoundedLevels);
-    float const steep = std::pow(SteepGrowth, static_cast<float>(std::max(level - LinearLevels, 0)));
-    return compounded * linear * steep;
+    float const gear = std::pow(CompoundedGrowth, static_cast<float>(std::min(level, GearLevels)));
+    float const paragon = std::pow(ParagonPointPower, static_cast<float>(GetRecommendedParagon(level)));
+    float const loot = std::pow(KeyGearGrowth, static_cast<float>(std::max(level - GearLevels, 0)));
+    return gear * paragon * loot;
 }
 
 inline uint32 GetItemLevel(int32 level)

@@ -34,8 +34,14 @@ local TIER_GUARANTEED_ITEM = 7
 -- ChallengeBoard.cpp SatchelExtraItemChance, by raid mode (10, 25, 10 heroic, 25 heroic)
 local SATCHEL_ITEM_CHANCE = { [0] = 35, 45, 50, 60 }
 
-local function TierHealth(tier) return 1.4 ^ (tier - 1) end
-local function TierDamage(tier) return 1.2 ^ (tier - 1) end
+-- A tier asks for 15 more paragon points, and the boss grows by what they are worth (1% each, compounded), more on
+-- health than on damage. A key past +10 asks for 5 a level (MythicDungeon.h).
+local function TierParagon(tier) return 15 * (tier - 1) end
+local function TierHealth(tier) return 1.01 ^ (1.35 * TierParagon(tier)) end
+local function TierDamage(tier) return 1.01 ^ (0.73 * TierParagon(tier)) end
+local function KeyParagon(level) return level > 10 and 5 * (level - 10) or 0 end
+-- Paragon only exists at the level cap: below it the boards say nothing about it
+local PARAGON_BRACKET = 80
 local function TierWipes(tier) return tier >= 9 and 1 or tier >= 6 and 2 or 3 end
 local function TierGoldPercent(tier) return 100 + 30 * (tier - 1) end
 local function TierExtraEssences(tier) return 3 * (tier - 1) end
@@ -106,6 +112,12 @@ local TEXT = french and {
     tierHelp = "Le même boss, plus coriace à chaque palier, et mieux payé. Remporter un défi au plus haut palier "
         .. "ouvert ouvre le suivant.",
     tierReward = "Récompense : or +%d%%, +%d essences, +%d parangon",
+    paragonWanted = "Parangon conseillé",
+    paragonValue = "%d  ·  vous %d",
+    paragonTip = "Parangon conseillé : %d (vous : %d). Le boss grandit avec le parangon qu'il demande : à ce "
+        .. "niveau, le combat est celui du Défi I.",
+    keyParagon = "Parangon conseillé pour +%d : %d (vous : %d)",
+    keyParagonNone = "Jusqu'à +10, aucun parangon requis : la clé se joue à l'équipement.",
     satchelChance = "Butin du boss : %d%% de chances.",
     satchelSure = "Un butin du boss assuré, un second à %d%%.",
     failed = {
@@ -193,6 +205,12 @@ local TEXT = french and {
     tierHelp = "The same boss, tougher at every tier, and better paid. Winning a challenge at the highest tier open "
         .. "opens the next.",
     tierReward = "Reward: gold +%d%%, +%d essences, +%d paragon",
+    paragonWanted = "Recommended paragon",
+    paragonValue = "%d  ·  yours %d",
+    paragonTip = "Recommended paragon: %d (yours: %d). The boss grows with the paragon it asks for: at that level, "
+        .. "the fight is the one of Défi I.",
+    keyParagon = "Recommended paragon for +%d: %d (yours: %d)",
+    keyParagonNone = "Up to +10 no paragon is needed: the key is a matter of gear.",
     satchelChance = "Boss drop: %d%% chance.",
     satchelSure = "One boss drop for sure, a second at %d%%.",
     failed = {
@@ -1012,6 +1030,13 @@ local function CreateBoard()
     tierInfo:SetPoint("TOP", tierText, "BOTTOM", 0, -4)
     tierInfo:SetTextColor(0.85, 0.8, 0.7)
 
+    -- The paragon the tier asks for, beside the dial's right arrow: gold when the player has it, a dull ember when not
+    local paragonLabel = dial:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    paragonLabel:SetPoint("LEFT", dial, "TOP", 124, -10)
+    paragonLabel:SetText(TEXT.paragonWanted)
+    local paragonValue = dial:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    paragonValue:SetPoint("TOPLEFT", paragonLabel, "BOTTOMLEFT", 0, -2)
+
     local function Arrow(direction)
         local button = CreateFrame("Button", nil, dial)
         button:SetSize(30, 30)
@@ -1051,6 +1076,18 @@ local function CreateBoard()
         local wipes = TierWipes(tier)
         tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier)), Decimal(TierDamage(tier)), wipes,
             wipes > 1 and "s" or ""))
+        local showParagon = (state.bracket or 0) >= PARAGON_BRACKET and state.paragon
+        SetShown(paragonLabel, showParagon and true or false)
+        SetShown(paragonValue, showParagon and true or false)
+        if showParagon then
+            local wanted = TierParagon(tier)
+            paragonValue:SetText(format(TEXT.paragonValue, wanted, state.paragon))
+            if state.paragon >= wanted then
+                paragonValue:SetTextColor(1, 0.86, 0.55)
+            else
+                paragonValue:SetTextColor(0.85, 0.53, 0.37)
+            end
+        end
         -- The higher the tier, the brighter the dial
         dialGlow:SetAlpha(0.18 + 0.05 * tier)
         SetEnabled(previousTier, tier > TIER_MIN and state.challenge == 0)
@@ -1066,6 +1103,9 @@ local function CreateBoard()
         GameTooltip:AddLine(TierName(tier), 1, 0.86, 0.55)
         GameTooltip:AddLine(format(TEXT.tierReward, TierGoldPercent(tier) - 100, TierExtraEssences(tier),
             TierExtraParagon(tier)), 0.85, 0.8, 0.7, true)
+        if (state.bracket or 0) >= PARAGON_BRACKET and state.paragon then
+            GameTooltip:AddLine(format(TEXT.paragonTip, TierParagon(tier), state.paragon), 0.85, 0.8, 0.7, true)
+        end
         GameTooltip:AddLine(" ")
         if state.openTier >= TIER_MAX then
             GameTooltip:AddLine(TEXT.tierTop, 0.62, 0.57, 0.5, true)
@@ -1144,6 +1184,15 @@ local function CreateBoard()
     end)
     keyStrip.Refresh = function()
         keyText:SetText("+" .. state.key)
+        local wanted = KeyParagon(state.key)
+        local line
+        if wanted == 0 then
+            line = "|cffa89c80" .. TEXT.keyParagonNone .. "|r"
+        elseif state.paragon then
+            line = (state.paragon >= wanted and "|cffffdb8c" or "|cffd9885f")
+                .. format(TEXT.keyParagon, state.key, wanted, state.paragon) .. "|r"
+        end
+        bonus:SetText(TEXT.timedBonus .. (line and ("\n" .. line) or ""))
     end
 
     dungeonCards = {}
@@ -1552,6 +1601,7 @@ local function Handle(message)
         incoming.currentTier = tonumber(f) or 0
         incoming.key = tonumber(g) or 2
         incoming.contract = tonumber(h) or 0
+        incoming.paragon = tonumber(i)
         incoming.dungeons = {}
         incoming.missions = {}
         incoming.rewards = {}
@@ -1608,6 +1658,7 @@ local function Handle(message)
         state.asked = false
         state.currentTier = incoming.currentTier or 0
         state.key = incoming.key or 2
+        state.paragon = incoming.paragon
         state.dungeons = incoming.dungeons or {}
         -- The answer to this player's own DUNGEON: the card gets its stamp
         local previousContract = state.contract

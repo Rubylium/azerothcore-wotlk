@@ -47,6 +47,9 @@ local TEXT = french and {
     noRole = "Choisissez au moins un rôle.",
     proposal = "Votre clé est prête",
     proposalText = "Entrer dans %s ?",
+    paragonWanted = "Parangon conseillé : %d",
+    paragonYours = "  ·  vous : %d",
+    paragonNone = "Aucun parangon requis",
     accept = "Entrer",
     decline = "Refuser",
     go = "C'est parti !",
@@ -87,6 +90,9 @@ local TEXT = french and {
     noRole = "Choose at least one role.",
     proposal = "Your keystone is ready",
     proposalText = "Enter %s?",
+    paragonWanted = "Recommended paragon: %d",
+    paragonYours = "  ·  yours: %d",
+    paragonNone = "No paragon needed",
     accept = "Enter",
     decline = "Decline",
     go = "Go!",
@@ -105,6 +111,27 @@ local TEXT = french and {
 }
 
 local key, score = 2, 0
+local paragon            -- paragon points spent, from the server (nil until it says)
+
+-- The paragon a key asks for, as the server sizes it (MythicDungeon.h GetRecommendedParagon): nothing up to +10,
+-- then 5 points a level. Change them together.
+local function RecommendedParagon(level)
+    return level > 10 and 5 * (level - 10) or 0
+end
+
+-- "Parangon conseillé : 170  ·  vous : 105", gold when the player has it, a dull ember when not
+local function ParagonLine(level)
+    local wanted = RecommendedParagon(level or 0)
+    if wanted == 0 then
+        return "|cffa89c80" .. TEXT.paragonNone .. "|r"
+    end
+    local text = format(TEXT.paragonWanted, wanted)
+    if paragon then
+        text = text .. format(TEXT.paragonYours, paragon)
+    end
+    local color = (not paragon or paragon >= wanted) and "|cffffdb8c" or "|cffd9885f"
+    return color .. text .. "|r"
+end
 -- dungeon id -> { level, timed, duration, limit, score }, in the server's order
 local bests, order = {}, {}
 local chosen
@@ -274,6 +301,8 @@ keyLabel:SetText(TEXT.key)
 local keyText = frame:CreateFontString(nil, "ARTWORK")
 keyText:SetFont(FONT, 26, "OUTLINE")
 keyText:SetPoint("TOPLEFT", slot, "RIGHT", 6, -1)
+local keyParagon = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+keyParagon:SetPoint("BOTTOMLEFT", keyText, "BOTTOMRIGHT", 10, 4)
 
 local scoreLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 scoreLabel:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -12, -37)
@@ -459,6 +488,7 @@ end)
 function UpdateTab()
     local r, g, b = LevelColor(key)
     keyText:SetText(Colored("+" .. key, r, g, b))
+    keyParagon:SetText(ParagonLine(key))
     scoreText:SetText(Colored(tostring(score), RatingColor(score)))
 
     for index, dungeonId in ipairs(order) do
@@ -658,7 +688,7 @@ local function ShowProposal()
     proposalLevel:SetText(Colored("+" .. status.level, r, g, b))
     proposalDungeon:SetText(DungeonName(dungeon))
     proposalPreview:SetTexture(DungeonBackground(dungeon))
-    proposalText:SetText(format(TEXT.proposalText, DungeonName(dungeon)))
+    proposalText:SetText(format(TEXT.proposalText, DungeonName(dungeon)) .. "\n" .. ParagonLine(status.level))
     acceptButton:Enable()
     proposal:Show()
     PlaySoundFile(SOUND .. "ChallengeStart.ogg")
@@ -1071,6 +1101,7 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
     local kind, a, b, c, d, e, f, g, h, i = strsplit("\t", message)
     if kind == "K" then
         key, score = tonumber(a) or 2, tonumber(b) or 0
+        paragon = tonumber(c)
         wipe(order)
         wipe(bests)
     elseif kind == "B" then
