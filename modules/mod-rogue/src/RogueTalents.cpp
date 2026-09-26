@@ -18,6 +18,7 @@
 #include "UnitScript.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <list>
 #include <vector>
@@ -148,6 +149,7 @@ struct RogueState : public DataMap::Base
     uint32 poisonTimer = 5000;       // Poisons tenaces: the next refresh of the weapons' poisons
     uint32 virulenceTimer = 0;       // Virulence: the next count of the afflictions
     uint32 bleedEnergyAt = 0;        // Assassinat: when a bleed tick may give energy again
+    uint32 autoPoisonTimer = 0;      // Assassinat: the next look at the weapons' poisons
     // A finisher's combo points, read when it begins: an instant spell has spent them by the time its cast hook runs
     uint32 finisherSpell = 0;
     uint8 finisherPoints = 0;
@@ -551,6 +553,48 @@ bool IsPoisonEnchant(uint32 enchantId)
     return false;
 }
 
+// Assassinat keeps its weapons poisoned (as on retail, where poisons are simply on): a weapon with no temporary
+// enchantment gets Deadly Poison (main hand) or Instant Poison (off hand), the best rank the level allows. A poison
+// the rogue put on (Wound Poison, ...) is never replaced. Envenom needs Deadly Poison on its target, and scales with it.
+struct PoisonRank
+{
+    uint8 level;
+    uint32 enchant;     // SpellItemEnchantment id, as the poison's own ENCHANT_ITEM_TEMPORARY effect gives it
+};
+constexpr std::array<PoisonRank, 9> DeadlyPoisonRanks = { {
+    { 30, 7 }, { 38, 8 }, { 46, 626 }, { 54, 627 }, { 60, 2630 }, { 62, 2642 }, { 70, 2643 }, { 76, 3770 },
+    { 80, 3771 } } };
+constexpr std::array<PoisonRank, 9> InstantPoisonRanks = { {
+    { 20, 323 }, { 28, 324 }, { 36, 325 }, { 44, 623 }, { 52, 624 }, { 60, 625 }, { 68, 2641 }, { 73, 3768 },
+    { 79, 3769 } } };
+constexpr uint32 AutoPoisonCheckMs = 3000;
+
+template <std::size_t N>
+uint32 BestPoison(std::array<PoisonRank, N> const& ranks, uint8 level)
+{
+    uint32 enchant = 0;
+    for (PoisonRank const& rank : ranks)
+        if (level >= rank.level)
+            enchant = rank.enchant;
+    return enchant;
+}
+
+void EnsureAssassinationPoisons(Player* player)
+{
+    for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK })
+    {
+        Item* item = player->GetWeaponForAttack(attackType);
+        if (!item || item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT))
+            continue;
+        uint32 const enchant = attackType == BASE_ATTACK ? BestPoison(DeadlyPoisonRanks, player->GetLevel()) :
+            BestPoison(InstantPoisonRanks, player->GetLevel());
+        if (!enchant || !sSpellItemEnchantmentStore.LookupEntry(enchant))
+            continue;
+        item->SetEnchantment(TEMP_ENCHANTMENT_SLOT, enchant, PoisonDurationMs, 0);
+        player->ApplyEnchantment(item, TEMP_ENCHANTMENT_SLOT, true);
+    }
+}
+
 // Poisons tenaces: a poison on a weapon is put back to a full hour every few minutes, so it never wears off
 void RefreshPoisons(Player* player)
 {
@@ -840,6 +884,15 @@ public:
         }
 
         RogueState* state = GetState(player);
+        if (state->autoPoisonTimer > diff)
+            state->autoPoisonTimer -= diff;
+        else
+        {
+            state->autoPoisonTimer = AutoPoisonCheckMs;
+            if (IsAssassination(player) && player->IsAlive())
+                EnsureAssassinationPoisons(player);
+        }
+
         if (state->virulenceTimer > diff)
             state->virulenceTimer -= diff;
         else
