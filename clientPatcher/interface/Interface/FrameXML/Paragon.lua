@@ -40,6 +40,9 @@ local DEFAULT_ZOOM = 0.85
 -- a board this size is for. Not so faint they turn into texture, though - that was the first attempt.
 local ALPHA_LOCKED, ALPHA_REACHABLE, ALPHA_TAKEN = 0.55, 0.85, 1.0
 
+-- A node behind a shut tier gate (its branch's previous zone not yet complete) sits darker still, under a lock
+local ALPHA_SEALED = 0.4
+
 local TINT_LOCKED    = { 0.32, 0.32, 0.30 }
 local TINT_REACHABLE = { 0.72, 0.62, 0.42 }
 local TINT_TAKEN     = { 1.0, 0.78, 0.32 }
@@ -110,10 +113,65 @@ local function isAllocated(id)
     return state.allocated[id] == true
 end
 
--- Points a node needs spent on the board before it can be taken (the far zones and the keystones)
+-- What a node costs: 1 for a small one, up to 5 for an Apotheosis (the same numbers the server charges)
+local function nodeCost(node)
+    if not node or node.free then return 0 end
+    return math.max(1, node.cost or 1)
+end
+
+-- Every paid node of a side's tier, by side then tier: a side's next tier opens once all of these are held
+local NO_SIDE = 255
+local tierNodes
+local tierMissing = {}
+
+local function buildTiers()
+    if tierNodes then return end
+    tierNodes = {}
+    for id, node in pairs(ParagonBoard.nodes) do
+        local side = node.side or NO_SIDE
+        if not node.free and side ~= NO_SIDE then
+            tierNodes[side] = tierNodes[side] or {}
+            local tier = node.tier or 0
+            tierNodes[side][tier] = tierNodes[side][tier] or {}
+            table.insert(tierNodes[side][tier], id)
+        end
+    end
+end
+
+-- How many nodes of each side's tier are still missing, recounted whenever the allocation changes
+local function countTiers()
+    buildTiers()
+    tierMissing = {}
+    for side, tiers in pairs(tierNodes) do
+        tierMissing[side] = {}
+        for tier, ids in pairs(tiers) do
+            local missing = 0
+            for _, id in ipairs(ids) do
+                if not state.allocated[id] then missing = missing + 1 end
+            end
+            tierMissing[side][tier] = missing
+        end
+    end
+end
+
+-- The nodes still missing before this node's tier opens on its side (0: open). The hub, the bridges and the first
+-- tier are never gated.
+local function tierGate(id)
+    local node = ParagonBoard.nodes[id]
+    local side, tier = node and node.side or NO_SIDE, node and node.tier or 0
+    if side == NO_SIDE or tier == 0 then return 0 end
+    return (tierMissing[side] and tierMissing[side][tier - 1]) or 0
+end
+
+local function tierName(tier)
+    local zone = ParagonBoard.zones and ParagonBoard.zones[tier + 1]
+    return zone and zone.name or tostring(tier)
+end
+
+-- Points a node needs spent on the board before it can be taken (the first zone's keystones), or its tier still shut
 local function isGated(id)
     local node = ParagonBoard.nodes[id]
-    return node and (node.required or 0) > state.spent
+    return node and ((node.required or 0) > state.spent or tierGate(id) > 0)
 end
 
 -- Reachable means "next to something already held" and past its gate, the same rules the server enforces.
@@ -280,11 +338,16 @@ local function refreshNode(id)
     if not button then return end
 
     local taken, reachable = isAllocated(id), isReachable(id)
+    local sealed = not taken and tierGate(id) > 0
     local tint = taken and TINT_TAKEN or (reachable and TINT_REACHABLE or TINT_LOCKED)
-    button:SetAlpha(taken and ALPHA_TAKEN or (reachable and ALPHA_REACHABLE or ALPHA_LOCKED))
+    local alpha = sealed and ALPHA_SEALED or ALPHA_LOCKED
+    button:SetAlpha(taken and ALPHA_TAKEN or (reachable and ALPHA_REACHABLE or alpha))
     button.glow:SetVertexColor(tint[1], tint[2], tint[3])
     button.glow:SetAlpha(taken and 0.5 or (reachable and 0.28 or 0.08))
     button.icon:SetDesaturated(not taken)
+    if button.lock then
+        if sealed then button.lock:Show() else button.lock:Hide() end
+    end
 end
 
 local function refreshLinks()
@@ -381,6 +444,7 @@ local function refreshBonus()
 end
 
 local function refreshAll()
+    countTiers()
     reachableButtons = {}
     for id in pairs(ParagonBoard.nodes) do
         refreshNode(id)
@@ -407,11 +471,20 @@ local function allocate(id)
     if state.pending then return end
     if not isReachable(id) then
         PlaySound(SOUND_DENIED)
+        local missing = tierGate(id)
+        if not isAllocated(id) and missing > 0 then
+            local node = ParagonBoard.nodes[id]
+            UIErrorsFrame:AddMessage(string.format(
+                "Prenez d'abord tous les nœuds de %s de cette branche (%d restants).",
+                tierName(node.tier - 1), missing), 1, 0.3, 0.3, 1, 3)
+        end
         return
     end
-    if state.available <= 0 then
+    local cost = nodeCost(ParagonBoard.nodes[id])
+    if state.available < cost then
         PlaySound(SOUND_DENIED)
-        UIErrorsFrame:AddMessage("Aucun point de parangon disponible.", 1, 0.3, 0.3, 1, 3)
+        UIErrorsFrame:AddMessage(state.available <= 0 and "Aucun point de parangon disponible."
+            or string.format("Ce nœud coûte %d points (%d disponibles).", cost, state.available), 1, 0.3, 0.3, 1, 3)
         return
     end
 
@@ -431,19 +504,31 @@ local function onNodeEnter(self)
     local kind = NODE_KINDS[node.type] or NODE_KINDS[0]
     GameTooltip:AddLine(kind.label, kind.color[1], kind.color[2], kind.color[3])
     GameTooltip:AddLine(node.description, 1, 1, 1, true)
+    local cost = nodeCost(node)
+    if cost > 0 then
+        GameTooltip:AddLine(string.format("Coût : %d point%s.", cost, cost > 1 and "s" or ""), 0.85, 0.8, 0.7)
+    end
     local required = node.required or 0
     if required > 0 and not isAllocated(self.nodeId) then
         GameTooltip:AddLine(string.format("Requiert %d points dépensés sur le tableau (%d / %d).", required,
             math.min(state.spent, required), required), 1, 0.82, 0.3, true)
     end
+    local missing = tierGate(self.nodeId)
+    if missing > 0 and not isAllocated(self.nodeId) then
+        local branch = ParagonBoard.sides and ParagonBoard.sides[node.side]
+        GameTooltip:AddLine(string.format("Verrouillé : prenez tous les nœuds de %s%s d'abord (%d restants).",
+            tierName(node.tier - 1), branch and (" de la branche " .. branch) or "", missing), 0.9, 0.55, 0.35, true)
+    end
     if isAllocated(self.nodeId) then
         GameTooltip:AddLine("Acquis.", 1, 0.86, 0.55)
     elseif isReachable(self.nodeId) then
-        GameTooltip:AddLine("Coût : 1 point.", 0.85, 0.8, 0.7)
-        if state.available > 0 then
+        if state.available >= cost then
             GameTooltip:AddLine("Clic : acquérir", 1, 0.82, 0.3)
+        else
+            GameTooltip:AddLine(string.format("Points insuffisants (%d disponibles).", state.available),
+                0.62, 0.57, 0.5)
         end
-    else
+    elseif missing == 0 then
         GameTooltip:AddLine("Pas encore accessible.", 0.62, 0.57, 0.5)
     end
     GameTooltip:Show()
@@ -493,6 +578,27 @@ local function createNode(id, node)
     button.ring:SetTexture(ART .. (node.type == 2 and "Paragon-Node-Keystone"
         or node.type == 1 and "Paragon-Node-Notable" or "Paragon-Node-Minor"))
     button.ring:SetAllPoints()
+
+    -- A lock over a node whose tier is still shut on its branch, shown by refreshNode
+    if (node.tier or 0) > 0 and (node.side or NO_SIDE) ~= NO_SIDE then
+        button.lock = button:CreateTexture(nil, "OVERLAY")
+        button.lock:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-LOCK")
+        button.lock:SetSize(size * 0.42, size * 0.42)
+        button.lock:SetPoint("CENTER")
+        button.lock:SetVertexColor(1, 0.86, 0.55)
+        button.lock:Hide()
+    end
+
+    -- What it costs, on the node itself, for anything past a single point: the price is part of the decision
+    local cost = nodeCost(node)
+    if cost > 1 then
+        local badge = button:CreateFontString(nil, "OVERLAY")
+        badge:SetFont(MORPHEUS, math.max(11, math.floor(size * 0.3)), "OUTLINE")
+        badge:SetTextColor(1, 0.86, 0.55)
+        badge:SetPoint("CENTER", button, "BOTTOMRIGHT", -size * 0.14, size * 0.14)
+        badge:SetText(cost)
+        button.costBadge = badge
+    end
 
     button:SetScript("OnEnter", onNodeEnter)
     button:SetScript("OnLeave", onNodeLeave)
@@ -650,7 +756,8 @@ local function createChrome()
     intro:SetJustifyH("LEFT")
     intro:SetTextColor(0.85, 0.8, 0.7)
     intro:SetText("Chaque point renforce votre personnage pour de bon. Partez de l'Éveil, au centre, et étendez "
-        .. "votre chemin nœud après nœud : l'Ascension puis la Transcendance attendent au-delà.")
+        .. "votre chemin nœud après nœud. L'Ascension d'une branche s'ouvre une fois son Éveil complet, sa "
+        .. "Transcendance une fois son Ascension complète ; les grands nœuds coûtent plusieurs points.")
 
     -- The points to spend, as the board's clock reads: an emblem, the label and the figure beside it, and the
     -- gauge of what is spent under both

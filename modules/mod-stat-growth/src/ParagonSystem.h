@@ -9,6 +9,8 @@
 
 class Creature;
 class Player;
+class Spell;
+class SpellInfo;
 class Unit;
 
 // The paragon board: a second layer of permanent power on top of the essences, spent on a tree rather than
@@ -70,6 +72,13 @@ void SendParagonBoard(Player* player);
 void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage);
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage);
 void OnParagonKill(Player* player, Unit* killed);
+// What is about to deal the next hit (ModifyFinalDamage, ModifyPeriodicDamageAurasTick): no spell for a white swing.
+// The damage hook itself is not told, and a branch's effects answer only to weapons or only to spells.
+void NoteParagonDamageSource(Unit* attacker, Unit* victim, SpellInfo const* spellInfo, bool periodic);
+// The caster side: a spell's direct damage once dealt (echo, arc), and a spell cast (quickening, spell power,
+// ward, mana)
+void OnParagonSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage, bool critical);
+void OnParagonSpellCast(Player* player, Spell* spell);
 void UpdateParagonBuffs(Player* player);
 
 // The outer zones' maximum health, applied where the module already adjusts it (OnPlayerAfterUpdateMaxHealth).

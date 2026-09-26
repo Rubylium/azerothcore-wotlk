@@ -365,7 +365,7 @@ $customSpells = @(
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = $A_Dummy })
        # No duration: it lasts as long as the tank is in the dungeon, and the module takes it away on the way out
        Fields = @{ 40 = 21 } },
-    # The paragon board's procs (ParagonSystem.cpp), 90650-90669. The damage and heal ones are never cast: they name
+    # The paragon board's procs (ParagonSystem.cpp), 90650-90699 (90664-90665 are MythicDungeonSystem.cpp's). The damage and heal ones are never cast: they name
     # what the module deals or heals, so it shows in the combat log, floating text and meters such as Details. The
     # buffs are markers of what is running, applied with the proc's own duration; the effect itself is the module's.
     @{ Id = 90650; Clone = 2983; Name = 'Explosion de parangon'; Icon = 'ParagonNode_ExplodingCarcass'; FallbackIconSpell = 11113; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
@@ -404,6 +404,22 @@ $customSpells = @(
     @{ Id = 90663; Clone = 2983; CantCancel = $true; Name = 'Rancune'; Icon = 'ParagonNode_Bastion'; FallbackIconSpell = 25228; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Les coups subis vous emplissent de rancune.'; AuraDescription = 'Puissance d''attaque et des sorts augmentées par les coups subis.'
        Fields = @{ 40 = 21 } },
+    # The caster side of the board: set off by spells alone (ParagonSystem.cpp, 90666-90671)
+    @{ Id = 90666; Clone = 2983; Name = 'Écho du parangon'; Icon = 'ParagonNode_Echo'; FallbackIconSpell = 30451; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Le coup critique d''un sort résonne et frappe une seconde fois.' },
+    @{ Id = 90667; Clone = 2983; Name = 'Arc du parangon'; Icon = 'ParagonNode_Overload'; FallbackIconSpell = 421; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une partie des dégâts d''un sort se propage aux ennemis proches de la cible.' },
+    @{ Id = 90668; Clone = 2983; CantCancel = $true; Name = 'Célérité du parangon'; Icon = 'ParagonNode_Influx'; FallbackIconSpell = 12042; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Vitesse d''incantation augmentée.'; AuraDescription = 'Vitesse d''incantation augmentée.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90669; Clone = 2983; CantCancel = $true; Name = 'Égide du parangon'; Icon = 'ParagonNode_FortifiedMind'; FallbackIconSpell = 17; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une égide absorbe les dégâts subis.'; AuraDescription = 'Absorbe les dégâts subis.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90670; Clone = 2983; CantCancel = $true; Name = 'Clairvoyance du parangon'; Icon = 'ParagonNode_Clairvoyance'; FallbackIconSpell = 12043; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Puissance des sorts augmentée.'; AuraDescription = 'Puissance des sorts augmentée.'
+       Fields = @{ 40 = 21 } },
+    @{ Id = 90671; Clone = 2983; Name = 'Illumination du parangon'; Icon = 'ParagonNode_Illumination'; FallbackIconSpell = 20215; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Rend une partie du mana maximum.' },
     # Threat in dungeons and raids (mod-stat-growth MythicDungeonSystem.cpp): the tank's presence and everyone else's
     # discretion. The module sets the amount; the paragon board's tank nodes add to the presence.
     @{ Id = 90664; Clone = 2983; CantCancel = $true; Name = 'Présence du gardien'; FallbackIconSpell = 71; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false

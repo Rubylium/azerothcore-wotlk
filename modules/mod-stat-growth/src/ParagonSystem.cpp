@@ -15,6 +15,7 @@
 #include "GridNotifiersImpl.h"
 #include "Random.h"
 #include "SharedDefines.h"
+#include "Spell.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "StatGrowthConfig.h"
@@ -24,6 +25,7 @@
 #include "WorldSession.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <limits>
@@ -65,8 +67,51 @@ enum class ParagonEffect : uint8
     Splash,             // dealing damage: `value`% of the hit to up to MaxSplashTargets other enemies within `value2` yards
     ThreatPct,          // `value`% more threat generated, always (mod-stat-growth's tank aura carries it)
     Grudge,             // `value`% of the damage taken lately as attack and spell power, up to `value2`% of max health
+    // The caster side's own procs. Spells alone set them off - a cast, or a spell's damage - so a melee character
+    // gains nothing from walking there, as a caster gains nothing from the melee side's weapon procs.
+    Echo,               // a spell's critical strike: `chance` to deal `value`% of it again
+    Arc,                // a spell's damage: `chance` to arc `value`% of it to `value2` enemies nearby, on `cooldown`
+    Quicken,            // casting a spell: `chance` to cast `value`% faster for `duration`
+    Insight,            // casting a spell: `chance` to gain `value` spell power for `duration`
+    Ward,               // casting a spell: `chance` to absorb `value`% of spell power for `duration`, on `cooldown`
+    ManaSurge,          // casting a spell: `chance` to restore `value`% of maximum mana, on `cooldown`
     Count
 };
+
+// What sets a node off, from its branch: the melee branches answer to weapon attacks and abilities only, the caster
+// branches to spells only, and the armour branch, the hub and the bridges to anything.
+enum class ParagonScope : uint8
+{
+    Any = 0,
+    Weapon,
+    Spell,
+    Count
+};
+
+// What a hit was, as far as the board is concerned: a weapon's (white swings, and abilities of the melee or ranged
+// damage class), a spell's (the magic damage class), or something else - a damage class of none, a script's damage
+// - which only the unscoped nodes answer to.
+enum class HitKind : uint8
+{
+    Other = 0,
+    Weapon,
+    Spell
+};
+
+bool Answers(uint8 scope, HitKind kind)
+{
+    switch (static_cast<ParagonScope>(scope))
+    {
+        case ParagonScope::Any: return true;
+        case ParagonScope::Weapon: return kind == HitKind::Weapon;
+        case ParagonScope::Spell: return kind == HitKind::Spell;
+        default: return false;
+    }
+}
+
+// The hub and the bridges have no side, and so no tier gate
+constexpr uint8 NoSide = 255;
+constexpr uint8 TierCount = 3;
 
 // However the outer zones stack, a character can still be hurt and cannot heal off every hit in full. The reduction
 // is low on purpose: it multiplies with armour, which a geared tank already has at WotLK's 75% cap, and at 75% on top
@@ -86,6 +131,17 @@ constexpr uint32 MaxRetaliateHealthPct = 4;
 // used to roll on its own, and four of them with the Titan's 150% came to three quarters more on every hit, 40% of a
 // tank's damage. Capped, the strikes are at most a fifth of what a character deals.
 constexpr float MaxDoubleStrikeChance = 25.0f;
+// The area procs are a chance, not a certainty: a blast on every kill and a splash on every hit made a pack of trash
+// melt on its own. Each is one roll on the nodes' chances summed, capped here.
+constexpr float MaxExplosionChance = 40.0f;
+constexpr float MaxKillStreakChance = 75.0f;
+constexpr float MaxSplashChance = 35.0f;
+constexpr float MaxArcChance = 35.0f;
+constexpr float ArcRange = 10.0f;
+// The echo of a spell's critical strike is the caster's double strike: summed and capped the same way, and only a
+// critical strike can echo, so the cap sits higher than a weapon's
+constexpr float MaxEchoChance = 60.0f;
+constexpr uint32 MaxQuickenPct = 30;
 
 // Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows each level, and
 // compounds (ParagonXpGrowth a level), because the experience itself grows with the character (essences raise its
@@ -111,6 +167,13 @@ constexpr uint32 SPELL_PARAGON_UNDYING_SPENT = 90660;
 constexpr uint32 SPELL_PARAGON_KILL_STREAK = 90661;
 constexpr uint32 SPELL_PARAGON_SPLASH = 90662;
 constexpr uint32 SPELL_PARAGON_GRUDGE = 90663;
+// The caster side's
+constexpr uint32 SPELL_PARAGON_ECHO = 90666;
+constexpr uint32 SPELL_PARAGON_ARC = 90667;
+constexpr uint32 SPELL_PARAGON_QUICKEN = 90668;
+constexpr uint32 SPELL_PARAGON_WARD = 90669;
+constexpr uint32 SPELL_PARAGON_INSIGHT = 90670;
+constexpr uint32 SPELL_PARAGON_MANA_SURGE = 90671;
 
 // Rancune: what was taken fades by half every GrudgeHalfLifeMs, so "lately" means the last several seconds
 constexpr uint32 GrudgeTickMs = 500;
@@ -133,6 +196,10 @@ struct ParagonNode
     uint32 cooldown = 0;        // milliseconds
     bool free = false;
     uint32 required = 0;        // points already spent on the board before this one can be taken
+    uint8 cost = 1;             // points it takes: 1 for a small node, up to 5 for an Apotheosis
+    uint8 side = NoSide;        // its branch
+    uint8 tier = 0;             // its zone: 0 Eveil, 1 Ascension, 2 Transcendance
+    uint8 scope = 0;            // ParagonScope: what sets it off
 };
 
 // A proc a character currently owns, lifted out of the board so a damage event does not have to walk every
@@ -140,6 +207,7 @@ struct ParagonNode
 struct ParagonProc
 {
     ParagonEffect effect = ParagonEffect::Stat;
+    uint8 scope = 0;
     uint32 value = 0;
     uint32 value2 = 0;
     float chance = 0.0f;
@@ -153,13 +221,36 @@ struct ParagonProc
 struct ParagonBuff
 {
     ParagonEffect effect = ParagonEffect::Stat;
+    uint8 scope = 0;
     uint32 expiresAt = 0;
     int32 applied = 0;
 };
 
 std::unordered_map<uint32, ParagonNode> Board;
 std::unordered_map<uint32, std::vector<uint32>> Adjacency;
+// Every node of a side's tier, by side * TierCount + tier: what has to be held before the next tier of that side opens
+std::unordered_map<uint32, std::vector<uint32>> TierNodes;
 uint32 BoardSignature = 0;
+
+// Summed per scope: [any, weapon, spell]. A hit counts the unscoped share and the share of its own kind.
+using ScopedPct = std::array<uint32, static_cast<std::size_t>(ParagonScope::Count)>;
+
+uint32 ScopedSum(ScopedPct const& values, HitKind kind)
+{
+    uint32 total = values[0];
+    if (kind == HitKind::Weapon)
+        total += values[static_cast<std::size_t>(ParagonScope::Weapon)];
+    else if (kind == HitKind::Spell)
+        total += values[static_cast<std::size_t>(ParagonScope::Spell)];
+    return total;
+}
+
+// One effect fed by several nodes answers to what they all answer to; nodes of different scopes feeding the same one
+// (which the board does not do) fall back to anything.
+uint8 MergeScope(uint8 current, uint8 incoming, bool first)
+{
+    return first || current == incoming ? incoming : static_cast<uint8>(ParagonScope::Any);
+}
 
 // A character's own board. Kept on the player so it dies with the session.
 struct ParagonState : public DataMap::Base
@@ -168,25 +259,61 @@ struct ParagonState : public DataMap::Base
     uint32 prestige = 0;                    // how many times this character has reset; each one raises the cap
     std::unordered_set<uint32> allocated;   // paid-for nodes only; free ones are never stored
     bool applied = false;
-    bool overCapReset = false;              // the allocation was over the cap at login and was refunded
+    bool overCapReset = false;              // the allocation broke the board's rules at login and was refunded
     std::vector<ParagonProc> procs;         // from the allocated nodes, rebuilt when they change
     std::vector<ParagonBuff> buffs;         // currently running
 
     // The always-on effects of the outer zones, summed from the allocation with the procs
-    uint32 damagePct = 0;
+    ScopedPct damagePct{};
     uint32 reductionPct = 0;
-    uint32 leechPct = 0;
+    ScopedPct leechPct{};
     uint32 healthPct = 0;
     uint32 explosionPct = 0;
     uint32 explosionRange = 0;
+    float explosionChance = 0.0f;
+    uint8 explosionScope = 0;
     uint32 killStreakPct = 0;               // per stack, summed over the nodes
     uint32 killStreakMax = 0;               // the most stacks any node allows
     uint32 killStreakDuration = 0;
+    float killStreakChance = 0.0f;
+    uint8 killStreakScope = 0;
     uint32 splashPct = 0;
     uint32 splashRange = 0;
+    float splashChance = 0.0f;
+    uint32 splashCooldown = 0;
+    uint32 splashReadyAt = 0;
+    uint8 splashScope = 0;
     uint32 threatPct = 0;
     uint32 grudgePct = 0;
     uint32 grudgeCapPct = 0;
+
+    // The caster side, summed the same way: one roll each, however many nodes feed it
+    float echoChance = 0.0f;
+    uint32 echoPct = 0;                     // the strongest echo held
+    float arcChance = 0.0f;
+    uint32 arcPct = 0;
+    uint32 arcTargets = 0;
+    uint32 arcCooldown = 0;
+    uint32 arcReadyAt = 0;
+    float quickenChance = 0.0f;
+    uint32 quickenPct = 0;
+    uint32 quickenDuration = 0;
+    float insightChance = 0.0f;
+    uint32 insightValue = 0;
+    uint32 insightDuration = 0;
+    float wardChance = 0.0f;
+    uint32 wardPct = 0;
+    uint32 wardDuration = 0;
+    uint32 wardCooldown = 0;
+    uint32 wardReadyAt = 0;
+    float manaChance = 0.0f;
+    uint32 manaPct = 0;
+    uint32 manaCooldown = 0;
+    uint32 manaReadyAt = 0;
+
+    // What the character last hit, and with what, so a kill knows whether a weapon or a spell made it
+    ObjectGuid lastHitTarget;
+    HitKind lastHitKind = HitKind::Other;
 
     // Rancune running: the damage taken lately, fading, and the attack and spell power it has handed out
     double grudgePool = 0.0;
@@ -217,6 +344,37 @@ struct ParagonState : public DataMap::Base
 // and a kill it makes does not explode again: one pull of trash would otherwise chain through the instance.
 // Per thread, because maps update on several.
 thread_local bool DealingProcDamage = false;
+
+// The damage hook (UnitScript::OnDamage) is not told what dealt the hit. The hooks just before it are: the final
+// damage of a melee swing or of a spell (ModifyFinalDamage) and a periodic tick (ModifyPeriodicDamageAurasTick) name
+// the spell, or none for a white swing, and the same thread then goes on to deal that damage. It is noted here, and
+// read and cleared by the damage hook; a hit it does not match - other units, or damage dealt with no hook before
+// it - is Other.
+struct DamageSource
+{
+    Unit const* attacker = nullptr;
+    Unit const* victim = nullptr;
+    SpellInfo const* spell = nullptr;
+    bool periodic = false;
+    bool set = false;
+};
+thread_local DamageSource PendingSource;
+
+HitKind KindOf(SpellInfo const* spell)
+{
+    if (!spell)
+        return HitKind::Weapon;             // a white swing
+    switch (spell->DmgClass)
+    {
+        case SPELL_DAMAGE_CLASS_MELEE:
+        case SPELL_DAMAGE_CLASS_RANGED:
+            return HitKind::Weapon;
+        case SPELL_DAMAGE_CLASS_MAGIC:
+            return HitKind::Spell;
+        default:
+            return HitKind::Other;
+    }
+}
 
 void QueueHit(ParagonState* state, Unit* target, uint32 spellId, uint64 amount, SpellSchoolMask school)
 {
@@ -264,6 +422,9 @@ uint32 BuffSpell(ParagonEffect effect)
         case ParagonEffect::GuardOnHit: return SPELL_PARAGON_GUARD;
         case ParagonEffect::LastStand: return SPELL_PARAGON_LAST_STAND;
         case ParagonEffect::Undying: return SPELL_PARAGON_UNDYING;
+        case ParagonEffect::Quicken: return SPELL_PARAGON_QUICKEN;
+        case ParagonEffect::Insight: return SPELL_PARAGON_INSIGHT;
+        case ParagonEffect::Ward: return SPELL_PARAGON_WARD;
         default: return 0;
     }
 }
@@ -278,8 +439,20 @@ uint32 ExperienceForLevel(uint32 level)
 // Whether anything on the damage path has work to do for this character
 bool HasCombatEffects(ParagonState const* state)
 {
-    return state && state->applied && (!state->procs.empty() || state->damagePct || state->reductionPct
-        || state->leechPct || state->explosionPct || state->killStreakPct || state->splashPct || state->grudgePct);
+    if (!state || !state->applied)
+        return false;
+    for (std::size_t scope = 0; scope < state->damagePct.size(); ++scope)
+        if (state->damagePct[scope] || state->leechPct[scope])
+            return true;
+    // A running buff counts too: a ward from a cast has to soak hits on a board with nothing else on the damage path
+    return !state->procs.empty() || !state->buffs.empty() || state->reductionPct || state->explosionPct
+        || state->killStreakPct || state->splashPct || state->grudgePct || state->echoPct || state->arcPct;
+}
+
+// Whether casting has anything to set off
+bool HasCastEffects(ParagonState const* state)
+{
+    return state && state->applied && (state->quickenPct || state->insightValue || state->wardPct || state->manaPct);
 }
 
 constexpr char const* StateKey = "ParagonState";
@@ -301,9 +474,25 @@ uint32 PointCap(ParagonState const* state)
     return base + prestige * per;
 }
 
+// What a node costs. Free nodes cost nothing; a node the data leaves at 0 still costs a point.
+uint32 NodeCost(ParagonNode const& node)
+{
+    return node.free ? 0 : std::max<uint32>(1, node.cost);
+}
+
+uint32 SpentOn(std::unordered_set<uint32> const& allocated)
+{
+    uint32 total = 0;
+    for (uint32 nodeId : allocated)
+        if (auto const node = Board.find(nodeId); node != Board.end())
+            total += NodeCost(node->second);
+    return total;
+}
+
+// Points spent: the nodes' costs, not their count
 uint32 SpentPoints(ParagonState const* state)
 {
-    return state ? static_cast<uint32>(state->allocated.size()) : 0;
+    return state ? SpentOn(state->allocated) : 0;
 }
 
 // Banked points past the cap do not count until the cap moves, which is the whole point of banking them.
@@ -359,6 +548,39 @@ bool IsReachable(ParagonState const* state, uint32 nodeId)
     return false;
 }
 
+// A side's tier opens once every node of the tier before it on that side is held: the whole of a branch's Eveil before
+// its Ascension, the whole of its Ascension before its Transcendance. Returns how many are still missing (0: open).
+// The hub, the bridges and the first tier are never gated.
+uint32 MissingForTier(std::unordered_set<uint32> const& allocated, ParagonNode const& node)
+{
+    if (node.side == NoSide || node.tier == 0)
+        return 0;
+
+    auto const previous = TierNodes.find(uint32(node.side) * TierCount + node.tier - 1);
+    if (previous == TierNodes.end())
+        return 0;
+
+    uint32 missing = 0;
+    for (uint32 nodeId : previous->second)
+        if (!allocated.count(nodeId))
+            ++missing;
+    return missing;
+}
+
+// Whether an allocation keeps the board's rules as they stand now: within the cap at the nodes' costs, and nothing
+// held behind a tier gate that is still shut. Checked at login, when the rules may have changed since it was built.
+bool IsAllocationValid(ParagonState const* state)
+{
+    if (SpentOn(state->allocated) > PointCap(state))
+        return false;
+
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId);
+            node != Board.end() && MissingForTier(state->allocated, node->second))
+            return false;
+    return true;
+}
+
 // Armour as a percentage is handed out as the flat amount it was worth when it was granted, so removing it
 // takes back exactly what was given. Recomputing the percentage on removal would not, because the armour it
 // is a percentage of has moved in the meantime.
@@ -405,11 +627,22 @@ void RebuildProcs(ParagonState* state)
         return;
 
     state->procs.clear();
-    state->damagePct = state->reductionPct = state->leechPct = state->healthPct = 0;
+    state->damagePct.fill(0);
+    state->leechPct.fill(0);
+    state->reductionPct = state->healthPct = 0;
     state->explosionPct = state->explosionRange = 0;
+    state->explosionChance = 0.0f;
     state->killStreakPct = state->killStreakMax = state->killStreakDuration = 0;
-    state->splashPct = state->splashRange = 0;
+    state->killStreakChance = 0.0f;
+    state->splashPct = state->splashRange = state->splashCooldown = 0;
+    state->splashChance = 0.0f;
     state->threatPct = state->grudgePct = state->grudgeCapPct = 0;
+    state->echoChance = state->arcChance = state->quickenChance = state->insightChance = 0.0f;
+    state->wardChance = state->manaChance = 0.0f;
+    state->echoPct = state->arcPct = state->arcTargets = state->arcCooldown = 0;
+    state->quickenPct = state->quickenDuration = state->insightValue = state->insightDuration = 0;
+    state->wardPct = state->wardDuration = state->wardCooldown = 0;
+    state->manaPct = state->manaCooldown = 0;
 
     for (uint32 nodeId : state->allocated)
     {
@@ -419,6 +652,7 @@ void RebuildProcs(ParagonState* state)
 
         ParagonNode const& node = entry->second;
         ParagonEffect const effect = static_cast<ParagonEffect>(node.effect);
+        std::size_t const scope = std::min<std::size_t>(node.scope, state->damagePct.size() - 1);
         switch (effect)
         {
             case ParagonEffect::Stat:
@@ -426,31 +660,39 @@ void RebuildProcs(ParagonState* state)
             case ParagonEffect::ArmorPct:
                 continue;
             case ParagonEffect::DamagePct:
-                state->damagePct += node.value;
+                state->damagePct[scope] += node.value;
                 continue;
             case ParagonEffect::ReductionPct:
                 state->reductionPct += node.value;
                 continue;
             case ParagonEffect::Leech:
-                state->leechPct += node.value;
+                state->leechPct[scope] += node.value;
                 continue;
             case ParagonEffect::HealthPct:
                 state->healthPct += node.value;
                 continue;
             case ParagonEffect::Explosion:
-                // One blast per kill, however many nodes feed it: the percentages add up, the widest reach wins
+                // One roll per kill, however many nodes feed it: the percentages and the chances add up, the widest
+                // reach wins
+                state->explosionScope = MergeScope(state->explosionScope, node.scope, !state->explosionPct);
                 state->explosionPct += node.value;
                 state->explosionRange = std::max(state->explosionRange, node.value2);
+                state->explosionChance += node.chance;
                 continue;
             case ParagonEffect::KillStreak:
                 // One streak, however many nodes feed it: each stack is worth their sum, the longest one wins
+                state->killStreakScope = MergeScope(state->killStreakScope, node.scope, !state->killStreakPct);
                 state->killStreakPct += node.value;
                 state->killStreakMax = std::max(state->killStreakMax, node.value2);
                 state->killStreakDuration = std::max(state->killStreakDuration, node.duration);
+                state->killStreakChance += node.chance;
                 continue;
             case ParagonEffect::Splash:
+                state->splashScope = MergeScope(state->splashScope, node.scope, !state->splashPct);
                 state->splashPct += node.value;
                 state->splashRange = std::max(state->splashRange, node.value2);
+                state->splashChance += node.chance;
+                state->splashCooldown = std::max(state->splashCooldown, node.cooldown);
                 continue;
             case ParagonEffect::ThreatPct:
                 state->threatPct += node.value;
@@ -459,17 +701,52 @@ void RebuildProcs(ParagonState* state)
                 state->grudgePct += node.value;
                 state->grudgeCapPct = std::max(state->grudgeCapPct, node.value2);
                 continue;
+            // The caster side: each is one roll however many nodes feed it. The chances add up where the effect is a
+            // hit of its own (echo, arc); where it is a buff the best chance and the longest duration win and the
+            // amounts add up, so a second node makes the same proc stronger rather than a second one to track.
+            case ParagonEffect::Echo:
+                state->echoChance += node.chance;
+                state->echoPct = std::max(state->echoPct, node.value);
+                continue;
+            case ParagonEffect::Arc:
+                state->arcChance += node.chance;
+                state->arcPct += node.value;
+                state->arcTargets = std::max(state->arcTargets, node.value2);
+                state->arcCooldown = std::max(state->arcCooldown, node.cooldown);
+                continue;
+            case ParagonEffect::Quicken:
+                state->quickenChance = std::max(state->quickenChance, node.chance);
+                state->quickenPct += node.value;
+                state->quickenDuration = std::max(state->quickenDuration, node.duration);
+                continue;
+            case ParagonEffect::Insight:
+                state->insightChance = std::max(state->insightChance, node.chance);
+                state->insightValue += node.value;
+                state->insightDuration = std::max(state->insightDuration, node.duration);
+                continue;
+            case ParagonEffect::Ward:
+                state->wardChance = std::max(state->wardChance, node.chance);
+                state->wardPct += node.value;
+                state->wardDuration = std::max(state->wardDuration, node.duration);
+                state->wardCooldown = std::max(state->wardCooldown, node.cooldown);
+                continue;
+            case ParagonEffect::ManaSurge:
+                state->manaChance = std::max(state->manaChance, node.chance);
+                state->manaPct += node.value;
+                state->manaCooldown = std::max(state->manaCooldown, node.cooldown);
+                continue;
             default:
                 break;
         }
 
         ParagonProc proc;
         proc.effect = effect;
-        proc.value = entry->second.value;
-        proc.value2 = entry->second.value2;
-        proc.chance = entry->second.chance;
-        proc.duration = entry->second.duration;
-        proc.cooldown = entry->second.cooldown;
+        proc.scope = node.scope;
+        proc.value = node.value;
+        proc.value2 = node.value2;
+        proc.chance = node.chance;
+        proc.duration = node.duration;
+        proc.cooldown = node.cooldown;
         state->procs.push_back(proc);
     }
 }
@@ -486,6 +763,7 @@ void StartBuff(Player* player, ParagonState* state, ParagonProc const& proc, std
 {
     ParagonBuff buff;
     buff.effect = proc.effect;
+    buff.scope = proc.scope;
     buff.expiresAt = GameTime::GetGameTimeMS().count() + proc.duration;
 
     if (proc.effect == ParagonEffect::GuardOnHit)
@@ -502,39 +780,47 @@ void StartBuff(Player* player, ParagonState* state, ParagonProc const& proc, std
         ChatHandler(player->GetSession()).PSendSysMessage("|cffa335ee%s|r", std::string(announce).c_str());
 }
 
-void ExpireBuffs(Player* player, ParagonState* state)
+// A kill's surge of power answers to what made the kill: a weapon's gives attack power, a spell's spell power
+void ApplySurge(Player* player, uint8 scope, uint32 amount, bool apply)
 {
-    if (state->buffs.empty())
+    if (!amount)
         return;
+    if (scope != static_cast<uint8>(ParagonScope::Spell))
+        ApplyPermanentStat(player, PermanentStat::AttackPower, amount, apply);
+    if (scope != static_cast<uint8>(ParagonScope::Weapon))
+        ApplyPermanentStat(player, PermanentStat::SpellPower, amount, apply);
+}
 
-    uint32 const now = GameTime::GetGameTimeMS().count();
-    for (std::size_t index = state->buffs.size(); index > 0; --index)
+// Takes back what a running proc handed out, and its marker
+void EndBuff(Player* player, ParagonBuff const& buff)
+{
+    switch (buff.effect)
     {
-        ParagonBuff& buff = state->buffs[index - 1];
-        if (buff.expiresAt > now)
-            continue;
-
-        if (buff.effect == ParagonEffect::GuardOnHit)
+        case ParagonEffect::GuardOnHit:
             ApplyArmor(player, buff.applied, false);
-
-        state->buffs.erase(state->buffs.begin() + (index - 1));
+            break;
+        case ParagonEffect::SurgeOnKill:
+            ApplySurge(player, buff.scope, static_cast<uint32>(buff.applied), false);
+            break;
+        case ParagonEffect::Quicken:
+            if (buff.applied > 0)
+                player->ApplyCastTimePercentMod(static_cast<float>(buff.applied), false);
+            break;
+        case ParagonEffect::Insight:
+            if (buff.applied > 0)
+                ApplyPermanentStat(player, PermanentStat::SpellPower, static_cast<uint32>(buff.applied), false);
+            break;
+        default:
+            break;
     }
+    if (uint32 const marker = BuffSpell(buff.effect))
+        player->RemoveAurasDueToSpell(marker);
 }
 
 void ClearBuffs(Player* player, ParagonState* state)
 {
     for (ParagonBuff const& buff : state->buffs)
-    {
-        if (buff.effect == ParagonEffect::GuardOnHit)
-            ApplyArmor(player, buff.applied, false);
-        else if (buff.effect == ParagonEffect::SurgeOnKill)
-        {
-            ApplyPermanentStat(player, PermanentStat::AttackPower, static_cast<uint32>(buff.applied), false);
-            ApplyPermanentStat(player, PermanentStat::SpellPower, static_cast<uint32>(buff.applied), false);
-        }
-        if (uint32 const marker = BuffSpell(buff.effect))
-            player->RemoveAurasDueToSpell(marker);
-    }
+        EndBuff(player, buff);
     state->buffs.clear();
     state->pending.clear();
     if (state->killStreakStacks)
@@ -675,10 +961,12 @@ void LoadParagonBoard()
 {
     Board.clear();
     Adjacency.clear();
+    TierNodes.clear();
     BoardSignature = 0;
 
     QueryResult nodes = WorldDatabase.Query(
-        "SELECT id, type, effect, stat, value, value2, chance, duration, cooldown, free, required FROM paragon_node");
+        "SELECT id, type, effect, stat, value, value2, chance, duration, cooldown, free, required, cost, side, tier, "
+        "scope FROM paragon_node");
     if (!nodes)
     {
         LOG_INFO("server.loading", ">> Paragon board is empty (run localTools/paragon/buildParagonTree.py)");
@@ -700,15 +988,33 @@ void LoadParagonBoard()
         node.cooldown = field[8].Get<uint32>();
         node.free = field[9].Get<uint8>() != 0;
         node.required = field[10].Get<uint16>();
+        node.cost = field[11].Get<uint8>();
+        node.side = field[12].Get<uint8>();
+        node.tier = field[13].Get<uint8>();
+        node.scope = field[14].Get<uint8>();
         if (node.effect >= static_cast<uint8>(ParagonEffect::Count))
         {
             LOG_ERROR("sql.sql", "paragon_node {} has effect {}, which does not exist", node.id, node.effect);
             node.effect = static_cast<uint8>(ParagonEffect::Stat);
         }
+        if (node.scope >= static_cast<uint8>(ParagonScope::Count))
+        {
+            LOG_ERROR("sql.sql", "paragon_node {} has scope {}, which does not exist", node.id, node.scope);
+            node.scope = static_cast<uint8>(ParagonScope::Any);
+        }
+        if (node.tier >= TierCount)
+        {
+            LOG_ERROR("sql.sql", "paragon_node {} has tier {}, which does not exist", node.id, node.tier);
+            node.tier = 0;
+        }
         Board[node.id] = node;
+        if (!node.free && node.side != NoSide)
+            TierNodes[uint32(node.side) * TierCount + node.tier].push_back(node.id);
 
         // Cheap order-independent signature, matched against the client's copy of the board
         BoardSignature += node.id * 31 + node.value * 7 + node.stat + node.effect * 3 + node.required * 5;
+        BoardSignature += uint32(node.cost) * 11 + uint32(node.tier) * 19 + uint32(node.side) * 23 +
+            uint32(node.scope) * 29;
     } while (nodes->NextRow());
 
     uint32 links = 0;
@@ -773,9 +1079,10 @@ void LoadParagonForPlayer(Player* player)
                 state->allocated.insert(nodeId);
         } while (result->NextRow());
 
-    // More spent than the cap now allows (the cap was lowered): the whole board is handed back, to be spent again up
-    // to the cap. Nothing earned is lost; what is past the cap stays banked for the next prestiges.
-    if (state->allocated.size() > PointCap(state))
+    // An allocation the rules no longer allow - more spent than the cap at the nodes' costs, or a node behind a tier
+    // gate that is shut: the whole board is handed back, to be spent again under the rules as they are. Nothing
+    // earned is lost; what is past the cap stays banked for the next prestiges.
+    if (!IsAllocationValid(state))
     {
         state->allocated.clear();
         state->overCapReset = true;
@@ -813,11 +1120,12 @@ void ApplyStoredParagon(Player* player)
     {
         state->overCapReset = false;
         ChatHandler(player->GetSession()).PSendSysMessage(IsFrench(player)
-            ? "|cffa335ee[Parangon]|r Le plafond de points a changé ({} points, +{} par prestige) : votre tableau a été "
-              "réinitialisé gratuitement. Vos points gagnés restent acquis ; ceux au-delà du plafond attendent vos "
-              "prochains prestiges."
-            : "|cffa335ee[Paragon]|r The point cap changed ({} points, +{} per prestige): your board was reset for free. "
-              "Your earned points are kept; those past the cap wait for your next prestiges.", PointCap(state),
+            ? "|cffa335ee[Parangon]|r Les règles du tableau ont changé (coût des nœuds, paliers à compléter par "
+              "branche, plafond de {} points, +{} par prestige) : votre tableau a été réinitialisé gratuitement. Vos "
+              "points gagnés restent acquis ; ceux au-delà du plafond attendent vos prochains prestiges."
+            : "|cffa335ee[Paragon]|r The board's rules changed (node costs, tiers to complete per branch, a cap of {} "
+              "points, +{} per prestige): your board was reset for free. Your earned points are kept; those past the "
+              "cap wait for your next prestiges.", PointCap(state),
             statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige));
     }
 }
@@ -1001,18 +1309,37 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
     if (state->allocated.count(nodeId))
         return;
 
-    if (!AvailablePoints(state))
+    ParagonNode const& node = entry->second;
+    uint32 const cost = NodeCost(node);
+    uint32 const available = AvailablePoints(state);
+    if (available < cost)
     {
-        Send(player, std::string("ERROR\t") + (french ? "Aucun point disponible." : "No points available."));
+        Send(player, std::string("ERROR\t") + (available == 0
+            ? std::string(french ? "Aucun point disponible." : "No points available.")
+            : Acore::StringFormat(french ? "Ce noeud coûte {} points ({} disponibles)."
+                                         : "This node costs {} points ({} available).", cost, available)));
         return;
     }
 
     // The far board is reached by building a character, not by a straight run from the hub
-    if (SpentPoints(state) < entry->second.required)
+    if (SpentPoints(state) < node.required)
     {
         Send(player, std::string("ERROR\t") + Acore::StringFormat(french
             ? "Ce noeud demande {} points déjà dépensés sur le tableau." : "This node needs {} points already spent.",
-            entry->second.required));
+            node.required));
+        return;
+    }
+
+    // A side's next tier opens once the whole of the one before it is held
+    if (uint32 const missing = MissingForTier(state->allocated, node))
+    {
+        static constexpr char const* TierNamesFr[] = { "l'Éveil", "l'Ascension", "la Transcendance" };
+        static constexpr char const* TierNamesEn[] = { "Awakening", "Ascension", "Transcendence" };
+        uint8 const previous = static_cast<uint8>(node.tier - 1);
+        Send(player, std::string("ERROR\t") + Acore::StringFormat(french
+            ? "Prenez d'abord tous les noeuds de {} de cette branche ({} restants)."
+            : "Take every {} node of this branch first ({} left).",
+            french ? TierNamesFr[previous] : TierNamesEn[previous], missing));
         return;
     }
 
@@ -1024,9 +1351,9 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
     }
 
     state->allocated.insert(nodeId);
-    ApplyNode(player, entry->second, true);
+    ApplyNode(player, node, true);
     RebuildProcs(state);
-    if (entry->second.effect == static_cast<uint8>(ParagonEffect::HealthPct))
+    if (node.effect == static_cast<uint8>(ParagonEffect::HealthPct))
         player->UpdateMaxHealth();
     CharacterDatabase.Execute("REPLACE INTO character_paragon (guid, node) VALUES ({}, {})",
         player->GetGUID().GetCounter(), nodeId);
@@ -1050,6 +1377,19 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
 // each of them after two pointer checks and a vector that is empty.
 // ---------------------------------------------------------------------------------------------------------
 
+void NoteParagonDamageSource(Unit* attacker, Unit* victim, SpellInfo const* spellInfo, bool periodic)
+{
+    // Only a player's board ever asks
+    if (!attacker || !attacker->IsPlayer())
+        return;
+
+    PendingSource.attacker = attacker;
+    PendingSource.victim = victim;
+    PendingSource.spell = spellInfo;
+    PendingSource.periodic = periodic;
+    PendingSource.set = true;
+}
+
 void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
 {
     Player* player = victim ? victim->ToPlayer() : nullptr;
@@ -1061,8 +1401,6 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
         return;
 
     uint32 const now = GameTime::GetGameTimeMS().count();
-    bool const french = IsFrench(player);
-    (void)french;
 
     // While Undying holds, nothing lands at all
     if (HasBuff(state, ParagonEffect::Undying))
@@ -1078,6 +1416,19 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
             damage = damage * (100 - std::min<int32>(buff.applied, 90)) / 100;
     if (state->reductionPct)
         damage = damage * (100 - std::min(state->reductionPct, MaxReductionPct)) / 100;
+
+    // The caster's ward soaks what is left, until it is spent; a spent ward goes on the next update
+    for (ParagonBuff& buff : state->buffs)
+        if (buff.effect == ParagonEffect::Ward && buff.applied > 0 && damage)
+        {
+            uint32 const soaked = std::min<uint32>(damage, static_cast<uint32>(buff.applied));
+            damage -= soaked;
+            buff.applied -= static_cast<int32>(soaked);
+            if (buff.applied <= 0)
+                buff.expiresAt = 0;
+        }
+    if (!damage)
+        return;
 
     // Rancune counts what actually lands
     if (state->grudgePct)
@@ -1146,8 +1497,32 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
     }
 }
 
+// The enemies within `range` of `centre` the character may hit, bar `centre` itself, up to `count`
+static std::vector<Unit*> NearbyEnemies(Player* player, Unit* centre, float range, uint32 count)
+{
+    std::list<Unit*> found;
+    Acore::AnyUnfriendlyUnitInObjectRangeCheck check(centre, player, range);
+    Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(centre, found, check);
+    Cell::VisitObjects(centre, searcher, range);
+
+    std::vector<Unit*> targets;
+    for (Unit* target : found)
+    {
+        if (targets.size() >= count)
+            break;
+        if (target == centre || !target->IsAlive() || !player->IsValidAttackTarget(target))
+            continue;
+        targets.push_back(target);
+    }
+    return targets;
+}
+
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 {
+    // Read and cleared on every hit, whoever dealt it, so a note is never left over for a later one
+    DamageSource const source = PendingSource;
+    PendingSource = {};
+
     Player* player = attacker ? attacker->ToPlayer() : nullptr;
     if (!player || !damage || !victim || attacker == victim || DealingProcDamage)
         return;
@@ -1156,17 +1531,26 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     if (!HasCombatEffects(state))
         return;
 
+    // A weapon's hit sets off the melee branches, a spell's the caster branches; anything else only what answers to
+    // anything
+    HitKind const kind = source.set && source.attacker == attacker && source.victim == victim
+        ? KindOf(source.spell) : HitKind::Other;
+    // A periodic tick is not a hit of its own: it keeps the always-on bonuses, but sets off nothing that strikes again
+    bool const periodic = source.set && source.periodic;
+    state->lastHitTarget = victim->GetGUID();
+    state->lastHitKind = kind;
+
     // Worked in 64 bits: the outer zones multiply several times over, and a big hit times a big bonus is past
     // what 32 bits hold before it is divided back down.
     uint64 dealt = damage;
-    if (state->damagePct)
-        dealt = dealt * (100 + state->damagePct) / 100;
+    if (uint32 const damagePct = ScopedSum(state->damagePct, kind))
+        dealt = dealt * (100 + damagePct) / 100;
 
     for (ParagonBuff const& buff : state->buffs)
-        if (buff.effect == ParagonEffect::FuryOnHit && buff.applied > 0)
+        if (buff.effect == ParagonEffect::FuryOnHit && buff.applied > 0 && Answers(buff.scope, kind))
             dealt = dealt * (100 + buff.applied) / 100;
 
-    if (state->killStreakStacks && state->killStreakPct)
+    if (state->killStreakStacks && state->killStreakPct && Answers(state->killStreakScope, kind))
         dealt = dealt * (100 + state->killStreakStacks * state->killStreakPct) / 100;
 
     for (ParagonProc& proc : state->procs)
@@ -1175,11 +1559,13 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
         {
             case ParagonEffect::FuryOnHit:
             {
-                if (HasBuff(state, ParagonEffect::FuryOnHit) || !roll_chance_f(proc.chance))
+                if (!Answers(proc.scope, kind) || HasBuff(state, ParagonEffect::FuryOnHit) ||
+                    !roll_chance_f(proc.chance))
                     break;
 
                 ParagonBuff buff;
                 buff.effect = ParagonEffect::FuryOnHit;
+                buff.scope = proc.scope;
                 buff.expiresAt = GameTime::GetGameTimeMS().count() + proc.duration;
                 buff.applied = static_cast<int32>(proc.value);
                 state->buffs.push_back(buff);
@@ -1198,7 +1584,9 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     uint32 strikePct = 0;
     for (ParagonProc const& proc : state->procs)
     {
-        if (proc.effect == ParagonEffect::DoubleStrike)
+        if (!Answers(proc.scope, kind))
+            continue;
+        if (proc.effect == ParagonEffect::DoubleStrike && !periodic)
         {
             strikeChance += proc.chance;
             strikePct = std::max(strikePct, proc.value);
@@ -1212,33 +1600,26 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     QueueHit(state, victim, SPELL_PARAGON_EXECUTE, finishing, SPELL_SCHOOL_MASK_NORMAL);
 
     // A share of the hit, never of anything's health: it scales with the character, and a pack is hurt no faster than
-    // the character hurts its target. The splash's own hits are proc damage, so they do not splash again.
-    if (state->splashPct && state->splashRange)
+    // the character hurts its target. A chance on a short cooldown, not every hit: splashing every swing melted a
+    // pack by itself. The splash's own hits are proc damage, so they do not splash again.
+    if (state->splashPct && state->splashRange && !periodic && Answers(state->splashScope, kind))
     {
-        uint64 const share = dealt * state->splashPct / 100;
-        float const range = static_cast<float>(state->splashRange);
-        std::list<Unit*> targets;
-        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(victim, player, range);
-        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(victim, targets, check);
-        Cell::VisitObjects(victim, searcher, range);
-
-        uint32 hit = 0;
-        for (Unit* target : targets)
+        uint32 const now = GameTime::GetGameTimeMS().count();
+        if (now >= state->splashReadyAt && roll_chance_f(std::min(state->splashChance, MaxSplashChance)))
         {
-            if (hit >= MaxSplashTargets)
-                break;
-            if (target == victim || !target->IsAlive() || !player->IsValidAttackTarget(target))
-                continue;
-            QueueHit(state, target, SPELL_PARAGON_SPLASH, share, SPELL_SCHOOL_MASK_FIRE);
-            ++hit;
+            state->splashReadyAt = now + state->splashCooldown;
+            uint64 const share = dealt * state->splashPct / 100;
+            for (Unit* target : NearbyEnemies(player, victim, static_cast<float>(state->splashRange), MaxSplashTargets))
+                QueueHit(state, target, SPELL_PARAGON_SPLASH, share, SPELL_SCHOOL_MASK_FIRE);
         }
     }
 
     damage = static_cast<uint32>(std::min<uint64>(dealt, std::numeric_limits<uint32>::max()));
 
-    if (state->leechPct && player->IsAlive())
+    uint32 const leechPct = ScopedSum(state->leechPct, kind);
+    if (leechPct && player->IsAlive())
     {
-        uint64 const healed = uint64(damage) * std::min(state->leechPct, MaxLeechPct) / 100;
+        uint64 const healed = uint64(damage) * std::min(leechPct, MaxLeechPct) / 100;
         if (healed)
         {
             // A spell heal, not a silent ModifyHealth, so it is logged and counted
@@ -1254,6 +1635,106 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     }
 }
 
+// A spell's direct damage, once dealt (Spell.cpp's OnSpellDamageDone): the caster side's echo and arc. A weapon
+// ability of the melee or ranged damage class never comes through here as a spell.
+void OnParagonSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage, bool critical)
+{
+    Player* player = caster ? caster->ToPlayer() : nullptr;
+    if (!player || !victim || !spellInfo || !damage || caster == victim || DealingProcDamage)
+        return;
+    if (KindOf(spellInfo) != HitKind::Spell)
+        return;
+
+    ParagonState* state = GetState(player);
+    if (!state || !state->applied || (!state->echoPct && !state->arcPct))
+        return;
+
+    SpellSchoolMask const school = spellInfo->GetSchoolMask();
+
+    // A critical strike rings out again, as a hit of its own
+    if (critical && state->echoPct && roll_chance_f(std::min(state->echoChance, MaxEchoChance)))
+        QueueHit(state, victim, SPELL_PARAGON_ECHO, uint64(damage) * state->echoPct / 100, school);
+
+    // The spell arcs to the pack: a chance, on a short cooldown, so an area spell hitting ten targets rolls once
+    // rather than ten times in the same instant
+    if (state->arcPct && state->arcTargets)
+    {
+        uint32 const now = GameTime::GetGameTimeMS().count();
+        if (now >= state->arcReadyAt && roll_chance_f(std::min(state->arcChance, MaxArcChance)))
+        {
+            state->arcReadyAt = now + state->arcCooldown;
+            uint64 const share = uint64(damage) * state->arcPct / 100;
+            for (Unit* target : NearbyEnemies(player, victim, ArcRange, state->arcTargets))
+                QueueHit(state, target, SPELL_PARAGON_ARC, share, school);
+        }
+    }
+}
+
+// A spell cast by the player itself, not triggered, of the magic damage class (damage and heals alike): the caster
+// side's quickening, spell power, ward and mana. Only in combat, so none of them can be banked before a pull.
+void OnParagonSpellCast(Player* player, Spell* spell)
+{
+    SpellInfo const* spellInfo = spell ? spell->GetSpellInfo() : nullptr;
+    if (!player || !spellInfo || spell->IsTriggered() || spellInfo->IsPassive() || KindOf(spellInfo) != HitKind::Spell)
+        return;
+
+    ParagonState* state = GetState(player);
+    if (!HasCastEffects(state) || !player->IsInCombat())
+        return;
+
+    uint32 const now = GameTime::GetGameTimeMS().count();
+
+    if (state->quickenPct && !HasBuff(state, ParagonEffect::Quicken) && roll_chance_f(state->quickenChance))
+    {
+        ParagonBuff buff;
+        buff.effect = ParagonEffect::Quicken;
+        buff.expiresAt = now + state->quickenDuration;
+        buff.applied = static_cast<int32>(std::min(state->quickenPct, MaxQuickenPct));
+        player->ApplyCastTimePercentMod(static_cast<float>(buff.applied), true);
+        state->buffs.push_back(buff);
+        ShowBuff(player, SPELL_PARAGON_QUICKEN, state->quickenDuration);
+    }
+
+    if (state->insightValue && !HasBuff(state, ParagonEffect::Insight) && roll_chance_f(state->insightChance))
+    {
+        ParagonBuff buff;
+        buff.effect = ParagonEffect::Insight;
+        buff.expiresAt = now + state->insightDuration;
+        buff.applied = static_cast<int32>(state->insightValue);
+        ApplyPermanentStat(player, PermanentStat::SpellPower, state->insightValue, true);
+        state->buffs.push_back(buff);
+        ShowBuff(player, SPELL_PARAGON_INSIGHT, state->insightDuration);
+    }
+
+    // The ward is sized on the character's spell power, damage or healing, whichever is greater
+    if (state->wardPct && now >= state->wardReadyAt && !HasBuff(state, ParagonEffect::Ward) &&
+        roll_chance_f(state->wardChance))
+    {
+        int32 const power = std::max(player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC),
+            player->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_MAGIC));
+        uint64 const amount = uint64(std::max(0, power)) * state->wardPct / 100;
+        if (amount)
+        {
+            state->wardReadyAt = now + state->wardCooldown;
+            ParagonBuff buff;
+            buff.effect = ParagonEffect::Ward;
+            buff.expiresAt = now + state->wardDuration;
+            buff.applied = static_cast<int32>(std::min<uint64>(amount, std::numeric_limits<int32>::max()));
+            state->buffs.push_back(buff);
+            ShowBuff(player, SPELL_PARAGON_WARD, state->wardDuration);
+        }
+    }
+
+    if (state->manaPct && now >= state->manaReadyAt && player->GetMaxPower(POWER_MANA) &&
+        roll_chance_f(state->manaChance))
+    {
+        state->manaReadyAt = now + state->manaCooldown;
+        uint32 const amount = player->GetMaxPower(POWER_MANA) * state->manaPct / 100;
+        if (amount)
+            player->EnergizeBySpell(player, SPELL_PARAGON_MANA_SURGE, amount, POWER_MANA);
+    }
+}
+
 void OnParagonKill(Player* player, Unit* killed)
 {
     if (!player || !killed || killed->GetTypeId() != TYPEID_UNIT)
@@ -1263,24 +1744,23 @@ void OnParagonKill(Player* player, Unit* killed)
     if (!HasCombatEffects(state))
         return;
 
-    // The corpse goes up. A kill the blast itself made does not blast again (DealingProcDamage).
-    if (state->explosionPct && state->explosionRange && !DealingProcDamage)
+    // What made the kill: the character's last hit, if it was on this unit
+    HitKind const kind = state->lastHitTarget == killed->GetGUID() ? state->lastHitKind : HitKind::Other;
+
+    // The corpse goes up, sometimes. A kill the blast itself made does not blast again (DealingProcDamage).
+    if (state->explosionPct && state->explosionRange && !DealingProcDamage && Answers(state->explosionScope, kind) &&
+        roll_chance_f(std::min(state->explosionChance, MaxExplosionChance)))
     {
         uint64 const blast = uint64(killed->GetMaxHealth()) * std::min(state->explosionPct, MaxExplosionPct) / 100;
-        float const range = static_cast<float>(state->explosionRange);
-        std::list<Unit*> targets;
-        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(killed, player, range);
-        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(killed, targets, check);
-        Cell::VisitObjects(killed, searcher, range);
-
         killed->SendPlaySpellVisual(VisualExplosion);
-        for (Unit* target : targets)
-            if (target != killed && target->IsAlive() && player->IsValidAttackTarget(target))
-                QueueHit(state, target, SPELL_PARAGON_EXPLOSION, blast, SPELL_SCHOOL_MASK_FIRE);
+        for (Unit* target : NearbyEnemies(player, killed, static_cast<float>(state->explosionRange),
+                 std::numeric_limits<uint32>::max()))
+            QueueHit(state, target, SPELL_PARAGON_EXPLOSION, blast, SPELL_SCHOOL_MASK_FIRE);
     }
 
-    // Each kill adds a stack and restarts the timer; the stacks go all at once when it runs out
-    if (state->killStreakPct && state->killStreakMax && state->killStreakDuration)
+    // A kill may add a stack and restart the timer; the stacks go all at once when it runs out
+    if (state->killStreakPct && state->killStreakMax && state->killStreakDuration &&
+        Answers(state->killStreakScope, kind) && roll_chance_f(std::min(state->killStreakChance, MaxKillStreakChance)))
     {
         state->killStreakStacks = std::min(state->killStreakStacks + 1, state->killStreakMax);
         state->killStreakExpiresAt = GameTime::GetGameTimeMS().count() + state->killStreakDuration;
@@ -1291,7 +1771,7 @@ void OnParagonKill(Player* player, Unit* killed)
 
     for (ParagonProc const& proc : state->procs)
     {
-        if (proc.effect != ParagonEffect::SurgeOnKill)
+        if (proc.effect != ParagonEffect::SurgeOnKill || !Answers(proc.scope, kind))
             continue;
 
         // Refreshed rather than stacked, for the same reason as the armour: a pull of trash would otherwise
@@ -1299,19 +1779,17 @@ void OnParagonKill(Player* player, Unit* killed)
         for (std::size_t index = state->buffs.size(); index > 0; --index)
             if (state->buffs[index - 1].effect == ParagonEffect::SurgeOnKill)
             {
-                ApplyPermanentStat(player, PermanentStat::AttackPower,
-                    static_cast<uint32>(state->buffs[index - 1].applied), false);
-                ApplyPermanentStat(player, PermanentStat::SpellPower,
+                ApplySurge(player, state->buffs[index - 1].scope,
                     static_cast<uint32>(state->buffs[index - 1].applied), false);
                 state->buffs.erase(state->buffs.begin() + (index - 1));
             }
 
         ParagonBuff buff;
         buff.effect = ParagonEffect::SurgeOnKill;
+        buff.scope = proc.scope;
         buff.expiresAt = GameTime::GetGameTimeMS().count() + proc.duration;
         buff.applied = static_cast<int32>(proc.value);
-        ApplyPermanentStat(player, PermanentStat::AttackPower, proc.value, true);
-        ApplyPermanentStat(player, PermanentStat::SpellPower, proc.value, true);
+        ApplySurge(player, proc.scope, proc.value, true);
         state->buffs.push_back(buff);
         ShowBuff(player, SPELL_PARAGON_SURGE, proc.duration);
     }
@@ -1446,18 +1924,7 @@ void UpdateParagonBuffs(Player* player)
         if (buff.expiresAt > now)
             continue;
 
-        if (buff.effect == ParagonEffect::GuardOnHit)
-            ApplyArmor(player, buff.applied, false);
-        else if (buff.effect == ParagonEffect::SurgeOnKill)
-        {
-            ApplyPermanentStat(player, PermanentStat::AttackPower,
-                static_cast<uint32>(buff.applied), false);
-            ApplyPermanentStat(player, PermanentStat::SpellPower,
-                static_cast<uint32>(buff.applied), false);
-        }
-        if (uint32 const marker = BuffSpell(buff.effect))
-            player->RemoveAurasDueToSpell(marker);
-
+        EndBuff(player, buff);
         state->buffs.erase(state->buffs.begin() + (index - 1));
     }
 }
@@ -1499,13 +1966,14 @@ public:
                 "SELECT prestige FROM character_paragon_points WHERE guid = {}", counter))
             prestige = result->Fetch()[0].Get<uint32>();
 
-        // Counted as the character will have them once in game: nodes the board no longer has are not
+        // Counted as the character will have them once in game, at the nodes' costs: nodes the board no longer has
+        // are not
         uint32 level = 0;
         if (QueryResult result = CharacterDatabase.Query("SELECT node FROM character_paragon WHERE guid = {}", counter))
             do
             {
-                if (Board.count(result->Fetch()[0].Get<uint32>()))
-                    ++level;
+                if (auto const node = Board.find(result->Fetch()[0].Get<uint32>()); node != Board.end())
+                    level += NodeCost(node->second);
             } while (result->NextRow());
 
         guildId = CharacterListMarker << 24 | std::min<uint32>(prestige, 0xFF) << 16 | std::min<uint32>(level, 0xFFFF);

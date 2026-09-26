@@ -13,6 +13,11 @@ the junctions, and keystones close each zone. Three zones, each further and stro
 Bridge nodes join neighbouring branches in the middle of the two outer zones, so a build can cross over there too.
 The first zone's node ids never change: an allocation made on the first board stays valid.
 
+Each branch is a side and each zone a tier: a side's Ascension opens once every node of its Éveil is taken, its
+Transcendance once every node of its Ascension is (the server enforces it; the frame shows it). A node costs 1 to 5
+points by how much it does (COST), and a branch's effects answer only to its own way of fighting (BRANCH_SCOPE): the
+melee branches to weapon attacks, the caster branches to spells.
+
 Every icon is checked against the client's SpellIcon.dbc before anything is written: a name that is not in the
 client renders as a green question mark in game, which is hard to spot and easy to ship.
 
@@ -43,15 +48,35 @@ E_STAT, E_ARMOR, E_ARMOR_PCT, E_GUARD, E_RETALIATE, E_LAST_STAND, E_FURY, E_SURG
 # The outer zones' effects
 E_DAMAGE, E_REDUCTION, E_LEECH, E_DOUBLE, E_EXECUTE, E_EXPLODE, E_UNDYING, E_HEALTH = range(8, 16)
 E_KILL_STREAK, E_SPLASH, E_THREAT, E_GRUDGE = range(16, 20)
+# The caster side's own procs: set off by casting and by spell damage only, never by a weapon
+E_ECHO, E_ARC, E_QUICKEN, E_INSIGHT, E_WARD, E_MANA_SURGE = range(20, 26)
+
+# What sets a node off (ParagonScope in ParagonSystem.cpp). A branch's nodes answer to its own way of fighting: the
+# melee branches' procs and bonuses only to weapon attacks and abilities, the caster branches' only to spells, so
+# neither side is worth raiding for the other. The armour branch, the hub and the bridges answer to anything.
+SCOPE_ANY, SCOPE_WEAPON, SCOPE_SPELL = range(3)
+BRANCH_SCOPE = {"Force": SCOPE_WEAPON, "Puissance": SCOPE_WEAPON, "Agilité": SCOPE_WEAPON,
+                "Carapace": SCOPE_ANY, "Arcanes": SCOPE_SPELL, "Intellect": SCOPE_SPELL}
+# No branch: the hub and the bridge nodes. They are never behind a tier gate.
+NO_SIDE = 255
+
+# What a node costs, by zone and kind. A plain minor node is a point; the nodes that change a fight cost more, up
+# to 5 for an Apothéose. Zone 0 is Éveil, 1 Ascension, 2 Transcendance; "special" is a notable with an effect, "plain"
+# a notable that is only a bigger stat.
+COST = {
+    0: {"minor": 1, "plain": 2, "special": 2, "keystone": 4, "bridge": 2},
+    1: {"minor": 1, "plain": 2, "special": 3, "keystone": 5, "bridge": 2},
+    2: {"minor": 1, "plain": 2, "special": 4, "keystone": 5, "bridge": 3},
+}
 
 # What a plain node is worth. The board is mostly these: a tree of nothing but procs would be noise, and the
 # quiet nodes are what make the loud ones feel like arriving somewhere.
 BASE_VALUE = {MINOR: 8, NOTABLE: 30, KEYSTONE: 0}     # keystones are never plain stats
 
 
-def special(effect, name, description, icon, value=0, value2=0, chance=0.0,
-            duration=0, cooldown=0):
-    return {"effect": effect, "name": name, "description": description, "icon": icon,
+def special(effect, name, icon, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
+    """A node with an effect. Its description is written once its branch, and so its scope, is known."""
+    return {"effect": effect, "name": name, "icon": icon, "special": True,
             "value": value, "value2": value2, "chance": chance,
             "duration": duration, "cooldown": cooldown}
 
@@ -66,67 +91,51 @@ BRANCHES = [
     (0, STRENGTH, 1.0, "Force",
      ("ParagonNode_Strength", "ParagonNode_StrengthMajor", "ParagonNode_StrengthMajor"),
      [
-         special(E_FURY, "Ardeur", "10% de chances en infligeant des dégâts d'augmenter vos dégâts de 8% "
-                 "pendant 10 s.", "ParagonNode_Ardour", value=8, chance=10.0, duration=10000),
+         special(E_FURY, "Ardeur", "ParagonNode_Ardour", value=8, chance=10.0, duration=10000),
      ],
-     special(E_FURY, "Furie du parangon",
-             "15% de chances en infligeant des dégâts d'augmenter tous vos dégâts de 20% pendant 12 s.",
-             "ParagonNode_Fury", value=20, chance=15.0, duration=12000)),
+     special(E_FURY, "Furie du parangon", "ParagonNode_Fury", value=20, chance=15.0, duration=12000)),
 
     (60, ATTACK_POWER, 2.0, "Puissance",
      ("ParagonNode_Power", "ParagonNode_PowerMajor", "ParagonNode_PowerMajor"),
      [
-         special(E_SURGE, "Curée", "Tuer un ennemi octroie 120 en puissance d'attaque et des sorts "
-                 "pendant 15 s.", "ParagonNode_Quarry", value=120, duration=15000),
+         special(E_SURGE, "Curée", "ParagonNode_Quarry", value=120, duration=15000),
      ],
-     special(E_SURGE, "Élan du parangon",
-             "Tuer un ennemi octroie 350 en puissance d'attaque et des sorts pendant 20 s.",
-             "ParagonNode_Momentum", value=350, duration=20000)),
+     special(E_SURGE, "Élan du parangon", "ParagonNode_Momentum", value=350, duration=20000)),
 
     (120, AGILITY, 1.0, "Agilité",
      ("ParagonNode_Agility", "ParagonNode_AgilityMajor", "ParagonNode_AgilityMajor"),
      [
-         special(E_RETALIATE, "Riposte", "10% de chances quand vous êtes touché de renvoyer 25% des dégâts "
-                 "à l'attaquant.", "ParagonNode_Riposte", value=25, chance=10.0),
+         special(E_RETALIATE, "Riposte", "ParagonNode_Riposte", value=25, chance=10.0),
      ],
-     special(E_RETALIATE, "Représailles du parangon",
-             "20% de chances quand vous êtes touché de renvoyer 60% des dégâts à l'attaquant.",
-             "ParagonNode_Reprisal", value=60, chance=20.0)),
+     special(E_RETALIATE, "Représailles du parangon", "ParagonNode_Reprisal", value=60, chance=20.0)),
 
     # The armour branch. Minor nodes here are armour rather than stamina, so walking it actually makes you
     # harder to kill instead of just larger.
     (180, STAMINA, 1.2, "Carapace",
      ("ParagonNode_Armor", "ParagonNode_ArmorMajor", "ParagonNode_ArmorMajor"),
      [
-         special(E_GUARD, "Écaille de pierre", "10% de chances quand vous êtes touché d'augmenter votre "
-                 "armure de 10% pendant 8 s.", "ParagonNode_Stonescale",
-                 value=10, chance=10.0, duration=8000),
-         special(E_ARMOR_PCT, "Peau d'acier", "Augmente votre armure de 5%.",
-                 "ParagonNode_Steelskin", value=5),
+         special(E_GUARD, "Écaille de pierre", "ParagonNode_Stonescale", value=10, chance=10.0, duration=8000),
+         special(E_ARMOR_PCT, "Peau d'acier", "ParagonNode_Steelskin", value=5),
      ],
-     special(E_LAST_STAND, "Rempart du parangon",
-             "Sous 35% de vie, vous subissez 40% de dégâts en moins pendant 10 s. 1 minute de recharge.",
-             "ParagonNode_Bulwark", value=40, value2=35, duration=10000, cooldown=60000)),
+     special(E_LAST_STAND, "Rempart du parangon", "ParagonNode_Bulwark", value=40, value2=35, duration=10000,
+             cooldown=60000)),
 
+    # The caster branches carry their own procs, set off by spells alone: an echo of a spell's critical strike and a
+    # quickening of the casts here, spell power, a ward and mana on the Intellect branch.
     (240, SPELL_POWER, 1.4, "Arcanes",
      ("ParagonNode_Arcane", "ParagonNode_ArcaneMajor", "ParagonNode_ArcaneMajor"),
      [
-         special(E_FURY, "Résonance", "8% de chances en infligeant des dégâts d'augmenter vos dégâts de 10% "
-                 "pendant 10 s.", "ParagonNode_Resonance", value=10, chance=8.0, duration=10000),
+         special(E_ECHO, "Résonance", "ParagonNode_Resonance", value=50, chance=25.0),
      ],
-     special(E_FURY, "Cataclysme du parangon",
-             "12% de chances en infligeant des dégâts d'augmenter tous vos dégâts de 25% pendant 12 s.",
-             "ParagonNode_Cataclysm", value=25, chance=12.0, duration=12000)),
+     special(E_QUICKEN, "Célérité du parangon", "ParagonNode_Cataclysm", value=20, chance=15.0, duration=12000)),
 
     (300, INTELLECT, 1.0, "Intellect",
      ("ParagonNode_Intellect", "ParagonNode_IntellectMajor", "ParagonNode_IntellectMajor"),
      [
-         special(E_SURGE, "Clairvoyance", "Tuer un ennemi octroie 150 en puissance des sorts et d'attaque "
-                 "pendant 15 s.", "ParagonNode_Clairvoyance", value=150, duration=15000),
+         special(E_INSIGHT, "Clairvoyance", "ParagonNode_Clairvoyance", value=120, chance=10.0, duration=10000),
      ],
-     special(E_SURGE, "Omniscience du parangon",
-             "Tuer un ennemi octroie 400 en puissance des sorts et d'attaque pendant 20 s.",
-             "ParagonNode_Omniscience", value=400, duration=20000)),
+     special(E_INSIGHT, "Omniscience du parangon", "ParagonNode_Omniscience", value=300, chance=15.0,
+             duration=15000)),
 ]
 
 # Armour a plain node on the Carapace branch is worth, in place of a stat.
@@ -179,42 +188,66 @@ OUTER_ZONES = [
     },
 ]
 OUTER_FIRST_ID = 2000
-# Points that must already be spent on the board before a node can be taken, by zone and node type. Without it the
-# strongest nodes were a straight run from the hub: ten points to a first keystone, sixteen to an Ascension one,
-# twenty-four to an Apotheosis, with nothing spent on the way. The gate makes the far board something reached by
-# building a character first. Zone 0 is Eveil, 1 Ascension, 2 Transcendance.
+# Points that must already be spent on the board before a node can be taken, by zone and node type. Only the first
+# zone's keystone still needs it: the outer zones sit behind their branch's tier gate instead (a side's Ascension
+# opens once every node of its Éveil is taken, its Transcendance once every node of its Ascension is), which asks
+# far more of a build than any spent total did. Zone 0 is Eveil, 1 Ascension, 2 Transcendance.
 REQUIRED_SPENT = {
     0: {MINOR: 0, NOTABLE: 0, KEYSTONE: 20},
-    1: {MINOR: 30, NOTABLE: 40, KEYSTONE: 55},
-    2: {MINOR: 65, NOTABLE: 75, KEYSTONE: 95},
+    1: {MINOR: 0, NOTABLE: 0, KEYSTONE: 0},
+    2: {MINOR: 0, NOTABLE: 0, KEYSTONE: 0},
 }
 
 # A node's reach is drawn this far past the outermost ring, so the frame can pan to its edge
 BOARD_MARGIN = 160
 
+# How far a spell's arc jumps from its target (ParagonArcRange in ParagonSystem.cpp)
+ARC_RANGE = 10
 
-def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
+
+def seconds_text(ms):
+    if ms % 60000 == 0 and ms >= 60000:
+        return "%d min" % (ms // 60000)
+    if ms % 1000:
+        return ("%.1f s" % (ms / 1000.0)).replace(".", ",")
+    return "%d s" % (ms // 1000)
+
+
+def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0, scope=SCOPE_ANY):
+    """A node's text, in the words of what sets it off. The caps named here are ParagonSystem.cpp's."""
     seconds = duration // 1000
+    weapon, spell = scope == SCOPE_WEAPON, scope == SCOPE_SPELL
+    damage_of = "les dégâts de vos attaques d'arme" if weapon else ("les dégâts de vos sorts" if spell
+                                                                    else "tous vos dégâts")
+    hits = "vos attaques d'arme" if weapon else ("vos sorts" if spell else "vos coups")
+    dealing = ("en frappant avec une arme" if weapon else
+               ("en infligeant des dégâts avec un sort" if spell else "en infligeant des dégâts"))
+    killing = ("Tuer un ennemi d'une attaque d'arme" if weapon else
+               ("Tuer un ennemi avec un sort" if spell else "Tuer un ennemi"))
+    recharge = (" %s de recharge." % seconds_text(cooldown)) if cooldown else ""
+
     if effect == E_DAMAGE:
-        return "Augmente tous vos dégâts de %d%%." % value
+        return "Augmente %s de %d%%." % (damage_of, value)
     if effect == E_REDUCTION:
         return "Réduit tous les dégâts subis de %d%% (réductions du parangon plafonnées à 25%%)." % value
     if effect == E_LEECH:
-        return "Vous rend %d%% des dégâts que vous infligez sous forme de points de vie." % value
+        return "Vous rend en points de vie %d%% des dégâts infligés par %s." % (value, hits)
     if effect == E_DOUBLE:
-        return ("%d%% de chances que vos coups infligent %d%% de dégâts supplémentaires. Les chances de double "
-                "frappe s'additionnent, jusqu'à 25%%." % (chance, value))
+        return ("%d%% de chances que %s infligent %d%% de dégâts supplémentaires. Les chances de double "
+                "frappe s'additionnent, jusqu'à 25%%." % (chance, hits, value))
     if effect == E_EXECUTE:
-        return "Vos dégâts sont augmentés de %d%% contre les cibles sous %d%% de vie." % (value, value2)
+        return "%s sont augmentés de %d%% contre les cibles sous %d%% de vie." % (
+            damage_of[0].upper() + damage_of[1:], value, value2)
     if effect == E_EXPLODE:
-        return ("Tuer un ennemi le fait exploser : %d%% de ses points de vie maximum infligés aux ennemis à "
-                "moins de %d mètres." % (value, value2))
+        return ("%s a %d%% de chances de le faire exploser : %d%% de ses points de vie maximum infligés aux "
+                "ennemis à moins de %d mètres. Les explosions s'additionnent, jusqu'à 15%% des points de vie et "
+                "40%% de chances." % (killing, chance, value, value2))
     if effect == E_KILL_STREAK:
-        return ("Tuer un ennemi augmente vos dégâts de %d%% pendant %d s, cumulable %d fois. Chaque victime "
-                "relance la durée." % (value, seconds, value2))
+        return ("%s a %d%% de chances d'augmenter %s de %d%% pendant %d s, cumulable %d fois. Chaque victime "
+                "relance la durée." % (killing, chance, damage_of, value, seconds, value2))
     if effect == E_SPLASH:
-        return ("%d%% des dégâts de vos coups sont aussi infligés à 4 autres ennemis au plus, à moins de %d mètres "
-                "de votre cible." % (value, value2))
+        return ("%s ont %d%% de chances d'infliger aussi %d%% de leurs dégâts à 4 autres ennemis au plus, à moins "
+                "de %d mètres de votre cible.%s" % (hits[0].upper() + hits[1:], chance, value, value2, recharge))
     if effect == E_THREAT:
         return "Augmente la menace que vous générez de %d%%." % value
     if effect == E_GRUDGE:
@@ -226,10 +259,12 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     if effect == E_HEALTH:
         return "Augmente vos points de vie maximum de %d%%." % value
     if effect == E_FURY:
-        return ("%d%% de chances en infligeant des dégâts d'augmenter tous vos dégâts de %d%% pendant %d s."
-                % (chance, value, seconds))
+        return ("%d%% de chances %s d'augmenter %s de %d%% pendant %d s."
+                % (chance, dealing, damage_of, value, seconds))
     if effect == E_SURGE:
-        return "Tuer un ennemi octroie %d en puissance d'attaque et des sorts pendant %d s." % (value, seconds)
+        power = ("puissance d'attaque" if weapon else ("puissance des sorts" if spell
+                                                        else "puissance d'attaque et des sorts"))
+        return "%s octroie %d en %s pendant %d s." % (killing, value, power, seconds)
     if effect == E_RETALIATE:
         return ("%d%% de chances quand vous êtes touché de renvoyer %d%% des dégâts à l'attaquant, au plus 4%% de "
                 "vos points de vie maximum." % (chance, value))
@@ -241,6 +276,28 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
                 % (value2, value, seconds, cooldown // 60000))
     if effect == E_ARMOR:
         return "+%d Armure" % value
+    if effect == E_ARMOR_PCT:
+        return "Augmente votre armure de %d%%." % value
+    # The caster side: spells alone set these off
+    if effect == E_ECHO:
+        return ("Vos coups critiques de sort ont %d%% de chances de résonner : %d%% des dégâts du critique sont "
+                "infligés une seconde fois. Les chances d'écho s'additionnent, jusqu'à 60%%." % (chance, value))
+    if effect == E_ARC:
+        return ("Vos sorts de dégâts ont %d%% de chances de propager %d%% de leurs dégâts à %d ennemis au plus, à "
+                "moins de %d mètres de la cible.%s Les arcs s'additionnent, jusqu'à 35%% de chances."
+                % (chance, value, value2, ARC_RANGE, recharge))
+    if effect == E_QUICKEN:
+        return ("Lancer un sort a %d%% de chances d'accélérer vos incantations de %d%% pendant %d s (30%% au plus)."
+                % (chance, value, seconds))
+    if effect == E_INSIGHT:
+        return ("Lancer un sort a %d%% de chances de vous octroyer %d en puissance des sorts pendant %d s."
+                % (chance, value, seconds))
+    if effect == E_WARD:
+        return ("Lancer un sort a %d%% de chances de vous entourer d'une égide qui absorbe des dégâts à hauteur de "
+                "%d%% de votre puissance des sorts, pendant %d s.%s" % (chance, value, seconds, recharge))
+    if effect == E_MANA_SURGE:
+        return ("Lancer un sort a %d%% de chances de vous rendre %d%% de votre mana maximum.%s"
+                % (chance, value, recharge))
     raise ValueError(effect)
 
 
@@ -279,8 +336,8 @@ ZONE_ICON_SUFFIX = ["Ascension", "Transcendence"]
 
 def outer(effect, name, icon, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     icon = "ParagonNode_%s|%s" % (CUSTOM_ICON[name], icon)
-    return special(effect, name, describe(effect, value, value2, chance, duration, cooldown), icon,
-                   value=value, value2=value2, chance=chance, duration=duration, cooldown=cooldown)
+    return special(effect, name, icon, value=value, value2=value2, chance=chance, duration=duration,
+                   cooldown=cooldown)
 
 
 # Each branch's notables and keystone in the two outer zones, dealt out in order like the first zone's. Ascension is
@@ -295,20 +352,23 @@ OUTER_SPECIALS = {
         ([outer(E_DAMAGE, "Force titanesque", "Spell_Shadow_UnholyStrength", value=8),
           outer(E_DOUBLE, "Frappes jumelles", "Ability_Warrior_PunishingBlow", value=100, chance=6.0),
           outer(E_EXECUTE, "Exécuteur", "Ability_Rogue_Eviscerate", value=30, value2=35),
-          outer(E_EXPLODE, "Onde de choc", "Ability_Warrior_Cleave", value=10, value2=8)],
+          outer(E_EXPLODE, "Onde de choc", "Ability_Warrior_Cleave", value=10, value2=8, chance=25.0)],
          outer(E_DOUBLE, "Apothéose : Titan", "INV_Sword_48", value=100, chance=12.0)),
     ],
     "Puissance": [
         ([outer(E_SURGE, "Curée sanglante", "Ability_Rogue_MurderSpree", value=600, duration=20000),
           outer(E_LEECH, "Soif de sang", "Spell_Shadow_LifeDrain02", value=3),
-          outer(E_EXPLODE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=5, value2=6),
+          outer(E_EXPLODE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=5, value2=6, chance=25.0),
           outer(E_DAMAGE, "Élan meurtrier", "Ability_Warrior_Warcry", value=4)],
-         outer(E_KILL_STREAK, "Carnage", "Spell_Deathknight_BloodBoil", value=2, value2=8, duration=15000)),
+         outer(E_KILL_STREAK, "Carnage", "Spell_Deathknight_BloodBoil", value=2, value2=8, chance=50.0,
+               duration=15000)),
         ([outer(E_SURGE, "Frénésie du massacre", "Spell_Shadow_UnholyFrenzy", value=1500, duration=20000),
           outer(E_LEECH, "Festin", "Spell_Shadow_SoulLeech_3", value=6),
-          outer(E_KILL_STREAK, "Réaction en chaîne", "Spell_Fire_Incinerate", value=1, value2=10, duration=15000),
+          outer(E_KILL_STREAK, "Réaction en chaîne", "Spell_Fire_Incinerate", value=1, value2=10, chance=50.0,
+                duration=15000),
           outer(E_DAMAGE, "Instinct du prédateur", "Ability_Hunter_Pet_Devilsaur", value=8)],
-         outer(E_SPLASH, "Apothéose : Cataclysme", "Spell_Fire_MeteorStorm", value=15, value2=10)),
+         outer(E_SPLASH, "Apothéose : Cataclysme", "Spell_Fire_MeteorStorm", value=50, value2=10, chance=20.0,
+               cooldown=1000)),
     ],
     "Agilité": [
         ([outer(E_RETALIATE, "Contre-attaque", "Ability_Warrior_Revenge", value=50, chance=20.0),
@@ -335,27 +395,31 @@ OUTER_SPECIALS = {
           outer(E_HEALTH, "Endurance infinie", "Spell_Nature_Reincarnation", value=8)],
          outer(E_UNDYING, "Apothéose : Immortel", "Spell_Holy_GuardianSpirit", duration=4000, cooldown=120000)),
     ],
+    # The caster side: echoes of a spell's critical strikes and arcs of its damage to the pack on Arcanes; spell
+    # power, a ward and mana from casting on Intellect. Nothing here answers to a weapon.
     "Arcanes": [
         ([outer(E_DAMAGE, "Puissance arcanique", "Spell_Arcane_ArcanePotency", value=4),
-          outer(E_FURY, "Afflux", "Spell_Arcane_ArcaneTorrent", value=20, chance=15.0, duration=10000),
+          outer(E_QUICKEN, "Afflux", "Spell_Arcane_ArcaneTorrent", value=15, chance=15.0, duration=10000),
           outer(E_EXECUTE, "Désintégration", "Spell_Arcane_Blast", value=15, value2=30),
-          outer(E_DOUBLE, "Écho", "Spell_Nature_LightningOverload", value=100, chance=4.0)],
-         outer(E_FURY, "Surcharge", "Spell_Fire_Fireball02", value=35, chance=25.0, duration=12000)),
+          outer(E_ECHO, "Écho", "Spell_Nature_LightningOverload", value=60, chance=30.0)],
+         outer(E_ARC, "Surcharge", "Spell_Fire_Fireball02", value=50, value2=3, chance=20.0, cooldown=1000)),
         ([outer(E_DAMAGE, "Maîtrise absolue", "Spell_Arcane_MindMastery", value=8),
-          outer(E_FURY, "Tempête arcanique", "Spell_Nature_Bloodlust", value=40, chance=20.0, duration=12000),
-          outer(E_DOUBLE, "Double incantation", "Spell_Nature_LightningOverload", value=100, chance=6.0),
+          outer(E_ARC, "Tempête arcanique", "Spell_Nature_Bloodlust", value=40, value2=4, chance=15.0,
+                cooldown=1000),
+          outer(E_ECHO, "Double incantation", "Spell_Nature_LightningOverload", value=75, chance=35.0),
           outer(E_LEECH, "Siphon", "Spell_Shadow_SiphonMana", value=4)],
-         outer(E_DOUBLE, "Apothéose : Singularité", "Spell_Shadow_Twilight", value=100, chance=12.0)),
+         outer(E_ECHO, "Apothéose : Singularité", "Spell_Shadow_Twilight", value=100, chance=40.0)),
     ],
     "Intellect": [
         ([outer(E_LEECH, "Rémanence", "Spell_Shadow_LifeDrain02", value=3),
-          outer(E_HEALTH, "Esprit fortifié", "Spell_Holy_MindVision", value=4),
-          outer(E_SURGE, "Illumination", "Spell_Holy_SurgeOfLight", value=600, duration=20000),
+          outer(E_WARD, "Esprit fortifié", "Spell_Holy_MindVision", value=150, chance=20.0, duration=10000,
+                cooldown=20000),
+          outer(E_MANA_SURGE, "Illumination", "Spell_Holy_SurgeOfLight", value=3, chance=15.0, cooldown=5000),
           outer(E_REDUCTION, "Aura protectrice", "Spell_Holy_PowerWordShield", value=3)],
          outer(E_LEECH, "Clarté", "Spell_Holy_BorrowedTime", value=8)),
         ([outer(E_LEECH, "Communion", "Spell_Shadow_SoulLeech_3", value=6),
           outer(E_HEALTH, "Transcendance de l'âme", "Spell_Holy_SealOfMight", value=8),
-          outer(E_SURGE, "Révélation", "Spell_Holy_Crusade", value=1500, duration=20000),
+          outer(E_INSIGHT, "Révélation", "Spell_Holy_Crusade", value=600, chance=20.0, duration=15000),
           outer(E_DAMAGE, "Savoir interdit", "Spell_Arcane_MindMastery", value=6)],
          outer(E_LEECH, "Apothéose : Éternité", "Achievement_Boss_Algalon_01", value=20)),
     ],
@@ -487,8 +551,7 @@ def build():
                         "value": chosen["value"], "value2": chosen["value2"],
                         "chance": chosen["chance"], "duration": chosen["duration"],
                         "cooldown": chosen["cooldown"], "free": 0, "icon": chosen["icon"],
-                        "name": chosen["name"], "branch": branch_name,
-                        "description": chosen["description"],
+                        "name": chosen["name"], "branch": branch_name, "special": True,
                     }
                 elif branch_name == ARMOR_BRANCH:
                     amount = ARMOR_MINOR if node_type == MINOR else ARMOR_NOTABLE
@@ -541,8 +604,28 @@ def build():
             links.add((min(a, b), max(a, b)))
 
     build_outer(nodes, links, branches)
+    sides = {branch[3]: index for index, branch in enumerate(BRANCHES)}
     for node in nodes:
-        node["required"] = 0 if node["free"] else REQUIRED_SPENT[node.get("zone", 0)][node["type"]]
+        zone = node.get("zone", 0)
+        node["required"] = 0 if node["free"] else REQUIRED_SPENT[zone][node["type"]]
+        # The side and tier the gate reads: a side's tier opens once every node of the tier before it on that side
+        # is taken. The hub and the bridges belong to no side and are never gated.
+        node["tier"] = zone
+        node["side"] = sides.get(node["branch"], NO_SIDE)
+        node["scope"] = BRANCH_SCOPE.get(node["branch"], SCOPE_ANY)
+        if node["free"]:
+            node["cost"] = 0
+        elif node.get("bridge"):
+            node["cost"] = COST[zone]["bridge"]
+        elif node["type"] == KEYSTONE:
+            node["cost"] = COST[zone]["keystone"]
+        elif node["type"] == NOTABLE:
+            node["cost"] = COST[zone]["special" if node.get("special") else "plain"]
+        else:
+            node["cost"] = COST[zone]["minor"]
+        if node.get("special"):
+            node["description"] = describe(node["effect"], node["value"], node["value2"], node["chance"],
+                                           node["duration"], node["cooldown"], node["scope"])
 
     # An outer icon is "custom|stock": the custom one once its PNG is in, the stock one until then
     waiting = set()
@@ -574,7 +657,7 @@ def make_node(node_id, node_type, x, y, stat, chosen=None, plain=None):
     if chosen:
         node.update({"effect": chosen["effect"], "value": chosen["value"], "value2": chosen["value2"],
                      "chance": chosen["chance"], "duration": chosen["duration"], "cooldown": chosen["cooldown"],
-                     "icon": chosen["icon"], "name": chosen["name"], "description": chosen["description"]})
+                     "icon": chosen["icon"], "name": chosen["name"], "special": True})
     else:
         node.update(plain)
         node.update({"value2": 0, "chance": 0.0, "duration": 0, "cooldown": 0})
@@ -643,6 +726,7 @@ def build_outer(nodes, links, branches):
             y = int(round(radius * math.sin(math.radians(angle + 30))))
             node = make_node(node_id, NOTABLE, x, y, stat, chosen=bridge)
             node["branch"] = ""
+            node["bridge"] = True
             node["zone"] = zone_index + 1
             nodes.append(node)
             left = bridge_rows[branch_index][-1]
@@ -657,6 +741,7 @@ def signature(nodes, links):
     total = 0
     for node in nodes:
         total += node["id"] * 31 + node["value"] * 7 + node["stat"] + node["effect"] * 3 + node["required"] * 5
+        total += node["cost"] * 11 + node["tier"] * 19 + node["side"] * 23 + node["scope"] * 29
     for a, b in links:
         total += a * 13 + b * 17
     return total % (2 ** 32)
@@ -678,14 +763,18 @@ def write_lua(nodes, links, stamp):
         "    extent = %d," % extent,
         "    zones = { %s }," % ", ".join("{ name = %s, radius = %d }" % (lua_string(name), radius)
                                           for name, radius in zones),
+        "    sides = { %s }," % ", ".join("[%d] = %s" % (index, lua_string(branch[3]))
+                                          for index, branch in enumerate(BRANCHES)),
         "    nodes = {",
     ]
     for node in nodes:
         lines.append(
             "        [%d] = { type = %d, x = %d, y = %d, effect = %d, stat = %d, value = %d, required = %d,"
+            " cost = %d, side = %d, tier = %d, scope = %d,"
             " free = %s, icon = %s, name = %s, description = %s }," % (
                 node["id"], node["type"], node["x"], node["y"], node["effect"], node["stat"],
-                node["value"], node["required"], "true" if node["free"] else "false",
+                node["value"], node["required"], node["cost"], node["side"], node["tier"], node["scope"],
+                "true" if node["free"] else "false",
                 lua_string("Interface" + chr(92) + "Icons" + chr(92) + node["icon"]),
                 lua_string(node["name"]), lua_string(node["description"])))
     lines += ["    },", "    links = {"]
@@ -734,6 +823,10 @@ def main():
         "    `cooldown` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'milliseconds',",
         "    `free` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'costs no point, always allocated',",
         "    `required` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'points already spent before it can be taken',",
+        "    `cost` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'points it takes, 1 to 5',",
+        "    `side` TINYINT UNSIGNED NOT NULL DEFAULT 255 COMMENT 'branch index, 255 for the hub and the bridges',",
+        "    `tier` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 Eveil, 1 Ascension, 2 Transcendance',",
+        "    `scope` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'what sets it off: 0 anything, 1 weapons, 2 spells',",
         "    `icon` VARCHAR(128) NOT NULL DEFAULT '',",
         "    `name` VARCHAR(64) NOT NULL DEFAULT '',",
         "    `description` VARCHAR(255) NOT NULL DEFAULT '',",
@@ -750,12 +843,14 @@ def main():
         "DELETE FROM `paragon_node`;",
         "",
         "INSERT INTO `paragon_node` (`id`, `type`, `x`, `y`, `effect`, `stat`, `value`, `value2`,"
-        " `chance`, `duration`, `cooldown`, `free`, `required`, `icon`, `name`, `description`) VALUES",
+        " `chance`, `duration`, `cooldown`, `free`, `required`, `cost`, `side`, `tier`, `scope`, `icon`, `name`,"
+        " `description`) VALUES",
     ]
 
-    rows = ["    (%d, %d, %d, %d, %d, %d, %d, %d, %g, %d, %d, %d, %d, '%s', '%s', '%s')" % (
+    rows = ["    (%d, %d, %d, %d, %d, %d, %d, %d, %g, %d, %d, %d, %d, %d, %d, %d, %d, '%s', '%s', '%s')" % (
         n["id"], n["type"], n["x"], n["y"], n["effect"], n["stat"], n["value"], n["value2"],
-        n["chance"], n["duration"], n["cooldown"], n["free"], n["required"],
+        n["chance"], n["duration"], n["cooldown"], n["free"], n["required"], n["cost"], n["side"], n["tier"],
+        n["scope"],
         escape("Interface" + chr(92) + "Icons" + chr(92) + n["icon"]),
         escape(n["name"]), escape(n["description"])) for n in nodes]
     lines.append(",\n".join(rows) + ";")

@@ -352,6 +352,7 @@ public:
         PLAYERHOOK_ON_GROUP_ROLL_REWARD_ITEM,
         PLAYERHOOK_ON_EQUIP,
         PLAYERHOOK_ON_UNEQUIP_ITEM,
+        PLAYERHOOK_ON_SPELL_CAST,
         PLAYERHOOK_CAN_REPOP_AT_GRAVEYARD
     }) { }
 
@@ -487,6 +488,11 @@ public:
         RemovePersonalLootItem(player, item);
     }
 
+    void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
+    {
+        OnParagonSpellCast(player, spell);
+    }
+
 private:
     static void LearnAvailableClassSpells(Player* player)
     {
@@ -506,9 +512,32 @@ class StatGrowthUnitScript : public UnitScript
 public:
     StatGrowthUnitScript() : UnitScript("StatGrowthUnitScript", true, {
         UNITHOOK_ON_DAMAGE,
+        UNITHOOK_MODIFY_FINAL_DAMAGE,
+        UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
+        UNITHOOK_ON_SPELL_DAMAGE_DONE,
         UNITHOOK_ON_UNIT_DEATH,
         UNITHOOK_ON_UNIT_EXIT_COMBAT
     }) { }
+
+    // What is about to deal the next hit, noted for the paragon board: the damage hook below is not told whether a
+    // weapon or a spell dealt it
+    void ModifyFinalDamage(Unit* attacker, Unit* victim, uint32& /*damage*/, uint32& /*absorb*/,
+        SpellInfo const* spellInfo) override
+    {
+        NoteParagonDamageSource(attacker, victim, spellInfo, false);
+    }
+
+    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& /*damage*/,
+        SpellInfo const* spellInfo) override
+    {
+        NoteParagonDamageSource(attacker, target, spellInfo, true);
+    }
+
+    void OnSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage,
+        bool critical) override
+    {
+        OnParagonSpellDamageDone(caster, victim, spellInfo, damage, critical);
+    }
 
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
     {
