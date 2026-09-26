@@ -40,8 +40,10 @@ constexpr uint32 GeneratedItemVariants = 128;
 
 // Mythic+ (key level 2 and up) on top of Mythique 0. Up to +10 a key is a matter of gear: health and damage grow 8%
 // a level, compounded. Past +10 it is a matter of paragon: every level asks for ParagonPerLevel more points spent on
-// the board (+20 asks for 50, +30 for 100: a prestige, 10 points of cap, every two levels), and the creatures grow by what those points are worth to a character -
-// about 1% of its power each, compounded (ParagonPointPower) - and by the key's better loot (KeyGearGrowth a level).
+// the board (+20 asks for 50, +30 for 100), and the creatures grow by what those points are worth to a character -
+// about 1.5% of its power each, compounded (ParagonPointPower) - and by the key's better loot (KeyGearGrowth a level:
+// 4 item levels, about 2% of a character's power). At 1% and 1% a +30 at 160 points was overrun: the board and the
+// gear are worth more than that, so the high keys grow faster (+20 x1.4, +30 x2 on the old numbers).
 // So a character at the recommended paragon meets every key the way it met +10 - the key never looks at a
 // character's own paragon, so every point gained still makes the same key easier - and the player reads the ladder as
 // "this key wants that much paragon". The client shows the same numbers (MythicPlus.lua, ChallengeBoard.lua).
@@ -49,8 +51,8 @@ constexpr uint32 GeneratedItemVariants = 128;
 constexpr int32 GearLevels = 10;
 constexpr float CompoundedGrowth = 1.08f;
 constexpr uint32 ParagonPerLevel = 5;
-constexpr float ParagonPointPower = 1.01f;
-constexpr float KeyGearGrowth = 1.01f;
+constexpr float ParagonPointPower = 1.015f;
+constexpr float KeyGearGrowth = 1.02f;
 
 inline uint32 GetRecommendedParagon(int32 level)
 {

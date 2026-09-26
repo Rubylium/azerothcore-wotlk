@@ -87,10 +87,12 @@ constexpr uint32 MaxRetaliateHealthPct = 4;
 // tank's damage. Capped, the strikes are at most a fifth of what a character deals.
 constexpr float MaxDoubleStrikeChance = 25.0f;
 
-// Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows a little each
-// level, so the first few come quickly and the hundredth is a commitment.
+// Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows each level, and
+// compounds (ParagonXpGrowth a level), because the experience itself grows with the character (essences raise its
+// rate): the first few come quickly, the fiftieth costs about 9 times the first, the hundredth about 40 times.
 constexpr uint32 ParagonXpBase = 150000;
 constexpr uint32 ParagonXpPerLevel = 7500;
+constexpr double ParagonXpGrowth = 1.02;
 
 // The procs' own spells (localTools/patchSinisterStrike.ps1). The damage and heal ones are never cast: they name
 // what the board deals or heals, so it reaches the combat log, floating text and meters such as Details. The buffs
@@ -268,7 +270,9 @@ uint32 BuffSpell(ParagonEffect effect)
 
 uint32 ExperienceForLevel(uint32 level)
 {
-    return ParagonXpBase + ParagonXpPerLevel * level;
+    double const cost = (double(ParagonXpBase) + double(ParagonXpPerLevel) * level) *
+        std::pow(ParagonXpGrowth, double(level));
+    return static_cast<uint32>(std::min(cost, 2000000000.0));
 }
 
 // Whether anything on the damage path has work to do for this character
