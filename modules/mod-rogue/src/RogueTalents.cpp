@@ -550,18 +550,7 @@ void RefreshPoisons(Player* player)
 class RogueTalentSpellScript : public AllSpellScript
 {
 public:
-    RogueTalentSpellScript() : AllSpellScript("RogueTalentSpellScript", { ALLSPELLHOOK_ON_PREPARE,
-        ALLSPELLHOOK_ON_CAST }) { }
-
-    void OnSpellPrepare(Spell* /*spell*/, Unit* caster, SpellInfo const* spellInfo) override
-    {
-        Player* player = RoguePlayer(caster);
-        if (!player || !spellInfo || !spellInfo->NeedsComboPoints())
-            return;
-        RogueState* state = GetState(player);
-        state->finisherSpell = spellInfo->Id;
-        state->finisherPoints = player->GetComboPoints();
-    }
+    RogueTalentSpellScript() : AllSpellScript("RogueTalentSpellScript", { ALLSPELLHOOK_ON_CAST }) { }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* spellInfo, bool /*skipCheck*/) override
     {
@@ -793,7 +782,20 @@ public:
 class RogueTalentPlayerScript : public PlayerScript
 {
 public:
-    RogueTalentPlayerScript() : PlayerScript("RogueTalentPlayerScript", { PLAYERHOOK_ON_UPDATE }) { }
+    RogueTalentPlayerScript() : PlayerScript("RogueTalentPlayerScript", { PLAYERHOOK_ON_UPDATE,
+        PLAYERHOOK_ON_SPELL_CAST }) { }
+
+    // A finisher's combo points, read before the spell runs: an instant one has spent them by the time the cast hook
+    // (RogueTalentSpellScript) sees it. The core's prepare hook comes after an instant cast too, so this is the one.
+    void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
+    {
+        SpellInfo const* spellInfo = spell ? spell->GetSpellInfo() : nullptr;
+        if (player->getClass() != CLASS_ROGUE || !spellInfo || !spellInfo->NeedsComboPoints())
+            return;
+        RogueState* state = GetState(player);
+        state->finisherSpell = spellInfo->Id;
+        state->finisherPoints = player->GetComboPoints();
+    }
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
