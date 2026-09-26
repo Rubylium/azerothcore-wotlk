@@ -1824,10 +1824,10 @@ for ($index = 0; $index -lt $spellbookSpells.Count; ++$index) {
     # from level 1, so the core handed out the entire kit at creation (a level 1 Nécromancien opened with every
     # spell it would ever learn, its level 60 army included). 0 is what Blizzard's class abilities use: the
     # spell is taught by something else - the class module at the level its AbilityUnlocks names, or a talent
-    # rank. Every spell filed under a class's own skill line (900 and up) is taught that way; a row that really
-    # wants the skill line to teach it says so with AutoLearn = $true.
-    $ownsSkillLine = [int]$spellbookSpells[$index].SkillLine -ge 900
-    if ($ownsSkillLine -and -not $spellbookSpells[$index].AutoLearn) {
+    # rank. The stock classes' skill lines did the same: every rogue and mage was handed the whole Crimson Duelist
+    # kit and every ability of its talent trees, as temporary spells, at each login and level. Every custom spell
+    # is taught that way; a row that really wants the skill line to teach it says so with AutoLearn = $true.
+    if (-not $spellbookSpells[$index].AutoLearn) {
         Set-Field $record 9 0
     } else {
         Set-Field $record 9 2
