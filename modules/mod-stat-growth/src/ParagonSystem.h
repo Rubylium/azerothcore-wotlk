@@ -54,9 +54,17 @@ void TryAwardParagonPoint(Player* player, Creature* killed);
 // rolled for, such as finishing a key.
 void AwardParagonPoints(Player* player, uint32 count, std::string_view reason);
 
-// Bots do not own a board. They are handed the stat a real board of the group's average size would be worth,
-// on their own best stat, so a bot party keeps pace with the player filling theirs.
-void ApplyBotParagon(Player* bot);
+// Bots own a real board, with the same stats and procs as a player's, planned rather than bought and never saved.
+// Its size is the content's: a Mythic+ key's recommended paragon, a challenge tier's (SetParagonInstanceBudget), else
+// the average spent by the group's real players on the bot's map; none at all when that is 0. Its shape is the bot's
+// role: a tank walks Carapace, a fighter the weapon branch of its main stat, a caster Arcanes, a healer Intellect,
+// zone by zone under the player's rules. Looked at again every few seconds out of combat, and at once on a map change.
+void UpdateBotParagon(Player* bot, uint32 diff);
+void RefreshBotParagon(Player* bot);
+
+// The paragon an instance's content asks of its bots, over what its key level says: the challenge board's tiers
+// (mod-playerbots RaidFinder.cpp). 0 forgets the instance.
+void SetParagonInstanceBudget(uint32 instanceId, uint32 points);
 
 // The extra threat the board's tank nodes give, in percent (mod-stat-growth's tank aura applies it)
 uint32 GetParagonThreatPct(Player* player);

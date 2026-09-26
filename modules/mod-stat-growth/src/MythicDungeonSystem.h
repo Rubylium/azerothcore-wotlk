@@ -21,6 +21,9 @@ bool IsMythicCreature(Creature const* creature);
 void UpdateMythicTankResolve(Player* player);
 void UpdateMythicTankResolve(Player* player, uint32 diff);
 
+// Whether the character is its group's tank: a tank role from the Dungeon Finder or the group, else a tank stance
+bool IsGroupTank(Player* player);
+
 void AddMythicDungeonScripts();
 
 #endif

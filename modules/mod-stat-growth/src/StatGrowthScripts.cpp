@@ -379,6 +379,8 @@ public:
         RememberDungeonArrival(player);
         SendDungeonProgress(player);
         UpdateMythicTankResolve(player);
+        // A bot entering a key or a challenge takes up the board it asks for before the first pull
+        RefreshBotParagon(player);
     }
 
     bool OnPlayerCanRepopAtGraveyard(Player* player) override
@@ -398,6 +400,7 @@ public:
         UpdateGladiatorStance(player);
         UpdatePersonalLootAddonHandshake(player, diff);
         UpdateParagonBuffs(player);
+        UpdateBotParagon(player, diff);
         UpdateCombatRogue(player, diff);
         UpdateMythicTankResolve(player, diff);
     }

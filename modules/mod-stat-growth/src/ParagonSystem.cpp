@@ -7,8 +7,12 @@
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "Group.h"
+#include "LFGMgr.h"
 #include "Log.h"
 #include "Map.h"
+#include "MythicDungeon.h"
+#include "MythicDungeonSystem.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
@@ -29,6 +33,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <mutex>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -326,6 +331,11 @@ struct ParagonState : public DataMap::Base
 
     uint32 level = 0;                       // paragon level: experience earned at the level cap
     uint32 experience = 0;                  // towards the next level
+
+    // A bot's board: planned from the content it is in (UpdateBotParagon), never saved, never sent, never earned
+    bool bot = false;
+    uint32 botBudget = 0;                   // the points the plan was built for
+    uint8 botRole = 0;                      // BotRole the plan was built for
 
     // Damage the procs owe, dealt on the character's next update rather than from inside the hit or the death that
     // set them off: dealing damage from within the damage hook, or from a kill, can kill a unit the core is still in
@@ -874,45 +884,6 @@ void SendState(Player* player, bool open)
     Send(player, "DONE");
 }
 
-// A bot is handed the stat a real board would be worth rather than a board of its own: it has no UI to spend
-// points in, nobody would ever see its tree, and 200 bots each carrying an allocation table would be a lot of
-// rows for something invisible. What matters is that a bot party keeps pace with the player.
-//
-// Counted from the stat nodes the player actually holds rather than points times an average: a point in the
-// outer zones is worth several in the first, so the same count is a very different board.
-uint32 StatValueOf(ParagonState const* state)
-{
-    if (!state)
-        return 0;
-
-    uint32 total = 0;
-    for (uint32 nodeId : state->allocated)
-        if (auto const node = Board.find(nodeId);
-            node != Board.end() && node->second.effect == static_cast<uint8>(ParagonEffect::Stat))
-            total += node->second.value;
-    return total;
-}
-
-PermanentStat BotStat(Player* bot)
-{
-    switch (bot->getClass())
-    {
-        case CLASS_MAGE:
-        case CLASS_WARLOCK:
-        case CLASS_PRIEST:
-            return PermanentStat::Intellect;
-        case CLASS_ROGUE:
-        case CLASS_HUNTER:
-            return PermanentStat::Agility;
-        case CLASS_DRUID:
-        case CLASS_SHAMAN:
-        case CLASS_PALADIN:
-            return bot->HasSpell(5176) || bot->HasSpell(585) ? PermanentStat::Intellect : PermanentStat::Strength;
-        default:
-            return PermanentStat::Strength;
-    }
-}
-
 // What a boss is worth, by what it was killed on. Rolled per player rather than per kill, so nobody is
 // competing with their own group for it.
 //
@@ -948,13 +919,459 @@ float GetParagonDropChance(Player* /*player*/, Creature* killed)
                            : value(StatGrowthConfigKey::ParagonNormalChance);
 }
 
-struct BotParagon : public DataMap::Base
+// ---------------------------------------------------------------------------------------------------------
+// Bots
+//
+// A bot owns a real board, with the same nodes, stats and procs a player's would give, planned rather than bought:
+// the content it is in decides how many points (a key's or a challenge tier's recommended paragon, else what the
+// group's real players have spent), its role decides where they go. It is never saved and never sent anywhere.
+// ---------------------------------------------------------------------------------------------------------
+
+enum class BotRole : uint8
 {
-    uint32 applied = 0;                     // stat currently handed out, so it can be taken back
-    PermanentStat stat = PermanentStat::Strength;
+    None = 0,
+    Tank,
+    Strength,       // a fighter on strength: warriors, death knights, paladins, the custom fighters
+    Agility,        // a fighter on agility: rogues, hunters, feral druids, enhancement shamans
+    Caster,
+    Healer
 };
 
-constexpr char const* BotKey = "ParagonBot";
+// The branches, by side (buildParagonTree.py BRANCHES)
+constexpr uint8 SideForce = 0;
+constexpr uint8 SidePuissance = 1;
+constexpr uint8 SideAgilite = 2;
+constexpr uint8 SideCarapace = 3;
+constexpr uint8 SideArcanes = 4;
+constexpr uint8 SideIntellect = 5;
+
+// How often a bot's content, group and role are looked at again
+constexpr int32 BotCheckMs = 3000;
+
+// The instances whose content asks for more paragon than the key level says: the challenge board's tiers
+// (mod-playerbots RaidFinder.cpp registers them). Maps update on several threads: the registry is locked.
+std::mutex InstanceBudgetLock;
+std::unordered_map<uint32, uint32> InstanceBudgets;
+
+// The walks already planned, by role and budget: the plan is deterministic, so each is worked out once
+std::mutex BotPlanLock;
+std::unordered_map<uint64, std::vector<uint32>> BotPlans;
+
+struct BotParagonTimer : public DataMap::Base
+{
+    int32 left = 0;
+};
+constexpr char const* BotTimerKey = "ParagonBotTimer";
+
+// The branches a role walks, first to last. A branch is finished zone by zone (the gates ask for it anyway) before
+// the next is started.
+std::array<uint8, 3> SidesFor(BotRole role)
+{
+    switch (role)
+    {
+        case BotRole::Tank: return { SideCarapace, SideAgilite, SideForce };
+        case BotRole::Agility: return { SideAgilite, SidePuissance, SideForce };
+        case BotRole::Caster: return { SideArcanes, SideIntellect, SideCarapace };
+        case BotRole::Healer: return { SideIntellect, SideArcanes, SideCarapace };
+        case BotRole::Strength:
+        default:
+            return { SideForce, SidePuissance, SideAgilite };
+    }
+}
+
+// What an effect is worth to a role, against a plain stat: the walk reaches for what the role uses first when the
+// points do not cover a whole zone. Everything of a zone is taken in the end; only the order changes.
+float Usefulness(BotRole role, ParagonEffect effect)
+{
+    constexpr float Wanted = 3.0f;
+    constexpr float Neutral = 1.0f;
+    constexpr float Unwanted = 0.5f;
+
+    switch (effect)
+    {
+        case ParagonEffect::Stat:
+        case ParagonEffect::Armor:
+            return Neutral;
+        case ParagonEffect::ThreatPct:
+            return role == BotRole::Tank ? Wanted : Unwanted;
+        case ParagonEffect::ArmorPct:
+        case ParagonEffect::GuardOnHit:
+        case ParagonEffect::LastStand:
+        case ParagonEffect::Undying:
+        case ParagonEffect::Grudge:
+        case ParagonEffect::RetaliateOnHit:
+            return role == BotRole::Tank ? Wanted : Neutral;
+        case ParagonEffect::HealthPct:
+        case ParagonEffect::ReductionPct:
+            return role == BotRole::Tank || role == BotRole::Healer ? Wanted : Neutral;
+        case ParagonEffect::Leech:
+        case ParagonEffect::DamagePct:
+        case ParagonEffect::Execute:
+            return role == BotRole::Healer ? Neutral : Wanted;
+        case ParagonEffect::FuryOnHit:
+        case ParagonEffect::SurgeOnKill:
+        case ParagonEffect::DoubleStrike:
+        case ParagonEffect::Explosion:
+        case ParagonEffect::KillStreak:
+        case ParagonEffect::Splash:
+            return role == BotRole::Strength || role == BotRole::Agility ? Wanted : Neutral;
+        case ParagonEffect::Echo:
+        case ParagonEffect::Arc:
+            return role == BotRole::Caster ? Wanted : Neutral;
+        case ParagonEffect::Quicken:
+        case ParagonEffect::Insight:
+        case ParagonEffect::ManaSurge:
+            return role == BotRole::Caster || role == BotRole::Healer ? Wanted : Neutral;
+        case ParagonEffect::Ward:
+            return role == BotRole::Healer ? Wanted : Neutral;
+        default:
+            return Neutral;
+    }
+}
+
+// A plain notable is a bigger stat than its points' worth of minor nodes (30 for 2 against 8 a point in Eveil)
+constexpr uint8 NodeTypeNotable = 1;
+constexpr float PlainNotableWorth = 1.5f;
+
+float NodeWeight(BotRole role, ParagonNode const& node)
+{
+    ParagonEffect const effect = static_cast<ParagonEffect>(node.effect);
+    bool const plain = effect == ParagonEffect::Stat || effect == ParagonEffect::Armor;
+    float const worth = plain && node.type == NodeTypeNotable ? PlainNotableWorth : Usefulness(role, effect);
+    return float(NodeCost(node)) * worth;
+}
+
+bool IsHeld(std::unordered_set<uint32> const& held, uint32 nodeId)
+{
+    auto const node = Board.find(nodeId);
+    return node != Board.end() && (node->second.free || held.count(nodeId));
+}
+
+// Spends as much of `budget` as it can on the nodes `inPhase` accepts, under the player's rules: each node next to
+// one already held, its zone's gate open, its spent requirement met, the points there. Each step walks to the target
+// worth the most per point spent getting there - the path's nodes' weights over their costs - so a keystone a few
+// minor nodes away is reached before the minor nodes around the hub are all bought.
+template <typename Accept>
+void WalkPhase(BotRole role, uint32 budget, std::unordered_set<uint32>& held, std::vector<uint32>& order,
+    uint32& spent, Accept const& inPhase)
+{
+    std::vector<uint32> candidates;
+    for (auto const& [nodeId, node] : Board)
+        if (!node.free && !held.count(nodeId) && inPhase(node))
+            candidates.push_back(nodeId);
+    // Deterministic whatever order the board's map is in
+    std::sort(candidates.begin(), candidates.end());
+    if (candidates.empty())
+        return;
+
+    // Every node of a phase shares its side and zone (the bridges have no gate): one look tells whether it is open
+    if (MissingForTier(held, Board.at(candidates.front())))
+        return;
+
+    std::unordered_set<uint32> const inside(candidates.begin(), candidates.end());
+
+    struct Step
+    {
+        uint32 cost = std::numeric_limits<uint32>::max();
+        float weight = 0.0f;
+        uint32 previous = 0;
+        bool settled = false;
+    };
+
+    while (spent < budget)
+    {
+        // The cheapest way to each node of the phase from what is held, through the phase's own nodes
+        std::unordered_map<uint32, Step> steps;
+        for (uint32 nodeId : candidates)
+        {
+            if (held.count(nodeId))
+                continue;
+            auto const links = Adjacency.find(nodeId);
+            if (links == Adjacency.end())
+                continue;
+            for (uint32 neighbour : links->second)
+                if (IsHeld(held, neighbour))
+                {
+                    ParagonNode const& node = Board.at(nodeId);
+                    steps[nodeId] = { NodeCost(node), NodeWeight(role, node), 0, false };
+                    break;
+                }
+        }
+
+        while (true)
+        {
+            uint32 current = 0;
+            Step* from = nullptr;
+            for (auto& [nodeId, step] : steps)
+                if (!step.settled &&
+                    (!from || step.cost < from->cost || (step.cost == from->cost && nodeId < current)))
+                {
+                    current = nodeId;
+                    from = &step;
+                }
+            if (!from)
+                break;
+
+            from->settled = true;
+            uint32 const fromCost = from->cost;
+            float const fromWeight = from->weight;
+            auto const links = Adjacency.find(current);
+            if (links == Adjacency.end())
+                continue;
+            for (uint32 neighbour : links->second)
+            {
+                if (!inside.count(neighbour) || held.count(neighbour))
+                    continue;
+                ParagonNode const& node = Board.at(neighbour);
+                uint32 const cost = fromCost + NodeCost(node);
+                float const weight = fromWeight + NodeWeight(role, node);
+                Step& to = steps[neighbour];
+                if (to.settled)
+                    continue;
+                if (cost < to.cost || (cost == to.cost && weight > to.weight))
+                    to = { cost, weight, current, false };
+            }
+        }
+
+        // The best target the points reach, whose path keeps every node's spent requirement
+        uint32 const left = budget - spent;
+        uint32 target = 0;
+        float bestScore = 0.0f;
+        std::vector<uint32> bestPath;
+        for (uint32 nodeId : candidates)
+        {
+            auto const step = steps.find(nodeId);
+            if (step == steps.end() || !step->second.settled || step->second.cost > left)
+                continue;
+
+            float const score = step->second.weight / float(step->second.cost);
+            if (target && (score < bestScore || (score == bestScore &&
+                (step->second.cost > steps[target].cost ||
+                (step->second.cost == steps[target].cost && nodeId > target)))))
+                continue;
+
+            std::vector<uint32> path;
+            for (uint32 at = nodeId; at; at = steps[at].previous)
+                path.push_back(at);
+            std::reverse(path.begin(), path.end());
+
+            uint32 before = spent;
+            bool legal = true;
+            for (uint32 at : path)
+            {
+                ParagonNode const& node = Board.at(at);
+                if (before < node.required)
+                {
+                    legal = false;
+                    break;
+                }
+                before += NodeCost(node);
+            }
+            if (!legal)
+                continue;
+
+            target = nodeId;
+            bestScore = score;
+            bestPath = std::move(path);
+        }
+
+        if (!target)
+            return;
+
+        for (uint32 nodeId : bestPath)
+        {
+            held.insert(nodeId);
+            order.push_back(nodeId);
+            spent += NodeCost(Board.at(nodeId));
+        }
+    }
+}
+
+std::vector<uint32> PlanBotBoard(BotRole role, uint32 budget)
+{
+    std::unordered_set<uint32> held;
+    std::vector<uint32> order;
+    uint32 spent = 0;
+
+    std::array<uint8, 3> const sides = SidesFor(role);
+    for (std::size_t index = 0; index < sides.size() && spent < budget; ++index)
+    {
+        uint8 const side = sides[index];
+        for (uint8 tier = 0; tier < TierCount && spent < budget; ++tier)
+            WalkPhase(role, budget, held, order, spent,
+                [side, tier](ParagonNode const& node) { return node.side == side && node.tier == tier; });
+
+        // The first branch done, the bridges before the next branch: they are open to anyone next to them
+        if (index == 0 && spent < budget)
+            WalkPhase(role, budget, held, order, spent,
+                [](ParagonNode const& node) { return node.side == NoSide; });
+    }
+
+    // Whatever is left, anywhere the rules allow: the remaining branches, zone by zone
+    for (uint8 tier = 0; tier < TierCount && spent < budget; ++tier)
+        for (uint8 side = 0; side <= SideIntellect && spent < budget; ++side)
+            WalkPhase(role, budget, held, order, spent,
+                [side, tier](ParagonNode const& node) { return node.side == side && node.tier == tier; });
+
+    return order;
+}
+
+std::vector<uint32> GetBotPlan(BotRole role, uint32 budget)
+{
+    uint64 const key = uint64(role) << 32 | budget;
+    std::lock_guard<std::mutex> guard(BotPlanLock);
+    auto itr = BotPlans.find(key);
+    if (itr == BotPlans.end())
+    {
+        itr = BotPlans.emplace(key, PlanBotBoard(role, budget)).first;
+        LOG_DEBUG("module", "Paragon: bot plan role={} budget={} nodes={} spent={}", uint32(role), budget,
+            itr->second.size(), SpentOn(std::unordered_set<uint32>(itr->second.begin(), itr->second.end())));
+    }
+    return itr->second;
+}
+
+bool HasGroupRole(Player* player, uint8 role)
+{
+    if (sLFGMgr->GetRoles(player->GetGUID()) & role)
+        return true;
+    if (Group* group = player->GetGroup())
+        for (Group::MemberSlot const& member : group->GetMemberSlots())
+            if (member.guid == player->GetGUID())
+                return (member.roles & role) != 0;
+    return false;
+}
+
+BotRole RoleOf(Player* bot, BotRole previous)
+{
+    if (IsGroupTank(bot) || bot->HasTankSpec())
+        return BotRole::Tank;
+    // A feral druid tanks in bear form and leaves it between pulls: with no role set, the tank keeps its board
+    if (previous == BotRole::Tank && bot->getClass() == CLASS_DRUID &&
+        bot->GetSpec() == TALENT_TREE_DRUID_FERAL_COMBAT &&
+        !HasGroupRole(bot, uint8(lfg::PLAYER_ROLE_DAMAGE | lfg::PLAYER_ROLE_HEALER)))
+        return BotRole::Tank;
+    if (HasGroupRole(bot, lfg::PLAYER_ROLE_HEALER) || bot->HasHealSpec())
+        return BotRole::Healer;
+
+    // A custom class fights as the class it is built on (mod-custom-classes); the Oathblade as a warrior, whatever
+    // its formulas (SmartLootSystem.cpp)
+    uint8 const classId = bot->getClass();
+    switch (classId == 10 ? uint8(CLASS_WARRIOR) : sObjectMgr->GetClassFormulaTemplate(classId))
+    {
+        case CLASS_MAGE:
+        case CLASS_PRIEST:
+        case CLASS_WARLOCK:
+            return BotRole::Caster;
+        case CLASS_ROGUE:
+        case CLASS_HUNTER:
+            return BotRole::Agility;
+        case CLASS_DRUID:
+        case CLASS_SHAMAN:
+            return bot->HasCasterSpec() ? BotRole::Caster : BotRole::Agility;
+        default:
+            return BotRole::Strength;
+    }
+}
+
+// The points a bot's board is worth where it is: the content's recommended paragon, else the average the group's
+// real players have spent. Only players on the bot's own map are read: another map updates on another thread.
+uint32 BotBudget(Player* bot)
+{
+    if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled) || Board.empty())
+        return 0;
+
+    if (Map* map = bot->FindMap(); map && map->IsDungeon())
+    {
+        if (map->GetMythicLevel() > 0)
+            if (uint32 const points = Mythic::GetRecommendedParagon(map->GetMythicLevel()))
+                return points;
+
+        std::lock_guard<std::mutex> guard(InstanceBudgetLock);
+        if (auto const itr = InstanceBudgets.find(map->GetInstanceId()); itr != InstanceBudgets.end() && itr->second)
+            return itr->second;
+    }
+
+    uint32 total = 0;
+    uint32 counted = 0;
+    if (Group* group = bot->GetGroup())
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->GetSource(); member && member->GetSession() &&
+                !member->GetSession()->IsBot() && member->IsInMap(bot))
+            {
+                total += SpentPoints(GetState(member));
+                ++counted;
+            }
+    return counted ? total / counted : 0;
+}
+
+// Takes a bot's board off: every node's modifiers and whatever proc is running
+void StripBotBoard(Player* bot, ParagonState* state)
+{
+    if (!state->applied)
+        return;
+    ClearBuffs(bot, state);
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId); node != Board.end())
+            ApplyNode(bot, node->second, false);
+    state->allocated.clear();
+    state->applied = false;
+}
+
+// Looks at the bot's content and role, and rebuilds its board if either moved. Never in combat: the board would be
+// pulled from under a fight, and a proc running would end early.
+void RefreshBot(Player* bot)
+{
+    if (bot->IsInCombat() || !bot->IsInWorld())
+        return;
+
+    uint32 const budget = BotBudget(bot);
+    ParagonState* state = GetState(bot);
+    if (!budget)
+    {
+        if (!state)
+            return;
+        StripBotBoard(bot, state);
+        bot->CustomData.Erase(StateKey);
+        bot->UpdateMaxHealth();
+        return;
+    }
+
+    BotRole const role = RoleOf(bot, state ? static_cast<BotRole>(state->botRole) : BotRole::None);
+    if (state && state->applied && state->botBudget == budget && state->botRole == uint8(role))
+        return;
+
+    if (!state)
+    {
+        state = bot->CustomData.GetDefault<ParagonState>(StateKey);
+        state->bot = true;
+    }
+    StripBotBoard(bot, state);
+    state->allocated.clear();
+
+    std::vector<uint32> const plan = GetBotPlan(role, budget);
+    state->allocated.insert(plan.begin(), plan.end());
+    for (uint32 nodeId : plan)
+        if (auto const node = Board.find(nodeId); node != Board.end())
+            ApplyNode(bot, node->second, true);
+    RebuildProcs(state);
+    state->applied = true;
+    state->botBudget = budget;
+    state->botRole = uint8(role);
+    bot->UpdateMaxHealth();
+
+    LOG_DEBUG("module", "Paragon: bot {} role={} budget={} spent={} procs={}", bot->GetName(), uint32(role), budget,
+        SpentPoints(state), state->procs.size());
+}
+
+// The group's bots on the same map look again now: a real player's board just changed
+void RefreshGroupBots(Player* player)
+{
+    if (Group* group = player->GetGroup())
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->GetSource(); member && member->GetSession() &&
+                member->GetSession()->IsBot() && member->IsInMap(player))
+                RefreshBot(member);
+}
 }
 
 void LoadParagonBoard()
@@ -963,6 +1380,10 @@ void LoadParagonBoard()
     Adjacency.clear();
     TierNodes.clear();
     BoardSignature = 0;
+    {
+        std::lock_guard<std::mutex> guard(BotPlanLock);
+        BotPlans.clear();
+    }
 
     QueryResult nodes = WorldDatabase.Query(
         "SELECT id, type, effect, stat, value, value2, chance, duration, cooldown, free, required, cost, side, tier, "
@@ -1130,37 +1551,36 @@ void ApplyStoredParagon(Player* player)
     }
 }
 
-void ApplyBotParagon(Player* bot)
+void RefreshBotParagon(Player* bot)
 {
     if (!bot || !bot->GetSession() || !bot->GetSession()->IsBot())
         return;
 
-    // The group's real players decide how much: a bot party is meant to keep pace with the person it is
-    // playing with, not with the board it cannot see.
-    uint32 value = 0;
-    uint32 counted = 0;
-    if (Group* group = bot->GetGroup())
-        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-            if (Player* member = ref->GetSource();
-                member && member->GetSession() && !member->GetSession()->IsBot())
-            {
-                value += StatValueOf(GetState(member));
-                ++counted;
-            }
+    RefreshBot(bot);
+    if (BotParagonTimer* timer = bot->CustomData.GetDefault<BotParagonTimer>(BotTimerKey))
+        timer->left = BotCheckMs;
+}
 
-    uint32 const target = counted ? value / counted : 0;
-    BotParagon* applied = bot->CustomData.GetDefault<BotParagon>(BotKey);
-    PermanentStat const stat = BotStat(bot);
-    if (applied->applied == target && applied->stat == stat)
+void UpdateBotParagon(Player* bot, uint32 diff)
+{
+    if (!bot || !bot->GetSession() || !bot->GetSession()->IsBot())
         return;
 
-    if (applied->applied)
-        ApplyPermanentStat(bot, applied->stat, applied->applied, false);
-    if (target)
-        ApplyPermanentStat(bot, stat, target, true);
+    BotParagonTimer* timer = bot->CustomData.GetDefault<BotParagonTimer>(BotTimerKey);
+    timer->left -= static_cast<int32>(diff);
+    if (timer->left > 0)
+        return;
+    timer->left = BotCheckMs;
+    RefreshBot(bot);
+}
 
-    applied->applied = target;
-    applied->stat = stat;
+void SetParagonInstanceBudget(uint32 instanceId, uint32 points)
+{
+    std::lock_guard<std::mutex> guard(InstanceBudgetLock);
+    if (points)
+        InstanceBudgets[instanceId] = points;
+    else
+        InstanceBudgets.erase(instanceId);
 }
 
 void AwardParagonPoints(Player* player, uint32 count, std::string_view reason)
@@ -1256,8 +1676,9 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
         return;
     body.remove_prefix(1);
 
+    // A bot's board is planned, not bought: nothing a message says may change it or write it anywhere
     ParagonState* state = GetState(player);
-    if (!state)
+    if (!state || state->bot)
         return;
 
     ChatHandler chat(player->GetSession());
@@ -1291,6 +1712,7 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
         SendState(player, false);
         chat.SendSysMessage(french ? "Votre tableau de parangon a été réinitialisé."
                                    : "Your paragon board has been reset.");
+        RefreshGroupBots(player);
         return;
     }
 
@@ -1361,12 +1783,8 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
     // The frame animates from this, so it carries the node that was taken rather than just the new totals.
     Send(player, Acore::StringFormat("GAINED\t{}\t{}\t{}", nodeId, AvailablePoints(state), SpentPoints(state)));
 
-    // Bots track the group's real players, so they move the moment the player does.
-    if (Group* group = player->GetGroup())
-        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-            if (Player* member = ref->GetSource();
-                member && member->GetSession() && member->GetSession()->IsBot())
-                ApplyBotParagon(member);
+    // Outside a key or a challenge, bots track the group's real players, so they move the moment the player does
+    RefreshGroupBots(player);
 }
 
 
