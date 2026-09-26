@@ -139,6 +139,9 @@ struct RogueState : public DataMap::Base
     uint8 shurikenPoints = 0;
     uint32 poisonTimer = 5000;       // Poisons tenaces: the next refresh of the weapons' poisons
     uint32 virulenceTimer = 0;       // Virulence: the next count of the afflictions
+    // A finisher's combo points, read when it begins: an instant spell has spent them by the time its cast hook runs
+    uint32 finisherSpell = 0;
+    uint8 finisherPoints = 0;
 };
 
 constexpr char const* StateKey = "RogueTalentState";
@@ -547,7 +550,18 @@ void RefreshPoisons(Player* player)
 class RogueTalentSpellScript : public AllSpellScript
 {
 public:
-    RogueTalentSpellScript() : AllSpellScript("RogueTalentSpellScript", { ALLSPELLHOOK_ON_CAST }) { }
+    RogueTalentSpellScript() : AllSpellScript("RogueTalentSpellScript", { ALLSPELLHOOK_ON_PREPARE,
+        ALLSPELLHOOK_ON_CAST }) { }
+
+    void OnSpellPrepare(Spell* /*spell*/, Unit* caster, SpellInfo const* spellInfo) override
+    {
+        Player* player = RoguePlayer(caster);
+        if (!player || !spellInfo || !spellInfo->NeedsComboPoints())
+            return;
+        RogueState* state = GetState(player);
+        state->finisherSpell = spellInfo->Id;
+        state->finisherPoints = player->GetComboPoints();
+    }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* spellInfo, bool /*skipCheck*/) override
     {
@@ -556,6 +570,14 @@ public:
             return;
         RogueState* state = GetState(player);
         Unit* target = spell->m_targets.GetUnitTarget();
+
+        // The finisher's combo points: still there for a spell with a travel time, spent already for an instant one
+        uint8 points = player->GetComboPoints();
+        if (state->finisherSpell == spellInfo->Id)
+        {
+            points = std::max(points, state->finisherPoints);
+            state->finisherSpell = 0;
+        }
 
         switch (spellInfo->Id)
         {
@@ -568,16 +590,16 @@ public:
                     Exsanguinate(player, target);
                 return;
             case SPELL_CRIMSON_TEMPEST:
-                if (uint8 const comboPoints = player->GetComboPoints())
-                    CrimsonTempest(player, comboPoints);
+                if (points)
+                    CrimsonTempest(player, points);
                 break;
             case SPELL_BLACK_POWDER:
-                if (uint8 const comboPoints = player->GetComboPoints())
-                    BlackPowder(player, comboPoints);
+                if (points)
+                    BlackPowder(player, points);
                 break;
             case SPELL_SECRET_TECHNIQUE:
-                if (uint8 const comboPoints = player->GetComboPoints())
-                    SecretTechnique(player, comboPoints);
+                if (points)
+                    SecretTechnique(player, points);
                 break;
             case SPELL_FAN_OF_KNIVES:
                 if (!IsAssassination(player))
@@ -635,9 +657,8 @@ public:
         }
 
         // Finishers, while their combo points are still there
-        if (spellInfo->NeedsComboPoints())
-            if (uint8 const comboPoints = player->GetComboPoints())
-                OnFinisher(player, spellInfo, target, comboPoints);
+        if (spellInfo->NeedsComboPoints() && points)
+            OnFinisher(player, spellInfo, target, points);
     }
 };
 
