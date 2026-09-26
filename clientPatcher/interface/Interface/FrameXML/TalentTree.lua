@@ -2030,16 +2030,15 @@ StaticPopupDialogs["TALENTTREE_LOADOUT_DELETE"] = {
     hideOnEscape = 1,
 }
 
--- The picker at the window's top left, with Save and Delete beside it while a loadout is open
+-- The picker in the bottom bar, left of Apply (retail's place); Save and Delete right of the undo and reset buttons
+-- while a loadout is open
 local function CreateLoadoutPicker()
-    local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetPoint("TOPLEFT", frame, "TOPLEFT", 64, -30)
+    local picker = CreateFrame("Frame", "TalentTreeLoadoutPicker", bar, "UIDropDownMenuTemplate")
+    picker:SetPoint("RIGHT", applyButton, "LEFT", -6, -2)
+    UIDropDownMenu_SetWidth(picker, 150)
+    local label = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    label:SetPoint("BOTTOMLEFT", picker, "TOPLEFT", 20, 0)
     label:SetText(TEXT.loadout)
-
-    local picker = CreateFrame("Frame", "TalentTreeLoadoutPicker", frame, "UIDropDownMenuTemplate")
-    picker:SetPoint("TOPLEFT", label, "BOTTOMLEFT", -18, -2)
-    picker:SetFrameLevel(frame:GetFrameLevel() + 20)
-    UIDropDownMenu_SetWidth(picker, 190)
     UIDropDownMenu_Initialize(picker, function()
         local info = UIDropDownMenu_CreateInfo()
         info.text = TEXT.current
@@ -2069,11 +2068,10 @@ local function CreateLoadoutPicker()
         UIDropDownMenu_AddButton(info)
     end)
 
-    local save = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    local save = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
     save:SetSize(96, 22)
-    save:SetPoint("LEFT", picker, "RIGHT", -8, 2)
+    save:SetPoint("LEFT", resetButton, "RIGHT", 18, 0)
     save:SetText(TEXT.saveLoadout)
-    save:SetFrameLevel(frame:GetFrameLevel() + 20)
     save:SetScript("OnClick", function()
         local plan = state.planning
         if not plan then
@@ -2089,11 +2087,10 @@ local function CreateLoadoutPicker()
         PaintBar()
     end)
 
-    local delete = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    local delete = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
     delete:SetSize(96, 22)
     delete:SetPoint("LEFT", save, "RIGHT", 4, 0)
     delete:SetText(TEXT.deleteLoadout)
-    delete:SetFrameLevel(frame:GetFrameLevel() + 20)
     delete:SetScript("OnClick", function()
         if state.planning then
             StaticPopup_Show("TALENTTREE_LOADOUT_DELETE", state.planning.name, nil, { slot = state.planning.slot })
