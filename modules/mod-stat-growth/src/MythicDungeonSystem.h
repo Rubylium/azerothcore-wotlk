@@ -3,6 +3,12 @@
 
 class Creature;
 class Player;
+class SpellInfo;
+class Unit;
+
+// The factor a creature spell's damage is multiplied by in a mythic dungeon (the key's scaling, the spell's level
+// catch-up and its tuning multiplier); 1 outside one
+float GetMythicSpellFactor(Unit const* caster, SpellInfo const* spellInfo);
 
 // A creature of a mythic instance whose kill gives no loot: trash, and in Mythic+ every creature (its loot comes at
 // the end of the dungeon, see MythicDungeonSystem.cpp)

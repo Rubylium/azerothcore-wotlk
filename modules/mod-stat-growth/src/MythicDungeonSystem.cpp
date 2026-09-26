@@ -14,6 +14,7 @@
 #include "Mail.h"
 #include "Map.h"
 #include "MythicDungeon.h"
+#include "MythicTuning.h"
 #include "ObjectMgr.h"
 #include "ParagonSystem.h"
 #include "Player.h"
@@ -59,8 +60,32 @@ struct MythicCreatureData : DataMap::Base
     uint8 originalLevel = 0;
     uint8 level = 0;
     float spellFactor = 1.0f;
+    float levelFactor = 1.0f;       // the part of spellFactor that brings old spell values up to the mythic level
     bool lootGiven = false;
 };
+
+// Boss melee: WotLK heroic bosses carry the same damage modifier as their trash, so a boss swung no harder than the
+// pack before it (5% of a tank's health a swing at +10, against the 6-10% a boss is meant to hit for)
+constexpr float BossMeleeScale = 1.6f;
+
+// Bosses the core does not flag as dungeon bosses (encounters credited by spell, or bosses of a pair), and the ghosts
+// of Skarvald and Dalronn, which cannot be targeted but still fight and must grow with the key like the living ones
+constexpr std::array<uint32, 6> ExtraMythicBosses = {
+    3976,               // Scarlet Commander Mograine (Scarlet Monastery)
+    26632, 31360,       // The Prophet Tharon'ja, normal and heroic (Drak'Tharon Keep)
+    24200, 31679,       // Skarvald the Constructor (Utgarde Keep)
+    24201               // Dalronn the Controller
+};
+constexpr std::array<uint32, 4> UnselectableCombatants = {
+    27389, 31657,       // Dalronn's ghost
+    27390, 31680        // Skarvald's ghost
+};
+
+template <std::size_t N>
+bool IsListed(std::array<uint32, N> const& list, uint32 entry)
+{
+    return std::find(list.begin(), list.end(), entry) != list.end();
+}
 
 // Classic templates carry modifiers made for the small classic base stats. These bring one to what a WotLK heroic
 // template of the same role carries (trash: health 5-6, damage 13).
@@ -84,10 +109,11 @@ constexpr uint8 MinSpellScalingLevel = 10;
 // How long anything killed in a mythic instance stays dead: longer than any run, so a cleared room stays cleared
 constexpr uint32 MythicRespawnDelay = 2 * HOUR;
 
+// A player's pet, totem or guardian. A creature's own guardians (VanCleef's allies, the engineers' golems) fight for the
+// dungeon and grow with it; they used to be skipped as if a player owned them and stayed at their classic level.
 bool IsPlayerControlled(Creature const* creature)
 {
-    return creature->IsPet() || creature->IsTotem() || creature->IsGuardian() ||
-        creature->GetCharmerOrOwnerGUID().IsPlayer();
+    return creature->GetCharmerOrOwnerGUID().IsPlayer();
 }
 
 bool IsInMythicMap(WorldObject const* object)
@@ -104,7 +130,8 @@ int32 GetMythicLevel(WorldObject const* object)
 
 bool IsMythicBoss(Creature const* creature)
 {
-    return creature->IsDungeonBoss() || creature->GetCreatureTemplate()->rank == CREATURE_ELITE_WORLDBOSS;
+    return creature->IsDungeonBoss() || creature->GetCreatureTemplate()->rank == CREATURE_ELITE_WORLDBOSS ||
+        IsListed(ExtraMythicBosses, creature->GetEntry());
 }
 
 // Triggers, critters and unselectable helpers keep their stats: they are not fights
@@ -112,7 +139,7 @@ bool ShouldScale(CreatureTemplate const* cinfo, Creature const* creature)
 {
     return IsInMythicMap(creature) && !IsPlayerControlled(creature) &&
         !cinfo->HasFlagsExtra(CREATURE_FLAG_EXTRA_TRIGGER) && cinfo->type != CREATURE_TYPE_CRITTER &&
-        !(cinfo->unit_flags & UNIT_FLAG_NOT_SELECTABLE);
+        (!(cinfo->unit_flags & UNIT_FLAG_NOT_SELECTABLE) || IsListed(UnselectableCombatants, cinfo->Entry));
 }
 
 MythicCreatureData const* GetMythicData(Unit const* unit)
@@ -132,21 +159,51 @@ bool IsWeaponSpell(SpellInfo const* spellInfo)
 // Factor applied to the spell damage and healing of a creature of a mythic instance. A scaled creature uses its
 // own; one left unscaled (a trigger casting a boss mechanic) takes the plain mythic multiplier. Weapon-based spells
 // of scaled creatures already follow their scaled weapon damage.
-float GetSpellFactor(Unit const* caster, SpellInfo const* spellInfo)
+// A spell whose values the core already raises with the caster's level (the "scales with creature level" attribute,
+// or points per level): the core does the level catch-up, and multiplying it by our level factor as well counted it
+// twice - the same classic value landed up to five times apart from one spell to the next.
+bool IsSelfLevelling(SpellInfo const* spellInfo)
+{
+    if (!spellInfo)
+        return false;
+    if (spellInfo->HasAttribute(SPELL_ATTR0_SCALES_WITH_CREATURE_LEVEL))
+        return true;
+    for (SpellEffectInfo const& effect : spellInfo->Effects)
+        if (effect.RealPointsPerLevel > 0.0f)
+            return true;
+    return false;
+}
+
+// periodic: a damage-over-time tick. Those always scale: a weapon spell's hit follows the scaled weapon, but the
+// poison or bleed it leaves has fixed values (the Deadmines harpoon's poison ticked for 45).
+float GetSpellFactor(Unit const* caster, SpellInfo const* spellInfo, bool periodic = false)
 {
     Creature const* creature = caster ? caster->ToCreature() : nullptr;
     if (!creature || IsPlayerControlled(creature) || !IsInMythicMap(creature))
         return 1.0f;
 
+    float factor = Mythic::DamageMultiplier * Mythic::GetLevelScaling(GetMythicLevel(creature));
     if (MythicCreatureData const* data = GetMythicData(creature))
-        return IsWeaponSpell(spellInfo) ? 1.0f : data->spellFactor;
-    return Mythic::DamageMultiplier * Mythic::GetLevelScaling(GetMythicLevel(creature));
+    {
+        if (!periodic && IsWeaponSpell(spellInfo))
+            return 1.0f;
+        factor = data->spellFactor;
+        if (IsSelfLevelling(spellInfo) && data->levelFactor > 0.0f)
+            factor /= data->levelFactor;
+    }
+    return factor * MythicTuning::SpellMultiplier(spellInfo);
 }
 
 uint32 ScaleValue(uint32 value, float factor)
 {
     return static_cast<uint32>(std::min<double>(value * static_cast<double>(factor),
         std::numeric_limits<int32>::max()));
+}
+
+// A heal of a share of the target's maximum health
+bool IsPercentHeal(SpellInfo const* spellInfo)
+{
+    return spellInfo && (spellInfo->HasEffect(SPELL_EFFECT_HEAL_PCT) || spellInfo->HasAura(SPELL_AURA_OBS_MOD_HEALTH));
 }
 
 // A heal-over-time tick: the core hands it to the periodic damage hook as well as the heal hook
@@ -158,13 +215,15 @@ bool IsPeriodicHeal(SpellInfo const* spellInfo)
         !spellInfo->HasAura(SPELL_AURA_PERIODIC_LEECH);
 }
 
-// Healing a mythic creature gives a trash creature: capped per heal, and by a budget per window (CreatureHealCapPct)
+// Healing a mythic creature gives another, or itself: capped per heal, and by a budget per window
+// (CreatureHealCapPct). Bosses too: Whitemane's Heal and the lieutenants' Renew Steel on Bjarngrim gave back a tenth
+// of a boss's health a cast, and 90% a Renew Steel once scaled.
 uint32 LimitCreatureHeal(Unit* target, Unit const* healer, uint32 heal)
 {
     Creature* patient = target ? target->ToCreature() : nullptr;
     Creature const* source = healer ? healer->ToCreature() : nullptr;
     if (!patient || !source || !heal || IsPlayerControlled(patient) || IsPlayerControlled(source) ||
-        IsMythicBoss(patient) || !IsInMythicMap(patient))
+        !IsInMythicMap(patient))
         return heal;
 
     uint32 const maxHealth = patient->GetMaxHealth();
@@ -222,7 +281,8 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     }
 
     float const baseDamage = stats->BaseDamage[EXPANSION_WRATH_OF_THE_LICH_KING] * damageScale *
-        Mythic::DamageMultiplier * levelScaling;
+        Mythic::DamageMultiplier * levelScaling * (IsMythicBoss(creature) ? BossMeleeScale : 1.0f) *
+        MythicTuning::MeleeMultiplier(creature->GetEntry());
     for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
     {
         creature->SetBaseWeaponDamage(attackType, MINDAMAGE, baseDamage);
@@ -231,13 +291,15 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
 
     // Spells
     data.spellFactor = Mythic::DamageMultiplier * levelScaling;
+    data.levelFactor = 1.0f;
     if (data.originalLevel >= MinSpellScalingLevel)
         if (CreatureBaseStats const* original = sObjectMgr->GetCreatureBaseStats(data.originalLevel, cinfo->unit_class))
         {
             float const ratio = static_cast<float>(stats->BaseHealth[EXPANSION_WRATH_OF_THE_LICH_KING]) /
                 std::max<uint32>(1, original->BaseHealth[expansion]);
-            data.spellFactor *= std::clamp(ratio, 1.0f,
+            data.levelFactor = std::clamp(ratio, 1.0f,
                 expansion == EXPANSION_THE_BURNING_CRUSADE ? MaxTbcSpellLevelFactor : MaxSpellLevelFactor);
+            data.spellFactor *= data.levelFactor;
         }
 
     creature->UpdateAllStats();
@@ -364,12 +426,15 @@ public:
         // healed for the square of its factor. The heal hook scales it.
         if (IsPeriodicHeal(spellInfo))
             return;
-        damage = ScaleValue(damage, GetSpellFactor(attacker, spellInfo));
+        damage = ScaleValue(damage, GetSpellFactor(attacker, spellInfo, true));
     }
 
     void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
     {
-        heal = LimitCreatureHeal(target, healer, ScaleValue(heal, GetSpellFactor(healer, spellInfo)));
+        // A heal of a share of the target's health is already the size of that health, which the key has grown
+        if (!IsPercentHeal(spellInfo))
+            heal = ScaleValue(heal, GetSpellFactor(healer, spellInfo));
+        heal = LimitCreatureHeal(target, healer, heal);
     }
 
     void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
@@ -655,6 +720,11 @@ void UpdateMythicTankResolve(Player* player, uint32 /*diff*/)
     if (!player || !player->GetSession() || !player->IsInWorld())
         return;
     UpdateMythicRoles(player, false);
+}
+
+float GetMythicSpellFactor(Unit const* caster, SpellInfo const* spellInfo)
+{
+    return GetSpellFactor(caster, spellInfo);
 }
 
 bool IsMythicLootless(Creature const* creature)

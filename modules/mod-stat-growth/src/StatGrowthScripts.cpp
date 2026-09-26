@@ -1,3 +1,5 @@
+#include "mythic/MythicDungeons.h"
+#include "MythicTuning.h"
 #include "AutoLearnSpellsSystem.h"
 #include "AdaptiveTrainingDummy.h"
 #include "CombatRogue.h"
@@ -578,6 +580,15 @@ void AddStatGrowthScripts()
     AddOnyxiaReworkScripts();
     AddBronjahmReworkScripts();
     AddDevourerReworkScripts();
+    AddMythicTuningScripts();
+    AddMythicForgeOfSoulsScripts();
+    AddMythicHallsOfLightningScripts();
+    AddMythicUtgardeKeepScripts();
+    AddMythicDrakTharonKeepScripts();
+    AddMythicMechanarScripts();
+    AddMythicShatteredHallsScripts();
+    AddMythicDeadminesScripts();
+    AddMythicScarletCathedralScripts();
     AddMythicItemGenerationScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();

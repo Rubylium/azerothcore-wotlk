@@ -1,4 +1,5 @@
 #include "GroundIndicators.h"
+#include "MythicTuning.h"
 
 #include "CreatureScript.h"
 #include "InstanceScript.h"
@@ -276,15 +277,7 @@ private:
     // Deals damage as the named spell: resistances, absorbs and the key's scaling apply, and it reads as that spell
     void Burn(Unit* target, uint32 spellId, uint32 amount)
     {
-        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
-        if (!spellInfo || !target->IsAlive())
-            return;
-
-        SpellNonMeleeDamage damageInfo(me, target, spellInfo, spellInfo->GetSchoolMask());
-        me->CalculateSpellDamageTaken(&damageInfo, int32(amount), spellInfo);
-        Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
-        me->SendSpellNonMeleeDamageLog(&damageInfo);
-        me->DealSpellDamage(&damageInfo, true);
+        MythicTuning::DealAbilityDamage(me, target, spellId, amount);
     }
 
     std::vector<Player*> Players()
