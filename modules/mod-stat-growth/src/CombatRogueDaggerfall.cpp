@@ -19,7 +19,7 @@ namespace
 Player* GetRogue(Unit* unit)
 {
     Player* player = unit ? unit->ToPlayer() : nullptr;
-    return IsRogue(player) ? player : nullptr;
+    return IsCombatRogue(player) ? player : nullptr;
 }
 
 bool HasOwnedDamageOverTime(Player const* player, Unit const* target)

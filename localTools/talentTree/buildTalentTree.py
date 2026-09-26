@@ -130,8 +130,14 @@ def lua_string(text):
 
 
 def format_text(node, rank):
+    """A rank's text: {0} takes the rank's value, or {0}, {1}... its values when the rank has a list of them."""
     values = node.get('values')
-    return node['text'].replace('{0}', str(values[rank])) if values else node['text']
+    if not values:
+        return node['text']
+    text = node['text']
+    for index, value in enumerate(values[rank] if isinstance(values[rank], list) else [values[rank]]):
+        text = text.replace('{%d}' % index, str(value))
+    return text
 
 
 def build_sql(definitions):

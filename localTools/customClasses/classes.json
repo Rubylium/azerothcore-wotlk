@@ -60,6 +60,12 @@
       "token": "MAGE",
       "family": 3,
       "talentTree": "localTools/mage/talentTree.json"
+    },
+    {
+      "id": 4,
+      "token": "ROGUE",
+      "family": 8,
+      "talentTree": "localTools/rogue/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {

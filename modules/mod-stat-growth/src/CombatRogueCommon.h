@@ -129,9 +129,15 @@ struct RogueData : public DataMap::Base
     Milliseconds counterRhythmReadyAt = 0ms;
     Milliseconds bleedEnergyWindowStart = 0ms;
     uint32 bleedEnergyGranted = 0;
+    uint32 kitSyncTimer = 0;
 };
 
+// The Rogue's spec tree that is the Crimson Duelist (localTools/rogue/talentTree.json)
+constexpr uint8 COMBAT_TREE_ID = 3;
+
 bool IsRogue(Player const* player);
+// A rogue whose specialization is Combat: the only one the rework's kit and scripts are for
+bool IsCombatRogue(Player const* player);
 RogueData& GetData(Player* player);
 uint8 GetTalentRank(Player const* player, Talent talent);
 bool HasEvolution(Player const* player, Evolution evolution);

@@ -16,11 +16,17 @@
 
 #include <algorithm>
 
+// mod-custom-classes' talent trees (TalentTree.cpp): the Rogue's specialization is one of its spec trees
+extern bool HasTalentTrees(uint8 classId);
+extern uint8 GetTalentSpecialization(Player* player);
+extern void SetTalentSpecialization(Player* player, uint8 tree);
+
 namespace CombatRogue
 {
 namespace
 {
-// Rank spells of each reworked talent, indexed by Talent (WotLK Combat talent spell ids, rank 1 first)
+// Rank spells of each reworked talent, indexed by Talent (WotLK Combat talent spell ids, rank 1 first). The Combat
+// talent tree teaches a node's current rank alone.
 constexpr std::array<std::array<uint32, 5>, uint8(Talent::Count)> TalentRankSpells = { {
     { 13741, 13793, 13792 },                // Keen Openings (Improved Gouge slot)
     { 13732, 13863 },                       // Honed Blades (Improved Sinister Strike slot)
@@ -63,6 +69,15 @@ bool IsRogue(Player const* player)
     return player && player->getClass() == CLASS_ROGUE;
 }
 
+bool IsCombatRogue(Player const* player)
+{
+    if (!IsRogue(player))
+        return false;
+    // The trees only read the player's state
+    return !HasTalentTrees(CLASS_ROGUE) ||
+        GetTalentSpecialization(const_cast<Player*>(player)) == COMBAT_TREE_ID;
+}
+
 RogueData& GetData(Player* player)
 {
     return *player->CustomData.GetDefault<RogueData>("CombatRogue");
@@ -71,9 +86,8 @@ RogueData& GetData(Player* player)
 uint8 GetTalentRank(Player const* player, Talent talent)
 {
     auto const& ranks = TalentRankSpells[uint8(talent)];
-    uint8 const spec = player->GetActiveSpec();
     for (uint8 rank = uint8(ranks.size()); rank > 0; --rank)
-        if (ranks[rank - 1] && player->HasTalent(ranks[rank - 1], spec))
+        if (ranks[rank - 1] && player->HasSpell(ranks[rank - 1]))
             return rank;
     return 0;
 }
@@ -370,11 +384,9 @@ namespace
 {
 constexpr char ReworkSettingsSource[] = "mod_stat_growth_combat_rogue";
 constexpr uint32 ReworkVersionSetting = 0;
-constexpr uint32 ReworkVersion = 1;
-
-// Spells a very early version of the rework taught directly; they are real Subtlety talents, so only strip them
-// when the talent is not actually taken
-constexpr std::array<uint32, 3> LegacyTalentSpells = { 16511, 36554, 14278 };
+// 2: the Rogue moved to the talent trees, and a player's rogue to its Combat tree
+constexpr uint32 ReworkVersion = 2;
+constexpr uint32 KitSyncIntervalMs = 1000;
 
 struct EvolutionMessage
 {
@@ -403,12 +415,22 @@ constexpr std::array<EvolutionMessage, 15> EvolutionMessages = { {
     { EVOLUTION_BLOOD_WALTZ_RADIUS, "Blood Waltz radius increased by 2 yards." }
 } };
 
-uint32 LearnUnlockedAbilities(Player* player)
+// The kit follows the specialization: every ability the level allows while Combat, none otherwise. Returns how many
+// abilities it just taught.
+uint32 SyncCombatKit(Player* player)
 {
+    bool const combat = IsCombatRogue(player);
     uint32 learned = 0;
     for (AbilityUnlock const& unlock : AbilityUnlocks)
     {
-        if (player->GetLevel() < unlock.level || player->HasSpell(unlock.spellId))
+        bool const wanted = combat && player->GetLevel() >= unlock.level;
+        if (!wanted)
+        {
+            if (player->HasSpell(unlock.spellId))
+                player->removeSpell(unlock.spellId, SPEC_MASK_ALL, false);
+            continue;
+        }
+        if (player->HasSpell(unlock.spellId))
             continue;
 
         player->learnSpell(unlock.spellId, false);
@@ -418,6 +440,12 @@ uint32 LearnUnlockedAbilities(Player* player)
     return learned;
 }
 
+// Whether the talent trees have read the rogue's specialization yet (they load it at login)
+bool SpecializationKnown(Player* player)
+{
+    return !HasTalentTrees(CLASS_ROGUE) || GetTalentSpecialization(player) != 0;
+}
+
 void AnnounceLearned(Player* player, uint32 learned)
 {
     if (learned)
@@ -425,17 +453,15 @@ void AnnounceLearned(Player* player, uint32 learned)
             "|cffb048f8Crimson Duelist: learned {} new {}.|r", learned, learned == 1 ? "ability" : "abilities");
 }
 
-void ApplyReworkTalentReset(Player* player)
+// A player's rogue played the Crimson Duelist before the trees: it keeps it, on the Combat tree. The talent trees wipe
+// the WotLK talents themselves. Bots choose their own specialization.
+void MigrateToTalentTrees(Player* player)
 {
     if (player->GetPlayerSetting(ReworkSettingsSource, ReworkVersionSetting).value >= ReworkVersion)
         return;
 
-    if (player->resetTalents(true))
-    {
-        player->SendTalentsInfoData(false);
-        ChatHandler(player->GetSession()).SendSysMessage(
-            "|cffb048f8The Combat talent tree has been reworked: your talents were reset for free.|r");
-    }
+    if (HasTalentTrees(CLASS_ROGUE) && player->GetSession() && !player->GetSession()->IsBot())
+        SetTalentSpecialization(player, COMBAT_TREE_ID);
 
     PlayerSettingVector settings(1);
     settings[ReworkVersionSetting].value = ReworkVersion;
@@ -447,35 +473,41 @@ void ApplyReworkTalentReset(Player* player)
 
 void OnCombatRogueLogin(Player* player)
 {
-    if (!IsRogue(player))
-        return;
-
-    for (uint32 spellId : LegacyTalentSpells)
-        if (player->HasSpell(spellId) && !player->HasTalent(spellId, player->GetActiveSpec()))
-            player->removeSpell(spellId, SPEC_MASK_ALL, false);
-
-    AnnounceLearned(player, LearnUnlockedAbilities(player));
-    ApplyReworkTalentReset(player);
+    // The talent trees load the specialization at login too: the first sync waits for it
+    if (IsRogue(player))
+        GetData(player).kitSyncTimer = 0;
 }
 
-void OnCombatRogueLevelChanged(Player* player, uint8 oldLevel)
+// Every second: the kit follows a change of specialization (the talent window, a spec slot swap)
+void UpdateCombatRogue(Player* player, uint32 diff)
 {
     if (!IsRogue(player))
         return;
 
-    if (player->GetLevel() < oldLevel)
+    RogueData& data = GetData(player);
+    if (data.kitSyncTimer > diff)
     {
-        for (AbilityUnlock const& unlock : AbilityUnlocks)
-            if (unlock.level > player->GetLevel() && player->HasSpell(unlock.spellId))
-                player->removeSpell(unlock.spellId, SPEC_MASK_ALL, false);
-        LearnUnlockedAbilities(player);
+        data.kitSyncTimer -= diff;
         return;
     }
+    data.kitSyncTimer = KitSyncIntervalMs;
 
-    if (player->GetLevel() <= oldLevel)
+    if (!SpecializationKnown(player))
+        return;
+    MigrateToTalentTrees(player);
+    SyncCombatKit(player);
+}
+
+void OnCombatRogueLevelChanged(Player* player, uint8 oldLevel)
+{
+    if (!IsRogue(player) || !SpecializationKnown(player))
         return;
 
-    AnnounceLearned(player, LearnUnlockedAbilities(player));
+    uint32 const learned = SyncCombatKit(player);
+    if (player->GetLevel() <= oldLevel || !IsCombatRogue(player))
+        return;
+
+    AnnounceLearned(player, learned);
 
     for (EvolutionMessage const& message : EvolutionMessages)
         if (oldLevel < uint8(message.evolution) && HasEvolution(player, message.evolution))
@@ -484,6 +516,6 @@ void OnCombatRogueLevelChanged(Player* player, uint8 oldLevel)
 
 void OnCombatRogueKill(Player* player, Unit* /*killed*/)
 {
-    if (IsRogue(player))
+    if (IsCombatRogue(player))
         OnKillingBlow(player);
 }

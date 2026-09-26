@@ -22,7 +22,7 @@ namespace
 Player* GetRogue(Unit* unit)
 {
     Player* player = unit ? unit->ToPlayer() : nullptr;
-    return IsRogue(player) ? player : nullptr;
+    return IsCombatRogue(player) ? player : nullptr;
 }
 
 void FilterByRadius(Player* player, std::list<WorldObject*>& targets, float radius)

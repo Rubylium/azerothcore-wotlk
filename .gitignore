@@ -19,6 +19,7 @@
 !/modules/mod-necromancer
 !/modules/mod-oathblade
 !/modules/mod-mage
+!/modules/mod-rogue
 /build*/
 # TACTTool's download cache of the game files, left at the root by the extractors
 /cache/

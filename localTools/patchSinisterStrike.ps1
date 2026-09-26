@@ -819,6 +819,9 @@ $customSpells += & ([ScriptBlock]::Create($oathbladeSpellSource))
 # The Mage on its retail-style talent trees (localTools/mage/talentTree.json): abilities, auras and talent ranks
 $mageSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\mage\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($mageSpellSource))
+# The Rogue on its retail-style talent trees (localTools/rogue/talentTree.json): abilities, auras and talent ranks
+$rogueSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\rogue\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($rogueSpellSource))
 
 # The Mage's reagents, gone: Arcane Powder (Arcane Brilliance, Dalaran Brilliance, Ritual of Refreshment), the Runes
 # of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class
@@ -1414,9 +1417,9 @@ function Get-SourceString([uint32]$offset) {
     return [Text.Encoding]::UTF8.GetString($source, $start, $end - $start)
 }
 
-$sinisterDescription = Add-DbcString $strings 'Strike for weapon damage, generating a combo point and 10 Energy (12 from level 20). Has a 25% chance to grant Opening (35% from level 50), and always grants it on a critical strike.'
-$eviscerateAppend = ' Deals 10% more damage, plus 5% per combo point. Grants Battle Tempo: 3% attack speed per combo point for 10 sec. Consumes up to 30 extra Energy to deal up to 50% more damage. From level 25, grants Opening at 5 combo points.'
-$sliceAndDiceAppend = ' Consumes up to 30 extra Energy to last up to 50% longer.'
+$sinisterDescription = Add-DbcString $strings 'Strike for weapon damage, generating a combo point. Combat: costs no Energy and generates 10 Energy (12 from level 20), with a 25% chance to grant Opening (35% from level 50), and always grants it on a critical strike.'
+$eviscerateAppend = ' Combat: deals 10% more damage, plus 5% per combo point. Grants Battle Tempo: 3% attack speed per combo point for 10 sec. Consumes up to 30 extra Energy to deal up to 50% more damage. From level 25, grants Opening at 5 combo points.'
+$sliceAndDiceAppend = ' Combat: consumes up to 30 extra Energy to last up to 50% longer.'
 $appendedDescriptions = @{}
 $foundSinister = [Collections.Generic.HashSet[uint32]]::new()
 $foundAppended = [Collections.Generic.HashSet[uint32]]::new()

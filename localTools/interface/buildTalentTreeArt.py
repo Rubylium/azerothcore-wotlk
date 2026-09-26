@@ -85,6 +85,8 @@ ANIMATIONS = {
 }
 MASKS = {'talents-node-circle-mask': 'circle', 'talents-node-choice-mask': 'choice'}
 BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw',
+               'rogue-assassination': 'talents-background-rogue-assassination',
+               'rogue-subtlety': 'talents-background-rogue-subtlety',
                'mage-arcane': 'talents-background-mage-arcane', 'mage-fire': 'talents-background-mage-fire',
                'mage-frost': 'talents-background-mage-frost'}
 # The specialization page's figures: the right of each spec's painting, from this fraction of its width
