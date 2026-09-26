@@ -26,7 +26,7 @@ $spells = @(
     # Assassinat's own passive: Cold Blood's cooldown 3 min -> 30 s (word 1 0x40), and the mark mod-rogue reads for the
     # spec's damage over time (Envenom spreading the bleeds, Fan of Knives' poisons, Virulence)
     @{ Id = 92192; Clone = 2983; Name = 'Maître des toxines'; IconPath = 'Interface\Icons\Ability_Rogue_DeviousPoisons'; FallbackIconSpell = 1329; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
-       Description = "Envenimer propage vos saignements, Déluge de lames empoisonne chaque ennemi touché, et chacune de vos afflictions augmente vos dégâts. Sang-froid : 30 s de recharge."
+       Description = "Rupture et Garrot infligent 150% de dégâts en plus. Envenimer et Tempête cramoisie propagent vos saignements, Déluge de lames empoisonne chaque ennemi touché et rapporte un point de combo par ennemi, et chacune de vos afflictions augmente vos dégâts. Sang-froid : 30 s de recharge."
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddFlatModifier; TargetA = 1; Value = -150000; Misc = $SPELLMOD_COOLDOWN })
        Fields = @{ 122 = 0; 123 = 0x40; 124 = 0; 208 = 8 } },
     # Finesse's own passive: Shadow Dance's cooldown 1 min -> 30 s (word 1 0x2000000)
@@ -84,7 +84,7 @@ $spells = @(
     # Tempête cramoisie: a finisher on the target (it spends the combo points there), a dummy mod-rogue turns into a slash
     # and a bleed on every enemy within 10 yd, longer with every combo point
     @{ Id = 92330; Clone = 48668; Name = 'Tempête cramoisie'; IconPath = 'Interface\Icons\Ability_Rogue_BloodSplatter'; FallbackIconSpell = 48672; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $assassination; ClassMask = $classMask
-       Description = "Coup de grâce qui entaille tous les ennemis à 10 m et les fait saigner pendant 2 s de plus par point de combo, jusqu'à 12 s."
+       Description = "Coup de grâce qui propage la Rupture et le Garrot de votre cible à tous les ennemis à 10 m, puis les entaille et les fait saigner pendant 2 s de plus par point de combo, jusqu'à 12 s."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
        Fields = @{ 209 = 0; 210 = 0; 211 = 0 } },
     # Its bleed: amount and length set by mod-rogue for the combo points spent; one tick every 2 s

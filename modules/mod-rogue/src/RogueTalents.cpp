@@ -18,6 +18,7 @@
 #include "UnitScript.h"
 
 #include <algorithm>
+#include <limits>
 #include <list>
 #include <vector>
 
@@ -115,8 +116,11 @@ constexpr uint8 ShurikenMaxPoints = 5;
 // The specs' area kits (Assassinat: bleeds and poisons everywhere; Finesse: Shuriken Storm, Black Powder, Secret
 // Technique). Amounts are shares of the rogue's attack power per combo point spent, so they grow with the character.
 constexpr float AreaRadius = 10.0f;
-constexpr float CrimsonTempestHitPerPoint = 0.03f;      // the slash on every enemy
-constexpr float CrimsonTempestBleedPerPoint = 0.06f;    // the whole bleed, over 2 s per point
+constexpr float CrimsonTempestHitPerPoint = 0.06f;      // the slash on every enemy
+constexpr float CrimsonTempestBleedPerPoint = 0.3f;     // the whole bleed, over 2 s per point
+// Assassinat lives on its bleeds: Rupture and Garrote deal this much more (WotLK's values were made for a tenth of
+// the attack power a character reaches here)
+constexpr int32 AssassinationBleedBonusPct = 150;
 constexpr uint32 CrimsonTempestTickMs = 2000;
 constexpr float BlackPowderPerPoint = 0.05f;
 constexpr uint32 BlackPowderFlatPerPoint = 80;
@@ -276,9 +280,15 @@ void PlaceBleed(Player* player, Unit* target, uint32 spellId, int32 amount, int3
                 effect->ChangeAmount(amount);
 }
 
+void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limit);
+
 // Tempête cramoisie: a slash and a bleed on every enemy around the rogue, the bleed longer with every point
-void CrimsonTempest(Player* player, uint8 comboPoints)
+void CrimsonTempest(Player* player, Unit* target, uint8 comboPoints)
 {
+    // The target's Rupture and Garrote go to everything around first, then the slash and its own bleed
+    if (target)
+        SpreadBleeds(player, target, player, std::numeric_limits<uint32>::max());
+
     int32 const durationMs = int32(2000 * (1 + comboPoints));
     uint32 const ticks = std::max<uint32>(1, uint32(durationMs) / CrimsonTempestTickMs);
     uint32 const hit = PerPoint(player, CrimsonTempestHitPerPoint, 0, comboPoints);
@@ -317,9 +327,9 @@ void SecretTechnique(Player* player, uint8 comboPoints)
         }, Milliseconds(300 * strike));
 }
 
-// Assassinat: Envenom carries the target's bleeds to the enemies around it that do not have them yet, with the time
-// and damage they have left there
-void SpreadBleeds(Player* player, Unit* target)
+// Assassinat: Envenom and Crimson Tempest carry the target's bleeds to the enemies around (around the target for
+// Envenom, around the rogue for Crimson Tempest) that do not have them yet, with the time and damage they have left
+void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limit)
 {
     struct Bleed
     {
@@ -337,9 +347,9 @@ void SpreadBleeds(Player* player, Unit* target)
     for (Bleed const& bleed : bleeds)
     {
         uint32 spread = 0;
-        for (Unit* enemy : EnemiesAround(player, target, AreaRadius))
+        for (Unit* enemy : EnemiesAround(player, center, AreaRadius))
         {
-            if (spread >= SpreadTargets)
+            if (spread >= limit)
                 break;
             if (enemy == target || enemy->HasAura(bleed.spellId, player->GetGUID()))
                 continue;
@@ -488,7 +498,7 @@ void OnFinisher(Player* player, SpellInfo const* spellInfo, Unit* target, uint8 
 
     // Assassinat: Envenom carries the bleeds to the enemies around
     if (target && HasFlag1(spellInfo, FLAG1_ENVENOM) && IsAssassination(player))
-        SpreadBleeds(player, target);
+        SpreadBleeds(player, target, target, SpreadTargets);
 }
 
 // Maître des armes: the strike again, a moment later (a triggered cast: no cost, and it does not roll again)
@@ -515,6 +525,8 @@ float DamageBonus(Player* player, Unit* target, SpellInfo const* spellInfo, bool
         percent += 30;
     if (autoAttack && player->HasAura(SPELL_SHADOW_BLADES))
         percent += 50;
+    if (HasFlag0(spellInfo, FLAG0_RUPTURE | FLAG0_GARROTE) && player->HasAura(SPELL_ASSASSINATION_PASSIVE))
+        percent += AssassinationBleedBonusPct;
     // Backstab from behind (it works from any side)
     if (HasFlag0(spellInfo, FLAG0_BACKSTAB) && !target->HasInArc(float(M_PI), player))
         percent += 20;
@@ -580,7 +592,7 @@ public:
                 return;
             case SPELL_CRIMSON_TEMPEST:
                 if (points)
-                    CrimsonTempest(player, points);
+                    CrimsonTempest(player, target, points);
                 break;
             case SPELL_BLACK_POWDER:
                 if (points)
