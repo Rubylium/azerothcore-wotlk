@@ -11,20 +11,29 @@
 -- borrowing it would relabel every heroic raid drop in the game.
 
 local GENERATED_ITEM_BASE = 0x10000     -- MythicDungeon.h, GeneratedItemBase
+local MYTHIC_VARIANTS = 128             -- MythicDungeon.h, GeneratedItemVariants
+local FORGE_RANKS = 8                   -- MythicDungeon.h, ForgeRanks: the Forge's ranks come after the variants
 
 local french = GetLocale() == "frFR"
 local TAG = french and "Mythique+" or "Mythic+"
+local FORGE_TAG = french and "Forgé %d/%d" or "Forged %d/%d"
 
 -- The same green the client uses for its own difficulty tag
 local TAG_R, TAG_G, TAG_B = 0.1, 1.0, 0.1
 
-local function IsMythicItem(link)
-    if not link then
-        return false
+-- The Mythic+ tag, or the Forge's rank (mod-forge), of a generated item: the block its id falls in says which
+local function TagOf(link)
+    local id = link and tonumber(link:match("item:(%d+)"))
+    if not id or id < GENERATED_ITEM_BASE then
+        return nil
     end
 
-    local id = tonumber(link:match("item:(%d+)"))
-    return id ~= nil and id >= GENERATED_ITEM_BASE
+    local block = floor(id / GENERATED_ITEM_BASE)
+    if block <= MYTHIC_VARIANTS then
+        return TAG, TAG_R, TAG_G, TAG_B
+    elseif block <= MYTHIC_VARIANTS + FORGE_RANKS then
+        return format(FORGE_TAG, block - MYTHIC_VARIANTS, FORGE_RANKS), 1, 0.62, 0.25
+    end
 end
 
 local function Tag(tooltip)
@@ -35,12 +44,13 @@ local function Tag(tooltip)
     end
 
     local _, link = tooltip:GetItem()
-    if not IsMythicItem(link) then
+    local text, r, g, b = TagOf(link)
+    if not text then
         return
     end
 
     tooltip.mythicTagged = true
-    tooltip:AddLine(TAG, TAG_R, TAG_G, TAG_B)
+    tooltip:AddLine(text, r, g, b)
     tooltip:Show()
 end
 

@@ -80,6 +80,39 @@ inline uint32 GetGeneratedVariant(uint32 itemLevel)
     uint32 const above = itemLevel > MaxItemLevel ? itemLevel - MaxItemLevel - 1 : 0;
     return std::min(above / ItemLevelPerKeyLevel, GeneratedItemVariants - 1);
 }
+
+// A Mythic+ variant (not an item of the Forge below)
+inline bool IsMythicGeneratedItem(uint32 entry)
+{
+    return entry >= GeneratedItemBase && entry / GeneratedItemBase <= GeneratedItemVariants;
+}
+
+// The Forge (mod-forge): a high-end item brought to the blacksmith comes back ForgeItemLevelPerRank item levels
+// higher, up to ForgeRanks times. Each rank of a real item is generated at startup too, right after the Mythic+
+// variants: entry = GeneratedItemBase * (GeneratedItemVariants + rank) + base entry. A Mythic+ variant needs no
+// entries of its own: forged, it becomes the next variant, as many item levels higher. The client extension draws
+// GeneratedItemBase * (GeneratedItemVariants + ForgeRanks + 1) - 1 entries; it must agree.
+constexpr uint32 ForgeRanks = 8;
+constexpr uint32 ForgeItemLevelPerRank = ItemLevelPerKeyLevel;
+
+inline uint32 GetForgeItemEntry(uint32 baseEntry, uint32 rank)
+{
+    return GeneratedItemBase * (GeneratedItemVariants + rank) + baseEntry;
+}
+
+// The rank of a forged real item, 0 for anything else
+inline uint32 GetForgeRank(uint32 entry)
+{
+    uint32 const block = entry / GeneratedItemBase;
+    return block > GeneratedItemVariants && block <= GeneratedItemVariants + ForgeRanks ?
+        block - GeneratedItemVariants : 0;
+}
+
+// The real item any generated one is a copy of
+inline uint32 GetBaseItemEntry(uint32 entry)
+{
+    return entry % GeneratedItemBase;
+}
 }
 
 #endif

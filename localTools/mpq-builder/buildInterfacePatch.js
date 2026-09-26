@@ -41,6 +41,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'TalentTreeData.lua', 'TalentTreeArt.lua', 'TalentTree.lua',
     // ParagonBoard.lua is the generated node table and must load before the frame that draws it
     'ParagonBoard.lua', 'Paragon.lua', 'Prestige.lua', 'ChallengeBoard.lua',
+    // The Forge's window (mod-forge)
+    'ItemForge.lua',
     // Loads after the CompactRaidFrame addon has run: it wraps that addon's UnitGetTotalAbsorbs
     'PestifereShield.lua',
     // Tags Mythic+ loot in its tooltip; needs GameTooltip, so it loads at the end of FrameXML
