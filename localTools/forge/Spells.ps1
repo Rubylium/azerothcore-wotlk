@@ -3,7 +3,8 @@
 #
 # Worn forged armour smoulders: the ranks forged on the armour and jewellery the character wears are counted (the
 # weapons glow on their own, their visible enchantment), and the more there are, the more the forge shows: embers at
-# the feet, then the hands, a molten heart, the head aflame, and at last the Avatar of the Forge, winged in gold.
+# the feet, then the hands, a molten heart, the head aflame, and at last the Avatar of the Forge, crackling with
+# lightning and struck by it every few seconds (Foudre de la forge, cast by mod-forge).
 # mod-forge keeps the one aura the count reaches.
 
 $spells = @(
@@ -32,6 +33,12 @@ $spells = @(
        AuraDescription = 'Au moins 104 rangs de forge sur vos armures et bijoux : le feu de la forge a fait de vous autre chose qu''un mortel.'
        Fields = @{ 40 = 21 }
        Visual = @{ Clone = 10141; Impact = 0; State = 'FORGE_Embers5' } },
+    # Foudre de la forge: the Avatar struck by lightning, a visual only (cast on itself by mod-forge every few seconds)
+    @{ Id = 92406; Clone = 2983; Name = 'Foudre de la forge'; IconPath = 'Interface\Icons\Spell_Nature_Lightning'; FallbackIconSpell = 403; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'La foudre de la forge frappe son avatar.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
+       Fields = @{ 40 = 0; 205 = 0; 206 = 0 }
+       Visual = @{ Clone = 406; Precast = 0; Cast = 'FORGE_Lightning'; Impact = 0 } },
     # The master smith's hammer on the anvil: a one-hand strike, molten sparks at the hammer, the clang of metal.
     # Cast by the smith on himself, three times while he forges a piece.
     @{ Id = 92403; Clone = 2983; Name = 'Coup de marteau'; IconPath = 'Interface\Icons\Trade_BlackSmithing'; FallbackIconSpell = 2018; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false

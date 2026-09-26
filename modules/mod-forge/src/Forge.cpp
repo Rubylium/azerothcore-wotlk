@@ -109,9 +109,15 @@ constexpr std::array<Embers, 5> EmberTiers = { {
     { 24, 92400 },      // embers at the feet
     { 48, 92401 },      // and in the hands
     { 72, 92402 },      // a molten heart and a ring of heat on the ground
-    { 88, 92404 },      // the head aflame, a column of heat rising
-    { 104, 92405 },     // Avatar of the Forge: golden wings and a pillar of light
+    { 88, 92404 },      // the head aflame
+    { 104, 92405 },     // Avatar of the Forge: lightning at the feet and in the hands
 } };
+
+// The Avatar of the Forge is struck by lightning every few seconds (a visual only), unless it is hiding
+constexpr uint32 SPELL_AVATAR_OF_THE_FORGE = 92405;
+constexpr uint32 SPELL_FORGE_LIGHTNING = 92406;
+constexpr uint32 LightningMinMs = 5000;
+constexpr uint32 LightningMaxMs = 9000;
 
 // A forged weapon glows more with every rank: the look of a stock enchantment, shown in the visible item's temporary
 // enchantment (a real temporary enchantment, a poison or an oil, keeps its own). Sharpened's shine, Fiery Weapon's
@@ -168,6 +174,7 @@ struct ForgeState : public DataMap::Base
     uint64 spent = 0;           // copper paid to the smith, in all
     ObjectGuid smith;           // the smith the window was opened at
     uint32 visualTimer = 0;
+    uint32 lightningTimer = LightningMinMs;
 };
 
 constexpr char const* StateKey = "ForgeState";
@@ -576,6 +583,16 @@ public:
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         ForgeState* state = GetState(player);
+        if (state->lightningTimer > diff)
+            state->lightningTimer -= diff;
+        else
+        {
+            state->lightningTimer = urand(LightningMinMs, LightningMaxMs);
+            if (player->HasAura(SPELL_AVATAR_OF_THE_FORGE) && player->IsAlive() && !player->IsInFlight() &&
+                !player->HasStealthAura() && !player->HasInvisibilityAura())
+                player->CastSpell(player, SPELL_FORGE_LIGHTNING, true);
+        }
+
         if (state->visualTimer > diff)
         {
             state->visualTimer -= diff;

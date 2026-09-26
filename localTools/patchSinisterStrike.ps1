@@ -1010,10 +1010,15 @@ $customVisualKits = @(
     @{ Key = 'FORGE_Embers2'; Clone = 8607; Fields = @{ 6 = 3899; 7 = 3899; 15 = 0 } }
     # Molten heart (Fire Reflection's chest glow) over Retribution Aura's red ring, embers in the hands
     @{ Key = 'FORGE_Embers3'; Clone = 8607; Fields = @{ 4 = 2862; 5 = 593; 6 = 3899; 7 = 3899; 15 = 0 } }
-    # The head aflame (Molten Armor's) and a tall red column of heat
-    @{ Key = 'FORGE_Embers4'; Clone = 8607; Fields = @{ 3 = 3100; 4 = 2862; 5 = 4010; 6 = 3899; 7 = 3899; 15 = 0 } }
-    # Avatar of the Forge: golden wings (Avenging Wrath's), a very tall pillar of golden light, the head aflame
-    @{ Key = 'FORGE_Embers5'; Clone = 8607; Fields = @{ 3 = 3100; 4 = 3146; 5 = 5181; 6 = 3899; 7 = 3899; 15 = 0 } }
+    # The head aflame (Molten Armor's) over the molten heart and the ring of heat
+    @{ Key = 'FORGE_Embers4'; Clone = 8607; Fields = @{ 3 = 3100; 4 = 2862; 5 = 593; 6 = 3899; 7 = 3899; 15 = 0 } }
+    # Avatar of the Forge: the head aflame and the molten heart, Lightning Shield's charges circling low at the feet
+    # (4245, its low version) and lightning crackling in both hands, where the weapons are. Nothing rises above the
+    # character: the tall pillar of light and the wings it had filled the screen. Every few seconds mod-forge strikes
+    # it with lightning (FORGE_Lightning).
+    @{ Key = 'FORGE_Embers5'; Clone = 8607; Fields = @{ 3 = 3100; 4 = 2862; 5 = 4245; 6 = 88; 7 = 88; 15 = 0 } }
+    # The Avatar's lightning: Lightning Bolt's strike on the chest and Lightning Shield's discharge at the feet, silent
+    @{ Key = 'FORGE_Lightning'; Clone = 556; Fields = @{ 2 = 0; 4 = 281; 5 = 173; 7 = 0; 15 = 0 } }
     # The master smith's hammer on the anvil: the capitals' smiths' own anvil work (animation 136, the one emote 233
     # loops), Fire Blast's molten burst at the hammer hand, and Sunder Armor's clang of metal (no chest effect)
     @{ Key = 'FORGE_Strike'; Clone = 556; Fields = @{ 2 = 136; 4 = 0; 7 = 321 } }
