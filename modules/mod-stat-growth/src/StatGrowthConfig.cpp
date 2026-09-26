@@ -88,9 +88,9 @@ void StatGrowthConfig::BuildConfigCache()
         "StatGrowth.MythicEssenceBonusPerKeyLevel", 10.0f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled, "Paragon.Enabled", true, Reloadable::Yes);
-    SetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap, "Paragon.PointCap", 100, Reloadable::Yes,
+    SetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap, "Paragon.PointCap", 10, Reloadable::Yes,
         [](uint32 value) { return value > 0; }, "greater than zero");
-    SetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige, "Paragon.PointsPerPrestige", 50,
+    SetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige, "Paragon.PointsPerPrestige", 10,
         Reloadable::Yes, [](uint32) { return true; }, "zero or more");
     SetConfigValue<float>(StatGrowthConfigKey::ParagonNormalChance, "Paragon.NormalBossChance", 3.0f,
         Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");

@@ -166,6 +166,7 @@ struct ParagonState : public DataMap::Base
     uint32 prestige = 0;                    // how many times this character has reset; each one raises the cap
     std::unordered_set<uint32> allocated;   // paid-for nodes only; free ones are never stored
     bool applied = false;
+    bool overCapReset = false;              // the allocation was over the cap at login and was refunded
     std::vector<ParagonProc> procs;         // from the allocated nodes, rebuilt when they change
     std::vector<ParagonBuff> buffs;         // currently running
 
@@ -767,6 +768,15 @@ void LoadParagonForPlayer(Player* player)
             if (Board.count(nodeId))
                 state->allocated.insert(nodeId);
         } while (result->NextRow());
+
+    // More spent than the cap now allows (the cap was lowered): the whole board is handed back, to be spent again up
+    // to the cap. Nothing earned is lost; what is past the cap stays banked for the next prestiges.
+    if (state->allocated.size() > PointCap(state))
+    {
+        state->allocated.clear();
+        state->overCapReset = true;
+        CharacterDatabase.Execute("DELETE FROM character_paragon WHERE guid = {}", guid);
+    }
 }
 
 void ForgetParagonForPlayer(Player* player)
@@ -794,6 +804,17 @@ void ApplyStoredParagon(Player* player)
     RebuildProcs(state);
     state->applied = true;
     player->UpdateMaxHealth();
+
+    if (state->overCapReset)
+    {
+        state->overCapReset = false;
+        ChatHandler(player->GetSession()).PSendSysMessage(IsFrench(player)
+            ? "|cffa335ee[Parangon]|r Le plafond de points a changé ({} points, +10 par prestige) : votre tableau a été "
+              "réinitialisé gratuitement. Vos points gagnés restent acquis ; ceux au-delà du plafond attendent vos "
+              "prochains prestiges."
+            : "|cffa335ee[Paragon]|r The point cap changed ({} points, +10 per prestige): your board was reset for free. "
+              "Your earned points are kept; those past the cap wait for your next prestiges.", PointCap(state));
+    }
 }
 
 void ApplyBotParagon(Player* bot)

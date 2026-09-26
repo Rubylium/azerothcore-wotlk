@@ -142,11 +142,11 @@ Paragon.Enabled = 1
 # paragon levels from experience at the level cap) and
 # are banked, appearing the moment the cap is raised, so a drop at cap is never
 # wasted.
-Paragon.PointCap = 100
+Paragon.PointCap = 10
 
 # Added to Paragon.PointCap for each prestige. Points already earned past the old cap become
 # spendable as soon as the cap moves.
-Paragon.PointsPerPrestige = 50
+Paragon.PointsPerPrestige = 10
 
 # Chance, in percent, that a boss kill awards a point. Rolled per player, so
 # nobody competes with their own group for it. Trash never awards one: a long
