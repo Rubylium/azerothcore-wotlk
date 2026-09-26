@@ -57,7 +57,7 @@ local TEXT = french and {
     gain = "Vous gagnez",
     keep = "Vous conservez",
     lose = "Vous perdez",
-    gains = { "+%d au plafond de parangon", "+5 points de parangon", "Des éclats à chaque niveau", "Des héritages à acheter" },
+    gains = { "+%d au plafond de parangon", "+%d points de parangon", "Des éclats à chaque niveau", "Des héritages à acheter" },
     keeps = { "Essences", "Tableau de parangon", "Quêtes, réputation, or", "Métiers et montures", "Héritages équipés" },
     loses = { "Niveau ramené à 1", "Sorts au-dessus du niveau 1", "Spécialisations et glyphes", "Équipement de haut niveau" },
     ready = "Vous êtes au niveau maximum.",
@@ -99,7 +99,7 @@ local TEXT = french and {
     gain = "You gain",
     keep = "You keep",
     lose = "You lose",
-    gains = { "+%d paragon cap", "+5 paragon points", "Shards at every level", "Heirlooms to buy" },
+    gains = { "+%d paragon cap", "+%d paragon points", "Shards at every level", "Heirlooms to buy" },
     keeps = { "Essences", "Paragon board", "Quests, reputation, gold", "Professions and mounts", "Equipped heirlooms" },
     loses = { "Level back to 1", "Spells above level 1", "Specializations and glyphs", "High-level gear" },
     ready = "You are at the maximum level.",
@@ -126,7 +126,7 @@ local TEXT = french and {
 
 -- What the server last said
 local state = {
-    prestige = 0, cap = 50, nextCap = 60, earned = 0, spent = 0, level = 1, can = 0, reason = 1,
+    prestige = 0, cap = 50, nextCap = 60, earned = 0, spent = 0, level = 1, can = 0, reason = 1, reward = 10,
     shards = 0, killProgress = 0, killsPerShard = 20, perLevel = 10, runBonus = 150,
     offers = {},
     pending = false, confirming = false, suppressCloseSound = false,
@@ -946,6 +946,7 @@ local function Refresh()
         ui.capText:SetPoint("CENTER", ui.capArrow, "CENTER", 0, 1)
     end
     ui.gainColumn.rows[1]:SetFormattedText(TEXT.gains[1], max(0, state.nextCap - state.cap))
+    ui.gainColumn.rows[2]:SetFormattedText(TEXT.gains[2], state.reward)
 
     local allowed = state.can == 1 and not state.pending
     if allowed then
@@ -1159,12 +1160,13 @@ local function Handle(message)
     if not command then return end
 
     if command == "STATE" then
-        local prestige, cap, nextCap, earned, spent, level, can, reason =
-            rest:match("^(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)$")
+        local prestige, cap, nextCap, earned, spent, level, can, reason, reward =
+            rest:match("^(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t?(%d*)$")
         if not prestige then return end
         state.prestige, state.cap, state.nextCap = tonumber(prestige), tonumber(cap), tonumber(nextCap)
         state.earned, state.spent, state.level = tonumber(earned), tonumber(spent), tonumber(level)
         state.can, state.reason = tonumber(can), tonumber(reason)
+        state.reward = tonumber(reward) or state.reward
         state.pending = false
         Open()
         return

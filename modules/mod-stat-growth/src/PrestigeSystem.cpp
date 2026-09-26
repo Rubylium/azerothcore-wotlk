@@ -76,6 +76,17 @@ PrestigeBlock BlockReason(Player* player)
     return PrestigeBlock::None;
 }
 
+// Paragon points handed over for the run that got the character to a prestige, on top of anything it banked: 10 for
+// the first, 5 for the second, 3 for every one after
+uint32 PrestigeParagonReward(uint32 prestige)
+{
+    if (prestige <= 1)
+        return 10;
+    if (prestige == 2)
+        return 5;
+    return 3;
+}
+
 void SendState(Player* player)
 {
     uint32 const prestige = GetParagonPrestige(player);
@@ -83,9 +94,10 @@ void SendState(Player* player)
     uint32 const per = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige);
     uint32 const nextCap = per > (std::numeric_limits<uint32>::max() - cap) ? cap : cap + per;
     PrestigeBlock const block = BlockReason(player);
-    Send(player, Acore::StringFormat("STATE\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+    Send(player, Acore::StringFormat("STATE\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
         prestige, cap, nextCap, GetParagonEarned(player), GetParagonSpent(player),
-        player->GetLevel(), block == PrestigeBlock::None ? 1 : 0, static_cast<uint8>(block)));
+        player->GetLevel(), block == PrestigeBlock::None ? 1 : 0, static_cast<uint8>(block),
+        PrestigeParagonReward(prestige + 1)));
 }
 
 bool ShouldStrip(Item const* item)
@@ -264,9 +276,6 @@ void Announce(Player* player, uint32 cap, uint32 available, uint32 mailed)
             : "|cff888888Gear that did not fit in your bags was sent to your mailbox.|r");
 }
 
-// Paragon points handed over for the run that got the character here, on top of anything it banked.
-constexpr uint32 PRESTIGE_PARAGON_REWARD = 5;
-
 bool PerformPrestige(Player* player)
 {
     if (BlockReason(player) != PrestigeBlock::None)
@@ -297,7 +306,7 @@ bool PerformPrestige(Player* player)
     player->UpdateAllStats();
 
     // Paid before the numbers below are read, so the frame and the message that follow already count them
-    AwardParagonPoints(player, PRESTIGE_PARAGON_REWARD, "prestige");
+    AwardParagonPoints(player, PrestigeParagonReward(GetParagonPrestige(player)), "prestige");
 
     uint32 const cap = GetParagonPointCap(player);
     uint32 const earned = GetParagonEarned(player);

@@ -809,11 +809,12 @@ void ApplyStoredParagon(Player* player)
     {
         state->overCapReset = false;
         ChatHandler(player->GetSession()).PSendSysMessage(IsFrench(player)
-            ? "|cffa335ee[Parangon]|r Le plafond de points a changé ({} points, +10 par prestige) : votre tableau a été "
+            ? "|cffa335ee[Parangon]|r Le plafond de points a changé ({} points, +{} par prestige) : votre tableau a été "
               "réinitialisé gratuitement. Vos points gagnés restent acquis ; ceux au-delà du plafond attendent vos "
               "prochains prestiges."
-            : "|cffa335ee[Paragon]|r The point cap changed ({} points, +10 per prestige): your board was reset for free. "
-              "Your earned points are kept; those past the cap wait for your next prestiges.", PointCap(state));
+            : "|cffa335ee[Paragon]|r The point cap changed ({} points, +{} per prestige): your board was reset for free. "
+              "Your earned points are kept; those past the cap wait for your next prestiges.", PointCap(state),
+            statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige));
     }
 }
 

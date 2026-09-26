@@ -146,7 +146,7 @@ Paragon.PointCap = 10
 
 # Added to Paragon.PointCap for each prestige. Points already earned past the old cap become
 # spendable as soon as the cap moves.
-Paragon.PointsPerPrestige = 10
+Paragon.PointsPerPrestige = 20
 
 # Chance, in percent, that a boss kill awards a point. Rolled per player, so
 # nobody competes with their own group for it. Trash never awards one: a long
