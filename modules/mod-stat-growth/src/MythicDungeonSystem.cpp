@@ -336,7 +336,8 @@ void MailMythicItem(Player* player, ItemTemplate const* itemTemplate)
 // items it is the generated variant of that item level (MythicItemGeneration.cpp) of a best item.
 void GiveMythicItem(Player* player, uint32 itemLevel)
 {
-    ItemTemplate const* itemTemplate = SelectMythicLootItem(player, std::min(itemLevel, Mythic::MaxItemLevel));
+    ItemTemplate const* itemTemplate = SelectMythicLootItem(player, std::min(itemLevel, Mythic::MaxItemLevel),
+        itemLevel > Mythic::MaxItemLevel ? Mythic::GetGeneratedItemLevel(Mythic::GetGeneratedVariant(itemLevel)) : 0);
     if (itemTemplate && itemLevel > Mythic::MaxItemLevel)
         if (ItemTemplate const* generated = sObjectMgr->GetItemTemplate(
                 Mythic::GetGeneratedItemEntry(itemTemplate->ItemId, Mythic::GetGeneratedVariant(itemLevel))))

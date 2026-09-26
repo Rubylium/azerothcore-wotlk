@@ -9,6 +9,6 @@ struct ItemTemplate;
 struct LootItem;
 
 void ImproveBaseEquipmentLoot(Player* player, Creature* killed);
-ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel);
+ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint32 givenItemLevel = 0);
 
 #endif

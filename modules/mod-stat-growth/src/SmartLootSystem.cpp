@@ -386,15 +386,23 @@ bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& can
     return !IsInCorpseLoot(loot, candidate.ItemId) && !player->HasItemCount(candidate.ItemId, 1, true);
 }
 
-int32 ScoreCandidate(Player* player, ItemTemplate const& candidate, uint32 progressionLevel)
+// The raw stat score grows with the slot's stat budget (a two-hander or a chest scores several times a ring), so
+// counted as it is it would pick the big slots whatever the player wears there. Scaled down to a tie-breaker between
+// items of about the same upgrade: the slot the player most needs to replace is decided by the item level gap.
+constexpr int32 StatScoreDivisor = 20;
+
+// `givenItemLevel`: the item level the player will actually get (a Mythic+ reward above the game's best items is
+// the generated variant of the candidate, not the candidate itself); the candidate's own when 0
+int32 ScoreCandidate(Player* player, ItemTemplate const& candidate, uint32 progressionLevel, uint32 givenItemLevel = 0)
 {
     uint32 const equippedItemLevel = GetWeakestEquippedItemLevel(player, candidate);
-    int32 const upgrade = static_cast<int32>(candidate.ItemLevel) - static_cast<int32>(equippedItemLevel);
+    uint32 const itemLevel = givenItemLevel ? givenItemLevel : candidate.ItemLevel;
+    int32 const upgrade = static_cast<int32>(itemLevel) - static_cast<int32>(equippedItemLevel);
     int32 const missingSlotBonus = equippedItemLevel == 0 ? 1200 : 0;
     int32 const levelFit = 40 - static_cast<int32>(std::abs(
         static_cast<int32>(progressionLevel) - static_cast<int32>(candidate.RequiredLevel))) * 5;
     return missingSlotBonus + upgrade * 45 + static_cast<int32>(candidate.Quality) * 80 +
-        levelFit + GetClassStatScore(candidate, player);
+        levelFit + GetClassStatScore(candidate, player) / StatScoreDivisor;
 }
 
 // Upgrades only, unless `anyFit`: then anything usable, for a drop the owner could not use at all
@@ -511,15 +519,17 @@ void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
 
 // A mythic boss gives each real player one epic of the run's item level, fitted to their class the same way as
 // Smart Loot replacements, from just below that item level (wider when the game has no items there, as between
-// raid tiers). Upgrades over what they wear come first, but a player whose gear is already better still gets
-// something of the right item level.
-ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel)
+// raid tiers). `givenItemLevel` is what the player really gets (above the game's best items, the generated variant
+// of the pick). Upgrades over what they wear come first - measured against that item level, so a slot already at
+// it is not one - but a player whose gear is already better everywhere still gets something of the right item level.
+ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint32 givenItemLevel)
 {
     if (!player)
         return nullptr;
 
     BuildEquipmentCatalog();
     uint32 const progressionLevel = player->GetLevel();
+    uint32 const given = givenItemLevel;
     std::vector<SmartLootCandidate> candidates;
     for (uint32 window : { ReplacementItemLevelWindow, 13u, 26u })
     {
@@ -537,7 +547,7 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel)
                 player->HasItemCount(candidate->ItemId, 1, true))
                 continue;
 
-            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel) });
+            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel, given) });
         }
 
         if (!candidates.empty())
@@ -546,6 +556,16 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel)
 
     if (candidates.empty())
         return nullptr;
+
+    // Only upgrades, when there is any: the top of the pool below is drawn at random, and without this a slot
+    // already at the run's item level could still be drawn beside the ones that need it
+    std::vector<SmartLootCandidate> upgrades;
+    for (SmartLootCandidate const& candidate : candidates)
+        if (GetWeakestEquippedItemLevel(player, *candidate.itemTemplate) <
+            (given ? given : candidate.itemTemplate->ItemLevel))
+            upgrades.push_back(candidate);
+    if (!upgrades.empty())
+        candidates.swap(upgrades);
 
     std::sort(candidates.begin(), candidates.end(), [](SmartLootCandidate const& left, SmartLootCandidate const& right)
     {
