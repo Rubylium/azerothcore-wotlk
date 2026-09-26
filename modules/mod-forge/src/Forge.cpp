@@ -51,9 +51,11 @@ constexpr uint32 MinItemLevel = 200;
 constexpr float StatGrowthExponent = 2.0f;
 
 // The blacksmith's price, in gold: GoldAtBaseLevel for the first rank of an item level 200 piece, growing with the
-// square of the item level and by half again with every rank already forged
-constexpr float GoldAtBaseLevel = 30.0f;
-constexpr float GoldPerRank = 0.5f;
+// cube of the item level and RankGrowth times with every rank already forged. Steep on purpose: essences boost the
+// gold the game gives, and the last ranks of a piece are meant to be a real sink (a 264 piece: about 230 gold for
+// its first rank, 12 800 for its last, 29 000 in all).
+constexpr float GoldAtBaseLevel = 100.0f;
+constexpr float RankGrowth = 1.7f;
 
 enum ForgeError : uint8
 {
@@ -157,7 +159,7 @@ Optional<ForgeStep> GetStep(Item const* item)
 uint32 GetCost(ItemTemplate const* proto, uint32 rank)
 {
     float const level = static_cast<float>(proto->ItemLevel) / static_cast<float>(MinItemLevel);
-    float const gold = GoldAtBaseLevel * level * level * (1.0f + GoldPerRank * static_cast<float>(rank));
+    float const gold = GoldAtBaseLevel * level * level * level * std::pow(RankGrowth, static_cast<float>(rank));
     return static_cast<uint32>(std::lround(gold)) * GOLD;
 }
 
