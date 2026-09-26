@@ -21,6 +21,7 @@
 #include "TemporarySummon.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <mutex>
 #include <vector>
@@ -1049,6 +1050,17 @@ float HazardRadius(Aura const* aura, Unit* owner)
     return radius;
 }
 
+// Auras a creature is given before it is in the world (its template's auras, Ingvar's Shadow Axe) cannot be drawn
+// then: they are drawn on its first update in the world. The count lets every other creature's update skip the check.
+constexpr char const* PendingHazardKey = "GroundIndicatorPendingHazards";
+struct PendingHazards : DataMap::Base
+{
+    std::vector<uint32> auras;
+};
+std::atomic<uint32> PendingHazardCreatures{ 0 };
+
+void ShowHazard(Creature* creature, Aura* aura);
+
 class GroundIndicatorUnitScript : public UnitScript
 {
 public:
@@ -1059,7 +1071,27 @@ public:
     {
         Creature* creature = unit ? unit->ToCreature() : nullptr;
         if (!creature || !aura || IsCarriedSpell(aura->GetId()) || !creature->IsAlive() ||
-            IsPlayerControlled(creature) || !InIndicatorMap(creature))
+            IsPlayerControlled(creature))
+            return;
+
+        if (!creature->IsInWorld())
+        {
+            PendingHazards* pending = creature->CustomData.GetDefault<PendingHazards>(PendingHazardKey);
+            if (pending->auras.empty())
+                ++PendingHazardCreatures;
+            pending->auras.push_back(aura->GetId());
+            return;
+        }
+        ShowHazard(creature, aura);
+    }
+
+    void OnAuraRemove(Unit* unit, AuraApplication* aurApp, AuraRemoveMode mode) override;
+};
+
+void ShowHazard(Creature* creature, Aura* aura)
+{
+    {
+        if (!InIndicatorMap(creature))
             return;
 
         // A hazard of the players' foes: its own, or put on it by one of them (a boss arming a trigger). Never an aura
@@ -1087,8 +1119,10 @@ public:
         hazards->circles.push_back({ aura->GetId(), carried, Register(creature, creature,
             MakeArea(GroundIndicators::Area::Kind::Circle, *creature, 0.0f, drawnRadius), durationMs) });
     }
+}
 
-    void OnAuraRemove(Unit* unit, AuraApplication* aurApp, AuraRemoveMode /*mode*/) override
+void GroundIndicatorUnitScript::OnAuraRemove(Unit* unit, AuraApplication* aurApp, AuraRemoveMode /*mode*/)
+{
     {
         if (!unit || !aurApp || !unit->IsCreature())
             return;
@@ -1107,6 +1141,30 @@ public:
         hazards->circles.erase(circle);
         Unregister(removed.areaId);
         unit->RemoveAurasDueToSpell(removed.carriedAura);
+    }
+}
+
+class GroundIndicatorCreatureScript : public AllCreatureScript
+{
+public:
+    GroundIndicatorCreatureScript() : AllCreatureScript("GroundIndicatorCreatureScript") { }
+
+    void OnAllCreatureUpdate(Creature* creature, uint32 /*diff*/) override
+    {
+        if (!PendingHazardCreatures.load(std::memory_order_relaxed) || !creature->IsInWorld())
+            return;
+        PendingHazards* pending = creature->CustomData.Get<PendingHazards>(PendingHazardKey);
+        if (!pending || pending->auras.empty())
+            return;
+
+        std::vector<uint32> const auras = std::move(pending->auras);
+        pending->auras.clear();
+        --PendingHazardCreatures;
+        if (!creature->IsAlive())
+            return;
+        for (uint32 auraId : auras)
+            if (Aura* aura = creature->GetAura(auraId))
+                ShowHazard(creature, aura);
     }
 };
 
@@ -1231,6 +1289,7 @@ void AddGroundIndicatorScripts()
 {
     new GroundIndicatorSpellScript();
     new GroundIndicatorUnitScript();
+    new GroundIndicatorCreatureScript();
     new GroundIndicatorDynamicObjectScript();
     new GroundIndicatorCommandScript();
 }

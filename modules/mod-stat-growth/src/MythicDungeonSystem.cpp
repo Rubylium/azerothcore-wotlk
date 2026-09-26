@@ -105,12 +105,14 @@ constexpr float BossHealthModifierFloor = 20.0f;
 constexpr float MaxSpellLevelFactor = 10.0f;
 constexpr float MaxTbcSpellLevelFactor = 1.25f;
 constexpr uint8 MinSpellScalingLevel = 10;
+// A spell whose points per level keep growing at least this far counts as levelling itself (IsSelfLevelling)
+constexpr uint32 SelfLevellingMinLevel = 60;
 
 // How long anything killed in a mythic instance stays dead: longer than any run, so a cleared room stays cleared
 constexpr uint32 MythicRespawnDelay = 2 * HOUR;
 
-// A player's pet, totem or guardian. A creature's own guardians (VanCleef's allies, the engineers' golems) fight for the
-// dungeon and grow with it; they used to be skipped as if a player owned them and stayed at their classic level.
+// A player's pet, totem or guardian. A creature's own guardians (VanCleef's allies, the engineers' golems) fight for
+// the dungeon and grow with it; they used to be skipped as if a player owned them and stayed at their classic level.
 bool IsPlayerControlled(Creature const* creature)
 {
     return creature->GetCharmerOrOwnerGUID().IsPlayer();
@@ -168,6 +170,10 @@ bool IsSelfLevelling(SpellInfo const* spellInfo)
         return false;
     if (spellInfo->HasAttribute(SPELL_ATTR0_SCALES_WITH_CREATURE_LEVEL))
         return true;
+    // Points per level stop growing at the spell's maximum level: one that stops early (Fire Blast at 27) has barely
+    // caught up, and still needs ours
+    if (spellInfo->MaxLevel && spellInfo->MaxLevel < SelfLevellingMinLevel)
+        return false;
     for (SpellEffectInfo const& effect : spellInfo->Effects)
         if (effect.RealPointsPerLevel > 0.0f)
             return true;
