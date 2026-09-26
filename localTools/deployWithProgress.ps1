@@ -657,6 +657,8 @@ function Start-Step($step) {
     $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "`"$command`"")
     $script:process = Start-Process -FilePath 'powershell.exe' -ArgumentList $arguments -WorkingDirectory $repoRoot `
         -RedirectStandardOutput $step.Log -RedirectStandardError "$($step.Log).err" -WindowStyle Hidden -PassThru
+    # Without its handle taken now, a process started this way reports no exit code once it has exited
+    $null = $script:process.Handle
 }
 
 function Save-History($step) {
