@@ -73,6 +73,10 @@ constexpr uint32 MaxLeechPct = 50;
 // It stays a small bonus; the nodes past it scale with the character's own damage instead (KillStreak, Splash).
 constexpr uint32 MaxExplosionPct = 15;
 constexpr uint32 MaxSplashTargets = 4;
+// A reflected hit is a share of what the mob dealt, and a mob at a high key deals far more than any character does:
+// uncapped, a tank sent a whole pull's damage back several times over. Each reflection is held to a share of the
+// character's own maximum health, which grows with the character and not with the key.
+constexpr uint32 MaxRetaliateHealthPct = 4;
 
 // Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows a little each
 // level, so the first few come quickly and the hundredth is a commitment.
@@ -1025,7 +1029,8 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
             case ParagonEffect::RetaliateOnHit:
                 if (!DealingProcDamage && roll_chance_f(proc.chance) && attacker->IsAlive())
                     QueueHit(state, attacker, SPELL_PARAGON_RETALIATE,
-                        std::max<uint64>(1, uint64(damage) * proc.value / 100), SPELL_SCHOOL_MASK_HOLY);
+                        std::clamp<uint64>(uint64(damage) * proc.value / 100, 1,
+                            uint64(player->GetMaxHealth()) * MaxRetaliateHealthPct / 100), SPELL_SCHOOL_MASK_HOLY);
                 break;
 
             case ParagonEffect::LastStand:

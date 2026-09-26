@@ -225,7 +225,8 @@ def describe(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0):
     if effect == E_SURGE:
         return "Tuer un ennemi octroie %d en puissance d'attaque et des sorts pendant %d s." % (value, seconds)
     if effect == E_RETALIATE:
-        return "%d%% de chances quand vous êtes touché de renvoyer %d%% des dégâts à l'attaquant." % (chance, value)
+        return ("%d%% de chances quand vous êtes touché de renvoyer %d%% des dégâts à l'attaquant, au plus 4%% de "
+                "vos points de vie maximum." % (chance, value))
     if effect == E_GUARD:
         return ("%d%% de chances quand vous êtes touché d'augmenter votre armure de %d%% pendant %d s."
                 % (chance, value, seconds))

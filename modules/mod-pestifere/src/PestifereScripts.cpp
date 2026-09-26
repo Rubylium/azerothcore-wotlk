@@ -105,6 +105,10 @@ constexpr uint32 PURGE_HEAL_PCT_PER_PLAGUE = 12;
 
 // Sépulcre (90268): % of each hit held back and dealt later by the stored plague
 constexpr uint32 SEPULCRE_HELD_PCT = 50;
+// What an enemy handed Sépulcre's plague owes at most, x attack power. The carrier's debt is what the mobs dealt, which
+// grows with the key, and every enemy Contagion reaches got a full copy of it: on a high Mythic+ pull that was the
+// whole pull's damage dealt again to each mob. Capped, it scales with the Pestiféré instead.
+constexpr float SEPULCRE_ENEMY_AP_CAP = 1.0f;
 
 // Pourriture (90205) and the enemy Peste virulente (90222): their 3 sec ticks deal a share of the target's maximum
 // health, per stack for Pourriture, so they scale with whatever they rot. On a huge health pool (a boss) a tick is
@@ -430,7 +434,8 @@ SpreadResult SpreadPlagues(Player* caster, Unit* enemy)
         if (PestifereSepulcreStoredAuraScript* copy =
             GetSepulcrePlague(caster->AddAura(SPELL_SEPULCRE_STORED_ENEMY, enemy)))
         {
-            copy->SetOwed(owed);
+            copy->SetOwed(std::min(owed,
+                uint32(caster->GetTotalAttackPowerValue(BASE_ATTACK) * SEPULCRE_ENEMY_AP_CAP)));
             ++result.applied;
         }
         else
