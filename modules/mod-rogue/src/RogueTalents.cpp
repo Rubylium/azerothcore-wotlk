@@ -579,9 +579,14 @@ public:
                 if (uint8 const comboPoints = player->GetComboPoints())
                     SecretTechnique(player, comboPoints);
                 break;
+            case SPELL_FAN_OF_KNIVES:
+                if (!IsAssassination(player))
+                    break;
+                [[fallthrough]];
             case SPELL_SHURIKEN_STORM:
             {
-                // Its combo points go on the rogue's target when it has one, else on the first enemy hit
+                // Its combo points go on the rogue's target when it has one, else on the first enemy hit (Fan of
+                // Knives too, in Assassination: in WotLK it gave none, and a pack never reached a finisher)
                 Unit* selected = player->GetSelectedUnit();
                 state->shurikenTarget = selected && player->IsValidAttackTarget(selected) ? selected->GetGUID() :
                     ObjectGuid::Empty;
@@ -731,7 +736,8 @@ public:
         player->RemoveSpellCooldown(SPELL_MARKED_FOR_DEATH, true);
     }
 
-    // Tempête de shurikens: a combo point per enemy hit, on one target; Terreurs nocturnes slows each
+    // Tempête de shurikens (and Fan of Knives in Assassination): a combo point per enemy hit, on one target;
+    // Terreurs nocturnes slows each
     void OnSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 /*damage*/,
                            bool /*critical*/) override
     {
@@ -739,15 +745,13 @@ public:
         if (!player || !victim || !spellInfo)
             return;
 
-        if (spellInfo->Id == SPELL_FAN_OF_KNIVES && victim->IsAlive() && IsAssassination(player))
-        {
+        bool const fan = spellInfo->Id == SPELL_FAN_OF_KNIVES && IsAssassination(player);
+        if (fan && victim->IsAlive())
             PoisonFromWeapons(player, victim);
-            return;
-        }
-        if (spellInfo->Id != SPELL_SHURIKEN_STORM)
+        if (spellInfo->Id != SPELL_SHURIKEN_STORM && !fan)
             return;
 
-        if (player->HasAura(TALENT_NIGHT_TERRORS))
+        if (!fan && player->HasAura(TALENT_NIGHT_TERRORS))
             player->AddAura(SPELL_NIGHT_TERRORS, victim);
 
         RogueState* state = GetState(player);
