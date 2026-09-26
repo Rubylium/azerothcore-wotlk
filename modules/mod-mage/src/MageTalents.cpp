@@ -91,6 +91,8 @@ enum Spells : uint32
     SPELL_COMET_STORM           = 92130,
     SPELL_COMET_IMPACT          = 92131,
     SPELL_ARCANE_AVATAR         = 92133,
+    SPELL_HOT_STREAK_FLAMESTRIKE = 92137,
+    SPELL_MISSILE_BARRAGE_TEMPO = 92138,
 
     // Stock
     SPELL_BLINK                 = 1953,
@@ -102,6 +104,8 @@ enum Spells : uint32
     SPELL_CLEARCASTING          = 12536,
     SPELL_ARCANE_BLAST_DEBUFF   = 36032,
     SPELL_HOT_STREAK            = 48108,
+    SPELL_MISSILE_BARRAGE       = 44401,
+    SPELL_ARCANE_BARRAGE        = 44425,
     SPELL_IGNITE                = 12654,
     SPELL_LIVING_BOMB_1         = 44457,
     SPELL_LIVING_BOMB_2         = 55359,
@@ -116,9 +120,11 @@ constexpr uint32 NPC_WATER_ELEMENTAL_ETERNAL = 37994;
 // Mage family flags of the stock spells the talents watch (SpellFamilyFlags words 0 and 1)
 constexpr uint32 FLAG0_FIREBALL = 0x00000001;
 constexpr uint32 FLAG0_FIRE_BLAST = 0x00000002;
+constexpr uint32 FLAG0_FLAMESTRIKE = 0x00000004;
 constexpr uint32 FLAG0_SCORCH = 0x00000010;
 constexpr uint32 FLAG0_FROSTBOLT = 0x00000020;
 constexpr uint32 FLAG0_ARCANE_MISSILES = 0x00000800;
+constexpr uint32 FLAG0_ARCANE_EXPLOSION = 0x00001000;
 constexpr uint32 FLAG0_BLINK = 0x00010000;
 constexpr uint32 FLAG0_ICE_LANCE = 0x00020000;
 constexpr uint32 FLAG0_MISSILE = 0x00200000;          // an Arcane Missiles missile
@@ -144,6 +150,7 @@ constexpr uint32 SunKingCombustionMs = 6000;
 constexpr uint8 HarmonyMaxStacks = 10;
 constexpr uint8 BoneChillingMaxStacks = 10;
 constexpr uint8 IciclesMaxStacks = 5;
+constexpr uint32 PureClarityMs = 3500;   // the 2.5 s channel of Arcane Missiles and its last missile's flight
 
 // A spell's charges (Blink, Fire Blast): how many are left, and the recharge of the next one
 struct Charges
@@ -185,7 +192,6 @@ struct MageState : public DataMap::Base
     float iceLanceBonus = 0.0f;      // the Icicles thrown with the next Ice Lance
     uint32 clarityUntil = 0;         // Pure Clarity: Arcane Missiles cast under Clearcasting
     bool promptPresence = false;     // Prompt Presence: Presence of Mind has a second use left
-    bool sunKingReady = false;       // Sun King's Blessing: the next Hot Streak spent comes back, with Combustion
     bool dismissElemental = false;   // Lonely Winter: a Water Elemental came, and goes on the next update
 };
 
@@ -410,7 +416,7 @@ public:
         // Pure Clarity: Arcane Missiles channelled under Clearcasting
         if (HasFlag0(spellInfo, FLAG0_ARCANE_MISSILES) && !HasFlag0(spellInfo, FLAG0_MISSILE) &&
             player->HasAura(TALENT_PURE_CLARITY) && player->HasAura(SPELL_CLEARCASTING))
-            state->clarityUntil = NowMs() + 6000;
+            state->clarityUntil = NowMs() + PureClarityMs;
 
         // Arcane Barrage takes its bonuses with it: the harmony stored, and a full Arcane Blast count
         if (HasFlag1(spellInfo, FLAG1_ARCANE_BARRAGE))
@@ -425,16 +431,24 @@ public:
             state->barrageBonus = bonus;
         }
 
-        // Sun King's Blessing: Pyroblast spending a Hot Streak
-        if (HasFlag0(spellInfo, FLAG0_PYROBLAST) && player->HasAura(SPELL_HOT_STREAK) &&
-            player->HasAura(TALENT_SUN_KING))
+        // Hot Streak makes Flamestrike instant too (its mirror, 92137): an instant Flamestrike under it spends it.
+        // Removed while the Flamestrike is the current spell, so it counts for Sun King's Blessing like a Pyroblast.
+        if (HasFlag0(spellInfo, FLAG0_FLAMESTRIKE) && !spell->GetCastTime() &&
+            player->HasAura(SPELL_HOT_STREAK_FLAMESTRIKE) && player->HasAura(SPELL_HOT_STREAK))
+            player->RemoveAurasDueToSpell(SPELL_HOT_STREAK);
+
+        // Arcane: Arcane Explosion builds an Arcane Blast charge when it hits at least one enemy, once per cast
+        // (mod-mage's SQL keeps it from spending them: only Arcane Barrage does)
+        if (HasFlag0(spellInfo, FLAG0_ARCANE_EXPLOSION) && !spell->IsTriggered() &&
+            player->HasSpell(SPELL_ARCANE_BARRAGE))
         {
-            AddStack(player, SPELL_SUN_KING, SunKingStacks);
-            if (Stacks(player, SPELL_SUN_KING) >= SunKingStacks)
+            std::list<TargetInfo> const* targets = spell->GetUniqueTargetInfo();
+            bool const hit = std::any_of(targets->begin(), targets->end(), [player](TargetInfo const& target)
             {
-                player->RemoveAurasDueToSpell(SPELL_SUN_KING);
-                state->sunKingReady = true;
-            }
+                return target.missCondition == SPELL_MISS_NONE && target.targetGUID != player->GetGUID();
+            });
+            if (hit)
+                player->CastSpell(player, SPELL_ARCANE_BLAST_DEBUFF, true);
         }
 
         // Frost: Bone Chilling on every Frost spell, Icicles on Frostbolt, thrown by Ice Lance
@@ -611,6 +625,12 @@ public:
                     if (Aura* veins = player->AddAura(SPELL_FROZEN_VEINS, player))
                         veins->SetDuration(aura->GetDuration());
                 return;
+            case SPELL_HOT_STREAK:
+                player->AddAura(SPELL_HOT_STREAK_FLAMESTRIKE, player);
+                return;
+            case SPELL_MISSILE_BARRAGE:
+                player->AddAura(SPELL_MISSILE_BARRAGE_TEMPO, player);
+                return;
             case SPELL_ARCANE_POWER:
                 if (player->HasAura(TALENT_ARCANE_AVATAR))
                     if (Aura* avatar = player->AddAura(SPELL_ARCANE_AVATAR, player))
@@ -695,17 +715,31 @@ public:
                 player->RemoveAurasDueToSpell(SPELL_ARCANE_AVATAR);
                 break;
             case SPELL_HOT_STREAK:
-                // Sun King's Blessing: the Hot Streak spent comes back, and Combustion with it
-                if (state->sunKingReady && mode == AURA_REMOVE_BY_DEFAULT && player->IsAlive())
+            {
+                player->RemoveAurasDueToSpell(SPELL_HOT_STREAK_FLAMESTRIKE);
+                // Spent: taken by the proc of the Pyroblast it made instant, or by an instant Flamestrike (the cast
+                // hook), in both cases while that spell is the one being cast. Expiring is another removal mode.
+                Spell const* casting = player->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+                if (mode != AURA_REMOVE_BY_DEFAULT || !player->IsAlive() || !casting ||
+                    !HasFlag0(casting->GetSpellInfo(), FLAG0_PYROBLAST | FLAG0_FLAMESTRIKE) ||
+                    !player->HasAura(TALENT_SUN_KING))
+                    break;
+
+                // Sun King's Blessing: every 8th Hot Streak spent comes back, and Combustion with it
+                AddStack(player, SPELL_SUN_KING, SunKingStacks);
+                if (Stacks(player, SPELL_SUN_KING) < SunKingStacks)
+                    break;
+                player->RemoveAurasDueToSpell(SPELL_SUN_KING);
+                player->AddAura(SPELL_HOT_STREAK, player);
+                if (Aura* combustion = player->AddAura(SPELL_COMBUSTION, player))
                 {
-                    state->sunKingReady = false;
-                    player->AddAura(SPELL_HOT_STREAK, player);
-                    if (Aura* combustion = player->AddAura(SPELL_COMBUSTION, player))
-                    {
-                        combustion->SetMaxDuration(SunKingCombustionMs);
-                        combustion->SetDuration(SunKingCombustionMs);
-                    }
+                    combustion->SetMaxDuration(SunKingCombustionMs);
+                    combustion->SetDuration(SunKingCombustionMs);
                 }
+                break;
+            }
+            case SPELL_MISSILE_BARRAGE:
+                player->RemoveAurasDueToSpell(SPELL_MISSILE_BARRAGE_TEMPO);
                 break;
             default:
                 break;

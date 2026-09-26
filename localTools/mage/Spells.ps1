@@ -20,6 +20,57 @@ $flagPhoenix = 0x4000
 $flagTempest = 0x8000
 
 $spells = @(
+    # --- Spec passives --------------------------------------------------------------------------------------------
+    # Incantation vive: every specialization learns these three (specSpells in talentTree.json), so the rotation is
+    # quick casts and short channels, with Pyroblast the one long cast left. Hidden passives of spell modifiers on the
+    # stock spells' own family flags (word 0 unless said): Fireball 0x1, Frostbolt 0x20, Frostfire Bolt word 1 0x1000,
+    # Arcane Blast 0x20000000, Pyroblast 0x400000, the Arcane Missiles channel 0x800 and its missiles 0x200000,
+    # Blizzard 0x80 (the channel and its falling shards), Evocation 0x4000000; no other player spell carries them.
+    # Casting time and duration percentages add up with the other modifiers (Presence of Mind, Hot Streak...) and
+    # apply after the flat ones (Improved Fireball), damage percentages multiply.
+    # Casting time: the fillers at the global cooldown - Fireball 3.5 -> 1.5 s, Frostbolt and Frostfire Bolt 3 -> 1.5 s,
+    # Arcane Blast 2.5 -> 1.5 s
+    @{ Id = 92134; Clone = 2983; Name = 'Incantation vive'; IconPath = 'Interface\Icons\Spell_Nature_Lightning'; FallbackIconSpell = 12043; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = "Vos sorts vont plus vite, pour frapper moins fort à chaque fois : Boule de feu, Éclair de givre, Éclair de givrefeu et Déflagration des arcanes s'incantent en 1,5 s, et Explosion pyrotechnique en 4,5 s. Projectiles des arcanes, Blizzard et Évocation se canalisent deux fois plus vite, sans rien perdre de leurs impulsions. Chaleur continue rend aussi Choc de flammes instantané, et Explosion des arcanes vous donne une charge de Déflagration des arcanes quand elle touche un ennemi (Arcanes)."
+       Effects = @(
+           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -57; Misc = 10 },
+           @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -50; Misc = 10 },
+           @{ Index = 2; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -40; Misc = 10 })
+       Fields = @{ 122 = 0x1; 123 = 0; 124 = 0; 125 = 0x20; 126 = 0x1000; 127 = 0; 128 = 0x20000000; 129 = 0; 130 = 0; 208 = 3 } },
+    # Pyroblast 5 -> 4.5 s; the channels half as long (Arcane Missiles 5 -> 2.5 s, Blizzard and Evocation 8 -> 4 s),
+    # their periodic interval halved with them (misc 19, SPELLMOD_ACTIVATION_TIME) so every missile, shard and mana
+    # tick still comes
+    @{ Id = 92135; Clone = 2983; Name = 'Incantation vive'; IconPath = 'Interface\Icons\Spell_Nature_Lightning'; FallbackIconSpell = 12043; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = 'Explosion pyrotechnique : 4,5 s d''incantation. Projectiles des arcanes, Blizzard et Évocation : canalisation deux fois plus courte, autant d''impulsions.'
+       Effects = @(
+           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -10; Misc = 10 },
+           @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -50; Misc = $SPELLMOD_DURATION },
+           @{ Index = 2; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -50; Misc = 19 })
+       Fields = @{ 122 = 0x400000; 123 = 0; 124 = 0; 125 = 0x4000880; 126 = 0; 127 = 0; 128 = 0x4000880; 129 = 0; 130 = 0; 208 = 3 } },
+    # The damage that pays for it: Fireball, Frostbolt and Frostfire Bolt -52% (their damage over time untouched),
+    # Arcane Blast -38%, each missile of Arcane Missiles and each Blizzard shard -40%. Per second of casting they still
+    # do a little more than before.
+    @{ Id = 92136; Clone = 2983; Name = 'Incantation vive'; IconPath = 'Interface\Icons\Spell_Nature_Lightning'; FallbackIconSpell = 12043; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = 'Boule de feu, Éclair de givre et Éclair de givrefeu infligent 52% de dégâts en moins, Déflagration des arcanes 38%, Projectiles des arcanes et Blizzard 40%.'
+       Effects = @(
+           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -52; Misc = $SPELLMOD_DAMAGE },
+           @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -38; Misc = $SPELLMOD_DAMAGE },
+           @{ Index = 2; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -40; Misc = $SPELLMOD_DAMAGE })
+       Fields = @{ 122 = 0x21; 123 = 0x1000; 124 = 0; 125 = 0x20000000; 126 = 0; 127 = 0; 128 = 0x200080; 129 = 0; 130 = 0; 208 = 3 } },
+    # Chaleur continue, for Flamestrike: held by mod-mage while Hot Streak (48108, Pyroblast only) is up. Flamestrike
+    # (0x4) cast instant under it spends the Hot Streak.
+    @{ Id = 92137; Clone = 2983; Name = 'Chaleur continue'; IconPath = 'Interface\Icons\Ability_Mage_HotStreak'; FallbackIconSpell = 48108; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = 'Votre prochain Choc de flammes est instantané.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -100; Misc = 10 })
+       Fields = @{ 122 = 0x4; 123 = 0; 124 = 0; 208 = 3 } },
+    # Missile Barrage (44401) takes 2.5 s off Arcane Missiles' channel and 0.5 s off its interval, flat. With Incantation
+    # vive's -50% that interval would be 1 s x 50% - 0.5 s = 0: held by mod-mage while Missile Barrage is up, this puts
+    # a quarter of a second back, so the barrage is 1.25 s of five missiles.
+    @{ Id = 92138; Clone = 2983; Name = 'Barrage de projectiles'; IconPath = 'Interface\Icons\Ability_Mage_MissileBarrage'; FallbackIconSpell = 44401; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = 'Projectiles des arcanes plus rapides.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddFlatModifier; TargetA = 1; Value = 250; Misc = 19 })
+       Fields = @{ 122 = 0x800; 123 = 0; 124 = 0; 208 = 3 } },
+
     # --- Class tree -----------------------------------------------------------------------------------------------
     # Distorsion temporelle: Bloodlust, the Mage's. It keeps Bloodlust's effects (30% haste on the group for 40 s)
     # and its script (spell_sha_bloodlust, bound in mod-mage's SQL): whoever has it, or Heroism or Bloodlust, is Sated

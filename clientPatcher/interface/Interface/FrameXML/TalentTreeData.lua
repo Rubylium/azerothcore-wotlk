@@ -897,7 +897,7 @@ TalentTreeData = {
         },
     },
     [8] = {
-        signature = 21597259,
+        signature = 24084904,
         trees = {
             { id = 1, kind = "class", name = "Mage", firstLevel = 10, levelStep = 2, gates = { { row = 4, cost = 8 }, { row = 7, cost = 20 } },
               nodes = {
@@ -1148,7 +1148,7 @@ TalentTreeData = {
                 { id = 303, row = 1, col = 3, kind = "passive", level = 0, parents = { 301 },
                   name = "Chaleur continue", icon = "Interface\\Icons\\Ability_Mage_HotStreak",
                   spells = { 44445, 44446, 44448 },
-                  texts = { "Après 2 coups critiques d'affilée avec Boule de feu, Trait de feu, Brûlure, Bombe vivante ou Éclair de givrefeu, vous avez 33% de chances que votre prochaine Explosion pyrotechnique soit instantanée.", "Après 2 coups critiques d'affilée avec Boule de feu, Trait de feu, Brûlure, Bombe vivante ou Éclair de givrefeu, vous avez 66% de chances que votre prochaine Explosion pyrotechnique soit instantanée.", "Après 2 coups critiques d'affilée avec Boule de feu, Trait de feu, Brûlure, Bombe vivante ou Éclair de givrefeu, vous avez 100% de chances que votre prochaine Explosion pyrotechnique soit instantanée." } },
+                  texts = { "Après 2 coups critiques d'affilée avec Boule de feu, Trait de feu, Brûlure, Bombe vivante ou Éclair de givrefeu, vous avez 33% de chances que votre prochaine Explosion pyrotechnique ou votre prochain Choc de flammes soit instantané.", "Après 2 coups critiques d'affilée avec Boule de feu, Trait de feu, Brûlure, Bombe vivante ou Éclair de givrefeu, vous avez 66% de chances que votre prochaine Explosion pyrotechnique ou votre prochain Choc de flammes soit instantané.", "Après 2 coups critiques d'affilée avec Boule de feu, Trait de feu, Brûlure, Bombe vivante ou Éclair de givrefeu, vous avez 100% de chances que votre prochaine Explosion pyrotechnique ou votre prochain Choc de flammes soit instantané." } },
                 { id = 304, row = 1, col = 5, kind = "passive", level = 0, parents = { 301 },
                   name = "Masse critique", icon = "Interface\\Icons\\Spell_Nature_WispHeal",
                   spells = { 11115, 11367, 11368 },
