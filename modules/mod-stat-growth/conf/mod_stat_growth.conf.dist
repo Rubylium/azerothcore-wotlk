@@ -28,7 +28,7 @@ GearBonus.PercentScale = 0.015
 # Leech heals the wearer for a percentage of the effective damage they deal. LeechScale is its value per item
 # level; MaxLeech caps the total from all equipped items.
 GearBonus.LeechScale = 0.005
-GearBonus.MaxLeech = 25.0
+GearBonus.MaxLeech = 10.0
 
 # Improve equipment already selected by a creature's normal loot table. This does not add another drop roll.
 # Uncommon or better equipment that is unusable or obsolete is replaced with class-appropriate gear of the same

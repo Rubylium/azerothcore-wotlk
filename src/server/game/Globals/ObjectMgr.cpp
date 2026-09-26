@@ -3312,6 +3312,22 @@ ServerConfigs const qualityToSellValueConfig[MAX_ITEM_QUALITY] =
     RATE_SELLVALUE_ITEM_HEIRLOOM,                               // ITEM_QUALITY_HEIRLOOM
 };
 
+// Gear with no vendor price cannot be sold at all (HandleSellItemOpcode refuses it), and about half the gear from
+// item level 200 up has none: token and emblem pieces, and the Mythic+ and forged items generated from them. A drop
+// nobody wears should still be worth something, so such gear gets the price stock gear of its level and quality sells
+// for, about item level squared times two copper (an item level 264 epic sells for about 15 gold).
+static void EnsureGearSellPrice(ItemTemplate& itemTemplate)
+{
+    if (itemTemplate.SellPrice || itemTemplate.InventoryType == INVTYPE_NON_EQUIP ||
+        (itemTemplate.Class != ITEM_CLASS_WEAPON && itemTemplate.Class != ITEM_CLASS_ARMOR) ||
+        itemTemplate.Quality < ITEM_QUALITY_UNCOMMON || itemTemplate.Quality > ITEM_QUALITY_LEGENDARY)
+        return;
+
+    float const perLevelSquared = itemTemplate.Quality >= ITEM_QUALITY_EPIC ? 2.2f : 2.0f;
+    itemTemplate.SellPrice = std::max<uint32>(1, uint32(float(itemTemplate.ItemLevel) *
+        float(itemTemplate.ItemLevel) * perLevelSquared));
+}
+
 void ObjectMgr::LoadItemTemplates()
 {
     uint32 oldMSTime = getMSTime();
@@ -3871,6 +3887,7 @@ void ObjectMgr::LoadItemTemplates()
 
         // Set after checks to ensure valid item quality
         itemTemplate.BuyPrice *= sWorld->getRate(qualityToBuyValueConfig[itemTemplate.Quality]);
+        EnsureGearSellPrice(itemTemplate);
         itemTemplate.SellPrice *= sWorld->getRate(qualityToSellValueConfig[itemTemplate.Quality]);
 
         // Fill categories map
@@ -3952,6 +3969,7 @@ ItemTemplate const* ObjectMgr::AddGeneratedItemTemplate(ItemTemplate const& item
     uint32 const entry = itemTemplate.ItemId;
     ItemTemplate& stored = _itemTemplateStore[entry] = itemTemplate;
     _generatedItemTemplates = true;
+    EnsureGearSellPrice(stored);
 
     if (ItemLocale const* locale = GetItemLocale(localeSourceEntry))
         _itemLocaleStore[entry] = *locale;

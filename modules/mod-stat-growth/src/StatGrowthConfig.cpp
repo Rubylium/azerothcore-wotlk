@@ -32,7 +32,7 @@ void StatGrowthConfig::BuildConfigCache()
         Reloadable::Yes, [](float value) { return value > 0.0f && value <= 1.0f; }, "greater than 0 through 1");
     SetConfigValue<float>(StatGrowthConfigKey::PersonalLootLeechScale, "GearBonus.LeechScale", 0.005f,
         Reloadable::Yes, [](float value) { return value > 0.0f && value <= 1.0f; }, "greater than 0 through 1");
-    SetConfigValue<float>(StatGrowthConfigKey::PersonalLootMaxLeech, "GearBonus.MaxLeech", 25.0f,
+    SetConfigValue<float>(StatGrowthConfigKey::PersonalLootMaxLeech, "GearBonus.MaxLeech", 10.0f,
         Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<bool>(StatGrowthConfigKey::SmartLootEnabled, "SmartLoot.Enabled", true);
     SetConfigValue<uint32>(StatGrowthConfigKey::SmartLootLevelWindow, "SmartLoot.LevelWindow", 5,
