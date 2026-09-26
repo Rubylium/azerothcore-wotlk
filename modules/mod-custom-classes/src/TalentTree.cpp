@@ -1,8 +1,11 @@
 #include "Chat.h"
+#include "Config.h"
+#include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
 #include "Player.h"
 #include "PlayerScript.h"
+#include "Random.h"
 #include "ScriptMgr.h"
 #include "SpellMgr.h"
 #include "StringConvert.h"
@@ -548,6 +551,59 @@ void FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state
     SaveBuild(player, data, state, slot);
 }
 
+// The WotLK talent tab a bot had spent the most points in (the active slot's), -1 without any: read before the WotLK
+// talents are wiped, it is the specialization the bot played
+int8 DominantStockTab(Player* player)
+{
+    std::array<uint32, 3> points{};
+    uint32 const* tabs = GetTalentTabPages(player->getClass());
+    for (auto const& [spellId, talent] : player->GetTalentMap())
+    {
+        if (talent->State == PLAYERSPELL_REMOVED || !(talent->specMask & player->GetActiveSpecMask()))
+            continue;
+        TalentSpellPos const* position = GetTalentSpellPos(spellId);
+        TalentEntry const* entry = position ? sTalentStore.LookupEntry(position->talent_id) : nullptr;
+        if (!entry)
+            continue;
+        for (uint8 tab = 0; tab < points.size(); ++tab)
+            if (entry->TalentTab == tabs[tab])
+                points[tab] += position->rank + 1;
+    }
+    auto const most = std::max_element(points.begin(), points.end());
+    return *most ? int8(most - points.begin()) : -1;
+}
+
+// A bot that never chose a specialization takes one: the WotLK tab it played, else a draw weighted by the bots'
+// AiPlayerbot.RandomClassSpecProb.<class>.<tab> (even without it). The spec trees come in the tabs' order.
+void ChooseBotSpecialization(Player* player, ClassTrees const& data, TalentTreeState* state, int8 stockTab)
+{
+    uint8 const slot = ActiveSlot(player);
+    if (state->specializations[slot] || data.specTrees.empty())
+        return;
+
+    std::size_t index = 0;
+    if (stockTab >= 0)
+        index = std::size_t(stockTab);
+    else
+    {
+        std::vector<uint32> weights;
+        for (std::size_t tab = 0; tab < data.specTrees.size(); ++tab)
+            weights.push_back(sConfigMgr->GetOption<uint32>(
+                Acore::StringFormat("AiPlayerbot.RandomClassSpecProb.{}.{}", player->getClass(), tab), 1, false));
+        uint32 total = 0;
+        for (uint32 weight : weights)
+            total += weight;
+        if (total)
+        {
+            uint32 roll = urand(0, total - 1);
+            while (roll >= weights[index])
+                roll -= weights[index++];
+        }
+    }
+    state->specializations[slot] = data.specTrees[std::min(index, data.specTrees.size() - 1)];
+    SaveBuild(player, data, state, slot);
+}
+
 // A class moved from WotLK talents to the trees (the Mage) takes the WotLK ones back: the active talent slot's here,
 // the other slot's when the character switches to it
 void WipeStockTalents(Player* player)
@@ -662,12 +718,7 @@ void LoadTrees()
             node.minLevel = field[5].Get<uint8>();
             for (std::string_view token : Acore::Tokenize(field[6].Get<std::string_view>(), ',', false))
                 if (Optional<uint32> spellId = Acore::StringTo<uint32>(token))
-                {
-                    if (!sSpellMgr->GetSpellInfo(*spellId))
-                        LOG_ERROR("sql.sql", "custom_talent_node {} names spell {}, which does not exist",
-                            node.id, *spellId);
                     node.spells.push_back(*spellId);
-                }
             for (std::string_view token : Acore::Tokenize(field[7].Get<std::string_view>(), ',', false))
                 if (Optional<uint16> parent = Acore::StringTo<uint16>(token))
                     node.parents.push_back(*parent);
@@ -687,16 +738,33 @@ void LoadTrees()
     LOG_INFO("server.loading", ">> Loaded talent trees for {} class(es), {} nodes", Classes.size(), total);
 }
 
+// The trees load with the custom tables, before the spells: their spells are checked once the world is up
+void CheckTreeSpells()
+{
+    for (auto const& [classId, data] : Classes)
+        for (TreeNode const& node : data.nodes)
+            for (uint32 spellId : node.spells)
+                if (!sSpellMgr->GetSpellInfo(spellId))
+                    LOG_ERROR("sql.sql", "custom_talent_node {} (class {}) names spell {}, which does not exist",
+                        node.id, classId, spellId);
+}
+
 class TalentTreeWorldScript final : public WorldScript
 {
 public:
     TalentTreeWorldScript() : WorldScript("TalentTreeWorldScript", {
-        WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE
+        WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE,
+        WORLDHOOK_ON_STARTUP
     }) { }
 
     void OnLoadCustomDatabaseTable() override
     {
         LoadTrees();
+    }
+
+    void OnStartup() override
+    {
+        CheckTreeSpells();
     }
 };
 
@@ -725,10 +793,14 @@ public:
         if (!data)
             return;
 
+        int8 const stockTab = IsBot(player) ? DominantStockTab(player) : -1;
         WipeStockTalents(player);
         LoadForPlayer(player, *data);
         if (IsBot(player))
+        {
+            ChooseBotSpecialization(player, *data, GetState(player), stockTab);
             FillBotBuild(player, *data, GetState(player));
+        }
         TrimAndReconcile(player, *data, GetState(player));
         SendState(player, false);
     }
