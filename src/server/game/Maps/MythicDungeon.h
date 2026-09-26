@@ -39,11 +39,14 @@ constexpr uint32 GeneratedItemBase = 0x10000;
 constexpr uint32 GeneratedItemVariants = 128;
 
 // Mythic+ (key level 2 and up) on top of Mythique 0: health and damage grow 8% a level, compounded, up to +10,
-// then by 10% of the +10 value a level, so keys have no ceiling and a +100 boss still fits 32-bit health (the
-// creature code clamps it anyway)
+// then by 10% of the +10 value a level up to +20, then 12% a level compounded again: past +20 the paragon board makes
+// a character grow without end, and a linear climb let a strong group walk up to +30. Keys have no ceiling; the
+// creature code clamps health to 32 bits.
 constexpr int32 CompoundedLevels = 10;
 constexpr float CompoundedGrowth = 1.08f;
+constexpr int32 LinearLevels = 20;
 constexpr float LinearGrowth = 0.10f;
+constexpr float SteepGrowth = 1.12f;
 
 inline float GetLevelScaling(int32 level)
 {
@@ -51,7 +54,10 @@ inline float GetLevelScaling(int32 level)
         return 1.0f;
 
     float const compounded = std::pow(CompoundedGrowth, static_cast<float>(std::min(level, CompoundedLevels)));
-    return compounded * (1.0f + LinearGrowth * static_cast<float>(std::max(level - CompoundedLevels, 0)));
+    float const linear = 1.0f + LinearGrowth *
+        static_cast<float>(std::clamp(level, CompoundedLevels, LinearLevels) - CompoundedLevels);
+    float const steep = std::pow(SteepGrowth, static_cast<float>(std::max(level - LinearLevels, 0)));
+    return compounded * linear * steep;
 }
 
 inline uint32 GetItemLevel(int32 level)
