@@ -2,10 +2,10 @@
 -- gear to the master smith and pays him in gold; it goes back on the anvil and comes out 4 item levels higher, up to
 -- 8 times. Opened by talking to the smith at his anvil in each capital, or with .forge.
 --
--- It is meant to feel like an event, and every sound is the smithy's: bellows when the forge opens, metal set down
--- on the anvil, coins handed over, the hammer three times (the smith strikes in the world at the same moments), and
--- the hiss of the quench. Every second rank rings out; a masterwork strikes a fourth, golden blow and takes two ranks;
--- the eighth makes the piece a masterpiece, announced across the screen.
+-- It is meant to feel like an event, and every sound is the smithy's: metal set down on the anvil, coins handed over,
+-- the hammer three times (the smith strikes in the world at the same moments), and the hiss of the quench. Every
+-- second rank rings out; a masterwork strikes a fourth, golden blow and takes two ranks; the eighth makes the piece a
+-- masterpiece, announced across the screen. The Forge is marked on the world map, where the smith stands.
 --
 -- Forged gear shows it outside the window too: its icon smoulders in the bags and on the character sheet, more with
 -- every rank, and its tooltip tells what the smith was paid for it. The smith remembers his customers: the window
@@ -13,21 +13,22 @@
 
 local PREFIX = "Forge"
 local MORPHEUS = "Fonts\\MORPHEUS.ttf"
+local FONT = GameFontNormal:GetFont()
 local GENERATED_ITEM_BASE = 0x10000     -- MythicDungeon.h
 local MYTHIC_VARIANTS = 128             -- MythicDungeon.h, GeneratedItemVariants
 local MAX_RANK = 8                      -- MythicDungeon.h, ForgeRanks
 
-local SOUND_BELLOW_IN = "Sound\\Doodad\\BellowIn.wav"
-local SOUND_BELLOW_OUT = "Sound\\Doodad\\BellowOut.wav"
-local SOUND_PUT_DOWN = "Sound\\interface\\PickUp\\PutDownLArgeMEtal.wav"
-local SOUND_COINS = "Sound\\Interface\\LootCoinSmall.wav"
-local SOUND_HAMMER = { "Sound\\Doodad\\DalaranForgeArmsHammer1.wav", "Sound\\Doodad\\DalaranForgeArmsHammer2.wav",
-    "Sound\\Doodad\\DalaranForgeArmsHammer3.wav", "Sound\\Doodad\\DalaranForgeArmsHammer4.wav" }
-local SOUND_QUENCH = "Sound\\Doodad\\JewelCraft_Grinder01Steam1.wav"
-local SOUND_FORGE_FIRE = "Sound\\Doodad\\BE_Forge01.wav"
-local SOUND_MILESTONE = "Sound\\Spells\\LevelUp.wav"
-local SOUND_MASTERWORK = "Sound\\interface\\levelup2.wav"
-local SOUND_MASTERPIECE = "Sound\\Spells\\AchievmentSound1.wav"
+-- Sound entries (SoundEntries.dbc), never raw files: PlaySound follows the game's volume settings and each entry's
+-- own volume, where PlaySoundFile plays a file at full volume whatever the player has set
+local SOUND_OPEN = "igQuestListOpen"
+local SOUND_CLOSE = "igQuestListClose"
+local SOUND_PUT_DOWN = "PutDownLargeMetal"
+local SOUND_COINS = "LOOTWINDOWCOINSOUND"
+local SOUND_HAMMER = "DalaranForgeArmsHammerOneshots"      -- a different blow each time
+local SOUND_QUENCH = "JewelCraft_Grinder01Steam"
+local SOUND_MILESTONE = "LEVELUPSOUND"
+local SOUND_MASTERWORK = "igQuestListComplete"
+local SOUND_MASTERPIECE = "AchievementSound"
 
 local WIDTH, HEIGHT = 780, 540
 local LIST_WIDTH, ROW_HEIGHT = 300, 46
@@ -81,6 +82,9 @@ local TEXT = french and {
     standingUp = "Renommée : %s",
     tooltipInvested = "Or investi à la forge : %s",
     tooltipRank = "Forgé %d/%d",
+    mapTitle = "La Forge",
+    mapSmith = "Durgan Frappe-Braise, maître forgeron",
+    mapHint = "Améliorez votre équipement contre de l'or.",
     errors = {
         [1] = "Cette pièce n'est plus là.",
         [2] = "Le forgeron ne travaille pas cette pièce.",
@@ -125,6 +129,9 @@ local TEXT = french and {
     standingUp = "Standing: %s",
     tooltipInvested = "Gold invested at the forge: %s",
     tooltipRank = "Forged %d/%d",
+    mapTitle = "The Forge",
+    mapSmith = "Durgan Emberstrike, master blacksmith",
+    mapHint = "Upgrade your gear for gold.",
     errors = {
         [1] = "That piece is no longer there.",
         [2] = "The blacksmith does not work that piece.",
@@ -303,13 +310,18 @@ end
 
 -- Rank pips: one ember per rank, lit once forged ------------------------------------------------------------------
 
+-- A pip is a small bronze frame around an ember that lights up: drawn, since the client has no indicator art
 local function CreatePips(parent, size, gap)
     local pips = {}
     for index = 1, MAX_RANK do
-        local pip = parent:CreateTexture(nil, "OVERLAY")
-        pip:SetSize(size, size)
-        pip:SetPoint("LEFT", parent, "LEFT", (index - 1) * (size + gap), 0)
-        pips[index] = pip
+        local frame = parent:CreateTexture(nil, "ARTWORK")
+        frame:SetTexture(0.55, 0.42, 0.24, 1)
+        frame:SetSize(size, size)
+        frame:SetPoint("LEFT", parent, "LEFT", (index - 1) * (size + gap), 0)
+        local ember = parent:CreateTexture(nil, "OVERLAY")
+        ember:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+        ember:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+        pips[index] = { frame = frame, ember = ember }
     end
     pips.width = MAX_RANK * size + (MAX_RANK - 1) * gap
     return pips
@@ -318,17 +330,14 @@ end
 local function SetPips(pips, rank, maxRank)
     for index = 1, MAX_RANK do
         local pip = pips[index]
-        SetShown(pip, index <= maxRank)
-        if index <= rank then
-            pip:SetTexture("Interface\\COMMON\\Indicator-Yellow")
-            if rank >= MAX_RANK then
-                pip:SetVertexColor(1, 0.9, 0.45)
-            else
-                pip:SetVertexColor(1, 0.66, 0.28)
-            end
+        SetShown(pip.frame, index <= maxRank)
+        SetShown(pip.ember, index <= maxRank)
+        if index > rank then
+            pip.ember:SetTexture(0.1, 0.07, 0.05, 1)
+        elseif rank >= MAX_RANK then
+            pip.ember:SetTexture(1, 0.86, 0.4, 1)
         else
-            pip:SetTexture("Interface\\COMMON\\Indicator-Gray")
-            pip:SetVertexColor(0.7, 0.62, 0.5)
+            pip.ember:SetTexture(1, 0.55, 0.15, 1)
         end
     end
 end
@@ -377,7 +386,7 @@ local RefreshAnvil
 local function Select(key, quiet)
     state.selected = key
     if not quiet then
-        PlaySoundFile(SOUND_PUT_DOWN)
+        PlaySound(SOUND_PUT_DOWN)
     end
     for _, row in ipairs(rows) do
         SetShown(row.selectedGlow, row.key == key)
@@ -569,7 +578,7 @@ end
 
 -- One blow of the hammer: sparks off the piece, the piece jolts on the anvil
 local function Strike(index, golden)
-    PlaySoundFile(SOUND_HAMMER[index])
+    PlaySound(SOUND_HAMMER)
     local spark = anvil.spark
     if golden then
         spark:SetVertexColor(1, 0.92, 0.55)
@@ -584,7 +593,7 @@ local function Strike(index, golden)
     local holder = anvil.iconHolder
     Tween(0.12, 0, function(p)
         holder:ClearAllPoints()
-        holder:SetPoint("CENTER", anvil.content, "TOP", 0, -104 - 5 * (1 - p))
+        holder:SetPoint("CENTER", anvil.content, "TOP", 0, -82 - 5 * (1 - p))
     end)
 end
 
@@ -614,10 +623,13 @@ local function ShowBanner(icon, title, line, detail, red, green, blue)
         banner:Hide()
 
         local shine = banner:CreateTexture(nil, "BACKGROUND", nil, 1)
-        shine:SetTexture("Interface\\Buttons\\WHITE8X8")
+        shine:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Alert-Glow")
+        shine:SetTexCoord(0, 0.782, 0, 0.782)
+        shine:SetBlendMode("ADD")
+        shine:SetVertexColor(1, 0.55, 0.15)
+        shine:SetAlpha(0.6)
         shine:SetPoint("TOPLEFT", 4, -4)
         shine:SetPoint("BOTTOMRIGHT", -4, 4)
-        shine:SetGradientAlpha("VERTICAL", 0.75, 0.4, 0.08, 0.35, 0.75, 0.4, 0.08, 0)
 
         local star = banner:CreateTexture(nil, "ARTWORK")
         star:SetTexture("Interface\\Cooldown\\star4")
@@ -683,7 +695,6 @@ end
 
 local function AnimateForge(item, result, onDone)
     state.working = true
-    PlaySoundFile(SOUND_FORGE_FIRE)
     anvil.fire:SetAlpha(0)
     Tween(0.5, 0, function(p) anvil.fire:SetAlpha(0.35 + 0.65 * p) end)
     local strikes = HAMMER_STRIKES + (result.masterwork and 1 or 0)
@@ -694,7 +705,7 @@ local function AnimateForge(item, result, onDone)
     end
     local quench = HAMMER_DELAY + strikes * HAMMER_GAP + 0.15
     Tween(0.01, quench, nil, function()
-        PlaySoundFile(SOUND_QUENCH)
+        PlaySound(SOUND_QUENCH)
         -- The list that came with the news is shown now, out of the quench
         RefreshList()
         onDone()
@@ -717,7 +728,7 @@ local function CreateStanding(parent)
     label:SetText(TEXT.standingLabel)
 
     local name = standing:CreateFontString(nil, "OVERLAY")
-    name:SetFont(MORPHEUS, 18)
+    name:SetFont(FONT, 15)
     name:SetShadowOffset(1, -1)
     name:SetTextColor(1, 0.86, 0.55)
     name:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
@@ -827,7 +838,7 @@ local function CreateForge()
 
     local intro = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
-    intro:SetWidth(390)
+    intro:SetWidth(360)
     intro:SetJustifyH("LEFT")
     intro:SetTextColor(0.85, 0.8, 0.7)
     frame.intro = intro
@@ -876,19 +887,25 @@ local function CreateForge()
     anvil:SetBackdropColor(0.05, 0.03, 0.02, 0.85)
     anvil:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
 
+    -- The forge's embers: a soft glow at the foot of the anvil, and the fire that rises while the smith works
     local embers = anvil:CreateTexture(nil, "BORDER")
-    embers:SetTexture("Interface\\Buttons\\WHITE8X8")
+    embers:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Alert-Glow")
+    embers:SetTexCoord(0, 0.782, 0.39, 0.782)
+    embers:SetBlendMode("ADD")
+    embers:SetVertexColor(0.8, 0.32, 0.06)
+    embers:SetAlpha(0.45)
     embers:SetPoint("BOTTOMLEFT", 4, 4)
     embers:SetPoint("BOTTOMRIGHT", -4, 4)
-    embers:SetHeight(150)
-    embers:SetGradientAlpha("VERTICAL", 0.55, 0.2, 0.04, 0.3, 0.55, 0.2, 0.04, 0)
+    embers:SetHeight(110)
 
     local fire = anvil:CreateTexture(nil, "BORDER", nil, 1)
-    fire:SetTexture("Interface\\Buttons\\WHITE8X8")
+    fire:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Alert-Glow")
+    fire:SetTexCoord(0, 0.782, 0.39, 0.782)
+    fire:SetBlendMode("ADD")
+    fire:SetVertexColor(1, 0.45, 0.1)
     fire:SetPoint("BOTTOMLEFT", 4, 4)
     fire:SetPoint("BOTTOMRIGHT", -4, 4)
-    fire:SetHeight(320)
-    fire:SetGradientAlpha("VERTICAL", 1, 0.45, 0.08, 0.55, 1, 0.45, 0.08, 0)
+    fire:SetHeight(260)
     fire:SetAlpha(0)
     anvil.fire = fire
 
@@ -903,15 +920,15 @@ local function CreateForge()
     anvil.content = content
 
     local name = content:CreateFontString(nil, "OVERLAY")
-    name:SetFont(MORPHEUS, 20)
+    name:SetFont(FONT, 17)
     name:SetShadowOffset(1, -1)
-    name:SetPoint("TOP", content, "TOP", 0, -20)
+    name:SetPoint("TOP", content, "TOP", 0, -16)
     name:SetWidth(380)
     anvil.name = name
 
     local iconHolder = CreateFrame("Frame", nil, content)
     iconHolder:SetSize(80, 80)
-    iconHolder:SetPoint("CENTER", content, "TOP", 0, -104)
+    iconHolder:SetPoint("CENTER", content, "TOP", 0, -82)
     anvil.iconHolder = iconHolder
 
     -- A masterpiece's golden radiance, behind it for good
@@ -963,11 +980,11 @@ local function CreateForge()
     iconHolder:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local levelLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    levelLabel:SetPoint("TOP", iconHolder, "BOTTOM", 0, -12)
+    levelLabel:SetPoint("TOP", iconHolder, "BOTTOM", 0, -4)
     levelLabel:SetText(TEXT.itemLevel)
 
     local levels = content:CreateFontString(nil, "OVERLAY")
-    levels:SetFont(MORPHEUS, 30)
+    levels:SetFont(FONT, 24)
     levels:SetShadowOffset(1, -1)
     levels:SetPoint("TOP", levelLabel, "BOTTOM", 0, -2)
     anvil.levels = levels
@@ -976,7 +993,7 @@ local function CreateForge()
     pipHolder:SetSize(100, 12)
     anvil.pips = CreatePips(pipHolder, 12, 4)
     pipHolder:SetWidth(anvil.pips.width)
-    pipHolder:SetPoint("TOP", levels, "BOTTOM", 0, -10)
+    pipHolder:SetPoint("TOP", levels, "BOTTOM", 0, -8)
 
     local rank = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     rank:SetPoint("TOP", pipHolder, "BOTTOM", 0, -5)
@@ -985,14 +1002,14 @@ local function CreateForge()
 
     -- What the next rank adds, stat by stat
     local gainsLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    gainsLabel:SetPoint("TOP", rank, "BOTTOM", 0, -12)
+    gainsLabel:SetPoint("TOP", rank, "BOTTOM", 0, -10)
     gainsLabel:SetText(TEXT.gains)
     anvil.gainsLabel = gainsLabel
     anvil.gains = {}
     for index = 1, 6 do
         local line = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         local column, row = (index - 1) % 2, floor((index - 1) / 2)
-        line:SetPoint("TOPLEFT", gainsLabel, "BOTTOM", column == 0 and -160 or 12, -6 - row * 15)
+        line:SetPoint("TOPLEFT", gainsLabel, "BOTTOM", column == 0 and -170 or 10, -5 - row * 14)
         line:SetWidth(150)
         line:SetJustifyH(column == 0 and "RIGHT" or "LEFT")
         line:SetTextColor(0.9, 0.84, 0.7)
@@ -1000,16 +1017,16 @@ local function CreateForge()
     end
 
     local costLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    costLabel:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 24, 84)
+    costLabel:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 22, 66)
     costLabel:SetText(TEXT.price)
     anvil.costLabel = costLabel
 
-    local cost = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-    cost:SetPoint("LEFT", costLabel, "RIGHT", 10, 0)
+    local cost = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    cost:SetPoint("LEFT", costLabel, "RIGHT", 8, 0)
     anvil.cost = cost
 
     local purseLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    purseLabel:SetPoint("TOPLEFT", costLabel, "BOTTOMLEFT", 0, -8)
+    purseLabel:SetPoint("TOPLEFT", costLabel, "BOTTOMLEFT", 0, -7)
     purseLabel:SetText(TEXT.purse)
     purseLabel:SetTextColor(0.8, 0.74, 0.62)
 
@@ -1018,20 +1035,20 @@ local function CreateForge()
     anvil.money = money
 
     local invested = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    invested:SetPoint("TOPLEFT", purseLabel, "BOTTOMLEFT", 0, -6)
+    invested:SetPoint("TOPLEFT", purseLabel, "BOTTOMLEFT", 0, -5)
     invested:SetTextColor(0.8, 0.74, 0.62)
     anvil.invested = invested
 
     local button = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     button:SetSize(170, 30)
-    button:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -24, 22)
+    button:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -20, 18)
     button:SetText(TEXT.forge)
     button:SetScript("OnClick", function()
         local item = state.selected and state.items[state.selected]
         if not item or state.working or item.nextEntry == 0 then
             return
         end
-        PlaySoundFile(SOUND_COINS)
+        PlaySound(SOUND_COINS)
         SetEnabled(button, false)
         anvil.status:SetText(TEXT.working)
         Send(format("U\t%d\t%d\t%d", item.bag, item.slot, item.entry))
@@ -1039,9 +1056,10 @@ local function CreateForge()
     anvil.button = button
 
     local status = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    status:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 24, 34)
-    status:SetPoint("RIGHT", button, "LEFT", -12, 0)
-    status:SetJustifyH("LEFT")
+    -- What the smith is doing, or has just done: over the button, clear of the price
+    status:SetPoint("BOTTOMRIGHT", button, "TOPRIGHT", 0, 8)
+    status:SetWidth(230)
+    status:SetJustifyH("RIGHT")
     status:SetTextColor(1, 0.72, 0.35)
     anvil.status = status
 
@@ -1049,8 +1067,7 @@ local function CreateForge()
     anvil.preview = CreateFrame("GameTooltip", "ItemForgePreviewTooltip", frame, "GameTooltipTemplate")
 
     frame:SetScript("OnShow", function()
-        PlaySoundFile(SOUND_BELLOW_IN)
-        Tween(0.01, 0.55, nil, function() PlaySoundFile(SOUND_BELLOW_OUT) end)
+        PlaySound(SOUND_OPEN)
         frame:SetAlpha(0)
         frame:SetScale(0.94)
         Tween(0.22, 0, function(p)
@@ -1059,7 +1076,7 @@ local function CreateForge()
         end)
     end)
     frame:SetScript("OnHide", function()
-        PlaySound("igQuestListClose")
+        PlaySound(SOUND_CLOSE)
         GameTooltip:Hide()
         anvil.preview:Hide()
     end)
@@ -1204,6 +1221,71 @@ hooksecurefunc(GameTooltip, "SetInventoryItem", function(tooltip, unit, slot)
     end
 end)
 
+-- The Forge on the world map ---------------------------------------------------------------------------------------
+-- An anvil where the master smith stands, on each capital's map, on the zones around them and on the continents. The
+-- spots are his spawns (mod-forge forge_master.sql) placed on each map with WorldMapArea.dbc's bounds, by the map's
+-- area id (GetCurrentMapAreaID).
+
+local MAP_SPOTS = {
+    [301] = { { 0.6370, 0.3652 } },                         -- Stormwind City
+    [321] = { { 0.8142, 0.2167 } },                         -- Orgrimmar
+    [341] = { { 0.4959, 0.4384 } },                         -- Ironforge
+    [30] = { { 0.2649, 0.2071 } },                          -- Elwynn Forest
+    [27] = { { 0.5904, 0.2813 } },                          -- Dun Morogh
+    [14] = { { 0.4309, 0.7217 }, { 0.4732, 0.5885 } },      -- Eastern Kingdoms
+    [13] = { { 0.5948, 0.4373 } },                          -- Kalimdor
+}
+local CITY_MAPS = { [301] = true, [321] = true, [341] = true }
+
+local mapPins = {}
+
+local function CreateMapPin(index)
+    local pin = CreateFrame("Button", nil, WorldMapButton)
+    pin:SetFrameLevel(WorldMapButton:GetFrameLevel() + 6)
+    local icon = pin:CreateTexture(nil, "OVERLAY")
+    icon:SetAllPoints()
+    icon:SetTexture("Interface\\Minimap\\Tracking\\Repair")
+    pin:SetScript("OnEnter", function(self)
+        WorldMapTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        WorldMapTooltip:AddLine(TEXT.mapTitle, 1, 0.82, 0)
+        WorldMapTooltip:AddLine(TEXT.mapSmith, 1, 1, 1)
+        WorldMapTooltip:AddLine(TEXT.mapHint, 0.85, 0.78, 0.62)
+        WorldMapTooltip:Show()
+    end)
+    pin:SetScript("OnLeave", function() WorldMapTooltip:Hide() end)
+    mapPins[index] = pin
+    return pin
+end
+
+local function UpdateMapPins()
+    local area = GetCurrentMapAreaID()
+    local spots = MAP_SPOTS[area] or {}
+    local width, height = WorldMapButton:GetWidth(), WorldMapButton:GetHeight()
+    local size = CITY_MAPS[area] and 22 or 16
+    for index, spot in ipairs(spots) do
+        local pin = mapPins[index] or CreateMapPin(index)
+        pin:SetSize(size, size)
+        pin:ClearAllPoints()
+        pin:SetPoint("CENTER", WorldMapButton, "TOPLEFT", spot[1] * width, -spot[2] * height)
+        pin:Show()
+    end
+    for index = #spots + 1, #mapPins do
+        mapPins[index]:Hide()
+    end
+end
+
+local mapWatcher = CreateFrame("Frame")
+mapWatcher:RegisterEvent("WORLD_MAP_UPDATE")
+mapWatcher:SetScript("OnEvent", UpdateMapPins)
+WorldMapFrame:HookScript("OnShow", UpdateMapPins)
+-- The map changes size between its full and windowed views
+for _, name in ipairs({ "WorldMapFrame_SetFullMapView", "WorldMapFrame_SetQuestMapView", "WorldMap_ToggleSizeUp",
+        "WorldMap_ToggleSizeDown" }) do
+    if _G[name] then
+        hooksecurefunc(name, UpdateMapPins)
+    end
+end
+
 -- Messages ---------------------------------------------------------------------------------------------------------
 
 local function ShowError(code)
@@ -1226,20 +1308,20 @@ local function OnForged(result)
         local name, _, icon = ItemInfo(result.entry)
         UIErrorsFrame:AddMessage(format(TEXT.done, name or "", result.itemLevel), 1, 0.72, 0.35, 1)
         Tween(0.35, 0, function(p)
-            anvil.levels:SetFont(MORPHEUS, 30 + 14 * (1 - OutCubic(p)))
+            anvil.levels:SetFont(FONT, 24 + 12 * (1 - OutCubic(p)))
         end)
 
         if result.rank >= MAX_RANK then
-            PlaySoundFile(SOUND_MASTERPIECE)
+            PlaySound(SOUND_MASTERPIECE)
             Flash(220, 1, 0.9, 0.5)
             ShowBanner(icon, TEXT.masterpiece, name or "", format(TEXT.masterpieceLine, result.rank, MAX_RANK,
                 result.itemLevel), QualityColor(select(2, ItemInfo(result.entry))))
         elseif result.masterwork then
-            PlaySoundFile(SOUND_MASTERWORK)
+            PlaySound(SOUND_MASTERWORK)
             Flash(180, 1, 0.9, 0.55)
             anvil.status:SetText(TEXT.masterwork)
         elseif result.rank % 2 == 0 then
-            PlaySoundFile(SOUND_MILESTONE)
+            PlaySound(SOUND_MILESTONE)
             Flash(140, 1, 0.7, 0.3)
             anvil.status:SetText(format(TEXT.milestone, result.rank))
         else
@@ -1248,7 +1330,7 @@ local function OnForged(result)
 
         if result.newStanding > 0 then
             Tween(0.01, result.rank >= MAX_RANK and 5.2 or 0.6, nil, function()
-                PlaySoundFile(SOUND_MASTERWORK)
+                PlaySound(SOUND_MASTERWORK)
                 ShowBanner("Interface\\Icons\\Trade_BlackSmithing",
                     format(TEXT.standingUp, TEXT.standingNames[result.newStanding + 1]), StandingPerks(
                     result.newStanding + 1), "", 1, 0.82, 0.35)
