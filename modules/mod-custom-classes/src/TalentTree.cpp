@@ -56,6 +56,7 @@
 //                     LDEL <slot>             delete a loadout
 //                     LAPPLY <slot>           apply a loadout: its specialization, then as much of its build as
 //                                             the level's points allow (again after a level-up: a little more)
+//                     LBUILD <tree> <build>   apply a build not saved (a recommended one), the same way
 //   server -> client  S <signature> <active spec> <spec count> <level> <applied> <build 1> <build 2>
 //                       <specialization 1> <specialization 2>
 //                     E <error> <node>
@@ -784,15 +785,12 @@ void HandleLoadoutDelete(Player* player, TalentTreeState* state, std::string_vie
     SendLoadouts(player, state);
 }
 
-// Applies a loadout: its specialization, then its nodes in the order a player would take them (row by row, each
-// ranked as far as it goes), each rank only while the build stays legal at the character's level. At the level cap
-// that is the whole loadout; while levelling, as much as the points allow, and a little more after each level-up.
-void HandleLoadoutApply(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view argument)
+// Applies a loadout (or a recommended build, slot 0): its specialization, then its nodes in the order a player would
+// take them (row by row, each ranked as far as it goes), each rank only while the build stays legal at the
+// character's level. At the level cap that is the whole of it; while levelling, as much as the points allow, and a
+// little more after each level-up.
+void ApplyLoadoutBuild(Player* player, ClassTrees const& data, TalentTreeState* state, Loadout const* loadout)
 {
-    Optional<uint8> const slotId = Acore::StringTo<uint8>(argument);
-    Loadout const* loadout = slotId ? FindLoadout(state, *slotId) : nullptr;
-    if (!loadout)
-        return SendError(player, BuildError::Loadout, 0);
     if (player->IsInCombat())
         return SendError(player, BuildError::Combat, 0);
 
@@ -862,6 +860,42 @@ void HandleLoadoutApply(Player* player, ClassTrees const& data, TalentTreeState*
     Send(player, Acore::StringFormat("LA\t{}\t{}\t{}", loadout->slot, placed, total));
 }
 
+void HandleLoadoutApply(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view argument)
+{
+    Optional<uint8> const slotId = Acore::StringTo<uint8>(argument);
+    Loadout const* loadout = slotId ? FindLoadout(state, *slotId) : nullptr;
+    if (!loadout)
+        return SendError(player, BuildError::Loadout, 0);
+    ApplyLoadoutBuild(player, data, state, loadout);
+}
+
+// A build the window holds but the character did not save (a recommended build): checked like a loadout being
+// saved, then applied like one
+void HandleBuildApply(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view arguments)
+{
+    std::vector<std::string_view> const parts = Acore::Tokenize(arguments, '\t', true);
+    Optional<uint8> const tree = parts.size() == 2 ? Acore::StringTo<uint8>(parts[0]) : std::nullopt;
+    if (!tree)
+        return SendError(player, BuildError::Malformed, 0);
+    Loadout loadout;
+    loadout.specialization = data.specTrees.empty() ? 0 : *tree;
+    if (!data.specTrees.empty() &&
+        std::find(data.specTrees.begin(), data.specTrees.end(), loadout.specialization) == data.specTrees.end())
+        return SendError(player, BuildError::NoSpec, 0);
+    loadout.build = std::string(parts[1]);
+    if (loadout.build.size() != data.nodes.size())
+        return SendError(player, BuildError::Malformed, 0);
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+        if (!IsInLoadout(data, data.nodes[position], loadout.specialization))
+            loadout.build[position] = '0';
+    uint16 offender = 0;
+    BuildError const error = Validate(data, loadout.build, uint8(sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL)),
+        offender);
+    if (error != BuildError::None)
+        return SendError(player, error, offender);
+    ApplyLoadoutBuild(player, data, state, &loadout);
+}
+
 void HandleMessage(Player* player, uint32 language, std::string const& message)
 {
     if (language != LANG_ADDON || !message.starts_with(Prefix))
@@ -890,6 +924,9 @@ void HandleMessage(Player* player, uint32 language, std::string const& message)
     constexpr std::string_view loadoutDelete = "LDEL\t";
     if (body.starts_with(loadoutDelete))
         return HandleLoadoutDelete(player, state, body.substr(loadoutDelete.size()));
+    constexpr std::string_view buildApply = "LBUILD\t";
+    if (body.starts_with(buildApply))
+        return HandleBuildApply(player, *data, state, body.substr(buildApply.size()));
     constexpr std::string_view loadoutApply = "LAPPLY\t";
     if (body.starts_with(loadoutApply))
         return HandleLoadoutApply(player, *data, state, body.substr(loadoutApply.size()));

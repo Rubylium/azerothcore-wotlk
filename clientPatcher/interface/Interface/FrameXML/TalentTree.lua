@@ -106,6 +106,9 @@ local TEXT = french and {
     loadoutFull = "Vous avez déjà 10 configurations : supprimez-en une.",
     loadoutOtherSpec = "Appliquer « %s » ? Votre spécialisation deviendra %s.",
     loadoutDelete = "Supprimer la configuration « %s » ?",
+    recommended = "Recommandés",
+    presetKinds = { single = "Recommandé : monocible", aoe = "Recommandé : multicible" },
+    presetHint = "Configuration recommandée : modifiez-la à votre goût, puis Enregistrer pour la garder.",
     errors = {
         [1] = "Ces talents n'ont pas pu être lus : réessayez.",
         [2] = "Impossible de changer vos talents en combat.",
@@ -171,6 +174,9 @@ local TEXT = french and {
     loadoutFull = "You already have 10 loadouts: delete one first.",
     loadoutOtherSpec = "Apply \"%s\"? Your specialization will become %s.",
     loadoutDelete = "Delete the loadout \"%s\"?",
+    recommended = "Recommended",
+    presetKinds = { single = "Recommended: single target", aoe = "Recommended: AoE" },
+    presetHint = "Recommended build: tweak it to your liking, then Save to keep it.",
     errors = {
         [1] = "Those talents could not be read: try again.",
         [2] = "You can't change your talents in combat.",
@@ -787,6 +793,9 @@ local function PaintBar()
     elseif state.viewed ~= state.spec then
         statusText:SetText(TEXT.viewing)
         statusText:SetTextColor(0.6, 0.6, 0.6)
+    elseif planning and state.planning.preset then
+        statusText:SetText(TEXT.presetHint)
+        statusText:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
     elseif planning then
         statusText:SetText(format(TEXT.planning, state.planning.name))
         statusText:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
@@ -1093,11 +1102,17 @@ local function ApplyLoadout()
     if code then
         return Refuse(offender, TEXT.errors[code])
     end
+    applyButton:Disable()
+    state.lastApplied = plan.name
+    if not plan.slot then
+        -- A recommended build: applied as it stands, nothing saved
+        Send("LBUILD\t" .. SpecTreeId(state.spec) .. "\t" .. Serialize(state.pending))
+        return
+    end
     if IsDirty() then
         SaveLoadout(plan.slot, plan.name, state.pending)
         plan.original = Copy(state.pending)
     end
-    applyButton:Disable()
     Send("LAPPLY\t" .. plan.slot)
 end
 
@@ -1955,6 +1970,36 @@ local function OpenLoadout(loadout)
     Ripple(before)
 end
 
+local function PresetName(preset)
+    return TEXT.presetKinds[preset.kind] or preset.kind
+end
+
+-- A recommended build of the class (TalentTreeData, localTools/<class>/talentTree.json "presets"): opened as a plan
+-- like a loadout; one of another specialization asks, then is applied as it stands
+local function OpenPreset(preset)
+    if not Editable() then
+        return Refuse(nil, state.viewed ~= state.spec and TEXT.viewing or nil)
+    end
+    if #specs > 0 and preset.spec ~= SpecTreeId(state.spec) then
+        local target = SpecById(preset.spec)
+        StaticPopup_Show("TALENTTREE_LOADOUT_OTHER_SPEC", PresetName(preset), target and target.def.name or "?",
+            { spec = preset.spec, build = preset.build, name = PresetName(preset) })
+        return
+    end
+    local values = {}
+    if not Parse(preset.build, values) then
+        return Refuse(nil, TEXT.errors[10])
+    end
+    local before = Looks()
+    local stash = state.planning and state.planning.stash or Copy(state.pending)
+    state.planning = { name = PresetName(preset), original = Copy(values), stash = stash, preset = true }
+    state.pending = values
+    PlaySound(SOUND_CHOICE)
+    HideFlyout()
+    Paint(true)
+    Ripple(before)
+end
+
 local function NewLoadout(name)
     name = name and name:gsub("[|\t\n]", ""):match("^%s*(.-)%s*$") or ""
     if name == "" then
@@ -2008,6 +2053,10 @@ StaticPopupDialogs["TALENTTREE_LOADOUT_OTHER_SPEC"] = {
         if data and data.slot then
             LeavePlan()
             Send("LAPPLY\t" .. data.slot)
+        elseif data and data.build then
+            LeavePlan()
+            state.lastApplied = data.name
+            Send("LBUILD\t" .. data.spec .. "\t" .. data.build)
         end
     end,
     timeout = 0,
@@ -2056,6 +2105,24 @@ local function CreateLoadoutPicker()
             UIDropDownMenu_AddButton(info)
         end
 
+        local presets = data and data.presets or {}
+        if #presets > 0 then
+            info = UIDropDownMenu_CreateInfo()
+            info.text = TEXT.recommended
+            info.isTitle = 1
+            info.notCheckable = 1
+            UIDropDownMenu_AddButton(info)
+            for _, preset in ipairs(presets) do
+                info = UIDropDownMenu_CreateInfo()
+                local spec = #specs > 1 and SpecById(preset.spec)
+                info.text = PresetName(preset) .. (spec and ("  |cff888888(" .. spec.def.name .. ")|r") or "")
+                info.checked = state.planning and state.planning.preset and state.planning.name == PresetName(preset)
+                    and preset.spec == SpecTreeId(state.spec)
+                info.func = function() OpenPreset(preset) end
+                UIDropDownMenu_AddButton(info)
+            end
+        end
+
         info = UIDropDownMenu_CreateInfo()
         info.text = "|cff00ccff" .. TEXT.newLoadout .. "|r"
         info.notCheckable = 1
@@ -2081,6 +2148,10 @@ local function CreateLoadoutPicker()
         if code then
             return Refuse(offender, TEXT.errors[code])
         end
+        if not plan.slot then
+            StaticPopup_Show("TALENTTREE_LOADOUT_NAME")
+            return
+        end
         SaveLoadout(plan.slot, plan.name, state.pending)
         plan.original = Copy(state.pending)
         PlaySound(SOUND_APPLY)
@@ -2100,8 +2171,8 @@ local function CreateLoadoutPicker()
     frame.loadoutRefresh = function()
         UIDropDownMenu_SetText(picker, state.planning and state.planning.name or TEXT.current)
         SetShown(save, state.planning ~= nil)
-        SetShown(delete, state.planning ~= nil)
-        if state.planning and IsDirty() then
+        SetShown(delete, state.planning ~= nil and state.planning.slot ~= nil)
+        if state.planning and (not state.planning.slot or IsDirty()) then
             save:Enable()
         else
             save:Disable()
@@ -2514,7 +2585,8 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
             end
         elseif kind == "LA" then
             local loadout = FindLoadout(tonumber(a))
-            local text = format(TEXT.loadoutApplied, loadout and loadout.name or "?", tonumber(b) or 0,
+            local name = loadout and loadout.name or state.lastApplied or "?"
+            local text = format(TEXT.loadoutApplied, name, tonumber(b) or 0,
                 tonumber(c) or 0)
             DEFAULT_CHAT_FRAME:AddMessage("|cffffd100" .. text .. "|r")
             if statusText then

@@ -90,6 +90,72 @@ def check(definition, spells):
                 assert 1 <= option <= len(by_id[node_id]['options']), f"{tree['name']}: bot build option {pick}"
 
 
+PRESET_KINDS = ('single', 'aoe')
+MAX_LEVEL = 80
+
+
+def points_at(tree, level):
+    if level < tree['firstLevel']:
+        return 0
+    return (level - tree['firstLevel']) // tree['levelStep'] + 1
+
+
+def preset_values(definition, preset):
+    """A preset's build as {node id: value}: "nodes" maps node ids to a rank (or, for a choice, the option)."""
+    return {int(node_id): int(value) for node_id, value in preset['nodes'].items()}
+
+
+def check_preset(definition, preset):
+    """A recommended build (TalentTree.lua shows it in the loadout picker): legal at the level cap for the class tree
+    and its specialization's tree, and spending every point both have there."""
+    trees = {tree['id']: tree for tree in definition['trees']}
+    where = f"class {definition['classId']} preset {preset.get('spec')}/{preset.get('kind')}"
+    assert preset.get('kind') in PRESET_KINDS, f'{where}: kind must be one of {PRESET_KINDS}'
+    spec = trees.get(preset.get('spec'))
+    assert spec and spec['kind'] == 'spec', f'{where}: spec must be a spec tree id'
+    class_tree = next(tree for tree in definition['trees'] if tree['kind'] == 'class')
+    values = preset_values(definition, preset)
+    nodes = {}
+    for tree in (class_tree, spec):
+        for node in tree['nodes']:
+            nodes[node['id']] = (tree, node)
+    for node_id, value in values.items():
+        assert node_id in nodes, f'{where}: node {node_id} is not in the class tree or {spec["name"]}'
+        tree, node = nodes[node_id]
+        assert 1 <= value <= len(node_spells(node)), f'{where}: node {node_id} value {value}'
+        assert node.get('level', 0) <= MAX_LEVEL, f'{where}: node {node_id} level'
+
+    def cost(node, value):
+        return 0 if value <= 0 else (1 if node['kind'] == 'choice' else value)
+
+    def maxed(node, value):
+        return value > 0 if node['kind'] == 'choice' else value >= len(node_spells(node))
+
+    for tree in (class_tree, spec):
+        spent = sum(cost(node, values.get(node['id'], 0)) for node in tree['nodes'])
+        available = points_at(tree, MAX_LEVEL)
+        assert spent == available, f"{where}: {tree['name']} spends {spent} of its {available} points"
+        for node in tree['nodes']:
+            value = values.get(node['id'], 0)
+            if not value:
+                continue
+            if node.get('parents'):
+                assert any(maxed(nodes[parent][1], values.get(parent, 0)) for parent in node['parents']), \
+                    f"{where}: node {node['id']} ({node['name'] if 'name' in node else 'choice'}) has no maxed parent"
+            for gate in tree.get('gates', []):
+                if node['row'] >= gate['row']:
+                    above = sum(cost(other, values.get(other['id'], 0)) for other in tree['nodes']
+                                if other['row'] < gate['row'])
+                    assert above >= gate['cost'], \
+                        f"{where}: node {node['id']} is past the row {gate['row']} gate ({above}/{gate['cost']})"
+
+
+def preset_build(definition, preset):
+    """The build string (every node of the class, in order) the window reads"""
+    values = preset_values(definition, preset)
+    return ''.join(str(values.get(node['id'], 0)) for _, node in ordered_nodes(definition))
+
+
 def bot_pick(pick):
     """A bot build entry: a node id (every rank of it, in order), or "<node>:<option>" for a choice."""
     text = str(pick)
@@ -258,6 +324,12 @@ def build_lua(definitions):
                     lines.append(f"                  texts = {{ {texts} }} }},")
             lines.append('              } },')
         lines.append('        },')
+        # Recommended builds for the loadout picker, as build strings
+        lines.append('        presets = {')
+        for preset in definition.get('presets', []):
+            lines.append(f"            {{ spec = {preset['spec']}, kind = {lua_string(preset['kind'])}, "
+                         f"build = {lua_string(preset_build(definition, preset))} }},")
+        lines.append('        },')
         lines.append('    },')
     lines.append('}')
     lines.append('')
@@ -277,6 +349,13 @@ def main():
     spells = spell_ids()
     for definition in definitions:
         check(definition, spells)
+        for preset in definition.get('presets', []):
+            check_preset(definition, preset)
+
+    # --check <talentTree.json>: validate one class's file (its presets included) and write nothing
+    if len(sys.argv) > 2 and sys.argv[1] == '--check':
+        print('ok')
+        return 0
 
     os.makedirs(os.path.dirname(SQL_OUT), exist_ok=True)
     with open(SQL_OUT, 'w', encoding='utf-8', newline='\n') as handle:
