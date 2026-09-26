@@ -224,14 +224,22 @@ bool HasClassAppropriateStats(ItemTemplate const& itemTemplate, Player const* pl
     if (itemTemplate.InventoryType == INVTYPE_HOLDABLE && IsPhysicalClass(player->getClass()))
         return false;
 
-    // Stamina suits every class: it does not make a caster item a physical one, nor the other way round
-    int32 const physicalScore = GetPhysicalStatScore(itemTemplate, player->getClass()) -
-        GetStatValue(itemTemplate, ITEM_MOD_STAMINA) * 2;
-    int32 const casterScore = GetCasterStatScore(itemTemplate);
+    // Judged on the primary stats only. Stamina suits every class, and hit, crit and haste rating are shared by
+    // casters and fighters in this version: a spell power cloak with crit rating is still a caster's cloak.
+    int32 const spellPower = GetStatValue(itemTemplate, ITEM_MOD_SPELL_POWER);
+    int32 const intellect = GetStatValue(itemTemplate, ITEM_MOD_INTELLECT);
+    int32 const physicalPrimary = GetStatValue(itemTemplate, ITEM_MOD_STRENGTH) +
+        GetStatValue(itemTemplate, ITEM_MOD_AGILITY) + GetStatValue(itemTemplate, ITEM_MOD_ATTACK_POWER) +
+        GetStatValue(itemTemplate, ITEM_MOD_RANGED_ATTACK_POWER) +
+        GetStatValue(itemTemplate, ITEM_MOD_EXPERTISE_RATING) +
+        GetStatValue(itemTemplate, ITEM_MOD_ARMOR_PENETRATION_RATING);
 
-    if (IsPhysicalClass(player->getClass()) && casterScore > 0 && physicalScore == 0)
+    // A fighter never takes spell power, nor intellect without a fighter's stat beside it (a hunter's agility and
+    // intellect mail is theirs; a caster's intellect cloak is not)
+    if (IsPhysicalClass(player->getClass()) && (spellPower > 0 || (intellect > 0 && physicalPrimary == 0)))
         return false;
-    if (IsCasterClass(player->getClass()) && physicalScore > 0 && casterScore == 0)
+    // A caster never takes strength, agility or attack power without spell power or intellect beside it
+    if (IsCasterClass(player->getClass()) && physicalPrimary > 0 && spellPower == 0 && intellect == 0)
         return false;
     return true;
 }
@@ -433,9 +441,15 @@ ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* kille
     std::vector<SmartLootCandidate> candidates;
     AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel, false,
         candidates);
-    // No upgrade: the drop stays as it is, unless it does not suit how the owner fights (an off-hand for a two-hander
-    // wielder), which is then swapped for the best item that does
-    if (candidates.empty() && !FitsWeaponStyle(player, dropped))
+    // No upgrade: the drop stays as it is, unless it does not suit the owner - the wrong stats (a spell power cloak
+    // for a rogue), armor they do not wear, or how they fight (an off-hand for a two-hander wielder) - or its stats
+    // are a random suffix, which may be anyone's. It is then swapped for the best item that does suit them.
+    bool const suits = dropped.RandomProperty == 0 && dropped.RandomSuffix == 0 &&
+        HasClassAppropriateStats(dropped, player) && FitsWeaponStyle(player, dropped) &&
+        player->BotCanUseItem(&dropped) == EQUIP_ERR_OK && HasEquipmentProficiency(dropped, player) &&
+        !(dropped.Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(dropped.InventoryType) &&
+            dropped.SubClass != GetPreferredArmorSubclass(player));
+    if (candidates.empty() && !suits)
         AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel, true,
             candidates);
     if (candidates.empty())
