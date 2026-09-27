@@ -61,7 +61,9 @@
 // built when the first player arrives: a ring on the ground around the arrival point (the bubble: nothing can attack
 // the players in it, nor they anything), two trash packs and the boss. Stepping out of the ring starts the floor for
 // good. The boss down, a portal opens to the next floor, and every tenth floor keeps the progress (a checkpoint) and
-// leaves a chest.
+// leaves a chest. The floor is timed from the bubble to the guardian's fall: a fast clear against its par time sends
+// the portal two or three floors down (InfiniteDungeonScaling.h), the floors passed over still giving their checkpoint
+// and gear.
 //
 // A run lives in the world thread's gossip and hooks and in its floor map's thread: every access to the runs holds
 // the lock. The floor itself (spawns, the bubble, the hearts, deaths) is driven from its map's update.
@@ -195,6 +197,8 @@ struct Member
     std::string lastProgress;
     // It stepped into the portal and was asked (PORTAL); asked again once it stepped away
     bool portalPrompted = false;
+    uint32 floorsSkipped = 0;       // passed over by fast clears
+    uint32 deepest = 0;             // the deepest floor behind it this run, cleared or passed over
 };
 
 struct Run
@@ -228,6 +232,14 @@ struct Run
     float healthFactor = 1.0f;      // the roles' and the floor's
     float damageFactor = 1.0f;
     float referenceHealth = 1.0f;
+
+    // The floor's clock: it runs from the bubble's drop to the guardian's fall (or the last fall of the run)
+    uint32 parMs = 0;
+    uint64 clockStartMs = 0;
+    uint32 clockMs = 0;             // frozen once cleared or fallen
+    uint32 floorsDown = 1;          // where the portal leads, once cleared
+    uint32 chestFloor = 0;          // the checkpoint the clear reached, whose chest stands beside the portal
+    uint32 arrivedDown = 1;         // how far down the portal that brought the run here led
 };
 
 // Where a player in a run goes back to, on the player itself: a player that finds it on itself with no run (the run
@@ -489,19 +501,25 @@ uint32 LastCheckpoint(uint32 floor)
     return floor > 0 ? (floor - 1) / CheckpointFloors * CheckpointFloors : 0;
 }
 
-// The messages, prefix "Infinite", tab-separated (InfiniteDungeon.lua reads them):
-//   HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best>
-//   ARRIVE <floor> <arena> <ladder> <step> <paragon>
+// The messages, prefix "Infinite", tab-separated (InfiniteDungeon.lua reads them; fields are only ever appended, and
+// the client takes a missing one as the old behaviour):
+//   HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best> <clock ms> <par ms>
+//       <floors down> <chest floor>
+//       clock: the floor's time so far (running while fighting, frozen once cleared or fallen, 0 before); floors
+//       down: where the portal leads once cleared (1-3, 0 before); chest floor: the checkpoint whose chest stands
+//       beside the portal (0 none)
+//   ARRIVE <floor> <arena> <ladder> <step> <paragon> <floors down>        floors down: the jump that led here (1-3)
 //   PROG <foes down> <foes> <boss down 0/1> <hearts on the ground> <hearts taken> <deaths> <partner> <partner state>
 //        partner state: 0 no partner, 1 alive on the floor, 2 dead, 3 not on the floor
-//   REWARD <floor> <gold copper> <experience> <essences> <gear 0/1>        a floor cleared, before CLEAR
-//   CLEAR <floor> <checkpoint reached 0/1>
+//   REWARD <floor> <gold copper> <experience> <essences> <gear 0/1> <gear floor passed over, 0 none>
+//                                                                         a floor cleared, before CLEAR
+//   CLEAR <floor> <checkpoint reached 0/1> <floors down> <clock ms> <par ms> <checkpoint floor reached>
 //   CHEST <essences> <paragon points>                                    the checkpoint chest opened
 //   SUMMARY <ladder> <start floor> <floor> <floors cleared> <best> <checkpoint> <gold> <experience> <essences>
-//           <items> <paragon>                                             the run is over for it, before END
+//           <items> <paragon> <floors passed over> <deepest floor behind>  the run is over for it, before END
 //   END <reason> <floor>
 //   PORTAL <next floor> <ladder> <step> <paragon> <gear floor 0/1> <checkpoint floor 0/1> <chest unopened 0/1>
-//          <players>                                                      stepped into the portal: the choice
+//          <players> <floors down>                                        stepped into the portal: the choice
 //   PORTALOFF                                                             stepped out of it, or the choice is gone
 //   KEEPER <ladder> <level> <checkpoint> <best> <checkpoint at 80> <best at 80> <start floor> <step> <paragon>
 //          <item level> <can start 0/1> <why not>                         the keeper's window, then:
@@ -517,13 +535,37 @@ uint32 LastCheckpoint(uint32 floor)
 //   KEEPER_CLOSED          the window was closed
 //   PORTAL_DESCEND         the portal's choice: down
 //   RUN_LEAVE              the portal's choice or the tracker's button: out of the dungeon (alone in a duo)
-// HUD floor checkpoint ladder step paragon state arena level players best
+// The floor's time so far: running while fighting, frozen once cleared or fallen
+uint32 FloorClockMs(Run const& run)
+{
+    switch (run.state)
+    {
+        case FloorState::Fighting:
+            return static_cast<uint32>(std::min<uint64>(NowMs() - run.clockStartMs,
+                std::numeric_limits<uint32>::max()));
+        case FloorState::Cleared:
+        case FloorState::Failed:
+            return run.clockMs;
+        default:
+            return 0;
+    }
+}
+
+// m:ss, for the chat lines
+std::string ClockText(uint32 ms)
+{
+    uint32 const seconds = ms / IN_MILLISECONDS;
+    return Acore::StringFormat("{}:{:02}", seconds / 60, seconds % 60);
+}
+
+// HUD floor checkpoint ladder step paragon state arena level players best clock par down chest
 void SendHud(Player* player, Run const& run)
 {
-    SendAddon(player, Acore::StringFormat("HUD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor,
+    SendAddon(player, Acore::StringFormat("HUD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor,
         LastCheckpoint(run.floor), static_cast<uint32>(run.ladder), GetStep(run.floor),
         GetRecommendedParagon(run.ladder, run.floor), static_cast<uint32>(run.state), ArenaName(player, ArenaOf(run)),
-        run.level, run.members.size(), ProgressOf(player).best[static_cast<std::size_t>(run.ladder)]));
+        run.level, run.members.size(), ProgressOf(player).best[static_cast<std::size_t>(run.ladder)],
+        FloorClockMs(run), run.parMs, run.state == FloorState::Cleared ? run.floorsDown : 0, run.chestFloor));
 }
 
 void SendHudToAll(Run const& run, Map const* map)
@@ -580,14 +622,15 @@ void SendProgress(Run& run, Map const* map)
     }
 }
 
-// SUMMARY ladder start floor cleared best checkpoint gold experience essences items paragon
+// SUMMARY ladder start floor cleared best checkpoint gold experience essences items paragon skipped deepest
 void SendSummary(Player* player, Run const& run, Member const& member)
 {
     Progress const& progress = ProgressOf(player);
     std::size_t const ladder = static_cast<std::size_t>(run.ladder);
-    SendAddon(player, Acore::StringFormat("SUMMARY\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", ladder, run.startFloor,
-        run.floor, member.floorsCleared, progress.best[ladder], progress.checkpoint[ladder], member.gold,
-        member.experience, member.essences, member.items, member.paragon));
+    SendAddon(player, Acore::StringFormat("SUMMARY\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", ladder,
+        run.startFloor, run.floor, member.floorsCleared, progress.best[ladder], progress.checkpoint[ladder],
+        member.gold, member.experience, member.essences, member.items, member.paragon, member.floorsSkipped,
+        member.deepest));
 }
 
 // -----------------------------------------------------------------------------------------------------------------
@@ -828,6 +871,11 @@ void SetupFloor(Run& run, Map* map, std::vector<Player*> const& present)
         run.creatures.emplace_back(creature->GetGUID(), MobRole::Boss);
     }
 
+    // The par time, from the foes that really stand on the floor
+    uint32 const foes = static_cast<uint32>(std::count_if(run.creatures.begin(), run.creatures.end(),
+        [](auto const& creature) { return creature.second != MobRole::Boss; }));
+    run.parMs = GetParMs(foes, duo);
+
     if (!anchor->IsWithinLOS(entry.GetPositionX(), entry.GetPositionY(), entry.GetPositionZ() + 2.0f))
         LOG_WARN("module", "Infinite Dungeon: the boss spot of {} does not see its bubble", arena.nameEn);
 }
@@ -853,6 +901,8 @@ void DropBubble(Run& run, Map* map, std::vector<Player*> const& present)
 
     run.state = FloorState::Fighting;
     run.stateMs = 0;
+    run.clockStartMs = NowMs();
+    run.clockMs = 0;
     SendHudToAll(run, map);
 }
 
@@ -956,12 +1006,12 @@ void GiveItem(Player* player, ItemTemplate const* itemTemplate)
 }
 
 // Every fifth floor's guardian: one piece fitted to the player's class and slots, at its level while levelling, of
-// the step's item level at the cap
-bool GiveFloorGear(Run const& run, Player* player)
+// the step's item level at the cap (that floor's step, for one passed over)
+bool GiveFloorGear(Run const& run, Player* player, uint32 floor)
 {
     if (IsAtLevelCap(player))
     {
-        GiveMythicLootItem(player, run.ladder == Ladder::Gearing ? GetItemLevel(run.floor) : GearingBaseItemLevel);
+        GiveMythicLootItem(player, run.ladder == Ladder::Gearing ? GetItemLevel(floor) : GearingBaseItemLevel);
         return true;
     }
 
@@ -974,7 +1024,9 @@ bool GiveFloorGear(Run const& run, Player* player)
     return true;
 }
 
-// The floor's rewards, told to the client (REWARD) and kept for the run's summary
+// The floor's rewards, told to the client (REWARD) and kept for the run's summary. A fast clear's floors passed over
+// count too: their gear piece is given and their checkpoint kept (its chest stands beside the portal), while the
+// gold and the essence chance stay one floor's.
 void RewardFloor(Run const& run, Player* player, Member& member)
 {
     uint8 const level = player->GetLevel();
@@ -992,25 +1044,35 @@ void RewardFloor(Run const& run, Player* player, Member& member)
     uint32 essences = 0;
     if (roll_chance_i(static_cast<int32>(FloorEssenceChance)))
         essences = GrantEssenceRewards(player, 1, 1);
-    bool const gear = run.floor % GearFloors == 0 && GiveFloorGear(run, player);
+    bool const gear = IsGearFloor(run.floor) && GiveFloorGear(run, player, run.floor);
+    // A jump covers at most two floors, so one gear floor at most among them
+    uint32 skippedGear = 0;
+    for (uint32 passed = run.floor + 1; passed < run.floor + run.floorsDown; ++passed)
+        if (IsGearFloor(passed) && GiveFloorGear(run, player, passed))
+            skippedGear = passed;
 
+    // The deepest floor behind the player: the one cleared and the ones the portal passes over (the floor it leads
+    // to counts once cleared)
+    uint32 const passedTo = run.floor + run.floorsDown - 1;
     ++member.floorsCleared;
+    member.floorsSkipped += run.floorsDown - 1;
+    member.deepest = std::max(member.deepest, passedTo);
     member.gold += gold;
     member.experience += experience;
     member.essences += essences;
-    member.items += gear ? 1 : 0;
-    SendAddon(player, Acore::StringFormat("REWARD\t{}\t{}\t{}\t{}\t{}", run.floor, gold, experience, essences,
-        gear ? 1 : 0));
+    member.items += (gear ? 1 : 0) + (skippedGear ? 1 : 0);
+    SendAddon(player, Acore::StringFormat("REWARD\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, gold, experience, essences,
+        gear ? 1 : 0, skippedGear));
 
     Progress& progress = ProgressOf(player);
     std::size_t const ladder = static_cast<std::size_t>(run.ladder);
-    progress.best[ladder] = std::max(progress.best[ladder], run.floor);
-    if (run.floor % CheckpointFloors == 0 && run.floor > progress.checkpoint[ladder])
+    progress.best[ladder] = std::max(progress.best[ladder], passedTo);
+    if (run.chestFloor && run.chestFloor > progress.checkpoint[ladder])
     {
-        progress.checkpoint[ladder] = run.floor;
+        progress.checkpoint[ladder] = run.chestFloor;
         Say(player, IsFrench(player) ?
-            Acore::StringFormat("Point de passage atteint : vous reprendrez à l'étage {}.", run.floor + 1) :
-            Acore::StringFormat("Checkpoint reached: you will start again from floor {}.", run.floor + 1));
+            Acore::StringFormat("Point de passage atteint : vous reprendrez à l'étage {}.", run.chestFloor + 1) :
+            Acore::StringFormat("Checkpoint reached: you will start again from floor {}.", run.chestFloor + 1));
     }
     SaveProgress(player);
 }
@@ -1048,8 +1110,12 @@ Position PortalSpot(Run const& run, Map* map, Creature* anchor)
 
 void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
 {
+    // The clock stops: against the par time, how far down the portal leads, and the checkpoint the clear reaches
+    run.clockMs = FloorClockMs(run);
     run.state = FloorState::Cleared;
     run.stateMs = 0;
+    run.floorsDown = GetFloorsDown(run.clockMs, run.parMs);
+    run.chestFloor = GetCheckpointReached(run.floor, run.floorsDown);
 
     if (Creature* anchor = map->GetCreature(run.anchor))
     {
@@ -1063,7 +1129,8 @@ void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
         anchor->SummonGameObject(GO_PORTAL_LIGHT, portal.GetPositionX(), portal.GetPositionY(),
             portal.GetPositionZ(), facing, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
         GroundIndicators::Burst(anchor, portal, GroundIndicators::Theme::Holy);
-        if (run.floor % CheckpointFloors == 0)
+        // The checkpoint's chest, this floor's or the one of a checkpoint floor the portal passes over
+        if (run.chestFloor)
         {
             // Beside the portal, facing the way in
             float const side = facing + float(M_PI) / 2.0f;
@@ -1078,7 +1145,14 @@ void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
     {
         if (Member* member = MemberOf(run, player->GetGUID()))
             RewardFloor(run, player, *member);
-        SendAddon(player, Acore::StringFormat("CLEAR\t{}\t{}", run.floor, run.floor % CheckpointFloors == 0 ? 1 : 0));
+        if (run.floorsDown > 1)
+            Say(player, IsFrench(player) ?
+                Acore::StringFormat("Franchi en {} (référence {}) : le portail mène {} étages plus bas, à l'étage {}.",
+                    ClockText(run.clockMs), ClockText(run.parMs), run.floorsDown, run.floor + run.floorsDown) :
+                Acore::StringFormat("Cleared in {} (par {}): the portal leads {} floors down, to floor {}.",
+                    ClockText(run.clockMs), ClockText(run.parMs), run.floorsDown, run.floor + run.floorsDown));
+        SendAddon(player, Acore::StringFormat("CLEAR\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, run.chestFloor ? 1 : 0,
+            run.floorsDown, run.clockMs, run.parMs, run.chestFloor));
         SendHud(player, run);
     }
     SendProgress(run, map);
@@ -1184,8 +1258,9 @@ std::optional<std::size_t> PickArena(Run const& run)
 
 // Sends every member to a fresh instance of the next floor's arena. Called from `from`, the map the members are in
 // (the keeper's, or the floor's): a member somewhere else (still loading, gone astray) is left out of the run, and its
-// own update cleans it up (HomeData), as players are only touched from their own map's thread.
-void BeginFloor(Run& run, uint32 floor, Map const* from)
+// own update cleans it up (HomeData), as players are only touched from their own map's thread. `arrivedDown`: how far
+// down the portal that leads there went (told on arrival).
+void BeginFloor(Run& run, uint32 floor, Map const* from, uint32 arrivedDown = 1)
 {
     for (auto itr = run.members.begin(); itr != run.members.end();)
     {
@@ -1232,6 +1307,12 @@ void BeginFloor(Run& run, uint32 floor, Map const* from)
     run.deadMembers.clear();
     run.hearts.clear();
     run.portal.reset();
+    run.parMs = 0;
+    run.clockStartMs = 0;
+    run.clockMs = 0;
+    run.floorsDown = 1;
+    run.chestFloor = 0;
+    run.arrivedDown = std::clamp<uint32>(arrivedDown, 1, MaxFloorsDown);
     run.usedMaps.insert(target.mapId);
     for (Member& member : run.members)
     {
@@ -1294,8 +1375,9 @@ void OnArrival(Run& run, Player* player)
 
     ArenaInfo const& arena = ArenaOf(run);
     SendHud(player, run);
-    SendAddon(player, Acore::StringFormat("ARRIVE\t{}\t{}\t{}\t{}\t{}", run.floor, ArenaName(player, arena),
-        static_cast<uint32>(run.ladder), GetStep(run.floor), GetRecommendedParagon(run.ladder, run.floor)));
+    SendAddon(player, Acore::StringFormat("ARRIVE\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, ArenaName(player, arena),
+        static_cast<uint32>(run.ladder), GetStep(run.floor), GetRecommendedParagon(run.ladder, run.floor),
+        run.arrivedDown));
     if (Member* member = MemberOf(run, player->GetGUID()))
         member->lastProgress.clear();
 }
@@ -1448,15 +1530,15 @@ void CountDeaths(Run& run, std::vector<Player*> const& present)
     }
 }
 
-// PORTAL next ladder step paragon gear checkpoint chest players: the portal's choice (InfiniteDungeon.lua)
+// PORTAL next ladder step paragon gear checkpoint chest players down: the portal's choice (InfiniteDungeonKeeper.lua)
 void SendPortalChoice(Player* player, Run const& run, Member const& member)
 {
-    uint32 const next = run.floor + 1;
-    bool const chestWaiting = run.floor % CheckpointFloors == 0 && !member.chestClaimed;
-    SendAddon(player, Acore::StringFormat("PORTAL\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", next,
+    uint32 const next = run.floor + run.floorsDown;
+    bool const chestWaiting = run.chestFloor && !member.chestClaimed;
+    SendAddon(player, Acore::StringFormat("PORTAL\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", next,
         static_cast<uint32>(run.ladder), GetStep(next), GetRecommendedParagon(run.ladder, next),
-        next % GearFloors == 0 ? 1 : 0, next % CheckpointFloors == 0 ? 1 : 0, chestWaiting ? 1 : 0,
-        run.members.size()));
+        IsGearFloor(next) ? 1 : 0, IsCheckpointFloor(next) ? 1 : 0, chestWaiting ? 1 : 0, run.members.size(),
+        run.floorsDown));
 }
 
 bool NearPortal(Run const& run, Player const* player, float range)
@@ -1546,6 +1628,7 @@ bool UpdateRun(Run& run, Map* map, uint32 diff)
             if (!present.empty() && std::none_of(present.begin(), present.end(),
                     [](Player* player) { return player->IsAlive(); }))
             {
+                run.clockMs = FloorClockMs(run);
                 run.state = FloorState::Failed;
                 run.stateMs = 0;
                 SendHudToAll(run, map);
@@ -1855,7 +1938,8 @@ void Descend(Player* player)
         Say(player, Text(player, "Step into the portal first.", "Entrez d'abord dans le portail."));
         return;
     }
-    BeginFloor(*run, run->floor + 1, map);
+    // The whole run goes down together, as far as the clear earned
+    BeginFloor(*run, run->floor + run->floorsDown, map, run->floorsDown);
 }
 
 // Out of the dungeon (RUN_LEAVE: the portal's choice, or the tracker's button), whenever the player wants. Alone, the
@@ -1913,7 +1997,8 @@ public:
     }
 };
 
-// Every tenth floor: essences, and paragon points at the level cap. Each member opens it once.
+// Every tenth floor (cleared, or passed over by a fast clear): essences, and paragon points at the level cap. Each
+// member opens it once.
 class go_infinite_dungeon_chest : public GameObjectScript
 {
 public:
@@ -1924,7 +2009,7 @@ public:
         std::lock_guard<std::recursive_mutex> guard(Lock);
         Run* run = RunOf(player->GetGUID());
         Member* member = run ? MemberOf(*run, player->GetGUID()) : nullptr;
-        if (!member || run->state != FloorState::Cleared)
+        if (!member || run->state != FloorState::Cleared || !run->chestFloor)
             return true;
         if (member->chestClaimed)
         {
@@ -1933,8 +2018,8 @@ public:
         }
 
         member->chestClaimed = true;
-        uint32 const bonus = run->floor / 50;
-        uint32 const essences = GrantEssenceRewards(player, CheckpointEssences + bonus, 1 + run->floor / 30);
+        uint32 const bonus = run->chestFloor / 50;
+        uint32 const essences = GrantEssenceRewards(player, CheckpointEssences + bonus, 1 + run->chestFloor / 30);
         uint32 paragon = 0;
         if (IsAtLevelCap(player))
         {
@@ -2432,8 +2517,8 @@ public:
 };
 
 // -----------------------------------------------------------------------------------------------------------------
-// Commands, to test: .infinite start [floor], floor <n>, arena <index>, clear, leave, checkpoint <n>, info, keeper,
-// portal
+// Commands, to test: .infinite start [floor], floor <n>, arena <index>, clear, time <seconds>, leave, checkpoint <n>,
+// info, keeper, portal
 // -----------------------------------------------------------------------------------------------------------------
 
 using namespace Acore::ChatCommands;
@@ -2451,6 +2536,7 @@ public:
             { "floor",      HandleFloor,      SEC_GAMEMASTER, Console::No },
             { "arena",      HandleArena,      SEC_GAMEMASTER, Console::No },
             { "clear",      HandleClear,      SEC_GAMEMASTER, Console::No },
+            { "time",       HandleTime,       SEC_GAMEMASTER, Console::No },
             { "leave",      HandleLeave,      SEC_GAMEMASTER, Console::No },
             { "checkpoint", HandleCheckpoint, SEC_GAMEMASTER, Console::No },
             { "info",       HandleInfo,       SEC_GAMEMASTER, Console::No },
@@ -2525,6 +2611,32 @@ public:
         return true;
     }
 
+    // Sets the floor's clock to <seconds> (starting the floor when still in the bubble), then `.infinite clear` clears
+    // it as if it took that long: to try each speed skip
+    static bool HandleTime(ChatHandler* handler, uint32 seconds)
+    {
+        std::lock_guard<std::recursive_mutex> guard(Lock);
+        Player* player = handler->GetPlayer();
+        Run* run = RunOf(player->GetGUID());
+        Map* map = player->FindMap();
+        if (!run || !map || map->GetInstanceId() != run->instanceId)
+            return false;
+        if (run->state == FloorState::Bubble)
+            DropBubble(*run, map, PresentMembers(*run, map));
+        if (run->state != FloorState::Fighting)
+        {
+            handler->SendSysMessage("The floor's clock only runs while fighting.");
+            return false;
+        }
+        uint64 const now = NowMs();
+        run->clockStartMs = now - std::min<uint64>(static_cast<uint64>(seconds) * IN_MILLISECONDS, now);
+        SendHudToAll(*run, map);
+        handler->PSendSysMessage("Floor clock {} of par {}: +3 within {}, +2 within {}.", ClockText(FloorClockMs(*run)),
+            ClockText(run->parMs), ClockText(GetParShareMs(run->parMs, ThreeFloorsParPct)),
+            ClockText(GetParShareMs(run->parMs, TwoFloorsParPct)));
+        return true;
+    }
+
     static bool HandleLeave(ChatHandler* handler)
     {
         std::lock_guard<std::recursive_mutex> guard(Lock);
@@ -2595,11 +2707,13 @@ public:
         }
         ArenaInfo const& arena = ArenaOf(*run);
         handler->PSendSysMessage("Run {}: floor {} ({} ladder, step {}, paragon {}), level {}, arena {} ({}) map {} "
-            "instance {}, state {}, {} creatures ({} down), health x{:.2f}, damage x{:.2f}, reference {:.0f}.",
+            "instance {}, state {}, {} creatures ({} down), health x{:.2f}, damage x{:.2f}, reference {:.0f}, clock {} "
+            "of par {} (portal +{}).",
             run->id, run->floor, run->ladder == Ladder::Gearing ? "gearing" : "levelling", GetStep(run->floor),
             GetRecommendedParagon(run->ladder, run->floor), run->level, run->arena, arena.nameEn, run->mapId,
             run->instanceId, static_cast<uint32>(run->state), run->creatures.size(), run->fallen.size(),
-            run->healthFactor, run->damageFactor, run->referenceHealth);
+            run->healthFactor, run->damageFactor, run->referenceHealth, ClockText(FloorClockMs(*run)),
+            ClockText(run->parMs), run->floorsDown);
         return true;
     }
 };

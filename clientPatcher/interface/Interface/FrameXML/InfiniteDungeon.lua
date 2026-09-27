@@ -2,22 +2,29 @@
 -- floors entered from Eternia, a keeper in every capital. In the style of the challenge board and the Mythic+ frames
 -- (ChallengeBoard.lua, MythicPlus.lua), with the same materials:
 -- - the tracker, in the quest tracker's place like the Mythic+ timer: the floor, the step and its paragon at the
---   cap, what the floor asks for (the foes, the guardian, the portal), a bar to the next checkpoint, the next gear
---   floor, the hearts, the falls and the partner. It folds down to its header.
--- - the banners at the top of the screen: each floor reached (the checkpoint and gear floors have their own), each
---   floor cleared with what it gave, and the checkpoint reached with its chest
+--   cap, the floor's clock against its par time with the +3 and +2 marks (the Mythic+ timer's way: a fast clear
+--   sends the portal two or three floors down), what the floor asks for (the foes, the guardian, the portal), a bar
+--   to the next checkpoint, the next gear floor, the hearts, the falls and the partner. It folds down to its header.
+-- - the banners at the top of the screen: each floor reached (the checkpoint and gear floors have their own, a
+--   swift descent says so), each floor cleared with what it gave and its time ("+3 floors" in large after a fast
+--   clear), and the checkpoint reached with its chest
 -- - a toast when the checkpoint chest is opened, and the run's summary when it is over (floors, record, rewards)
 -- - Eternia's pin on the world map and the minimap, in every capital and the zone around it
 --
 -- Protocol: prefix "Infinite", tab-separated, whispered to oneself (InfiniteDungeonSystem.cpp documents it too).
---   server  HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best>
---           ARRIVE <floor> <arena> <ladder> <step> <paragon>
+--   server  HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best> <clock ms>
+--               <par ms> <floors down> <chest floor>
+--               clock: the floor's time so far, running while fighting (counted on from the message), frozen once
+--               cleared or fallen; floors down: where the portal leads once cleared (0 before); chest floor: the
+--               checkpoint whose chest stands beside the portal (0 none)
+--           ARRIVE <floor> <arena> <ladder> <step> <paragon> <floors down>  the jump that led here (1-3)
 --           PROG <foes down> <foes> <boss down> <hearts lying> <hearts taken> <deaths> <partner> <partner state>
---           REWARD <floor> <gold copper> <experience> <essences> <gear 0/1>        before CLEAR
---           CLEAR <floor> <checkpoint reached 0/1>
+--           REWARD <floor> <gold copper> <experience> <essences> <gear 0/1> <gear floor passed over>   before CLEAR
+--           CLEAR <floor> <checkpoint reached 0/1> <floors down> <clock ms> <par ms> <checkpoint floor>
 --           CHEST <essences> <paragon>
 --           SUMMARY <ladder> <start> <floor> <cleared> <best> <checkpoint> <gold> <experience> <essences> <items>
---                   <paragon>                                                   before END
+--                   <paragon> <floors passed over> <deepest floor behind>       before END
+--           Fields are only ever appended: a missing one reads as before the speed skips.
 --           END <reason> <floor>              reason: 0 left, 1 everyone fell, 2 never arrived
 --           PORTAL, PORTALOFF, KEEPER, KEEPDUO, KEEPREC, KEEPEND, KEEPER_CLOSE: InfiniteDungeonKeeper.lua
 --   client  STATE                              asks for the tracker again (entering the world)
@@ -44,6 +51,9 @@ local SKULL = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 
 -- InfiniteDungeonScaling.h
 local CHECKPOINT_FLOORS, GEAR_FLOORS = 10, 5
+-- A floor cleared within these shares of its par time: the portal leads three, two floors down (ThreeFloorsParPct,
+-- TwoFloorsParPct)
+local THREE_FLOORS_SHARE, TWO_FLOORS_SHARE = 0.45, 0.70
 local LADDER_GEARING = 1
 local STATE_TRAVELLING, STATE_BUBBLE, STATE_FIGHTING, STATE_CLEARED, STATE_FALLEN = 0, 1, 2, 3, 4
 local REASON_LEFT, REASON_FALLEN = 0, 1
@@ -121,6 +131,19 @@ local TEXT = french and {
     mapHint2 = "Chaque étage : quelques ennemis, un gardien, un portail vers le bas",
     leave = "Quitter le donjon",
     portalHint = "Cliquez pour rouvrir le choix du portail",
+    clockPar = "/ %s",
+    markThree = "+3 avant %s",
+    markTwo = "+2 avant %s",
+    markPar = "Temps de référence %s",
+    timerResult = "Portail : +%d étages, vers l'étage %d",
+    timerResultOne = "Portail : l'étage suivant",
+    floorsDown = "+%d étages",
+    kickerFloorsDown = "+%d ÉTAGES",
+    clearedIn = "Franchi en %s (référence %s)",
+    swiftTo = "le portail mène à l'étage %d",
+    arriveSwift = "Descente rapide : +%d étages",
+    skippedGear = "l'équipement de l'étage %d",
+    summarySkipped = "%d |4étage sauté:étages sautés;",
 } or {
     title = "Infinite Dungeon",
     kicker = "INFINITE DUNGEON",
@@ -180,6 +203,19 @@ local TEXT = french and {
     mapHint2 = "Each floor: a few foes, a guardian, a portal further down",
     leave = "Leave the dungeon",
     portalHint = "Click to open the portal's choice again",
+    clockPar = "/ %s",
+    markThree = "+3 within %s",
+    markTwo = "+2 within %s",
+    markPar = "Par %s",
+    timerResult = "Portal: +%d floors, to floor %d",
+    timerResultOne = "Portal: the next floor",
+    floorsDown = "+%d floors",
+    kickerFloorsDown = "+%d FLOORS",
+    clearedIn = "Cleared in %s (par %s)",
+    swiftTo = "the portal leads to floor %d",
+    arriveSwift = "Swift descent: +%d floors",
+    skippedGear = "floor %d's gear",
+    summarySkipped = "%d |4floor:floors; skipped",
 }
 
 local function Send(body)
@@ -209,6 +245,12 @@ local function Thousands(value)
     local separator = french and " " or ","
     local result = text:reverse():gsub("(%d%d%d)", "%1" .. separator):reverse()
     return (result:gsub("^" .. separator, ""))
+end
+
+-- 83 -> "1:23"
+local function FormatClock(seconds)
+    seconds = max(0, floor(seconds or 0))
+    return format("%d:%02d", floor(seconds / 60), seconds % 60)
 end
 
 -- A square texture turned about its centre (angle in radians), by rewriting its coordinates
@@ -518,7 +560,7 @@ InfiniteDungeonUI = {
     french = french, Send = Send, SetShown = SetShown, SetAtlas = SetAtlas, Colored = Colored, Rotate = Rotate,
     RotateAtlas = RotateAtlas, Tween = Tween, OutCubic = OutCubic, Card = Card, FramedIcon = FramedIcon,
     Divider = Divider, Label = Label, Heading = Heading, Bar = Bar, Thousands = Thousands,
-    QuietButton = QuietButton, CloseButton = CloseButton,
+    QuietButton = QuietButton, CloseButton = CloseButton, FormatClock = FormatClock,
     ART = ART, MORPHEUS = MORPHEUS, FRIZ = FRIZ, SOUND = SOUND, GEAR_ICON = GEAR_ICON, PARAGON_ICON = PARAGON_ICON,
     EXPERIENCE_ICON = EXPERIENCE_ICON, ESSENCE_ICON = ESSENCE_ICON,
     CHECKPOINT_FLOORS = CHECKPOINT_FLOORS, GEAR_FLOORS = GEAR_FLOORS, LADDER_GEARING = LADDER_GEARING,
@@ -531,7 +573,7 @@ InfiniteDungeonUI = {
 -- What the server last said -----------------------------------------------------------------------------------------
 
 local hud = { floor = 1, checkpoint = 0, ladder = 0, step = 0, paragon = 0, state = STATE_TRAVELLING, arena = "",
-    level = 0, players = 1, best = 0 }
+    level = 0, players = 1, best = 0, clock = 0, clockAt = 0, par = 0, down = 0, chestFloor = 0 }
 local progress = { foesDown = 0, foes = 0, bossDown = false, hearts = 0, heartsTaken = 0, deaths = 0, partner = "",
     partnerState = PARTNER_NONE }
 InfiniteDungeonUI.hud = hud
@@ -539,17 +581,47 @@ local chestOpenedOn = 0     -- the floor whose chest was opened
 local pendingReward         -- the floor's REWARD, shown by its CLEAR
 local pendingSummary        -- the run's SUMMARY, shown by its END
 
-local function FloorsInBlock()
-    local done = hud.floor - 1 - hud.checkpoint + (hud.state == STATE_CLEARED and 1 or 0)
-    return max(0, min(CHECKPOINT_FLOORS, done))
+-- How far down the open portal leads (1 before the clear)
+local function FloorsDown()
+    return hud.state == STATE_CLEARED and max(1, hud.down) or 1
 end
 
+-- The floors behind the players since the last checkpoint: once cleared, the floor and those the portal passes over
+local function FloorsInBlock()
+    local behind = hud.floor - 1
+    if hud.state == STATE_CLEARED then
+        behind = hud.floor + FloorsDown() - 1
+    end
+    return max(0, min(CHECKPOINT_FLOORS, behind - hud.checkpoint))
+end
+
+-- The next gear floor still ahead (one the portal passes over gives its piece at the clear)
 local function NextGearFloor()
     local floor = hud.floor
-    if floor % GEAR_FLOORS == 0 and hud.state == STATE_CLEARED then
-        floor = floor + 1
+    if hud.state == STATE_CLEARED then
+        floor = hud.floor + FloorsDown()
     end
     return ceil(floor / GEAR_FLOORS) * GEAR_FLOORS
+end
+
+-- The floor's clock in seconds: counted on from the last HUD while fighting, frozen otherwise
+local function ClockSeconds()
+    local seconds = hud.clock / 1000
+    if hud.state == STATE_FIGHTING then
+        seconds = seconds + (GetTime() - hud.clockAt)
+    end
+    return seconds
+end
+
+-- What a clear at that time earns: 3, 2 or 1 floors down
+local function FloorsDownAt(seconds)
+    local par = hud.par / 1000
+    if seconds <= par * THREE_FLOORS_SHARE then
+        return 3
+    elseif seconds <= par * TWO_FLOORS_SHARE then
+        return 2
+    end
+    return 1
 end
 
 -- -----------------------------------------------------------------------------------------------------------------
@@ -614,7 +686,7 @@ local function SetObjective(row, text, count, done, active)
     end
 end
 
-local LayoutTracker
+local LayoutTracker, UpdateTimer
 
 local function CreateTracker()
     tracker = CreateFrame("Frame", "InfiniteDungeonTracker", UIParent)
@@ -691,6 +763,38 @@ local function CreateTracker()
     status.text:SetPoint("LEFT", status, "LEFT", 12, 0)
     status.text:SetPoint("RIGHT", status, "RIGHT", -12, 0)
     tracker.status = status
+
+    -- The floor's clock against its par time, the Mythic+ timer's way: the clock and what a clear now earns, a bar
+    -- filling as the time runs with its marks at the +3 and +2 shares, and the times to beat
+    local timer = Row(22)
+    timer.clock = timer:CreateFontString(nil, "OVERLAY")
+    timer.clock:SetFont(FRIZ, 16)
+    timer.clock:SetShadowOffset(1, -1)
+    timer.clock:SetPoint("LEFT", timer, "LEFT", 12, 0)
+    timer.par = Label(timer, "GameFontHighlightSmall", MUTED)
+    timer.par:SetPoint("BOTTOMLEFT", timer.clock, "BOTTOMRIGHT", 5, 1)
+    timer.tier = timer:CreateFontString(nil, "OVERLAY")
+    timer.tier:SetFont(FRIZ, 15)
+    timer.tier:SetShadowOffset(1, -1)
+    timer.tier:SetPoint("RIGHT", timer, "RIGHT", -12, 0)
+    tracker.timer = timer
+
+    local timerBar = Row(15)
+    timerBar.bar = Bar(timerBar, TRACKER_WIDTH - 24, 1)
+    timerBar.bar:SetPoint("CENTER", timerBar, "CENTER", 0, 0)
+    for _, share in ipairs({ THREE_FLOORS_SHARE, TWO_FLOORS_SHARE }) do
+        local tick = timerBar.bar:CreateTexture(nil, "OVERLAY", nil, 1)
+        tick:SetTexture(GOLD[1], GOLD[2], GOLD[3], 0.95)
+        tick:SetSize(2, 10)
+        tick:SetPoint("LEFT", timerBar.bar, "LEFT", 3 + timerBar.bar.full * share - 1, 0)
+    end
+    tracker.timerBar = timerBar
+
+    local timerMarks = Row(15)
+    timerMarks.text = Label(timerMarks, "GameFontHighlightSmall", SOFT)
+    timerMarks.text:SetPoint("LEFT", timerMarks, "LEFT", 12, 0)
+    timerMarks.text:SetPoint("RIGHT", timerMarks, "RIGHT", -12, 0)
+    tracker.timerMarks = timerMarks
 
     local function DividerRow()
         local row = Row(10)
@@ -803,20 +907,67 @@ local function CreateTracker()
     end)
     portalRow:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    tracker.order = { header, arena, step, status, tracker.divider1, tracker.foes, tracker.boss, tracker.portal,
-        tracker.chest, tracker.divider2, barLabel, barRow, gear, tracker.divider3, footer, partner, leave }
-    -- Folded: the header, what to do now and the bar
-    tracker.folded = { [header] = true, [status] = true, [barRow] = true }
+    tracker.order = { header, arena, step, status, timer, timerBar, timerMarks, tracker.divider1, tracker.foes,
+        tracker.boss, tracker.portal, tracker.chest, tracker.divider2, barLabel, barRow, gear, tracker.divider3, footer,
+        partner, leave }
+    -- Folded: the header, what to do now, the clock and the bar
+    tracker.folded = { [header] = true, [status] = true, [timer] = true, [timerBar] = true, [barRow] = true }
 
-    -- The swirl turns, the call to act breathes
-    tracker:SetScript("OnUpdate", function()
+    -- The swirl turns, the call to act breathes, the clock runs
+    local clockWait = 0
+    tracker:SetScript("OnUpdate", function(_, elapsed)
         local now = GetTime()
         Rotate(swirl, -now * 0.9)
         emblemGlow:SetAlpha(0.35 + 0.15 * math.sin(now * 1.6))
         if status.glow:IsShown() then
             status.glow:SetAlpha(0.18 + 0.14 * math.sin(now * 3))
         end
+        clockWait = clockWait - elapsed
+        if clockWait <= 0 and hud.state == STATE_FIGHTING and timer.wanted then
+            clockWait = 0.1
+            UpdateTimer()
+        end
     end)
+end
+
+-- The clock's rows: the time and what a clear now earns, the bar, the times to beat (or where the portal leads)
+function UpdateTimer()
+    local par = hud.par / 1000
+    local seconds = ClockSeconds()
+    local cleared = hud.state == STATE_CLEARED
+    local started = hud.state ~= STATE_BUBBLE and hud.state ~= STATE_TRAVELLING
+    local down = cleared and FloorsDown() or FloorsDownAt(seconds)
+    local color = not started and MUTED or down == 3 and HEADING or down == 2 and AMBER or SOFT
+
+    local timer = tracker.timer
+    timer.clock:SetText(FormatClock(seconds))
+    timer.clock:SetTextColor(color[1], color[2], color[3])
+    timer.par:SetText(format(TEXT.clockPar, FormatClock(par)))
+    timer.tier:SetText(started and "+" .. down or "")
+    local tierColor = down == 3 and HEADING or down == 2 and AMBER or MUTED
+    timer.tier:SetTextColor(tierColor[1], tierColor[2], tierColor[3])
+
+    tracker.timerBar.bar:SetValue(par > 0 and seconds / par or 0)
+
+    local text
+    if cleared then
+        text = down > 1 and Colored(format(TEXT.timerResult, down, hud.floor + down), GOLD) or
+            Colored(TEXT.timerResultOne, SOFT)
+    else
+        local three, two = par * THREE_FLOORS_SHARE, par * TWO_FLOORS_SHARE
+        local marks = {}
+        if seconds <= three then
+            tinsert(marks, Colored(format(TEXT.markThree, FormatClock(three)), HEADING))
+        end
+        if seconds <= two then
+            tinsert(marks, Colored(format(TEXT.markTwo, FormatClock(two)), AMBER))
+        end
+        if #marks == 0 then
+            tinsert(marks, Colored(format(TEXT.markPar, FormatClock(par)), MUTED))
+        end
+        text = table.concat(marks, "  ·  ")
+    end
+    tracker.timerMarks.text:SetText(text)
 end
 
 -- Stacks the lines the tracker has now, folded or not
@@ -927,6 +1078,11 @@ local function RefreshTracker(animate)
     status.text:SetTextColor(color[1], color[2], color[3])
     SetShown(status.glow, acting)
     status.wanted = true
+    local timed = hud.par > 0 and hud.state ~= STATE_TRAVELLING
+    tracker.timer.wanted, tracker.timerBar.wanted, tracker.timerMarks.wanted = timed, timed, timed
+    if timed then
+        UpdateTimer()
+    end
     if animate and previousState and previousState ~= hud.state then
         Tween(0.35, 0, function(p)
             status.text:SetAlpha(OutCubic(p))
@@ -943,9 +1099,10 @@ local function RefreshTracker(animate)
         hud.state == STATE_FIGHTING and progress.foesDown >= progress.foes)
     local cleared = hud.state == STATE_CLEARED
     tracker.portal.wanted = cleared
-    SetObjective(tracker.portal, TEXT.portal, nil, false, true)
+    SetObjective(tracker.portal, TEXT.portal, FloorsDown() > 1 and "+" .. FloorsDown() or nil, false, true)
     local checkpointFloor = hud.floor % CHECKPOINT_FLOORS == 0
-    tracker.chest.wanted = cleared and checkpointFloor
+    -- The chest of the checkpoint the clear reached: this floor's, or one the portal passes over
+    tracker.chest.wanted = cleared and hud.chestFloor > 0
     SetObjective(tracker.chest, TEXT.openChest, nil, chestOpenedOn == hud.floor, chestOpenedOn ~= hud.floor)
     tracker.divider2.wanted = true
 
@@ -1114,7 +1271,7 @@ local function CreateBanner()
     end)
 end
 
--- variant: "floor", "cleared" or "checkpoint"
+-- variant: "floor", "cleared", "swift" (cleared fast: the jump in large) or "checkpoint"
 local function ShowBanner(variant, kicker, title, subtitle, detail, hold, sound)
     if not banner then
         CreateBanner()
@@ -1129,7 +1286,7 @@ local function ShowBanner(variant, kicker, title, subtitle, detail, hold, sound)
     SetShown(banner.swirl, not checkpoint)
     SetShown(banner.star, variant ~= "cleared")
     banner.star:SetAlpha(checkpoint and 0.8 or 0.35)
-    banner.glowStrength = checkpoint and 1 or variant == "floor" and 0.7 or 0.45
+    banner.glowStrength = checkpoint and 1 or (variant == "floor" or variant == "swift") and 0.7 or 0.45
     banner.shownAt = GetTime()
     banner.hideAt = banner.shownAt + BANNER_IN + (hold or 4)
     banner:SetAlpha(0)
@@ -1157,10 +1314,13 @@ local function RewardLine(reward)
     if reward.gear then
         tinsert(parts, Colored(TEXT.gearPiece, GOLD))
     end
+    if reward.skippedGear > 0 then
+        tinsert(parts, Colored(format(TEXT.skippedGear, reward.skippedGear), GOLD))
+    end
     return table.concat(parts, "  ·  ")
 end
 
-local function ShowArrival(floor, arena, ladder, step, paragon)
+local function ShowArrival(floor, arena, ladder, step, paragon, down)
     local kicker, detail = TEXT.kicker, nil
     local steps
     if ladder == LADDER_GEARING then
@@ -1177,23 +1337,46 @@ local function ShowArrival(floor, arena, ladder, step, paragon)
     if steps then
         detail = detail and (steps .. "  ·  " .. detail) or steps
     end
+    -- Brought here by a fast clear
+    if down > 1 then
+        local swift = Colored(format(TEXT.arriveSwift, down), GOLD)
+        detail = detail and (swift .. "  ·  " .. detail) or swift
+    end
     ShowBanner("floor", kicker, format(TEXT.floor, floor), arena, detail, 4, SOUND .. "ChallengeStart.ogg")
 end
 
-local function ShowCleared(floor, checkpoint)
+-- down: how far the portal leads; clock and par in milliseconds (0: an older server); checkpointFloor: the checkpoint
+-- reached, this floor or one passed over
+local function ShowCleared(floor, checkpoint, down, clock, par, checkpointFloor)
     local reward = pendingReward and pendingReward.floor == floor and pendingReward or nil
     pendingReward = nil
     local line = RewardLine(reward)
+    local timeLine = par > 0 and format(TEXT.clearedIn, FormatClock(clock / 1000), FormatClock(par / 1000)) or nil
+    local gearSound = reward and (reward.gear or reward.skippedGear > 0)
     if checkpoint then
+        local reached = checkpointFloor > 0 and checkpointFloor or floor
+        local kicker = format(TEXT.kickerCleared, floor)
+        if down > 1 then
+            kicker = kicker .. "  ·  " .. format(TEXT.kickerFloorsDown, down)
+        end
         local detail = TEXT.checkpointChest
         if line and line ~= "" then
             detail = line .. "\n" .. Colored(detail, GOLD)
         end
-        ShowBanner("checkpoint", format(TEXT.kickerCleared, floor), TEXT.checkpointTitle,
-            format(TEXT.checkpointText, floor + 1), detail, 6, SOUND .. "NewRecord.ogg")
+        ShowBanner("checkpoint", kicker, TEXT.checkpointTitle, format(TEXT.checkpointText, reached + 1), detail, 6,
+            SOUND .. "NewRecord.ogg")
+    elseif down > 1 then
+        -- The jump, in large: "+3 floors"
+        local subtitle = format(TEXT.swiftTo, floor + down)
+        if timeLine then
+            subtitle = timeLine .. "  ·  " .. subtitle
+        end
+        ShowBanner("swift", format(TEXT.kickerCleared, floor), format(TEXT.floorsDown, down), subtitle, line, 5,
+            SOUND .. "NewRecord.ogg")
     else
-        ShowBanner("cleared", TEXT.kicker, format(TEXT.clearedTitle, floor), TEXT.portalOpen, line, 4,
-            reward and reward.gear and SOUND .. "NewRecord.ogg" or nil)
+        ShowBanner("cleared", TEXT.kicker, format(TEXT.clearedTitle, floor),
+            timeLine and (TEXT.portalOpen .. "  ·  " .. timeLine) or TEXT.portalOpen, line, 4,
+            gearSound and SOUND .. "NewRecord.ogg" or nil)
     end
 end
 
@@ -1439,11 +1622,15 @@ local function ShowSummary(data, reason)
     end
     local fallen = reason == REASON_FALLEN
     summary.heading:SetText(fallen and TEXT.endFallen or TEXT.endLeft)
-    summary.ladder:SetText(format(data.ladder == LADDER_GEARING and TEXT.ladderGearing or TEXT.ladderLevelling,
-        data.start))
+    local ladderLine = format(data.ladder == LADDER_GEARING and TEXT.ladderGearing or TEXT.ladderLevelling, data.start)
+    if data.skipped > 0 then
+        ladderLine = ladderLine .. "  ·  " .. format(TEXT.summarySkipped, data.skipped)
+    end
+    summary.ladder:SetText(ladderLine)
 
-    -- The deepest floor this run cleared; the record glows when it is that one
-    local deepest = data.start + data.cleared - 1
+    -- The deepest floor this run left behind (cleared, or passed over by a fast clear); the record glows when it is
+    -- that one
+    local deepest = data.deepest > 0 and data.deepest or data.start + data.cleared - 1
     local atRecord = data.cleared > 0 and data.best > 0 and data.best == deepest
     summary.stats[1].value:SetText("0")
     summary.stats[2].value:SetText("0")
@@ -1513,7 +1700,7 @@ local function Number(value, default)
 end
 
 local function Handle(message)
-    local kind, a, b, c, d, e, f, g, h, i, j, k = strsplit("\t", message)
+    local kind, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o = strsplit("\t", message)
     if kind == "HUD" then
         local previousFloor = hud.floor
         hud.floor = Number(a, 1)
@@ -1526,6 +1713,12 @@ local function Handle(message)
         hud.level = Number(h)
         hud.players = Number(i, 1)
         hud.best = Number(j)
+        hud.clock = Number(l)
+        hud.clockAt = GetTime()
+        hud.par = Number(m)
+        hud.down = Number(n)
+        -- An older server: the chest stood on the checkpoint floors only
+        hud.chestFloor = o and Number(o) or (hud.floor % CHECKPOINT_FLOORS == 0 and hud.floor or 0)
         if hud.floor ~= previousFloor then
             progress.foesDown, progress.foes, progress.bossDown, progress.hearts = 0, 0, false, 0
         end
@@ -1550,12 +1743,12 @@ local function Handle(message)
         end
         RefreshTracker(true)
     elseif kind == "ARRIVE" then
-        ShowArrival(Number(a, 1), b or "", Number(c), Number(d), Number(e))
+        ShowArrival(Number(a, 1), b or "", Number(c), Number(d), Number(e), Number(f, 1))
     elseif kind == "REWARD" then
         pendingReward = { floor = Number(a), gold = Number(b), experience = Number(c), essences = Number(d),
-            gear = e == "1" }
+            gear = e == "1", skippedGear = Number(f) }
     elseif kind == "CLEAR" then
-        ShowCleared(Number(a, 1), b == "1")
+        ShowCleared(Number(a, 1), b == "1", Number(c, 1), Number(d), Number(e), Number(f))
     elseif kind == "CHEST" then
         chestOpenedOn = hud.floor
         ShowChestToast(Number(a), Number(b))
@@ -1563,7 +1756,7 @@ local function Handle(message)
     elseif kind == "SUMMARY" then
         pendingSummary = { ladder = Number(a), start = Number(b, 1), floor = Number(c, 1), cleared = Number(d),
             best = Number(e), checkpoint = Number(f), gold = Number(g), experience = Number(h), essences = Number(i),
-            items = Number(j), paragon = Number(k), at = GetTime() }
+            items = Number(j), paragon = Number(k), skipped = Number(l), deepest = Number(m), at = GetTime() }
     elseif kind == "END" then
         SetTrackerShown(false)
         if InfiniteDungeonUI.onEnd then

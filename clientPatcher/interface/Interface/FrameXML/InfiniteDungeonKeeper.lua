@@ -3,7 +3,8 @@
 -- - Eternia's window, opened by talking to her in place of a gossip menu: the ladder the character climbs, its
 --   checkpoint and record, the next descent (its step, paragon and item level at 80), go down alone, start over from
 --   floor 1, go down with the group partner, the deepest floor per class, and what every floor holds
--- - the portal's choice, when the player walks into the portal: down, or out of the dungeon
+-- - the portal's choice, when the player walks into the portal: down (one floor, or two or three after a fast
+--   clear: its destination and "+N"), or out of the dungeon
 -- - the confirmation before leaving the dungeon (the tracker's button, or the portal's choice)
 --
 -- Protocol (prefix "Infinite", tab-separated, whispered to oneself):
@@ -15,13 +16,13 @@
 --           KEEPEND                                  opens (or refreshes) the window
 --           KEEPER_CLOSE                             walked away from Eternia, or the descent began
 --           PORTAL <next floor> <ladder> <step> <paragon> <gear floor 0/1> <checkpoint floor 0/1>
---                  <chest unopened 0/1> <players>
+--                  <chest unopened 0/1> <players> <floors down>       floors down: 1-3 (missing: 1)
 --           PORTALOFF                                stepped out of the portal
 --   client  KEEPER_GO <solo|restart|duo|duorestart>, KEEPER_REFRESH, KEEPER_CLOSED, PORTAL_DESCEND, RUN_LEAVE
 --
 -- By hand (screenshots, tests), through InfiniteDungeon_Receive:
 --   "KEEPER\t1\t80\t30\t34\t20\t27\t21\t4\t0\t216\t1\t", "KEEPDUO\t1\tAlexis\t2\t10\t1\t11\t",
---   "KEEPREC\t1\tGromm\t42", "KEEPEND", "PORTAL\t12\t1\t2\t0\t0\t0\t0\t1"
+--   "KEEPREC\t1\tGromm\t42", "KEEPEND", "PORTAL\t12\t1\t2\t0\t0\t0\t0\t1\t3"
 
 local UI = InfiniteDungeonUI
 if not UI then
@@ -58,8 +59,8 @@ local TEXT = UI.french and {
     title = "Eternia",
     heading = "Donjon infini",
     subtitle = "Eternia, gardienne du Donjon infini",
-    intro = "Des étages sans fin : quelques ennemis, un gardien, puis un portail vers le bas. Un point de passage "
-        .. "tous les 10 étages, une pièce d'équipement tous les 5.",
+    intro = "Des étages sans fin : quelques ennemis, un gardien, puis un portail vers le bas. Franchissez un étage "
+        .. "vite et le portail vous fait descendre de deux ou trois étages.",
     ladderLevelling = "ÉCHELLE DE MONTÉE EN NIVEAU",
     ladderGearing = "ÉCHELLE D'ÉQUIPEMENT (NIVEAU 80)",
     checkpoint = "Point de passage : étage %d",
@@ -106,6 +107,8 @@ local TEXT = UI.french and {
     pending = "Le Donjon infini s'ouvre…",
     portalKicker = "LE PORTAIL",
     portalIntro = "Il mène un étage plus bas",
+    portalSwift = "Descente rapide : il mène %d étages plus bas",
+    portalKickerSwift = "LE PORTAIL · +%d",
     portalGear = "Son gardien offre une pièce d'équipement",
     portalCheckpoint = "Étage du point de passage",
     portalStep = "Palier %d · parangon conseillé %d",
@@ -123,8 +126,8 @@ local TEXT = UI.french and {
     title = "Eternia",
     heading = "Infinite Dungeon",
     subtitle = "Eternia, keeper of the Infinite Dungeon",
-    intro = "Floors without end: a few foes, a guardian, then a portal further down. A checkpoint every 10 floors, "
-        .. "a piece of gear every 5.",
+    intro = "Floors without end: a few foes, a guardian, then a portal further down. Clear a floor quickly and the "
+        .. "portal takes you two or three floors down.",
     ladderLevelling = "LEVELLING LADDER",
     ladderGearing = "GEARING LADDER (LEVEL 80)",
     checkpoint = "Checkpoint: floor %d",
@@ -170,6 +173,8 @@ local TEXT = UI.french and {
     pending = "The Infinite Dungeon opens…",
     portalKicker = "THE PORTAL",
     portalIntro = "It leads one floor further down",
+    portalSwift = "A swift descent: it leads %d floors down",
+    portalKickerSwift = "THE PORTAL · +%d",
     portalGear = "Its guardian gives a piece of gear",
     portalCheckpoint = "A checkpoint floor",
     portalStep = "Step %d · recommended paragon %d",
@@ -985,6 +990,7 @@ local function CreatePortal()
     local kicker = Label(portal, "GameFontNormalSmall", GOLD, "CENTER")
     kicker:SetPoint("TOP", portal, "TOP", 0, -102)
     kicker:SetText(TEXT.portalKicker)
+    portal.kicker = kicker
     portal.title = Heading(portal, 28, HEADING)
     portal.title:SetPoint("TOP", kicker, "BOTTOM", 0, -2)
     local divider = Divider(portal, "OVERLAY")
@@ -1025,8 +1031,10 @@ local function ShowPortal(data)
         CreatePortal()
     end
     portal.title:SetText(format(TEXT.floor, data.next))
+    local swift = data.down > 1
+    portal.kicker:SetText(swift and format(TEXT.portalKickerSwift, data.down) or TEXT.portalKicker)
 
-    local lines = { TEXT.portalIntro }
+    local lines = { swift and Colored(format(TEXT.portalSwift, data.down), GOLD) or TEXT.portalIntro }
     if data.ladder == LADDER_GEARING then
         tinsert(lines, data.paragon > 0 and format(TEXT.portalStep, data.step + 1, data.paragon) or
             format(TEXT.portalStepOnly, data.step + 1))
@@ -1101,15 +1109,15 @@ end
 -- The tracker's portal line: the choice again, while the portal is open
 function UI.ReopenPortal()
     local hud = UI.hud
-    if lastPortal and hud.state == UI.STATE_CLEARED and lastPortal.next == hud.floor + 1 then
+    if lastPortal and hud.state == UI.STATE_CLEARED and lastPortal.next > hud.floor then
         ShowPortal(lastPortal)
     end
 end
 
-handlers.PORTAL = function(nextFloor, ladder, step, paragon, gear, checkpoint, chest, players)
+handlers.PORTAL = function(nextFloor, ladder, step, paragon, gear, checkpoint, chest, players, down)
     lastPortal = { next = Number(nextFloor, 1), ladder = Number(ladder), step = Number(step),
         paragon = Number(paragon), gear = gear == "1", checkpoint = checkpoint == "1", chest = chest == "1",
-        players = Number(players, 1) }
+        players = Number(players, 1), down = Number(down, 1) }
     ShowPortal(lastPortal)
 end
 

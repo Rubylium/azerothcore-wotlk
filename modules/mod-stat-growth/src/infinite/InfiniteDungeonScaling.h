@@ -45,6 +45,62 @@ inline uint32 GetStep(uint32 floor)
     return floor > 0 ? (floor - 1) / StepFloors : 0;
 }
 
+inline bool IsCheckpointFloor(uint32 floor)
+{
+    return floor > 0 && floor % CheckpointFloors == 0;
+}
+
+inline bool IsGearFloor(uint32 floor)
+{
+    return floor > 0 && floor % GearFloors == 0;
+}
+
+// Speed skips, the Mythic+ key upgrades' way. A floor's clock starts when the players step out of the bubble and
+// stops when its guardian falls; there is no fail timer. Its par time is 20 seconds a foe (trash and elite) and a
+// minute for the guardian, a quarter more for a duo (its foes have more health): about 2:20 alone, 3:45 as two.
+// Cleared within 70% of it, the portal leads two floors down; within 45%, three. The floors passed over still count:
+// their checkpoint is kept (its chest stands beside the portal) and their gear piece given, while the gold and the
+// essence chance stay one floor's.
+constexpr uint32 ParSecondsPerFoe = 20;
+constexpr uint32 ParSecondsGuardian = 60;
+constexpr uint32 DuoParPct = 125;
+constexpr uint32 TwoFloorsParPct = 70;
+constexpr uint32 ThreeFloorsParPct = 45;
+constexpr uint32 MaxFloorsDown = 3;
+
+inline uint32 GetParMs(uint32 foes, bool duo)
+{
+    uint32 const seconds = ParSecondsPerFoe * foes + ParSecondsGuardian;
+    return seconds * 1000 * (duo ? DuoParPct : 100) / 100;
+}
+
+inline uint32 GetParShareMs(uint32 parMs, uint32 pct)
+{
+    return static_cast<uint32>(static_cast<uint64>(parMs) * pct / 100);
+}
+
+// Where the portal of a floor cleared in `clearMs` leads: 1, 2 or 3 floors down
+inline uint32 GetFloorsDown(uint32 clearMs, uint32 parMs)
+{
+    if (!parMs)
+        return 1;
+    if (clearMs <= GetParShareMs(parMs, ThreeFloorsParPct))
+        return 3;
+    if (clearMs <= GetParShareMs(parMs, TwoFloorsParPct))
+        return 2;
+    return 1;
+}
+
+// The checkpoint a clear of `floor` reaches, the floor itself or one the portal passes over (the floor it leads to
+// is played, and reached as usual); 0 when none. A jump covers at most three floors, so one checkpoint at most.
+inline uint32 GetCheckpointReached(uint32 floor, uint32 floorsDown)
+{
+    for (uint32 passed = floor; passed < floor + floorsDown; ++passed)
+        if (IsCheckpointFloor(passed))
+            return passed;
+    return 0;
+}
+
 inline uint32 GetRecommendedParagon(Ladder ladder, uint32 floor)
 {
     uint32 const step = GetStep(floor);
