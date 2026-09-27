@@ -92,8 +92,9 @@ inline uint32 GetItemLevel(int32 level)
 //  - the board's maximum health nodes, a damage dealer's path taking a few
 //  - group buffs and talents, about a tenth
 // The model at Mythique 0 matches the yardstick the dungeons were first tuned on (41 700), so Mythique 0 does not
-// change. Past +10 a key hits a little harder each level on top (DamagePressurePerKey, up to MaxDamagePressure):
-// the players' own paragon and essences outgrow the model, and a higher key should still ask for more.
+// change. Past +10 a key hits harder each level on top (DamagePressurePerKey, up to MaxDamagePressure): the players'
+// own paragon and essences outgrow the model, and a higher key should still ask for more. Tested at +37: at 1% a
+// level (up to +15%) a geared rogue took 20% standing in the fire and the tank next to nothing.
 constexpr float GearKeysBehind = 1.0f;
 constexpr float PlayerBaseHealth = 7300.0f;
 constexpr float PlayerBaseStamina = 110.0f;
@@ -105,8 +106,11 @@ constexpr float EssenceStaminaPerKey = 8.0f;
 constexpr float VitalityHealthPerKey = 25.0f * 40.0f;
 constexpr float ParagonHealthPctPerPoint = 0.04f;
 constexpr float BuffsAndTalents = 1.1f;
-constexpr float DamagePressurePerKey = 0.01f;
-constexpr float MaxDamagePressure = 1.15f;
+constexpr float DamagePressurePerKey = 0.025f;
+constexpr float MaxDamagePressure = 1.6f;
+// Creature melee in a key hits this much harder again (on top of the pressure): the tanks' armour, presence and
+// Mythic+ resolve took most of it
+constexpr float MeleePressure = 1.5f;
 
 // Item level of the gear a player brings to a key (fractional keys for the Infinite Dungeon's equivalents)
 inline float GetExpectedItemLevel(float key)

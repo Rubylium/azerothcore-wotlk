@@ -370,7 +370,8 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     if (MythicTuning::HasMeleeMultiplier(creature->GetEntry()) && role != MythicTuning::CreatureRole::Boss)
         roleMelee = 1.0f;
     float const baseDamage = stats->BaseDamage[EXPANSION_WRATH_OF_THE_LICH_KING] * damageScale *
-        Mythic::DamageMultiplier * damageScaling * roleMelee * MythicTuning::MeleeMultiplier(creature->GetEntry());
+        Mythic::DamageMultiplier * damageScaling * roleMelee * MythicTuning::MeleeMultiplier(creature->GetEntry()) *
+        (key > 0 ? Mythic::MeleePressure : 1.0f);
     for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
     {
         creature->SetBaseWeaponDamage(attackType, MINDAMAGE, baseDamage);
