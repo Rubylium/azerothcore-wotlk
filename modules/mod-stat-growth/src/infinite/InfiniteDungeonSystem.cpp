@@ -1007,11 +1007,13 @@ void GiveItem(Player* player, ItemTemplate const* itemTemplate)
 
 // Every fifth floor's guardian: one piece fitted to the player's class and slots, at its level while levelling, of
 // the step's item level at the cap (that floor's step, for one passed over)
-bool GiveFloorGear(Run const& run, Player* player, uint32 floor)
+bool GiveFloorGear(Player* player, uint32 floor)
 {
+    // At the level cap the piece follows the floor's depth on either ladder: a run begun while levelling (after a
+    // prestige) that reaches the cap keeps its ladder, and its pieces were stuck at the first step's item level
     if (IsAtLevelCap(player))
     {
-        GiveMythicLootItem(player, run.ladder == Ladder::Gearing ? GetItemLevel(floor) : GearingBaseItemLevel);
+        GiveMythicLootItem(player, GetItemLevel(floor));
         return true;
     }
 
@@ -1044,11 +1046,11 @@ void RewardFloor(Run const& run, Player* player, Member& member)
     uint32 essences = 0;
     if (roll_chance_i(static_cast<int32>(FloorEssenceChance)))
         essences = GrantEssenceRewards(player, 1, 1);
-    bool const gear = IsGearFloor(run.floor) && GiveFloorGear(run, player, run.floor);
+    bool const gear = IsGearFloor(run.floor) && GiveFloorGear(player, run.floor);
     // A jump covers at most two floors, so one gear floor at most among them
     uint32 skippedGear = 0;
     for (uint32 passed = run.floor + 1; passed < run.floor + run.floorsDown; ++passed)
-        if (IsGearFloor(passed) && GiveFloorGear(run, player, passed))
+        if (IsGearFloor(passed) && GiveFloorGear(player, passed))
             skippedGear = passed;
 
     // The deepest floor behind the player: the one cleared and the ones the portal passes over (the floor it leads
@@ -1276,9 +1278,19 @@ void BeginFloor(Run& run, uint32 floor, Map const* from, uint32 arrivedDown = 1)
 
     run.floor = std::max<uint32>(floor, 1);
     run.level = MinPlayerLevel;
+    bool allAtCap = !run.members.empty();
     for (Member const& member : run.members)
         if (Player* player = ObjectAccessor::FindConnectedPlayer(member.guid))
+        {
             run.level = std::max(run.level, player->GetLevel());
+            allAtCap = allAtCap && IsAtLevelCap(player);
+        }
+        else
+            allAtCap = false;
+    // A run begun while levelling carries on as a gearing one once everyone has reached the level cap: the same
+    // depth, but the level-80 curve, its item levels and its checkpoints from here on
+    if (run.ladder == Ladder::Levelling && allAtCap)
+        run.ladder = Ladder::Gearing;
 
     std::optional<std::size_t> const arena = PickArena(run);
     if (!arena)
