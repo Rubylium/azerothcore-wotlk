@@ -1,5 +1,61 @@
 [
   {
+    "Title": "Un nouvel écran de connexion et un nouveau launcher",
+    "Date": "2026-09-27",
+    "Tag": "Serveur",
+    "Image": "evolution",
+    "Body": "Evolution a un nouveau visage : un écran de connexion repensé autour d'une nouvelle illustration et du nouveau logo, avec des braseros qui crépitent et la lumière de la cité qui respire, en plein écran jusqu'aux écrans ultra-larges. Le menu Options est entièrement redessiné, et le launcher adopte la même illustration, animée. Le jeu ne plante plus à la fermeture."
+  },
+  {
+    "Title": "Mage : des sorts vifs, des procs qui claquent",
+    "Date": "2026-09-27",
+    "Tag": "Classe",
+    "Image": "malygos",
+    "Body": "Fini les longues incantations : Boule de feu, Éclair de givre, Éclair de givrefeu et Déflagration des arcanes s'incantent en 1,5 s, et Projectiles des arcanes, Blizzard et Évocation se canalisent deux fois plus vite. Explosion pyrotechnique reste le grand sort à préparer. Chaleur continue rend aussi Choc de flammes instantané, Explosion des arcanes donne des charges des Arcanes, et Météore comme Flammes du phénix frappent enfin à la hauteur de leur temps de recharge."
+  },
+  {
+    "Title": "Le Parangon change de visage",
+    "Date": "2026-09-27",
+    "Tag": "Parangon",
+    "Image": "talents",
+    "Body": "Les nœuds importants coûtent désormais plus de points (jusqu'à 5), et chaque branche se débloque palier par palier : il faut compléter l'Éveil pour atteindre l'Ascension, puis l'Ascension pour la Transcendance. Les explosions ont maintenant une chance de se déclencher, et le côté des lanceurs de sorts a ses propres effets : échos, arcs, célérité, bouclier. Chaque prestige relève le plafond de 20 points et rapporte 10, puis 5, puis 3 points. Vos compagnons bots reçoivent eux aussi un tableau de Parangon adapté au contenu."
+  },
+  {
+    "Title": "Mythique+ : plus dur, plus lisible",
+    "Date": "2026-09-27",
+    "Tag": "Donjons",
+    "Image": "mythicplus",
+    "Body": "Au-delà de +10, chaque clé indique le Parangon conseillé, et les hautes clés montent bien plus vite. Les mécaniques des huit donjons ont été revues avec des zones au sol visibles, les monstres ont des techniques annoncées, et les tanks gagnent une vraie menace et une résistance aux contrôles. La mort d'un bot compte désormais pour le chronomètre. Le butin vise enfin vos emplacements les plus faibles, sans objets de lanceur pour les combattants."
+  },
+  {
+    "Title": "Voleur : Assassinat et Finesse repensés",
+    "Date": "2026-09-26",
+    "Tag": "Classe",
+    "Image": "icecrown",
+    "Body": "L'Assassinat devient le maître des poisons et des saignements : Éventail de couteaux donne des points de combo, Tempête cramoisie propage Rupture et Garrot aux ennemis proches, et vos armes restent toujours empoisonnées. La Finesse gagne une vraie zone avec Poudre noire et Technique secrète, et les grands temps de recharge reviennent toutes les 30 secondes au plus."
+  },
+  {
+    "Title": "Talents : configurations et builds conseillés",
+    "Date": "2026-09-26",
+    "Tag": "Talents",
+    "Image": "talents",
+    "Body": "Enregistrez vos configurations de talents sous le nom de votre choix et passez de l'une à l'autre en un clic, même pendant la montée en niveau. Chaque spécialisation propose aussi deux builds conseillés, monocible et zone, pour bien démarrer avant d'ajuster le vôtre."
+  },
+  {
+    "Title": "Des bots plus vivants",
+    "Date": "2026-09-26",
+    "Tag": "Serveur",
+    "Image": "wintergrasp",
+    "Body": "Les bots saluent le groupe, discutent parfois, annoncent qu'ils cherchent un soigneur, s'occupent entre deux combats et se déplacent plus naturellement. Ils visitent la forge et le tableau des Défis sans s'empiler dessus, prennent leurs talents de zone en donjon et utilisent enfin leurs sorts de zone. Et vous croiserez désormais des Oathblades parmi eux."
+  },
+  {
+    "Title": "La Forge sublime votre armure",
+    "Date": "2026-09-25",
+    "Tag": "Forge",
+    "Image": "argent",
+    "Body": "Plus vous forgez vos pièces d'armure, plus elles se voient : des braises aux pieds, puis dans les mains, un cœur de métal en fusion, une couronne de flammes, et enfin l'Avatar de la forge, parcouru d'éclairs. Il faut désormais bien plus de rangs pour atteindre les derniers paliers."
+  },
+  {
     "Title": "Les arbres de talents font peau neuve",
     "Date": "2026-09-24",
     "Tag": "Talents",

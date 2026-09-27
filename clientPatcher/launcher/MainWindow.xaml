@@ -165,24 +165,23 @@
             </Setter>
         </Style>
 
-        <!-- The main call to action, after Ascension's: a gilded face in the art's gold, the action and what it
-             involves on the left, the game tools behind the chevron on the right (PlayMenuButton sits over that
-             segment). No glow: the colour alone carries it. -->
+        <!-- The main call to action, after Ascension's: a painted ember face, the action and what it involves on the
+             left, the game tools behind the chevron on the right (PlayMenuButton sits over that segment). No glow:
+             the colour alone carries it. -->
         <Style x:Key="PlayButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="#FF22160A" />
+            <Setter Property="Foreground" Value="#FFFFF6EA" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid>
-                            <Border x:Name="Face" CornerRadius="10" BorderThickness="1" BorderBrush="#99FFE7B0">
+                            <Border x:Name="Face" CornerRadius="10" BorderThickness="1" BorderBrush="#66FFC89A">
                                 <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
-                                        <GradientStop Color="#FFFFE3A0" Offset="0" />
-                                        <GradientStop Color="#FFFFDB8C" Offset="0.35" />
-                                        <GradientStop Color="#FFD9AE6A" Offset="0.7" />
-                                        <GradientStop Color="#FFBF9959" Offset="1" />
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.6">
+                                        <GradientStop Color="#FFEC8A38" Offset="0" />
+                                        <GradientStop Color="#FFDD6428" Offset="0.55" />
+                                        <GradientStop Color="#FFBF4520" Offset="1" />
                                     </LinearGradientBrush>
                                 </Border.Background>
                                 <Border.Effect>
@@ -206,11 +205,11 @@
                             </Border>
                             <!-- The chevron segment is its own, duller shade, as on Ascension's -->
                             <Border x:Name="Segment" Width="54" HorizontalAlignment="Right" CornerRadius="0,9,9,0"
-                                    Margin="0,1,1,1" Background="#26402A10" IsHitTestVisible="False" />
-                            <Border Width="1" HorizontalAlignment="Right" Margin="0,1,55,1" Background="#40402A10"
+                                    Margin="0,1,1,1" Background="#38301008" IsHitTestVisible="False" />
+                            <Border Width="1" HorizontalAlignment="Right" Margin="0,1,55,1" Background="#40000000"
                                     IsHitTestVisible="False" />
                             <!-- Only the action segment lights up; the chevron has its own highlight -->
-                            <Border x:Name="Hover" CornerRadius="9,0,0,9" Margin="1,1,56,1" Background="#FFFFF8E8"
+                            <Border x:Name="Hover" CornerRadius="9,0,0,9" Margin="1,1,56,1" Background="#FFFFFFFF"
                                     Opacity="0" IsHitTestVisible="False" />
                             <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
                                               Margin="18,0,64,0" />
@@ -238,8 +237,8 @@
                                 <Setter TargetName="Face" Property="Opacity" Value="0.88" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Background" Value="#FF2A2218" />
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#40BF9959" />
+                                <Setter TargetName="Face" Property="Background" Value="#FF2E2520" />
+                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FFFFFF" />
                                 <Setter TargetName="Grain" Property="Opacity" Value="0.4" />
                                 <Setter Property="Foreground" Value="{StaticResource Muted}" />
                             </Trigger>
@@ -253,7 +252,7 @@
         <Style x:Key="PlayMenuButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="#FF22160A" />
+            <Setter Property="Foreground" Value="#FFFFF6EA" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -262,10 +261,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Back" Property="Background" Value="#30FFFFFF" />
+                                <Setter TargetName="Back" Property="Background" Value="#1CFFFFFF" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Back" Property="Background" Value="#22402A10" />
+                                <Setter TargetName="Back" Property="Background" Value="#22000000" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -724,8 +723,7 @@
                         <StackPanel Orientation="Horizontal">
                             <!-- A solid glyph in a ring, as Ascension's refresh icon -->
                             <Grid Width="34" Height="34" Margin="0,0,14,0" VerticalAlignment="Center">
-                                <Ellipse x:Name="PlayRing" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                         StrokeThickness="2" Opacity="0.8" />
+                                <Ellipse x:Name="PlayRing" Stroke="#CCFFF6EA" StrokeThickness="2" />
                                 <TextBlock x:Name="PlayIcon" Text="&#xF5B0;" FontFamily="Segoe MDL2 Assets" FontSize="13"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0" />
                                 <Grid x:Name="LaunchSpinner" Width="26" Height="26" Visibility="Collapsed"
@@ -733,14 +731,14 @@
                                     <Grid.RenderTransform>
                                         <RotateTransform x:Name="LaunchSpinnerRotation" />
                                     </Grid.RenderTransform>
-                                    <Ellipse Stroke="#4422160A" StrokeThickness="2.2" />
-                                    <Path Data="M 13,1.2 A 11.8,11.8 0 0 1 24.8,13" Stroke="#FF22160A"
+                                    <Ellipse Stroke="#55FFF6EA" StrokeThickness="2.2" />
+                                    <Path Data="M 13,1.2 A 11.8,11.8 0 0 1 24.8,13" Stroke="#FFFFF6EA"
                                           StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                                 </Grid>
                             </Grid>
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel.Effect>
-                                    <DropShadowEffect Color="#FFF4D8" BlurRadius="2" ShadowDepth="1" Direction="270" Opacity="0.45" />
+                                    <DropShadowEffect Color="#4A1606" BlurRadius="3" ShadowDepth="1" Opacity="0.6" />
                                 </StackPanel.Effect>
                                 <TextBlock x:Name="PlayText" Text="Jouer" FontWeight="Bold" FontSize="22"
                                            LineHeight="25" LineStackingStrategy="BlockLineHeight" />

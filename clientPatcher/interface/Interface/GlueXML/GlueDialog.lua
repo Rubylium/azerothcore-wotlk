@@ -531,15 +531,14 @@ function GlueDialog_Show(which, text, data)
 		GlueDialogButton2:ClearAllPoints();
 		GlueDialogButton3:ClearAllPoints();
 	
-		-- Evolutions: solid button faces, so real gaps between them (the stock art overlapped its margins)
 		if ( dialogInfo.displayVertical ) then
 			GlueDialogButton3:SetPoint("BOTTOM", "GlueDialogBackground", "BOTTOM", 0, 16);
-			GlueDialogButton2:SetPoint("BOTTOM", "GlueDialogButton3", "TOP", 0, 8);
-			GlueDialogButton1:SetPoint("BOTTOM", "GlueDialogButton2", "TOP", 0, 8);
+			GlueDialogButton2:SetPoint("BOTTOM", "GlueDialogButton3", "TOP", 0, 0);
+			GlueDialogButton1:SetPoint("BOTTOM", "GlueDialogButton2", "TOP", 0, 0);
 		else
-			GlueDialogButton2:SetPoint("BOTTOM", "GlueDialogBackground", "BOTTOM", 0, 16);
-			GlueDialogButton1:SetPoint("RIGHT", "GlueDialogButton2", "LEFT", -12, 0);
-			GlueDialogButton3:SetPoint("LEFT", "GlueDialogButton2", "RIGHT", 12, 0);
+			GlueDialogButton1:SetPoint("BOTTOMLEFT", "GlueDialogBackground", "BOTTOMLEFT", 60, 16);
+			GlueDialogButton2:SetPoint("LEFT", "GlueDialogButton1", "RIGHT", -8, 0);
+			GlueDialogButton3:SetPoint("LEFT", "GlueDialogButton2", "RIGHT", -8, 0);
 		end
 
 		GlueDialogButton2:SetText(dialogInfo.button2);
@@ -552,10 +551,10 @@ function GlueDialog_Show(which, text, data)
 	
 		if ( dialogInfo.displayVertical ) then
 			GlueDialogButton2:SetPoint("BOTTOM", "GlueDialogBackground", "BOTTOM", 0, 16);
-			GlueDialogButton1:SetPoint("BOTTOM", "GlueDialogButton2", "TOP", 0, 8);
+			GlueDialogButton1:SetPoint("BOTTOM", "GlueDialogButton2", "TOP", 0, 0);
 		else
-			GlueDialogButton1:SetPoint("BOTTOMRIGHT", "GlueDialogBackground", "BOTTOM", -8, 16);
-			GlueDialogButton2:SetPoint("LEFT", "GlueDialogButton1", "RIGHT", 16, 0);
+			GlueDialogButton1:SetPoint("BOTTOMRIGHT", "GlueDialogBackground", "BOTTOM", -6, 16);
+			GlueDialogButton2:SetPoint("LEFT", "GlueDialogButton1", "RIGHT", 13, 0);
 		end
 
 		GlueDialogButton2:SetText(dialogInfo.button2);
@@ -601,7 +600,7 @@ function GlueDialog_Show(which, text, data)
 	if( dialogInfo.displayVertical ) then
 		GlueDialogBackground:SetWidth(16 + GlueDialogButton1:GetWidth() + 16);
 	elseif ( dialogInfo.button3 ) then
-		local displayWidth = 32 + GlueDialogButton1:GetWidth() + 12 + GlueDialogButton2:GetWidth() + 12 + GlueDialogButton3:GetWidth() + 32;
+		local displayWidth = 45 + GlueDialogButton1:GetWidth() + 8 + GlueDialogButton2:GetWidth() + 8 + GlueDialogButton3:GetWidth() + 45;
 		GlueDialogBackground:SetWidth(displayWidth);
 		GlueDialogText:SetWidth(displayWidth - 40);
 	end
@@ -651,10 +650,8 @@ end
 
 function GlueDialog_OnUpdate(self, elapsed)
 	for i=1, MAX_NUM_GLUE_DIALOG_BUTTONS do
-		local button = _G[ "GlueDialogButton"..i ];
-		if ( not button or button.evolutionsStyled ) then
-			-- Evolutions: styled once by AccountLogin.lua, nothing to put back
-		elseif ( (CURRENT_GLUE_SCREEN == "login") or (CURRENT_GLUE_SCREEN == "realmwizard") or CURRENT_GLUE_SCREEN == "movie" ) then
+		button = _G[ "GlueDialogButton"..i ];
+		if ( button and (CURRENT_GLUE_SCREEN == "login") or (CURRENT_GLUE_SCREEN == "realmwizard") or CURRENT_GLUE_SCREEN == "movie" ) then
 			button:SetNormalTexture("Interface\\Glues\\Common\\Glue-Panel-Button-Up-Blue");
 			button:SetPushedTexture("Interface\\Glues\\Common\\Glue-Panel-Button-Down-Blue");
 			button:SetHighlightTexture("Interface\\Glues\\Common\\Glue-Panel-Button-Highlight-Blue");
