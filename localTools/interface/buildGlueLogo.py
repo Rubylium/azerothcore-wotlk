@@ -1,4 +1,9 @@
-"""Builds the 3.3.5 Glue-screen logo texture from the approved Evolutions artwork."""
+"""Builds the 3.3.5 Glue-screen logo texture from the approved Evolution artwork.
+
+The logo is taller than the stock one (about 1.36 times as wide as it is tall, not 2): it is centred in the 512x256
+texture, and the glue screens that show it (CharacterSelect.xml, RealmList.lua) cut the empty sides off with
+texture coordinates printed by this script (LOGO_TEXCOORD_LEFT / RIGHT).
+"""
 
 import io
 import os
@@ -9,7 +14,7 @@ from PIL import Image
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOGO_ROOT = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'logo')
-SOURCE_PATH = os.path.join(LOGO_ROOT, 'WorldOfWarcraft-Evolutions.png')
+SOURCE_PATH = os.path.join(LOGO_ROOT, 'WorldOfWarcraft-Evolution.png')
 OUTPUT_PATH = os.path.join(LOGO_ROOT, 'Glues-WoW-WotLKLogo.blp')
 TARGET_SIZE = (512, 256)
 
@@ -55,11 +60,15 @@ def write_blp2(image, path):
 
 def main():
     logo = Image.open(SOURCE_PATH).convert('RGBA')
+    # Only the visible part: the artwork has empty rows above and below
+    logo = logo.crop(logo.getchannel('A').point(lambda value: 255 if value > 8 else 0).getbbox())
     logo.thumbnail(TARGET_SIZE, Image.Resampling.LANCZOS)
     canvas = Image.new('RGBA', TARGET_SIZE, (0, 0, 0, 0))
     canvas.alpha_composite(logo, ((TARGET_SIZE[0] - logo.width) // 2, (TARGET_SIZE[1] - logo.height) // 2))
     write_blp2(canvas, OUTPUT_PATH)
-    print(f'Built {OUTPUT_PATH} ({TARGET_SIZE[0]}x{TARGET_SIZE[1]})')
+    left = (TARGET_SIZE[0] - logo.width) // 2
+    print(f'Built {OUTPUT_PATH} ({TARGET_SIZE[0]}x{TARGET_SIZE[1]}), the logo {logo.width}x{logo.height}: '
+          f'LOGO_TEXCOORD_LEFT {left / TARGET_SIZE[0]:.4f}, RIGHT {(left + logo.width) / TARGET_SIZE[0]:.4f}')
 
 
 if __name__ == '__main__':

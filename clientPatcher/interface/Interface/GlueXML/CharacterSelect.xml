@@ -226,17 +226,19 @@
 					</Layer>
 					<Layer level="OVERLAY">
 						<Texture name="CharacterSelectLogo" file="Interface\Glues\Common\Glues-WoW-WotLKLogo">
-							<!-- Evolutions: the logo is twice as wide as it is tall -->
+							<!-- Evolutions: the logo is 1.37 times as wide as it is tall, centred in its 2:1 texture
+							     (buildGlueLogo.py); the empty sides are cut off. Same height and centre as before. -->
 							<Size>
-								<AbsDimension x="200" y="100"/>
+								<AbsDimension x="137" y="100"/>
 							</Size>
 							<Anchors>
 								<Anchor point="TOPLEFT">
 									<Offset>
-										<AbsDimension x="20" y="-7"/>
+										<AbsDimension x="52" y="-7"/>
 									</Offset>
 								</Anchor>
 							</Anchors>
+							<TexCoords left="0.1582" right="0.8418" top="0" bottom="1"/>
 						</Texture>
 					</Layer>
 				</Layers>

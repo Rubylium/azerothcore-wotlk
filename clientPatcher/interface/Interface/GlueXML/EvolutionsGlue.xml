@@ -18,6 +18,53 @@
 		</Shadow>
 	</Font>
 
+	<!-- The login screen (AccountLogin.xml): the challenge board's palette, gold on dark with parchment text -->
+	<Font name="EvolutionsLoginOptionFont" inherits="GlueFontNormalSmall" virtual="true">
+		<FontHeight>
+			<AbsValue val="11"/>
+		</FontHeight>
+		<Color r="0.85" g="0.8" b="0.7"/>
+		<Shadow>
+			<Offset>
+				<AbsDimension x="1" y="-1"/>
+			</Offset>
+			<Color r="0" g="0" b="0"/>
+		</Shadow>
+	</Font>
+	<Font name="EvolutionsLoginLinkFont" inherits="GlueFontNormalSmall" virtual="true">
+		<FontHeight>
+			<AbsValue val="12"/>
+		</FontHeight>
+		<Color r="0.85" g="0.8" b="0.7"/>
+		<Shadow>
+			<Offset>
+				<AbsDimension x="1" y="-1"/>
+			</Offset>
+			<Color r="0" g="0" b="0"/>
+		</Shadow>
+	</Font>
+	<Font name="EvolutionsLoginLinkHighlightFont" inherits="EvolutionsLoginLinkFont" virtual="true">
+		<Color r="1" g="0.86" b="0.55"/>
+	</Font>
+	<Font name="EvolutionsLoginLinkDisabledFont" inherits="EvolutionsLoginLinkFont" virtual="true">
+		<Color r="0.45" g="0.42" b="0.38"/>
+	</Font>
+	<Font name="EvolutionsLoginPrimaryFont" font="Fonts\MORPHEUS.TTF" virtual="true">
+		<FontHeight>
+			<AbsValue val="20"/>
+		</FontHeight>
+		<Color r="1" g="0.9" b="0.68"/>
+		<Shadow>
+			<Offset>
+				<AbsDimension x="1" y="-1"/>
+			</Offset>
+			<Color r="0" g="0" b="0"/>
+		</Shadow>
+	</Font>
+	<Font name="EvolutionsLoginPrimaryHighlightFont" inherits="EvolutionsLoginPrimaryFont" virtual="true">
+		<Color r="1" g="0.97" b="0.86"/>
+	</Font>
+
 	<!-- AccountLogin.xml asks for this in-game font, which the login screen does not have -->
 	<Font name="GameFontNormalLarge" inherits="GlueFontNormalLarge" virtual="true"/>
 

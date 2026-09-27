@@ -254,38 +254,59 @@ end
 
 -- --- the screen --------------------------------------------------------------------------------------------------
 
+-- The client keeps the glue screens at 16:9 at most, centred: on a wider window (21:9, 32:9) the backdrop lies on a
+-- stage as wide as the window, overflowing both sides, or black bars frame it
+local stage
+
+local function FitStage(self)
+    if not stage then return end
+    local height = self:GetHeight()
+    local width, pixelsHigh = string.match(GetCVar("gxResolution") or "", "(%d+)x(%d+)")
+    local aspect = tonumber(width) and tonumber(pixelsHigh) and tonumber(pixelsHigh) > 0
+        and tonumber(width) / tonumber(pixelsHigh) or 0
+    stage:SetWidth(math.max(self:GetWidth(), height * aspect))
+    stage:SetHeight(height)
+end
+
 local function Build(self)
     if backdrop then return end
 
-    local black = Solid(self, "BACKGROUND", 0, 0, 0, 1)
+    stage = CreateFrame("Frame", nil, self)
+    stage:SetFrameLevel(self:GetFrameLevel())
+    stage:SetPoint("CENTER", self, "CENTER")
+    FitStage(self)
+
+    local black = Solid(stage, "BACKGROUND", 0, 0, 0, 1)
     black:SetAllPoints()
-    backdrop = self:CreateTexture(nil, "BACKGROUND")
+    backdrop = stage:CreateTexture(nil, "BACKGROUND")
     backdrop:SetTexture(ART .. "RealmBackdrop")
     backdrop:SetAllPoints()
 
     -- Darken it enough for the cards to stand out, most at the edges
-    local shade = Solid(self, "BORDER", 0.01, 0.02, 0.03, 0.45)
+    local shade = Solid(stage, "BORDER", 0.01, 0.02, 0.03, 0.45)
     shade:SetAllPoints()
-    local top = Fade(self, "BORDER", "VERTICAL", 0, 0, 0, 0, 0.92)
+    local top = Fade(stage, "BORDER", "VERTICAL", 0, 0, 0, 0, 0.92)
     top:SetPoint("TOPLEFT")
     top:SetPoint("TOPRIGHT")
     top:SetHeight(260)
-    local bottom = Fade(self, "BORDER", "VERTICAL", 0, 0, 0, 0.95, 0)
+    local bottom = Fade(stage, "BORDER", "VERTICAL", 0, 0, 0, 0.95, 0)
     bottom:SetPoint("BOTTOMLEFT")
     bottom:SetPoint("BOTTOMRIGHT")
     bottom:SetHeight(220)
-    local left = Fade(self, "BORDER", "HORIZONTAL", 0, 0, 0, 0.85, 0)
+    local left = Fade(stage, "BORDER", "HORIZONTAL", 0, 0, 0, 0.85, 0)
     left:SetPoint("TOPLEFT")
     left:SetPoint("BOTTOMLEFT")
     left:SetWidth(320)
-    local right = Fade(self, "BORDER", "HORIZONTAL", 0, 0, 0, 0, 0.85)
+    local right = Fade(stage, "BORDER", "HORIZONTAL", 0, 0, 0, 0, 0.85)
     right:SetPoint("TOPRIGHT")
     right:SetPoint("BOTTOMRIGHT")
     right:SetWidth(320)
 
     logo = self:CreateTexture(nil, "ARTWORK")
+    -- The logo is 1.37 times as wide as it is tall, centred in its 2:1 texture (buildGlueLogo.py): cut the sides
     logo:SetTexture("Interface\\Glues\\Common\\Glues-WoW-WotLKLogo")
-    logo:SetSize(190, 95)
+    logo:SetTexCoord(0.1582, 0.8418, 0, 1)
+    logo:SetSize(130, 95)
     title = Text(self, FONT_TITLE, 30)
     title:SetText(L.title)
     title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
@@ -306,7 +327,8 @@ end
 
 function RealmList_Layout(self)
     if not backdrop then return end
-    local width, height = self:GetWidth(), self:GetHeight()
+    FitStage(self)
+    local width, height = stage:GetWidth(), stage:GetHeight()
     Cover(backdrop, BACKDROP_ASPECT, width, height, 1 + 0.05 * Smooth(drift), 0.42 + 0.06 * drift, 0.5)
 end
 
@@ -547,6 +569,7 @@ end
 
 function RealmList_OnShow(self)
     Build(self)
+    FitStage(self)
     intro = 0
     RealmList_Layout(self)
     RealmListUpdate();
@@ -567,7 +590,7 @@ function RealmList_OnUpdate(self, elapsed)
     -- The picture drifts and breathes over a minute; everything fades in on opening, the cards last
     drift = (drift + elapsed / 60) % 2
     local phase = drift < 1 and drift or 2 - drift
-    Cover(backdrop, BACKDROP_ASPECT, self:GetWidth(), self:GetHeight(), 1 + 0.05 * Smooth(phase),
+    Cover(backdrop, BACKDROP_ASPECT, stage:GetWidth(), stage:GetHeight(), 1 + 0.05 * Smooth(phase),
         0.42 + 0.06 * Smooth(phase), 0.5)
     if intro < 1 then
         intro = math.min(intro + elapsed / 0.9, 1)

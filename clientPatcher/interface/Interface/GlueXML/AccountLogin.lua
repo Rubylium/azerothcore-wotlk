@@ -1,120 +1,118 @@
 -- ==============================================================================================
--- Autora: Noa - SISTEMA DE AUTOLOGIN CON BOTONES DE REDES SOCIALES CON ANIMACIÓN BLP Y ESCENA 3D
+-- Evolutions: the login screen. Based on Noa's login screen (retail glue package), redrawn.
+--
+-- The art (clientPatcher/assets/login, built into Interface\Glues\Evolutions\LoginBackdrop by
+-- localTools/interface/buildGlueArt.py) fills the screen at any proportions without being stretched, drifting
+-- and zooming very slowly and leaning a little away from the pointer. The braziers flicker and throw embers, the
+-- city's beam breathes. Over it: the server's name at the top, the login card lower in the middle (account,
+-- password, remember options, the gold login button), and the quiet actions along the bottom edge.
+--
+-- Everything the frames do (logging in, saving the account, auto-login, dialogs, cinematics, the PIN pad) is the
+-- original code, unchanged; only how the screen looks is new.
 -- ==============================================================================================
 local Config = {
-    FADE_IN_TIME = 2,
-    DEFAULT_TOOLTIP_COLOR = {0.8, 0.8, 0.8, 0.09, 0.09, 0.09},
-    MAX_PIN_LENGTH = 10,
     AUTO_LOGIN_DELAY = 3.0,
-    BACKGROUND_TEXTURE = "Interface/Loginscreen/Background.blp",
-    LOGIN_AMBIENCE = false,
-
-    ENABLE_BLP_ANIMATION = false,
-    FRAME_COUNT = 3,
-    ANIMATION_DURATION = 16.0,
-    FPS_LIMIT = 30,
-    ANIMATION_PATH = "Interface\\Loginscreen\\Scene\\",
-
-    MODEL_UPDATE_INTERVAL = 0.1,
-    MODEL_UPDATE_COUNT_REQUIRED = 2,
     SCROLL_THRESHOLD = 20,
-    FADE_DURATION = 0.5,
-    LOGO_TEXTURE = "Interface\\Glues\\Common\\glues-wow-wotlklogo",
-    LOGO_WIDTH = 280,
-    LOGO_HEIGHT = 140,
-    LOGO_POSITION_X = 60,
-    LOGO_POSITION_Y = -24,
-    CUSTOM_PANEL_WIDTH = 352,
-    CUSTOM_PANEL_SCROLL_WIDTH = 300,
-    DEFAULT_FRAME_LEVEL = 2,
-    AMBIENCE_FADE_TIME = 5.0,
     UNDEAD_AMBIENCE_FADE_TIME = 4.0,
     SFX_STOP_TIME = 1.0,
-    TOS_FRAME_WIDTH = 640,
-    TOS_FRAME_HEIGHT = 512,
-    TOS_SCROLL_WIDTH = 540,
-    TOS_SCROLL_HEIGHT = 407,
-    TOS_HEADER_WIDTH = 300,
-    TOS_TITLE_OFFSET = 12,
-    TOS_TEXT_OFFSET = 56,
-    BUTTON_HEIGHT_SMALL = 38,
-    BUTTON_HEIGHT_LARGE = 55, 
-    CINEMATICS_BUTTON_HEIGHT = 80,
-    CINEMATICS_BACKGROUND_HEIGHT_BASE = 70
 }
 
 local LoginState = {
-    autoLoginTimer = nil, autoLoginDelay = Config.AUTO_LOGIN_DELAY, autoLoginAttempted = false, musicTimer = 0, sceneTimer = 0, currentFrame = 0, lastUpdateTime = 0, currentScene = 1
-}
-
-local ModelManager = {
-    models = {}, loginModels = {}
+    autoLoginTimer = nil, autoLoginDelay = Config.AUTO_LOGIN_DELAY, autoLoginAttempted = false,
 }
 
 local UICache = {
-    accountEdit = nil, passwordEdit = nil, saveAccountName = nil, savePassword = nil, autoLogin = nil, autoLoginText = nil, loginButton = nil, versionText = nil, realmName = nil, upgradeButton = nil, tosFrame = nil, tosAccept = nil, tosDecline = nil, backgroundTexture = nil, animatedTexture = nil, newLogo = nil, newLogoFrame = nil
+    accountEdit = nil, passwordEdit = nil, saveAccountName = nil, savePassword = nil, autoLogin = nil, autoLoginText = nil, loginButton = nil, versionText = nil, realmName = nil, upgradeButton = nil, tosFrame = nil, tosAccept = nil, tosDecline = nil
 }
 
-LOGIN_MODEL_LIGHTS = {
-    [0] = {1, 0, 0, -0.707, -0.707, 0.7, 1.0, 1.0, 1.0, 0, 1.0, 1.0, 0.8},
-}
-LOGIN_MODEL_STRUCT = {
-    SCENE_ID = 1, POS_Y = 2, POS_Z = 3, POS_X = 4, FACING = 5, SCALE = 6, ALPHA = 7, LIGHT = 8, SEQUENCE = 9, WIDTH_SQUISH = 10, HEIGHT_SQUISH = 11, MODEL_PATH = 12,
+-- ==================== LOOK ====================
+local ART = "Interface\\Glues\\Evolutions\\"
+local RETAIL = "Interface\\RetailUI\\"
+local FONT_TITLE = "Fonts\\MORPHEUS.TTF"
+local FONT_TEXT = "Fonts\\FRIZQT__.TTF"
+local WHITE = "Interface\\Buttons\\WHITE8X8"
+
+-- The challenge board's pieces (FrameXML/RetailUIAtlas.lua; the files ship in the same patch, the glue screens
+-- read them by path since they have no atlas table)
+local GLOW = { RETAIL .. "challengemode-softyellowglow", 0, 0.804688, 0, 0.804688 }
+local DIVIDER = { RETAIL .. "challengemode-thindivider", 0, 0.712891, 0, 0.75 }
+local PARCHMENT = { RETAIL .. "questbg-parchment", 0, 0.583984, 0, 0.794922 }
+
+-- The picture: its size, and the texture it sits in (top-left corner, see buildGlueArt.py)
+local ART_WIDTH, ART_HEIGHT = 1672, 941
+local ART_TEXTURE_WIDTH, ART_TEXTURE_HEIGHT = 2048, 1024
+local ART_ASPECT = ART_WIDTH / ART_HEIGHT
+local ART_U, ART_V = ART_WIDTH / ART_TEXTURE_WIDTH, ART_HEIGHT / ART_TEXTURE_HEIGHT
+
+-- Points of the picture, in its pixels: the two brazier flames and the foot of the city's beam
+local BRAZIERS = { { 310, 552 }, { 1362, 552 } }
+local BEACON = { 860, 330 }
+local EMBERS_PER_BRAZIER = 7
+
+-- The logo: its size in its texture (buildGlueArt.py), and how much of the screen's height it takes
+local LOGO_TEXTURE_SIZE = 1024
+local LOGO_WIDTH, LOGO_HEIGHT = 1024, 750
+local LOGO_SCREEN_SHARE = 0.30
+local LOGO_TOP = -10
+
+-- The challenge board's palette: gold headings and frames on dark, parchment text
+local HEADING = { 1, 0.86, 0.55 }
+local BORDER = { 0.75, 0.6, 0.35 }
+local TEXT = { 0.85, 0.8, 0.7 }
+local MUTED = { 0.62, 0.57, 0.5 }
+
+-- The card (from the top of the card, downwards)
+local CARD_WIDTH = 340
+local CARD_TOP = 372             -- above the bottom of the screen
+local FIELD_WIDTH, FIELD_HEIGHT = 284, 34
+local ACCOUNT_Y, PASSWORD_Y = -86, -148
+local OPTIONS_Y, OPTION_ROW = -198, 20
+local BUTTON_HEIGHT, BUTTON_GAP, BOTTOM_PAD = 40, 16, 24
+
+local L = {
+    heading = "Connexion",
+    account = "COMPTE",
+    password = "MOT DE PASSE",
+    accountHint = "Nom de compte",
+    passwordHint = "Mot de passe",
+    saveAccount = "Mémoriser le compte",
+    savePassword = "Mémoriser le mot de passe",
+    autoLogin = "Connexion automatique",
+    login = "Se connecter",
+    options = "Options",
+    cinematics = "Cinématiques",
+    quit = "Quitter",
+    realm = "Royaume",
+    noRealm = "Aucun royaume récent",
+    version = "Version",
+    resetPending = "Les paramètres seront réinitialisés au prochain démarrage.",
 }
 
-LOGIN_MODELS = {
-    {1, 0.000, 0.300, 0.285, 0.684, 0.085, 1.000, LOGIN_MODEL_LIGHTS[0], 1, 1, 1, "Environments\\Stars\\icecrownarthasdeathsky.m2"},
-    {1, -0.712, 0.800, 0.000, 6.245, 0.100, 0.400, LOGIN_MODEL_LIGHTS[0], 1, 1, 1, "Environments\\Stars\\aurorayellowgreen.m2"},
-    {1, -0.712, -0.750, 0.000, 6.245, 0.100, 0.500, LOGIN_MODEL_LIGHTS[0], 1, 1, 1, "Environments\\Stars\\auroraorange.m2"},
-}
+local scene = {}        -- the art and its light
+local ui = {}           -- the card, the title, the bottom edge
+local fields = {}
+local links = {}
+local optionRows = {}
+local intro, clock = 0, 0
+local parallaxX, parallaxY = 0, 0
+local layoutKey
+local cardHeight, cardTargetHeight
 
-BACKGROUND_MODELS = {
-    ["Environments\\Stars\\icecrownarthasdeathsky.m2"] = { frameLevel = 0 },
-}
 -- ==================== CONFIGURACIÓN ADICIONAL ====================
 local function InitializeUICache()
-    UICache.accountEdit = _G["AccountLoginAccountEdit"] 
-    UICache.passwordEdit = _G["AccountLoginPasswordEdit"] 
-    UICache.saveAccountName = _G["AccountLoginSaveAccountName"] 
-    UICache.savePassword = _G["AccountLoginSavePassword"] 
-    UICache.autoLogin = _G["AccountLoginAutoLogin"] 
-    UICache.autoLoginText = _G["AccountLoginAutoLoginText"] 
-    UICache.loginButton = _G["AccountLoginLoginButton"] 
-    UICache.versionText = _G["AccountLoginVersion"] 
-    UICache.realmName = _G["AccountLoginRealmName"] 
-    UICache.upgradeButton = _G["AccountLoginUpgradeAccountButton"] 
-    UICache.tosFrame = _G["TOSFrame"] 
-    UICache.tosAccept = _G["TOSAccept"] 
+    UICache.accountEdit = _G["AccountLoginAccountEdit"]
+    UICache.passwordEdit = _G["AccountLoginPasswordEdit"]
+    UICache.saveAccountName = _G["AccountLoginSaveAccountName"]
+    UICache.savePassword = _G["AccountLoginSavePassword"]
+    UICache.autoLogin = _G["AccountLoginAutoLogin"]
+    UICache.autoLoginText = _G["AccountLoginAutoLoginText"]
+    UICache.loginButton = _G["AccountLoginLoginButton"]
+    UICache.versionText = _G["AccountLoginVersion"]
+    UICache.realmName = _G["AccountLoginRealmName"]
+    UICache.upgradeButton = _G["AccountLoginUpgradeAccountButton"]
+    UICache.tosFrame = _G["TOSFrame"]
+    UICache.tosAccept = _G["TOSAccept"]
     UICache.tosDecline = _G["TOSDecline"]
-end
-
-function GetLoginConfig()
-    return Config
-end
-
-function GetLoginState()
-    return LoginState
-end
--- ============================================================================
--- SISTEMA DE ANIMACIÓN BLP
--- ============================================================================
-local function UpdateBackgroundAnimation(self, elapsed)
-    if not Config.ENABLE_BLP_ANIMATION or Config.FRAME_COUNT <= 0 then
-        return
-    end
-    
-    local currentTime = GetTime()
-    if (currentTime - LoginState.lastUpdateTime) < (1 / Config.FPS_LIMIT) then
-        return
-    end
-    
-    LoginState.lastUpdateTime = currentTime
-    LoginState.currentFrame = (LoginState.currentFrame + 1) % Config.FRAME_COUNT
-    
-    if self.animatedTexture then
-        local texturePath = Config.ANIMATION_PATH .. string.format("%04d.blp", LoginState.currentFrame)
-        self.animatedTexture:SetTexture(texturePath)
-    end
 end
 -- ============================================================================
 -- DIÁLOGOS
@@ -146,60 +144,619 @@ GlueDialogTypes["AUTO_LOGIN"] = {
     end,
 }
 -- ============================================================================
--- GESTIÓN DE MODELOS 3D
+-- SMALL HELPERS
 -- ============================================================================
-local function CreateLoginModel(parent, modelData)
-    local model = CreateFrame("Model", nil, parent)
-    local width, height = parent:GetSize()
-    
-    model:SetSize(
-        width * (modelData[LOGIN_MODEL_STRUCT.WIDTH_SQUISH] or 1), 
-        height * (modelData[LOGIN_MODEL_STRUCT.HEIGHT_SQUISH] or 1)
-    )
-    model:SetPoint("CENTER")
-    model:SetModel("Character/Human/Male/HumanMale.mdx")
-    model:SetCamera(1)
-    model:SetModel(modelData[LOGIN_MODEL_STRUCT.MODEL_PATH])
-    model:SetPosition(
-        modelData[LOGIN_MODEL_STRUCT.POS_X], 
-        modelData[LOGIN_MODEL_STRUCT.POS_Y], 
-        modelData[LOGIN_MODEL_STRUCT.POS_Z]
-    )
-    model:SetFacing(modelData[LOGIN_MODEL_STRUCT.FACING])
-    model:SetModelScale(modelData[LOGIN_MODEL_STRUCT.SCALE])
-    model:SetAlpha(modelData[LOGIN_MODEL_STRUCT.ALPHA])
-    model:SetSequence(modelData[LOGIN_MODEL_STRUCT.SEQUENCE])
-    
-    if modelData[LOGIN_MODEL_STRUCT.LIGHT] then
-        model:SetLight(unpack(modelData[LOGIN_MODEL_STRUCT.LIGHT]))
-    end
-    
-    return model
+local function Clamp01(value)
+    if value < 0 then return 0 end
+    if value > 1 then return 1 end
+    return value
 end
 
-local function InitializeLoginScene(parent)
-    for _, model in ipairs(ModelManager.loginModels) do
-        model:Hide()
-        model:SetParent(nil)
-    end
-    ModelManager.loginModels = {}
+local function OutCubic(p)
+    local inverse = 1 - p
+    return 1 - inverse * inverse * inverse
+end
 
-    for _, modelData in ipairs(LOGIN_MODELS) do
-        if modelData[LOGIN_MODEL_STRUCT.SCENE_ID] == LoginState.currentScene then
-            local model = CreateLoginModel(parent, modelData)
-            table.insert(ModelManager.loginModels, model)
+local function Smooth(value)
+    return value * value * (3 - 2 * value)
+end
+
+local function Approach(current, target, elapsed, speed)
+    return current + (target - current) * math.min(elapsed * speed, 1)
+end
+
+local function Text(parent, font, size, layer, r, g, b)
+    local text = parent:CreateFontString(nil, layer or "OVERLAY")
+    text:SetFont(font, size, "")
+    text:SetShadowColor(0, 0, 0, 0.9)
+    text:SetShadowOffset(1, -1)
+    if r then
+        text:SetTextColor(r, g, b)
+    end
+    return text
+end
+
+local function Solid(parent, layer, r, g, b, a)
+    local texture = parent:CreateTexture(nil, layer or "ARTWORK")
+    texture:SetTexture(WHITE)
+    texture:SetVertexColor(r, g, b, a or 1)
+    return texture
+end
+
+-- A gradient strip: alpha a1 at its start, a2 at its end (HORIZONTAL: left to right, VERTICAL: bottom to top).
+-- Never call SetAlpha on it: in this client that wipes the gradient.
+local function Fade(parent, layer, orientation, r, g, b, a1, a2)
+    local texture = parent:CreateTexture(nil, layer or "ARTWORK")
+    texture:SetTexture(WHITE)
+    texture:SetGradientAlpha(orientation, r, g, b, a1, r, g, b, a2)
+    return texture
+end
+
+local function Piece(parent, layer, piece)
+    local texture = parent:CreateTexture(nil, layer or "ARTWORK")
+    texture:SetTexture(piece[1])
+    texture:SetTexCoord(piece[2], piece[3], piece[4], piece[5])
+    return texture
+end
+
+-- A 1-pixel frame around a region: four lines, returned so they can be recoloured together
+local function Edges(parent, layer)
+    local edges = {}
+    local specs = {
+        { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true },
+        { "TOPLEFT", "BOTTOMLEFT", false }, { "TOPRIGHT", "BOTTOMRIGHT", false },
+    }
+    for _, spec in ipairs(specs) do
+        local edge = Solid(parent, layer or "BORDER", 1, 1, 1, 1)
+        edge:SetPoint(spec[1])
+        edge:SetPoint(spec[2])
+        if spec[3] then edge:SetHeight(1) else edge:SetWidth(1) end
+        edges[#edges + 1] = edge
+    end
+    return edges
+end
+
+local function ColorEdges(edges, r, g, b, a)
+    for _, edge in ipairs(edges) do
+        edge:SetVertexColor(r, g, b, a)
+    end
+end
+
+-- The part of the picture that fills a width x height box, like CSS "cover", enlarged by zoom and centred on
+-- focusX / focusY (0-1 across the picture). Returns that part as fractions of the picture.
+local function Cover(width, height, zoom, focusX, focusY)
+    local u, v = 1, 1
+    if width / height > ART_ASPECT then
+        v = ART_ASPECT / (width / height)
+    else
+        u = (width / height) / ART_ASPECT
+    end
+    u, v = u / zoom, v / zoom
+    local left = math.min(math.max(focusX - u / 2, 0), 1 - u)
+    local top = math.min(math.max(focusY - v / 2, 0), 1 - v)
+    return left, top, u, v
+end
+-- ============================================================================
+-- THE SCENE: the art, its shade and its light
+-- ============================================================================
+local function SpawnEmber(ember, initial)
+    ember.life = 2.4 + math.random() * 1.8
+    ember.time = initial and math.random() * ember.life or 0
+    ember.offsetX = (math.random() - 0.5) * 70
+    ember.offsetY = math.random() * 24 - 12
+    ember.rise = 120 + math.random() * 150
+    ember.sway = 6 + math.random() * 14
+    ember.frequency = 1.2 + math.random() * 1.6
+    ember.phase = math.random() * 6.28
+    ember.size = 6 + math.random() * 6
+    ember.texture:SetVertexColor(1, 0.55 + math.random() * 0.25, 0.22)
+end
+
+-- The window's own shape. The client keeps the glue screens at 16:9 at most, centred: on a wider window (21:9, 32:9)
+-- the picture is laid on a stage as wide as the window, overflowing both sides, or black bars frame it.
+local function WindowAspect()
+    local width, height = string.match(GetCVar("gxResolution") or "", "(%d+)x(%d+)")
+    width, height = tonumber(width), tonumber(height)
+    if width and height and height > 0 then
+        return width / height
+    end
+end
+
+local function BuildScene(owner)
+    local self = CreateFrame("Frame", nil, owner)
+    self:SetFrameLevel(owner:GetFrameLevel())
+    self:SetPoint("CENTER", owner, "CENTER")
+    self:SetWidth(owner:GetWidth() > 0 and owner:GetWidth() or 1024)
+    self:SetHeight(owner:GetHeight() > 0 and owner:GetHeight() or 768)
+    scene.stage = self
+    scene.art = self:CreateTexture("AccountLoginBackground", "BACKGROUND")
+    scene.art:SetTexture(ART .. "LoginBackdrop")
+    scene.art:SetAllPoints()
+
+    -- Darker towards the edges and corners, and under the title and the card so they read over the bright sky
+    local vignette = self:CreateTexture(nil, "BORDER")
+    vignette:SetTexture(ART .. "LoginVignette")
+    vignette:SetAllPoints()
+    local top = Fade(self, "BORDER", "VERTICAL", 0, 0, 0, 0, 0.62)
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(250)
+    local bottom = Fade(self, "BORDER", "VERTICAL", 0, 0, 0, 0.82, 0)
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(320)
+
+    -- The braziers' flicker and the beam's breath: the soft glow, added over the picture
+    scene.lights = {}
+    for index, point in ipairs(BRAZIERS) do
+        local light = Piece(self, "ARTWORK", GLOW)
+        light:SetBlendMode("ADD")
+        light:SetVertexColor(1, 0.55, 0.22)
+        scene.lights[#scene.lights + 1] = { texture = light, x = point[1], y = point[2], size = 300, seed = index * 1.7 }
+    end
+    local beacon = Piece(self, "ARTWORK", GLOW)
+    beacon:SetBlendMode("ADD")
+    beacon:SetVertexColor(1, 0.85, 0.55)
+    scene.lights[#scene.lights + 1] = { texture = beacon, x = BEACON[1], y = BEACON[2], size = 230, beacon = true }
+
+    scene.embers = {}
+    for side = 1, #BRAZIERS do
+        for _ = 1, EMBERS_PER_BRAZIER do
+            local ember = { side = side, texture = Piece(self, "OVERLAY", GLOW) }
+            ember.texture:SetBlendMode("ADD")
+            SpawnEmber(ember, true)
+            scene.embers[#scene.embers + 1] = ember
         end
+    end
+end
+
+-- The part of the picture on screen (Cover), to put things on points of the picture
+local view = {}
+
+-- Centres a texture on a point of the picture (in its pixels), size in picture pixels too
+local function Place(texture, x, y, size)
+    texture:ClearAllPoints()
+    texture:SetPoint("CENTER", view.frame, "TOPLEFT", (x / ART_WIDTH - view.left) / view.u * view.width,
+        -(y / ART_HEIGHT - view.top) / view.v * view.height)
+    texture:SetWidth(size * view.pixel)
+    texture:SetHeight(size * view.pixel)
+end
+
+local function UpdateScene(owner, elapsed, brightness)
+    local height = owner:GetHeight()
+    if not height or height <= 0 then
+        return
+    end
+    -- The stage: as wide as the window, never narrower than the glue screen
+    local self = scene.stage
+    local width = math.max(owner:GetWidth(), height * (WindowAspect() or 0))
+    if math.abs(self:GetWidth() - width) > 0.5 or math.abs(self:GetHeight() - height) > 0.5 then
+        self:SetWidth(width)
+        self:SetHeight(height)
+    end
+
+    -- A slow drift and zoom over 80 seconds, there and back, and a small lean away from the pointer
+    local phase = (clock / 40) % 2
+    phase = Smooth(phase < 1 and phase or 2 - phase)
+    local cursorX, cursorY = GetCursorPosition()
+    local scale = self:GetEffectiveScale()
+    if cursorX and scale and scale > 0 then
+        parallaxX = Approach(parallaxX, Clamp01(cursorX / scale / width) - 0.5, elapsed, 1.5)
+        parallaxY = Approach(parallaxY, Clamp01(cursorY / scale / height) - 0.5, elapsed, 1.5)
+    end
+    local zoom = 1.04 + 0.04 * phase
+    local left, top, u, v = Cover(width, height, zoom, 0.5 + 0.014 * (phase - 0.5) * 2 - 0.02 * parallaxX,
+        0.45 - 0.006 * (phase - 0.5) * 2 + 0.014 * parallaxY)
+    scene.art:SetTexCoord(left * ART_U, (left + u) * ART_U, top * ART_V, (top + v) * ART_V)
+    scene.art:SetVertexColor(brightness, brightness, brightness)
+
+    view.frame, view.left, view.top, view.u, view.v, view.width, view.height = self, left, top, u, v, width, height
+    view.pixel = width / (u * ART_WIDTH)
+
+    for _, light in ipairs(scene.lights) do
+        local alpha
+        if light.beacon then
+            alpha = 0.16 + 0.05 * math.sin(clock * 0.9)
+        else
+            alpha = 0.24 + 0.06 * math.sin(clock * 7.3 + light.seed) + 0.04 * math.sin(clock * 13.1 + 2 * light.seed)
+        end
+        Place(light.texture, light.x, light.y, light.size)
+        light.texture:SetAlpha(alpha * brightness)
+    end
+
+    for _, ember in ipairs(scene.embers) do
+        ember.time = ember.time + elapsed
+        if ember.time >= ember.life then
+            SpawnEmber(ember, false)
+        end
+        local p = ember.time / ember.life
+        local source = BRAZIERS[ember.side]
+        local x = source[1] + ember.offsetX + math.sin(ember.phase + ember.time * ember.frequency) * ember.sway * p
+        local y = source[2] - 20 + ember.offsetY - ember.rise * p
+        Place(ember.texture, x, y, ember.size)
+        local fade = (p < 0.15) and (p / 0.15) or ((1 - p) / 0.85)
+        ember.texture:SetAlpha(0.9 * fade * brightness)
+    end
+end
+-- ============================================================================
+-- THE TITLE, THE CARD AND THE BOTTOM EDGE
+-- ============================================================================
+-- The server's logo, top centre, a fixed share of the screen's height (so the same look at any resolution), on a
+-- faint warm light
+local function BuildLogo()
+    local brand = CreateFrame("Frame", nil, AccountLoginUI)
+    brand:SetPoint("TOP", AccountLoginUI, "TOP", 0, LOGO_TOP)
+    ui.brand = brand
+
+    local glow = Piece(brand, "BACKGROUND", GLOW)
+    glow:SetBlendMode("ADD")
+    glow:SetVertexColor(1, 0.75, 0.4, 0.18)
+    glow:SetPoint("TOPLEFT", brand, "TOPLEFT", -70, 30)
+    glow:SetPoint("BOTTOMRIGHT", brand, "BOTTOMRIGHT", 70, -20)
+
+    local logo = brand:CreateTexture("AccountLoginLogo", "ARTWORK")
+    logo:SetTexture(ART .. "LoginLogo")
+    logo:SetTexCoord(0, LOGO_WIDTH / LOGO_TEXTURE_SIZE, 0, LOGO_HEIGHT / LOGO_TEXTURE_SIZE)
+    logo:SetAllPoints()
+end
+
+local function SizeLogo()
+    local height = math.floor(AccountLoginUI:GetHeight() * LOGO_SCREEN_SHARE + 0.5)
+    if height > 0 and height ~= ui.logoHeight then
+        ui.logoHeight = height
+        ui.brand:SetSize(height * LOGO_WIDTH / LOGO_HEIGHT, height)
+    end
+end
+
+local function BuildField(card, edit, label, hint)
+    local field = { edit = edit, lit = 0, hover = false, focus = false }
+
+    local fill = Solid(edit, "BACKGROUND", 0, 0, 0, 0.55)
+    fill:SetAllPoints()
+    field.edges = Edges(edit, "BORDER")
+    -- A gold line under the field when it has the focus
+    field.accent = Piece(edit, "BORDER", DIVIDER)
+    field.accent:SetHeight(3)
+    field.accent:SetPoint("BOTTOMLEFT", 0, 0)
+    field.accent:SetPoint("BOTTOMRIGHT", 0, 0)
+    -- And a soft light around it, on the card (so under the field)
+    field.glow = Piece(card, "ARTWORK", GLOW)
+    field.glow:SetBlendMode("ADD")
+    field.glow:SetPoint("TOPLEFT", edit, "TOPLEFT", -22, 16)
+    field.glow:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", 22, -16)
+
+    field.label = Text(card, FONT_TEXT, 10, "OVERLAY")
+    field.label:SetPoint("BOTTOMLEFT", edit, "TOPLEFT", 1, 5)
+    field.label:SetText(label)
+
+    local placeholder = _G[edit:GetName() .. "Fill"]
+    placeholder:SetFont(FONT_TEXT, 12, "")
+    placeholder:SetTextColor(0.5, 0.46, 0.4)
+    placeholder:SetText(hint)
+
+    edit:SetTextColor(1, 0.95, 0.85)
+    edit.evolutionsField = field
+    fields[#fields + 1] = field
+    return field
+end
+
+local function RefreshField(field)
+    local lit = field.lit
+    local hover = (field.hover and not field.focus) and 1 or 0
+    local r = BORDER[1] + (HEADING[1] - BORDER[1]) * lit
+    local g = BORDER[2] + (HEADING[2] - BORDER[2]) * lit
+    local b = BORDER[3] + (HEADING[3] - BORDER[3]) * lit
+    ColorEdges(field.edges, r, g, b, 0.45 + 0.25 * hover + 0.55 * lit)
+    field.accent:SetVertexColor(1, 1, 1, lit)
+    field.glow:SetVertexColor(1, 0.75, 0.35, 0.3 * lit)
+    field.label:SetTextColor(MUTED[1] + (HEADING[1] - MUTED[1]) * lit, MUTED[2] + (HEADING[2] - MUTED[2]) * lit,
+        MUTED[3] + (HEADING[3] - MUTED[3]) * lit)
+end
+
+local function BuildOption(check, label, text)
+    check:SetFrameLevel(check:GetParent():GetFrameLevel() + 2)
+    local box = Solid(check, "BACKGROUND", 0, 0, 0, 0.6)
+    box:SetAllPoints()
+    ColorEdges(Edges(check, "BORDER"), BORDER[1], BORDER[2], BORDER[3], 0.85)
+
+    check:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+    local mark = check:GetCheckedTexture()
+    mark:ClearAllPoints()
+    mark:SetPoint("CENTER", check, "CENTER", 1, 1)
+    mark:SetSize(22, 22)
+    mark:SetVertexColor(HEADING[1], HEADING[2], HEADING[3])
+
+    check:SetHighlightTexture(GLOW[1])
+    local light = check:GetHighlightTexture()
+    light:SetTexCoord(GLOW[2], GLOW[3], GLOW[4], GLOW[5])
+    light:SetBlendMode("ADD")
+    light:SetVertexColor(1, 0.78, 0.4, 0.7)
+    light:ClearAllPoints()
+    light:SetPoint("TOPLEFT", check, "TOPLEFT", -9, 9)
+    light:SetPoint("BOTTOMRIGHT", check, "BOTTOMRIGHT", 9, -9)
+
+    label:SetText(text)
+    optionRows[#optionRows + 1] = { check = check, label = label }
+end
+
+local function SetButtonFace(button)
+    local state = button.pressed and 3 or (button.hovered and 2 or 1)
+    if button.faceState == state then return end
+    button.faceState = state
+    -- bottom colour, then top colour
+    local faces = {
+        { 0.36, 0.25, 0.1, 0.58, 0.42, 0.19 },
+        { 0.46, 0.33, 0.13, 0.72, 0.54, 0.25 },
+        { 0.28, 0.19, 0.08, 0.44, 0.31, 0.14 },
+    }
+    local face = faces[state]
+    button.face:SetGradientAlpha("VERTICAL", face[1], face[2], face[3], 1, face[4], face[5], face[6], 1)
+end
+
+local function BuildLoginButton(card, button)
+    button.face = button:CreateTexture(nil, "BACKGROUND")
+    button.face:SetTexture(WHITE)
+    button.face:SetPoint("TOPLEFT", 1, -1)
+    button.face:SetPoint("BOTTOMRIGHT", -1, 1)
+    local sheen = Fade(button, "BORDER", "VERTICAL", 1, 0.95, 0.8, 0, 0.16)
+    sheen:SetPoint("TOPLEFT", 1, -1)
+    sheen:SetPoint("BOTTOMRIGHT", button, "RIGHT", -1, 0)
+    ColorEdges(Edges(button, "BORDER"), HEADING[1], HEADING[2], HEADING[3], 0.9)
+
+    -- Its light, on the card under it
+    button.glow = Piece(card, "ARTWORK", GLOW)
+    button.glow:SetBlendMode("ADD")
+    button.glow:SetPoint("TOPLEFT", button, "TOPLEFT", -40, 26)
+    button.glow:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 40, -26)
+    button.lit = 0
+
+    button:SetText(L.login)
+    SetButtonFace(button)
+end
+
+local function BuildCard()
+    local card = AccountLoginCard
+    ui.card = card
+    card:SetWidth(CARD_WIDTH)
+    card:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    card:SetBackdropColor(0.04, 0.03, 0.02, 0.84)
+    card:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
+
+    -- The board's rock, dark, faintly letting the art through
+    local rock = Piece(card, "BACKGROUND", PARCHMENT)
+    rock:SetPoint("TOPLEFT", 5, -5)
+    rock:SetPoint("BOTTOMRIGHT", -5, 5)
+    rock:SetVertexColor(0.34, 0.28, 0.22, 0.5)
+    local sheen = Fade(card, "BORDER", "VERTICAL", 1, 0.8, 0.45, 0, 0.07)
+    sheen:SetPoint("TOPLEFT", 5, -5)
+    sheen:SetPoint("TOPRIGHT", -5, -5)
+    sheen:SetHeight(70)
+
+    -- A soft shadow around the card, on its own frame under it
+    local shadowFrame = CreateFrame("Frame", nil, AccountLoginUI)
+    shadowFrame:SetFrameLevel(AccountLoginUI:GetFrameLevel())
+    shadowFrame:SetPoint("TOPLEFT", card, "TOPLEFT", -70, 60)
+    shadowFrame:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 70, -60)
+    local shadow = Piece(shadowFrame, "BACKGROUND", GLOW)
+    shadow:SetAllPoints()
+    shadow:SetVertexColor(0, 0, 0, 0.75)
+    ui.cardShadow = shadowFrame
+
+    local heading = Text(card, FONT_TITLE, 22, "OVERLAY", HEADING[1], HEADING[2], HEADING[3])
+    heading:SetPoint("TOP", card, "TOP", 0, -20)
+    heading:SetText(L.heading)
+    local divider = Piece(card, "OVERLAY", DIVIDER)
+    divider:SetSize(250, 5)
+    divider:SetPoint("TOP", card, "TOP", 0, -50)
+
+    local account, password = AccountLoginAccountEdit, AccountLoginPasswordEdit
+    for _, edit in ipairs({ account, password }) do
+        edit:ClearAllPoints()
+        edit:SetSize(FIELD_WIDTH, FIELD_HEIGHT)
+    end
+    account:SetPoint("TOP", card, "TOP", 0, ACCOUNT_Y)
+    password:SetPoint("TOP", card, "TOP", 0, PASSWORD_Y)
+    BuildField(card, account, L.account, L.accountHint)
+    BuildField(card, password, L.password, L.passwordHint)
+
+    BuildOption(AccountLoginSaveAccountName, AccountLoginSaveAccountNameText, L.saveAccount)
+    BuildOption(AccountLoginSavePassword, AccountLoginSavePasswordText, L.savePassword)
+    BuildOption(AccountLoginAutoLogin, AccountLoginAutoLoginText, L.autoLogin)
+
+    local button = AccountLoginLoginButton
+    button:ClearAllPoints()
+    button:SetSize(FIELD_WIDTH, BUTTON_HEIGHT)
+    button:SetPoint("BOTTOM", card, "BOTTOM", 0, BOTTOM_PAD)
+    BuildLoginButton(card, button)
+end
+
+local function BuildLinks()
+    local order = {
+        { AccountLoginExitButton, L.quit },
+        { OptionsButton, L.options },
+        { AccountLoginCinematicsButton, L.cinematics },
+    }
+    local previous
+    for _, entry in ipairs(order) do
+        local button, label = entry[1], entry[2]
+        button:SetText(label)
+        button:SetWidth(button:GetTextWidth() + 16)
+        button:SetHeight(24)
+        button:ClearAllPoints()
+        if previous then
+            local dot = Text(AccountLoginUI, FONT_TEXT, 12, "OVERLAY", MUTED[1], MUTED[2], MUTED[3])
+            dot:SetText("·")
+            dot:SetPoint("RIGHT", previous, "LEFT", -2, 0)
+            button:SetPoint("RIGHT", dot, "LEFT", -2, 0)
+            links[#links + 1] = { dot = dot }
+        else
+            button:SetPoint("BOTTOMRIGHT", AccountLoginUI, "BOTTOMRIGHT", -22, 16)
+        end
+        local underline = Piece(button, "OVERLAY", DIVIDER)
+        underline:SetHeight(2)
+        underline:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 4, 2)
+        underline:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -4, 2)
+        underline:SetAlpha(0)
+        local link = { button = button, underline = underline, lit = 0 }
+        button:HookScript("OnEnter", function() link.hover = true end)
+        button:HookScript("OnLeave", function() link.hover = false end)
+        links[#links + 1] = link
+        previous = button
+    end
+
+    -- The community buttons (only those with a link are shown), bottom left, above the realm
+    local x = 20
+    for _, name in ipairs({ "AccountLoginDiscord", "AccountLoginYoutube", "AccountLoginTikTok", "AccountLoginFacebook" }) do
+        local button = _G[name]
+        if button and button:IsShown() then
+            button:ClearAllPoints()
+            button:SetSize(30, 30)
+            button:SetPoint("BOTTOMLEFT", AccountLoginUI, "BOTTOMLEFT", x, 54)
+            x = x + 36
+        end
+    end
+
+    UICache.realmName:SetFont(FONT_TEXT, 11, "")
+    UICache.realmName:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
+    UICache.versionText:SetFont(FONT_TEXT, 10, "")
+    UICache.versionText:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+    AccountLoginUIResetFrameText:SetText(L.resetPending)
+end
+
+-- Stacks the ticked options' rows (a row appears once the one above is ticked) and sizes the card to them
+function AccountLogin_LayoutCard()
+    local y, count = OPTIONS_Y, 0
+    for _, row in ipairs(optionRows) do
+        if row.check:IsShown() then
+            row.check:ClearAllPoints()
+            row.check:SetPoint("TOPLEFT", ui.card, "TOPLEFT", (CARD_WIDTH - FIELD_WIDTH) / 2 + 1, y)
+            row.label:ClearAllPoints()
+            row.label:SetPoint("LEFT", row.check, "RIGHT", 8, 0)
+            -- The label clicks the box too
+            row.check:SetHitRectInsets(0, -(row.label:GetStringWidth() + 10), -3, -3)
+            y = y - OPTION_ROW
+            count = count + 1
+        end
+    end
+    cardTargetHeight = -OPTIONS_Y + math.max(count, 1) * OPTION_ROW - (OPTION_ROW - 14) + BUTTON_GAP
+        + BUTTON_HEIGHT + BOTTOM_PAD
+    if not cardHeight then
+        cardHeight = cardTargetHeight
+        ui.card:SetHeight(cardHeight)
+    end
+end
+
+local function OptionsKey()
+    local key = 0
+    for index, row in ipairs(optionRows) do
+        if row.check:IsShown() then
+            key = key + 2 ^ index
+        end
+    end
+    return key
+end
+
+local function UpdateInterface(elapsed)
+    -- The title, then the card rising into place, then the bottom edge
+    SizeLogo()
+    if intro < 2 then
+        local brand = OutCubic(Clamp01((intro - 0.35) / 1.2))
+        ui.brand:SetAlpha(brand)
+        ui.brand:ClearAllPoints()
+        ui.brand:SetPoint("TOP", AccountLoginUI, "TOP", 0, LOGO_TOP + 10 * (1 - brand))
+
+        local card = OutCubic(Clamp01((intro - 0.55) / 0.8))
+        ui.card:SetAlpha(card)
+        ui.cardShadow:SetAlpha(card)
+        ui.card:ClearAllPoints()
+        ui.card:SetPoint("TOP", AccountLoginUI, "BOTTOM", 0, CARD_TOP - 24 * (1 - card))
+
+        local footer = OutCubic(Clamp01((intro - 0.9) / 0.6))
+        for _, link in ipairs(links) do
+            (link.button or link.dot):SetAlpha(footer)
+        end
+        UICache.realmName:SetAlpha(footer)
+        UICache.versionText:SetAlpha(footer)
+    end
+
+    local key = OptionsKey()
+    if key ~= layoutKey then
+        layoutKey = key
+        AccountLogin_LayoutCard()
+    end
+    if cardHeight and math.abs(cardHeight - cardTargetHeight) > 0.2 then
+        cardHeight = Approach(cardHeight, cardTargetHeight, elapsed, 12)
+        ui.card:SetHeight(cardHeight)
+    end
+
+    for _, field in ipairs(fields) do
+        local target = field.focus and 1 or 0
+        local hovered = field.hover and not field.focus
+        if math.abs(field.lit - target) > 0.01 or field.shownHover ~= hovered then
+            field.lit = Approach(field.lit, target, elapsed, 10)
+            field.shownHover = hovered
+            RefreshField(field)
+        end
+    end
+
+    local button = AccountLoginLoginButton
+    SetButtonFace(button)
+    local target = button.hovered and 1 or 0
+    if math.abs(button.lit - target) > 0.01 or not button.litShown then
+        button.lit = Approach(button.lit, target, elapsed, 8)
+        button.litShown = true
+        button.glow:SetVertexColor(1, 0.78, 0.4, 0.22 + 0.4 * button.lit)
+    end
+
+    for _, link in ipairs(links) do
+        if link.button then
+            local wanted = (link.hover and link.button:IsEnabled() == 1) and 1 or 0
+            if math.abs(link.lit - wanted) > 0.01 then
+                link.lit = Approach(link.lit, wanted, elapsed, 10)
+                link.underline:SetAlpha(0.9 * link.lit)
+            end
+        end
+    end
+end
+
+local function BuildLook(self)
+    if scene.art then return end
+    BuildScene(self)
+    BuildLogo()
+    BuildCard()
+    BuildLinks()
+
+    if VirtualKeypadFrame then
+        VirtualKeypadFrame:SetBackdropColor(0.04, 0.03, 0.02, 0.95)
+        VirtualKeypadFrame:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3])
+    end
+end
+
+function AccountLogin_FieldFocus(edit, focused)
+    local field = edit.evolutionsField
+    if field then field.focus = focused and true or false end
+end
+
+function AccountLogin_FieldHover(edit, hovered)
+    local field = edit.evolutionsField
+    if field then field.hover = hovered and true or false end
+end
+
+function AccountLogin_ButtonHover(button, hovered)
+    button.hovered = hovered and true or nil
+    if not hovered then
+        button.pressed = nil
     end
 end
 -- ============================================================================
 -- ACTUALIZACIÓN DE LA ESCENA
 -- ============================================================================
-function LoginScene_OnUpdate(self, elapsed)
-    if Config.LOGIN_AMBIENCE and not self.ambiencePlayed then
-        PlayGlueAmbience(Config.LOGIN_AMBIENCE, Config.AMBIENCE_FADE_TIME)
-        self.ambiencePlayed = true
-    end
-
+function AccountLogin_OnUpdate(self, elapsed)
     if LoginState.autoLoginTimer and LoginState.autoLoginTimer < LoginState.autoLoginDelay then
         LoginState.autoLoginTimer = LoginState.autoLoginTimer + elapsed
         if LoginState.autoLoginTimer >= LoginState.autoLoginDelay then
@@ -207,59 +764,50 @@ function LoginScene_OnUpdate(self, elapsed)
             LoginState.autoLoginTimer = nil
         end
     end
-    UpdateBackgroundAnimation(self, elapsed)
 
-    if not self.modelsInitialized and self.Models then
-        self.modelUpdateTimer = (self.modelUpdateTimer or 0) + elapsed
-
-        if self.modelUpdateTimer >= Config.MODEL_UPDATE_INTERVAL then
-            self.modelUpdateTimer = 0
-            self.modelUpdateCount = (self.modelUpdateCount or 0) + 1
-            
-            if self.modelUpdateCount == 1 then
-                for i = 1, #self.Models do
-                    local model = self.Models[i]
-                    local data = LOGIN_MODELS[i]
-                    
-                    if model and data then
-                        model:SetModel(data[LOGIN_MODEL_STRUCT.MODEL_PATH])
-                        model:SetPosition(data[LOGIN_MODEL_STRUCT.POS_X], data[LOGIN_MODEL_STRUCT.POS_Y], data[LOGIN_MODEL_STRUCT.POS_Z])
-                        model:SetFacing(data[LOGIN_MODEL_STRUCT.FACING])
-                        model:SetModelScale(data[LOGIN_MODEL_STRUCT.SCALE])
-                        model:SetSequence(data[LOGIN_MODEL_STRUCT.SEQUENCE])
-                        if data[LOGIN_MODEL_STRUCT.LIGHT] then
-                            model:SetLight(unpack(data[LOGIN_MODEL_STRUCT.LIGHT]))
-                        end
-                        model:Show()
-                    end
-                end
-            end
-            if self.modelUpdateCount >= Config.MODEL_UPDATE_COUNT_REQUIRED then
-                self.modelsInitialized = true
-                self.modelsCreated = true
-                self.modelUpdateTimer = nil
-                self.modelUpdateCount = nil
-            end
-        end
-    end
-    LoginState.sceneTimer = LoginState.sceneTimer + elapsed
+    if not scene.art then return end
+    -- A long pause (loading, a movie) must not make the embers jump
+    elapsed = math.min(elapsed or 0, 0.1)
+    clock = clock + elapsed
+    intro = intro + elapsed
+    UpdateScene(self, elapsed, OutCubic(Clamp01(intro / 1.4)))
+    UpdateInterface(elapsed)
 end
 -- ============================================================================
 -- INICIALIZACIÓN Y EVENTOS
 -- ============================================================================
-local function isBackgroundModel(modelPath)
-    return BACKGROUND_MODELS[modelPath] ~= nil
-end
-
-local function getModelFrameLevel(modelPath)
-    return isBackgroundModel(modelPath) and BACKGROUND_MODELS[modelPath].frameLevel or Config.DEFAULT_FRAME_LEVEL
+-- A dialog over the glue screens: the screen behind it dimmed, and its panel a solid dark card with the gold edge
+-- (the stock dialog is see-through with a red alert edge, and the login card read through it)
+local function StyleDialog(overlayParent, panel)
+    if not overlayParent or not panel or panel.evolutionsStyled then return end
+    panel.evolutionsStyled = true
+    local dim = overlayParent:CreateTexture(nil, "BACKGROUND")
+    dim:SetAllPoints(overlayParent)
+    dim:SetTexture(0, 0, 0, 0.55)
+    panel:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    panel:SetBackdropColor(0.04, 0.03, 0.02, 0.95)
+    panel:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3])
+    local fill = panel:CreateTexture(nil, "BACKGROUND")
+    fill:SetPoint("TOPLEFT", 4, -4)
+    fill:SetPoint("BOTTOMRIGHT", -4, 4)
+    fill:SetTexture(0.04, 0.03, 0.02, 0.9)
 end
 
 function AccountLogin_OnLoad(self)
     InitializeUICache()
-    
+    StyleDialog(_G.GlueDialog, _G.GlueDialogBackground)
+    StyleDialog(_G.CinematicsFrame, _G.CinematicsBackground)
+    -- The stock wrong-account texts send players to Blizzard's old site
+    _G.LOGIN_UNKNOWN_ACCOUNT = "Nom de compte ou mot de passe incorrect. Vérifiez l'orthographe et réessayez."
+    _G.LOGIN_INCORRECT_PASSWORD = _G.LOGIN_UNKNOWN_ACCOUNT
+
     AccountLogin_SetupServerAlert()
-    
+
     UICache.tosFrame.noticeType = "EULA"
     self:RegisterEvent("SHOW_SERVER_ALERT")
     self:RegisterEvent("SHOW_SURVEY_NOTIFICATION")
@@ -267,46 +815,11 @@ function AccountLogin_OnLoad(self)
     self:RegisterEvent("CLIENT_TRIAL")
     self:RegisterEvent("SCANDLL_ERROR")
     self:RegisterEvent("SCANDLL_FINISHED")
-    
+
     local versionType, buildType, version, internalVersion, date = GetBuildInfo()
-    UICache.versionText:SetText(buildType.." "..version.." ("..internalVersion..")")
-    
-    local backdropColor = Config.DEFAULT_TOOLTIP_COLOR
-    UICache.accountEdit:SetBackdropBorderColor(backdropColor[1], backdropColor[2], backdropColor[3])
-    UICache.accountEdit:SetBackdropColor(backdropColor[4], backdropColor[5], backdropColor[6])
-    UICache.passwordEdit:SetBackdropBorderColor(backdropColor[1], backdropColor[2], backdropColor[3])
-    UICache.passwordEdit:SetBackdropColor(backdropColor[4], backdropColor[5], backdropColor[6])
+    UICache.versionText:SetText(L.version .. " " .. tostring(version) .. " (" .. tostring(internalVersion) .. ")")
 
-    self.Models = {}
-    for i = 1, #LOGIN_MODELS do
-        local data = LOGIN_MODELS[i]
-        local model = CreateFrame("Model", "AccountLoginModel"..i, self)
-
-        model:SetModel("Character/Human/Male/HumanMale.mdx")
-        model:SetPoint("CENTER", 0, 0)
-        model:SetSize(self:GetWidth() / (data[LOGIN_MODEL_STRUCT.WIDTH_SQUISH] or 1), 
-                      self:GetHeight() / (data[LOGIN_MODEL_STRUCT.HEIGHT_SQUISH] or 1))
-        model:SetCamera(1)
-        
-        if data[LOGIN_MODEL_STRUCT.LIGHT] then
-            model:SetLight(unpack(data[LOGIN_MODEL_STRUCT.LIGHT]))
-        end
-        model:SetAlpha(data[LOGIN_MODEL_STRUCT.ALPHA])
-        
-        local frameLevel = getModelFrameLevel(data[LOGIN_MODEL_STRUCT.MODEL_PATH])
-        model:SetFrameLevel(frameLevel)
-        
-        if frameLevel == 0 then
-            model:SetFrameStrata("LOW")
-        end
-        model:Hide()
-        self.Models[i] = model
-    end
-    self.modelUpdateCount = 0
-    self.modelUpdateTimer = 0
-    self.modelsInitialized = false
-    self.ambiencePlayed = false
-    self.modelsCreated = false
+    BuildLook(self)
 
     AcceptTOS()
     AcceptEULA()
@@ -316,66 +829,10 @@ function AccountLogin_OnShow(self)
     self:Show()
     self:SetAlpha(1)
     WorldOfWarcraftRating:Hide()
-    if not self.backgroundTexture then
-        self.backgroundTexture = self:CreateTexture("AccountLoginBackground", "BACKGROUND")
-        self.backgroundTexture:SetTexture(Config.BACKGROUND_TEXTURE)
-        self.backgroundTexture:SetAllPoints(self)
-        self.backgroundTexture:SetTexCoord(0, 1, 0, 1)
-        UICache.backgroundTexture = self.backgroundTexture
-    else
-        self.backgroundTexture:Show()
-    end
-
-    if Config.ENABLE_BLP_ANIMATION and Config.FRAME_COUNT > 0 then
-        if not self.animatedTexture then
-            self.animatedTexture = self:CreateTexture("AccountLoginAnimatedBackground", "BACKGROUND")
-            self.animatedTexture:SetAllPoints(self)
-            self.animatedTexture:SetTexture(Config.ANIMATION_PATH .. "0000.blp")
-            UICache.animatedTexture = self.animatedTexture
-            LoginState.currentFrame = 0
-            LoginState.lastUpdateTime = GetTime()
-        else
-            self.animatedTexture:Show()
-            LoginState.currentFrame = 0
-            LoginState.lastUpdateTime = GetTime()
-        end
-    elseif self.animatedTexture then
-        self.animatedTexture:Hide()
-    end
+    BuildLook(self)
+    intro = 0
     AccountLoginUI:Show()
     AccountLoginUI:SetAlpha(1)
-
-    if not self.newLogo then
-        self.newLogoFrame = CreateFrame("Frame", nil, self)
-        self.newLogoFrame:SetSize(Config.LOGO_WIDTH, Config.LOGO_HEIGHT)
-        self.newLogoFrame:SetPoint("TOPLEFT", Config.LOGO_POSITION_X, Config.LOGO_POSITION_Y)
-        
-        self.newLogo = self.newLogoFrame:CreateTexture("AccountLoginNewLogo", "OVERLAY")
-        self.newLogo:SetTexture(Config.LOGO_TEXTURE)
-        self.newLogo:SetAllPoints(self.newLogoFrame)
-        self.newLogo:Show()
-        UICache.newLogo = self.newLogo
-        UICache.newLogoFrame = self.newLogoFrame
-    else
-        self.newLogoFrame:Show()
-    end
-
-    if self.Models then
-        for i = 1, #self.Models do
-            local model = self.Models[i]
-            if model then
-                model:Show()
-            end
-        end
-    end
-
-    if self.modelsCreated then
-        self.modelsInitialized = true
-    else
-        self.modelsInitialized = false
-    end
-    self.modelUpdateCount = 0
-    self.modelUpdateTimer = 0
 
     local accountName, password = unpack(string_explode(GetSavedAccountName(), "#&|&#"))
     UICache.accountEdit:SetText(accountName or "")
@@ -386,9 +843,9 @@ function AccountLogin_OnShow(self)
 
     local serverName = GetServerName()
     if serverName then
-        UICache.realmName:SetText(serverName)
+        UICache.realmName:SetText("|cff9e9180" .. L.realm .. "|r   |cffffdb8c" .. serverName .. "|r")
     else
-        UICache.realmName:SetText("Aucun royaume récent")
+        UICache.realmName:SetText("|cff9e9180" .. L.noRealm .. "|r")
     end
 
     if accountName == "" then
@@ -416,8 +873,14 @@ function AccountLogin_OnShow(self)
     ACCOUNT_MSG_BODY_LOADED = false
     ACCOUNT_MSG_CURRENT_INDEX = nil
 
+    layoutKey = nil
+    cardHeight = nil
+    AccountLogin_LayoutCard()
+    layoutKey = OptionsKey()
+    UpdateInterface(0)
+
     AccountLogin_CheckAutoLogin()
-    self:SetScript("OnUpdate", LoginScene_OnUpdate)
+    self:SetScript("OnUpdate", AccountLogin_OnUpdate)
 end
 
 function AccountLogin_OnHide(self)
@@ -426,27 +889,6 @@ function AccountLogin_OnHide(self)
         SetSavedAccountList("")
     end
     self:SetScript("OnUpdate", nil)
-
-    if self.Models then
-        for i = 1, #self.Models do
-            local model = self.Models[i]
-            if model then
-                model:Hide()
-            end
-        end
-    end
-    self.modelsInitialized = false
-    self.ambiencePlayed = false
-
-    if UICache.backgroundTexture then
-        UICache.backgroundTexture:Hide()
-    end
-    if UICache.animatedTexture then
-        UICache.animatedTexture:Hide()
-    end
-    if UICache.newLogoFrame then
-        UICache.newLogoFrame:Hide()
-    end
     StopGlueAmbience()
 end
 
@@ -530,7 +972,7 @@ function AccountLogin_Login()
     local accountName = UICache.accountEdit:GetText()
     local password = UICache.passwordEdit:GetText()
     local savedData = ""
-    
+
     if UICache.saveAccountName:GetChecked() then
         if UICache.savePassword:GetChecked() then
             local autoLoginFlag = UICache.autoLogin:GetChecked() and "1" or "0"
@@ -547,7 +989,7 @@ function AccountLogin_Login()
         SetSavedAccountName("")
         SetUsesToken(false)
     end
-    
+
     if savedData ~= "" then
         SetSavedAccountName(savedData)
     end
@@ -560,7 +1002,7 @@ function AccountLogin_CheckAutoLogin()
     if not LoginState.autoLoginAttempted then
         LoginState.autoLoginAttempted = true
         local savedAccountInfo = GetSavedAccountName()
-        
+
         if savedAccountInfo and savedAccountInfo ~= "" then
             local accountData = string_explode(savedAccountInfo, "#&|&#")
             local accountName = accountData[1] or ""
@@ -577,178 +1019,9 @@ function AccountLogin_CheckAutoLogin()
     end
 end
 -- ============================================================================
--- ANIMACIÓN PARA SERVER ALERT FRAME
+-- SERVER ALERT FRAME (Evolutions: no news panel on the login screen)
 -- ============================================================================
 function AccountLogin_ToggleServerAlert()
-    -- Evolutions: no news panel on the login screen
-    if true then
-        return
-    end
-    local frame = ServerAlertFrame
-    if not frame then return end
-    
-    if frame.isAnimating then
-        return
-    end
-    
-    if frame.fadeInfo then
-        frame:SetScript("OnUpdate", nil)
-        frame.fadeInfo = nil
-    end
-    
-    frame.isAnimating = true
-
-    local logoTexture = UICache.newLogo
-    
-    if frame:IsShown() then
-        local startWidth = frame:GetWidth()
-        local scrollFrame = _G["ServerAlertScrollFrame"]
-        
-        if not scrollFrame then
-            frame:Hide()
-            frame.isAnimating = false
-            return
-        end
-        
-        local startScrollWidth = scrollFrame:GetWidth()
-        
-        frame.fadeInfo = {
-            mode = "OUT",
-            timeToFade = 0.5,
-            startAlpha = 1,
-            endAlpha = 0,
-            startWidth = startWidth,
-            endWidth = 0,
-            startScrollWidth = startScrollWidth,
-            endScrollWidth = 0,
-            scrollFrame = scrollFrame,
-            savedWidth = startWidth,
-            savedScrollWidth = startScrollWidth,
-            logoAlpha = logoTexture and logoTexture:GetAlpha() or 1,
-            logoEndAlpha = 0
-        }
-        
-        frame:SetScript("OnUpdate", function(self, elapsed)
-            if not self.fadeInfo then return end
-            local fadeInfo = self.fadeInfo
-            fadeInfo.elapsed = (fadeInfo.elapsed or 0) + elapsed
-            
-            if fadeInfo.elapsed < fadeInfo.timeToFade then
-                local progress = fadeInfo.elapsed / fadeInfo.timeToFade
-                self:SetAlpha(fadeInfo.startAlpha + (fadeInfo.endAlpha - fadeInfo.startAlpha) * progress)
-
-                if logoTexture then
-                    local logoProgress = progress
-                    local logoAlpha = fadeInfo.logoAlpha + (fadeInfo.logoEndAlpha - fadeInfo.logoAlpha) * logoProgress
-                    logoTexture:SetAlpha(logoAlpha)
-                end
-                
-                local currentWidth = fadeInfo.startWidth + (fadeInfo.endWidth - fadeInfo.startWidth) * progress
-                self:SetWidth(currentWidth)
-                
-                local currentScrollWidth = fadeInfo.startScrollWidth + (fadeInfo.endScrollWidth - fadeInfo.startScrollWidth) * progress
-                if fadeInfo.scrollFrame then
-                    fadeInfo.scrollFrame:SetWidth(currentScrollWidth)
-                end
-            else
-                self:SetAlpha(fadeInfo.endAlpha)
-                self:SetWidth(fadeInfo.endWidth)
-                
-                if logoTexture then
-                    logoTexture:SetAlpha(fadeInfo.logoEndAlpha)
-                end
-                
-                if fadeInfo.scrollFrame then
-                    fadeInfo.scrollFrame:SetWidth(fadeInfo.endScrollWidth)
-                end
-                
-                self:Hide()
-                self:SetWidth(fadeInfo.savedWidth or 341)
-                if fadeInfo.scrollFrame then
-                    fadeInfo.scrollFrame:SetWidth(fadeInfo.savedScrollWidth or 300)
-                end
-                
-                self:SetScript("OnUpdate", nil)
-                self.fadeInfo = nil
-                self.isAnimating = false
-            end
-        end)
-    else
-        local targetWidth = 341
-        local targetScrollWidth = 300
-        
-        local scrollFrame = _G["ServerAlertScrollFrame"]
-        if not scrollFrame then
-            frame:Show()
-            frame.isAnimating = false
-            return
-        end
-        
-        frame:SetWidth(0)
-        scrollFrame:SetWidth(0)
-        frame:SetAlpha(0)
-        frame:Show()
-
-        if logoTexture then
-            logoTexture:SetAlpha(0)
-            logoTexture:Show()
-        end
-        
-        frame.fadeInfo = {
-            mode = "IN",
-            timeToFade = 0.5,
-            startAlpha = 0,
-            endAlpha = 1,
-            startWidth = 0,
-            endWidth = targetWidth,
-            startScrollWidth = 0,
-            endScrollWidth = targetScrollWidth,
-            scrollFrame = scrollFrame,
-            logoAlpha = 0,
-            logoEndAlpha = 1
-        }
-        
-        frame:SetScript("OnUpdate", function(self, elapsed)
-            if not self.fadeInfo then return end
-            local fadeInfo = self.fadeInfo
-            fadeInfo.elapsed = (fadeInfo.elapsed or 0) + elapsed
-            
-            if fadeInfo.elapsed < fadeInfo.timeToFade then
-                local progress = fadeInfo.elapsed / fadeInfo.timeToFade
-                self:SetAlpha(fadeInfo.startAlpha + (fadeInfo.endAlpha - fadeInfo.startAlpha) * progress)
-
-                if logoTexture then
-                    local logoProgress = progress
-                    local logoAlpha = fadeInfo.logoAlpha + (fadeInfo.logoEndAlpha - fadeInfo.logoAlpha) * logoProgress
-                    logoTexture:SetAlpha(logoAlpha)
-                end
-                
-                local currentWidth = fadeInfo.startWidth + (fadeInfo.endWidth - fadeInfo.startWidth) * progress
-                self:SetWidth(currentWidth)
-                
-                local currentScrollWidth = fadeInfo.startScrollWidth + (fadeInfo.endScrollWidth - fadeInfo.startScrollWidth) * progress
-                if fadeInfo.scrollFrame then
-                    fadeInfo.scrollFrame:SetWidth(currentScrollWidth)
-                end
-            else
-                self:SetAlpha(fadeInfo.endAlpha)
-                self:SetWidth(fadeInfo.endWidth)
-
-                if logoTexture then
-                    logoTexture:SetAlpha(fadeInfo.logoEndAlpha)
-                end
-                
-                if fadeInfo.scrollFrame then
-                    fadeInfo.scrollFrame:SetWidth(fadeInfo.endScrollWidth)
-                end
-                
-                self:SetScript("OnUpdate", nil)
-                self.fadeInfo = nil
-                self.isAnimating = false
-            end
-        end)
-    end
-    PlaySound("gsLoginNewAccount")
 end
 
 function AccountLogin_SetupServerAlert()
@@ -841,7 +1114,7 @@ function AccountLogin_ShowUserAgreements()
     EULAText:Hide()
     TerminationText:Hide()
     ScanningText:Hide()
-    
+
     if not EULAAccepted() then
         if ShowEULANotice() then
             TOSNotice:SetText(EULA_NOTICE)
@@ -870,8 +1143,8 @@ function AccountLogin_ShowUserAgreements()
         AccountLoginUI:Hide()
         TOSFrame:Hide()
         local dllURL = ""
-        if IsWindowsClient() then 
-            dllURL = SCANDLL_URL_WIN32_SCAN_DLL 
+        if IsWindowsClient() then
+            dllURL = SCANDLL_URL_WIN32_SCAN_DLL
         end
         ScanDLLStart(SCANDLL_URL_LAUNCHER_TXT, dllURL)
     else
@@ -883,7 +1156,7 @@ end
 function AccountLogin_UpdateAcceptButton(scrollFrame, isAcceptedFunc, noticeType)
     local scrollbar = _G[scrollFrame:GetName().."ScrollBar"]
     local min, max = scrollbar:GetMinMaxValues()
-    
+
     if scrollbar:GetValue() >= max - Config.SCROLL_THRESHOLD then
         UICache.tosAccept:Enable()
     else
@@ -896,12 +1169,16 @@ end
 -- FUNCIONES DE CINEMATICS
 -- ============================================================================
 function CinematicsFrame_OnLoad(self)
+    CinematicsBackground:SetBackdropColor(0.04, 0.03, 0.02, 0.95)
+    CinematicsBackground:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3])
+    StyleDialog(CinematicsFrame, CinematicsBackground)
+
     local numMovies = GetClientExpansionLevel()
     CinematicsFrame.numMovies = numMovies
     if numMovies < 2 then
         return
     end
-    
+
     for i = 1, numMovies do
         _G["CinematicsButton"..i]:Show()
     end
@@ -945,10 +1222,10 @@ end
 function TokenEnterDialog_Okay(self)
     local editBox = TokenEnterDialogBackgroundEdit
     if not editBox then return end
-    
+
     local text = editBox:GetText()
     if not text or string.len(text) < 6 then return end
-    
+
     TokenEntered(text)
     TokenEnterDialog:Hide()
 end
