@@ -1,5 +1,7 @@
 #include "DungeonProgressSystem.h"
 
+#include "InfiniteDungeonSystem.h"
+
 #include "Chat.h"
 #include "Creature.h"
 #include "DBCStores.h"
@@ -165,7 +167,9 @@ void SendDungeonProgress(Player* player)
 
     Map* map = player->GetMap();
     DungeonEncounterList const* encounters = GetEncounters(map);
-    if (!encounters || encounters->empty())
+    // An Infinite Dungeon floor is not the dungeon it is fought in: its own panel takes the place
+    // (InfiniteDungeon.lua)
+    if (!encounters || encounters->empty() || InfiniteDungeon::IsInRun(player))
     {
         SendProgressMessage(player, "NONE");
         return;

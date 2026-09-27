@@ -1,6 +1,8 @@
 #ifndef MOD_STAT_GROWTH_MYTHIC_DUNGEON_SYSTEM_H
 #define MOD_STAT_GROWTH_MYTHIC_DUNGEON_SYSTEM_H
 
+#include "Define.h"
+
 class Creature;
 class Player;
 class SpellInfo;
@@ -23,6 +25,10 @@ void UpdateMythicTankResolve(Player* player, uint32 diff);
 
 // Whether the character is its group's tank: a tank role from the Dungeon Finder or the group, else a tank stance
 bool IsGroupTank(Player* player);
+
+// One epic of that item level fitted to the player's class, into their bags (or their mailbox when full); above the
+// game's best items, the generated variant of that item level. The Mythic+ reward, also the Infinite Dungeon's.
+void GiveMythicLootItem(Player* player, uint32 itemLevel);
 
 void AddMythicDungeonScripts();
 

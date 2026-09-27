@@ -589,3 +589,57 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint3
     size_t const topPoolSize = std::min<size_t>(candidates.size(), 8);
     return candidates[urand(0, static_cast<uint32>(topPoolSize - 1))].itemTemplate;
 }
+
+// The Infinite Dungeon's gear while levelling (InfiniteDungeonSystem.cpp): an item of the quality asked for, made for
+// the player's level - the closest required levels first, widening only when the game has nothing there - fitted to
+// its class, armour and weapon style like a Smart Loot replacement. Upgrades over what it wears come first.
+ItemTemplate const* SelectLevelLootItem(Player* player, uint32 quality)
+{
+    if (!player)
+        return nullptr;
+
+    BuildEquipmentCatalog();
+    uint32 const level = player->GetLevel();
+    std::vector<SmartLootCandidate> candidates;
+    for (uint32 window : { 4u, 8u, 16u })
+    {
+        uint32 const minimumRequiredLevel = level > window ? level - window : 1;
+        for (ItemTemplate const* candidate : equipmentCatalog)
+        {
+            if (candidate->Quality != quality || candidate->RequiredLevel > level ||
+                candidate->RequiredLevel < minimumRequiredLevel || player->BotCanUseItem(candidate) != EQUIP_ERR_OK ||
+                !HasEquipmentProficiency(*candidate, player) || !HasClassAppropriateStats(*candidate, player) ||
+                !FitsWeaponStyle(player, *candidate))
+                continue;
+            if (candidate->Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate->InventoryType) &&
+                candidate->SubClass != GetPreferredArmorSubclass(player))
+                continue;
+            if (GetWeakestEquippedItemLevel(player, *candidate) == std::numeric_limits<uint32>::max() ||
+                player->HasItemCount(candidate->ItemId, 1, true))
+                continue;
+
+            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, level) });
+        }
+
+        if (!candidates.empty())
+            break;
+    }
+
+    if (candidates.empty())
+        return nullptr;
+
+    std::vector<SmartLootCandidate> upgrades;
+    for (SmartLootCandidate const& candidate : candidates)
+        if (GetWeakestEquippedItemLevel(player, *candidate.itemTemplate) < candidate.itemTemplate->ItemLevel)
+            upgrades.push_back(candidate);
+    if (!upgrades.empty())
+        candidates.swap(upgrades);
+
+    std::sort(candidates.begin(), candidates.end(), [](SmartLootCandidate const& left, SmartLootCandidate const& right)
+    {
+        return left.score > right.score;
+    });
+
+    size_t const topPoolSize = std::min<size_t>(candidates.size(), 8);
+    return candidates[urand(0, static_cast<uint32>(topPoolSize - 1))].itemTemplate;
+}

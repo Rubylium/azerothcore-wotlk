@@ -21,6 +21,7 @@
 #include "GridDefines.h"
 #include "GridTerrainLoader.h"
 #include "Group.h"
+#include "InfiniteDungeon.h"
 #include "InstanceSaveMgr.h"
 #include "LFGMgr.h"
 #include "Language.h"
@@ -158,6 +159,10 @@ Map::EnterState MapMgr::PlayerCannotEnter(uint32 mapid, Player* player, bool log
 
     //Bypass checks for GMs
     if (player->IsGameMaster())
+        return Map::CAN_ENTER;
+
+    // The Infinite Dungeon moves its players from floor to floor itself (see InfiniteDungeon.h)
+    if (InfiniteDungeon::HasPass(player->CustomData))
         return Map::CAN_ENTER;
 
     char const* mapName = entry->name[player->GetSession()->GetSessionDbcLocale()];

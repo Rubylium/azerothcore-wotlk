@@ -10,6 +10,7 @@
 #include "FortuneBoostSystem.h"
 #include "GladiatorStanceSystem.h"
 #include "GroundIndicators.h"
+#include "InfiniteDungeonSystem.h"
 #include "MythicDungeonSystem.h"
 #include "MythicItemGeneration.h"
 #include "PersonalLootSystem.h"
@@ -211,6 +212,10 @@ bool RespawnAtDungeonStart(Player* player)
     if (!player || player->IsAlive() || player->GetSession()->IsBot())
         return false;
 
+    // An Infinite Dungeon floor has its own death rules (InfiniteDungeonSystem.cpp): the ghost waits where it fell
+    if (InfiniteDungeon::IsInRun(player))
+        return false;
+
     Map const* map = player->GetMap();
     if (!map || !map->IsDungeon() || map->IsBattlegroundOrArena())
         return false;
@@ -258,7 +263,8 @@ bool RespawnAtDungeonStart(Player* player)
 // essences of a Mythique 0 boss are added there (Mythic+ gives its essences at the end of the dungeon)
 void AddKillLoot(Player* player, Creature* killed)
 {
-    if (IsMythicLootless(killed))
+    // An Infinite Dungeon floor pays for itself (InfiniteDungeonSystem.cpp)
+    if (IsMythicLootless(killed) || InfiniteDungeon::IsFloorCreature(killed))
         return;
 
     if (!IsMythicCreature(killed))
@@ -622,6 +628,7 @@ void AddStatGrowthScripts()
     AddMythicDeadminesScripts();
     AddMythicScarletCathedralScripts();
     AddMythicItemGenerationScripts();
+    AddInfiniteDungeonScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
     new StatGrowthUnitScript();

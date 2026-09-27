@@ -25,6 +25,7 @@
 #include "Geometry.h"
 #include "GridNotifiers.h"
 #include "Group.h"
+#include "InfiniteDungeon.h"
 #include "InstanceScript.h"
 #include "IVMapMgr.h"
 #include "LFGMgr.h"
@@ -2103,9 +2104,10 @@ bool InstanceMap::AddPlayerToMap(Player* player)
 
         // increase current instances (hourly limit)
         // xinef: specific instances are still limited
-        // Raid Finder runs can be repeated at will, so they do not count either
+        // Raid Finder runs can be repeated at will, so they do not count either, nor the Infinite Dungeon's floors
         bool const raidFinder = group && group->IsRaidFinder();
-        if ((!group || !group->isLFGGroup() || !group->IsLfgRandomInstance()) && !raidFinder)
+        if ((!group || !group->isLFGGroup() || !group->IsLfgRandomInstance()) && !raidFinder &&
+            !InfiniteDungeon::HasPass(player->CustomData))
             player->AddInstanceEnterTime(GetInstanceId(), GameTime::GetGameTime().count());
 
         if (!playerBind->perm && !mapSave->CanReset() && group && !group->isLFGGroup() && !group->IsLfgRandomInstance() &&

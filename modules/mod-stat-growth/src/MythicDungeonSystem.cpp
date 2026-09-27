@@ -1,6 +1,7 @@
 #include "MythicDungeonSystem.h"
 
 #include "EssenceTierSystem.h"
+#include "InfiniteDungeonSystem.h"
 #include "PersonalLootSystem.h"
 #include "SmartLootSystem.h"
 
@@ -698,7 +699,8 @@ void UpdateMythicRoles(Player* player, bool now)
     bool const instance = map && map->IsDungeon();
     bool const tank = instance && IsGroupTank(player);
 
-    bool const resolve = tank && map->IsMythic();
+    // The Infinite Dungeon's floors keep the Mythic+ rules for tanks (InfiniteDungeonSystem.cpp)
+    bool const resolve = tank && (map->IsMythic() || InfiniteDungeon::IsFloorMap(map));
     if (resolve != state->resolve)
     {
         SetMythicTankResolve(player, resolve);
@@ -732,6 +734,12 @@ void UpdateMythicTankResolve(Player* player, uint32 /*diff*/)
 float GetMythicSpellFactor(Unit const* caster, SpellInfo const* spellInfo)
 {
     return GetSpellFactor(caster, spellInfo);
+}
+
+void GiveMythicLootItem(Player* player, uint32 itemLevel)
+{
+    if (player)
+        GiveMythicItem(player, itemLevel);
 }
 
 bool IsMythicLootless(Creature const* creature)
