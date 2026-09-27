@@ -1,6 +1,7 @@
 #include "SmartLootSystem.h"
 
 #include "Bag.h"
+#include "Chat.h"
 #include "Creature.h"
 #include "Group.h"
 #include "Item.h"
@@ -10,22 +11,18 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "Random.h"
+#include "ScriptMgr.h"
 #include "StatGrowthConfig.h"
 #include "WorldSession.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <vector>
 
 namespace
 {
-struct SmartLootCandidate
-{
-    ItemTemplate const* itemTemplate;
-    int32 score;
-};
-
 std::vector<ItemTemplate const*> equipmentCatalog;
 bool catalogBuilt = false;
 
@@ -341,28 +338,6 @@ bool FitsWeaponStyle(Player const* player, ItemTemplate const& candidate)
     return player->CanDualWield() ? type == INVTYPE_WEAPONOFFHAND : type != INVTYPE_WEAPONOFFHAND;
 }
 
-uint32 GetWeakestEquippedItemLevel(Player const* player, ItemTemplate const& candidate)
-{
-    std::array<uint8, 2> const slots = GetEquipmentSlots(candidate.InventoryType);
-    uint32 weakestItemLevel = std::numeric_limits<uint32>::max();
-    bool hasSlot = false;
-    for (uint8 slot : slots)
-    {
-        if (slot == NULL_SLOT)
-            continue;
-        if (slot == EQUIPMENT_SLOT_OFFHAND && candidate.InventoryType == INVTYPE_WEAPON &&
-            !player->CanDualWield())
-            continue;
-
-        hasSlot = true;
-        Item const* equipped = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
-        if (!equipped)
-            return 0;
-        weakestItemLevel = std::min(weakestItemLevel, equipped->GetTemplate()->ItemLevel);
-    }
-    return hasSlot ? weakestItemLevel : std::numeric_limits<uint32>::max();
-}
-
 bool IsInCorpseLoot(Loot const& loot, uint32 itemId)
 {
     return std::any_of(loot.items.begin(), loot.items.end(), [itemId](LootItem const& lootItem)
@@ -412,59 +387,214 @@ bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate)
     return player->CanEquipUniqueItem(&candidate) != EQUIP_ERR_OK;
 }
 
-bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& candidate, uint32 progressionLevel,
-    uint32 minimumRequiredLevel, uint32 quality, uint32 droppedItemLevel)
+// Whether the player could and would wear the candidate: its class, armor, stats, weapon skill and way of fighting,
+// and not something it owns already. The item level, quality and required level are each selector's own.
+bool SuitsPlayer(Player* player, ItemTemplate const& candidate)
 {
-    if (candidate.RequiredLevel > progressionLevel || candidate.RequiredLevel < minimumRequiredLevel ||
-        candidate.Quality != quality || candidate.ItemLevel > droppedItemLevel ||
-        candidate.ItemLevel + ReplacementItemLevelWindow < droppedItemLevel ||
-        player->BotCanUseItem(&candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(candidate, player) ||
+    if (player->BotCanUseItem(&candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(candidate, player) ||
         !HasClassAppropriateStats(candidate, player) || !FitsWeaponStyle(player, candidate))
         return false;
-
     if (candidate.Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate.InventoryType) &&
         candidate.SubClass != GetPreferredArmorSubclass(player))
         return false;
-    if (GetWeakestEquippedItemLevel(player, candidate) == std::numeric_limits<uint32>::max())
-        return false;
-
-    // Never hand out a copy of something already owned (bags and bank included) or already on this corpse
-    return !IsInCorpseLoot(loot, candidate.ItemId) && !OwnsOrCannotWear(player, candidate);
+    return !OwnsOrCannotWear(player, candidate);
 }
 
-// The raw stat score grows with the slot's stat budget (a two-hander or a chest scores several times a ring), so
-// counted as it is it would pick the big slots whatever the player wears there. Scaled down to a tie-breaker between
-// items of about the same upgrade: the slot the player most needs to replace is decided by the item level gap.
-constexpr int32 StatScoreDivisor = 20;
-
-// `givenItemLevel`: the item level the player will actually get (a Mythic+ reward above the game's best items is
-// the generated variant of the candidate, not the candidate itself); the candidate's own when 0
-int32 ScoreCandidate(Player* player, ItemTemplate const& candidate, uint32 progressionLevel, uint32 givenItemLevel = 0)
+// Loot is fitted slot first: the slot the player is furthest behind in is chosen, then the best item for it. Picking
+// among the best items of every slot at once let a slot with few items at that item level (agility cloaks near the
+// top) lose to one with many (trinkets), and a player with 300+ trinkets and a 272 cloak was given a trinket.
+// Rings, trinkets and the two hands are replaced at their weakest: a group of slots, behind by its weakest member.
+struct SlotGroup
 {
-    uint32 const equippedItemLevel = GetWeakestEquippedItemLevel(player, candidate);
-    uint32 const itemLevel = givenItemLevel ? givenItemLevel : candidate.ItemLevel;
-    int32 const upgrade = static_cast<int32>(itemLevel) - static_cast<int32>(equippedItemLevel);
-    int32 const missingSlotBonus = equippedItemLevel == 0 ? 1200 : 0;
-    int32 const levelFit = 40 - static_cast<int32>(std::abs(
-        static_cast<int32>(progressionLevel) - static_cast<int32>(candidate.RequiredLevel))) * 5;
-    return missingSlotBonus + upgrade * 45 + static_cast<int32>(candidate.Quality) * 80 +
-        levelFit + GetClassStatScore(candidate, player) / StatScoreDivisor;
+    char const* name;
+    std::array<uint8, 2> slots;
+    uint32 weakestItemLevel; // 0 when a slot of it is empty
+};
+
+// Groups this many item levels or less apart are equally behind (less than one key level): which of them comes first
+// is drawn at random, so loot does not always go to the same slot when several are about as behind
+constexpr uint32 SlotTieItemLevels = 3;
+
+std::vector<SlotGroup> BuildSlotGroups(Player const* player)
+{
+    std::vector<SlotGroup> groups = {
+        { "Head", { EQUIPMENT_SLOT_HEAD, NULL_SLOT }, 0 },
+        { "Neck", { EQUIPMENT_SLOT_NECK, NULL_SLOT }, 0 },
+        { "Shoulders", { EQUIPMENT_SLOT_SHOULDERS, NULL_SLOT }, 0 },
+        { "Back", { EQUIPMENT_SLOT_BACK, NULL_SLOT }, 0 },
+        { "Chest", { EQUIPMENT_SLOT_CHEST, NULL_SLOT }, 0 },
+        { "Wrists", { EQUIPMENT_SLOT_WRISTS, NULL_SLOT }, 0 },
+        { "Hands", { EQUIPMENT_SLOT_HANDS, NULL_SLOT }, 0 },
+        { "Waist", { EQUIPMENT_SLOT_WAIST, NULL_SLOT }, 0 },
+        { "Legs", { EQUIPMENT_SLOT_LEGS, NULL_SLOT }, 0 },
+        { "Feet", { EQUIPMENT_SLOT_FEET, NULL_SLOT }, 0 },
+        { "Rings", { EQUIPMENT_SLOT_FINGER1, EQUIPMENT_SLOT_FINGER2 }, 0 },
+        { "Trinkets", { EQUIPMENT_SLOT_TRINKET1, EQUIPMENT_SLOT_TRINKET2 }, 0 },
+        { "Main hand", { EQUIPMENT_SLOT_MAINHAND, NULL_SLOT }, 0 },
+        { "Ranged", { EQUIPMENT_SLOT_RANGED, NULL_SLOT }, 0 },
+    };
+
+    // No off hand beside a two-hander, unless Titan's Grip wields a second one (as FitsWeaponStyle)
+    Item const* mainHand = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+    if (!mainHand || mainHand->GetTemplate()->InventoryType != INVTYPE_2HWEAPON || player->CanTitanGrip())
+        groups.push_back({ "Off hand", { EQUIPMENT_SLOT_OFFHAND, NULL_SLOT }, 0 });
+
+    for (SlotGroup& group : groups)
+    {
+        uint32 weakest = std::numeric_limits<uint32>::max();
+        for (uint8 slot : group.slots)
+        {
+            if (slot == NULL_SLOT)
+                continue;
+            Item const* equipped = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+            weakest = std::min(weakest, equipped ? equipped->GetTemplate()->ItemLevel : 0u);
+        }
+        group.weakestItemLevel = weakest;
+    }
+    return groups;
 }
 
-// Upgrades only, unless `anyFit`: then anything usable, for a drop the owner could not use at all
-void AddCandidates(Player* player, Loot const& loot, uint32 progressionLevel, uint32 minimumRequiredLevel,
-    uint32 quality, uint32 droppedItemLevel, bool anyFit, std::vector<SmartLootCandidate>& candidates)
+// Whether an item of that inventory type goes in the group's slots
+bool GroupTakes(Player const* player, SlotGroup const& group, uint32 inventoryType)
 {
+    switch (group.slots[0])
+    {
+        case EQUIPMENT_SLOT_MAINHAND:
+            return inventoryType == INVTYPE_WEAPON || inventoryType == INVTYPE_WEAPONMAINHAND ||
+                inventoryType == INVTYPE_2HWEAPON;
+        case EQUIPMENT_SLOT_OFFHAND:
+            return inventoryType == INVTYPE_WEAPONOFFHAND || inventoryType == INVTYPE_SHIELD ||
+                inventoryType == INVTYPE_HOLDABLE || (inventoryType == INVTYPE_WEAPON && player->CanDualWield()) ||
+                (inventoryType == INVTYPE_2HWEAPON && player->CanTitanGrip());
+        default:
+            return GetEquipmentSlots(inventoryType)[0] == group.slots[0];
+    }
+}
+
+// The groups, the furthest behind first; groups about as behind (SlotTieItemLevels) in a random order
+std::vector<size_t> OrderSlotGroups(std::vector<SlotGroup> const& groups)
+{
+    std::vector<size_t> remaining(groups.size());
+    for (size_t index = 0; index < groups.size(); ++index)
+        remaining[index] = index;
+
+    std::vector<size_t> order;
+    order.reserve(groups.size());
+    while (!remaining.empty())
+    {
+        uint32 weakest = std::numeric_limits<uint32>::max();
+        for (size_t index : remaining)
+            weakest = std::min(weakest, groups[index].weakestItemLevel);
+
+        std::vector<size_t> tied;
+        for (size_t index : remaining)
+            if (groups[index].weakestItemLevel <= weakest + SlotTieItemLevels)
+                tied.push_back(index);
+
+        size_t const chosen = tied[urand(0, static_cast<uint32>(tied.size() - 1))];
+        order.push_back(chosen);
+        remaining.erase(std::find(remaining.begin(), remaining.end(), chosen));
+    }
+    return order;
+}
+
+struct SlotCandidate
+{
+    ItemTemplate const* itemTemplate; // what the selector returns (for a Mythic+ reward, the base of the variant)
+    uint32 givenItemLevel;            // the item level the player gets
+    int32 score;                      // the class stat score of what the player gets
+    uint32 tier;                      // the narrowest search window it is in: the first ones are tried first
+    uint32 groupMask;                 // the slot groups it goes in
+};
+
+// Every catalog item the selector's `tierOf` accepts (its item level, quality and required level windows: the
+// narrowest one it is in, or a negative value) and that suits the player, with the slot groups it goes in.
+// `givenOf` returns what the player really gets of it (a generated variant for a Mythic+ reward above the game's
+// best items), nullptr when it cannot be given.
+template <typename TierOf, typename GivenOf>
+std::vector<SlotCandidate> CollectSlotCandidates(Player* player, std::vector<SlotGroup> const& groups, TierOf tierOf,
+    GivenOf givenOf)
+{
+    std::vector<SlotCandidate> candidates;
     for (ItemTemplate const* candidate : equipmentCatalog)
     {
-        if (!IsUsableCandidate(player, loot, *candidate, progressionLevel, minimumRequiredLevel, quality,
-                droppedItemLevel))
+        int32 const tier = tierOf(*candidate);
+        if (tier < 0)
             continue;
 
-        uint32 const equippedItemLevel = GetWeakestEquippedItemLevel(player, *candidate);
-        if (anyFit || equippedItemLevel == 0 || candidate->ItemLevel > equippedItemLevel)
-            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel) });
+        uint32 groupMask = 0;
+        for (size_t index = 0; index < groups.size(); ++index)
+            if (GroupTakes(player, groups[index], candidate->InventoryType))
+                groupMask |= 1u << index;
+        if (!groupMask)
+            continue;
+
+        ItemTemplate const* given = givenOf(*candidate);
+        if (!given || !SuitsPlayer(player, *candidate))
+            continue;
+
+        candidates.push_back({ candidate, given->ItemLevel, GetClassStatScore(*given, player),
+            static_cast<uint32>(tier), groupMask });
     }
+    return candidates;
+}
+
+// Among items of about the best stat score (within a tenth of it), one of the top three: some variety, never an
+// item clearly worse for the class (a tank's strength cloak beside an agility one for a rogue)
+constexpr size_t SlotPickPoolSize = 3;
+
+SlotCandidate const* PickBestCandidate(std::vector<SlotCandidate const*>& pool)
+{
+    std::sort(pool.begin(), pool.end(), [](SlotCandidate const* left, SlotCandidate const* right)
+    {
+        return left->score > right->score;
+    });
+
+    int32 const best = pool.front()->score;
+    int32 const floor = best - std::abs(best) / 10;
+    size_t size = 1;
+    while (size < std::min(pool.size(), SlotPickPoolSize) && pool[size]->score >= floor)
+        ++size;
+    return pool[urand(0, static_cast<uint32>(size - 1))];
+}
+
+struct SlotPick
+{
+    ItemTemplate const* itemTemplate = nullptr;
+    size_t group = 0;
+    bool upgrade = false;
+};
+
+// Upgrades first: the groups in order, each searched in its narrowest window then wider ones before going to the
+// next group, and only items above what the group's weakest slot wears. Nothing is an upgrade anywhere (a player
+// better geared than the loot), unless `upgradesOnly`: something of the narrowest window, for the slot least ahead.
+SlotPick PickBySlot(std::vector<SlotGroup> const& groups, std::vector<size_t> const& order,
+    std::vector<SlotCandidate> const& candidates, uint32 tierCount, bool upgradesOnly)
+{
+    std::vector<SlotCandidate const*> pool;
+    auto fill = [&](size_t group, uint32 tier, bool upgrade)
+    {
+        pool.clear();
+        for (SlotCandidate const& candidate : candidates)
+            if ((candidate.groupMask & (1u << group)) && candidate.tier <= tier &&
+                (!upgrade || candidate.givenItemLevel > groups[group].weakestItemLevel))
+                pool.push_back(&candidate);
+        return !pool.empty();
+    };
+
+    for (size_t group : order)
+        for (uint32 tier = 0; tier < tierCount; ++tier)
+            if (fill(group, tier, true))
+                return { PickBestCandidate(pool)->itemTemplate, group, true };
+
+    if (upgradesOnly)
+        return {};
+
+    for (uint32 tier = 0; tier < tierCount; ++tier)
+        for (size_t group : order)
+            if (fill(group, tier, false))
+                return { PickBestCandidate(pool)->itemTemplate, group, false };
+    return {};
 }
 
 ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* killed, ItemTemplate const& dropped)
@@ -476,9 +606,19 @@ ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* kille
     uint32 const progressionLevel = std::min<uint32>(player->GetLevel(), killed->GetLevel() + sourceTolerance);
     uint32 const minimumRequiredLevel = progressionLevel > levelWindow ? progressionLevel - levelWindow : 1;
 
-    std::vector<SmartLootCandidate> candidates;
-    AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel, false,
-        candidates);
+    std::vector<SlotGroup> const groups = BuildSlotGroups(player);
+    std::vector<size_t> const order = OrderSlotGroups(groups);
+    std::vector<SlotCandidate> const candidates = CollectSlotCandidates(player, groups,
+        [&](ItemTemplate const& candidate)
+        {
+            bool const fits = candidate.Quality == quality && candidate.ItemLevel <= dropped.ItemLevel &&
+                candidate.ItemLevel + ReplacementItemLevelWindow >= dropped.ItemLevel &&
+                candidate.RequiredLevel <= progressionLevel && candidate.RequiredLevel >= minimumRequiredLevel &&
+                !IsInCorpseLoot(killed->loot, candidate.ItemId);
+            return fits ? 0 : -1;
+        },
+        [](ItemTemplate const& candidate) { return &candidate; });
+
     // No upgrade: the drop stays as it is, unless it does not suit the owner - the wrong stats (a spell power cloak
     // for a rogue), armor they do not wear, or how they fight (an off-hand for a two-hander wielder) - or its stats
     // are a random suffix, which may be anyone's. It is then swapped for the best item that does suit them.
@@ -487,19 +627,7 @@ ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* kille
         player->BotCanUseItem(&dropped) == EQUIP_ERR_OK && HasEquipmentProficiency(dropped, player) &&
         !(dropped.Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(dropped.InventoryType) &&
             dropped.SubClass != GetPreferredArmorSubclass(player));
-    if (candidates.empty() && !suits)
-        AddCandidates(player, killed->loot, progressionLevel, minimumRequiredLevel, quality, dropped.ItemLevel, true,
-            candidates);
-    if (candidates.empty())
-        return nullptr;
-
-    std::sort(candidates.begin(), candidates.end(), [](SmartLootCandidate const& left, SmartLootCandidate const& right)
-    {
-        return left.score > right.score;
-    });
-
-    size_t const topPoolSize = std::min<size_t>(candidates.size(), 8);
-    return candidates[urand(0, static_cast<uint32>(topPoolSize - 1))].itemTemplate;
+    return PickBySlot(groups, order, candidates, 1, suits).itemTemplate;
 }
 
 void ReplaceLootItem(LootItem& lootItem, ItemTemplate const& replacement)
@@ -546,6 +674,99 @@ Player* PickLootOwner(Player* player, Creature* killed)
 
     return players.empty() ? owner : players[urand(0, static_cast<uint32>(players.size() - 1))];
 }
+
+// The Mythic+ reward's item level windows below the run's (capped) item level, the narrowest first: the slot the
+// player most needs is searched down to the widest before another slot is
+constexpr std::array<uint32, 4> MythicItemLevelWindows = { ReplacementItemLevelWindow, 13, 26, 60 };
+
+SlotPick SelectMythicLoot(Player* player, uint32 itemLevel, uint32 givenItemLevel, std::vector<SlotGroup>& groups,
+    std::vector<size_t>& order)
+{
+    BuildEquipmentCatalog();
+    uint32 const progressionLevel = player->GetLevel();
+    // Above the game's best items the player gets the generated variant of the pick (GiveMythicItem): only items that
+    // have one can be given, or the player would get the stock item, far below the reward
+    bool const generated = givenItemLevel > itemLevel;
+    uint32 const variant = Mythic::GetGeneratedVariant(givenItemLevel);
+
+    groups = BuildSlotGroups(player);
+    order = OrderSlotGroups(groups);
+    std::vector<SlotCandidate> const candidates = CollectSlotCandidates(player, groups,
+        [&](ItemTemplate const& candidate)
+        {
+            if (candidate.Quality != ITEM_QUALITY_EPIC || candidate.ItemLevel > itemLevel ||
+                candidate.RequiredLevel > progressionLevel)
+                return -1;
+            for (size_t tier = 0; tier < MythicItemLevelWindows.size(); ++tier)
+                if (candidate.ItemLevel + MythicItemLevelWindows[tier] >= itemLevel)
+                    return static_cast<int32>(tier);
+            return -1;
+        },
+        [&](ItemTemplate const& candidate) -> ItemTemplate const*
+        {
+            if (!generated)
+                return &candidate;
+            return sObjectMgr->GetItemTemplate(Mythic::GetGeneratedItemEntry(candidate.ItemId, variant));
+        });
+    return PickBySlot(groups, order, candidates, static_cast<uint32>(MythicItemLevelWindows.size()), false);
+}
+
+using namespace Acore::ChatCommands;
+
+// .lootdebug [item level]: the selected player's (else your own) slot groups, the furthest behind first, and what a
+// Mythic+ reward of that item level (the game's best by default) would give them, without giving it
+class SmartLootCommandScript : public CommandScript
+{
+public:
+    SmartLootCommandScript() : CommandScript("SmartLootCommandScript") { }
+
+    ChatCommandTable GetCommands() const override
+    {
+        static ChatCommandTable commandTable =
+        {
+            { "lootdebug", HandleLootDebug, SEC_GAMEMASTER, Console::No },
+        };
+        return commandTable;
+    }
+
+    static bool HandleLootDebug(ChatHandler* handler, Optional<uint32> rewardItemLevel)
+    {
+        Player* player = handler->getSelectedPlayerOrSelf();
+        if (!player)
+            return false;
+
+        // As GiveMythicItem (MythicDungeonSystem.cpp)
+        uint32 const reward = rewardItemLevel.value_or(Mythic::MaxItemLevel);
+        uint32 const itemLevel = std::min(reward, Mythic::MaxItemLevel);
+        uint32 const given = reward > Mythic::MaxItemLevel ?
+            Mythic::GetGeneratedItemLevel(Mythic::GetGeneratedVariant(reward)) : 0;
+
+        std::vector<SlotGroup> groups;
+        std::vector<size_t> order;
+        SlotPick const pick = SelectMythicLoot(player, itemLevel, given, groups, order);
+
+        uint32 const reference = given ? given : itemLevel;
+        handler->PSendSysMessage("Loot debug for {}: reward item level {} (catalog up to {}, given at {}).",
+            player->GetName(), reward, itemLevel, reference);
+        for (size_t rank = 0; rank < order.size(); ++rank)
+        {
+            SlotGroup const& group = groups[order[rank]];
+            handler->PSendSysMessage("  {}. {}: weakest {}, deficit {}", rank + 1, group.name,
+                group.weakestItemLevel, static_cast<int32>(reference) - static_cast<int32>(group.weakestItemLevel));
+        }
+
+        if (!pick.itemTemplate)
+        {
+            handler->SendSysMessage("  Pick: nothing fits.");
+            return true;
+        }
+
+        handler->PSendSysMessage("  Pick: {} ({}, item level {}) for {}, given at {}{}.", pick.itemTemplate->Name1,
+            pick.itemTemplate->ItemId, pick.itemTemplate->ItemLevel, groups[pick.group].name,
+            given ? given : pick.itemTemplate->ItemLevel, pick.upgrade ? "" : " (no upgrade anywhere)");
+        return true;
+    }
+};
 }
 
 void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
@@ -570,67 +791,23 @@ void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
 }
 
 // A mythic boss gives each real player one epic of the run's item level, fitted to their class the same way as
-// Smart Loot replacements, from just below that item level (wider when the game has no items there, as between
-// raid tiers). `givenItemLevel` is what the player really gets (above the game's best items, the generated variant
-// of the pick). Upgrades over what they wear come first - measured against that item level, so a slot already at
-// it is not one - but a player whose gear is already better everywhere still gets something of the right item level.
+// Smart Loot replacements: for the slot they are furthest behind in (PickBySlot), from just below that item level
+// (wider when the game has no items there for that slot, as between raid tiers). `givenItemLevel` is what the player
+// really gets (above the game's best items, the generated variant of the pick), which is what "behind" is measured
+// against. A player whose gear is already better everywhere still gets something of the right item level.
 ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint32 givenItemLevel)
 {
     if (!player)
         return nullptr;
 
-    BuildEquipmentCatalog();
-    uint32 const progressionLevel = player->GetLevel();
-    uint32 const given = givenItemLevel;
-    std::vector<SmartLootCandidate> candidates;
-    for (uint32 window : { ReplacementItemLevelWindow, 13u, 26u })
-    {
-        for (ItemTemplate const* candidate : equipmentCatalog)
-        {
-            if (candidate->Quality != ITEM_QUALITY_EPIC || candidate->ItemLevel > itemLevel ||
-                candidate->ItemLevel + window < itemLevel || candidate->RequiredLevel > progressionLevel ||
-                player->BotCanUseItem(candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(*candidate, player) ||
-                !HasClassAppropriateStats(*candidate, player) || !FitsWeaponStyle(player, *candidate))
-                continue;
-            if (candidate->Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate->InventoryType) &&
-                candidate->SubClass != GetPreferredArmorSubclass(player))
-                continue;
-            if (GetWeakestEquippedItemLevel(player, *candidate) == std::numeric_limits<uint32>::max() ||
-                OwnsOrCannotWear(player, *candidate))
-                continue;
-
-            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel, given) });
-        }
-
-        if (!candidates.empty())
-            break;
-    }
-
-    if (candidates.empty())
-        return nullptr;
-
-    // Only upgrades, when there is any: the top of the pool below is drawn at random, and without this a slot
-    // already at the run's item level could still be drawn beside the ones that need it
-    std::vector<SmartLootCandidate> upgrades;
-    for (SmartLootCandidate const& candidate : candidates)
-        if (GetWeakestEquippedItemLevel(player, *candidate.itemTemplate) <
-            (given ? given : candidate.itemTemplate->ItemLevel))
-            upgrades.push_back(candidate);
-    if (!upgrades.empty())
-        candidates.swap(upgrades);
-
-    std::sort(candidates.begin(), candidates.end(), [](SmartLootCandidate const& left, SmartLootCandidate const& right)
-    {
-        return left.score > right.score;
-    });
-
-    size_t const topPoolSize = std::min<size_t>(candidates.size(), 8);
-    return candidates[urand(0, static_cast<uint32>(topPoolSize - 1))].itemTemplate;
+    std::vector<SlotGroup> groups;
+    std::vector<size_t> order;
+    return SelectMythicLoot(player, itemLevel, givenItemLevel, groups, order).itemTemplate;
 }
 
 // The Infinite Dungeon's gear while levelling (InfiniteDungeonSystem.cpp): an item of the quality asked for, made for
 // the player's level - the closest required levels first, widening only when the game has nothing there - fitted to
-// its class, armour and weapon style like a Smart Loot replacement. Upgrades over what it wears come first.
+// its class, armour and weapon style like a Smart Loot replacement, for the slot it is furthest behind in.
 ItemTemplate const* SelectLevelLootItem(Player* player, uint32 quality)
 {
     if (!player)
@@ -638,46 +815,26 @@ ItemTemplate const* SelectLevelLootItem(Player* player, uint32 quality)
 
     BuildEquipmentCatalog();
     uint32 const level = player->GetLevel();
-    std::vector<SmartLootCandidate> candidates;
-    for (uint32 window : { 4u, 8u, 16u })
-    {
-        uint32 const minimumRequiredLevel = level > window ? level - window : 1;
-        for (ItemTemplate const* candidate : equipmentCatalog)
+    constexpr std::array<uint32, 3> requiredLevelWindows = { 4, 8, 16 };
+
+    std::vector<SlotGroup> const groups = BuildSlotGroups(player);
+    std::vector<size_t> const order = OrderSlotGroups(groups);
+    std::vector<SlotCandidate> const candidates = CollectSlotCandidates(player, groups,
+        [&](ItemTemplate const& candidate)
         {
-            if (candidate->Quality != quality || candidate->RequiredLevel > level ||
-                candidate->RequiredLevel < minimumRequiredLevel || player->BotCanUseItem(candidate) != EQUIP_ERR_OK ||
-                !HasEquipmentProficiency(*candidate, player) || !HasClassAppropriateStats(*candidate, player) ||
-                !FitsWeaponStyle(player, *candidate))
-                continue;
-            if (candidate->Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate->InventoryType) &&
-                candidate->SubClass != GetPreferredArmorSubclass(player))
-                continue;
-            if (GetWeakestEquippedItemLevel(player, *candidate) == std::numeric_limits<uint32>::max() ||
-                OwnsOrCannotWear(player, *candidate))
-                continue;
+            if (candidate.Quality != quality || candidate.RequiredLevel == 0 || candidate.RequiredLevel > level)
+                return -1;
+            for (size_t tier = 0; tier < requiredLevelWindows.size(); ++tier)
+                if (candidate.RequiredLevel + requiredLevelWindows[tier] >= level)
+                    return static_cast<int32>(tier);
+            return -1;
+        },
+        [](ItemTemplate const& candidate) { return &candidate; });
+    return PickBySlot(groups, order, candidates, static_cast<uint32>(requiredLevelWindows.size()), false)
+        .itemTemplate;
+}
 
-            candidates.push_back({ candidate, ScoreCandidate(player, *candidate, level) });
-        }
-
-        if (!candidates.empty())
-            break;
-    }
-
-    if (candidates.empty())
-        return nullptr;
-
-    std::vector<SmartLootCandidate> upgrades;
-    for (SmartLootCandidate const& candidate : candidates)
-        if (GetWeakestEquippedItemLevel(player, *candidate.itemTemplate) < candidate.itemTemplate->ItemLevel)
-            upgrades.push_back(candidate);
-    if (!upgrades.empty())
-        candidates.swap(upgrades);
-
-    std::sort(candidates.begin(), candidates.end(), [](SmartLootCandidate const& left, SmartLootCandidate const& right)
-    {
-        return left.score > right.score;
-    });
-
-    size_t const topPoolSize = std::min<size_t>(candidates.size(), 8);
-    return candidates[urand(0, static_cast<uint32>(topPoolSize - 1))].itemTemplate;
+void AddSmartLootScripts()
+{
+    new SmartLootCommandScript();
 }

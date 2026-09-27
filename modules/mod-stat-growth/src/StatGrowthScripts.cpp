@@ -671,6 +671,7 @@ void AddStatGrowthScripts()
     AddMythicDeadminesScripts();
     AddMythicScarletCathedralScripts();
     AddMythicItemGenerationScripts();
+    AddSmartLootScripts();
     AddInfiniteDungeonScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
