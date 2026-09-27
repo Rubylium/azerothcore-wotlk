@@ -160,3 +160,25 @@ Paragon.RaidHeroicBossChance = 40.0
 # A key adds its level on top of the base, so +10 is 15 + 30 = 45%.
 Paragon.MythicBossChance = 15.0
 Paragon.MythicBossChancePerKeyLevel = 3.0
+
+###############################################################################
+# BOTS IN GROUPS WITH REAL PLAYERS
+#
+# A bot in a group with real players carries the average essences of the group's
+# real players on its map (Growth spread over its class's stats the way a player
+# of that class receives them, Vitality, Resource), applied out of combat and
+# never saved. Experience and Fortune are left out.
+BotEssences.Enabled = 1
+
+# Temporary catch-up until every class's bot has a proper rotation: in dungeons
+# and raids, a damage-dealing bot moves its damage multiplier towards TargetShare
+# of the real damage dealers' average DPS (smoothed over about 30 s of combat),
+# 10% at a time every 5 s, between 1 and MaxMultiplier (1 through 3). Shown on
+# the bot as stacks of Chaotic Charge, one per percent; .botcatchup lists it.
+BotCatchUp.Enabled = 1
+BotCatchUp.TargetShare = 0.5
+BotCatchUp.MaxMultiplier = 3.0
+
+# Class ids, comma separated, whose bots never get it: their AI was reworked
+# (4 rogue, 8 mage, 10 Oathblade).
+BotCatchUp.ExcludedClasses = "4,8,10"

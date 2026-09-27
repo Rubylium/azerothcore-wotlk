@@ -58,6 +58,11 @@ enum class StatGrowthConfigKey : uint8
     FortuneGearBonusChancePerPoint,
     FortuneGearBonusValuePerPoint,
     FortuneMaxGearBonusValueIncrease,
+    BotEssencesEnabled,
+    BotCatchUpEnabled,
+    BotCatchUpTargetShare,
+    BotCatchUpMaxMultiplier,
+    BotCatchUpExcludedClasses,
     Count
 };
 

@@ -9,6 +9,8 @@ class Player;
 
 void ApplyResourceRegenerationBoost(Player* player, Powers power, float& amount);
 void ApplyResourceGenerationBoost(Player* player, Powers power, int32& amount);
+// The regeneration percent the character's Essences of Resource have given
+uint32 GetStoredResourcePoints(Player* player);
 bool GrantResourceBoost(Player* player, uint32 amount, uint32& totalBonus);
 void TryAddResourceBoostLoot(Player* player, Creature* killed);
 

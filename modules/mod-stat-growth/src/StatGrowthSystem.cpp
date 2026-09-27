@@ -9,6 +9,7 @@
 #include "Random.h"
 #include "SharedDefines.h"
 #include "StatGrowthConfig.h"
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <span>
@@ -178,6 +179,19 @@ void ApplyStoredStatGrowth(Player* player)
         if (amount > 0)
             ApplyStatGrowth(player, static_cast<PermanentStat>(index), amount);
     }
+}
+
+std::span<PermanentStat const> GetClassPermanentStats(uint8 classId)
+{
+    return GetClassStats(classId);
+}
+
+uint32 GetStoredStatGrowthTotal(Player* player)
+{
+    uint64 total = 0;
+    for (uint32 index = 0; index < static_cast<uint32>(PermanentStat::Count); ++index)
+        total += player->GetPlayerSetting(SettingsSource, index).value;
+    return static_cast<uint32>(std::min<uint64>(total, std::numeric_limits<uint32>::max()));
 }
 
 bool GrantRandomStatGrowth(Player* player, uint32 amount, std::string_view& statName)

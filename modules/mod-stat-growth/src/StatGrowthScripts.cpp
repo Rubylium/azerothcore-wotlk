@@ -2,6 +2,8 @@
 #include "MythicTuning.h"
 #include "AutoLearnSpellsSystem.h"
 #include "AdaptiveTrainingDummy.h"
+#include "BotCatchUpSystem.h"
+#include "BotEssenceSystem.h"
 #include "CombatRogue.h"
 #include "DungeonProgressSystem.h"
 #include "EssenceFeedback.h"
@@ -39,7 +41,9 @@
 #include "StatGrowthConfig.h"
 #include "StringFormat.h"
 
+#include <algorithm>
 #include <array>
+#include <limits>
 
 namespace
 {
@@ -318,6 +322,7 @@ public:
     void OnBeforeConfigLoad(bool reload) override
     {
         statGrowthConfig.Initialize(reload);
+        LoadBotCatchUpConfig();
     }
 
     void OnLoadCustomDatabaseTable() override
@@ -376,6 +381,8 @@ public:
         LearnGladiatorStance(player);
         ApplyEquippedPersonalLoot(player);
         BeginPersonalLootAddonHandshake(player);
+        // A bot's catch-up display comes back from the database with its other auras; the bonus itself does not
+        ClearBotCatchUp(player);
         SendDungeonProgress(player);
     }
 
@@ -387,6 +394,7 @@ public:
         UpdateMythicTankResolve(player);
         // A bot entering a key or a challenge takes up the board it asks for before the first pull
         RefreshBotParagon(player);
+        RefreshBotEssences(player);
     }
 
     bool OnPlayerCanRepopAtGraveyard(Player* player) override
@@ -399,6 +407,7 @@ public:
         ClearQuickTravel(player);
         ClearPersonalLootPlayerState(player);
         ForgetParagonForPlayer(player);
+        ClearBotCatchUp(player);
     }
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
@@ -407,6 +416,8 @@ public:
         UpdatePersonalLootAddonHandshake(player, diff);
         UpdateParagonBuffs(player);
         UpdateBotParagon(player, diff);
+        UpdateBotEssences(player, diff);
+        UpdateBotCatchUp(player, diff);
         UpdateCombatRogue(player, diff);
         UpdateMythicTankResolve(player, diff);
     }
@@ -518,11 +529,25 @@ private:
     }
 };
 
+namespace
+{
+template<typename T>
+void ScaleByCatchUp(Unit* attacker, Unit* target, T& damage)
+{
+    if (!(damage > 0))
+        return;
+    if (float const multiplier = GetBotCatchUpMultiplier(attacker, target); multiplier > 1.0f)
+        damage = static_cast<T>(std::min<double>(double(damage) * multiplier, std::numeric_limits<T>::max()));
+}
+}
+
 class StatGrowthUnitScript : public UnitScript
 {
 public:
     StatGrowthUnitScript() : UnitScript("StatGrowthUnitScript", true, {
         UNITHOOK_ON_DAMAGE,
+        UNITHOOK_MODIFY_MELEE_DAMAGE,
+        UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,
         UNITHOOK_MODIFY_FINAL_DAMAGE,
         UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
         UNITHOOK_ON_SPELL_DAMAGE_DONE,
@@ -538,10 +563,24 @@ public:
         NoteParagonDamageSource(attacker, victim, spellInfo, false);
     }
 
-    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& /*damage*/,
+    // A bot trailing its players deals more (BotCatchUpSystem.cpp): before mitigation, so the combat log and the
+    // meters show it
+    void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
+    {
+        ScaleByCatchUp(attacker, target, damage);
+    }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* /*spellInfo*/) override
+    {
+        ScaleByCatchUp(attacker, target, damage);
+    }
+
+    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage,
         SpellInfo const* spellInfo) override
     {
         NoteParagonDamageSource(attacker, target, spellInfo, true);
+        // A heal tick comes through here too, but on a friendly target, which never gets the bonus
+        ScaleByCatchUp(attacker, target, damage);
     }
 
     void OnSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage,
@@ -557,6 +596,7 @@ public:
         // attacker's does about landing one.
         OnParagonDamageDealt(attacker, victim, damage);
         OnParagonDamageTaken(victim, attacker, damage);
+        RecordBotCatchUpDamage(attacker, victim, damage);
     }
 
     void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
@@ -606,6 +646,7 @@ public:
 void AddStatGrowthScripts()
 {
     AddAdaptiveTrainingDummyScripts();
+    AddBotCatchUpScripts();
     AddCombatRogueScripts();
     AddGladiatorStanceScripts();
     AddVictoryRushScripts();

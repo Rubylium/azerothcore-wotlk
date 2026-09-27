@@ -1,17 +1,14 @@
 #include "ResourceBoostSystem.h"
 
+#include "BotEssenceSystem.h"
 #include "CharacterDatabase.h"
 #include "Creature.h"
-#include "DataMap.h"
 #include "EssenceTierSystem.h"
-#include "GameTime.h"
-#include "Group.h"
 #include "Player.h"
 #include "PlayerSettings.h"
 #include "PersonalLootSystem.h"
 #include "Random.h"
 #include "StatGrowthConfig.h"
-#include "WorldSession.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -39,58 +36,22 @@ uint32 GetOwnResourceBonus(Player* player)
     return static_cast<uint32>(std::min<uint64>(bonus, std::numeric_limits<uint32>::max()));
 }
 
-// A bot has no essences of its own. In a group with real players (a Dungeon or Raid Finder run) it carries about
-// what they carry: their average bonus, give or take 10% per bot, so bots keep pace with the players they fill for.
-// Regeneration asks for it every tick, so the value is kept for a few seconds.
-struct MirroredResourceBonus : public DataMap::Base
-{
-    uint32 value = 0;
-    Milliseconds refreshedAt = 0ms;
-};
-
-constexpr Milliseconds MirrorRefreshInterval = 5s;
-
-uint32 GetMirroredResourceBonus(Player* bot)
-{
-    MirroredResourceBonus* mirror = bot->CustomData.GetDefault<MirroredResourceBonus>("StatGrowthResourceMirror");
-    Milliseconds const now = GameTime::GetGameTimeMS();
-    if (mirror->refreshedAt != 0ms && now - mirror->refreshedAt < MirrorRefreshInterval)
-        return mirror->value;
-
-    mirror->refreshedAt = now;
-    mirror->value = 0;
-
-    Group* group = bot->GetGroup();
-    if (!group)
-        return 0;
-
-    uint64 total = 0;
-    uint32 players = 0;
-    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-        if (Player* member = ref->GetSource(); member && !member->GetSession()->IsBot())
-        {
-            total += GetOwnResourceBonus(member);
-            ++players;
-        }
-
-    if (!players)
-        return 0;
-
-    // A fixed factor per bot between 0.90 and 1.10
-    float const variation = 0.9f + float((bot->GetGUID().GetCounter() * 2654435761u) % 21) / 100.0f;
-    mirror->value = uint32(float(total / players) * variation);
-    return mirror->value;
-}
-
+// A bot adds the average essences of its group's real players on its map (BotEssenceSystem.cpp)
 uint32 GetResourceBonus(Player* player)
 {
-    return player->GetSession()->IsBot() ? GetMirroredResourceBonus(player) : GetOwnResourceBonus(player);
+    uint64 const bonus = static_cast<uint64>(GetOwnResourceBonus(player)) + GetBotEssenceResource(player);
+    return static_cast<uint32>(std::min<uint64>(bonus, std::numeric_limits<uint32>::max()));
 }
 
 bool IsActivePrimaryResource(Player const* player, Powers power)
 {
     return player->getPowerType() == power;
 }
+}
+
+uint32 GetStoredResourcePoints(Player* player)
+{
+    return GetStoredResourceBonus(player);
 }
 
 void ApplyResourceRegenerationBoost(Player* player, Powers power, float& amount)
