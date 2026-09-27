@@ -39,14 +39,14 @@ local DIVIDER = { RETAIL .. "challengemode-thindivider", 0, 0.712891, 0, 0.75 }
 local PARCHMENT = { RETAIL .. "questbg-parchment", 0, 0.583984, 0, 0.794922 }
 
 -- The picture: its size, and the texture it sits in (top-left corner, see buildGlueArt.py)
-local ART_WIDTH, ART_HEIGHT = 1672, 941
-local ART_TEXTURE_WIDTH, ART_TEXTURE_HEIGHT = 2048, 1024
+-- The ultrawide art (buildGlueArt.py login): 3642x1024, in two 2048x1024 tiles side by side
+local ART_WIDTH, ART_HEIGHT = 3642, 1024
+local ART_TILE_WIDTH = 2048
 local ART_ASPECT = ART_WIDTH / ART_HEIGHT
-local ART_U, ART_V = ART_WIDTH / ART_TEXTURE_WIDTH, ART_HEIGHT / ART_TEXTURE_HEIGHT
 
 -- Points of the picture, in its pixels: the two brazier flames and the foot of the city's beam
-local BRAZIERS = { { 310, 552 }, { 1362, 552 } }
-local BEACON = { 860, 330 }
+local BRAZIERS = { { 1060, 612 }, { 2490, 612 } }
+local BEACON = { 1839, 360 }
 local EMBERS_PER_BRAZIER = 7
 
 -- The logo: its size in its texture (buildGlueArt.py), and how much of the screen's height it takes
@@ -270,8 +270,9 @@ local function BuildScene(owner)
     self:SetHeight(owner:GetHeight() > 0 and owner:GetHeight() or 768)
     scene.stage = self
     scene.art = self:CreateTexture("AccountLoginBackground", "BACKGROUND")
-    scene.art:SetTexture(ART .. "LoginBackdrop")
-    scene.art:SetAllPoints()
+    scene.art:SetTexture(ART .. "LoginBackdrop1")
+    scene.art2 = self:CreateTexture(nil, "BACKGROUND")
+    scene.art2:SetTexture(ART .. "LoginBackdrop2")
 
     -- Darker towards the edges and corners, and under the title and the card so they read over the bright sky
     local vignette = self:CreateTexture(nil, "BORDER")
@@ -347,8 +348,17 @@ local function UpdateScene(owner, elapsed, brightness)
     local zoom = 1.04 + 0.04 * phase
     local left, top, u, v = Cover(width, height, zoom, 0.5 + 0.014 * (phase - 0.5) * 2 - 0.02 * parallaxX,
         0.45 - 0.006 * (phase - 0.5) * 2 + 0.014 * parallaxY)
-    scene.art:SetTexCoord(left * ART_U, (left + u) * ART_U, top * ART_V, (top + v) * ART_V)
-    scene.art:SetVertexColor(brightness, brightness, brightness)
+    -- The picture laid at its size on screen, its two tiles side by side from its top left corner (which is off the
+    -- screen by the part cut away)
+    local pixel = width / (u * ART_WIDTH)
+    local x, y = -left * ART_WIDTH * pixel, top * ART_HEIGHT * pixel
+    for index, tile in ipairs({ scene.art, scene.art2 }) do
+        tile:ClearAllPoints()
+        tile:SetPoint("TOPLEFT", self, "TOPLEFT", x + (index - 1) * ART_TILE_WIDTH * pixel, y)
+        tile:SetWidth(ART_TILE_WIDTH * pixel)
+        tile:SetHeight(ART_HEIGHT * pixel)
+        tile:SetVertexColor(brightness, brightness, brightness)
+    end
 
     view.frame, view.left, view.top, view.u, view.v, view.width, view.height = self, left, top, u, v, width, height
     view.pixel = width / (u * ART_WIDTH)
@@ -518,33 +528,17 @@ local function BuildCard()
     local card = AccountLoginCard
     ui.card = card
     card:SetWidth(CARD_WIDTH)
-    card:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    card:SetBackdropColor(0.04, 0.03, 0.02, 0.84)
-    card:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
+    -- No box: the fields stand on the art like the logo and the links, over a soft shadow with no edge that keeps
+    -- them readable on the bright plaza
+    card:SetBackdrop(nil)
 
-    -- The board's rock, dark, faintly letting the art through
-    local rock = Piece(card, "BACKGROUND", PARCHMENT)
-    rock:SetPoint("TOPLEFT", 5, -5)
-    rock:SetPoint("BOTTOMRIGHT", -5, 5)
-    rock:SetVertexColor(0.34, 0.28, 0.22, 0.5)
-    local sheen = Fade(card, "BORDER", "VERTICAL", 1, 0.8, 0.45, 0, 0.07)
-    sheen:SetPoint("TOPLEFT", 5, -5)
-    sheen:SetPoint("TOPRIGHT", -5, -5)
-    sheen:SetHeight(70)
-
-    -- A soft shadow around the card, on its own frame under it
     local shadowFrame = CreateFrame("Frame", nil, AccountLoginUI)
     shadowFrame:SetFrameLevel(AccountLoginUI:GetFrameLevel())
-    shadowFrame:SetPoint("TOPLEFT", card, "TOPLEFT", -70, 60)
-    shadowFrame:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 70, -60)
+    shadowFrame:SetPoint("TOPLEFT", card, "TOPLEFT", -150, 90)
+    shadowFrame:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 150, -90)
     local shadow = Piece(shadowFrame, "BACKGROUND", GLOW)
     shadow:SetAllPoints()
-    shadow:SetVertexColor(0, 0, 0, 0.75)
+    shadow:SetVertexColor(0, 0, 0, 0.74)
     ui.cardShadow = shadowFrame
 
     local heading = Text(card, FONT_TITLE, 22, "OVERLAY", HEADING[1], HEADING[2], HEADING[3])
@@ -781,8 +775,10 @@ end
 local function StyleDialog(overlayParent, panel)
     if not overlayParent or not panel or panel.evolutionsStyled then return end
     panel.evolutionsStyled = true
+    -- Past both sides of the glue screen, which the client keeps at 16:9 at most: the whole of a wider window dims
     local dim = overlayParent:CreateTexture(nil, "BACKGROUND")
-    dim:SetAllPoints(overlayParent)
+    dim:SetPoint("TOPLEFT", overlayParent, "TOPLEFT", -3000, 0)
+    dim:SetPoint("BOTTOMRIGHT", overlayParent, "BOTTOMRIGHT", 3000, 0)
     dim:SetTexture(0, 0, 0, 0.55)
     panel:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",

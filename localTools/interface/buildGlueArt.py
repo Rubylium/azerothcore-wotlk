@@ -38,6 +38,7 @@ from PIL import Image, ImageDraw, ImageFilter
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 OUTPUT = os.path.join(REPO_ROOT, 'clientPatcher', 'interface', 'Interface', 'Glues', 'Evolutions')
 LOGIN_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginBackdrop-source.png')
+LOGIN_WIDE_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginBackdropWide-source.png')
 LOGO_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'logo', 'WorldOfWarcraft-Evolution.png')
 EXTRACTOR = os.path.join(REPO_ROOT, 'localTools', 'mpq-builder', 'extractClientFiles.js')
 
@@ -110,22 +111,27 @@ def card_glow():
 
 # --- the login screen ------------------------------------------------------------------------------------------------
 
-LOGIN_TEXTURE_SIZE = (2048, 1024)   # AccountLogin.lua ART_TEXTURE_WIDTH, ART_TEXTURE_HEIGHT
-LOGIN_ART_SIZE = (1672, 941)        # AccountLogin.lua ART_WIDTH, ART_HEIGHT
+LOGIN_TILE_SIZE = (2048, 1024)      # AccountLogin.lua ART_TILE_WIDTH, ART_HEIGHT
+LOGIN_ART_SIZE = (3642, 1024)       # AccountLogin.lua ART_WIDTH, ART_HEIGHT
 
 
 def login_backdrop():
-    art = Image.open(LOGIN_SOURCE).convert('RGBA')
-    if art.size != LOGIN_ART_SIZE:
-        raise RuntimeError(f'{LOGIN_SOURCE} is {art.size}, AccountLogin.lua expects {LOGIN_ART_SIZE}')
-    width, height = art.size
-    canvas = Image.new('RGBA', LOGIN_TEXTURE_SIZE)
-    canvas.paste(art, (0, 0))
-    # Repeat the last column to the right, then the last row (now full width) downwards
-    canvas.paste(art.crop((width - 1, 0, width, height)).resize((LOGIN_TEXTURE_SIZE[0] - width, height)), (width, 0))
-    last_row = canvas.crop((0, height - 1, LOGIN_TEXTURE_SIZE[0], height))
-    canvas.paste(last_row.resize((LOGIN_TEXTURE_SIZE[0], LOGIN_TEXTURE_SIZE[1] - height)), (0, height))
-    return canvas
+    """The ultrawide art (32:9, so a 21:9 or 32:9 window shows it whole and a 16:9 one its middle), upscaled to
+    1024 pixels high and cut into two 2048x1024 tiles side by side, the second padded by repeating its last column"""
+    source = Image.open(LOGIN_WIDE_SOURCE).convert('RGB')
+    art = source.resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
+    art = art.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2)).convert('RGBA')
+    tiles = []
+    for index in range(2):
+        left = index * LOGIN_TILE_SIZE[0]
+        piece = art.crop((left, 0, min(left + LOGIN_TILE_SIZE[0], LOGIN_ART_SIZE[0]), LOGIN_ART_SIZE[1]))
+        tile = Image.new('RGBA', LOGIN_TILE_SIZE)
+        tile.paste(piece, (0, 0))
+        if piece.width < LOGIN_TILE_SIZE[0]:
+            edge = piece.crop((piece.width - 1, 0, piece.width, piece.height))
+            tile.paste(edge.resize((LOGIN_TILE_SIZE[0] - piece.width, piece.height)), (piece.width, 0))
+        tiles.append(tile)
+    return tiles
 
 
 def login_vignette():
@@ -192,7 +198,8 @@ def login_logo():
 
 
 def build_login_art():
-    writer.writeRawBlp(login_backdrop(), os.path.join(OUTPUT, 'LoginBackdrop.blp'))
+    for index, tile in enumerate(login_backdrop(), 1):
+        writer.writeRawBlp(tile, os.path.join(OUTPUT, f'LoginBackdrop{index}.blp'))
     writer.writeRawBlp(login_vignette(), os.path.join(OUTPUT, 'LoginVignette.blp'))
     writer.writeRawBlp(login_logo(), os.path.join(OUTPUT, 'LoginLogo.blp'))
     print(f'Built the login screen art in {OUTPUT}')
