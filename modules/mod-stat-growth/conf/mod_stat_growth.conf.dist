@@ -176,7 +176,7 @@ BotEssences.Enabled = 1
 # 10% at a time every 5 s, between 1 and MaxMultiplier (1 through 3). Shown on
 # the bot as stacks of Chaotic Charge, one per percent; .botcatchup lists it.
 BotCatchUp.Enabled = 1
-BotCatchUp.TargetShare = 0.5
+BotCatchUp.TargetShare = 0.65
 BotCatchUp.MaxMultiplier = 3.0
 
 # Class ids, comma separated, whose bots never get it: their AI was reworked
