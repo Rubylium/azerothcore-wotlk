@@ -63,7 +63,7 @@ local TEXT = french and {
     title = "Donjon infini",
     kicker = "DONJON INFINI",
     floor = "Étage %d",
-    record = "Record : étage %d",
+    record = "Record %d",
     step = "Palier %d",
     paragon = "parangon conseillé %d",
     travelling = "En route vers l'étage…",
@@ -120,7 +120,7 @@ local TEXT = french and {
     title = "Infinite Dungeon",
     kicker = "INFINITE DUNGEON",
     floor = "Floor %d",
-    record = "Record: floor %d",
+    record = "Best %d",
     step = "Step %d",
     paragon = "recommended paragon %d",
     travelling = "On the way down…",
@@ -525,7 +525,8 @@ local function CreateTracker()
     header.toggle = toggle
 
     local record = Label(header, "GameFontHighlightSmall", MUTED, "RIGHT")
-    record:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -12, 9)
+    -- On the kicker's line, left of the fold button: the big floor number below has the width to itself
+    record:SetPoint("RIGHT", toggle, "LEFT", -6, 0)
     header.record = record
     tracker.header = header
 

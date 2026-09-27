@@ -2232,6 +2232,9 @@ public:
         Run* run = RunOf(player->GetGUID());
         if (!run || !player->FindMap() || player->FindMap()->GetInstanceId() != run->instanceId)
             return false;
+        // The floor starts first: a boss killed while the players still stand in the bubble would never clear it
+        if (run->state == FloorState::Bubble)
+            DropBubble(*run, player->GetMap(), PresentMembers(*run, player->GetMap()));
         for (auto const& [guid, role] : run->creatures)
             if (Creature* creature = player->GetMap()->GetCreature(guid); creature && creature->IsAlive())
                 Unit::Kill(player, creature);
