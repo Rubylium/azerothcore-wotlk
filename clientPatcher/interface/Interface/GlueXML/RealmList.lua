@@ -207,7 +207,7 @@ local function CreateCard(index)
     card.stats = {}
     for column = 1, 2 do
         local x = (column == 1) and -CARD_WIDTH / 4 or CARD_WIDTH / 4
-        local label = Text(card, FONT_TEXT, 9)
+        local label = Text(card, FONT_TEXT, 11)
         label:SetPoint("TOP", card.divider, "BOTTOM", x, -16)
         label:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
         local value = Text(card, FONT_TEXT, 17)

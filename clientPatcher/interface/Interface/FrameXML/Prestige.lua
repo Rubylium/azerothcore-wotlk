@@ -783,22 +783,14 @@ local function CreateShopPage(page)
     intro:SetJustifyH("LEFT")
     intro:SetText(TEXT.shopIntro)
 
-    -- Categories: a row of small buttons, the chosen one lit
+    -- Categories: a row of small stock buttons (the window's buttons are all the stock red ones), the chosen one lit
     ui.categoryButtons = {}
     local previous
     for index, label in ipairs(TEXT.categories) do
-        local button = CreateFrame("Button", nil, page)
+        local button = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
         button:SetHeight(22)
-        local text = Label(button, "GameFontNormalSmall")
-        text:SetPoint("CENTER")
-        text:SetText(label)
-        button:SetWidth(text:GetStringWidth() + 22)
-        button:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 10,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 },
-        })
+        button:SetText(label)
+        button:SetWidth(button:GetFontString():GetStringWidth() + 26)
         local lit = button:CreateTexture(nil, "BACKGROUND", nil, -1)
         RetailUI.SetAtlas(lit, "ChallengeMode-SoftYellowGlow")
         lit:SetBlendMode("ADD")
@@ -810,7 +802,6 @@ local function CreateShopPage(page)
         else
             button:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -72)
         end
-        button.text = text
         button:SetScript("OnClick", function()
             PlaySound(SOUND_TAB)
             state.category = index
@@ -823,13 +814,11 @@ local function CreateShopPage(page)
     ui.refreshCategories = function()
         for index, button in ipairs(ui.categoryButtons) do
             local chosen = index == state.category
-            button:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
-            button:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 1)
             button.lit:SetAlpha(chosen and 0.6 or 0)
             if chosen then
-                button.text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+                button:LockHighlight()
             else
-                button.text:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+                button:UnlockHighlight()
             end
         end
     end

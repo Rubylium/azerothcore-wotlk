@@ -30,7 +30,8 @@
 
 local PREFIX = "Infinite"
 local SOUND = "Sound\\Interface\\MythicPlus\\"
-local MORPHEUS = "Fonts\\MORPHEUS.ttf"
+local MORPHEUS = "Fonts\\MORPHEUS.ttf"   -- headings only (titles, the big floor number, banners)
+local FRIZ = "Fonts\\FRIZQT__.TTF"        -- everything else: buttons, labels, numbers
 -- Drawn by localTools/interface/buildInfiniteDungeonArt.py
 local ART = "Interface\\InfiniteDungeon\\InfiniteDungeon-"
 local PIN_TIP = 20 / 512            -- the pin's tip, above the bottom of its texture
@@ -339,6 +340,118 @@ local function Heading(parent, size, color)
     return text
 end
 
+-- The secondary action (and the only one of a window without a prominent one): a dark plate in the board's gold
+-- edge, its name in the readable font, lit gold under the pointer; dimmed when disabled. It is a Button with its own
+-- font string, so SetText, Enable and Disable work as on the stock one it replaces.
+local function QuietButton(parent, width, height, label, fontSize)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    button:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+
+    local text = button:CreateFontString(nil, "OVERLAY")
+    text:SetFont(FRIZ, fontSize or 12)
+    text:SetShadowOffset(1, -1)
+    text:SetPoint("CENTER", button, "CENTER", 0, 0)
+    button:SetFontString(text)
+    button:SetPushedTextOffset(1, -1)
+
+    button:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    local highlight = button:GetHighlightTexture()
+    highlight:SetBlendMode("ADD")
+    highlight:ClearAllPoints()
+    highlight:SetPoint("TOPLEFT", 3, -3)
+    highlight:SetPoint("BOTTOMRIGHT", -3, 3)
+
+    local function Paint(self)
+        if self:IsEnabled() then
+            local lit = self.hovered
+            local edge, color = lit and GOLD or BORDER, lit and GOLD or SOFT
+            self:SetBackdropColor(0.07, 0.05, 0.03, 0.95)
+            self:SetBackdropBorderColor(edge[1], edge[2], edge[3], 0.9)
+            text:SetTextColor(color[1], color[2], color[3])
+            highlight:SetAlpha(0.35)
+        else
+            self:SetBackdropColor(0.05, 0.045, 0.04, 0.9)
+            self:SetBackdropBorderColor(MUTED[1], MUTED[2], MUTED[3], 0.45)
+            text:SetTextColor(MUTED[1] * 0.85, MUTED[2] * 0.85, MUTED[3] * 0.85)
+            highlight:SetAlpha(0)
+        end
+    end
+    button:HookScript("OnEnter", function(self)
+        self.hovered = true
+        Paint(self)
+    end)
+    button:HookScript("OnLeave", function(self)
+        self.hovered = false
+        Paint(self)
+    end)
+    local enable, disable = button.Enable, button.Disable
+    function button:Enable()
+        enable(self)
+        Paint(self)
+    end
+    function button:Disable()
+        disable(self)
+        Paint(self)
+    end
+
+    if label then
+        button:SetText(label)
+    end
+    Paint(button)
+    return button
+end
+
+-- The window's close button in the same family: a small dark plate in the gold edge with a cross in the readable
+-- font, in place of the red one (which belongs with the stock red buttons)
+local function CloseButton(parent, onClick)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(20, 20)
+    button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -7, -3)
+    button:SetFrameLevel(parent:GetFrameLevel() + 20)
+    button:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    button:SetBackdropColor(0.07, 0.05, 0.03, 0.95)
+    button:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 0.9)
+
+    local cross = button:CreateFontString(nil, "OVERLAY")
+    cross:SetFont(FRIZ, 15)
+    cross:SetShadowOffset(1, -1)
+    cross:SetPoint("CENTER", button, "CENTER", 0, 1)
+    button:SetFontString(cross)
+    button:SetPushedTextOffset(1, -1)
+    button:SetText("×")
+    cross:SetTextColor(SOFT[1], SOFT[2], SOFT[3])
+
+    button:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    local highlight = button:GetHighlightTexture()
+    highlight:SetBlendMode("ADD")
+    highlight:ClearAllPoints()
+    highlight:SetPoint("TOPLEFT", 2, -2)
+    highlight:SetPoint("BOTTOMRIGHT", -2, 2)
+    highlight:SetAlpha(0.4)
+
+    button:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(GOLD[1], GOLD[2], GOLD[3], 1)
+        cross:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    end)
+    button:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 0.9)
+        cross:SetTextColor(SOFT[1], SOFT[2], SOFT[3])
+    end)
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
 -- The board's timer bar: a thin gold frame, an amber-to-gold fill, cut in segments
 local function Bar(parent, width, segments)
     local bar = CreateFrame("Frame", nil, parent)
@@ -405,7 +518,8 @@ InfiniteDungeonUI = {
     french = french, Send = Send, SetShown = SetShown, SetAtlas = SetAtlas, Colored = Colored, Rotate = Rotate,
     RotateAtlas = RotateAtlas, Tween = Tween, OutCubic = OutCubic, Card = Card, FramedIcon = FramedIcon,
     Divider = Divider, Label = Label, Heading = Heading, Bar = Bar, Thousands = Thousands,
-    ART = ART, MORPHEUS = MORPHEUS, SOUND = SOUND, GEAR_ICON = GEAR_ICON, PARAGON_ICON = PARAGON_ICON,
+    QuietButton = QuietButton, CloseButton = CloseButton,
+    ART = ART, MORPHEUS = MORPHEUS, FRIZ = FRIZ, SOUND = SOUND, GEAR_ICON = GEAR_ICON, PARAGON_ICON = PARAGON_ICON,
     EXPERIENCE_ICON = EXPERIENCE_ICON, ESSENCE_ICON = ESSENCE_ICON,
     CHECKPOINT_FLOORS = CHECKPOINT_FLOORS, GEAR_FLOORS = GEAR_FLOORS, LADDER_GEARING = LADDER_GEARING,
     STATE_CLEARED = STATE_CLEARED, STATE_FALLEN = STATE_FALLEN,
@@ -655,7 +769,7 @@ local function CreateTracker()
     })
     leaveButton:SetBackdropColor(0.04, 0.03, 0.02, 0.9)
     leaveButton:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 0.8)
-    local leaveText = Label(leaveButton, "GameFontNormalSmall", SOFT, "CENTER")
+    local leaveText = Label(leaveButton, "GameFontNormal", SOFT, "CENTER")
     leaveText:SetPoint("CENTER", leaveButton, "CENTER", 0, 0)
     leaveText:SetText(TEXT.leave)
     local leaveGlow = leaveButton:CreateTexture(nil, "HIGHLIGHT")
@@ -1206,18 +1320,7 @@ local function CreateSummary()
     windowTitle:SetText(TEXT.title)
     windowTitle:SetTextColor(1, 0.82, 0)
 
-    local closeButton = CreateFrame("Button", nil, summary)
-    closeButton:SetSize(24, 24)
-    closeButton:SetPoint("TOPRIGHT", summary, "TOPRIGHT", -5, -5)
-    closeButton:SetFrameLevel(summary:GetFrameLevel() + 20)
-    closeButton:SetNormalTexture(RetailUIAtlas["redbutton-exit-2x"][1])
-    SetAtlas(closeButton:GetNormalTexture(), "redbutton-exit-2x")
-    closeButton:SetPushedTexture(RetailUIAtlas["redbutton-exit-pressed-2x"][1])
-    SetAtlas(closeButton:GetPushedTexture(), "redbutton-exit-pressed-2x")
-    closeButton:SetHighlightTexture(RetailUIAtlas["redbutton-highlight-2x"][1])
-    SetAtlas(closeButton:GetHighlightTexture(), "redbutton-highlight-2x")
-    closeButton:GetHighlightTexture():SetBlendMode("ADD")
-    closeButton:SetScript("OnClick", function() summary:Hide() end)
+    CloseButton(summary, function() summary:Hide() end)
 
     local mover = CreateFrame("Frame", nil, summary)
     mover:SetPoint("TOPLEFT", summary, "TOPLEFT", 0, 16)
@@ -1294,10 +1397,8 @@ local function CreateSummary()
     checkpoint:SetWidth(SUMMARY_WIDTH - 50)
     summary.checkpoint = checkpoint
 
-    local button = CreateFrame("Button", nil, summary, "UIPanelButtonTemplate")
-    button:SetSize(130, 24)
+    local button = QuietButton(summary, 130, 24, TEXT.close)
     button:SetPoint("BOTTOM", summary, "BOTTOM", 0, 16)
-    button:SetText(TEXT.close)
     button:SetScript("OnClick", function() summary:Hide() end)
 
     summary:SetScript("OnUpdate", function()

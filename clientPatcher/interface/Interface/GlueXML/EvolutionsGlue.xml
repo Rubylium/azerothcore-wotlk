@@ -49,9 +49,10 @@
 	<Font name="EvolutionsLoginLinkDisabledFont" inherits="EvolutionsLoginLinkFont" virtual="true">
 		<Color r="0.45" g="0.42" b="0.38"/>
 	</Font>
-	<Font name="EvolutionsLoginPrimaryFont" font="Fonts\MORPHEUS.TTF" virtual="true">
+	<!-- Button labels in the readable font: Morpheus is kept for the headings -->
+	<Font name="EvolutionsLoginPrimaryFont" font="Fonts\FRIZQT__.TTF" virtual="true">
 		<FontHeight>
-			<AbsValue val="20"/>
+			<AbsValue val="15"/>
 		</FontHeight>
 		<Color r="1" g="0.9" b="0.68"/>
 		<Shadow>
@@ -67,9 +68,9 @@
 
 	<!-- The glue buttons restyled by EvolutionsGlueStyle.StyleButton (AccountLogin.lua): gold on the primary face,
 	     parchment on the quiet one -->
-	<Font name="EvolutionsButtonFont" font="Fonts\MORPHEUS.TTF" virtual="true">
+	<Font name="EvolutionsButtonFont" font="Fonts\FRIZQT__.TTF" virtual="true">
 		<FontHeight>
-			<AbsValue val="16"/>
+			<AbsValue val="13"/>
 		</FontHeight>
 		<Color r="1" g="0.9" b="0.68"/>
 		<Shadow>

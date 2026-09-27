@@ -31,7 +31,8 @@ end
 local Send, SetShown, SetAtlas, Colored = UI.Send, UI.SetShown, UI.SetAtlas, UI.Colored
 local Tween, OutCubic, Rotate, RotateAtlas = UI.Tween, UI.OutCubic, UI.Rotate, UI.RotateAtlas
 local Card, FramedIcon, Divider, Label, Heading, Bar = UI.Card, UI.FramedIcon, UI.Divider, UI.Label, UI.Heading, UI.Bar
-local ART, MORPHEUS = UI.ART, UI.MORPHEUS
+local QuietButton, CloseButton = UI.QuietButton, UI.CloseButton
+local ART, FRIZ = UI.ART, UI.FRIZ
 local HEADING, GOLD, BORDER, PARCHMENT, SOFT = UI.HEADING, UI.GOLD, UI.BORDER, UI.PARCHMENT, UI.SOFT
 local MUTED, AMBER, EMBER, PARAGON_PURPLE = UI.MUTED, UI.AMBER, UI.EMBER, UI.PARAGON_PURPLE
 local CHECKPOINT_FLOORS, GEAR_FLOORS, LADDER_GEARING = UI.CHECKPOINT_FLOORS, UI.GEAR_FLOORS, UI.LADDER_GEARING
@@ -261,18 +262,7 @@ local function Window(name, width, height, title)
     windowTitle:SetTextColor(1, 0.82, 0)
     frame.windowTitle = windowTitle
 
-    local closeButton = CreateFrame("Button", nil, frame)
-    closeButton:SetSize(24, 24)
-    closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -5, -5)
-    closeButton:SetFrameLevel(frame:GetFrameLevel() + 20)
-    closeButton:SetNormalTexture(RetailUIAtlas["redbutton-exit-2x"][1])
-    SetAtlas(closeButton:GetNormalTexture(), "redbutton-exit-2x")
-    closeButton:SetPushedTexture(RetailUIAtlas["redbutton-exit-pressed-2x"][1])
-    SetAtlas(closeButton:GetPushedTexture(), "redbutton-exit-pressed-2x")
-    closeButton:SetHighlightTexture(RetailUIAtlas["redbutton-highlight-2x"][1])
-    SetAtlas(closeButton:GetHighlightTexture(), "redbutton-highlight-2x")
-    closeButton:GetHighlightTexture():SetBlendMode("ADD")
-    closeButton:SetScript("OnClick", function() frame:Hide() end)
+    CloseButton(frame, function() frame:Hide() end)
 
     local mover = CreateFrame("Frame", nil, frame)
     mover:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 16)
@@ -333,8 +323,8 @@ local function AnimateEmblem(art, now)
     end
 end
 
--- The prominent action: a dark-gold plate in a gold edge, its name in Morpheus, on a warm glow that breathes. Muted
--- and silent when it cannot be used (it keeps its mouse, so its tooltip can say why).
+-- The prominent action: a dark-gold plate in a gold edge, its name in the readable font, on a warm glow that
+-- breathes. Muted and silent when it cannot be used (it keeps its mouse, so its tooltip can say why).
 local function GoldButton(parent, width, height, fontSize)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(width, height)
@@ -366,7 +356,9 @@ local function GoldButton(parent, width, height, fontSize)
     shine:SetGradientAlpha("VERTICAL", 1, 0.9, 0.6, 0, 1, 0.9, 0.6, 0.12)
     button.shine = shine
 
-    local text = Heading(button, fontSize or 20, HEADING)
+    local text = button:CreateFontString(nil, "OVERLAY")
+    text:SetFont(FRIZ, fontSize or 15)
+    text:SetShadowOffset(1, -1)
     text:SetPoint("CENTER", button, "CENTER", 0, 0)
     button.text = text
 
@@ -420,12 +412,10 @@ local function GoldButton(parent, width, height, fontSize)
     return button
 end
 
--- The stock red button, the board's secondary actions
+-- The secondary actions: the quiet plate of InfiniteDungeon.lua, in the gold button's family (never a stock red
+-- button beside it)
 local function PanelButton(parent, width, height, label)
-    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    button:SetSize(width, height)
-    button:SetText(label)
-    return button
+    return QuietButton(parent, width, height, label)
 end
 
 local function SetButtonEnabled(button, enabled)
@@ -565,7 +555,7 @@ local function CreateActions(frame)
     actions:SetPoint("TOPLEFT", frame, "TOPLEFT", LEFT_X, -356)
     actions:SetSize(LEFT_WIDTH, 64)
 
-    local descend = GoldButton(actions, 206, 40, 22)
+    local descend = GoldButton(actions, 206, 40, 17)
     descend:SetPoint("TOPLEFT", actions, "TOPLEFT", 4, -4)
     descend:SetLabel(TEXT.descend)
     descend:SetScript("OnClick", function(self)
@@ -632,7 +622,7 @@ local function RecordRow(parent, index)
         band:SetAllPoints()
         band:SetVertexColor(1, 0.9, 0.7, 0.04)
     end
-    row.rank = Heading(row, 15, MUTED)
+    row.rank = Label(row, "GameFontNormal", MUTED, "RIGHT")
     row.rank:SetPoint("LEFT", row, "LEFT", 4, 0)
     row.rank:SetWidth(18)
     row.rank:SetJustifyH("RIGHT")
@@ -686,9 +676,15 @@ end
 local function CreateConfirm(frame)
     local confirm = CreateFrame("Frame", nil, frame)
     confirm:SetSize(LEFT_WIDTH, 152)
+    confirm:SetFrameStrata("DIALOG")
     confirm:SetFrameLevel(frame:GetFrameLevel() + 30)
     confirm:EnableMouse(true)
     Card(confirm, 0.98)
+    -- Solid: the buttons under it must not show through
+    local solid = confirm:CreateTexture(nil, "BACKGROUND", nil, -8)
+    solid:SetPoint("TOPLEFT", 4, -4)
+    solid:SetPoint("BOTTOMRIGHT", -4, 4)
+    solid:SetTexture(0.035, 0.028, 0.02, 1)
     confirm:Hide()
 
     local title = Heading(confirm, 20, AMBER)
@@ -1001,7 +997,7 @@ local function CreatePortal()
     portal.detail:SetPoint("TOP", portal.line, "BOTTOM", 0, -3)
     portal.detail:SetWidth(340)
 
-    portal.descend = GoldButton(portal, 170, 36, 20)
+    portal.descend = GoldButton(portal, 170, 36, 16)
     portal.descend:SetPoint("BOTTOMLEFT", portal, "BOTTOMLEFT", 26, 20)
     portal.descend:SetLabel(TEXT.descend)
     portal.descend:SetScript("OnClick", function()

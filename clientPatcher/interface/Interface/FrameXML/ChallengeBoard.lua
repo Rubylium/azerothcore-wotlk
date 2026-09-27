@@ -9,7 +9,8 @@
 
 local PREFIX = "Challenge"
 local SOUND = "Sound\\Interface\\MythicPlus\\"
-local MORPHEUS = "Fonts\\MORPHEUS.ttf"
+local MORPHEUS = "Fonts\\MORPHEUS.ttf"   -- headings only (titles, the tier, the key level, banners)
+local FRIZ = "Fonts\\FRIZQT__.TTF"        -- the timer and the messages
 local SATCHEL = 4573
 local SATCHEL_ICON = "Interface\\Icons\\INV_Misc_Bag_07"
 local ROLE_TANK, ROLE_HEALER, ROLE_DAMAGE = 2, 4, 8
@@ -977,7 +978,7 @@ local function CreateBoard()
     timerLabel:SetText(TEXT.refresh)
 
     timerText = frame:CreateFontString(nil, "OVERLAY")
-    timerText:SetFont(MORPHEUS, 22)
+    timerText:SetFont(FRIZ, 20)
     timerText:SetShadowOffset(1, -1)
     timerText:SetTextColor(1, 1, 1)
     timerText:SetPoint("TOPLEFT", timerLabel, "BOTTOMLEFT", 0, -1)
@@ -1203,7 +1204,7 @@ local function CreateBoard()
     end
 
     emptyText = frame:CreateFontString(nil, "OVERLAY")
-    emptyText:SetFont(MORPHEUS, 20)
+    emptyText:SetFont(FRIZ, 16)
     emptyText:SetTextColor(0.9, 0.8, 0.6)
     emptyText:SetPoint("CENTER", frame, "CENTER", 0, 10)
     emptyText:Hide()

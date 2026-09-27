@@ -435,7 +435,7 @@ local function BuildField(card, edit, label, hint)
     field.glow:SetPoint("TOPLEFT", edit, "TOPLEFT", -22, 16)
     field.glow:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", 22, -16)
 
-    field.label = Text(card, FONT_TEXT, 10, "OVERLAY")
+    field.label = Text(card, FONT_TEXT, 11, "OVERLAY")
     field.label:SetPoint("BOTTOMLEFT", edit, "TOPLEFT", 1, 5)
     field.label:SetText(label)
 
@@ -617,7 +617,7 @@ local function BuildLinks()
 
     UICache.realmName:SetFont(FONT_TEXT, 11, "")
     UICache.realmName:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
-    UICache.versionText:SetFont(FONT_TEXT, 10, "")
+    UICache.versionText:SetFont(FONT_TEXT, 11, "")
     UICache.versionText:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
     AccountLoginUIResetFrameText:SetText(L.resetPending)
 end

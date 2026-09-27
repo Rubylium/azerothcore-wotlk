@@ -57,7 +57,8 @@ local SOUND_RESET     = "Glyph_MajorDestroy"     -- audibly the reverse of Major
 local SOUND_DENIED    = "igQuestFailed"
 
 local ART = "Interface\\Paragon\\"
-local MORPHEUS = "Fonts\\MORPHEUS.ttf"
+local MORPHEUS = "Fonts\\MORPHEUS.ttf"   -- headings only (the title, zone names, the big point count)
+local FRIZ = "Fonts\\FRIZQT__.TTF"        -- the numbers on the nodes
 local POINT_FONT_SIZE = 26
 
 -- The three kinds of node, as the tooltip and the legend name them
@@ -593,7 +594,7 @@ local function createNode(id, node)
     local cost = nodeCost(node)
     if cost > 1 then
         local badge = button:CreateFontString(nil, "OVERLAY")
-        badge:SetFont(MORPHEUS, math.max(11, math.floor(size * 0.3)), "OUTLINE")
+        badge:SetFont(FRIZ, math.max(11, math.floor(size * 0.28)), "OUTLINE")
         badge:SetTextColor(1, 0.86, 0.55)
         badge:SetPoint("CENTER", button, "BOTTOMRIGHT", -size * 0.14, size * 0.14)
         badge:SetText(cost)
