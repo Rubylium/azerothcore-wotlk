@@ -783,6 +783,32 @@ void WipeStockTalents(Player* player)
         player->resetTalents(true);
 }
 
+// A player whose class has just moved to the trees (stockTab: the WotLK tab it had spent the most points in, read
+// before those talents are wiped) keeps that specialization rather than landing in the first spec tree, and is told
+// where its talents went. The build itself starts empty: the WotLK talents do not map onto the nodes.
+void KeepStockSpecialization(Player* player, ClassTrees const& data, TalentTreeState* state, int8 stockTab)
+{
+    if (stockTab < 0 || data.specTrees.empty())
+        return;
+
+    uint8 const slot = ActiveSlot(player);
+    if (!state->specializations[slot] && std::size_t(stockTab) < data.specTrees.size())
+    {
+        state->specializations[slot] = data.specTrees[stockTab];
+        SaveBuild(player, data, state, slot);
+    }
+
+    if (player->GetSession())
+        ChatHandler(player->GetSession()).SendSysMessage(
+            player->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR
+                ? "|cffffd100Talents :|r votre classe passe aux nouveaux arbres de talents. Vos anciens talents vous "
+                  "sont rendus et votre spécialisation est conservée : ouvrez la fenêtre des talents (N) pour "
+                  "dépenser vos points, ou appliquer une configuration recommandée."
+                : "|cffffd100Talents:|r your class moved to the new talent trees. Your old talents are refunded and "
+                  "your specialization is kept: open the talent window (N) to spend your points, or apply a "
+                  "recommended build.");
+}
+
 void HandleSpecialization(Player* player, ClassTrees const& data, TalentTreeState* state, std::string_view argument)
 {
     Optional<uint8> const tree = Acore::StringTo<uint8>(argument);
@@ -1178,7 +1204,7 @@ public:
         if (!data)
             return;
 
-        int8 const stockTab = IsBot(player) ? DominantStockTab(player) : -1;
+        int8 const stockTab = DominantStockTab(player);
         WipeStockTalents(player);
         LoadForPlayer(player, *data);
         if (IsBot(player))
@@ -1186,6 +1212,8 @@ public:
             ChooseBotSpecialization(player, *data, GetState(player), stockTab);
             FillBotBuild(player, *data, GetState(player));
         }
+        else
+            KeepStockSpecialization(player, *data, GetState(player), stockTab);
         TrimAndReconcile(player, *data, GetState(player));
         SendState(player, false);
     }

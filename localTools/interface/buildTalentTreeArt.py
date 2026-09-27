@@ -88,7 +88,10 @@ BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw',
                'rogue-assassination': 'talents-background-rogue-assassination',
                'rogue-subtlety': 'talents-background-rogue-subtlety',
                'mage-arcane': 'talents-background-mage-arcane', 'mage-fire': 'talents-background-mage-fire',
-               'mage-frost': 'talents-background-mage-frost'}
+               'mage-frost': 'talents-background-mage-frost',
+               'deathknight-blood': 'talents-background-deathknight-blood',
+               'deathknight-frost': 'talents-background-deathknight-frost',
+               'deathknight-unholy': 'talents-background-deathknight-unholy'}
 # The specialization page's figures: the right of each spec's painting, from this fraction of its width
 SPEC_ART_LEFT = 0.62
 SPEC_ART_WIDTH = 400

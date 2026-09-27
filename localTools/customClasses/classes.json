@@ -66,6 +66,12 @@
       "token": "ROGUE",
       "family": 8,
       "talentTree": "localTools/rogue/talentTree.json"
+    },
+    {
+      "id": 6,
+      "token": "DEATHKNIGHT",
+      "family": 15,
+      "talentTree": "localTools/deathknight/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {
