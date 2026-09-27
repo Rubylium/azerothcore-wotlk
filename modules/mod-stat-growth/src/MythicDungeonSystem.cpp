@@ -23,17 +23,20 @@
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellInfo.h"
+#include "TemporarySummon.h"
 #include "Timer.h"
 #include "WorldSession.h"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <set>
 
 // Mythic dungeons (see MythicDungeon.h in the core): every creature of a mythic instance is brought to level 80
 // (bosses 82) with WotLK stats a step above a heroic, whatever the dungeon was made for, and the loot changes:
 // - Mythique 0: trash gives nothing, each boss gives every real player in the instance one epic of item level 213.
-// - Mythic+ (key level 2 and up): creatures grow with the key level (Mythic::GetLevelScaling) and nothing drops
+// - Mythic+ (key level 2 and up): creatures grow with the key level - their health with Mythic::GetLevelScaling,
+//   their damage with a player's health (Mythic::GetDamageScaling), each by its role - and nothing drops
 //   until the dungeon is completed; then every real player in it gets one epic of the key's item level and one
 //   essence. The key, timer and score are mod-playerbots' (Script/MythicPlus.cpp).
 namespace
@@ -61,13 +64,52 @@ struct MythicCreatureData : DataMap::Base
     uint8 originalLevel = 0;
     uint8 level = 0;
     float spellFactor = 1.0f;
-    float levelFactor = 1.0f;       // the part of spellFactor that brings old spell values up to the mythic level
+    float healFactor = 1.0f;        // its heals on creatures: they follow the creatures' health, not the players'
+    float levelFactor = 1.0f;       // the part of both that brings old spell values up to the mythic level
     bool lootGiven = false;
 };
 
-// Boss melee: WotLK heroic bosses carry the same damage modifier as their trash, so a boss swung no harder than the
-// pack before it (5% of a tank's health a swing at +10, against the 6-10% a boss is meant to hit for)
-constexpr float BossMeleeScale = 1.6f;
+// What each role (MythicTuning::CreatureRole) gets on top of the key's scaling. Health grows with the key
+// (Mythic::GetLevelScaling) raised to healthGrowth; melee and spells on top of the damage curve
+// (Mythic::GetDamageScaling). With these a geared tank takes 4-6% of its health from a trash swing and 8-9% from a
+// boss's at every key (.agents/plans/mplus-scaling/).
+// - Boss: WotLK heroic bosses carry the same damage modifier as their trash, so a boss swung no harder than the pack
+//   before it (5% of a tank's health, against the 6-10% a boss is meant to hit for): 1.6 on its melee.
+// - Mini-boss: already sturdier by its template; it swings a quarter harder than the pack.
+// - Elite: the yardstick.
+// - Caster: a mage's danger is its spells, which keep their value; its staff hits for 60% and it dies a bit faster,
+//   so killing or stopping it first pays.
+// - Normal: normal-rank trash already has a fraction of an elite's health and weapon (its template's modifiers); its
+//   spells used to scale like a boss's, now three quarters of them.
+// - Minion: summoned adds come in numbers and are meant to be cleaved or switched to: three quarters of an elite's
+//   health, growing slower with the key (x14 at +33 instead of x19), and 75% of the melee. Their spells keep their
+//   value: many summons are a boss's mechanic carriers.
+// An entry with its own melee multiplier (MythicTuning::SetMeleeMultiplier) was tuned by hand: only the boss factor
+// still applies to its melee.
+struct RoleFactors
+{
+    float health;
+    float healthGrowth;
+    float melee;
+    float spell;
+};
+
+RoleFactors GetRoleFactors(MythicTuning::CreatureRole role)
+{
+    switch (role)
+    {
+        case MythicTuning::CreatureRole::Boss:     return { 1.0f, 1.0f, 1.6f, 1.0f };
+        case MythicTuning::CreatureRole::MiniBoss: return { 1.0f, 1.0f, 1.25f, 1.0f };
+        case MythicTuning::CreatureRole::Caster:   return { 0.85f, 1.0f, 0.6f, 1.0f };
+        case MythicTuning::CreatureRole::Normal:   return { 1.0f, 1.0f, 1.0f, 0.75f };
+        case MythicTuning::CreatureRole::Minion:   return { 0.75f, 0.9f, 0.75f, 1.0f };
+        default:                                   return { 1.0f, 1.0f, 1.0f, 1.0f };
+    }
+}
+
+// An elite with at least this health modifier (after the classic catch-up) stands well above its pack: heroic WotLK
+// trash carries 4-6, the Forge of Souls' 10.5, a giant or a named guardian 12-21
+constexpr float MiniBossHealthModifier = 12.0f;
 
 // Bosses the core does not flag as dungeon bosses (encounters credited by spell, or bosses of a pair), and the ghosts
 // of Skarvald and Dalronn, which cannot be targeted but still fight and must grow with the key like the living ones
@@ -137,6 +179,34 @@ bool IsMythicBoss(Creature const* creature)
         IsListed(ExtraMythicBosses, creature->GetEntry());
 }
 
+// A creature summoned by a creature, a gameobject or a script, not by a player
+bool IsCreatureSummon(Creature const* creature)
+{
+    TempSummon const* summon = creature->ToTempSummon();
+    return summon && !summon->GetSummonerGUID().IsPlayer();
+}
+
+// healthModifier: the template's, with the classic catch-up
+MythicTuning::CreatureRole GetCreatureRole(CreatureTemplate const* cinfo, Creature const* creature,
+    float healthModifier)
+{
+    MythicTuning::CreatureRole role;
+    if (MythicTuning::GetCreatureRole(creature->GetEntry(), role))
+        return role;
+    if (IsMythicBoss(creature))
+        return MythicTuning::CreatureRole::Boss;
+    if (IsCreatureSummon(creature))
+        return MythicTuning::CreatureRole::Minion;
+    if (cinfo->rank == CREATURE_ELITE_RAREELITE || cinfo->rank == CREATURE_ELITE_RARE ||
+        (cinfo->rank == CREATURE_ELITE_ELITE && healthModifier >= MiniBossHealthModifier))
+        return MythicTuning::CreatureRole::MiniBoss;
+    if (cinfo->rank == CREATURE_ELITE_NORMAL)
+        return MythicTuning::CreatureRole::Normal;
+    if (cinfo->unit_class == CLASS_MAGE)
+        return MythicTuning::CreatureRole::Caster;
+    return MythicTuning::CreatureRole::Elite;
+}
+
 // Triggers, critters and unselectable helpers keep their stats: they are not fights
 bool ShouldScale(CreatureTemplate const* cinfo, Creature const* creature)
 {
@@ -183,18 +253,21 @@ bool IsSelfLevelling(SpellInfo const* spellInfo)
 
 // periodic: a damage-over-time tick. Those always scale: a weapon spell's hit follows the scaled weapon, but the
 // poison or bleed it leaves has fixed values (the Deadmines harpoon's poison ticked for 45).
-float GetSpellFactor(Unit const* caster, SpellInfo const* spellInfo, bool periodic = false)
+// heal: a heal, which follows the creatures' health rather than the players'
+float GetSpellFactor(Unit const* caster, SpellInfo const* spellInfo, bool periodic = false, bool heal = false)
 {
     Creature const* creature = caster ? caster->ToCreature() : nullptr;
     if (!creature || IsPlayerControlled(creature) || !IsInMythicMap(creature))
         return 1.0f;
 
-    float factor = Mythic::DamageMultiplier * Mythic::GetLevelScaling(GetMythicLevel(creature));
+    int32 const key = std::max(GetMythicLevel(creature), 0);
+    float factor = Mythic::DamageMultiplier * (heal ? Mythic::GetLevelScaling(key) :
+        Mythic::GetDamageScaling(static_cast<float>(key)));
     if (MythicCreatureData const* data = GetMythicData(creature))
     {
         if (!periodic && IsWeaponSpell(spellInfo))
             return 1.0f;
-        factor = data->spellFactor;
+        factor = heal ? data->healFactor : data->spellFactor;
         if (IsSelfLevelling(spellInfo) && data->levelFactor > 0.0f)
             factor /= data->levelFactor;
     }
@@ -260,12 +333,18 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     float const coreBaseHealth = static_cast<float>(std::max<uint32>(1, stats->GenerateHealth(cinfo)));
     float const rankRate = creature->GetCreateHealth() / coreBaseHealth;
     float healthModifier = cinfo->ModHealth * (classic ? ClassicHealthScale : 1.0f);
+    MythicTuning::CreatureRole const role = GetCreatureRole(cinfo, creature, healthModifier);
+    RoleFactors const roleFactors = GetRoleFactors(role);
     if (IsMythicBoss(creature))
         healthModifier = std::max(healthModifier, BossHealthModifierFloor);
 
-    float const levelScaling = Mythic::GetLevelScaling(GetMythicLevel(creature));
+    // Health compounds with the key (the players' damage does), damage follows the players' health
+    int32 const key = std::max(GetMythicLevel(creature), 0);
+    float const levelScaling = Mythic::GetLevelScaling(key);
+    float const healthScaling = std::pow(levelScaling, roleFactors.healthGrowth) * roleFactors.health;
+    float const damageScaling = Mythic::GetDamageScaling(static_cast<float>(key));
     uint32 const health = std::max<uint32>(1, ScaleValue(stats->BaseHealth[EXPANSION_WRATH_OF_THE_LICH_KING],
-        healthModifier * rankRate * Mythic::HealthMultiplier * levelScaling));
+        healthModifier * rankRate * Mythic::HealthMultiplier * healthScaling));
     creature->SetCreateHealth(health);
     creature->SetMaxHealth(health);
     creature->SetHealth(health);
@@ -287,9 +366,11 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
         damageScale = std::min(modifier, limit) / cinfo->DamageModifier;
     }
 
+    float roleMelee = roleFactors.melee;
+    if (MythicTuning::HasMeleeMultiplier(creature->GetEntry()) && role != MythicTuning::CreatureRole::Boss)
+        roleMelee = 1.0f;
     float const baseDamage = stats->BaseDamage[EXPANSION_WRATH_OF_THE_LICH_KING] * damageScale *
-        Mythic::DamageMultiplier * levelScaling * (IsMythicBoss(creature) ? BossMeleeScale : 1.0f) *
-        MythicTuning::MeleeMultiplier(creature->GetEntry());
+        Mythic::DamageMultiplier * damageScaling * roleMelee * MythicTuning::MeleeMultiplier(creature->GetEntry());
     for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
     {
         creature->SetBaseWeaponDamage(attackType, MINDAMAGE, baseDamage);
@@ -297,7 +378,8 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     }
 
     // Spells
-    data.spellFactor = Mythic::DamageMultiplier * levelScaling;
+    data.spellFactor = Mythic::DamageMultiplier * damageScaling * roleFactors.spell;
+    data.healFactor = Mythic::DamageMultiplier * levelScaling;
     data.levelFactor = 1.0f;
     if (data.originalLevel >= MinSpellScalingLevel)
         if (CreatureBaseStats const* original = sObjectMgr->GetCreatureBaseStats(data.originalLevel, cinfo->unit_class))
@@ -307,6 +389,7 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
             data.levelFactor = std::clamp(ratio, 1.0f,
                 expansion == EXPANSION_THE_BURNING_CRUSADE ? MaxTbcSpellLevelFactor : MaxSpellLevelFactor);
             data.spellFactor *= data.levelFactor;
+            data.healFactor *= data.levelFactor;
         }
 
     creature->UpdateAllStats();
@@ -441,7 +524,7 @@ public:
     {
         // A heal of a share of the target's health is already the size of that health, which the key has grown
         if (!IsPercentHeal(spellInfo))
-            heal = ScaleValue(heal, GetSpellFactor(healer, spellInfo));
+            heal = ScaleValue(heal, GetSpellFactor(healer, spellInfo, false, true));
         heal = LimitCreatureHeal(target, healer, heal);
     }
 

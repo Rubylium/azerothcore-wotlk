@@ -10,12 +10,32 @@ class Unit;
 // Mythic dungeon damage tuning, shared by every dungeon (modules/mod-stat-growth/src/mythic/*.cpp registers its own
 // numbers at startup). The audit behind the numbers is in .agents/plans/mplus-damage-audit/.
 //
-// The yardstick is the reference health: what a damage dealer at the recommended paragon has at a key, 90 000 at +10,
-// growing with the key like the creatures do (so a share of it stays the same danger at every key). Budgets, as a
-// share of it: a telegraphed hit to dodge 45-70%, a small or frequent one 20-35%, an unavoidable group pulse 8-15%, a
-// damage over time 20-40% in all; a tank buster 35-50% of a tank (about 1.45 times the reference), a boss swing 6-10%.
+// The yardstick is the reference health: what a damage dealer ready for a key has (gear one key under the key's loot,
+// the recommended paragon), Mythic::GetDamageReference - 41 000 at Mythique 0, 66 000 at +10, 106 000 at +20,
+// 163 000 at +33. It follows the players' health, not the creatures' (which compounds with their damage), so a share
+// of it stays the same danger at every key. Every creature's damage follows it too (Mythic::GetDamageScaling). Budgets,
+// as a share of it: a telegraphed hit to dodge 45-70%, a small or frequent one 20-35%, an unavoidable group pulse
+// 8-15%, a damage over time 20-40% in all; a tank buster 35-50% of a tank (about 1.45 times the reference), a boss
+// swing 6-10%, a trash swing 4-6%.
 namespace MythicTuning
 {
+    // What a creature is in a mythic dungeon, read from its rank, class and origin (MythicDungeonSystem.cpp); each
+    // has its own health and damage factors on top of the key's
+    enum class CreatureRole : uint8
+    {
+        Boss,           // a dungeon boss
+        MiniBoss,       // a rare elite, or an elite far above the trash's health (a named guardian, a giant)
+        Elite,          // elite trash
+        Caster,         // elite trash of the mage class: its danger is its spells, not its staff
+        Normal,         // normal-rank trash
+        Minion          // summoned by a creature or a script: a boss's adds, a wave
+    };
+
+    // Forces the role of a creature entry (the heroic entry too): a summoned mechanic that must stay as sturdy as an
+    // elite (a tomb to break), a trash creature the dungeon means as a mini-boss
+    void SetCreatureRole(uint32 creatureEntry, CreatureRole role);
+    bool GetCreatureRole(uint32 creatureEntry, CreatureRole& role);
+
     // Multiplies a creature spell's damage in mythic dungeons, on top of the key's scaling. By spell id, as cast (the
     // heroic id in a heroic dungeon). Registered at startup.
     void SetSpellMultiplier(uint32 spellId, float multiplier);
@@ -24,8 +44,10 @@ namespace MythicTuning
     // Multiplies a creature's melee (weapon) damage in mythic dungeons, by entry (the heroic entry in a heroic dungeon)
     void SetMeleeMultiplier(uint32 creatureEntry, float multiplier);
     float MeleeMultiplier(uint32 creatureEntry);
+    bool HasMeleeMultiplier(uint32 creatureEntry);
 
-    // A damage dealer's health at a key level (the key of the caster's instance; 0 for Mythique 0)
+    // A damage dealer's health at a key level (the key of the caster's instance; 0 for Mythique 0), with the key's
+    // pressure (Mythic::GetDamageReference)
     float ReferenceHealth(int32 keyLevel);
     float ReferenceHealth(Unit const* caster);
 

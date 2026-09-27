@@ -44,6 +44,7 @@ constexpr uint32 GeneratedItemVariants = 128;
 // about 1.5% of its power each, compounded (ParagonPointPower) - and by the key's better loot (KeyGearGrowth a level:
 // 4 item levels, about 2% of a character's power). At 1% and 1% a +30 at 160 points was overrun: the board and the
 // gear are worth more than that, so the high keys grow faster (+20 x1.4, +30 x2 on the old numbers).
+// That is the creatures' health; their damage follows a player's health instead (GetDamageScaling below).
 // So a character at the recommended paragon meets every key the way it met +10 - the key never looks at a
 // character's own paragon, so every point gained still makes the same key easier - and the player reads the ladder as
 // "this key wants that much paragon". The client shows the same numbers (MythicPlus.lua, ChallengeBoard.lua).
@@ -73,6 +74,78 @@ inline float GetLevelScaling(int32 level)
 inline uint32 GetItemLevel(int32 level)
 {
     return BaseItemLevel + ItemLevelPerKeyLevel * static_cast<uint32>(std::max(level, 0));
+}
+
+// GetLevelScaling is the creatures' HEALTH: a character's damage multiplies (gear, paragon, essences all compound),
+// and so does what it takes to kill a pack. A character's health does not: it grows with the stamina of its gear,
+// its essences and a few board nodes, far slower. Creature DAMAGE follows that health instead (GetDamageScaling), so
+// a hit that takes half of a player's health at +10 takes about half of it at +40 for a player geared for the key.
+// The model (.agents/plans/mplus-scaling/mplus-scaling.ANALYSIS.md) is a damage dealer without a tank's bonuses,
+// in gear one key under the key's own loot, at its recommended paragon, with a typical player's essences and gear
+// bonuses, calibrated on real characters:
+//  - class base health and stamina at 80 (player_class_stats, averaged), 10 health a point of stamina
+//  - the gear's stamina: a real full set has 2036 at item level 298, and generated and forged items grow their
+//    stats with the square of the item level (MythicItemGeneration.cpp), so the set's does too
+//  - personal loot bonuses (fortune capped, a third of the items rolling each): stamina and a maximum health
+//    percentage, both a share of the item level
+//  - essences gathered along the way: permanent stamina and Vitality points (40 health each at 80), per key reached
+//  - the board's maximum health nodes, a damage dealer's path taking a few
+//  - group buffs and talents, about a tenth
+// The model at Mythique 0 matches the yardstick the dungeons were first tuned on (41 700), so Mythique 0 does not
+// change. Past +10 a key hits a little harder each level on top (DamagePressurePerKey, up to MaxDamagePressure):
+// the players' own paragon and essences outgrow the model, and a higher key should still ask for more.
+constexpr float GearKeysBehind = 1.0f;
+constexpr float PlayerBaseHealth = 7300.0f;
+constexpr float PlayerBaseStamina = 110.0f;
+constexpr float HealthPerStamina = 10.0f;
+constexpr float GearStaminaPerSquaredItemLevel = 0.0229f;
+constexpr float AffixStaminaPerItemLevel = 1.87f;
+constexpr float AffixHealthPctPerItemLevel = 0.278f;
+constexpr float EssenceStaminaPerKey = 8.0f;
+constexpr float VitalityHealthPerKey = 25.0f * 40.0f;
+constexpr float ParagonHealthPctPerPoint = 0.04f;
+constexpr float BuffsAndTalents = 1.1f;
+constexpr float DamagePressurePerKey = 0.01f;
+constexpr float MaxDamagePressure = 1.15f;
+
+// Item level of the gear a player brings to a key (fractional keys for the Infinite Dungeon's equivalents)
+inline float GetExpectedItemLevel(float key)
+{
+    return static_cast<float>(BaseItemLevel) + static_cast<float>(ItemLevelPerKeyLevel) *
+        (std::max(key, 0.0f) - GearKeysBehind);
+}
+
+// Maximum health of a damage dealer ready for that key
+inline float GetExpectedPlayerHealth(float key)
+{
+    key = std::max(key, 0.0f);
+    float const itemLevel = GetExpectedItemLevel(key);
+    float const stamina = PlayerBaseStamina + GearStaminaPerSquaredItemLevel * itemLevel * itemLevel +
+        AffixStaminaPerItemLevel * itemLevel + EssenceStaminaPerKey * key;
+    float const paragon = static_cast<float>(ParagonPerLevel) * std::max(key - static_cast<float>(GearLevels), 0.0f);
+    float health = PlayerBaseHealth + HealthPerStamina * stamina;
+    health *= 1.0f + AffixHealthPctPerItemLevel * itemLevel / 100.0f;
+    health += VitalityHealthPerKey * key;
+    health *= 1.0f + ParagonHealthPctPerPoint * paragon / 100.0f;
+    return health * BuffsAndTalents;
+}
+
+inline float GetDamagePressure(float key)
+{
+    return std::min(1.0f + DamagePressurePerKey * std::max(key - static_cast<float>(GearLevels), 0.0f),
+        MaxDamagePressure);
+}
+
+// The yardstick of a key's damage: a share of it is a share of a ready player's health (MythicTuning.h)
+inline float GetDamageReference(float key)
+{
+    return GetExpectedPlayerHealth(key) * GetDamagePressure(key);
+}
+
+// What the creatures' damage is multiplied by at a key, over Mythique 0's
+inline float GetDamageScaling(float key)
+{
+    return GetDamageReference(key) / GetDamageReference(0.0f);
 }
 
 inline bool IsGeneratedItem(uint32 entry)

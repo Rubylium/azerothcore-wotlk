@@ -875,6 +875,7 @@ void RegisterTuning()
 {
     // Every multiplier below is for +10 against the reference health (90k), after the engine's level fix: spells the
     // core already levels (creature-level attribute or points per level) now land at a tenth of the audit's numbers.
+    // The amounts are the old +10 (90k yardstick); the shares hold at every key, now of a real player's health.
     MythicTuning::SetSpellMultiplier(SPELL_FLAMESTRIKE, 18.0f);     // 1.2k -> 22k (24%), its pool 4.2k a tick
     MythicTuning::SetSpellMultiplier(SPELL_FIREBALL, 7.0f);         // 1.1k -> 7.7k (6% of a tank)
     MythicTuning::SetSpellMultiplier(SPELL_SHOOT, 7.0f);            // 0.6k -> 4.3k

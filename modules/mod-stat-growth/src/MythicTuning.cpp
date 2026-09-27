@@ -20,11 +20,9 @@
 
 namespace
 {
-constexpr float ReferenceHealthAtTen = 90000.0f;
-constexpr int32 ReferenceKey = 10;
-
 std::unordered_map<uint32, float> SpellMultipliers;
 std::unordered_map<uint32, float> MeleeMultipliers;
+std::unordered_map<uint32, MythicTuning::CreatureRole> CreatureRoles;
 
 std::vector<MythicTrash::Ability> TrashAbilities;
 std::unordered_map<uint32, std::vector<std::size_t>> TrashByEntry;
@@ -265,10 +263,28 @@ float MeleeMultiplier(uint32 creatureEntry)
     return itr == MeleeMultipliers.end() ? 1.0f : itr->second;
 }
 
+bool HasMeleeMultiplier(uint32 creatureEntry)
+{
+    return MeleeMultipliers.contains(creatureEntry);
+}
+
+void SetCreatureRole(uint32 creatureEntry, CreatureRole role)
+{
+    CreatureRoles[creatureEntry] = role;
+}
+
+bool GetCreatureRole(uint32 creatureEntry, CreatureRole& role)
+{
+    auto const itr = CreatureRoles.find(creatureEntry);
+    if (itr == CreatureRoles.end())
+        return false;
+    role = itr->second;
+    return true;
+}
+
 float ReferenceHealth(int32 keyLevel)
 {
-    return ReferenceHealthAtTen * Mythic::GetLevelScaling(std::max(keyLevel, 0)) /
-        Mythic::GetLevelScaling(ReferenceKey);
+    return Mythic::GetDamageReference(static_cast<float>(std::max(keyLevel, 0)));
 }
 
 float ReferenceHealth(Unit const* caster)

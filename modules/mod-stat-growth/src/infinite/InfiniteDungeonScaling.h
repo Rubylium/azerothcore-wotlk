@@ -122,12 +122,13 @@ inline uint32 GetItemLevel(uint32 floor)
     return itemLevel - Mythic::ItemLevelPerKeyLevel * ItemLevelKeysBelow;
 }
 
-// The gearing ladder's hits are measured on the Mythic+ yardstick, the health a player has at the key of the same
-// difficulty (MythicTuning.cpp: 90 000 at +10, growing with Mythic::GetLevelScaling), ItemLevelKeysBelow keys under
-// it as its loot. A step of the gear part stands for a key level, one past it for ParagonPerStep / ParagonPerLevel of
-// one. The ordinary level-80 player the levelling ladder measures on (GetReferenceHealthFactor) has about a quarter
-// of what a character deep in the ladder carries, and its hits grazed them.
-constexpr float MythicReferenceHealthAtTen = 90000.0f;
+// The gearing ladder's hits are measured on the Mythic+ yardstick, the health a player ready for the key of the same
+// difficulty has (Mythic::GetDamageReference: a model of a real character's health at that key's gear and paragon,
+// 66 000 at +10), ItemLevelKeysBelow keys under it as its loot. A step of the gear part stands for a key level, one
+// past it for ParagonPerStep / ParagonPerLevel of one. The ordinary level-80 player the levelling ladder measures on
+// (GetReferenceHealthFactor) has about a quarter of what a character deep in the ladder carries, and its hits grazed
+// them. It used to grow with the creatures' health (Mythic::GetLevelScaling), which outruns any player's health:
+// deep floors one-shot.
 // A floor creature's melee swing at the level cap, as a share of that health (a tank taking it; lighter untanked)
 constexpr float TrashMeleeShare = 0.025f;
 constexpr float EliteMeleeShare = 0.05f;
@@ -142,19 +143,9 @@ inline float GetKeyEquivalent(uint32 floor)
     return std::max(0.0f, key - static_cast<float>(ItemLevelKeysBelow));
 }
 
-// Mythic::GetLevelScaling for a key level between two
-inline float GetKeyScaling(float key)
-{
-    float const gear = std::pow(Mythic::CompoundedGrowth, std::min(key, static_cast<float>(Mythic::GearLevels)));
-    float const past = std::max(key - static_cast<float>(Mythic::GearLevels), 0.0f);
-    return gear * std::pow(Mythic::ParagonPointPower, past * Mythic::ParagonPerLevel) *
-        std::pow(Mythic::KeyGearGrowth, past);
-}
-
 inline float GetGearingReferenceHealth(uint32 floor)
 {
-    return MythicReferenceHealthAtTen * GetKeyScaling(GetKeyEquivalent(floor)) /
-        GetKeyScaling(static_cast<float>(Mythic::GearLevels));
+    return Mythic::GetDamageReference(GetKeyEquivalent(floor));
 }
 
 // Roles: the monsters' health follows the damage the run can deal (a damage dealer in full, a tank for about 60%, a

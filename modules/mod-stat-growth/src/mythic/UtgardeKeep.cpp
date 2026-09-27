@@ -587,6 +587,10 @@ void RegisterTuning()
     MythicTuning::SetSpellMultiplier(SPELL_KELESETH_SHADOW_BOLT_H, 1.3f);
     MythicTuning::SetMeleeMultiplier(NPC_VRYKUL_SKELETON, 3.0f);
     MythicTuning::SetMeleeMultiplier(NPC_VRYKUL_SKELETON_HEROIC, 3.0f);
+    // The Frost Tomb is summoned but is the fight's check, not an add: it keeps an elite's health (and
+    // FrostTombHealthFactor on top)
+    MythicTuning::SetCreatureRole(NPC_FROST_TOMB, MythicTuning::CreatureRole::Elite);
+    MythicTuning::SetCreatureRole(NPC_FROST_TOMB_HEROIC, MythicTuning::CreatureRole::Elite);
 
     // Dalronn: Debilitate was a weak damage over time
     MythicTuning::SetSpellMultiplier(SPELL_DALRONN_DEBILITATE, 2.0f);
