@@ -794,10 +794,100 @@ local function StyleDialog(overlayParent, panel)
     fill:SetTexture(0.04, 0.03, 0.02, 0.9)
 end
 
+-- A stock glue button (the red / blue panel art) given the login button's look: its state textures become the gold
+-- face (normal / pushed / disabled), its highlight the soft gold light spilling past its edges, with a gold
+-- hairline and a sheen on top. "quiet" is the secondary look: a dark face with a softer edge and parchment text.
+-- The button keeps its scripts, its text and its size; only how it is drawn changes. GlueDialog_OnUpdate skips
+-- the buttons marked evolutionsStyled (it used to put the stock art back every frame).
+local BUTTON_FACES = {
+    primary = {
+        normal = { 0.36, 0.25, 0.1, 0.58, 0.42, 0.19 },
+        pushed = { 0.28, 0.19, 0.08, 0.44, 0.31, 0.14 },
+        disabled = { 0.17, 0.15, 0.13, 0.25, 0.22, 0.19 },
+        edge = 0.9,
+    },
+    quiet = {
+        normal = { 0.07, 0.055, 0.04, 0.16, 0.125, 0.085 },
+        pushed = { 0.04, 0.03, 0.02, 0.1, 0.08, 0.055 },
+        disabled = { 0.06, 0.055, 0.05, 0.1, 0.09, 0.08 },
+        edge = 0.55,
+    },
+}
+
+local function PaintFace(texture, face)
+    texture:SetTexture(WHITE)
+    texture:SetTexCoord(0, 1, 0, 1)
+    texture:ClearAllPoints()
+    texture:SetAllPoints()
+    texture:SetGradientAlpha("VERTICAL", face[1], face[2], face[3], 1, face[4], face[5], face[6], 1)
+end
+
+local function StyleButton(button, look)
+    if not button or button.evolutionsStyled then return end
+    button.evolutionsStyled = true
+    local faces = BUTTON_FACES[look or "primary"] or BUTTON_FACES.primary
+    button:SetNormalTexture(WHITE)
+    PaintFace(button:GetNormalTexture(), faces.normal)
+    button:SetPushedTexture(WHITE)
+    PaintFace(button:GetPushedTexture(), faces.pushed)
+    button:SetDisabledTexture(WHITE)
+    PaintFace(button:GetDisabledTexture(), faces.disabled)
+
+    button:SetHighlightTexture(GLOW[1])
+    local light = button:GetHighlightTexture()
+    light:SetTexCoord(GLOW[2], GLOW[3], GLOW[4], GLOW[5])
+    light:SetBlendMode("ADD")
+    light:SetVertexColor(1, 0.78, 0.4, look == "quiet" and 0.35 or 0.5)
+    light:ClearAllPoints()
+    light:SetPoint("TOPLEFT", button, "TOPLEFT", -26, 18)
+    light:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 26, -18)
+
+    local sheen = Fade(button, "OVERLAY", "VERTICAL", 1, 0.95, 0.8, 0, look == "quiet" and 0.06 or 0.16)
+    sheen:SetPoint("TOPLEFT", 1, -1)
+    sheen:SetPoint("BOTTOMRIGHT", button, "RIGHT", -1, 0)
+    local edgeColor = look == "quiet" and BORDER or HEADING
+    button.evolutionsEdges = Edges(button, "OVERLAY")
+    ColorEdges(button.evolutionsEdges, edgeColor[1], edgeColor[2], edgeColor[3], faces.edge)
+
+    local normalFont = look == "quiet" and _G.EvolutionsQuietButtonFont or _G.EvolutionsButtonFont
+    local highlightFont = look == "quiet" and _G.EvolutionsQuietButtonHighlightFont or _G.EvolutionsButtonHighlightFont
+    if normalFont and highlightFont and _G.EvolutionsButtonDisabledFont then
+        button:SetNormalFontObject(normalFont)
+        button:SetHighlightFontObject(highlightFont)
+        button:SetDisabledFontObject(_G.EvolutionsButtonDisabledFont)
+    end
+    local label = button:GetFontString()
+    if label then
+        label:ClearAllPoints()
+        label:SetPoint("CENTER", button, "CENTER", 0, 1)
+    end
+    button:SetPushedTextOffset(0, -1)
+end
+
+-- Some fixed-width stock buttons are too wide for the new look: shrink them to their text, never below minimum
+local function FitButton(button, minimum, padding)
+    local width = (button:GetTextWidth() or 0) + (padding or 36)
+    button:SetWidth(math.max(width, minimum or 0))
+end
+
+-- The look, shared with the other glue screens (OptionsSelect.lua and the options frames)
+EvolutionsGlueStyle = {
+    ART = ART, WHITE = WHITE, FONT_TITLE = FONT_TITLE, FONT_TEXT = FONT_TEXT,
+    GLOW = GLOW, DIVIDER = DIVIDER,
+    HEADING = HEADING, BORDER = BORDER, TEXT = TEXT, MUTED = MUTED,
+    Clamp01 = Clamp01, OutCubic = OutCubic, Approach = Approach,
+    Text = Text, Solid = Solid, Fade = Fade, Piece = Piece, Edges = Edges, ColorEdges = ColorEdges,
+    StyleDialog = StyleDialog, StyleButton = StyleButton, FitButton = FitButton,
+}
+
 function AccountLogin_OnLoad(self)
     InitializeUICache()
     StyleDialog(_G.GlueDialog, _G.GlueDialogBackground)
     StyleDialog(_G.CinematicsFrame, _G.CinematicsBackground)
+    -- The dialogs' buttons: the first one accepts (gold), the others are the quiet choices
+    StyleButton(_G.GlueDialogButton1, "primary")
+    StyleButton(_G.GlueDialogButton2, "quiet")
+    StyleButton(_G.GlueDialogButton3, "quiet")
     -- The stock wrong-account texts send players to Blizzard's old site
     _G.LOGIN_UNKNOWN_ACCOUNT = "Nom de compte ou mot de passe incorrect. Vérifiez l'orthographe et réessayez."
     _G.LOGIN_INCORRECT_PASSWORD = _G.LOGIN_UNKNOWN_ACCOUNT

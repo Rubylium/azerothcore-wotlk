@@ -1,55 +1,45 @@
 <!-- Autora: Noa -->
+<!--
+	Evolutions: the Options menu of the login and character screens, redrawn in the login screen's look (a dark card
+	with a gold hairline over the dimmed screen, gold heading, full-width rows). The look is built by OptionsSelect.lua;
+	every button keeps its original action.
+-->
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 	<Script file="OptionsSelect.lua"/>
 
+	<!-- A row of the menu: no stock art, its title, line and light come from OptionsSelect.lua -->
+	<Button name="EvolutionsOptionsRowTemplate" virtual="true">
+		<Size x="352" y="46"/>
+		<Scripts>
+			<OnEnter>
+				OptionsSelect_RowHover(self, true);
+			</OnEnter>
+			<OnLeave>
+				OptionsSelect_RowHover(self, false);
+			</OnLeave>
+			<OnMouseDown>
+				self.pressed = true;
+			</OnMouseDown>
+			<OnMouseUp>
+				self.pressed = nil;
+			</OnMouseUp>
+		</Scripts>
+	</Button>
+
 	<Frame name="OptionsSelectFrame" toplevel="true" setAllPoints="true" hidden="true" enableMouse="true" enableKeyboard="true" frameStrata="HIGH">
-		<Layers>
-			<Layer level="BACKGROUND">
-				<Texture setAllPoints="true">
-					<Color a="0.75" r="0" g="0" b="0"/>
-				</Texture>
-			</Layer>
-		</Layers>
 		<Frames>
 			<Frame name="$parentBackground">
-				<Size x="360" y="280"/>
+				<Size x="400" y="384"/>
 				<Anchors>
-					<Anchor point="CENTER">
-						<Offset x="0" y="-20"/>
-					</Anchor>
+					<Anchor point="CENTER"/>
 				</Anchors>
-				<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\tooltips\BorderAlert" tile="true">
-					<BackgroundInsets>
-						<AbsInset left="3" right="3" top="3" bottom="3"/>
-					</BackgroundInsets>
-					<TileSize>
-						<AbsValue val="16"/>
-					</TileSize>
-					<EdgeSize>
-						<AbsValue val="16"/>
-					</EdgeSize>
-				</Backdrop>
 				<Layers>
-					<Layer level="ARTWORK">
-						<Texture name="$parentHeader" file="Interface\DialogFrame\UI-DialogBox-Header" hidden="true">
-							<Size>
-								<AbsDimension x="300" y="68"/>
-							</Size>
-							<Anchors>
-								<Anchor point="TOP">
-									<Offset>
-										<AbsDimension x="0" y="12"/>
-									</Offset>
-								</Anchor>
-							</Anchors>
-						</Texture>
+					<Layer level="OVERLAY">
 						<FontString name="$parentHeaderText" inherits="GlueFontNormal" text="OPTIONS">
 							<Anchors>
-								<Anchor point="TOP" relativeTo="$parentHeader">
-									<Offset>
-										<AbsDimension x="0" y="-20"/>
-									</Offset>
+								<Anchor point="TOP">
+									<Offset x="0" y="-22"/>
 								</Anchor>
 							</Anchors>
 						</FontString>
@@ -59,20 +49,16 @@
 					<Frame name="$parentContainer">
 						<Anchors>
 							<Anchor point="TOPLEFT">
-								<Offset x="12" y="-36"/>
+								<Offset x="24" y="-76"/>
 							</Anchor>
 							<Anchor point="BOTTOMRIGHT">
-								<Offset x="-16" y="50"/>
+								<Offset x="-24" y="84"/>
 							</Anchor>
 						</Anchors>
-						
 						<Frames>
-							<Button name="$parentVideoOptionsButton" inherits="GlueButtonTemplateBlue" text="VIDEOOPTIONS_MENU">
-								<Size x="220" y="45"/>
+							<Button name="$parentVideoOptionsButton" inherits="EvolutionsOptionsRowTemplate">
 								<Anchors>
-									<Anchor point="TOP">
-										<Offset x="0" y="-10"/>
-									</Anchor>
+									<Anchor point="TOP"/>
 								</Anchors>
 								<Scripts>
 									<OnClick>
@@ -82,11 +68,10 @@
 									</OnClick>
 								</Scripts>
 							</Button>
-							<Button name="$parentAudioOptionsButton" inherits="GlueButtonTemplateBlue" text="SOUNDOPTIONS_MENU">
-								<Size x="220" y="45"/>
+							<Button name="$parentAudioOptionsButton" inherits="EvolutionsOptionsRowTemplate">
 								<Anchors>
 									<Anchor point="TOP" relativeTo="$parentVideoOptionsButton" relativePoint="BOTTOM">
-										<Offset x="0" y="10"/>
+										<Offset x="0" y="-8"/>
 									</Anchor>
 								</Anchors>
 								<Scripts>
@@ -97,25 +82,24 @@
 									</OnClick>
 								</Scripts>
 							</Button>
-							<Button name="$parentTrailersButton" inherits="GlueButtonTemplateBlue" text="CINEMATICS_MENU">
-    							<Size x="220" y="45"/>
-    							<Anchors>
-        							<Anchor point="TOP" relativeTo="$parentAudioOptionsButton" relativePoint="BOTTOM">
-            							<Offset x="0" y="10"/>
-        							</Anchor>
-    							</Anchors>
-    							<Scripts>
-        							<OnClick>
-            							PlaySound("igMainMenuOption");
-            							MovieList_Show();
-        							</OnClick>
-    							</Scripts>
+							<Button name="$parentTrailersButton" inherits="EvolutionsOptionsRowTemplate">
+								<Anchors>
+									<Anchor point="TOP" relativeTo="$parentAudioOptionsButton" relativePoint="BOTTOM">
+										<Offset x="0" y="-8"/>
+									</Anchor>
+								</Anchors>
+								<Scripts>
+									<OnClick>
+										PlaySound("igMainMenuOption");
+										MovieList_Show();
+									</OnClick>
+								</Scripts>
 							</Button>
-							<Button name="$parentRealmResetOptionsButton" inherits="GlueButtonTemplateBlue" text="RESET_REALM_EXIT">
-								<Size x="220" y="45"/>
+							<!-- The one action that cannot be taken back: set apart below a hairline, in a muted red -->
+							<Button name="$parentRealmResetOptionsButton" inherits="EvolutionsOptionsRowTemplate">
 								<Anchors>
 									<Anchor point="TOP" relativeTo="$parentTrailersButton" relativePoint="BOTTOM">
-										<Offset x="0" y="10"/>
+										<Offset x="0" y="-25"/>
 									</Anchor>
 								</Anchors>
 								<Scripts>
@@ -123,32 +107,46 @@
 										PlaySound("igMainMenuOption");
 										AccountLogin_RealmReset();
 									</OnClick>
-									<OnShow>
-										OptionsSelectFrame_OnShow();
-									</OnShow>
 								</Scripts>
 							</Button>
-							
 						</Frames>
 					</Frame>
-					<Button name="OptionsSelectResetSettingsButton" inherits="GlueButtonSmallTemplateBlue" text="RESET_SETTINGS">
-						<Size x="220" y="38"/>
+					<!-- The user options reset (a toggle: GlueDialog.lua switches it to "cancel the reset" and back),
+					     a quiet link at the bottom left -->
+					<Button name="OptionsSelectResetSettingsButton" text="RESET_SETTINGS">
+						<Size x="220" y="24"/>
 						<Anchors>
 							<Anchor point="BOTTOMLEFT">
-								<Offset x="8" y="6"/>
+								<Offset x="22" y="24"/>
 							</Anchor>
 						</Anchors>
 						<Scripts>
 							<OnClick>
 								OptionsSelectResetSettingsButton_OnClick_Reset(self);
 							</OnClick>
+							<OnEnter>
+								OptionsSelect_RowHover(self, true);
+							</OnEnter>
+							<OnLeave>
+								OptionsSelect_RowHover(self, false);
+							</OnLeave>
 						</Scripts>
+						<ButtonText name="$parentText" justifyH="LEFT">
+							<Anchors>
+								<Anchor point="LEFT">
+									<Offset x="2" y="0"/>
+								</Anchor>
+							</Anchors>
+						</ButtonText>
+						<NormalFont style="EvolutionsLoginLinkFont"/>
+						<HighlightFont style="EvolutionsLoginLinkHighlightFont"/>
+						<DisabledFont style="EvolutionsLoginLinkDisabledFont"/>
 					</Button>
 					<Button name="$parentOkayButton" inherits="GlueButtonSmallTemplateBlue" text="CLOSE">
-						<Size x="125" y="38"/>
+						<Size x="116" y="32"/>
 						<Anchors>
 							<Anchor point="BOTTOMRIGHT">
-								<Offset x="-8" y="6"/>
+								<Offset x="-24" y="20"/>
 							</Anchor>
 						</Anchors>
 						<Scripts>
@@ -161,6 +159,15 @@
 			</Frame>
 		</Frames>
 		<Scripts>
+			<OnLoad>
+				OptionsSelectFrame_OnLoad(self);
+			</OnLoad>
+			<OnShow>
+				OptionsSelectFrame_OnShow(self);
+			</OnShow>
+			<OnUpdate>
+				OptionsSelectFrame_OnUpdate(self, elapsed);
+			</OnUpdate>
 			<OnKeyDown>
 				if ( key == "ESCAPE" ) then
 					OptionsSelectFrame_Hide();
