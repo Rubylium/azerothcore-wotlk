@@ -180,5 +180,5 @@ BotCatchUp.TargetShare = 0.75
 BotCatchUp.MaxMultiplier = 3.0
 
 # Class ids, comma separated, whose bots never get it: their AI was reworked
-# (4 rogue, 6 Death Knight, 8 mage, 10 Oathblade).
-BotCatchUp.ExcludedClasses = "4,6,8,10"
+# (2 Paladin, 4 rogue, 6 Death Knight, 8 mage, 10 Oathblade).
+BotCatchUp.ExcludedClasses = "2,4,6,8,10"

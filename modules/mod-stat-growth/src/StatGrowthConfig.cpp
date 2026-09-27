@@ -123,5 +123,5 @@ void StatGrowthConfig::BuildConfigCache()
     SetConfigValue<float>(StatGrowthConfigKey::BotCatchUpMaxMultiplier, "BotCatchUp.MaxMultiplier", 3.0f,
         Reloadable::Yes, [](float value) { return value >= 1.0f && value <= 3.0f; }, "1 through 3");
     SetConfigValue<std::string>(StatGrowthConfigKey::BotCatchUpExcludedClasses, "BotCatchUp.ExcludedClasses",
-        "4,6,8,10");
+        "2,4,6,8,10");
 }

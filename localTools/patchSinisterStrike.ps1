@@ -860,6 +860,10 @@ $customSpells += & ([ScriptBlock]::Create($rogueSpellSource))
 # talent ranks
 $deathKnightSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\deathknight\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($deathKnightSpellSource))
+# The Paladin on its retail-style talent trees (localTools/paladin/talentTree.json): Holy Power, abilities, auras and
+# talent ranks
+$paladinSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\paladin\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($paladinSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))

@@ -72,6 +72,12 @@
       "token": "DEATHKNIGHT",
       "family": 15,
       "talentTree": "localTools/deathknight/talentTree.json"
+    },
+    {
+      "id": 2,
+      "token": "PALADIN",
+      "family": 10,
+      "talentTree": "localTools/paladin/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {
