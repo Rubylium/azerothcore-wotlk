@@ -2033,9 +2033,9 @@ public:
         uint32 const bonus = run->chestFloor / 50;
         uint32 const essences = GrantEssenceRewards(player, CheckpointEssences + bonus, 1 + run->chestFloor / 30);
         uint32 paragon = 0;
-        if (IsAtLevelCap(player))
+        if (IsAtLevelCap(player) && run->chestFloor % (CheckpointFloors * CheckpointParagonEvery) == 0)
         {
-            paragon = CheckpointParagonPoints + bonus;
+            paragon = CheckpointParagonPoints;
             AwardParagonPoints(player, paragon, IsFrench(player) ? "Donjon infini" : "Infinite Dungeon");
         }
         member->essences += essences;
