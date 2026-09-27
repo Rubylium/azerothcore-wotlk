@@ -47,7 +47,7 @@ INSERT INTO `creature`
      `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`,
      `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`)
 VALUES
-    (9000300, 920000, 0, 0, 0, 1, 1, 0, -8820.380, 624.320, 93.833, 3.3992, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', NULL, 0,
+    (9000300, 920000, 0, 0, 0, 1, 1, 0, -8819.977, 606.050, 98.420, 1.0058, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', NULL, 0,
      'Infinite Dungeon keeper - Stormwind'),
     (9000301, 920000, 0, 0, 0, 1, 1, 0, -4798.600, -1104.150, 498.820, 5.3880, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', NULL,
      0, 'Infinite Dungeon keeper - Ironforge'),

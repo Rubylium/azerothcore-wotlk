@@ -1612,7 +1612,7 @@ end)
 -- Forest and Northrend.
 
 local KEEPERS = {
-    { map = 0, x = -8820.38, y = 624.32, maps = { Stormwind = true, Elwynn = true } },
+    { map = 0, x = -8819.98, y = 606.05, maps = { Stormwind = true, Elwynn = true } },
     { map = 0, x = -4798.60, y = -1104.15, maps = { Ironforge = true, DunMorogh = true } },
     { map = 1, x = 9940.17, y = 2514.60, maps = { Darnassis = true, Teldrassil = true } },
     { map = 530, x = -3919.57, y = -11549.66, maps = { TheExodar = true, AzuremystIsle = true } },
