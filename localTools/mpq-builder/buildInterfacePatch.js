@@ -45,6 +45,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'ItemForge.lua',
     // The Infinite Dungeon's panel, banner and map pins (mod-stat-growth); needs DungeonTracker.lua
     'InfiniteDungeon.lua',
+    // Eternia's window, the portal's choice and the leave confirmation; needs InfiniteDungeon.lua (InfiniteDungeonUI)
+    'InfiniteDungeonKeeper.lua',
     // Loads after the CompactRaidFrame addon has run: it wraps that addon's UnitGetTotalAbsorbs
     'PestifereShield.lua',
     // Tags Mythic+ loot in its tooltip; needs GameTooltip, so it loads at the end of FrameXML

@@ -19,7 +19,9 @@
 --           SUMMARY <ladder> <start> <floor> <cleared> <best> <checkpoint> <gold> <experience> <essences> <items>
 --                   <paragon>                                                   before END
 --           END <reason> <floor>              reason: 0 left, 1 everyone fell, 2 never arrived
+--           PORTAL, PORTALOFF, KEEPER, KEEPDUO, KEEPREC, KEEPEND, KEEPER_CLOSE: InfiniteDungeonKeeper.lua
 --   client  STATE                              asks for the tracker again (entering the world)
+--           KEEPER_GO, KEEPER_REFRESH, KEEPER_CLOSED, PORTAL_DESCEND, RUN_LEAVE: InfiniteDungeonKeeper.lua
 -- ladder: 0 levelling, 1 gearing (level 80, in steps of five floors with a recommended paragon).
 -- state: 0 on the way, 1 in the bubble, 2 fighting, 3 cleared, 4 fallen (InfiniteDungeonSystem.cpp FloorState).
 -- partner state: 0 none, 1 alive on the floor, 2 dead, 3 not on the floor.
@@ -116,6 +118,8 @@ local TEXT = french and {
     mapKeeper = "Eternia, gardienne du Donjon infini",
     mapHint = "Dès le niveau 15, seul ou avec un partenaire de groupe",
     mapHint2 = "Chaque étage : quelques ennemis, un gardien, un portail vers le bas",
+    leave = "Quitter le donjon",
+    portalHint = "Cliquez pour rouvrir le choix du portail",
 } or {
     title = "Infinite Dungeon",
     kicker = "INFINITE DUNGEON",
@@ -173,6 +177,8 @@ local TEXT = french and {
     mapKeeper = "Eternia, keeper of the Infinite Dungeon",
     mapHint = "From level 15, alone or with a group partner",
     mapHint2 = "Each floor: a few foes, a guardian, a portal further down",
+    leave = "Leave the dungeon",
+    portalHint = "Click to open the portal's choice again",
 }
 
 local function Send(body)
@@ -369,6 +375,7 @@ local function Bar(parent, width, segments)
     end
 
     bar.value = 0
+    bar.segments = segments or 1
     function bar:SetValue(value, animate)
         value = max(0, min(1, value or 0))
         local from = self.value
@@ -392,12 +399,28 @@ local function Bar(parent, width, segments)
     return bar
 end
 
+-- The pieces above, for the keeper's window and the portal's choice (InfiniteDungeonKeeper.lua), which also takes
+-- the messages this file does not know (handlers) and hears of the tracker's state (onHud, onEnd)
+InfiniteDungeonUI = {
+    french = french, Send = Send, SetShown = SetShown, SetAtlas = SetAtlas, Colored = Colored, Rotate = Rotate,
+    RotateAtlas = RotateAtlas, Tween = Tween, OutCubic = OutCubic, Card = Card, FramedIcon = FramedIcon,
+    Divider = Divider, Label = Label, Heading = Heading, Bar = Bar, Thousands = Thousands,
+    ART = ART, MORPHEUS = MORPHEUS, SOUND = SOUND, GEAR_ICON = GEAR_ICON, PARAGON_ICON = PARAGON_ICON,
+    EXPERIENCE_ICON = EXPERIENCE_ICON, ESSENCE_ICON = ESSENCE_ICON,
+    CHECKPOINT_FLOORS = CHECKPOINT_FLOORS, GEAR_FLOORS = GEAR_FLOORS, LADDER_GEARING = LADDER_GEARING,
+    STATE_CLEARED = STATE_CLEARED, STATE_FALLEN = STATE_FALLEN,
+    HEADING = HEADING, GOLD = GOLD, BORDER = BORDER, ICON_BORDER = ICON_BORDER, PARCHMENT = PARCHMENT, SOFT = SOFT,
+    MUTED = MUTED, AMBER = AMBER, EMBER = EMBER, PARAGON_PURPLE = PARAGON_PURPLE,
+    handlers = {},
+}
+
 -- What the server last said -----------------------------------------------------------------------------------------
 
 local hud = { floor = 1, checkpoint = 0, ladder = 0, step = 0, paragon = 0, state = STATE_TRAVELLING, arena = "",
     level = 0, players = 1, best = 0 }
 local progress = { foesDown = 0, foes = 0, bossDown = false, hearts = 0, heartsTaken = 0, deaths = 0, partner = "",
     partnerState = PARTNER_NONE }
+InfiniteDungeonUI.hud = hud
 local chestOpenedOn = 0     -- the floor whose chest was opened
 local pendingReward         -- the floor's REWARD, shown by its CLEAR
 local pendingSummary        -- the run's SUMMARY, shown by its END
@@ -619,8 +642,55 @@ local function CreateTracker()
     partner.text:SetPoint("RIGHT", partner, "RIGHT", -12, 0)
     tracker.partner = partner
 
+    -- Out of the dungeon at any time, after a confirmation (InfiniteDungeonKeeper.lua)
+    local leave = Row(30)
+    local leaveButton = CreateFrame("Button", nil, leave)
+    leaveButton:SetSize(150, 20)
+    leaveButton:SetPoint("CENTER", leave, "CENTER", 0, -2)
+    leaveButton:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    leaveButton:SetBackdropColor(0.04, 0.03, 0.02, 0.9)
+    leaveButton:SetBackdropBorderColor(BORDER[1], BORDER[2], BORDER[3], 0.8)
+    local leaveText = Label(leaveButton, "GameFontNormalSmall", SOFT, "CENTER")
+    leaveText:SetPoint("CENTER", leaveButton, "CENTER", 0, 0)
+    leaveText:SetText(TEXT.leave)
+    local leaveGlow = leaveButton:CreateTexture(nil, "HIGHLIGHT")
+    leaveGlow:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    leaveGlow:SetBlendMode("ADD")
+    leaveGlow:SetPoint("TOPLEFT", 3, -3)
+    leaveGlow:SetPoint("BOTTOMRIGHT", -3, 3)
+    leaveGlow:SetAlpha(0.35)
+    leaveButton:SetScript("OnEnter", function() leaveText:SetTextColor(GOLD[1], GOLD[2], GOLD[3]) end)
+    leaveButton:SetScript("OnLeave", function() leaveText:SetTextColor(SOFT[1], SOFT[2], SOFT[3]) end)
+    leaveButton:SetScript("OnClick", function()
+        PlaySound("igMainMenuOptionCheckBoxOn")
+        if InfiniteDungeonUI.ConfirmLeave then
+            InfiniteDungeonUI.ConfirmLeave()
+        end
+    end)
+    tracker.leave = leave
+
+    -- The portal's line opens its choice again (after Escape, say)
+    local portalRow = tracker.portal
+    portalRow:EnableMouse(true)
+    portalRow:SetScript("OnMouseUp", function()
+        if InfiniteDungeonUI.ReopenPortal then
+            InfiniteDungeonUI.ReopenPortal()
+        end
+    end)
+    portalRow:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(TEXT.portalHint, SOFT[1], SOFT[2], SOFT[3])
+        GameTooltip:Show()
+    end)
+    portalRow:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     tracker.order = { header, arena, step, status, tracker.divider1, tracker.foes, tracker.boss, tracker.portal,
-        tracker.chest, tracker.divider2, barLabel, barRow, gear, tracker.divider3, footer, partner }
+        tracker.chest, tracker.divider2, barLabel, barRow, gear, tracker.divider3, footer, partner, leave }
     -- Folded: the header, what to do now and the bar
     tracker.folded = { [header] = true, [status] = true, [barRow] = true }
 
@@ -805,6 +875,8 @@ local function RefreshTracker(animate)
         partner.text:SetText(Colored(progress.partner, PARCHMENT) .. "  " .. Colored(stateText, stateColor))
         partner.dot:SetVertexColor(stateColor[1], stateColor[2], stateColor[3], 1)
     end
+
+    tracker.leave.wanted = hud.state ~= STATE_FALLEN
 
     LayoutTracker(animate)
 end
@@ -1359,6 +1431,9 @@ local function Handle(message)
         local fresh = not (tracker and tracker:IsShown())
         SetTrackerShown(true)
         RefreshTracker(not fresh)
+        if InfiniteDungeonUI.onHud then
+            InfiniteDungeonUI.onHud(hud.state)
+        end
     elseif kind == "PROG" then
         local previousDeaths = progress.deaths
         progress.foesDown = Number(a)
@@ -1390,6 +1465,9 @@ local function Handle(message)
             items = Number(j), paragon = Number(k), at = GetTime() }
     elseif kind == "END" then
         SetTrackerShown(false)
+        if InfiniteDungeonUI.onEnd then
+            InfiniteDungeonUI.onEnd()
+        end
         local reason = Number(a)
         if pendingSummary and GetTime() - pendingSummary.at < 10 and Number(b) > 0 and
                 (reason == REASON_LEFT or reason == REASON_FALLEN) then
@@ -1397,6 +1475,9 @@ local function Handle(message)
         end
         pendingSummary = nil
         pendingReward = nil
+    elseif InfiniteDungeonUI.handlers[kind] then
+        -- The keeper's window and the portal's choice (InfiniteDungeonKeeper.lua)
+        InfiniteDungeonUI.handlers[kind](select(2, strsplit("\t", message)))
     end
 end
 

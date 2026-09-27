@@ -74,6 +74,7 @@ using ArenaInfo = InfiniteDungeon::Arena;
 constexpr std::string_view Prefix = "Infinite";
 
 // The keeper is 920000 (npc_infinite_dungeon_keeper); the floor creatures (stat_growth_infinite_dungeon_creatures.sql)
+constexpr uint32 KeeperEntry = 920000;
 constexpr uint32 FirstFloorCreature = 920010;
 constexpr uint32 LastFloorCreature = 920299;
 // The ground indicators' invisible stalker (GroundIndicators.cpp): the floor's summoner, and the bubble's ring when it
@@ -84,8 +85,6 @@ constexpr uint32 GO_PORTAL = 920100;
 constexpr uint32 GO_HEART = 920101;
 constexpr uint32 GO_CHEST = 920102;
 constexpr uint32 GO_PORTAL_LIGHT = 920103;
-constexpr uint32 NPC_TEXT_KEEPER = 920000;
-constexpr uint32 NPC_TEXT_PORTAL = 920001;
 
 // Spells the telegraphed abilities are named as in the combat log, by the look of their area
 constexpr uint32 SPELL_LOG_PHYSICAL = 845;      // Cleave
@@ -99,6 +98,16 @@ constexpr uint32 SPELL_LOG_HOLY = 26573;        // Consecration
 constexpr float BubbleRadius = 6.0f;
 constexpr float HeartPickupRange = 2.0f;
 constexpr float PartnerRange = 40.0f;
+// The keeper's window (KEEPER) closes past this, and its requests are refused from further
+constexpr float KeeperRange = 12.0f;
+constexpr uint32 KeeperCheckMs = 500;
+// The portal is walked into: within this of its centre the choice opens (PORTAL), and again once the player went
+// further than the second distance; the answer is taken from the third
+constexpr float PortalEnterRange = 3.5f;
+constexpr float PortalRearmRange = 6.0f;
+constexpr float PortalUseRange = 12.0f;
+constexpr uint32 RecordsCacheMs = 60 * IN_MILLISECONDS;
+constexpr std::size_t RecordsShown = 10;
 // The portal stands this far off the boss spot, and at least this far from the guardian's body; the checkpoint chest
 // this far beside it
 constexpr float PortalOffset = 7.0f;
@@ -144,20 +153,21 @@ enum class EndReason : uint8
     Lost = 2        // nobody reached the floor
 };
 
-enum KeeperAction : uint32
+// What the keeper's window asks for (KEEPER_GO)
+enum class KeeperAction : uint8
 {
-    ACTION_CONTINUE = 1,
-    ACTION_RESTART,
-    ACTION_CONTINUE_DUO,
-    ACTION_RESTART_DUO,
-    ACTION_RECORDS,
-    ACTION_LEADERBOARD
+    Continue,
+    Restart,
+    ContinueDuo,
+    RestartDuo
 };
 
-enum PortalAction : uint32
+// Why a duo cannot start, as the keeper's window shows it (KEEPDUO)
+enum class DuoState : uint8
 {
-    ACTION_DESCEND = 1,
-    ACTION_LEAVE
+    None = 0,       // no player in the group
+    Ready = 1,
+    Blocked = 2     // a partner, who cannot come now
 };
 
 // A character's progress on both ladders
@@ -182,6 +192,8 @@ struct Member
     uint32 paragon = 0;
     // The last PROG line it was sent: a line is only sent again when it changes
     std::string lastProgress;
+    // It stepped into the portal and was asked (PORTAL); asked again once it stepped away
+    bool portalPrompted = false;
 };
 
 struct Run
@@ -211,6 +223,7 @@ struct Run
     std::set<ObjectGuid> fallen;
     std::set<ObjectGuid> deadMembers;   // members dead right now, to count each fall once
     std::vector<ObjectGuid> hearts;
+    std::optional<Position> portal; // where the way down opened, once cleared
     float healthFactor = 1.0f;      // the roles' and the floor's
     float damageFactor = 1.0f;
     float referenceHealth = 1.0f;
@@ -224,6 +237,23 @@ struct HomeData : public DataMap::Base
     uint32 nextCheckMs = 0;
 };
 constexpr char const* HomeKey = "InfiniteDungeonHome";
+
+// The keeper whose window a player has open: the window closes when the player walks away (KEEPER_CLOSE), and its
+// requests are only taken near that keeper
+struct KeeperData : public DataMap::Base
+{
+    ObjectGuid keeper;
+    uint32 nextCheckMs = 0;
+};
+constexpr char const* KeeperKey = "InfiniteDungeonKeeper";
+
+// The deepest floor at the level cap per class, read again at most once a minute
+struct Record
+{
+    uint8 classId;
+    std::string name;
+    uint32 floor;
+};
 
 // What a floor creature is and what its abilities hit for
 struct FloorCreature : public DataMap::Base
@@ -248,6 +278,9 @@ std::unordered_map<ObjectGuid::LowType, Progress> ProgressByGuid;
 std::vector<PendingReset> PendingResets;
 std::atomic<uint32> ActiveRuns{ 0 };
 uint32 NextRunId = 0;
+std::vector<Record> RecordsCache;
+uint64 RecordsReadAt = 0;
+bool RecordsRead = false;
 
 // The creature being spawned for a floor: its level and scaling are set as it is created (the level hooks below)
 struct SpawnContext
@@ -466,7 +499,23 @@ uint32 LastCheckpoint(uint32 floor)
 //   SUMMARY <ladder> <start floor> <floor> <floors cleared> <best> <checkpoint> <gold> <experience> <essences>
 //           <items> <paragon>                                             the run is over for it, before END
 //   END <reason> <floor>
-// and from the client: STATE (entering the world: the panel again, or END 0 0 out of a run)
+//   PORTAL <next floor> <ladder> <step> <paragon> <gear floor 0/1> <checkpoint floor 0/1> <chest unopened 0/1>
+//          <players>                                                      stepped into the portal: the choice
+//   PORTALOFF                                                             stepped out of it, or the choice is gone
+//   KEEPER <ladder> <level> <checkpoint> <best> <checkpoint at 80> <best at 80> <start floor> <step> <paragon>
+//          <item level> <can start 0/1> <why not>                         the keeper's window, then:
+//   KEEPDUO <state> <partner> <partner class> <partner checkpoint> <ladder> <start floor> <why not>
+//           state: 0 nobody in the group, 1 ready, 2 the partner cannot come now
+//   KEEPREC <class> <name> <floor>                                        one per class, deepest at the cap first
+//   KEEPEND                                                               shows the window
+//   KEEPER_CLOSE                                                          walked away from the keeper, or went down
+// and from the client:
+//   STATE                  entering the world: the panel again, or END 0 0 out of a run
+//   KEEPER_GO <mode>       mode: solo, restart, duo, duorestart (restart: from floor 1, the checkpoint stays)
+//   KEEPER_REFRESH         the window again (the group changed)
+//   KEEPER_CLOSED          the window was closed
+//   PORTAL_DESCEND         the portal's choice: down
+//   RUN_LEAVE              the portal's choice or the tracker's button: out of the dungeon (alone in a duo)
 // HUD floor checkpoint ladder step paragon state arena level players best
 void SendHud(Player* player, Run const& run)
 {
@@ -1011,6 +1060,7 @@ void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
     if (Creature* anchor = map->GetCreature(run.anchor))
     {
         Position const portal = PortalSpot(run, map, anchor);
+        run.portal = portal;
         Position const entry = SpotPosition(ArenaOf(run).entry);
         float const facing = portal.GetAbsoluteAngle(&entry);
         anchor->SummonGameObject(GO_PORTAL, portal.GetPositionX(), portal.GetPositionY(), portal.GetPositionZ(),
@@ -1187,11 +1237,13 @@ void BeginFloor(Run& run, uint32 floor, Map const* from)
     run.fallen.clear();
     run.deadMembers.clear();
     run.hearts.clear();
+    run.portal.reset();
     run.usedMaps.insert(target.mapId);
     for (Member& member : run.members)
     {
         member.chestClaimed = false;
         member.lastProgress.clear();
+        member.portalPrompted = false;
     }
 
     for (Member const& member : run.members)
@@ -1273,19 +1325,6 @@ std::string StartBlock(Player* player)
             return Text(player, "Leave your Dungeon Finder, Raid Finder or Mythic+ group first.",
                 "Quittez d'abord votre groupe de donjon, de raid ou de Mythique+.");
     return {};
-}
-
-// The group partner a duo run can be started with: a real player of the group standing near
-Player* FindPartner(Player* player)
-{
-    Group* group = player->GetGroup();
-    if (!group)
-        return nullptr;
-    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-        if (Player* member = ref->GetSource(); member && member != player && !member->GetSession()->IsBot() &&
-            member->IsInMap(player) && member->IsWithinDistInMap(player, PartnerRange))
-            return member;
-    return nullptr;
 }
 
 Ladder LadderFor(std::vector<Player*> const& players)
@@ -1415,6 +1454,50 @@ void CountDeaths(Run& run, std::vector<Player*> const& present)
     }
 }
 
+// PORTAL next ladder step paragon gear checkpoint chest players: the portal's choice (InfiniteDungeon.lua)
+void SendPortalChoice(Player* player, Run const& run, Member const& member)
+{
+    uint32 const next = run.floor + 1;
+    bool const chestWaiting = run.floor % CheckpointFloors == 0 && !member.chestClaimed;
+    SendAddon(player, Acore::StringFormat("PORTAL\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", next,
+        static_cast<uint32>(run.ladder), GetStep(next), GetRecommendedParagon(run.ladder, next),
+        next % GearFloors == 0 ? 1 : 0, next % CheckpointFloors == 0 ? 1 : 0, chestWaiting ? 1 : 0,
+        run.members.size()));
+}
+
+bool NearPortal(Run const& run, Player const* player, float range)
+{
+    return run.portal && player->GetExactDist2d(&*run.portal) <= range &&
+        std::fabs(player->GetPositionZ() - run.portal->GetPositionZ()) < 5.0f;
+}
+
+// The portal is walked into: a living member stepping into it is asked whether to go down or leave (the client's
+// choice, PORTAL); stepping out of it takes the question away
+void CheckPortal(Run& run, std::vector<Player*> const& present)
+{
+    if (!run.portal)
+        return;
+    for (Player* player : present)
+    {
+        Member* member = MemberOf(run, player->GetGUID());
+        if (!member)
+            continue;
+        if (!member->portalPrompted)
+        {
+            if (player->IsAlive() && NearPortal(run, player, PortalEnterRange))
+            {
+                member->portalPrompted = true;
+                SendPortalChoice(player, run, *member);
+            }
+        }
+        else if (!NearPortal(run, player, PortalRearmRange))
+        {
+            member->portalPrompted = false;
+            SendAddon(player, "PORTALOFF");
+        }
+    }
+}
+
 // The floor's life, from its map's update. Returns false once the run is gone.
 bool UpdateRun(Run& run, Map* map, uint32 diff)
 {
@@ -1461,6 +1544,8 @@ bool UpdateRun(Run& run, Map* map, uint32 diff)
                 if (!run.boss.IsEmpty() && (!boss || !boss->IsAlive()))
                     OnFloorCleared(run, map, present);
             }
+            if (run.state == FloorState::Cleared)
+                CheckPortal(run, present);
 
             CountDeaths(run, present);
             // When the last living player dies, the run ends
@@ -1531,20 +1616,21 @@ void ShowRecords(Player* player)
     }
 }
 
-// The deepest floor at the level cap, per class
-void ShowLeaderboard(Player* player)
+// The deepest floor at the level cap, per class: read at most once a minute
+std::vector<Record> const& Records()
 {
-    bool const french = IsFrench(player);
-    Say(player, french ? "Donjon infini - le plus profond au niveau 80, par classe :" :
-        "Infinite Dungeon - deepest at level 80, by class:");
+    uint64 const now = NowMs();
+    if (RecordsRead && now - RecordsReadAt < RecordsCacheMs)
+        return RecordsCache;
+    RecordsRead = true;
+    RecordsReadAt = now;
+    RecordsCache.clear();
+
     QueryResult result = CharacterDatabase.Query(
         "SELECT d.class, c.name, d.best_max FROM character_infinite_dungeon d JOIN characters c ON c.guid = d.guid "
         "WHERE d.best_max > 0 ORDER BY d.best_max DESC LIMIT 500");
     if (!result)
-    {
-        Say(player, french ? "  Personne encore." : "  Nobody yet.");
-        return;
-    }
+        return RecordsCache;
 
     std::set<uint8> shown;
     do
@@ -1553,12 +1639,194 @@ void ShowLeaderboard(Player* player)
         uint8 const classId = fields[0].Get<uint8>();
         if (!shown.insert(classId).second)
             continue;
-        ChrClassesEntry const* classEntry = sChrClassesStore.LookupEntry(classId);
-        std::string const className = classEntry ?
-            classEntry->name[player->GetSession()->GetSessionDbcLocale()] : std::to_string(classId);
-        Say(player, Acore::StringFormat("  {} : {} ({} {})", className, fields[1].Get<std::string>(),
-            french ? "étage" : "floor", fields[2].Get<uint32>()));
-    } while (result->NextRow());
+        RecordsCache.push_back({ classId, fields[1].Get<std::string>(), fields[2].Get<uint32>() });
+    } while (RecordsCache.size() < RecordsShown && result->NextRow());
+    return RecordsCache;
+}
+
+// Text sent to the client as one field: a tab would break the message
+std::string Clean(std::string text)
+{
+    std::replace(text.begin(), text.end(), '\t', ' ');
+    return text;
+}
+
+// Who a duo run would take, or why there is none (the keeper's window shows both)
+struct DuoInfo
+{
+    DuoState state = DuoState::None;
+    Player* partner = nullptr;      // the one to go down with (Ready), or the one who cannot come now (Blocked)
+    std::string reason;
+};
+
+// The partner is a real player of the group standing near (being there with the group is the consent). The one
+// named when nobody qualifies is the first such player, the nearest first.
+DuoInfo ResolveDuo(Player* player)
+{
+    DuoInfo info;
+    Player* named = nullptr;
+    if (Group* group = player->GetGroup())
+    {
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (!member || member == player || !member->GetSession() || member->GetSession()->IsBot())
+                continue;
+            if (member->IsInMap(player) && member->IsWithinDistInMap(player, PartnerRange))
+            {
+                named = member;
+                break;
+            }
+            if (!named)
+                named = member;
+        }
+    }
+
+    bool const french = IsFrench(player);
+    if (!named)
+    {
+        info.reason = french ? "Invitez un joueur dans votre groupe pour descendre à deux (les compagnons restent "
+            "dehors)." : "Invite a player into your group to go down as two (companions stay outside).";
+        return info;
+    }
+
+    info.partner = named;
+    info.state = DuoState::Blocked;
+    std::string const name = named->GetName();
+    if (!named->IsInMap(player) || !named->IsWithinDistInMap(player, PartnerRange))
+        info.reason = french ? Acore::StringFormat("{} doit se tenir près de vous.", name) :
+            Acore::StringFormat("{} must stand with you.", name);
+    else if (named->GetLevel() < MinPlayerLevel)
+        info.reason = french ? Acore::StringFormat("{} doit être au moins de niveau {}.", name, MinPlayerLevel) :
+            Acore::StringFormat("{} must be level {} or higher.", name, MinPlayerLevel);
+    else if (!named->IsAlive() || named->IsInCombat() || named->IsBeingTeleported())
+        info.reason = french ? Acore::StringFormat("{} doit être en vie et hors combat.", name) :
+            Acore::StringFormat("{} must be alive and out of combat.", name);
+    else if (RunOf(named->GetGUID()))
+        info.reason = french ? Acore::StringFormat("{} est déjà dans une descente.", name) :
+            Acore::StringFormat("{} is already in a run.", name);
+    else if (std::string const block = StartBlock(named); !block.empty())
+        info.reason = french ? Acore::StringFormat("{} ne peut pas entrer maintenant.", name) :
+            Acore::StringFormat("{} cannot enter now.", name);
+    else
+    {
+        info.state = DuoState::Ready;
+        info.reason.clear();
+    }
+    return info;
+}
+
+// The keeper's window: the ladder the character climbs, both ladders' progress, the next descent, the duo and the
+// records (KEEPER, KEEPDUO, KEEPREC..., KEEPEND)
+void SendKeeper(Player* player)
+{
+    std::vector<Player*> const solo = { player };
+    Ladder const ladder = LadderFor(solo);
+    uint32 const start = StartFloor(solo, ladder);
+    Progress const& progress = ProgressOf(player);
+    std::string const block = StartBlock(player);
+    SendAddon(player, Acore::StringFormat("KEEPER\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+        static_cast<uint32>(ladder), player->GetLevel(), progress.checkpoint[0], progress.best[0],
+        progress.checkpoint[1], progress.best[1], start, GetStep(start), GetRecommendedParagon(ladder, start),
+        ladder == Ladder::Gearing ? GetItemLevel(start) : 0, block.empty() ? 1 : 0, Clean(block)));
+
+    DuoInfo const duo = ResolveDuo(player);
+    std::string partnerName;
+    uint32 partnerClass = 0;
+    uint32 partnerCheckpoint = 0;
+    uint32 duoStart = 0;
+    Ladder duoLadder = ladder;
+    if (duo.partner)
+    {
+        std::vector<Player*> const pair = { player, duo.partner };
+        duoLadder = LadderFor(pair);
+        duoStart = StartFloor(pair, duoLadder);
+        partnerName = duo.partner->GetName();
+        partnerClass = duo.partner->getClass();
+        partnerCheckpoint = ProgressOf(duo.partner).checkpoint[static_cast<std::size_t>(duoLadder)];
+    }
+    SendAddon(player, Acore::StringFormat("KEEPDUO\t{}\t{}\t{}\t{}\t{}\t{}\t{}", static_cast<uint32>(duo.state),
+        partnerName, partnerClass, partnerCheckpoint, static_cast<uint32>(duoLadder), duoStart, Clean(duo.reason)));
+
+    for (Record const& record : Records())
+        SendAddon(player, Acore::StringFormat("KEEPREC\t{}\t{}\t{}", record.classId, record.name, record.floor));
+    SendAddon(player, "KEEPEND");
+}
+
+// The keeper whose window the player has open, when it is still near; else nothing
+Creature* KeeperNear(Player* player)
+{
+    KeeperData const* data = player->CustomData.Get<KeeperData>(KeeperKey);
+    if (!data)
+        return nullptr;
+    Creature* keeper = ObjectAccessor::GetCreature(*player, data->keeper);
+    if (!keeper || !keeper->IsAlive() || !player->IsWithinDistInMap(keeper, KeeperRange))
+        return nullptr;
+    return keeper;
+}
+
+void CloseKeeper(Player* player, bool tellClient)
+{
+    if (!player->CustomData.Get<KeeperData>(KeeperKey))
+        return;
+    player->CustomData.Erase(KeeperKey);
+    if (tellClient)
+        SendAddon(player, "KEEPER_CLOSE");
+}
+
+void OpenKeeper(Player* player, Creature* keeper)
+{
+    KeeperData* data = player->CustomData.GetDefault<KeeperData>(KeeperKey);
+    data->keeper = keeper->GetGUID();
+    data->nextCheckMs = static_cast<uint32>(NowMs()) + KeeperCheckMs;
+    SendKeeper(player);
+}
+
+// The window's buttons (KEEPER_GO): the same starts the keeper's options always made, checked again here
+void KeeperGo(Player* player, KeeperAction action)
+{
+    if (!KeeperNear(player))
+    {
+        Say(player, Text(player, "Speak to Eternia first.", "Parlez d'abord à Eternia."));
+        CloseKeeper(player, true);
+        return;
+    }
+
+    bool started = false;
+    Player* partner = nullptr;
+    switch (action)
+    {
+        case KeeperAction::Continue:
+            started = StartRun({ player }, std::nullopt);
+            break;
+        case KeeperAction::Restart:
+            // From floor 1: the checkpoint stays, and only moves on when the run passes it
+            started = StartRun({ player }, 1u);
+            break;
+        case KeeperAction::ContinueDuo:
+        case KeeperAction::RestartDuo:
+        {
+            DuoInfo const duo = ResolveDuo(player);
+            if (duo.state != DuoState::Ready)
+            {
+                Say(player, duo.reason);
+                break;
+            }
+            partner = duo.partner;
+            started = StartRun({ player, partner }, action == KeeperAction::RestartDuo ?
+                std::optional<uint32>(1u) : std::nullopt);
+            break;
+        }
+    }
+
+    if (!started)
+    {
+        SendKeeper(player);
+        return;
+    }
+    CloseKeeper(player, true);
+    if (partner)
+        CloseKeeper(partner, true);
 }
 
 class npc_infinite_dungeon_keeper : public CreatureScript
@@ -1566,77 +1834,12 @@ class npc_infinite_dungeon_keeper : public CreatureScript
 public:
     npc_infinite_dungeon_keeper() : CreatureScript("npc_infinite_dungeon_keeper") { }
 
+    // No gossip: the client's own window (InfiniteDungeonKeeper.lua) opens with the data
     bool OnGossipHello(Player* player, Creature* creature) override
-    {
-        ClearGossipMenuFor(player);
-        if (player->GetLevel() >= MinPlayerLevel)
-        {
-            std::lock_guard<std::recursive_mutex> guard(Lock);
-            bool const french = IsFrench(player);
-            std::vector<Player*> const solo = { player };
-            Ladder const ladder = LadderFor(solo);
-            uint32 const start = StartFloor(solo, ladder);
-            AddGossipItemFor(player, GOSSIP_ICON_BATTLE, french ?
-                Acore::StringFormat("Descendre seul : {}.", FloorLabel(player, ladder, start)) :
-                Acore::StringFormat("Go down alone: {}.", FloorLabel(player, ladder, start)), 0, ACTION_CONTINUE);
-            if (start > 1)
-                AddGossipItemFor(player, GOSSIP_ICON_BATTLE, french ? "Recommencer seul depuis l'étage 1." :
-                    "Start over alone from floor 1.", 0, ACTION_RESTART);
-
-            if (Player* partner = FindPartner(player); partner && partner->GetLevel() >= MinPlayerLevel)
-            {
-                std::vector<Player*> const duo = { player, partner };
-                Ladder const duoLadder = LadderFor(duo);
-                uint32 const duoStart = StartFloor(duo, duoLadder);
-                AddGossipItemFor(player, GOSSIP_ICON_BATTLE, french ?
-                    Acore::StringFormat("Descendre avec {} : {}.", partner->GetName(),
-                        FloorLabel(player, duoLadder, duoStart)) :
-                    Acore::StringFormat("Go down with {}: {}.", partner->GetName(),
-                        FloorLabel(player, duoLadder, duoStart)), 0, ACTION_CONTINUE_DUO);
-                if (duoStart > 1)
-                    AddGossipItemFor(player, GOSSIP_ICON_BATTLE, french ?
-                        Acore::StringFormat("Recommencer avec {} depuis l'étage 1.", partner->GetName()) :
-                        Acore::StringFormat("Start over with {} from floor 1.", partner->GetName()), 0,
-                        ACTION_RESTART_DUO);
-            }
-        }
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, Text(player, "My records.", "Mes records."), 0, ACTION_RECORDS);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT,
-            Text(player, "The deepest, by class.", "Les plus profonds, par classe."), 0, ACTION_LEADERBOARD);
-        SendGossipMenuFor(player, NPC_TEXT_KEEPER, creature->GetGUID());
-        return true;
-    }
-
-    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 action) override
     {
         CloseGossipMenuFor(player);
         std::lock_guard<std::recursive_mutex> guard(Lock);
-        switch (action)
-        {
-            case ACTION_CONTINUE:
-                StartRun({ player }, std::nullopt);
-                break;
-            case ACTION_RESTART:
-                StartRun({ player }, 1u);
-                break;
-            case ACTION_CONTINUE_DUO:
-            case ACTION_RESTART_DUO:
-                if (Player* partner = FindPartner(player))
-                    StartRun({ player, partner }, action == ACTION_RESTART_DUO ? std::optional<uint32>(1u) :
-                        std::nullopt);
-                else
-                    Say(player, Text(player, "Your partner must stand with you.",
-                        "Votre partenaire doit se tenir près de vous."));
-                break;
-            case ACTION_RECORDS:
-                ShowRecords(player);
-                break;
-            case ACTION_LEADERBOARD:
-                ShowLeaderboard(player);
-                break;
-            default:
-                break;
-        }
+        OpenKeeper(player, creature);
         return true;
     }
 };
@@ -1645,41 +1848,73 @@ public:
 // The portal and the chest
 // -----------------------------------------------------------------------------------------------------------------
 
+// The portal's choice: down (PORTAL_DESCEND). Everyone of the run goes, the fallen brought back, as always.
+void Descend(Player* player)
+{
+    Run* run = RunOf(player->GetGUID());
+    Map* map = player->FindMap();
+    if (!run || run->state != FloorState::Cleared || !map || map->GetInstanceId() != run->instanceId ||
+        player->IsBeingTeleported())
+        return;
+    if (!NearPortal(*run, player, PortalUseRange))
+    {
+        Say(player, Text(player, "Step into the portal first.", "Entrez d'abord dans le portail."));
+        return;
+    }
+    BeginFloor(*run, run->floor + 1, map);
+}
+
+// Out of the dungeon (RUN_LEAVE: the portal's choice, or the tracker's button), whenever the player wants. Alone, the
+// run ends; in a duo, the player leaves and the run goes on for the other.
+void LeaveByChoice(Player* player)
+{
+    Run* run = RunOf(player->GetGUID());
+    if (!run)
+    {
+        SendAddon(player, "END\t0\t0");
+        return;
+    }
+    if (player->IsBeingTeleported())
+        return;
+
+    Map* map = player->FindMap();
+    if (run->members.size() <= 1)
+    {
+        EndRun(*run, map, EndReason::Left);
+        return;
+    }
+
+    Member const* member = MemberOf(*run, player->GetGUID());
+    WorldLocation const home = member ? member->home : WorldLocation();
+    std::vector<ObjectGuid> others;
+    for (Member const& other : run->members)
+        if (other.guid != player->GetGUID())
+            others.push_back(other.guid);
+
+    LeaveRun(player, false);
+    SendToHome(player, home);
+    for (ObjectGuid const& guid : others)
+        if (Player* other = ObjectAccessor::FindConnectedPlayer(guid))
+            Say(other, IsFrench(other) ?
+                Acore::StringFormat("{} a quitté le Donjon infini : la descente continue pour vous.",
+                    player->GetName()) :
+                Acore::StringFormat("{} left the Infinite Dungeon: the descent goes on for you.", player->GetName()));
+}
+
+// Clicking the portal asks the same as walking into it
 class go_infinite_dungeon_portal : public GameObjectScript
 {
 public:
     go_infinite_dungeon_portal() : GameObjectScript("go_infinite_dungeon_portal") { }
 
-    bool OnGossipHello(Player* player, GameObject* go) override
+    bool OnGossipHello(Player* player, GameObject* /*go*/) override
     {
         std::lock_guard<std::recursive_mutex> guard(Lock);
         Run* run = RunOf(player->GetGUID());
-        if (!run || run->state != FloorState::Cleared)
+        Member* member = run ? MemberOf(*run, player->GetGUID()) : nullptr;
+        if (!member || run->state != FloorState::Cleared || !NearPortal(*run, player, PortalUseRange))
             return true;
-
-        ClearGossipMenuFor(player);
-        AddGossipItemFor(player, GOSSIP_ICON_TAXI, IsFrench(player) ?
-            Acore::StringFormat("Descendre à l'{}.", FloorLabel(player, run->ladder, run->floor + 1)) :
-            Acore::StringFormat("Go down to {}.", FloorLabel(player, run->ladder, run->floor + 1)), 0,
-            ACTION_DESCEND);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, Text(player, "Leave the Infinite Dungeon (your checkpoint stays).",
-            "Quitter le Donjon infini (votre point de passage reste)."), 0, ACTION_LEAVE);
-        SendGossipMenuFor(player, NPC_TEXT_PORTAL, go->GetGUID());
-        return true;
-    }
-
-    bool OnGossipSelect(Player* player, GameObject* go, uint32 /*sender*/, uint32 action) override
-    {
-        CloseGossipMenuFor(player);
-        std::lock_guard<std::recursive_mutex> guard(Lock);
-        Run* run = RunOf(player->GetGUID());
-        if (!run || run->state != FloorState::Cleared)
-            return true;
-
-        if (action == ACTION_DESCEND)
-            BeginFloor(*run, run->floor + 1, go->GetMap());
-        else if (action == ACTION_LEAVE)
-            EndRun(*run, go->GetMap(), EndReason::Left);
+        SendPortalChoice(player, *run, *member);
         return true;
     }
 };
@@ -2066,6 +2301,19 @@ public:
 
     void OnPlayerUpdate(Player* player, uint32 /*diff*/) override
     {
+        // The keeper's window closes when the player walks away, like a merchant's
+        if (KeeperData* keeper = player->CustomData.Get<KeeperData>(KeeperKey))
+        {
+            uint32 const now = static_cast<uint32>(NowMs());
+            if (now >= keeper->nextCheckMs)
+            {
+                keeper->nextCheckMs = now + KeeperCheckMs;
+                Creature* creature = ObjectAccessor::GetCreature(*player, keeper->keeper);
+                if (!creature || !player->IsAlive() || !player->IsWithinDistInMap(creature, KeeperRange))
+                    CloseKeeper(player, true);
+            }
+        }
+
         HomeData* data = player->CustomData.Get<HomeData>(HomeKey);
         if (!data && !(player->GetPhaseMask() & PhaseMask))
             return;
@@ -2090,20 +2338,59 @@ public:
         if (body.empty() || body.front() != '\t')
             return;
         body.remove_prefix(1);
-        if (body != "STATE")
-            return;
+        std::string_view command = body;
+        std::string_view argument;
+        if (std::size_t const tab = body.find('\t'); tab != std::string_view::npos)
+        {
+            command = body.substr(0, tab);
+            argument = body.substr(tab + 1);
+        }
 
         std::lock_guard<std::recursive_mutex> guard(Lock);
-        if (Run* run = RunOf(player->GetGUID()); run && run->instanceId && player->FindMap() &&
-            player->FindMap()->GetInstanceId() == run->instanceId)
+        if (command == "STATE")
+            SendState(player);
+        else if (command == "KEEPER_GO")
         {
-            SendHud(player, *run);
-            if (Member* member = MemberOf(*run, player->GetGUID()))
-                member->lastProgress.clear();
-            SendProgress(*run, player->FindMap());
+            if (argument == "solo")
+                KeeperGo(player, KeeperAction::Continue);
+            else if (argument == "restart")
+                KeeperGo(player, KeeperAction::Restart);
+            else if (argument == "duo")
+                KeeperGo(player, KeeperAction::ContinueDuo);
+            else if (argument == "duorestart")
+                KeeperGo(player, KeeperAction::RestartDuo);
         }
-        else
+        else if (command == "KEEPER_REFRESH")
+        {
+            if (KeeperNear(player))
+                SendKeeper(player);
+            else
+                CloseKeeper(player, true);
+        }
+        else if (command == "KEEPER_CLOSED")
+            CloseKeeper(player, false);
+        else if (command == "PORTAL_DESCEND")
+            Descend(player);
+        else if (command == "RUN_LEAVE")
+            LeaveByChoice(player);
+    }
+
+    // The tracker again (entering the world), and the portal's choice when the player stands in it
+    static void SendState(Player* player)
+    {
+        Run* run = RunOf(player->GetGUID());
+        if (!run || !run->instanceId || !player->FindMap() || player->FindMap()->GetInstanceId() != run->instanceId)
+        {
             SendAddon(player, "END\t0\t0");
+            return;
+        }
+        SendHud(player, *run);
+        if (Member* member = MemberOf(*run, player->GetGUID()))
+        {
+            member->lastProgress.clear();
+            member->portalPrompted = false;
+        }
+        SendProgress(*run, player->FindMap());
     }
 
     // A ghost of a run waits where it fell: it comes back on the next floor, or the run ends
@@ -2151,7 +2438,8 @@ public:
 };
 
 // -----------------------------------------------------------------------------------------------------------------
-// Commands, to test: .infinite start [floor], floor <n>, arena <index>, clear, leave, checkpoint <n>, info
+// Commands, to test: .infinite start [floor], floor <n>, arena <index>, clear, leave, checkpoint <n>, info, keeper,
+// portal
 // -----------------------------------------------------------------------------------------------------------------
 
 using namespace Acore::ChatCommands;
@@ -2172,6 +2460,8 @@ public:
             { "leave",      HandleLeave,      SEC_GAMEMASTER, Console::No },
             { "checkpoint", HandleCheckpoint, SEC_GAMEMASTER, Console::No },
             { "info",       HandleInfo,       SEC_GAMEMASTER, Console::No },
+            { "keeper",     HandleKeeper,     SEC_GAMEMASTER, Console::No },
+            { "portal",     HandlePortal,     SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -2264,6 +2554,37 @@ public:
         SaveProgress(player);
         handler->PSendSysMessage("Checkpoint {} on the {} ladder.", progress.checkpoint[ladder],
             ladder ? "gearing" : "levelling");
+        return true;
+    }
+
+    // Opens Eternia's window as talking to her does (the nearest keeper within 30 yards)
+    static bool HandleKeeper(ChatHandler* handler)
+    {
+        std::lock_guard<std::recursive_mutex> guard(Lock);
+        Player* player = handler->GetPlayer();
+        Creature* keeper = player->FindNearestCreature(KeeperEntry, 30.0f);
+        if (!keeper)
+        {
+            handler->SendSysMessage("No keeper within 30 yards.");
+            return false;
+        }
+        OpenKeeper(player, keeper);
+        return true;
+    }
+
+    // Steps onto the open portal: its choice opens as when walking into it
+    static bool HandlePortal(ChatHandler* handler)
+    {
+        std::lock_guard<std::recursive_mutex> guard(Lock);
+        Player* player = handler->GetPlayer();
+        Run const* run = RunOf(player->GetGUID());
+        if (!run || !run->portal || run->state != FloorState::Cleared)
+        {
+            handler->SendSysMessage("No open portal.");
+            return false;
+        }
+        player->NearTeleportTo(run->portal->GetPositionX(), run->portal->GetPositionY(),
+            run->portal->GetPositionZ() + 0.5f, player->GetOrientation());
         return true;
     }
 
