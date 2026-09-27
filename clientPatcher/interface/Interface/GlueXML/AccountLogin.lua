@@ -884,10 +884,6 @@ function AccountLogin_OnLoad(self)
     InitializeUICache()
     StyleDialog(_G.GlueDialog, _G.GlueDialogBackground)
     StyleDialog(_G.CinematicsFrame, _G.CinematicsBackground)
-    -- The dialogs' buttons: the first one accepts (gold), the others are the quiet choices
-    StyleButton(_G.GlueDialogButton1, "primary")
-    StyleButton(_G.GlueDialogButton2, "quiet")
-    StyleButton(_G.GlueDialogButton3, "quiet")
     -- The stock wrong-account texts send players to Blizzard's old site
     _G.LOGIN_UNKNOWN_ACCOUNT = "Nom de compte ou mot de passe incorrect. Vérifiez l'orthographe et réessayez."
     _G.LOGIN_INCORRECT_PASSWORD = _G.LOGIN_UNKNOWN_ACCOUNT

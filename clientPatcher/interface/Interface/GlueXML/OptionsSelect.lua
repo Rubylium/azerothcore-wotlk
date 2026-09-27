@@ -2,8 +2,8 @@
 -- Autora: Noa
 -- ============================================================================
 -- Evolutions: the Options menu (OptionsSelectFrame, opened by the login screen's "Options" link and the character
--- screen's Options button) redrawn in the login screen's look, and the Video / Sound frames it opens given the same
--- chrome. The look comes from EvolutionsGlueStyle (AccountLogin.lua, loaded before this file); every action is the
+-- screen's Options button) redrawn in the login screen's look; the Video and Sound frames it opens keep the game's
+-- own look. The look comes from EvolutionsGlueStyle (AccountLogin.lua, loaded before this file); every action is the
 -- original one.
 function OptionsSelectFrame_Hide()
 	PlaySound("gsLoginChangeRealmCancel");
@@ -168,10 +168,10 @@ local function BuildRow(panel, button, title, hint, danger)
     row.bar:SetPoint("BOTTOMLEFT", 0, 0)
     row.bar:SetWidth(2)
 
-    row.title = S.Text(button, S.FONT_TITLE, 17, "OVERLAY")
+    row.title = S.Text(button, S.FONT_TEXT, 15, "OVERLAY")
     row.title:SetPoint("TOPLEFT", button, "TOPLEFT", 16, -8)
     row.title:SetText(title)
-    row.hint = S.Text(button, S.FONT_TEXT, 10, "OVERLAY", S.MUTED[1], S.MUTED[2], S.MUTED[3])
+    row.hint = S.Text(button, S.FONT_TEXT, 11, "OVERLAY", S.MUTED[1], S.MUTED[2], S.MUTED[3])
     row.hint:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 1, -3)
     row.hint:SetText(hint)
 
@@ -201,6 +201,10 @@ end
 local function BuildMenu(self)
     local panel = OptionsSelectFrameBackground
     S.StyleDialog(self, panel)
+    -- Solid: the login fields must not show through
+    local solid = S.Solid(panel, "BACKGROUND", 0.035, 0.028, 0.02, 1)
+    solid:SetPoint("TOPLEFT", 4, -4)
+    solid:SetPoint("BOTTOMRIGHT", -4, 4)
 
     -- A faint warm light behind the heading, the heading and the challenge board's divider
     local light = S.Piece(panel, "ARTWORK", S.GLOW)
@@ -209,7 +213,7 @@ local function BuildMenu(self)
     light:SetSize(300, 90)
     light:SetPoint("TOP", panel, "TOP", 0, 4)
     local heading = OptionsSelectFrameBackgroundHeaderText
-    heading:SetFont(S.FONT_TITLE, 24, "")
+    heading:SetFont(S.FONT_TEXT, 20, "")
     heading:SetTextColor(S.HEADING[1], S.HEADING[2], S.HEADING[3])
     heading:SetShadowColor(0, 0, 0, 0.9)
     heading:SetShadowOffset(1, -1)
@@ -235,118 +239,8 @@ local function BuildMenu(self)
     local close = OptionsSelectFrameBackgroundOkayButton
     S.StyleButton(close, "quiet")
     close:SetText(L.close)
-end
-
--- The Video and Sound frames (OptionsFrameTemplate, optionsframetemplates.xml; the frames themselves are the stock
--- VideoOptionsFrame.xml / AudioOptionsFrame.xml): the same dark card and gold edge over the dimmed screen, the gold
--- heading and divider, gold edges on the lists and the buttons restyled. The controls inside are left as they are.
-local LIST_EDGES = { "TopLeft", "TopRight", "BottomLeft", "BottomRight", "Left", "Right", "Top", "Bottom" }
-local HEADER_ROOM = 20
-
-local function StyleOptionsFrame(frame)
-    if not frame or frame.evolutionsStyled then return end
-    local name = frame:GetName()
-
-    -- The template's own dimmer covers the 16:9 glue screen only: replaced by StyleDialog's full-width one
-    local dimmer = _G[name .. "Backdrop"]
-    if dimmer then
-        for _, region in ipairs({ dimmer:GetRegions() }) do
-            region:Hide()
-        end
-    end
-    S.StyleDialog(dimmer or frame, frame)
-
-    -- Room for the heading and its divider above the lists
-    frame:SetHeight(frame:GetHeight() + HEADER_ROOM)
-    local list = frame.categoryFrame or _G[name .. "CategoryFrame"]
-    if list then
-        list:ClearAllPoints()
-        list:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -40 - HEADER_ROOM)
-        for _, part in ipairs(LIST_EDGES) do
-            local edge = _G[list:GetName() .. part]
-            if edge then
-                edge:SetVertexColor(S.BORDER[1], S.BORDER[2], S.BORDER[3], 0.75)
-            end
-        end
-        local fill = S.Solid(list, "BACKGROUND", 0, 0, 0, 0.35)
-        fill:SetPoint("TOPLEFT", 4, -4)
-        fill:SetPoint("BOTTOMRIGHT", -4, 4)
-        local scroll = _G[list:GetName() .. "List"]
-        if scroll then
-            scroll:SetBackdropBorderColor(S.BORDER[1], S.BORDER[2], S.BORDER[3], 0.5)
-        end
-    end
-    local container = frame.panelContainer or _G[name .. "PanelContainer"]
-    if container then
-        container:SetBackdropBorderColor(S.BORDER[1], S.BORDER[2], S.BORDER[3], 0.75)
-        local fill = S.Solid(container, "BACKGROUND", 0, 0, 0, 0.25)
-        fill:SetPoint("TOPLEFT", 4, -4)
-        fill:SetPoint("BOTTOMRIGHT", -4, 4)
-    end
-
-    local light = S.Piece(frame, "ARTWORK", S.GLOW)
-    light:SetBlendMode("ADD")
-    light:SetVertexColor(1, 0.75, 0.4, 0.1)
-    light:SetSize(300, 80)
-    light:SetPoint("TOP", frame, "TOP", 0, 6)
-    local heading = _G[name .. "HeaderText"]
-    if heading then
-        heading:SetFont(S.FONT_TITLE, 22, "")
-        heading:SetTextColor(S.HEADING[1], S.HEADING[2], S.HEADING[3])
-        heading:SetShadowColor(0, 0, 0, 0.9)
-        heading:SetShadowOffset(1, -1)
-        heading:ClearAllPoints()
-        heading:SetPoint("TOP", frame, "TOP", 0, -17)
-    end
-    local divider = S.Piece(frame, "OVERLAY", S.DIVIDER)
-    divider:SetSize(260, 5)
-    divider:SetPoint("TOP", frame, "TOP", 0, -46)
-
-    -- The buttons: Okay in gold, the others quiet; right to left Apply, Cancel, Okay, and Defaults on the left
-    local apply = frame.apply or _G[name .. "Apply"]
-    local cancel = frame.cancel or _G[name .. "Cancel"]
-    local okay = frame.okay or _G[name .. "Okay"]
-    local default = frame.default or _G[name .. "Default"]
-    local previous
-    for _, button in ipairs({ apply or false, cancel or false, okay or false }) do
-        if button then
-            S.StyleButton(button, button == okay and "primary" or "quiet")
-            button:SetWidth(118)
-            button:SetHeight(32)
-            button:ClearAllPoints()
-            if previous then
-                button:SetPoint("RIGHT", previous, "LEFT", -8, 0)
-            else
-                button:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -22, 12)
-            end
-            previous = button
-        end
-    end
-    if default then
-        S.StyleButton(default, "quiet")
-        default:SetHeight(32)
-        S.FitButton(default, 118)
-        default:ClearAllPoints()
-        default:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 22, 12)
-    end
-
-    -- Fade in on show, like the menu
-    frame.evolutionsIntro = INTRO_TIME
-    frame:HookScript("OnShow", function(self)
-        self.evolutionsIntro = 0
-        self:SetAlpha(0)
-    end)
-    local function Animate(self, elapsed)
-        if self.evolutionsIntro < INTRO_TIME then
-            self.evolutionsIntro = self.evolutionsIntro + math.min(elapsed or 0, 0.1)
-            self:SetAlpha(S.OutCubic(S.Clamp01(self.evolutionsIntro / INTRO_TIME)))
-        end
-    end
-    if frame:GetScript("OnUpdate") then
-        frame:HookScript("OnUpdate", Animate)
-    else
-        frame:SetScript("OnUpdate", Animate)
-    end
+    local closeText = close:GetFontString()
+    if closeText then closeText:SetFont(S.FONT_TEXT, 13, "") end
 end
 
 function OptionsSelect_RowHover(button, hovered)
@@ -363,8 +257,20 @@ function OptionsSelectFrame_OnLoad(self)
     S = EvolutionsGlueStyle
     if not S then return end
     BuildMenu(self)
-    StyleOptionsFrame(_G.VideoOptionsFrame)
-    StyleOptionsFrame(_G.AudioOptionsFrame)
+    -- The Video and Sound frames keep the game's look, but their stock backdrop lets the login fields read through: a
+    -- dark fill inside, and the screen dimmed behind them as for the dialogs (past the 16:9 glue area)
+    for _, frame in ipairs({ _G.VideoOptionsFrame, _G.AudioOptionsFrame }) do
+        if frame then
+            local dim = frame:CreateTexture(nil, "BACKGROUND")
+            dim:SetPoint("TOPLEFT", GlueParent, "TOPLEFT", -3000, 0)
+            dim:SetPoint("BOTTOMRIGHT", GlueParent, "BOTTOMRIGHT", 3000, 0)
+            dim:SetTexture(0, 0, 0, 0.55)
+            local fill = frame:CreateTexture(nil, "BACKGROUND")
+            fill:SetPoint("TOPLEFT", 6, -6)
+            fill:SetPoint("BOTTOMRIGHT", -6, 6)
+            fill:SetTexture(0, 0, 0, 0.88)
+        end
+    end
     state.built = true
 end
 
