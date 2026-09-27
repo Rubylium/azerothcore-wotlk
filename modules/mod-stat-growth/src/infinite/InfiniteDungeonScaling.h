@@ -117,10 +117,9 @@ inline float GetReferenceHealthFactor(uint8 level)
     return 1.3f + 0.05f * static_cast<float>(std::min<uint8>(level, 80) - 70);
 }
 
-// Rewards. Experience: a dungeon at the same level gives about 300 times a same-level kill's base experience an hour
-// (some 150 elite kills at twice the base, the quests aside); a floor takes four to five minutes, so a floor gives 25
-// times it (Acore::XP::BaseGain), about the same an hour. Gold: 12 * level^2 copper (48 silver at 20, 7.7 gold at 80).
-constexpr uint32 FloorExperienceKills = 25;
+// Rewards. Experience comes from the kills (the floor creatures' ExperienceModifier, stat_growth_infinite_dungeon_
+// creatures.sql: trash 4, elite 3 and boss 8, twice again as elites), so it goes through the boosts like any kill.
+// Gold: 12 * level^2 copper (48 silver at 20, 7.7 gold at 80).
 constexpr uint32 FloorGoldPerLevelSquared = 12;
 constexpr uint32 FloorEssenceChance = 10;               // percent, one essence
 constexpr uint32 CheckpointEssences = 2;                // and one more every 50 floors

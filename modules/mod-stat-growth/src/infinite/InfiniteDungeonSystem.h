@@ -14,6 +14,7 @@ namespace InfiniteDungeon
 {
 // Whether the player is in a run (on a floor, or on its way to one)
 bool IsInRun(Player const* player);
+void OnRunExperience(Player* player, uint32 amount);
 // Whether the map is the instance of a floor under way
 bool IsFloorMap(Map const* map);
 // A creature of a floor (a copy of a stock one, 920010-920299): it drops nothing, the floor pays

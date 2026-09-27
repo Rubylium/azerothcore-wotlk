@@ -450,6 +450,8 @@ public:
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit*, uint8) override
     {
         ApplyExperienceBoost(player, amount);
+        if (InfiniteDungeon::IsInRun(player))
+            InfiniteDungeon::OnRunExperience(player, amount);
         // At the level cap the core throws this away; the paragon bar takes it instead
         AddParagonExperience(player, amount);
     }

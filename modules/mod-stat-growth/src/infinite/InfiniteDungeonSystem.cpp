@@ -187,6 +187,7 @@ struct Member
     uint32 floorsCleared = 0;
     uint32 gold = 0;
     uint32 experience = 0;
+    uint32 floorExperience = 0;     // what the kills of the current floor gave, told with the floor's rewards
     uint32 essences = 0;
     uint32 items = 0;
     uint32 paragon = 0;
@@ -973,21 +974,14 @@ bool GiveFloorGear(Run const& run, Player* player)
     return true;
 }
 
-ContentLevels ContentFor(uint8 level)
-{
-    return level >= 70 ? CONTENT_71_80 : level >= 60 ? CONTENT_61_70 : CONTENT_1_60;
-}
-
 // The floor's rewards, told to the client (REWARD) and kept for the run's summary
 void RewardFloor(Run const& run, Player* player, Member& member)
 {
     uint8 const level = player->GetLevel();
-    uint32 experience = 0;
-    if (!IsAtLevelCap(player))
-    {
-        experience = FloorExperienceKills * Acore::XP::BaseGain(level, level, ContentFor(level));
-        player->GiveXP(experience, nullptr);
-    }
+    // The experience comes from the kills themselves (the floor creatures give it like any creature, through the
+    // experience boosts, essences and rate: OnPlayerGiveXP); the floor only reports what they gave
+    uint32 const experience = member.floorExperience;
+    member.floorExperience = 0;
 
     uint32 const gold = FloorGoldPerLevelSquared * level * level;
     player->ModifyMoney(static_cast<int32>(gold));
@@ -2613,6 +2607,15 @@ public:
 
 namespace InfiniteDungeon
 {
+// A kill's experience, after the boosts: counted for the floor's rewards and the run's summary
+void OnRunExperience(Player* player, uint32 amount)
+{
+    std::lock_guard<std::recursive_mutex> guard(Lock);
+    if (Run* run = RunOf(player->GetGUID()))
+        if (Member* member = MemberOf(*run, player->GetGUID()))
+            member->floorExperience += amount;
+}
+
 bool IsInRun(Player const* player)
 {
     if (!player || !ActiveRuns.load())
