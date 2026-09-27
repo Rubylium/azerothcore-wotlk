@@ -871,10 +871,7 @@ void SetupFloor(Run& run, Map* map, std::vector<Player*> const& present)
         run.creatures.emplace_back(creature->GetGUID(), MobRole::Boss);
     }
 
-    // The par time, from the foes that really stand on the floor
-    uint32 const foes = static_cast<uint32>(std::count_if(run.creatures.begin(), run.creatures.end(),
-        [](auto const& creature) { return creature.second != MobRole::Boss; }));
-    run.parMs = GetParMs(foes, duo);
+    run.parMs = ParMs;
 
     if (!anchor->IsWithinLOS(entry.GetPositionX(), entry.GetPositionY(), entry.GetPositionZ() + 2.0f))
         LOG_WARN("module", "Infinite Dungeon: the boss spot of {} does not see its bubble", arena.nameEn);
@@ -1116,7 +1113,7 @@ void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
     run.clockMs = FloorClockMs(run);
     run.state = FloorState::Cleared;
     run.stateMs = 0;
-    run.floorsDown = GetFloorsDown(run.clockMs, run.parMs);
+    run.floorsDown = GetFloorsDown(run.clockMs);
     run.chestFloor = GetCheckpointReached(run.floor, run.floorsDown);
 
     if (Creature* anchor = map->GetCreature(run.anchor))
@@ -2644,8 +2641,8 @@ public:
         run->clockStartMs = now - std::min<uint64>(static_cast<uint64>(seconds) * IN_MILLISECONDS, now);
         SendHudToAll(*run, map);
         handler->PSendSysMessage("Floor clock {} of par {}: +3 within {}, +2 within {}.", ClockText(FloorClockMs(*run)),
-            ClockText(run->parMs), ClockText(GetParShareMs(run->parMs, ThreeFloorsParPct)),
-            ClockText(GetParShareMs(run->parMs, TwoFloorsParPct)));
+            ClockText(run->parMs), ClockText(ThreeFloorsMs),
+            ClockText(TwoFloorsMs));
         return true;
     }
 

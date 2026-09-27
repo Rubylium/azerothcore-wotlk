@@ -53,7 +53,7 @@ local SKULL = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 local CHECKPOINT_FLOORS, GEAR_FLOORS = 10, 5
 -- A floor cleared within these shares of its par time: the portal leads three, two floors down (ThreeFloorsParPct,
 -- TwoFloorsParPct)
-local THREE_FLOORS_SHARE, TWO_FLOORS_SHARE = 0.45, 0.70
+local THREE_FLOORS_SHARE, TWO_FLOORS_SHARE = 1 / 3, 0.5    -- 20 s and 30 s of the 1:00 par (InfiniteDungeonScaling.h)
 local LADDER_GEARING = 1
 local STATE_TRAVELLING, STATE_BUBBLE, STATE_FIGHTING, STATE_CLEARED, STATE_FALLEN = 0, 1, 2, 3, 4
 local REASON_LEFT, REASON_FALLEN = 0, 1

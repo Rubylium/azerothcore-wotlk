@@ -56,37 +56,21 @@ inline bool IsGearFloor(uint32 floor)
 }
 
 // Speed skips, the Mythic+ key upgrades' way. A floor's clock starts when the players step out of the bubble and
-// stops when its guardian falls; there is no fail timer. Its par time is 20 seconds a foe (trash and elite) and a
-// minute for the guardian, a quarter more for a duo (its foes have more health): about 2:20 alone, 3:45 as two.
-// Cleared within 70% of it, the portal leads two floors down; within 45%, three. The floors passed over still count:
+// stops when its guardian falls; there is no fail timer. Its par is a minute, alone or as two: cleared in 30 seconds
+// or less, the portal leads two floors down; in 20 seconds or less, three. The floors passed over still count:
 // their checkpoint is kept (its chest stands beside the portal) and their gear piece given, while the gold and the
 // essence chance stay one floor's.
-constexpr uint32 ParSecondsPerFoe = 20;
-constexpr uint32 ParSecondsGuardian = 60;
-constexpr uint32 DuoParPct = 125;
-constexpr uint32 TwoFloorsParPct = 70;
-constexpr uint32 ThreeFloorsParPct = 45;
+constexpr uint32 ParMs = 60 * 1000;
+constexpr uint32 TwoFloorsMs = 30 * 1000;           // InfiniteDungeon.lua TWO_FLOORS_SHARE (a share of the par)
+constexpr uint32 ThreeFloorsMs = 20 * 1000;         // InfiniteDungeon.lua THREE_FLOORS_SHARE
 constexpr uint32 MaxFloorsDown = 3;
 
-inline uint32 GetParMs(uint32 foes, bool duo)
-{
-    uint32 const seconds = ParSecondsPerFoe * foes + ParSecondsGuardian;
-    return seconds * 1000 * (duo ? DuoParPct : 100) / 100;
-}
-
-inline uint32 GetParShareMs(uint32 parMs, uint32 pct)
-{
-    return static_cast<uint32>(static_cast<uint64>(parMs) * pct / 100);
-}
-
 // Where the portal of a floor cleared in `clearMs` leads: 1, 2 or 3 floors down
-inline uint32 GetFloorsDown(uint32 clearMs, uint32 parMs)
+inline uint32 GetFloorsDown(uint32 clearMs)
 {
-    if (!parMs)
-        return 1;
-    if (clearMs <= GetParShareMs(parMs, ThreeFloorsParPct))
+    if (clearMs <= ThreeFloorsMs)
         return 3;
-    if (clearMs <= GetParShareMs(parMs, TwoFloorsParPct))
+    if (clearMs <= TwoFloorsMs)
         return 2;
     return 1;
 }
@@ -121,13 +105,21 @@ inline float GetFloorScaling(Ladder ladder, uint32 floor)
     return gear * paragon * loot;
 }
 
-// The gearing ladder's loot: a heroic's item level (200) on the first step, 4 more each step, without end (above the
-// game's best items it is a generated variant, see MythicDungeon.h)
-constexpr uint32 GearingBaseItemLevel = 200;
+// The gearing ladder's loot follows the Mythic+ key of the same difficulty, ItemLevelKeysBelow keys under it: a step
+// of the gear part (the first GearingGearSteps) stands for a key level (+0 to +10), and past it a step asks
+// ParagonPerStep paragon where a key asks Mythic::ParagonPerLevel, so it stands for that share of a key. At any
+// recommended paragon the Infinite Dungeon drops 8 item levels under the key that recommends it: Mythic+ stays the
+// better gear for the harder content. Above the game's best items it is a generated variant (MythicDungeon.h).
+constexpr uint32 ItemLevelKeysBelow = 2;
 
 inline uint32 GetItemLevel(uint32 floor)
 {
-    return GearingBaseItemLevel + Mythic::ItemLevelPerKeyLevel * GetStep(floor);
+    uint32 const step = GetStep(floor);
+    uint32 const gearSteps = std::min(step, GearingGearSteps);
+    uint32 const paragonSteps = step - gearSteps;
+    uint32 const itemLevel = Mythic::BaseItemLevel + Mythic::ItemLevelPerKeyLevel * gearSteps +
+        Mythic::ItemLevelPerKeyLevel * ParagonPerStep * paragonSteps / Mythic::ParagonPerLevel;
+    return itemLevel - Mythic::ItemLevelPerKeyLevel * ItemLevelKeysBelow;
 }
 
 // Roles: the monsters' health follows the damage the run can deal (a damage dealer in full, a tank for about 60%, a
