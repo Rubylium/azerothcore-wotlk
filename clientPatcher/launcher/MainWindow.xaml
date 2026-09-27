@@ -109,8 +109,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Back" Property="Background" Value="#E0C42B1C" />
-                                <Setter Property="Foreground" Value="White" />
+                                <Setter TargetName="Back" Property="Background" Value="#B08A3A1E" />
+                                <Setter Property="Foreground" Value="{StaticResource Text}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -165,23 +165,24 @@
             </Setter>
         </Style>
 
-        <!-- The main call to action, after Ascension's: a painted ember face, the action and what it involves on the
-             left, the game tools behind the chevron on the right (PlayMenuButton sits over that segment). No glow:
-             the colour alone carries it. -->
+        <!-- The main call to action, after Ascension's: a gilded face in the art's gold, the action and what it
+             involves on the left, the game tools behind the chevron on the right (PlayMenuButton sits over that
+             segment). No glow: the colour alone carries it. -->
         <Style x:Key="PlayButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="#FFFFF6EA" />
+            <Setter Property="Foreground" Value="#FF22160A" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid>
-                            <Border x:Name="Face" CornerRadius="10" BorderThickness="1" BorderBrush="#66FFC89A">
+                            <Border x:Name="Face" CornerRadius="10" BorderThickness="1" BorderBrush="#99FFE7B0">
                                 <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.6">
-                                        <GradientStop Color="#FFEC8A38" Offset="0" />
-                                        <GradientStop Color="#FFDD6428" Offset="0.55" />
-                                        <GradientStop Color="#FFBF4520" Offset="1" />
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                                        <GradientStop Color="#FFFFE3A0" Offset="0" />
+                                        <GradientStop Color="#FFFFDB8C" Offset="0.35" />
+                                        <GradientStop Color="#FFD9AE6A" Offset="0.7" />
+                                        <GradientStop Color="#FFBF9959" Offset="1" />
                                     </LinearGradientBrush>
                                 </Border.Background>
                                 <Border.Effect>
@@ -205,11 +206,11 @@
                             </Border>
                             <!-- The chevron segment is its own, duller shade, as on Ascension's -->
                             <Border x:Name="Segment" Width="54" HorizontalAlignment="Right" CornerRadius="0,9,9,0"
-                                    Margin="0,1,1,1" Background="#38301008" IsHitTestVisible="False" />
-                            <Border Width="1" HorizontalAlignment="Right" Margin="0,1,55,1" Background="#40000000"
+                                    Margin="0,1,1,1" Background="#26402A10" IsHitTestVisible="False" />
+                            <Border Width="1" HorizontalAlignment="Right" Margin="0,1,55,1" Background="#40402A10"
                                     IsHitTestVisible="False" />
                             <!-- Only the action segment lights up; the chevron has its own highlight -->
-                            <Border x:Name="Hover" CornerRadius="9,0,0,9" Margin="1,1,56,1" Background="#FFFFFFFF"
+                            <Border x:Name="Hover" CornerRadius="9,0,0,9" Margin="1,1,56,1" Background="#FFFFF8E8"
                                     Opacity="0" IsHitTestVisible="False" />
                             <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
                                               Margin="18,0,64,0" />
@@ -237,8 +238,8 @@
                                 <Setter TargetName="Face" Property="Opacity" Value="0.88" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Background" Value="#FF2E2520" />
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FFFFFF" />
+                                <Setter TargetName="Face" Property="Background" Value="#FF2A2218" />
+                                <Setter TargetName="Face" Property="BorderBrush" Value="#40BF9959" />
                                 <Setter TargetName="Grain" Property="Opacity" Value="0.4" />
                                 <Setter Property="Foreground" Value="{StaticResource Muted}" />
                             </Trigger>
@@ -252,7 +253,7 @@
         <Style x:Key="PlayMenuButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="#FFFFF6EA" />
+            <Setter Property="Foreground" Value="#FF22160A" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -261,10 +262,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Back" Property="Background" Value="#1CFFFFFF" />
+                                <Setter TargetName="Back" Property="Background" Value="#30FFFFFF" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Back" Property="Background" Value="#22000000" />
+                                <Setter TargetName="Back" Property="Background" Value="#22402A10" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -501,74 +502,123 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Backdrop: slow parallax keeps the scene alive without moving the interface -->
-        <Viewbox x:Name="Backdrop" Grid.RowSpan="2" Stretch="UniformToFill"
-                 VerticalAlignment="Top" RenderTransformOrigin="0.62,0.4" ClipToBounds="True">
-            <Viewbox.RenderTransform>
-                <TransformGroup>
-                    <ScaleTransform x:Name="BackdropScale" ScaleX="1.035" ScaleY="1.035" />
-                    <TranslateTransform x:Name="BackdropTranslate" />
-                </TransformGroup>
-            </Viewbox.RenderTransform>
-            <Canvas x:Name="BackdropFrames" Width="960" Height="600" ClipToBounds="True"
-                    RenderOptions.BitmapScalingMode="HighQuality">
-                <Image Source="Assets/background.jpg" Width="960" Height="600" Stretch="Fill"
-                       IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality" />
+        <!-- Backdrop: the login screen's vista, cropped to cover the window (never stretched). The scene canvas is
+             in the art's own pixels, so the brazier and beacon lights sit on the painting whatever the crop; the
+             slow Ken Burns drift, the pulsing lights and the embers are all driven by Backdrop.cs. -->
+        <Viewbox x:Name="Backdrop" Grid.RowSpan="2" Stretch="UniformToFill" HorizontalAlignment="Center"
+                 VerticalAlignment="Center" ClipToBounds="True" IsHitTestVisible="False">
+            <Canvas x:Name="BackdropScene" Width="1672" Height="941" RenderTransformOrigin="0.5,0.4">
+                <Canvas.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="BackdropScale" ScaleX="1.03" ScaleY="1.03" />
+                        <TranslateTransform x:Name="BackdropTranslate" />
+                    </TransformGroup>
+                </Canvas.RenderTransform>
+                <Image Source="Assets/background.jpg" Width="1672" Height="941" Stretch="Fill"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+
+                <!-- The city's beam of light: a broad halo and the beam itself -->
+                <Ellipse x:Name="BeaconHalo" Canvas.Left="680" Canvas.Top="170"
+                         Width="360" Height="300" Opacity="0.5">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#90FFE6A8" Offset="0" />
+                            <GradientStop Color="#38FFD58C" Offset="0.45" />
+                            <GradientStop Color="#00FFD58C" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Ellipse x:Name="BeaconBeam" Canvas.Left="828" Canvas.Top="60"
+                         Width="60" Height="330" Opacity="0.6">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#C0FFF2C8" Offset="0" />
+                            <GradientStop Color="#40FFE0A0" Offset="0.5" />
+                            <GradientStop Color="#00FFE0A0" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+
+                <!-- Firelight over the two braziers, a wide glow and a hotter core each -->
+                <Ellipse x:Name="LeftFireGlow" Canvas.Left="170" Canvas.Top="440"
+                         Width="280" Height="220" Opacity="0.6">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#A0FFB050" Offset="0" />
+                            <GradientStop Color="#40FF8C30" Offset="0.5" />
+                            <GradientStop Color="#00FF8C30" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Ellipse x:Name="LeftFireCore" Canvas.Left="255" Canvas.Top="505"
+                         Width="110" Height="90" Opacity="0.7">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#B0FFD890" Offset="0" />
+                            <GradientStop Color="#00FFB050" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Ellipse x:Name="RightFireGlow" Canvas.Left="1222" Canvas.Top="440"
+                         Width="280" Height="220" Opacity="0.6">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#A0FFB050" Offset="0" />
+                            <GradientStop Color="#40FF8C30" Offset="0.5" />
+                            <GradientStop Color="#00FF8C30" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Ellipse x:Name="RightFireCore" Canvas.Left="1307" Canvas.Top="505"
+                         Width="110" Height="90" Opacity="0.7">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#B0FFD890" Offset="0" />
+                            <GradientStop Color="#00FFB050" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+
+                <!-- Rising embers, filled in by Backdrop.cs -->
+                <Canvas x:Name="BackdropEmbers" Width="1672" Height="941" />
             </Canvas>
-            <Viewbox.Triggers>
-                <EventTrigger RoutedEvent="Loaded">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <DoubleAnimation Storyboard.TargetName="BackdropScale" Storyboard.TargetProperty="ScaleX"
-                                             From="1.035" To="1.075" Duration="0:0:28" AutoReverse="True"
-                                             RepeatBehavior="Forever" />
-                            <DoubleAnimation Storyboard.TargetName="BackdropScale" Storyboard.TargetProperty="ScaleY"
-                                             From="1.035" To="1.075" Duration="0:0:28" AutoReverse="True"
-                                             RepeatBehavior="Forever" />
-                            <DoubleAnimation Storyboard.TargetName="BackdropTranslate" Storyboard.TargetProperty="X"
-                                             From="-8" To="8" Duration="0:0:22" AutoReverse="True"
-                                             RepeatBehavior="Forever" />
-                            <DoubleAnimation Storyboard.TargetName="BackdropTranslate" Storyboard.TargetProperty="Y"
-                                             From="-3" To="5" Duration="0:0:31" AutoReverse="True"
-                                             RepeatBehavior="Forever" />
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-            </Viewbox.Triggers>
         </Viewbox>
-        <!-- Warm shade over the art: dark enough at the edges for the text, open in the middle for the scene -->
+        <!-- Shade over the art so the interface reads: the top bar, the hero on the left and the news row at the
+             bottom sit on darker ground, the middle of the scene stays open -->
         <Rectangle Grid.RowSpan="2" IsHitTestVisible="False">
             <Rectangle.Fill>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#A0120C09" Offset="0" />
-                    <GradientStop Color="#18120C09" Offset="0.2" />
-                    <GradientStop Color="#30120C09" Offset="0.45" />
-                    <GradientStop Color="#E8120C09" Offset="0.66" />
-                    <GradientStop Color="#FF120C09" Offset="1" />
+                    <GradientStop Color="#B00A0805" Offset="0" />
+                    <GradientStop Color="#300A0805" Offset="0.16" />
+                    <GradientStop Color="#000A0805" Offset="0.42" />
+                    <GradientStop Color="#500A0805" Offset="0.6" />
+                    <GradientStop Color="#D00A0805" Offset="0.74" />
+                    <GradientStop Color="#F50A0805" Offset="1" />
                 </LinearGradientBrush>
             </Rectangle.Fill>
         </Rectangle>
+        <!-- Behind the hero text only, so the brazier under it keeps its light -->
         <Rectangle Grid.RowSpan="2" IsHitTestVisible="False">
             <Rectangle.Fill>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#E0120C09" Offset="0" />
-                    <GradientStop Color="#70120C09" Offset="0.4" />
-                    <GradientStop Color="#00120C09" Offset="0.62" />
-                    <GradientStop Color="#60120C09" Offset="1" />
-                </LinearGradientBrush>
+                <RadialGradientBrush Center="0.16,0.33" GradientOrigin="0.16,0.33" RadiusX="0.5" RadiusY="0.36">
+                    <GradientStop Color="#C80A0805" Offset="0" />
+                    <GradientStop Color="#900A0805" Offset="0.55" />
+                    <GradientStop Color="#000A0805" Offset="1" />
+                </RadialGradientBrush>
             </Rectangle.Fill>
         </Rectangle>
-        <!-- A little ember in the shadows, so the frame reads warm whatever the art -->
-        <Rectangle Grid.RowSpan="2" IsHitTestVisible="False" Opacity="0.22">
+        <!-- Vignette -->
+        <Rectangle Grid.RowSpan="2" IsHitTestVisible="False">
             <Rectangle.Fill>
-                <RadialGradientBrush Center="0.2,0.95" GradientOrigin="0.2,0.95" RadiusX="0.9" RadiusY="0.8">
-                    <GradientStop Color="#FF8A3A12" Offset="0" />
-                    <GradientStop Color="#008A3A12" Offset="1" />
+                <RadialGradientBrush Center="0.5,0.42" GradientOrigin="0.5,0.42" RadiusX="0.75" RadiusY="0.8">
+                    <GradientStop Color="#000A0805" Offset="0.5" />
+                    <GradientStop Color="#600A0805" Offset="0.85" />
+                    <GradientStop Color="#C00A0805" Offset="1" />
                 </RadialGradientBrush>
             </Rectangle.Fill>
         </Rectangle>
         <!-- Pages other than home sit on a darker veil -->
-        <Rectangle x:Name="Veil" Grid.RowSpan="2" Fill="#E8120C09" Opacity="0" IsHitTestVisible="False" />
+        <Rectangle x:Name="Veil" Grid.RowSpan="2" Fill="#E80A0805" Opacity="0" IsHitTestVisible="False" />
 
         <!-- Top bar: pages either side of the logo, the window buttons at its end -->
         <Border Margin="16,14,16,0" CornerRadius="12" BorderThickness="1" BorderBrush="#2EF0C8A0"
@@ -629,8 +679,8 @@
         </Border>
 
         <!-- The logo breaks out of the bar, as Ascension's crest does -->
-        <Image x:Name="Logo" Grid.RowSpan="2" Source="Assets/logo.png" Width="236" HorizontalAlignment="Center"
-               VerticalAlignment="Top" Margin="0,4,0,0" IsHitTestVisible="False" Panel.ZIndex="1"
+        <Image x:Name="Logo" Grid.RowSpan="2" Source="Assets/logo.png" Width="190" HorizontalAlignment="Center"
+               VerticalAlignment="Top" Margin="0,6,0,0" IsHitTestVisible="False" Panel.ZIndex="1"
                RenderOptions.BitmapScalingMode="HighQuality">
             <Image.Effect>
                 <DropShadowEffect BlurRadius="24" ShadowDepth="2" Opacity="0.85" Color="Black" />
@@ -674,7 +724,8 @@
                         <StackPanel Orientation="Horizontal">
                             <!-- A solid glyph in a ring, as Ascension's refresh icon -->
                             <Grid Width="34" Height="34" Margin="0,0,14,0" VerticalAlignment="Center">
-                                <Ellipse x:Name="PlayRing" Stroke="#CCFFF6EA" StrokeThickness="2" />
+                                <Ellipse x:Name="PlayRing" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                         StrokeThickness="2" Opacity="0.8" />
                                 <TextBlock x:Name="PlayIcon" Text="&#xF5B0;" FontFamily="Segoe MDL2 Assets" FontSize="13"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0" />
                                 <Grid x:Name="LaunchSpinner" Width="26" Height="26" Visibility="Collapsed"
@@ -682,14 +733,14 @@
                                     <Grid.RenderTransform>
                                         <RotateTransform x:Name="LaunchSpinnerRotation" />
                                     </Grid.RenderTransform>
-                                    <Ellipse Stroke="#55FFF6EA" StrokeThickness="2.2" />
-                                    <Path Data="M 13,1.2 A 11.8,11.8 0 0 1 24.8,13" Stroke="#FFFFF6EA"
+                                    <Ellipse Stroke="#4422160A" StrokeThickness="2.2" />
+                                    <Path Data="M 13,1.2 A 11.8,11.8 0 0 1 24.8,13" Stroke="#FF22160A"
                                           StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                                 </Grid>
                             </Grid>
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel.Effect>
-                                    <DropShadowEffect Color="#4A1606" BlurRadius="3" ShadowDepth="1" Opacity="0.6" />
+                                    <DropShadowEffect Color="#FFF4D8" BlurRadius="2" ShadowDepth="1" Direction="270" Opacity="0.45" />
                                 </StackPanel.Effect>
                                 <TextBlock x:Name="PlayText" Text="Jouer" FontWeight="Bold" FontSize="22"
                                            LineHeight="25" LineStackingStrategy="BlockLineHeight" />
@@ -752,8 +803,8 @@
                     <Border x:Name="ProgressFill" CornerRadius="3" HorizontalAlignment="Left" Width="0">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#FFBF4520" Offset="0" />
-                                <GradientStop Color="#FFF0A04A" Offset="1" />
+                                <GradientStop Color="#FFBF9959" Offset="0" />
+                                <GradientStop Color="#FFFFDB8C" Offset="1" />
                             </LinearGradientBrush>
                         </Border.Background>
                     </Border>

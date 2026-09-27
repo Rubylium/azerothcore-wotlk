@@ -36,7 +36,7 @@ namespace Evolutions
         List<NewsView> featuredNews = new List<NewsView>();
         int featuredIndex;
         bool realmChecked;
-        readonly AnimatedGifPlayer animatedBackdrop;
+        readonly Backdrop backdrop;
 
         Manifest manifest;
         bool busy;
@@ -53,18 +53,18 @@ namespace Evolutions
             this.selfUpdate = selfUpdate;
             http.DefaultRequestHeaders.UserAgent.ParseAdd("Evolutions/" + Assembly.GetExecutingAssembly().GetName().Version);
             InitializeComponent();
-            animatedBackdrop = new AnimatedGifPlayer(BackdropFrames,
-                new Uri("pack://application:,,,/Evolutions;component/Assets/background-animated.gif"));
+            backdrop = new Backdrop(this, BackdropScene, BeaconHalo, BeaconBeam, LeftFireGlow, LeftFireCore,
+                RightFireGlow, RightFireCore, BackdropEmbers);
 
             SourceInitialized += (sender, args) => Dwm.Style(new WindowInteropHelper(this).Handle);
             StateChanged += (sender, args) =>
             {
                 if (WindowState == WindowState.Minimized)
-                    animatedBackdrop.Stop();
+                    backdrop.Pause();
                 else
-                    animatedBackdrop.Start();
+                    backdrop.Start();
             };
-            Closed += (sender, args) => animatedBackdrop.Dispose();
+            Closed += (sender, args) => backdrop.Stop();
             realmTimer.Tick += async (sender, args) => await CheckRealmAsync();
             featuredTimer.Tick += (sender, args) => ShowFeatured(featuredIndex + 1);
             Loaded += async (sender, args) =>
@@ -76,24 +76,11 @@ namespace Evolutions
                     NavNews.IsChecked = true;
                 else if (StartPage == "settings")
                     NavSettings.IsChecked = true;
-                animatedBackdrop.Start();
-                _ = LoadAnimatedBackdropAsync();
+                backdrop.Start();
                 realmTimer.Start();
                 await CheckRealmAsync();
                 await CheckAsync();
             };
-        }
-
-        async Task LoadAnimatedBackdropAsync()
-        {
-            try
-            {
-                await animatedBackdrop.LoadAsync();
-            }
-            catch (Exception)
-            {
-                // Keep the static JPG fallback when the animated resource cannot be decoded.
-            }
         }
 
         // Update ---------------------------------------------------------------------------------------------------

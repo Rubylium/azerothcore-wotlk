@@ -9,8 +9,8 @@
     <SolidColorBrush x:Key="Muted" Color="#FFA3907C" />
     <SolidColorBrush x:Key="Gold" Color="#FFE8B45A" />
     <SolidColorBrush x:Key="GoldLight" Color="#FFF8D48B" />
-    <SolidColorBrush x:Key="Online" Color="#FF4ADE80" />
-    <SolidColorBrush x:Key="Offline" Color="#FFEF5A4A" />
+    <SolidColorBrush x:Key="Online" Color="#FFB5C48A" />
+    <SolidColorBrush x:Key="Offline" Color="#FFC27A58" />
     <LinearGradientBrush x:Key="GoldBrush" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#FFF8DB8B" Offset="0" />
         <GradientStop Color="#FFD49A45" Offset="1" />
