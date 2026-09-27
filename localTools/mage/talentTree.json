@@ -1425,11 +1425,11 @@
           ],
           "text": "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus {0}% des dégâts du sort en 4 s.",
           "values": [
-            8,
-            16,
+            6,
+            12,
+            18,
             24,
-            32,
-            40
+            30
           ]
         },
         {

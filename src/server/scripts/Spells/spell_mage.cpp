@@ -744,7 +744,9 @@ class spell_mage_ignite : public AuraScript
         PreventDefaultAction();
 
         SpellInfo const* igniteDot = sSpellMgr->AssertSpellInfo(SPELL_MAGE_IGNITE);
-        int32 pct = 8 * GetSpellInfo()->GetRank();
+        // Evolutions: 6% a rank (30% at 5/5, WotLK's 8% gave 40%). Fire's reworked spells (Meteor, instant Flamestrike,
+        // Phoenix Flames) crit hard on packs, and at 40% the rolling Ignite was over a third of the damage.
+        int32 pct = 6 * GetSpellInfo()->GetRank();
 
         int32 amount = int32(CalculatePct(eventInfo.GetDamageInfo()->GetDamage(), pct) / igniteDot->GetMaxTicks());
 

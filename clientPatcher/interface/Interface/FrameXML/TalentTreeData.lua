@@ -1140,7 +1140,7 @@ TalentTreeData = {
                 { id = 301, row = 0, col = 3, kind = "passive", level = 0, parents = {  },
                   name = "Enflammer", icon = "Interface\\Icons\\Spell_Fire_Incinerate",
                   spells = { 11119, 11120, 12846, 12847, 12848 },
-                  texts = { "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 8% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 16% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 24% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 32% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 40% des dégâts du sort en 4 s." } },
+                  texts = { "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 6% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 12% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 18% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 24% des dégâts du sort en 4 s.", "Vos coups critiques avec les sorts de Feu font brûler la cible : elle subit en plus 30% des dégâts du sort en 4 s." } },
                 { id = 302, row = 1, col = 1, kind = "passive", level = 0, parents = { 301 },
                   name = "Trait de feu amélioré", icon = "Interface\\Icons\\Spell_Fire_Fireball",
                   spells = { 11078, 11080 },
