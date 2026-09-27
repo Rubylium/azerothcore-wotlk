@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <deque>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -212,7 +213,7 @@ struct Run
     uint8 level = MinPlayerLevel;
     std::vector<Member> members;
     std::size_t arena = 0;
-    std::optional<std::size_t> previousArena;
+    std::deque<std::size_t> recentArenas;       // the last rooms played, not drawn again soon (PickArena)
     std::optional<std::size_t> forcedArena;
     uint32 mapId = 0;
     uint32 instanceId = 0;          // the floor's instance, once someone arrived
@@ -232,6 +233,7 @@ struct Run
     float healthFactor = 1.0f;      // the roles' and the floor's
     float damageFactor = 1.0f;
     float referenceHealth = 1.0f;
+    bool meleeFromReference = false;    // the gearing ladder: melee a share of referenceHealth (ComputeFactors)
 
     // The floor's clock: it runs from the bubble's drop to the guardian's fall (or the last fall of the run)
     uint32 parMs = 0;
@@ -303,6 +305,7 @@ struct SpawnContext
     float healthFactor;
     float damageFactor;
     float referenceHealth;
+    bool meleeFromReference;
 };
 thread_local SpawnContext const* CurrentSpawn = nullptr;
 
@@ -670,10 +673,20 @@ void ComputeFactors(Run& run)
     run.healthFactor = std::max(weight, HealerWeight) * floorScaling;
     run.damageFactor = damage * floorScaling;
     run.referenceHealth = ReferenceHealthAt(run.level);
+    // The gearing ladder hits on the Mythic+ yardstick (GetGearingReferenceHealth), which carries the floor's growth
+    // itself: the roles' share of it, the melee from it too (ApplyScaling)
+    if (run.ladder == Ladder::Gearing)
+    {
+        run.damageFactor = damage;
+        run.referenceHealth = GetGearingReferenceHealth(run.floor);
+        run.meleeFromReference = true;
+    }
+    else
+        run.meleeFromReference = false;
 }
 
 void ApplyScaling(Creature* creature, MobRole role, uint8 level, float healthFactor, float damageFactor,
-    float referenceHealth)
+    float referenceHealth, bool meleeFromReference)
 {
     CreatureTemplate const* cinfo = creature->GetCreatureTemplate();
     CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(level, cinfo->unit_class);
@@ -690,7 +703,10 @@ void ApplyScaling(Creature* creature, MobRole role, uint8 level, float healthFac
     creature->ResetPlayerDamageReq();
 
     float const damageRank = role == MobRole::Boss ? BossDamageRank : role == MobRole::Elite ? 1.0f : TrashDamageRank;
-    float const damage = stats->BaseDamage[expansion] * EliteDamage[expansion] * damageRank * damageFactor;
+    float const meleeShare = role == MobRole::Boss ? BossMeleeShare : role == MobRole::Elite ? EliteMeleeShare :
+        TrashMeleeShare;
+    float const damage = meleeFromReference ? referenceHealth * meleeShare * damageFactor :
+        stats->BaseDamage[expansion] * EliteDamage[expansion] * damageRank * damageFactor;
     for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
     {
         creature->SetBaseWeaponDamage(attackType, MINDAMAGE, damage);
@@ -719,7 +735,7 @@ public:
     {
         if (CurrentSpawn)
             ApplyScaling(creature, CurrentSpawn->role, CurrentSpawn->level, CurrentSpawn->healthFactor,
-                CurrentSpawn->damageFactor, CurrentSpawn->referenceHealth);
+                CurrentSpawn->damageFactor, CurrentSpawn->referenceHealth, CurrentSpawn->meleeFromReference);
     }
 };
 
@@ -743,7 +759,8 @@ Position GroundPoint(Map* map, float x, float y, float height, float orientation
 
 TempSummon* SpawnMob(Run const& run, Creature* anchor, uint32 entry, MobRole role, Position const& position)
 {
-    SpawnContext const context{ run.level, role, run.healthFactor, run.damageFactor, run.referenceHealth };
+    SpawnContext const context{ run.level, role, run.healthFactor, run.damageFactor, run.referenceHealth,
+        run.meleeFromReference };
     CurrentSpawn = &context;
     TempSummon* creature = anchor->SummonCreature(entry, position, TEMPSUMMON_MANUAL_DESPAWN);
     CurrentSpawn = nullptr;
@@ -894,7 +911,8 @@ void DropBubble(Run& run, Map* map, std::vector<Player*> const& present)
     ComputeFactors(run);
     for (auto const& [guid, role] : run.creatures)
         if (Creature* creature = map->GetCreature(guid); creature && creature->IsAlive() && !creature->IsInCombat())
-            ApplyScaling(creature, role, run.level, run.healthFactor, run.damageFactor, run.referenceHealth);
+            ApplyScaling(creature, role, run.level, run.healthFactor, run.damageFactor, run.referenceHealth,
+                run.meleeFromReference);
 
     run.state = FloorState::Fighting;
     run.stateMs = 0;
@@ -1241,18 +1259,27 @@ std::optional<std::size_t> PickArena(Run const& run)
     if (run.forcedArena && *run.forcedArena < arenas.size())
         return run.forcedArena;
 
-    std::vector<std::size_t> candidates;
+    // While levelling, the rooms of the run's level range; at the level cap every room of every range (the creatures
+    // take the run's level anyway), so a gearing run is not the same eight Northrend rooms over and over
+    bool const atCap = run.level >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL);
+    std::vector<std::size_t> pool;
     for (std::size_t index = 0; index < arenas.size(); ++index)
-        if (run.level >= arenas[index].minLevel && run.level <= arenas[index].maxLevel &&
-            (!run.previousArena || *run.previousArena != index))
-            candidates.push_back(index);
-    if (candidates.empty())
-        for (std::size_t index = 0; index < arenas.size(); ++index)
-            if (run.level >= arenas[index].minLevel && run.level <= arenas[index].maxLevel)
-                candidates.push_back(index);
-    if (candidates.empty())
+        if (atCap || (run.level >= arenas[index].minLevel && run.level <= arenas[index].maxLevel))
+            pool.push_back(index);
+    if (pool.empty())
         return std::nullopt;
-    return Acore::Containers::SelectRandomContainerElement(candidates);
+
+    // Not one of the rooms played lately: the last half of the pool (at least the previous one) is left out
+    std::size_t const avoid = std::max<std::size_t>(1, pool.size() / 2);
+    std::vector<std::size_t> candidates;
+    for (std::size_t index : pool)
+    {
+        auto const recent = std::find(run.recentArenas.begin(), run.recentArenas.end(), index);
+        if (recent == run.recentArenas.end() ||
+            static_cast<std::size_t>(std::distance(recent, run.recentArenas.end())) > avoid)
+            candidates.push_back(index);
+    }
+    return Acore::Containers::SelectRandomContainerElement(candidates.empty() ? pool : candidates);
 }
 
 // Sends every member to a fresh instance of the next floor's arena. Called from `from`, the map the members are in
@@ -1293,7 +1320,9 @@ void BeginFloor(Run& run, uint32 floor, Map const* from, uint32 arrivedDown = 1)
     if (!arena)
         return;
     run.forcedArena.reset();
-    run.previousArena = arena;
+    run.recentArenas.push_back(*arena);
+    if (run.recentArenas.size() > GetArenas().size())
+        run.recentArenas.pop_front();
     run.arena = *arena;
 
     // Leave the old floor behind: its instance is reset once empty
