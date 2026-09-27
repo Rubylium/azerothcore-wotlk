@@ -3,6 +3,7 @@
 #include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "Map.h"
 #include "Player.h"
 #include "PlayerScript.h"
 #include "Random.h"
@@ -45,7 +46,11 @@
 // Barrier): the character holds the highest rank its level allows, and losing the node takes every rank.
 //
 // Bots have no window: each tree names the order a bot takes its nodes in (BotOrder), and a bot's build is filled
-// from it, as far as its level's points go, whenever it logs in, levels or changes specialization.
+// from it, as far as its level's points go, whenever it logs in, levels or changes specialization. A spec tree also
+// carries the class's recommended builds (SingleBuild, AoeBuild: its class and spec nodes): in a five-man dungeon,
+// where the fights are packs, a bot takes its specialization's AoE build instead, and goes back to its bot order as
+// it leaves (a tree without a bot order uses its single-target build there). They are placed as a player applying
+// the build would place them, so what the level does not allow yet simply waits.
 //
 // Addon whispers, prefix "TalentTree":
 //   client -> server  OPEN                    the state, please
@@ -107,12 +112,21 @@ struct BotPick
     uint8 option = 1;
 };
 
+// A node of a recommended build, at the rank (or option) the build holds
+struct PresetPick
+{
+    uint16 node = 0;
+    uint8 value = 0;
+};
+
 struct Tree
 {
     uint8 id = 0;
     bool spec = false;              // a spec tree (else the class tree)
     std::vector<uint32> specSpells; // learned while this spec tree is the chosen specialization
     std::vector<BotPick> botOrder;
+    std::vector<PresetPick> singleBuild;    // a spec tree's recommended builds, its class tree nodes included
+    std::vector<PresetPick> aoeBuild;
     uint8 firstLevel = 10;
     uint8 levelStep = 2;
     std::array<TreeGate, 2> gates{};
@@ -554,13 +568,118 @@ bool IsBot(Player* player)
     return player->GetSession() && player->GetSession()->IsBot();
 }
 
-// A bot's build: its trees' bot orders taken in turn, each node ranked as far as it goes, until the level's points
-// run out. Only the class tree and the chosen specialization's tree are filled.
-void FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state)
+// A node of the class tree or of a specialization's tree: what a loadout (and a recommended build) holds
+bool IsInLoadout(ClassTrees const& data, TreeNode const& node, uint8 specialization)
+{
+    Tree const* tree = FindTree(data, node.tree);
+    return tree && (!tree->spec || tree->id == specialization);
+}
+
+// Places a wanted build (digit format) into a build the way a player applying it would click it: the class tree
+// first, then row by row, each node ranked as far as it goes while the build stays legal at the level. The class
+// tree's and the specialization's nodes start from nothing; the other spec trees' are left as they are.
+void PlaceBuild(ClassTrees const& data, std::string& build, std::string const& wanted, uint8 specialization,
+    uint8 level)
+{
+    std::vector<std::size_t> order;
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+        if (IsInLoadout(data, data.nodes[position], specialization))
+            order.push_back(position);
+    std::stable_sort(order.begin(), order.end(), [&data](std::size_t a, std::size_t b)
+    {
+        TreeNode const& left = data.nodes[a];
+        TreeNode const& right = data.nodes[b];
+        bool const leftClass = !FindTree(data, left.tree) || !FindTree(data, left.tree)->spec;
+        bool const rightClass = !FindTree(data, right.tree) || !FindTree(data, right.tree)->spec;
+        if (leftClass != rightClass)
+            return leftClass;
+        return left.row < right.row;
+    });
+
+    for (std::size_t position : order)
+        build[position] = '0';
+
+    uint16 offender = 0;
+    // Twice over: a node whose parent sits later in the same row gets its turn the second time
+    for (int pass = 0; pass < 2; ++pass)
+        for (std::size_t position : order)
+        {
+            TreeNode const& node = data.nodes[position];
+            uint8 const target = Value(wanted, position);
+            char& digit = build[position];
+            if (!target || Value(build, position) >= target)
+                continue;
+            if (node.kind == NodeKind::Choice)
+            {
+                digit = char('0' + target);
+                if (Validate(data, build, level, offender) != BuildError::None)
+                    digit = '0';
+                continue;
+            }
+            while (Value(build, position) < target)
+            {
+                ++digit;
+                if (Validate(data, build, level, offender) != BuildError::None)
+                {
+                    --digit;
+                    break;
+                }
+            }
+        }
+}
+
+// Where a bot fights packs: a five-man dungeon (a Mythic+ key included)
+bool WantsAoeBuild(Player* player)
+{
+    Map const* map = player->FindMap();
+    return map && map->IsNonRaidDungeon();
+}
+
+// A recommended build as the window's digit format
+std::string PresetDigits(ClassTrees const& data, std::vector<PresetPick> const& preset)
+{
+    std::string digits(data.nodes.size(), '0');
+    for (PresetPick const& pick : preset)
+    {
+        auto const position = data.positions.find(pick.node);
+        if (position == data.positions.end() || !pick.value)
+            continue;
+        digits[position->second] = char('0' + std::min<std::size_t>(pick.value,
+            data.nodes[position->second].spells.size()));
+    }
+    return digits;
+}
+
+// A bot's build: in a dungeon its specialization's AoE build; elsewhere its trees' bot orders taken in turn (or,
+// for a spec tree without one, its single-target build), each node ranked as far as it goes, until the level's
+// points run out. Only the class tree and the chosen specialization's tree are filled. Returns whether the build
+// changed (it is then saved; the caller makes the spells follow).
+bool FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state)
 {
     uint8 const slot = ActiveSlot(player);
     uint8 const specialization = Specialization(data, state->specializations[slot]);
     std::string build(data.nodes.size(), '0');
+
+    Tree const* specTree = FindTree(data, specialization);
+    std::vector<PresetPick> const* preset = nullptr;
+    if (specTree && specTree->spec)
+    {
+        if (WantsAoeBuild(player) && !specTree->aoeBuild.empty())
+            preset = &specTree->aoeBuild;
+        else if (specTree->botOrder.empty() && !specTree->singleBuild.empty())
+            preset = &specTree->singleBuild;
+    }
+
+    if (preset)
+    {
+        PlaceBuild(data, build, PresetDigits(data, *preset), specialization, player->GetLevel());
+        if (build == state->builds[slot])
+            return false;
+        state->builds[slot] = build;
+        SaveBuild(player, data, state, slot);
+        return true;
+    }
+
     uint16 offender = 0;
     for (Tree const& tree : data.trees)
     {
@@ -597,9 +716,10 @@ void FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state
     }
 
     if (build == state->builds[slot])
-        return;
+        return false;
     state->builds[slot] = build;
     SaveBuild(player, data, state, slot);
+    return true;
 }
 
 // The WotLK talent tab a bot had spent the most points in (the active slot's), -1 without any: read before the WotLK
@@ -677,12 +797,6 @@ void HandleSpecialization(Player* player, ClassTrees const& data, TalentTreeStat
 }
 
 // --- Loadouts ---------------------------------------------------------------------------------------------------
-
-bool IsInLoadout(ClassTrees const& data, TreeNode const& node, uint8 specialization)
-{
-    Tree const* tree = FindTree(data, node.tree);
-    return tree && (!tree->spec || tree->id == specialization);
-}
 
 void SendLoadouts(Player* player, TalentTreeState const* state)
 {
@@ -798,60 +912,18 @@ void ApplyLoadoutBuild(Player* player, ClassTrees const& data, TalentTreeState* 
     if (!data.specTrees.empty() && Specialization(data, state->specializations[slot]) != loadout->specialization)
         ChangeSpecialization(player, data, state, loadout->specialization);
 
-    std::vector<std::size_t> order;
-    for (std::size_t position = 0; position < data.nodes.size(); ++position)
-        if (IsInLoadout(data, data.nodes[position], loadout->specialization))
-            order.push_back(position);
-    std::stable_sort(order.begin(), order.end(), [&data](std::size_t a, std::size_t b)
-    {
-        TreeNode const& left = data.nodes[a];
-        TreeNode const& right = data.nodes[b];
-        bool const leftClass = !FindTree(data, left.tree) || !FindTree(data, left.tree)->spec;
-        bool const rightClass = !FindTree(data, right.tree) || !FindTree(data, right.tree)->spec;
-        if (leftClass != rightClass)
-            return leftClass;
-        return left.row < right.row;
-    });
-
     std::string build = state->builds[slot];
-    for (std::size_t position : order)
-        build[position] = '0';
+    PlaceBuild(data, build, loadout->build, loadout->specialization, player->GetLevel());
 
-    uint8 const level = player->GetLevel();
-    uint16 offender = 0;
     uint32 total = 0;
     uint32 placed = 0;
-    for (std::size_t position : order)
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+    {
+        if (!IsInLoadout(data, data.nodes[position], loadout->specialization))
+            continue;
         total += Cost(data.nodes[position], Value(loadout->build, position));
-
-    // Twice over: a node whose parent sits later in the same row gets its turn the second time
-    for (int pass = 0; pass < 2; ++pass)
-        for (std::size_t position : order)
-        {
-            TreeNode const& node = data.nodes[position];
-            uint8 const wanted = Value(loadout->build, position);
-            char& digit = build[position];
-            if (!wanted || Value(build, position) >= wanted)
-                continue;
-            if (node.kind == NodeKind::Choice)
-            {
-                digit = char('0' + wanted);
-                if (Validate(data, build, level, offender) != BuildError::None)
-                    digit = '0';
-                continue;
-            }
-            while (Value(build, position) < wanted)
-            {
-                ++digit;
-                if (Validate(data, build, level, offender) != BuildError::None)
-                {
-                    --digit;
-                    break;
-                }
-            }
-        }
-    for (std::size_t position : order)
         placed += Cost(data.nodes[position], Value(build, position));
+    }
 
     state->builds[slot] = build;
     SaveBuild(player, data, state, slot);
@@ -985,6 +1057,31 @@ void LoadTrees()
         data.trees.push_back(tree);
     } while (trees->NextRow());
 
+    // The recommended builds on their own: a database the generated SQL has not reached yet keeps its trees
+    if (QueryResult presets = WorldDatabase.Query(
+            "SELECT `ClassId`, `TreeId`, `SingleBuild`, `AoeBuild` FROM `custom_talent_tree`"))
+        do
+        {
+            Field* field = presets->Fetch();
+            auto const data = Classes.find(field[0].Get<uint8>());
+            if (data == Classes.end())
+                continue;
+            auto const tree = std::find_if(data->second.trees.begin(), data->second.trees.end(),
+                [treeId = field[1].Get<uint8>()](Tree const& candidate) { return candidate.id == treeId; });
+            if (tree == data->second.trees.end())
+                continue;
+
+            for (auto [column, preset] : { std::make_pair(2, &tree->singleBuild), std::make_pair(3, &tree->aoeBuild) })
+                for (std::string_view token : Acore::Tokenize(field[column].Get<std::string_view>(), ',', false))
+                {
+                    std::vector<std::string_view> const parts = Acore::Tokenize(token, ':', false);
+                    Optional<uint16> const node = parts.size() == 2 ? Acore::StringTo<uint16>(parts[0]) : std::nullopt;
+                    Optional<uint8> const value = parts.size() == 2 ? Acore::StringTo<uint8>(parts[1]) : std::nullopt;
+                    if (node && value && *value > 0 && *value <= 9)
+                        preset->push_back({ *node, *value });
+                }
+        } while (presets->NextRow());
+
     QueryResult nodes = WorldDatabase.Query(
         // `Row` is a reserved word in MySQL 8: every column is quoted
         "SELECT `ClassId`, `NodeId`, `TreeId`, `Row`, `Kind`, `MinLevel`, `Spells`, `Parents` "
@@ -1063,6 +1160,7 @@ public:
         PLAYERHOOK_ON_LOGIN,
         PLAYERHOOK_ON_LEVEL_CHANGED,
         PLAYERHOOK_ON_AFTER_SPEC_SLOT_CHANGED,
+        PLAYERHOOK_ON_MAP_CHANGED,
         PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE,
         PLAYERHOOK_ON_DELETE
     }) { }
@@ -1120,6 +1218,21 @@ public:
             FillBotBuild(player, *data, state);
         ReconcileActive(player, *data, state);
         SendState(player, false);
+    }
+
+    // A bot entering a five-man dungeon takes its AoE build, and its usual one back as it leaves. At login the map
+    // comes before the build is loaded: OnPlayerLogin fills it then.
+    void OnPlayerMapChanged(Player* player) override
+    {
+        if (!IsBot(player))
+            return;
+        ClassTrees const* data = GetTrees(player->getClass());
+        TalentTreeState* state = GetState(player);
+        if (!data || !state)
+            return;
+
+        if (FillBotBuild(player, *data, state))
+            ReconcileActive(player, *data, state);
     }
 
     void OnPlayerBeforeSendChatMessage(Player* player, uint32& /*type*/, uint32& language,

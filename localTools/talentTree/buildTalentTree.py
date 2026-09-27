@@ -156,6 +156,20 @@ def preset_build(definition, preset):
     return ''.join(str(values.get(node['id'], 0)) for _, node in ordered_nodes(definition))
 
 
+def preset_pairs(definition, tree, kind):
+    """A spec tree's preset of a kind for the server, "node:value" pairs in build order (its class tree nodes
+    included): what a bot takes when that build suits the content (the "aoe" one in a dungeon). Empty without one."""
+    if tree['kind'] != 'spec':
+        return ''
+    preset = next((preset for preset in definition.get('presets', [])
+                   if preset['spec'] == tree['id'] and preset['kind'] == kind), None)
+    if not preset:
+        return ''
+    values = preset_values(definition, preset)
+    return ','.join(f"{node['id']}:{values[node['id']]}" for _, node in ordered_nodes(definition)
+                    if values.get(node['id']))
+
+
 def bot_pick(pick):
     """A bot build entry: a node id (every rank of it, in order), or "<node>:<option>" for a choice."""
     text = str(pick)
@@ -226,6 +240,8 @@ def build_sql(definitions):
         "    `Signature` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'of the whole class, matched by the client',",
         "    `SpecSpells` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'a spec tree: learned while it is the chosen one',",
         "    `BotOrder` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'the order a bot takes its nodes in (node or node:option)',",
+        "    `SingleBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: single-target preset',",
+        "    `AoeBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: AoE preset (bots, dungeons)',",
         "    `Name` VARCHAR(64) NOT NULL DEFAULT '',",
         '    PRIMARY KEY (`ClassId`, `TreeId`)',
         ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;',
@@ -252,7 +268,7 @@ def build_sql(definitions):
         lines.append(f'DELETE FROM `custom_talent_tree` WHERE `ClassId` = {class_id};')
         lines.append('INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, '
                      '`Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, '
-                     '`Name`) VALUES')
+                     '`SingleBuild`, `AoeBuild`, `Name`) VALUES')
         rows = []
         for tree in definition['trees']:
             gates = (tree.get('gates', []) + [{'row': 0, 'cost': 0}] * 2)[:2]
@@ -260,7 +276,9 @@ def build_sql(definitions):
                         f"{tree['levelStep']}, {gates[0]['row']}, {gates[0]['cost']}, {gates[1]['row']}, "
                         f"{gates[1]['cost']}, {stamp}, "
                         f"'{','.join(str(spell) for spell in tree.get('specSpells', []))}', "
-                        f"'{','.join(str(pick) for pick in tree.get('botBuild', []))}', {sql_string(tree['name'])})")
+                        f"'{','.join(str(pick) for pick in tree.get('botBuild', []))}', "
+                        f"'{preset_pairs(definition, tree, 'single')}', '{preset_pairs(definition, tree, 'aoe')}', "
+                        f"{sql_string(tree['name'])})")
         lines.append(',\n'.join(rows) + ';')
         lines.append('')
         lines.append(f'DELETE FROM `custom_talent_node` WHERE `ClassId` = {class_id};')
