@@ -83,6 +83,7 @@ constexpr uint32 SPELL_RING = 90700;
 constexpr uint32 GO_PORTAL = 920100;
 constexpr uint32 GO_HEART = 920101;
 constexpr uint32 GO_CHEST = 920102;
+constexpr uint32 GO_PORTAL_LIGHT = 920103;
 constexpr uint32 NPC_TEXT_KEEPER = 920000;
 constexpr uint32 NPC_TEXT_PORTAL = 920001;
 
@@ -98,6 +99,11 @@ constexpr uint32 SPELL_LOG_HOLY = 26573;        // Consecration
 constexpr float BubbleRadius = 6.0f;
 constexpr float HeartPickupRange = 2.0f;
 constexpr float PartnerRange = 40.0f;
+// The portal stands this far off the boss spot, and at least this far from the guardian's body; the checkpoint chest
+// this far beside it
+constexpr float PortalOffset = 7.0f;
+constexpr float PortalCorpseClearance = 5.0f;
+constexpr float ChestBesidePortal = 5.0f;
 constexpr float AbilityReach = 60.0f;
 constexpr float TargetRange = 30.0f;
 // Two packs stand at least this far apart, and trash spots this far from the bubble
@@ -167,6 +173,15 @@ struct Member
     WorldLocation home;
     Role role = Role::Damage;
     bool chestClaimed = false;
+    // What the run gave it so far, for the summary at the end (SUMMARY)
+    uint32 floorsCleared = 0;
+    uint32 gold = 0;
+    uint32 experience = 0;
+    uint32 essences = 0;
+    uint32 items = 0;
+    uint32 paragon = 0;
+    // The last PROG line it was sent: a line is only sent again when it changes
+    std::string lastProgress;
 };
 
 struct Run
@@ -174,6 +189,9 @@ struct Run
     uint32 id = 0;
     Ladder ladder = Ladder::Levelling;
     uint32 floor = 1;
+    uint32 startFloor = 1;
+    uint32 deaths = 0;              // every fall of a member during the run
+    uint32 heartsTaken = 0;
     uint8 level = MinPlayerLevel;
     std::vector<Member> members;
     std::size_t arena = 0;
@@ -191,6 +209,7 @@ struct Run
     ObjectGuid boss;
     std::vector<std::pair<ObjectGuid, MobRole>> creatures;
     std::set<ObjectGuid> fallen;
+    std::set<ObjectGuid> deadMembers;   // members dead right now, to count each fall once
     std::vector<ObjectGuid> hearts;
     float healthFactor = 1.0f;      // the roles' and the floor's
     float damageFactor = 1.0f;
@@ -436,19 +455,89 @@ uint32 LastCheckpoint(uint32 floor)
     return floor > 0 ? (floor - 1) / CheckpointFloors * CheckpointFloors : 0;
 }
 
-// HUD floor checkpoint ladder step paragon state arena level players
+// The messages, prefix "Infinite", tab-separated (InfiniteDungeon.lua reads them):
+//   HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best>
+//   ARRIVE <floor> <arena> <ladder> <step> <paragon>
+//   PROG <foes down> <foes> <boss down 0/1> <hearts on the ground> <hearts taken> <deaths> <partner> <partner state>
+//        partner state: 0 no partner, 1 alive on the floor, 2 dead, 3 not on the floor
+//   REWARD <floor> <gold copper> <experience> <essences> <gear 0/1>        a floor cleared, before CLEAR
+//   CLEAR <floor> <checkpoint reached 0/1>
+//   CHEST <essences> <paragon points>                                    the checkpoint chest opened
+//   SUMMARY <ladder> <start floor> <floor> <floors cleared> <best> <checkpoint> <gold> <experience> <essences>
+//           <items> <paragon>                                             the run is over for it, before END
+//   END <reason> <floor>
+// and from the client: STATE (entering the world: the panel again, or END 0 0 out of a run)
+// HUD floor checkpoint ladder step paragon state arena level players best
 void SendHud(Player* player, Run const& run)
 {
-    SendAddon(player, Acore::StringFormat("HUD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor,
+    SendAddon(player, Acore::StringFormat("HUD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor,
         LastCheckpoint(run.floor), static_cast<uint32>(run.ladder), GetStep(run.floor),
         GetRecommendedParagon(run.ladder, run.floor), static_cast<uint32>(run.state), ArenaName(player, ArenaOf(run)),
-        run.level, run.members.size()));
+        run.level, run.members.size(), ProgressOf(player).best[static_cast<std::size_t>(run.ladder)]));
 }
 
 void SendHudToAll(Run const& run, Map const* map)
 {
     for (Player* player : PresentMembers(run, map))
         SendHud(player, run);
+}
+
+// The floor's progress for the tracker: foes down, the guardian, the hearts, the falls and the partner. Sent only
+// when it changed since the last line that member got.
+void SendProgress(Run& run, Map const* map)
+{
+    uint32 foes = 0;
+    uint32 foesDown = 0;
+    bool bossDown = run.state == FloorState::Cleared;
+    for (auto const& [guid, role] : run.creatures)
+    {
+        bool const down = run.fallen.count(guid) != 0;
+        if (role == MobRole::Boss)
+        {
+            bossDown = bossDown || down;
+            continue;
+        }
+        ++foes;
+        if (down)
+            ++foesDown;
+    }
+
+    for (Member& member : run.members)
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(member.guid);
+        if (!player || !player->IsInWorld() || player->FindMap() != map)
+            continue;
+
+        std::string partnerName;
+        uint32 partnerState = 0;
+        for (Member const& other : run.members)
+        {
+            if (other.guid == member.guid)
+                continue;
+            Player* partner = ObjectAccessor::FindConnectedPlayer(other.guid);
+            if (!partner)
+                continue;
+            partnerName = partner->GetName();
+            partnerState = partner->IsInWorld() && partner->FindMap() == map ? (partner->IsAlive() ? 1 : 2) : 3;
+        }
+
+        std::string line = Acore::StringFormat("PROG\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", foesDown, foes,
+            bossDown ? 1 : 0, run.hearts.size(), run.heartsTaken, run.deaths, partnerName, partnerState);
+        if (line == member.lastProgress)
+            continue;
+        member.lastProgress = line;
+        SendAddon(player, line);
+    }
+}
+
+// SUMMARY ladder start floor cleared best checkpoint gold experience essences items paragon
+void SendSummary(Player* player, Run const& run, Member const& member)
+{
+    Progress const& progress = ProgressOf(player);
+    std::size_t const ladder = static_cast<std::size_t>(run.ladder);
+    SendAddon(player, Acore::StringFormat("SUMMARY\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", ladder, run.startFloor,
+        run.floor, member.floorsCleared, progress.best[ladder], progress.checkpoint[ladder], member.gold,
+        member.experience, member.essences, member.items, member.paragon));
 }
 
 // -----------------------------------------------------------------------------------------------------------------
@@ -780,6 +869,7 @@ void PickUpHearts(Run& run, Map* map, std::vector<Player*> const& present)
             taker->ModifyPower(POWER_MANA, static_cast<int32>(CalculatePct(maxMana, HeartManaPct)));
         GroundIndicators::Burst(taker, taker->GetPosition(), GroundIndicators::Theme::Holy);
         heart->DespawnOrUnsummon();
+        ++run.heartsTaken;
         itr = run.hearts.erase(itr);
     }
 }
@@ -817,19 +907,21 @@ void GiveItem(Player* player, ItemTemplate const* itemTemplate)
 
 // Every fifth floor's guardian: one piece fitted to the player's class and slots, at its level while levelling, of
 // the step's item level at the cap
-void GiveFloorGear(Run const& run, Player* player)
+bool GiveFloorGear(Run const& run, Player* player)
 {
     if (IsAtLevelCap(player))
     {
         GiveMythicLootItem(player, run.ladder == Ladder::Gearing ? GetItemLevel(run.floor) : GearingBaseItemLevel);
-        return;
+        return true;
     }
 
     ItemTemplate const* itemTemplate = SelectLevelLootItem(player, ITEM_QUALITY_RARE);
     if (!itemTemplate)
         itemTemplate = SelectLevelLootItem(player, ITEM_QUALITY_UNCOMMON);
-    if (itemTemplate)
-        GiveItem(player, itemTemplate);
+    if (!itemTemplate)
+        return false;
+    GiveItem(player, itemTemplate);
+    return true;
 }
 
 ContentLevels ContentFor(uint8 level)
@@ -837,11 +929,16 @@ ContentLevels ContentFor(uint8 level)
     return level >= 70 ? CONTENT_71_80 : level >= 60 ? CONTENT_61_70 : CONTENT_1_60;
 }
 
-void RewardFloor(Run const& run, Player* player)
+// The floor's rewards, told to the client (REWARD) and kept for the run's summary
+void RewardFloor(Run const& run, Player* player, Member& member)
 {
     uint8 const level = player->GetLevel();
+    uint32 experience = 0;
     if (!IsAtLevelCap(player))
-        player->GiveXP(FloorExperienceKills * Acore::XP::BaseGain(level, level, ContentFor(level)), nullptr);
+    {
+        experience = FloorExperienceKills * Acore::XP::BaseGain(level, level, ContentFor(level));
+        player->GiveXP(experience, nullptr);
+    }
 
     uint32 const gold = FloorGoldPerLevelSquared * level * level;
     player->ModifyMoney(static_cast<int32>(gold));
@@ -849,10 +946,18 @@ void RewardFloor(Run const& run, Player* player)
         IsFrench(player) ? "|cffffd24dÉtage {} franchi :|r {}." : "|cffffd24dFloor {} cleared:|r {}.", run.floor,
         Acore::StringFormat("{}g {}s {}c", gold / GOLD, (gold % GOLD) / SILVER, gold % SILVER));
 
+    uint32 essences = 0;
     if (roll_chance_i(static_cast<int32>(FloorEssenceChance)))
-        GrantEssenceRewards(player, 1, 1);
-    if (run.floor % GearFloors == 0)
-        GiveFloorGear(run, player);
+        essences = GrantEssenceRewards(player, 1, 1);
+    bool const gear = run.floor % GearFloors == 0 && GiveFloorGear(run, player);
+
+    ++member.floorsCleared;
+    member.gold += gold;
+    member.experience += experience;
+    member.essences += essences;
+    member.items += gear ? 1 : 0;
+    SendAddon(player, Acore::StringFormat("REWARD\t{}\t{}\t{}\t{}\t{}", run.floor, gold, experience, essences,
+        gear ? 1 : 0));
 
     Progress& progress = ProgressOf(player);
     std::size_t const ladder = static_cast<std::size_t>(run.ladder);
@@ -867,34 +972,72 @@ void RewardFloor(Run const& run, Player* player)
     SaveProgress(player);
 }
 
+// Where the portal opens: off the guardian's body (it fell among the others), a few yards from the boss spot
+// towards the way in or to a side of it, on ground the boss spot sees
+Position PortalSpot(Run const& run, Map* map, Creature* anchor)
+{
+    ArenaInfo const& arena = ArenaOf(run);
+    Position const boss = SpotPosition(arena.boss);
+    Position const entry = SpotPosition(arena.entry);
+    Creature const* corpse = map->GetCreature(run.boss);
+    Position const body = corpse ? corpse->GetPosition() : boss;
+    float const towardEntry = boss.GetAbsoluteAngle(&entry);
+    float const reach = std::min(PortalOffset, boss.GetExactDist2d(&entry) * 0.5f);
+
+    std::vector<Position> candidates;
+    auto add = [&](float angle, float distance)
+    {
+        candidates.push_back(GroundPoint(map, boss.GetPositionX() + distance * std::cos(angle),
+            boss.GetPositionY() + distance * std::sin(angle), boss.GetPositionZ(), towardEntry));
+    };
+    add(towardEntry, reach);
+    add(towardEntry + float(M_PI) / 2.0f, PortalOffset);
+    add(towardEntry - float(M_PI) / 2.0f, PortalOffset);
+    add(towardEntry, reach * 1.8f);
+    candidates.push_back(boss);
+
+    for (Position const& spot : candidates)
+        if (spot.GetExactDist2d(&body) >= PortalCorpseClearance &&
+            anchor->IsWithinLOS(spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ() + 2.0f))
+            return spot;
+    return candidates.front();
+}
+
 void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
 {
     run.state = FloorState::Cleared;
     run.stateMs = 0;
 
-    ArenaInfo const& arena = ArenaOf(run);
-    Position const boss = SpotPosition(arena.boss);
-    Position const entry = SpotPosition(arena.entry);
     if (Creature* anchor = map->GetCreature(run.anchor))
     {
-        anchor->SummonGameObject(GO_PORTAL, boss.GetPositionX(), boss.GetPositionY(), boss.GetPositionZ(),
-            boss.GetAbsoluteAngle(&entry), 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
+        Position const portal = PortalSpot(run, map, anchor);
+        Position const entry = SpotPosition(ArenaOf(run).entry);
+        float const facing = portal.GetAbsoluteAngle(&entry);
+        anchor->SummonGameObject(GO_PORTAL, portal.GetPositionX(), portal.GetPositionY(), portal.GetPositionZ(),
+            facing, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
+        // A pillar of light over it, seen from across the room
+        anchor->SummonGameObject(GO_PORTAL_LIGHT, portal.GetPositionX(), portal.GetPositionY(),
+            portal.GetPositionZ(), facing, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
+        GroundIndicators::Burst(anchor, portal, GroundIndicators::Theme::Holy);
         if (run.floor % CheckpointFloors == 0)
         {
-            float const angle = boss.GetAbsoluteAngle(&entry);
-            Position const chest = GroundPoint(map, boss.GetPositionX() + 4.0f * std::cos(angle),
-                boss.GetPositionY() + 4.0f * std::sin(angle), boss.GetPositionZ(), angle);
+            // Beside the portal, facing the way in
+            float const side = facing + float(M_PI) / 2.0f;
+            Position const chest = GroundPoint(map, portal.GetPositionX() + ChestBesidePortal * std::cos(side),
+                portal.GetPositionY() + ChestBesidePortal * std::sin(side), portal.GetPositionZ(), facing);
             anchor->SummonGameObject(GO_CHEST, chest.GetPositionX(), chest.GetPositionY(), chest.GetPositionZ(),
-                angle, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
+                facing, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
         }
     }
 
     for (Player* player : present)
     {
-        RewardFloor(run, player);
+        if (Member* member = MemberOf(run, player->GetGUID()))
+            RewardFloor(run, player, *member);
         SendAddon(player, Acore::StringFormat("CLEAR\t{}\t{}", run.floor, run.floor % CheckpointFloors == 0 ? 1 : 0));
         SendHud(player, run);
     }
+    SendProgress(run, map);
 }
 
 // -----------------------------------------------------------------------------------------------------------------
@@ -929,6 +1072,7 @@ void EndRun(Run& run, Map* map, EndReason reason)
 
         RestorePlayer(player);
         SaveRunState(player, false, member.home);
+        SendSummary(player, run, member);
         SendAddon(player, Acore::StringFormat("END\t{}\t{}", static_cast<uint32>(reason), run.floor));
         if (reason == EndReason::Fallen)
             Say(player, IsFrench(player) ?
@@ -947,11 +1091,13 @@ void LeaveRun(Player* player, bool logout)
         return;
 
     WorldLocation home;
+    Member left;
     auto const member = std::find_if(run->members.begin(), run->members.end(),
         [player](Member const& m) { return m.guid == player->GetGUID(); });
     if (member != run->members.end())
     {
         home = member->home;
+        left = *member;
         run->members.erase(member);
     }
     RunByPlayer.erase(player->GetGUID());
@@ -963,6 +1109,8 @@ void LeaveRun(Player* player, bool logout)
     {
         RestorePlayer(player);
         SaveRunState(player, false, home);
+        if (!left.guid.IsEmpty())
+            SendSummary(player, *run, left);
         SendAddon(player, Acore::StringFormat("END\t{}\t{}", static_cast<uint32>(EndReason::Left), run->floor));
     }
 
@@ -1037,10 +1185,14 @@ void BeginFloor(Run& run, uint32 floor, Map const* from)
     run.boss.Clear();
     run.creatures.clear();
     run.fallen.clear();
+    run.deadMembers.clear();
     run.hearts.clear();
     run.usedMaps.insert(target.mapId);
     for (Member& member : run.members)
+    {
         member.chestClaimed = false;
+        member.lastProgress.clear();
+    }
 
     for (Member const& member : run.members)
     {
@@ -1098,6 +1250,8 @@ void OnArrival(Run& run, Player* player)
     SendHud(player, run);
     SendAddon(player, Acore::StringFormat("ARRIVE\t{}\t{}\t{}\t{}\t{}", run.floor, ArenaName(player, arena),
         static_cast<uint32>(run.ladder), GetStep(run.floor), GetRecommendedParagon(run.ladder, run.floor)));
+    if (Member* member = MemberOf(run, player->GetGUID()))
+        member->lastProgress.clear();
 }
 
 // Why a player cannot start a run, or empty
@@ -1170,6 +1324,7 @@ bool StartRun(std::vector<Player*> const& players, std::optional<uint32> floor,
     run->id = ++NextRunId;
     run->ladder = LadderFor(players);
     uint32 const startFloor = floor ? *floor : StartFloor(players, run->ladder);
+    run->startFloor = std::max<uint32>(startFloor, 1);
 
     for (Player* player : players)
     {
@@ -1248,6 +1403,18 @@ void ProcessPendingResets(uint32 diff)
     }
 }
 
+// Counts each fall of a member once, for the tracker
+void CountDeaths(Run& run, std::vector<Player*> const& present)
+{
+    for (Player* player : present)
+    {
+        if (player->IsAlive())
+            run.deadMembers.erase(player->GetGUID());
+        else if (run.deadMembers.insert(player->GetGUID()).second)
+            ++run.deaths;
+    }
+}
+
 // The floor's life, from its map's update. Returns false once the run is gone.
 bool UpdateRun(Run& run, Map* map, uint32 diff)
 {
@@ -1265,6 +1432,7 @@ bool UpdateRun(Run& run, Map* map, uint32 diff)
                 run.state = FloorState::Bubble;
                 run.stateMs = 0;
                 SendHudToAll(run, map);
+                SendProgress(run, map);
             }
             return true;
         case FloorState::Bubble:
@@ -1279,6 +1447,7 @@ bool UpdateRun(Run& run, Map* map, uint32 diff)
             }
             if (left)
                 DropBubble(run, map, present);
+            SendProgress(run, map);
             return true;
         }
         case FloorState::Fighting:
@@ -1293,13 +1462,16 @@ bool UpdateRun(Run& run, Map* map, uint32 diff)
                     OnFloorCleared(run, map, present);
             }
 
+            CountDeaths(run, present);
             // When the last living player dies, the run ends
             if (!present.empty() && std::none_of(present.begin(), present.end(),
                     [](Player* player) { return player->IsAlive(); }))
             {
                 run.state = FloorState::Failed;
                 run.stateMs = 0;
+                SendHudToAll(run, map);
             }
+            SendProgress(run, map);
             return true;
         }
         case FloorState::Failed:
@@ -1533,10 +1705,16 @@ public:
 
         member->chestClaimed = true;
         uint32 const bonus = run->floor / 50;
-        GrantEssenceRewards(player, CheckpointEssences + bonus, 1 + run->floor / 30);
+        uint32 const essences = GrantEssenceRewards(player, CheckpointEssences + bonus, 1 + run->floor / 30);
+        uint32 paragon = 0;
         if (IsAtLevelCap(player))
-            AwardParagonPoints(player, CheckpointParagonPoints + bonus, IsFrench(player) ? "Donjon infini" :
-                "Infinite Dungeon");
+        {
+            paragon = CheckpointParagonPoints + bonus;
+            AwardParagonPoints(player, paragon, IsFrench(player) ? "Donjon infini" : "Infinite Dungeon");
+        }
+        member->essences += essences;
+        member->paragon += paragon;
+        SendAddon(player, Acore::StringFormat("CHEST\t{}\t{}", essences, paragon));
         return true;
     }
 };
@@ -1916,9 +2094,14 @@ public:
             return;
 
         std::lock_guard<std::recursive_mutex> guard(Lock);
-        if (Run const* run = RunOf(player->GetGUID()); run && run->instanceId && player->FindMap() &&
+        if (Run* run = RunOf(player->GetGUID()); run && run->instanceId && player->FindMap() &&
             player->FindMap()->GetInstanceId() == run->instanceId)
+        {
             SendHud(player, *run);
+            if (Member* member = MemberOf(*run, player->GetGUID()))
+                member->lastProgress.clear();
+            SendProgress(*run, player->FindMap());
+        }
         else
             SendAddon(player, "END\t0\t0");
     }
