@@ -1,5 +1,6 @@
 #include "SmartLootSystem.h"
 
+#include "Bag.h"
 #include "Creature.h"
 #include "Group.h"
 #include "Item.h"
@@ -374,6 +375,43 @@ bool IsInCorpseLoot(Loot const& loot, uint32 itemId)
 // above. Which raid or dungeon it came from still decides how good the loot is; only the class fit changes.
 constexpr uint32 ReplacementItemLevelWindow = 6;
 
+// The stock item a generated one (a Mythic+ variant, a forged rank) was made from; the entry itself for a stock one
+uint32 BaseItemEntry(uint32 entry)
+{
+    return Mythic::IsGeneratedItem(entry) ? entry % Mythic::GeneratedItemBase : entry;
+}
+
+bool IsSameItem(Item const* item, uint32 baseEntry)
+{
+    return item && BaseItemEntry(item->GetEntry()) == baseEntry;
+}
+
+// Whether the player owns the candidate already, as itself or as any generated variant of it (worn, in the bags or
+// the bank), or could not wear it beside what it wears (a unique ring or trinket, a unique category): a variant of a
+// worn unique ring was offered as the upgrade of the other ring slot, and could not be put on
+bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate)
+{
+    uint32 const baseEntry = BaseItemEntry(candidate.ItemId);
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+        if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry))
+            return true;
+    for (uint8 slot = BANK_SLOT_ITEM_START; slot < BANK_SLOT_ITEM_END; ++slot)
+        if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry))
+            return true;
+    std::array<std::pair<uint8, uint8>, 2> const bagRanges = { {
+        { static_cast<uint8>(INVENTORY_SLOT_BAG_START), static_cast<uint8>(INVENTORY_SLOT_BAG_END) },
+        { static_cast<uint8>(BANK_SLOT_BAG_START), static_cast<uint8>(BANK_SLOT_BAG_END) } } };
+    for (auto const& [start, end] : bagRanges)
+    {
+        for (uint8 bagIndex = start; bagIndex < end; ++bagIndex)
+            if (Bag const* bag = player->GetBagByPos(bagIndex))
+                for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+                    if (IsSameItem(bag->GetItemByPos(static_cast<uint8>(slot)), baseEntry))
+                        return true;
+    }
+    return player->CanEquipUniqueItem(&candidate) != EQUIP_ERR_OK;
+}
+
 bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& candidate, uint32 progressionLevel,
     uint32 minimumRequiredLevel, uint32 quality, uint32 droppedItemLevel)
 {
@@ -391,7 +429,7 @@ bool IsUsableCandidate(Player* player, Loot const& loot, ItemTemplate const& can
         return false;
 
     // Never hand out a copy of something already owned (bags and bank included) or already on this corpse
-    return !IsInCorpseLoot(loot, candidate.ItemId) && !player->HasItemCount(candidate.ItemId, 1, true);
+    return !IsInCorpseLoot(loot, candidate.ItemId) && !OwnsOrCannotWear(player, candidate);
 }
 
 // The raw stat score grows with the slot's stat budget (a two-hander or a chest scores several times a ring), so
@@ -558,7 +596,7 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint3
                 candidate->SubClass != GetPreferredArmorSubclass(player))
                 continue;
             if (GetWeakestEquippedItemLevel(player, *candidate) == std::numeric_limits<uint32>::max() ||
-                player->HasItemCount(candidate->ItemId, 1, true))
+                OwnsOrCannotWear(player, *candidate))
                 continue;
 
             candidates.push_back({ candidate, ScoreCandidate(player, *candidate, progressionLevel, given) });
@@ -615,7 +653,7 @@ ItemTemplate const* SelectLevelLootItem(Player* player, uint32 quality)
                 candidate->SubClass != GetPreferredArmorSubclass(player))
                 continue;
             if (GetWeakestEquippedItemLevel(player, *candidate) == std::numeric_limits<uint32>::max() ||
-                player->HasItemCount(candidate->ItemId, 1, true))
+                OwnsOrCannotWear(player, *candidate))
                 continue;
 
             candidates.push_back({ candidate, ScoreCandidate(player, *candidate, level) });
