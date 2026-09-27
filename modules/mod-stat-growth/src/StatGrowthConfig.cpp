@@ -118,7 +118,7 @@ void StatGrowthConfig::BuildConfigCache()
         [](float value) { return value >= 0.0f && value <= 1000.0f; }, "0 through 1000");
     SetConfigValue<bool>(StatGrowthConfigKey::BotEssencesEnabled, "BotEssences.Enabled", true);
     SetConfigValue<bool>(StatGrowthConfigKey::BotCatchUpEnabled, "BotCatchUp.Enabled", true);
-    SetConfigValue<float>(StatGrowthConfigKey::BotCatchUpTargetShare, "BotCatchUp.TargetShare", 0.65f,
+    SetConfigValue<float>(StatGrowthConfigKey::BotCatchUpTargetShare, "BotCatchUp.TargetShare", 0.75f,
         Reloadable::Yes, [](float value) { return value > 0.0f && value <= 2.0f; }, "greater than 0 through 2");
     SetConfigValue<float>(StatGrowthConfigKey::BotCatchUpMaxMultiplier, "BotCatchUp.MaxMultiplier", 3.0f,
         Reloadable::Yes, [](float value) { return value >= 1.0f && value <= 3.0f; }, "1 through 3");
