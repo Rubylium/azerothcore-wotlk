@@ -665,8 +665,17 @@ def buildSky(boardPath):
                 pixels[x, y] = 0 if r < inner - feather else int(255 * (1.0 - (inner - r) / feather))
     alpha = Image.eval(image.getchannel("A"), lambda v: v)
     image.putalpha(Image.composite(alpha, Image.new("L", SKY_SIZE, 0), mask))
+
+    # A texel of noise, so the dark gradients have no steps for the eye to catch
+    noise = Image.effect_noise(SKY_SIZE, 1.2)
+    red, green, blue, alpha = image.split()
+    image = Image.merge("RGBA", [Image.blend(channel, noise, 0.012) for channel in (red, green, blue)] + [alpha])
+
     image.save(os.path.join(outputRoot, "Paragon-Sky.png"), optimize=True)
-    writeDxt3Blp(image, os.path.join(outputRoot, "Paragon-Sky.blp"))
+    # Uncompressed BGRA, whole mip chain. DXT3 was what the game showed as blocks and stripes: its 5:6:5 colour with
+    # two endpoints per 4x4 block cannot hold a dark nebula's gradient, and its 4-bit alpha stepped the feather at
+    # the centre. About 11 MB raw, a fraction of that once compressed in the MPQ.
+    writeRawBlp(image, os.path.join(outputRoot, "Paragon-Sky.blp"))
     return image.size
 
 

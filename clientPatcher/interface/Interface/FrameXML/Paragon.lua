@@ -490,8 +490,17 @@ end
 -- Rendering
 --------------------------------------------------------------------------------
 
--- Zoomed right out, a node is a star: its glow alone, larger and brighter, pale where it is not taken
+-- Zoomed right out, a node is a star: its glow alone, larger and brighter, pale where it is not taken. The change is a
+-- crossfade over a band of zoom (updateCulling): each node carries how far into it it is, from 0 (the node) to 1 (the
+-- star), and its art fades out as its star fades in.
 local TINT_STAR = { 0.72, 0.76, 1.0 }
+-- The links fade along with the nodes, to this share at the star end; a sigil's own lines stay, they are its figure
+local LINK_STAR_FADE = 0.3
+local linkFade = 1
+
+local function mix(from, to, t)
+    return from + (to - from) * t
+end
 
 local function refreshNode(id)
     local button = nodeButtons[id]
@@ -507,19 +516,17 @@ local function refreshNode(id)
         button.icon:SetTexture(glyph and glyph.icon or ParagonBoard.nodes[id].icon)
         if taken then tint = LEGENDARY end
     end
-    if button.starShown then
-        local star = taken and tint or TINT_STAR
-        button:SetAlpha(1)
-        button.glow:SetVertexColor(star[1], star[2], star[3])
-        button.glow:SetAlpha(taken and 1 or (reachable and 0.75 or (sealed and 0.3 or 0.45)))
-        return
-    end
-    button:SetAlpha(taken and ALPHA_TAKEN or (reachable and ALPHA_REACHABLE or alpha))
-    button.glow:SetVertexColor(tint[1], tint[2], tint[3])
-    button.glow:SetAlpha(taken and 0.5 or (reachable and 0.28 or 0.08))
+    local t = button.starLevel or 0
+    local star = taken and tint or TINT_STAR
+    local nodeAlpha = taken and ALPHA_TAKEN or (reachable and ALPHA_REACHABLE or alpha)
+    local glowAlpha = taken and 0.5 or (reachable and 0.28 or 0.08)
+    local starAlpha = taken and 1 or (reachable and 0.75 or (sealed and 0.3 or 0.45))
+    button:SetAlpha(mix(nodeAlpha, 1, t))
+    button.glow:SetVertexColor(mix(tint[1], star[1], t), mix(tint[2], star[2], t), mix(tint[3], star[3], t))
+    button.glow:SetAlpha(mix(glowAlpha, starAlpha, t))
     button.icon:SetDesaturated(not taken)
     if button.lock then
-        if sealed then button.lock:Show() else button.lock:Hide() end
+        if sealed and t < 1 then button.lock:Show() else button.lock:Hide() end
     end
 end
 
@@ -535,11 +542,11 @@ local function refreshLinks()
             link.texture:SetAlpha((isAllocated(link.a) or isAllocated(link.b)) and 0.7 or 0.35)
         elseif lit then
             link.texture:SetVertexColor(1, 0.85, 0.45)
-            link.texture:SetAlpha(1)
+            link.texture:SetAlpha(link.sigil and 1 or linkFade)
         else
             local live = isAllocated(link.a) or isAllocated(link.b)
             link.texture:SetVertexColor(0.62, 0.72, 0.95)
-            link.texture:SetAlpha(live and 0.8 or 0.42)
+            link.texture:SetAlpha((live and 0.8 or 0.42) * linkFade)
         end
     end
 end
@@ -586,6 +593,10 @@ end
 
 -- Everything the board gives, added up: the flat stats of the minor nodes summed by stat ("+8 Force" five times
 -- is "+40 Force"), the notables and keystones by name
+-- The summary's room: from under the points block to above the legend line, and its text beside the scroll bar
+local BONUS_MAX_HEIGHT = 360
+local BONUS_TEXT_WIDTH = 184
+
 local function refreshBonus()
     if not bonusText then return end
 
@@ -635,7 +646,10 @@ local function refreshBonus()
     end
     bonusText:SetText(#lines > 0 and table.concat(lines, "\n") or "|cff888888Aucun nœud acquis pour l'instant.|r")
     if glyphPanel and glyphPanel:IsShown() then glyphPanel.refresh() end
-    bonusPanel:SetHeight(math.min(380, bonusText:GetStringHeight() + 44))
+    local textHeight = bonusText:GetStringHeight()
+    bonusPanel:SetHeight(math.min(BONUS_MAX_HEIGHT, textHeight + 48))
+    bonusPanel.content:SetHeight(textHeight + 4)
+    bonusPanel.scroll:UpdateScrollChildRect()
 end
 
 local function refreshAll()
@@ -863,7 +877,7 @@ local function createNode(id, node)
     button.boardX, button.boardY, button.nodeType = x, y, node.type
     button.culledIn = true
     button.detailShown = true
-    button.starShown = false
+    button.starLevel = 0
     nodeButtons[id] = button
 end
 
@@ -1205,10 +1219,36 @@ local CULL_MARGIN = 120
 -- Zoomed out past this, the small nodes lose their shadow disc and glow: at that size they are specks, and
 -- those two layers are half of every node's textures. Their alpha and colour still show their state.
 local DETAIL_ZOOM = 0.45
--- Zoomed out past this, every node is a star (refreshNode): its glow alone, larger, and nothing else drawn
-local SKY_ZOOM = 0.16
+-- Between these two zooms every node crossfades into a star (refreshNode): its art and the links fade out while its
+-- glow grows and brightens. In steps, so a zoom through the band touches each node a handful of times, not every
+-- frame. Past STAR_TO the art is hidden altogether, which is what keeps the whole sky cheap to draw.
+local STAR_FROM, STAR_TO, STAR_STEPS = 0.22, 0.12, 10
 local STAR_GROW = 3.2
 local cullKey
+
+local function starLevelFor(scale)
+    local t = math.max(0, math.min(1, (STAR_FROM - scale) / (STAR_FROM - STAR_TO)))
+    return math.floor(t * STAR_STEPS + 0.5) / STAR_STEPS
+end
+
+-- A node at a point of the crossfade, and with or without the small nodes' extras (their disc and glow)
+local function applyStar(button, level, detail)
+    button.starLevel = level
+    button.detailShown = detail
+    local fade = 1 - level
+    local art = fade > 0
+    local extras = art and (detail or button.nodeType ~= 0)
+    for _, region in ipairs({ button.icon, button.ring, button.costBadge }) do
+        region:SetAlpha(fade)
+        if art then region:Show() else region:Hide() end
+    end
+    button.backing:SetAlpha(0.8 * fade)
+    if extras then button.backing:Show() else button.backing:Hide() end
+    if button.lock then button.lock:SetAlpha(fade) end
+    local grow = mix(1.25, STAR_GROW, level)
+    button.glow:SetSize(button.baseSize * grow, button.baseSize * grow)
+    if level > 0 or extras then button.glow:Show() else button.glow:Hide() end
+end
 
 local function updateCulling(force)
     if not board or not canvas then return end
@@ -1224,9 +1264,9 @@ local function updateCulling(force)
     local high = math.ceil((top + CULL_MARGIN) / CULL_STEP) * CULL_STEP
     local low = math.floor((top - height / scale - CULL_MARGIN) / CULL_STEP) * CULL_STEP
     local detail = scale >= DETAIL_ZOOM
-    local sky = scale < SKY_ZOOM
+    local level = starLevelFor(scale)
 
-    local key = left .. ":" .. right .. ":" .. low .. ":" .. high .. (detail and "+" or "-") .. (sky and "*" or "")
+    local key = left .. ":" .. right .. ":" .. low .. ":" .. high .. (detail and "+" or "-") .. level
     if key == cullKey and not force then return end
     cullKey = key
 
@@ -1237,29 +1277,16 @@ local function updateCulling(force)
             button.culledIn = inside
             if inside then button:Show() else button:Hide() end
         end
-        if inside and sky ~= button.starShown then
-            -- Into the sky or back: a star is the glow alone, grown so it reads at that distance
-            button.starShown = sky
-            local size = button.baseSize
-            for _, region in ipairs({ button.icon, button.ring, button.backing, button.costBadge }) do
-                if sky then region:Hide() else region:Show() end
-            end
-            if button.lock and sky then button.lock:Hide() end
-            button.glow:SetSize(size * (sky and STAR_GROW or 1.25), size * (sky and STAR_GROW or 1.25))
-            button.glow:Show()
-            button.detailShown = not sky
+        if inside and (level ~= button.starLevel or detail ~= button.detailShown) then
+            applyStar(button, level, detail)
             refreshNode(id)
         end
-        if inside and not sky and button.nodeType == 0 and detail ~= button.detailShown then
-            button.detailShown = detail
-            if detail then
-                button.backing:Show()
-                button.glow:Show()
-            else
-                button.backing:Hide()
-                button.glow:Hide()
-            end
-        end
+    end
+
+    local fade = mix(1, LINK_STAR_FADE, level)
+    if fade ~= linkFade then
+        linkFade = fade
+        refreshLinks()
     end
 
     for _, link in ipairs(linkTextures) do
@@ -1307,19 +1334,70 @@ local function zoomFloor()
     return math.max(MIN_ZOOM, width / BOARD_WIDTH, height / BOARD_HEIGHT)
 end
 
--- Zooming has to hold the middle of the view still. SetScale alone scales the child about its own top-left
--- anchor, so the board slides into the corner as it shrinks - which is exactly what it was doing.
-local function setZoom(scale)
-    scale = math.max(zoomFloor(), math.min(MAX_ZOOM, scale))
-    if math.abs(scale - board:GetScale()) < 0.001 then
-        return
-    end
+local function clampZoom(scale)
+    return math.max(zoomFloor(), math.min(MAX_ZOOM, scale))
+end
 
+local function applyScale(scale)
+    if math.abs(scale - board:GetScale()) > 0.0001 then
+        board:SetScale(scale)
+        canvas:UpdateScrollChildRect()
+        rescaleLabels()
+    end
+end
+
+-- Zooming has to hold the middle of the view still. SetScale alone scales the child about its own top-left
+-- anchor, so the board slides into the corner as it shrinks - which is exactly what it was doing. This one is at
+-- once, for opening the frame; everything the player does goes through animateView.
+local function setZoom(scale)
     local cx, cy = viewCentre()
-    board:SetScale(scale)
-    canvas:UpdateScrollChildRect()
+    applyScale(clampZoom(scale))
     centreOn(cx, cy)
-    rescaleLabels()
+end
+
+-- Zoom and pan glide to where they are asked, easing out over VIEW_DURATION. The scale moves by a constant factor a
+-- frame (so a zoom from the sky to a node feels even), and either the view's middle travels with it or, for the
+-- wheel, the point under the cursor stays under the cursor all the way. Each frame is one SetScale and one scroll:
+-- nothing is rebuilt, and the culling pass only touches what its grid says changed.
+local VIEW_DURATION = 0.45
+local viewAnim
+
+local function animateView(scale, cx, cy, anchor)
+    local fromX, fromY = viewCentre()
+    viewAnim = { fromScale = board:GetScale(), toScale = clampZoom(scale), fromX = fromX, fromY = fromY,
+        toX = cx or fromX, toY = cy or fromY, anchor = anchor, elapsed = 0 }
+end
+
+local function stepView(elapsed)
+    local anim = viewAnim
+    if not anim then return end
+    anim.elapsed = anim.elapsed + elapsed
+    local progress = math.min(1, anim.elapsed / VIEW_DURATION)
+    local eased = 1 - (1 - progress) ^ 3
+    local scale = anim.fromScale * (anim.toScale / anim.fromScale) ^ eased
+    applyScale(scale)
+    if anim.anchor then
+        centreOn(anim.anchor.bx - anim.anchor.ox / scale, anim.anchor.by - anim.anchor.oy / scale)
+    else
+        centreOn(mix(anim.fromX, anim.toX, eased), mix(anim.fromY, anim.toY, eased))
+    end
+    if progress >= 1 then viewAnim = nil end
+end
+
+-- Where a zoom is headed: a second step before the first has landed builds on where the first was going
+local function targetScale()
+    return viewAnim and viewAnim.toScale or board:GetScale()
+end
+
+-- The board point under the cursor, and the cursor's offset from the view's middle in the canvas's own units
+local function cursorAnchor()
+    local x, y = GetCursorPosition()
+    local effective = canvas:GetEffectiveScale()
+    local ox = x / effective - (canvas:GetLeft() + canvas:GetWidth() / 2)
+    local oy = (canvas:GetBottom() + canvas:GetHeight() / 2) - y / effective
+    local scale = board:GetScale()
+    local cx, cy = viewCentre()
+    return { bx = cx + ox / scale, by = cy + oy / scale, ox = ox, oy = oy }
 end
 
 local function createFrame()
@@ -1358,10 +1436,11 @@ local function createFrame()
     canvas:UpdateScrollChildRect()
 
     canvas:SetScript("OnMouseWheel", function(_, delta)
-        setZoom(board:GetScale() * ZOOM_FACTOR ^ delta)
+        animateView(targetScale() * ZOOM_FACTOR ^ delta, nil, nil, cursorAnchor())
     end)
 
     canvas:SetScript("OnMouseDown", function(self)
+        viewAnim = nil
         self.dragging = true
         self.startX, self.startY = GetCursorPosition()
         self.startH, self.startV = self:GetHorizontalScroll(), self:GetVerticalScroll()
@@ -1370,6 +1449,7 @@ local function createFrame()
     local pulseClock = 0
     canvas:SetScript("OnUpdate", function(self, elapsed)
         updateAnimations(elapsed)
+        stepView(elapsed)
 
         -- With points to spend, the nodes one click away breathe, and so does the emblem: the board shows where
         -- the next point can go without a single tooltip
@@ -1377,7 +1457,7 @@ local function createFrame()
         local pulse = 0.5 + 0.5 * math.sin(pulseClock * 3)
         if state.available > 0 then
             for _, button in ipairs(reachableButtons) do
-                if not button.hovered then
+                if not button.hovered and (button.starLevel or 0) < 0.5 then
                     button.glow:SetAlpha(0.18 + 0.4 * pulse)
                 end
             end
@@ -1429,11 +1509,14 @@ local function createFrame()
         StaticPopup_Show("PARAGON_RESET")
     end)
 
-    -- The legend, under the middle of the board: the three kinds of node by their rings
-    -- Sized to what it holds, so it sits truly in the middle, with the hint centred over it
-    local legend = CreateFrame("Frame", nil, hud)
-    legend:SetHeight(30)
-    legend:SetPoint("BOTTOM", frame, "BOTTOM", 0, 14)
+    -- The legend and the hint share a line of their own above the buttons, centred: the buttons take the window's
+    -- whole width below them, and nothing on the one line can run into the other
+    local legendRow = CreateFrame("Frame", nil, hud)
+    legendRow:SetHeight(22)
+    legendRow:SetPoint("BOTTOM", frame, "BOTTOM", 0, 44)
+    local legend = CreateFrame("Frame", nil, legendRow)
+    legend:SetHeight(22)
+    legend:SetPoint("LEFT", legendRow, "LEFT", 0, 0)
     local previous
     local legendWidth = 0
     for kindId = 0, 2 do
@@ -1457,41 +1540,42 @@ local function createFrame()
     end
     legend:SetWidth(legendWidth)
 
-    local hint = hud:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    hint:SetPoint("BOTTOM", legend, "TOP", 0, 4)
+    local hint = legendRow:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    hint:SetPoint("LEFT", legend, "RIGHT", 24, 0)
     hint:SetText("Molette : zoom  ·  Clic-glisser : déplacer")
+    legendRow:SetWidth(legendWidth + 24 + hint:GetStringWidth())
 
-    -- The controls on the right: zoom, back to the hub, and the summary of what the board gives
+    -- The controls on the right: zoom, back to the hub, and the summary of what the board gives. Each hugs its label,
+    -- as the reset button does, so the row is only as wide as its words.
     local function control(label, width, onClick)
         local button = CreateFrame("Button", nil, hud, "UIPanelButtonTemplate")
-        button:SetSize(width, 22)
+        button:SetHeight(22)
         button:SetText(label)
+        button:SetWidth(math.max(width, button:GetFontString():GetStringWidth() + 24))
         button:SetScript("OnClick", function()
             PlaySound("igMainMenuOptionCheckBoxOn")
             onClick()
         end)
         return button
     end
-    local zoomIn = control("+", 26, function() setZoom(board:GetScale() * ZOOM_FACTOR) end)
+    local zoomIn = control("+", 26, function() animateView(targetScale() * ZOOM_FACTOR * ZOOM_FACTOR) end)
     zoomIn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 16)
-    local zoomOut = control("-", 26, function() setZoom(board:GetScale() / ZOOM_FACTOR) end)
+    local zoomOut = control("-", 26, function() animateView(targetScale() / ZOOM_FACTOR / ZOOM_FACTOR) end)
     zoomOut:SetPoint("RIGHT", zoomIn, "LEFT", -4, 0)
-    local recentre = control("Recentrer", 90, function()
-        setZoom(DEFAULT_ZOOM)
-        centreOn(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
+    local recentre = control("Recentrer", 80, function()
+        animateView(DEFAULT_ZOOM, BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
     end)
     recentre:SetPoint("RIGHT", zoomOut, "LEFT", -8, 0)
     -- The whole sky at once: the view the Panthéon is drawn for
-    local skyView = control("Vue du ciel", 96, function()
-        setZoom(zoomFloor())
-        centreOn(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
+    local skyView = control("Vue du ciel", 80, function()
+        animateView(zoomFloor(), BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
     end)
     skyView:SetPoint("RIGHT", recentre, "LEFT", -8, 0)
-    local bonusButton = control("Vos bonus", 90, function()
+    local bonusButton = control("Vos bonus", 80, function()
         if bonusPanel:IsShown() then bonusPanel:Hide() else bonusPanel:Show() end
     end)
     bonusButton:SetPoint("RIGHT", skyView, "LEFT", -8, 0)
-    local glyphButton = control("Glyphes", 84, function()
+    local glyphButton = control("Glyphes", 70, function()
         if glyphPanel and glyphPanel:IsShown() and not glyphPanel.socket then
             glyphPanel:Hide()
         else
@@ -1519,9 +1603,17 @@ local function createFrame()
     bonusTitle:SetTextColor(1, 0.86, 0.55)
     bonusTitle:SetPoint("TOPLEFT", 12, -10)
     bonusTitle:SetText("Vos bonus")
-    bonusText = bonusPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    bonusText:SetPoint("TOPLEFT", bonusTitle, "BOTTOMLEFT", 0, -6)
-    bonusText:SetWidth(206)
+    -- The list scrolls (wheel, or the stock scroll bar) once it is taller than the room above the buttons
+    local bonusScroll = CreateFrame("ScrollFrame", "ParagonBonusScroll", bonusPanel, "UIPanelScrollFrameTemplate")
+    bonusScroll:SetPoint("TOPLEFT", bonusTitle, "BOTTOMLEFT", 0, -6)
+    bonusScroll:SetPoint("BOTTOMRIGHT", bonusPanel, "BOTTOMRIGHT", -30, 10)
+    local bonusContent = CreateFrame("Frame", nil, bonusScroll)
+    bonusContent:SetSize(BONUS_TEXT_WIDTH, 10)
+    bonusScroll:SetScrollChild(bonusContent)
+    bonusPanel.scroll, bonusPanel.content = bonusScroll, bonusContent
+    bonusText = bonusContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bonusText:SetPoint("TOPLEFT", bonusContent, "TOPLEFT", 0, 0)
+    bonusText:SetWidth(BONUS_TEXT_WIDTH)
     bonusText:SetJustifyH("LEFT")
     bonusText:SetSpacing(2)
 
