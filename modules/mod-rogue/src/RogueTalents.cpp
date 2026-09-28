@@ -99,7 +99,9 @@ constexpr uint32 FLAG0_BACKSTAB = 0x00000004;
 constexpr uint32 FLAG0_EVASION = 0x00000020;
 constexpr uint32 FLAG0_SPRINT = 0x00000040;
 constexpr uint32 FLAG0_GARROTE = 0x00000100;
+constexpr uint32 FLAG0_AMBUSH = 0x00000200;
 constexpr uint32 FLAG0_VANISH = 0x00000800;
+constexpr uint32 FLAG0_EVISCERATE = 0x00020000;
 constexpr uint32 FLAG0_RUPTURE = 0x00100000;
 constexpr uint32 FLAG0_BLIND = 0x01000000;
 constexpr uint32 FLAG0_HEMORRHAGE = 0x02000000;
@@ -127,11 +129,24 @@ constexpr int32 AssassinationBleedBonusPct = 150;
 constexpr uint32 AssassinationBleedEnergy = 3;
 constexpr uint32 BleedEnergyGapMs = 500;
 constexpr uint32 CrimsonTempestTickMs = 2000;
-constexpr float BlackPowderPerPoint = 0.05f;
-constexpr uint32 BlackPowderFlatPerPoint = 80;
-constexpr float SecretTechniquePerPoint = 0.04f;        // each of its three strikes
-constexpr uint32 SecretTechniqueFlatPerPoint = 60;
+// Finesse's pack finisher. Alone, a little under Eviscerate; on a pack, it hits harder the more enemies it reaches (up
+// to three), harder still in Shadow Dance, and gives energy back for every enemy beyond the first.
+constexpr float BlackPowderPerPoint = 0.12f;
+constexpr uint32 BlackPowderFlatPerPoint = 200;
+constexpr int32 BlackPowderPerExtraEnemyPct = 35;
+constexpr uint32 BlackPowderMaxExtraEnemies = 2;
+constexpr int32 BlackPowderDancePct = 25;
+constexpr uint32 BlackPowderEnergyPerExtraEnemy = 6;
+constexpr uint32 BlackPowderMaxEnergy = 18;
+constexpr float SecretTechniquePerPoint = 0.12f;        // each of its three strikes
+constexpr uint32 SecretTechniqueFlatPerPoint = 150;
 constexpr uint32 SecretTechniqueStrikes = 3;
+// Finesse's own damage (its passive, Danseur des ombres): Eviscerate and the dagger builders
+constexpr int32 SubtletyEviscerateBonusPct = 120;
+constexpr int32 SubtletyBuilderBonusPct = 50;
+// Danse de la mort lengthens a Shadow Dance up to this long in all: with the builders' combo points on a critical
+// strike, an uncapped Dance never ended
+constexpr int32 DeathDanceMaxMs = 16000;
 // Envenom carries the target's bleeds to this many enemies around it that do not have them
 constexpr uint32 SpreadTargets = 4;
 // Virulence: 2% damage per affliction of the rogue on its enemies (the aura's own amount), up to this many
@@ -144,8 +159,9 @@ struct RogueState : public DataMap::Base
 {
     ObjectGuid markedTarget;         // Marqué pour la mort: its target, until markedUntil
     uint32 markedUntil = 0;
-    ObjectGuid shurikenTarget;       // Tempête de shurikens: where its combo points go, and how many it gave
-    uint8 shurikenPoints = 0;
+    ObjectGuid shurikenTarget;       // Tempête de shurikens: where its combo points go, how many it gave, and
+    uint8 shurikenPoints = 0;        // how many enemies it hit
+    uint8 shurikenHits = 0;
     uint32 poisonTimer = 5000;       // Poisons tenaces: the next refresh of the weapons' poisons
     uint32 virulenceTimer = 0;       // Virulence: the next count of the afflictions
     uint32 bleedEnergyAt = 0;        // Assassinat: when a bleed tick may give energy again
@@ -236,6 +252,11 @@ bool IsAssassination(Player* player)
     return player->HasAura(SPELL_ASSASSINATION_PASSIVE);
 }
 
+bool IsSubtlety(Player* player)
+{
+    return player->HasAura(SPELL_SUBTLETY_PASSIVE);
+}
+
 std::list<Unit*> EnemiesAround(Player* player, WorldObject* center, float range)
 {
     std::list<Unit*> found;
@@ -307,17 +328,32 @@ void CrimsonTempest(Player* player, Unit* target, uint8 comboPoints)
     }
 }
 
-// Poudre noire: shadow damage to every enemy around the rogue
+// Poudre noire: shadow damage to every enemy around the rogue, worked out once for the cast: more for every enemy
+// beyond the first (up to BlackPowderMaxExtraEnemies) and in Shadow Dance, and energy back for the enemies beyond
+// the first
 void BlackPowder(Player* player, uint8 comboPoints)
 {
-    uint32 const damage = PerPoint(player, BlackPowderPerPoint, BlackPowderFlatPerPoint, comboPoints);
+    std::list<Unit*> const enemies = EnemiesAround(player, player, AreaRadius);
+    if (enemies.empty())
+        return;
+
+    uint32 const extra = uint32(enemies.size() - 1);
+    float multiplier = 1.0f + std::min(extra, BlackPowderMaxExtraEnemies) * BlackPowderPerExtraEnemyPct / 100.0f;
+    if (player->HasAura(SPELL_SHADOW_DANCE))
+        multiplier *= 1.0f + BlackPowderDancePct / 100.0f;
+    uint32 const damage = uint32(PerPoint(player, BlackPowderPerPoint, BlackPowderFlatPerPoint, comboPoints) *
+        multiplier);
+
     bool const terrors = player->HasAura(TALENT_NIGHT_TERRORS);
-    for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+    for (Unit* enemy : enemies)
     {
         DealAbility(player, enemy, SPELL_BLACK_POWDER, damage);
         if (terrors && enemy->IsAlive())
             player->AddAura(SPELL_NIGHT_TERRORS, enemy);
     }
+
+    if (uint32 const energy = std::min(extra * BlackPowderEnergyPerExtraEnemy, BlackPowderMaxEnergy))
+        Energize(player, SPELL_BLACK_POWDER, energy);
 }
 
 // Technique secrète: the rogue and two shadows of it strike every enemy around, one after the other
@@ -483,12 +519,16 @@ void OnFinisher(Player* player, SpellInfo const* spellInfo, Unit* target, uint8 
             aura->SetStackAmount(daggers);
     }
 
+    // Danse de la mort: the Dance's full length grows with it, up to DeathDanceMaxMs
     Aura* dance = player->GetAura(SPELL_SHADOW_DANCE);
     if (dance && player->HasAura(TALENT_DEATH_DANCE))
     {
-        int32 const duration = dance->GetDuration() + int32(1000 * comboPoints);
-        dance->SetMaxDuration(std::max(dance->GetMaxDuration(), duration));
-        dance->SetDuration(duration);
+        int32 const added = std::min(int32(1000 * comboPoints), DeathDanceMaxMs - dance->GetMaxDuration());
+        if (added > 0)
+        {
+            dance->SetMaxDuration(dance->GetMaxDuration() + added);
+            dance->SetDuration(dance->GetDuration() + added);
+        }
     }
     else if (!dance && comboPoints >= 5 && player->HasAura(TALENT_INVISIBLE_KILLER) && roll_chance_i(20))
         if (Aura* aura = player->AddAura(SPELL_SHADOW_DANCE, player))
@@ -537,7 +577,17 @@ float DamageBonus(Player* player, Unit* target, SpellInfo const* spellInfo, bool
     // Backstab from behind (it works from any side)
     if (HasFlag0(spellInfo, FLAG0_BACKSTAB) && !target->HasInArc(float(M_PI), player))
         percent += 20;
-    return 1.0f + percent / 100.0f;
+
+    // Finesse's own, on top of the rest: Eviscerate, and the dagger builders
+    int32 specPercent = 0;
+    if (spellInfo && IsSubtlety(player))
+    {
+        if (HasFlag0(spellInfo, FLAG0_EVISCERATE))
+            specPercent = SubtletyEviscerateBonusPct;
+        else if (HasFlag0(spellInfo, FLAG0_BACKSTAB | FLAG0_AMBUSH | FLAG0_HEMORRHAGE))
+            specPercent = SubtletyBuilderBonusPct;
+    }
+    return (1.0f + percent / 100.0f) * (1.0f + specPercent / 100.0f);
 }
 
 bool IsPoisonEnchant(uint32 enchantId)
@@ -663,6 +713,7 @@ public:
                 state->shurikenTarget = selected && player->IsValidAttackTarget(selected) ? selected->GetGUID() :
                     ObjectGuid::Empty;
                 state->shurikenPoints = 0;
+                state->shurikenHits = 0;
                 return;
             }
             default:
@@ -816,10 +867,11 @@ public:
         player->RemoveSpellCooldown(SPELL_MARKED_FOR_DEATH, true);
     }
 
-    // Tempête de shurikens (and Fan of Knives in Assassination): a combo point per enemy hit, on one target;
-    // Terreurs nocturnes slows each
+    // Tempête de shurikens: a combo point for the first enemy hit and two for every other one (one more for the first
+    // under Lames de l'ombre), all on one target, up to 5; Terreurs nocturnes slows each. Fan of Knives in
+    // Assassination: a combo point per enemy hit. Finesse: a builder's critical strike adds a combo point.
     void OnSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 /*damage*/,
-                           bool /*critical*/) override
+                           bool critical) override
     {
         Player* player = RoguePlayer(caster);
         if (!player || !victim || !spellInfo)
@@ -829,20 +881,34 @@ public:
         if (fan && victim->IsAlive())
             PoisonFromWeapons(player, victim);
         if (spellInfo->Id != SPELL_SHURIKEN_STORM && !fan)
+        {
+            if (critical && victim->IsAlive() && IsComboBuilder(spellInfo) && IsSubtlety(player))
+                player->AddComboPoints(victim, 1);
             return;
+        }
 
         if (!fan && player->HasAura(TALENT_NIGHT_TERRORS))
             player->AddAura(SPELL_NIGHT_TERRORS, victim);
 
         RogueState* state = GetState(player);
+        uint8 gain = 1;
+        if (!fan)
+        {
+            if (state->shurikenHits)
+                gain = 2;
+            else if (player->HasAura(SPELL_SHADOW_BLADES))
+                gain = 2;
+        }
+        state->shurikenHits = std::min<uint8>(state->shurikenHits + 1, std::numeric_limits<uint8>::max());
         if (state->shurikenPoints >= ShurikenMaxPoints)
             return;
+        gain = std::min<uint8>(gain, ShurikenMaxPoints - state->shurikenPoints);
         if (state->shurikenTarget.IsEmpty())
             state->shurikenTarget = victim->GetGUID();
         if (Unit* comboTarget = ObjectAccessor::GetUnit(*player, state->shurikenTarget))
         {
-            player->AddComboPoints(comboTarget, 1);
-            ++state->shurikenPoints;
+            player->AddComboPoints(comboTarget, int8(gain));
+            state->shurikenPoints += gain;
         }
     }
 };

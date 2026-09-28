@@ -1847,7 +1847,7 @@ TalentTreeData = {
                   texts = { "Sous Camouflage et pendant Danse de l'ombre, vos techniques coûtent 20% d'énergie en moins." } },
                 { id = 428, row = 9, col = 3, kind = "choice", level = 0, parents = { 426, 427 },
                   options = {
-                    { spell = 92261, name = "Danse de la mort", icon = "Interface\\Icons\\Spell_Shadow_Twilight", text = "Pendant Danse de l'ombre, chaque coup de grâce la prolonge de 1 s par point de combo." },
+                    { spell = 92261, name = "Danse de la mort", icon = "Interface\\Icons\\Spell_Shadow_Twilight", text = "Pendant Danse de l'ombre, chaque coup de grâce la prolonge de 1 s par point de combo, jusqu'à 16 s de Danse au total." },
                     { spell = 92262, name = "Tueur invisible", icon = "Interface\\Icons\\Ability_Rogue_Ambush", text = "Vos coups de grâce à 5 points de combo ont 20% de chances de vous faire entrer en Danse de l'ombre pendant 3 s." },
                   } },
               } },

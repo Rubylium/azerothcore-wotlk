@@ -2939,7 +2939,7 @@
               "spell": 92261,
               "name": "Danse de la mort",
               "icon": "Spell_Shadow_Twilight",
-              "text": "Pendant Danse de l'ombre, chaque coup de grâce la prolonge de 1 s par point de combo."
+              "text": "Pendant Danse de l'ombre, chaque coup de grâce la prolonge de 1 s par point de combo, jusqu'à 16 s de Danse au total."
             },
             {
               "spell": 92262,
