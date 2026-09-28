@@ -54,6 +54,42 @@ void PlayTieredFeedback(Player* player, EssenceVisual visual, EssenceTier tier, 
     PlayEssenceFeedback(player, visual, tier, announcement);
 }
 
+// Out of combat, a maximum health raised by the module (essences and stat growth at login, the paragon board and
+// a bot's mirror on entering a key or a raid) keeps the share of health the character had: a full character stays
+// full. The core leaves the health where it was, so logging in or zoning in showed a missing part. The share is
+// taken before the first rise and put back on the next update, once the new maximum is set. In combat nothing
+// changes: a buff raising the maximum does not heal.
+struct HealthShare : public DataMap::Base
+{
+    float share = -1.0f;
+};
+constexpr char const* HealthShareKey = "StatGrowthHealthShare";
+
+void NoteMaxHealthRise(Player* player, float value)
+{
+    uint32 const current = player->GetMaxHealth();
+    if (!player->IsInWorld() || !player->IsAlive() || player->IsInCombat() || !current ||
+        value <= static_cast<float>(current))
+        return;
+    HealthShare* keep = player->CustomData.GetDefault<HealthShare>(HealthShareKey);
+    if (keep->share < 0.0f)
+        keep->share = std::min(1.0f, static_cast<float>(player->GetHealth()) / static_cast<float>(current));
+}
+
+void KeepHealthShare(Player* player)
+{
+    HealthShare* keep = player->CustomData.Get<HealthShare>(HealthShareKey);
+    if (!keep || keep->share < 0.0f)
+        return;
+    float const share = keep->share;
+    keep->share = -1.0f;
+    if (!player->IsAlive() || player->IsInCombat())
+        return;
+    uint32 const wanted = static_cast<uint32>(std::lround(share * static_cast<float>(player->GetMaxHealth())));
+    if (wanted > player->GetHealth())
+        player->SetHealth(wanted);
+}
+
 // Grants the permanent bonus of one essence and plays its feedback. The caller removes the item.
 bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
 {
@@ -412,6 +448,7 @@ public:
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
+        KeepHealthShare(player);
         UpdateGladiatorStance(player);
         UpdatePersonalLootAddonHandshake(player, diff);
         UpdateParagonBuffs(player);
@@ -481,6 +518,7 @@ public:
     {
         ApplyVitalityBoost(player, value);
         ApplyParagonHealth(player, value);
+        NoteMaxHealthRise(player, value);
     }
 
     void OnPlayerMoneyChanged(Player* player, int32& amount) override
