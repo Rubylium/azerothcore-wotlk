@@ -27,6 +27,10 @@ void RecordBotCatchUpDamage(Unit* attacker, Unit* victim, uint32 damage);
 // The damage multiplier the attacker's owning bot currently has against the victim; 1 for anything else
 float GetBotCatchUpMultiplier(Unit* attacker, Unit* victim);
 
+// The character's smoothed damage per second of combat (pets included, a bot's bonus left out), 0 until it has fought
+// long enough to be trusted. Read from the character's own map thread (mod-playerbots' tank routes size pulls by it).
+float GetBotCatchUpDps(Player const* player);
+
 // Samples the character's damage every second and, for a bot, adjusts its multiplier every 5 seconds
 void UpdateBotCatchUp(Player* player, uint32 diff);
 

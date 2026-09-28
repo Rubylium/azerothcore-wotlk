@@ -20,4 +20,6 @@ Export another window:
 ```
 
 TSV files are written to `var/combatTelemetry` and contain raw runs, participants, class/spec summaries, ability
-breakdowns, and target breakdowns.
+breakdowns, target breakdowns, route events, and `pulls.tsv`: the Mythic+ tank route's pulls (`route_pull_*`: packs,
+mobs, seconds to kill, gather point reached, out of line of sight, deaths, the tank's lowest health, the adapted pull
+budget) and the pulls of player tanks watched passively (`real_pull_*`).

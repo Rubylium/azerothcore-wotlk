@@ -120,6 +120,19 @@ JOIN mod_combat_run r USING (run_id)
 WHERE r.ended_at_ms >= $minimumTimestamp
 ORDER BY e.run_id DESC, e.sequence;
 "@
+
+    # Tank route pulls (MythicTankLead): the bot tank's, and the player tanks' it watches
+    exportQuery 'pulls' @"
+SELECT e.run_id, r.dungeon_id, r.key_level, r.human_count, r.result, e.sequence, e.offset_ms, e.event_type,
+       e.position_x, e.position_y, e.position_z, e.details
+FROM mod_combat_route_event e
+JOIN mod_combat_run r USING (run_id)
+WHERE r.ended_at_ms >= $minimumTimestamp
+  AND e.event_type IN ('route_loaded', 'route_pull_started', 'route_pull_drag', 'route_pull_hold', 'route_pull_done',
+                       'route_pull_failed', 'route_pack_skipped', 'route_wait', 'real_pull_started', 'real_pull_done',
+                       'boss_checkpoint', 'group_wipe', 'tank_stuck')
+ORDER BY e.run_id DESC, e.sequence;
+"@
 }
 finally {
     Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue

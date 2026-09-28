@@ -307,6 +307,12 @@ void RecordBotCatchUpDamage(Unit* attacker, Unit* victim, uint32 damage)
     tracker->bucket += static_cast<double>(std::min<uint32>(damage, victim->GetHealth())) / tracker->multiplier;
 }
 
+float GetBotCatchUpDps(Player const* player)
+{
+    CatchUpTracker const* tracker = player ? player->CustomData.Get<CatchUpTracker>(TrackerKey) : nullptr;
+    return tracker && tracker->combatSamples >= MinCombatSamples ? tracker->dps : 0.0f;
+}
+
 float GetBotCatchUpMultiplier(Unit* attacker, Unit* victim)
 {
     if (!attacker || !victim || victim->IsCharmedOwnedByPlayerOrPlayer() ||
