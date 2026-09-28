@@ -8,6 +8,7 @@
 -- is still checked before anything is spent.
 
 local PREFIX = "Paragon"
+local rescaleLabels
 
 local WINDOW_WIDTH, WINDOW_HEIGHT = 940, 640
 -- The board fills the window: the same rectangle as the panel ground, so it runs under the border art on
@@ -18,6 +19,9 @@ local CANVAS_RIGHT, CANVAS_BOTTOM = 2, 2
 -- The board's size comes with the board (ParagonBoard.lua): its outermost node plus a margin, so there is no
 -- empty ground to pan into, which is what let the board shrink away from the viewport.
 local BOARD_EXTENT = ParagonBoard.extent or 1700
+-- Twice as wide as tall: zoomed right out, the whole sky fits the window's height with stars either side of it, and a
+-- scroll frame cannot scroll past its child's edge, so the child has to be at least the window's shape
+local BOARD_WIDTH, BOARD_HEIGHT = BOARD_EXTENT * 2, BOARD_EXTENT
 local NODE_SIZE = { [0] = 44, [1] = 60, [2] = 80 }
 -- Fraction of the node the icon is drawn at, per socket. Each is wider than that socket's hole, so the ring
 -- drawing over it crops the square icon into the circle of the hole; an icon smaller than the hole just
@@ -29,9 +33,9 @@ local ICON_SCALE = { [0] = 0.57, [1] = 0.57, [2] = 0.47 }
 -- each one is a texture with the bar already drawn into it at LINK_THICKNESS board units (buildParagonArt.py).
 local SPARK_SIZE = 28
 
--- Zoomed right out, the whole board of three zones fits the window; the nodes are specks then, but the shape
--- of a build across the whole thing is worth being able to see.
-local MIN_ZOOM, MAX_ZOOM, ZOOM_STEP = 0.2, 1.8, 0.12
+-- Zoomed right out, the whole sky fits the window: the three inner zones are a coin at its centre and every node is a
+-- star. Each wheel step zooms by the same factor, so the far end is as quick to reach as the near one.
+local MIN_ZOOM, MAX_ZOOM, ZOOM_FACTOR = 0.04, 1.8, 1.15
 -- Opens showing the hub and the first few rings rather than the whole board. Fitting all 217 nodes in the
 -- window puts them at 17 pixels, which is unreadable; the far half of the tree is meant to be panned to.
 local DEFAULT_ZOOM = 0.85
@@ -57,6 +61,16 @@ local SOUND_RESET     = "Glyph_MajorDestroy"     -- audibly the reverse of Major
 local SOUND_DENIED    = "igQuestFailed"
 
 local ART = "Interface\\Paragon\\"
+
+-- The Panthéon and the glyphs (ParagonBoard.lua carries their data)
+local SOCKET_EFFECT = ParagonBoard.socketEffect or 26
+local GLYPH_RADIUS = ParagonBoard.glyphRadius or 3
+local GLYPH_MAX_LEVEL = ParagonBoard.glyphMaxLevel or 25
+local PANTHEON_TIER = 3
+-- Legendary orange, for the glyphs and their sockets, as the game draws a legendary item
+local LEGENDARY = { 1, 0.5, 0 }
+-- A sigil's lines: faint until it is complete, then the board's gold
+local SIGIL_FAINT = { 0.55, 0.52, 0.85 }
 local MORPHEUS = "Fonts\\MORPHEUS.ttf"   -- headings only (the title, zone names, the big point count)
 local FRIZ = "Fonts\\FRIZQT__.TTF"        -- the numbers on the nodes
 local POINT_FONT_SIZE = 26
@@ -86,6 +100,15 @@ local frame, canvas, board, hud, pointText, spentText, statusText
 local pointGlow, spentFill, bonusPanel, bonusText
 local levelText, levelFill, levelBarText
 local nodeButtons, linkTextures = {}, {}
+-- The glyphs this character knows: [id] = { level, experience, needed, socket }, and which glyph sits in each socket
+local glyphState, socketGlyph = {}, {}
+local glyphByItem = {}
+for id, glyph in pairs(ParagonBoard.glyphs or {}) do
+    glyphByItem[glyph.item] = id
+end
+-- Which sigil each node belongs to is on the node; which sigils are complete is counted with the tiers
+local sigilComplete = {}
+local glyphPanel, glyphButtons, scaledLabels = nil, {}, {}
 -- The nodes one click away, kept by refreshAll: they breathe while there are points to spend
 local reachableButtons = {}
 local shownAvailable
@@ -139,7 +162,8 @@ local function buildTiers()
     end
 end
 
--- How many nodes of each side's tier are still missing, recounted whenever the allocation changes
+-- How many nodes of each side's tier are still missing, recounted whenever the allocation changes; and which of the
+-- Panthéon's sigils are wholly taken, which lights their lines
 local function countTiers()
     buildTiers()
     tierMissing = {}
@@ -153,6 +177,69 @@ local function countTiers()
             tierMissing[side][tier] = missing
         end
     end
+    sigilComplete = {}
+    for index, sigil in pairs(ParagonBoard.sigils or {}) do
+        local complete = true
+        for _, id in ipairs(sigil.nodes) do
+            if not state.allocated[id] then
+                complete = false
+                break
+            end
+        end
+        sigilComplete[index] = complete
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Glyph helpers
+--------------------------------------------------------------------------------
+
+-- The nodes within GLYPH_RADIUS links of a socket, found once
+local socketReach = {}
+local function reachOf(socket)
+    if socketReach[socket] then return socketReach[socket] end
+    local seen, frontier, reach = { [socket] = true }, { socket }, {}
+    for _ = 1, GLYPH_RADIUS do
+        local nextFrontier = {}
+        for _, at in ipairs(frontier) do
+            for _, neighbour in ipairs(adjacency[at] or {}) do
+                if not seen[neighbour] then
+                    seen[neighbour] = true
+                    table.insert(nextFrontier, neighbour)
+                    table.insert(reach, neighbour)
+                end
+            end
+        end
+        frontier = nextFrontier
+    end
+    socketReach[socket] = reach
+    return reach
+end
+
+-- A glyph's share of the nodes it reaches, in percent (the server's GlyphShare)
+local function glyphShare(level)
+    return 10 + 2 * math.min(level or 1, GLYPH_MAX_LEVEL)
+end
+
+-- How many allocated nodes of a glyph's branch its socket reaches, against what its bonus needs
+local function glyphCondition(glyphId, socket)
+    local glyph = ParagonBoard.glyphs[glyphId]
+    if not glyph or not socket or socket == 0 then return 0, glyph and glyph.need or 0 end
+    local own = 0
+    for _, id in ipairs(reachOf(socket)) do
+        local node = ParagonBoard.nodes[id]
+        if node and node.side == glyph.side and isAllocated(id) then own = own + 1 end
+    end
+    return own, glyph.need
+end
+
+local function sideName(side)
+    return ParagonBoard.sides and ParagonBoard.sides[side] or ""
+end
+
+local function isSocket(id)
+    local node = ParagonBoard.nodes[id]
+    return node and node.effect == SOCKET_EFFECT
 end
 
 -- The nodes still missing before this node's tier opens on its side (0: open). The hub, the bridges and the first
@@ -232,6 +319,71 @@ local function placeLink(texture, parent, sx, sy, ex, ey)
     texture:Show()
 end
 
+-- The Panthéon's links are too many and too varied to have a texture each. They share a set drawn by angle (every
+-- SKY_ANGLE_STEP degrees) and length (SKY_LENGTHS), at SKY_TEXEL board units a texel (buildParagonArt.py's
+-- buildSkyLinkTextures, which must agree), and each is stretched to its exact span: the ends land where they belong,
+-- and the bar's width moves by a few percent at most. Near the axes the bar is kept at its width instead.
+local SKY_ANGLE_STEP = 3
+local SKY_LENGTHS = { 112, 176, 272, 432 }
+local SKY_TEXEL, SKY_PAD = 2, 6
+local SKY_KEEP_WIDTH = 20
+
+local function skyLinkShape(dx, dy)
+    local spanX, spanY = math.abs(dx), math.abs(dy)
+    local length = math.sqrt(spanX * spanX + spanY * spanY)
+    local angle = math.floor(math.deg(math.atan2(spanY, spanX)) / SKY_ANGLE_STEP + 0.5) * SKY_ANGLE_STEP
+    local nominal = SKY_LENGTHS[1]
+    for _, candidate in ipairs(SKY_LENGTHS) do
+        if math.abs(math.log(candidate / length)) < math.abs(math.log(nominal / length)) then nominal = candidate end
+    end
+    local boxX = math.floor(nominal * math.cos(math.rad(angle)) + 0.5)
+    local boxY = math.floor(nominal * math.sin(math.rad(angle)) + 0.5)
+    return angle, nominal, boxX, boxY, spanX, spanY
+end
+
+local function placeSkyLink(texture, parent, sx, sy, ex, ey)
+    local dx, dy = ex - sx, ey - sy
+    if math.abs(dx) + math.abs(dy) < 1 then
+        texture:Hide()
+        return
+    end
+    local angle, nominal, boxX, boxY, spanX, spanY = skyLinkShape(dx, dy)
+    texture:SetTexture(ART .. string.format("Paragon-SkyLink-%d-%d", angle, nominal))
+    if (dx < 0) ~= (dy < 0) then
+        texture:SetTexCoord(1, 0, 0, 1)
+    else
+        texture:SetTexCoord(0, 1, 0, 1)
+    end
+    local width = potAtLeast(boxX / SKY_TEXEL + SKY_PAD) * SKY_TEXEL
+    local height = potAtLeast(boxY / SKY_TEXEL + SKY_PAD) * SKY_TEXEL
+    local scaleX = boxX >= SKY_KEEP_WIDTH and spanX / boxX or 1
+    local scaleY = boxY >= SKY_KEEP_WIDTH and spanY / boxY or 1
+    texture:ClearAllPoints()
+    texture:SetSize(width * scaleX, height * scaleY)
+    texture:SetPoint("CENTER", parent, "BOTTOMLEFT", (sx + ex) / 2, (sy + ey) / 2)
+    texture:Show()
+end
+
+-- Labels that keep a readable size however far the board is zoomed out: the Panthéon's name and its Titans'. Each
+-- lives in a frame of its own whose scale undoes the board's, within bounds.
+local function placeScaledLabel(entry, scale)
+    entry.holder:SetScale(scale)
+    entry.holder:ClearAllPoints()
+    entry.holder:SetPoint("CENTER", board, "BOTTOMLEFT", entry.x / scale, entry.y / scale)
+end
+
+rescaleLabels = function()
+    if not board then return end
+    local zoom = board:GetScale()
+    for _, entry in ipairs(scaledLabels) do
+        local scale = math.max(1, math.min(entry.maxScale, entry.screen / zoom))
+        if math.abs(scale - (entry.scale or 0)) > 0.01 then
+            entry.scale = scale
+            placeScaledLabel(entry, scale)
+        end
+    end
+end
+
 --------------------------------------------------------------------------------
 -- Animation: the cascade when a node is taken
 --------------------------------------------------------------------------------
@@ -280,7 +432,11 @@ local function animateLink(texture, sx, sy, ex, ey)
     -- already turned along the link, pointing up and to the right; the other three directions are the same
     -- picture flipped on one or both axes, which are ordinary in-range texture coordinates.
     local dx, dy = ex - sx, ey - sy
-    spark:SetTexture(ART .. string.format("Paragon-Link-Spark-%dx%d", math.abs(dx), math.abs(dy)))
+    if texture.sky then
+        spark:SetTexture(ART .. string.format("Paragon-SkyLink-Spark-%d", (skyLinkShape(dx, dy))))
+    else
+        spark:SetTexture(ART .. string.format("Paragon-Link-Spark-%dx%d", math.abs(dx), math.abs(dy)))
+    end
     local left, right = 0, 1
     local top, bottom = 0, 1
     if dx < 0 then left, right = 1, 0 end
@@ -334,6 +490,9 @@ end
 -- Rendering
 --------------------------------------------------------------------------------
 
+-- Zoomed right out, a node is a star: its glow alone, larger and brighter, pale where it is not taken
+local TINT_STAR = { 0.72, 0.76, 1.0 }
+
 local function refreshNode(id)
     local button = nodeButtons[id]
     if not button then return end
@@ -342,6 +501,19 @@ local function refreshNode(id)
     local sealed = not taken and tierGate(id) > 0
     local tint = taken and TINT_TAKEN or (reachable and TINT_REACHABLE or TINT_LOCKED)
     local alpha = sealed and ALPHA_SEALED or ALPHA_LOCKED
+    if button.socket then
+        -- A socket shows the glyph it holds, in the legendary colour
+        local glyph = ParagonBoard.glyphs and ParagonBoard.glyphs[socketGlyph[id] or 0]
+        button.icon:SetTexture(glyph and glyph.icon or ParagonBoard.nodes[id].icon)
+        if taken then tint = LEGENDARY end
+    end
+    if button.starShown then
+        local star = taken and tint or TINT_STAR
+        button:SetAlpha(1)
+        button.glow:SetVertexColor(star[1], star[2], star[3])
+        button.glow:SetAlpha(taken and 1 or (reachable and 0.75 or (sealed and 0.3 or 0.45)))
+        return
+    end
     button:SetAlpha(taken and ALPHA_TAKEN or (reachable and ALPHA_REACHABLE or alpha))
     button.glow:SetVertexColor(tint[1], tint[2], tint[3])
     button.glow:SetAlpha(taken and 0.5 or (reachable and 0.28 or 0.08))
@@ -354,7 +526,14 @@ end
 local function refreshLinks()
     for _, link in ipairs(linkTextures) do
         local lit = isAllocated(link.a) and isAllocated(link.b)
-        if lit then
+        if link.sigil and sigilComplete[link.sigil] then
+            -- A completed sigil burns: its whole figure at full brightness
+            link.texture:SetVertexColor(1, 0.86, 0.5)
+            link.texture:SetAlpha(1)
+        elseif link.sigil and not lit then
+            link.texture:SetVertexColor(SIGIL_FAINT[1], SIGIL_FAINT[2], SIGIL_FAINT[3])
+            link.texture:SetAlpha((isAllocated(link.a) or isAllocated(link.b)) and 0.7 or 0.35)
+        elseif lit then
             link.texture:SetVertexColor(1, 0.85, 0.45)
             link.texture:SetAlpha(1)
         else
@@ -431,7 +610,21 @@ local function refreshBonus()
     table.sort(order)
     local lines = {}
     for _, stat in ipairs(order) do
-        table.insert(lines, string.format("|cff00ff00+%d|r %s", totals[stat], stat))
+        table.insert(lines, string.format("|cffffd98c+%d|r %s", totals[stat], stat))
+    end
+    -- The Panthéon's Blessings earned, and the glyphs set with whether their bonus holds
+    for index, sigil in pairs(ParagonBoard.sigils or {}) do
+        if sigilComplete[index] then
+            table.insert(majors, string.format("|cffff8000%s|r", sigil.blessing))
+        end
+    end
+    for glyphId, glyph in pairs(glyphState) do
+        local data = ParagonBoard.glyphs[glyphId]
+        if data and glyph.socket > 0 and isAllocated(glyph.socket) then
+            local own, need = glyphCondition(glyphId, glyph.socket)
+            table.insert(majors, string.format("|cffff8000%s|r |cffc8b89a(niv. %d%s)|r", data.name, glyph.level,
+                own >= need and ", bonus actif" or ""))
+        end
     end
     if #majors > 0 then
         table.sort(majors)
@@ -441,6 +634,7 @@ local function refreshBonus()
         end
     end
     bonusText:SetText(#lines > 0 and table.concat(lines, "\n") or "|cff888888Aucun nœud acquis pour l'instant.|r")
+    if glyphPanel and glyphPanel:IsShown() then glyphPanel.refresh() end
     bonusPanel:SetHeight(math.min(380, bonusText:GetStringHeight() + 44))
 end
 
@@ -463,7 +657,7 @@ end
 --------------------------------------------------------------------------------
 
 local function nodePosition(node)
-    return (BOARD_EXTENT / 2) + node.x, (BOARD_EXTENT / 2) + node.y
+    return (BOARD_WIDTH / 2) + node.x, (BOARD_HEIGHT / 2) + node.y
 end
 
 local PENDING_TIMEOUT = 3.0
@@ -505,6 +699,36 @@ local function onNodeEnter(self)
     local kind = NODE_KINDS[node.type] or NODE_KINDS[0]
     GameTooltip:AddLine(kind.label, kind.color[1], kind.color[2], kind.color[3])
     GameTooltip:AddLine(node.description, 1, 1, 1, true)
+    if node.sigil and ParagonBoard.sigils and ParagonBoard.sigils[node.sigil] then
+        local sigil = ParagonBoard.sigils[node.sigil]
+        local held = 0
+        for _, star in ipairs(sigil.nodes) do
+            if isAllocated(star) then held = held + 1 end
+        end
+        GameTooltip:AddLine(string.format("Sigille de %s, %s (%d / %d étoiles)", sigil.titan, sigil.epithet, held,
+            #sigil.nodes), 0.78, 0.74, 1)
+        local r, g, b = unpack(sigilComplete[node.sigil] and LEGENDARY or { 0.85, 0.8, 0.7 })
+        GameTooltip:AddLine(sigil.blessing .. " : " .. sigil.description, r, g, b, true)
+    end
+    if node.effect == SOCKET_EFFECT then
+        local glyphId = socketGlyph[self.nodeId]
+        local glyph = glyphId and ParagonBoard.glyphs[glyphId]
+        if glyph then
+            local known = glyphState[glyphId]
+            local own, need = glyphCondition(glyphId, self.nodeId)
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(string.format("%s (niveau %d)", glyph.name, known.level), LEGENDARY[1], LEGENDARY[2],
+                LEGENDARY[3])
+            GameTooltip:AddLine(string.format("Les nœuds acquis à portée gagnent +%d%% de leurs valeurs.",
+                glyphShare(known.level)), 1, 0.86, 0.55, true)
+            GameTooltip:AddLine(string.format("Bonus (%d / %d nœuds de %s à portée) : %s", own, need,
+                sideName(glyph.side), glyph.description), own >= need and 1 or 0.62, own >= need and 0.86 or 0.57,
+                own >= need and 0.55 or 0.5, true)
+            GameTooltip:AddLine("Clic : changer de glyphe  ·  Clic droit : retirer", 0.62, 0.57, 0.5)
+        elseif isAllocated(self.nodeId) then
+            GameTooltip:AddLine("Clic : sertir un glyphe", 1, 0.82, 0.3)
+        end
+    end
     local cost = nodeCost(node)
     if cost > 0 then
         GameTooltip:AddLine(string.format("Coût : %d point%s.", cost, cost > 1 and "s" or ""), 0.85, 0.8, 0.7)
@@ -535,12 +759,26 @@ local function onNodeEnter(self)
     GameTooltip:Show()
     self.hovered = true
     self.glow:SetAlpha(math.min(1, self.glow:GetAlpha() + 0.35))
+    if self.socket then
+        for _, id in ipairs(reachOf(self.nodeId)) do
+            local button = nodeButtons[id]
+            if button and button.glow:IsShown() then
+                button.glow:SetVertexColor(LEGENDARY[1], LEGENDARY[2], LEGENDARY[3])
+                button.glow:SetAlpha(isAllocated(id) and 0.9 or 0.35)
+            end
+        end
+    end
 end
 
 local function onNodeLeave(self)
     GameTooltip:Hide()
     self.hovered = false
     refreshNode(self.nodeId)
+    if self.socket then
+        for _, id in ipairs(reachOf(self.nodeId)) do
+            refreshNode(id)
+        end
+    end
 end
 
 local function createNode(id, node)
@@ -603,38 +841,94 @@ local function createNode(id, node)
 
     button:SetScript("OnEnter", onNodeEnter)
     button:SetScript("OnLeave", onNodeLeave)
-    button:SetScript("OnClick", function(self) allocate(self.nodeId) end)
+    if node.effect == SOCKET_EFFECT then
+        button.socket = true
+        button.ring:SetVertexColor(1, 0.72, 0.4)
+        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        button:SetScript("OnClick", function(self, mouse)
+            if not isAllocated(self.nodeId) then
+                allocate(self.nodeId)
+            elseif mouse == "RightButton" then
+                if socketGlyph[self.nodeId] then
+                    SendAddonMessage(PREFIX, "UNSOCKET\t" .. self.nodeId, "WHISPER", UnitName("player"))
+                end
+            else
+                ShowParagonGlyphs(self.nodeId)
+            end
+        end)
+    else
+        button:SetScript("OnClick", function(self) allocate(self.nodeId) end)
+    end
 
     button.boardX, button.boardY, button.nodeType = x, y, node.type
     button.culledIn = true
     button.detailShown = true
+    button.starShown = false
     nodeButtons[id] = button
+end
+
+-- A heading on the board that keeps its size on screen as the board zooms out (rescaleLabels): `screen` is its scale
+-- on screen, never below the board's own, and at most `maxScale` times it
+local function addScaledLabel(text, x, y, fontSize, screen, maxScale, alpha)
+    local holder = CreateFrame("Frame", nil, board)
+    holder:SetSize(1, 1)
+    local label = holder:CreateFontString(nil, "OVERLAY")
+    label:SetFont(MORPHEUS, fontSize)
+    label:SetShadowOffset(2, -2)
+    label:SetTextColor(1, 0.86, 0.55)
+    label:SetAlpha(alpha)
+    label:SetPoint("CENTER", holder, "CENTER")
+    label:SetText(text)
+    local entry = { holder = holder, label = label, x = x, y = y, screen = screen, maxScale = maxScale }
+    table.insert(scaledLabels, entry)
+    placeScaledLabel(entry, 1)
+    return entry
 end
 
 local function createBoard()
     buildAdjacency()
+
+    -- The Panthéon's sky, under everything else: its stars and nebulae, clear at the centre where the three inner
+    -- zones sit on the marble. One texture the board's size (buildParagonArt.py builds it from ParagonBoard.lua).
+    if ParagonBoard.sky then
+        local sky = board:CreateTexture(nil, "BACKGROUND")
+        sky:SetTexture(ART .. "Paragon-Sky")
+        sky:SetSize(BOARD_WIDTH, BOARD_HEIGHT)
+        sky:SetPoint("CENTER", board, "BOTTOMLEFT", BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
+    end
 
     for id, node in pairs(ParagonBoard.nodes) do
         createNode(id, node)
     end
 
     -- Each zone named where it begins, in the empty wedge straight above the hub, so the name sits between
-    -- two branches rather than on top of one
-    for index, zone in ipairs(ParagonBoard.zones or {}) do
-        if zone.radius > 0 then
-            local label = board:CreateFontString(nil, "BACKGROUND")
+    -- two branches rather than on top of one. The Panthéon's name is a heading that stays readable from afar.
+    local zones = ParagonBoard.zones or {}
+    for index, zone in ipairs(zones) do
+        if ParagonBoard.sky and index == #zones then
+            addScaledLabel(zone.name, BOARD_WIDTH / 2, BOARD_HEIGHT / 2 + zone.radius + 60, 48, 0.85, 14, 0.8)
+        elseif zone.radius > 0 then
+            local label = board:CreateFontString(nil, "ARTWORK")
             label:SetFont(MORPHEUS, 40 + index * 8)
             label:SetShadowOffset(2, -2)
             label:SetTextColor(1, 0.86, 0.55)
             label:SetAlpha(0.55)
-            label:SetPoint("CENTER", board, "BOTTOMLEFT", BOARD_EXTENT / 2, BOARD_EXTENT / 2 + zone.radius)
+            label:SetPoint("CENTER", board, "BOTTOMLEFT", BOARD_WIDTH / 2, BOARD_HEIGHT / 2 + zone.radius)
             label:SetText(zone.name)
-            local divider = board:CreateTexture(nil, "BACKGROUND")
+            local divider = board:CreateTexture(nil, "ARTWORK")
             RetailUI.SetAtlas(divider, "ChallengeMode-ThinDivider")
             divider:SetSize(320 + index * 60, 12)
             divider:SetPoint("TOP", label, "BOTTOM", 0, -6)
             divider:SetAlpha(0.7)
         end
+    end
+
+    -- Each Titan named just past the outer edge of its sigil
+    for _, sigil in pairs(ParagonBoard.sigils or {}) do
+        local distance = math.sqrt(sigil.x * sigil.x + sigil.y * sigil.y)
+        local reach = distance + 780
+        addScaledLabel(sigil.titan, BOARD_WIDTH / 2 + sigil.x * reach / distance,
+            BOARD_HEIGHT / 2 + sigil.y * reach / distance, 26, 0.55, 10, 0.85)
     end
 
     for _, link in ipairs(ParagonBoard.links) do
@@ -643,8 +937,16 @@ local function createBoard()
             local texture = board:CreateTexture(nil, "BORDER")
             local ax, ay = nodePosition(a)
             local bx, by = nodePosition(b)
-            placeLink(texture, board, ax, ay, bx, by)
+            -- The Panthéon's links come from its shared set; a sigil's own lines are drawn as the sigil
+            local sky = (a.tier or 0) == PANTHEON_TIER or (b.tier or 0) == PANTHEON_TIER
+            if sky then
+                placeSkyLink(texture, board, ax, ay, bx, by)
+                texture.sky = true
+            else
+                placeLink(texture, board, ax, ay, bx, by)
+            end
             table.insert(linkTextures, { texture = texture, a = link[1], b = link[2],
+                sigil = a.sigil and a.sigil == b.sigil and a.sigil or nil,
                 ax = ax, ay = ay, bx = bx, by = by, culledIn = true })
         end
     end
@@ -745,6 +1047,7 @@ local function createChrome()
     shade("TOPRIGHT", "BOTTOMRIGHT", 60, false)
 
     local heading = hud:CreateFontString(nil, "OVERLAY")
+    frame.heading = heading
     heading:SetFont(MORPHEUS, 28)
     heading:SetShadowOffset(1, -1)
     heading:SetTextColor(1, 0.86, 0.55)
@@ -752,13 +1055,15 @@ local function createChrome()
     heading:SetText("Tableau de parangon")
 
     local intro = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.intro = intro
     intro:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 2, -4)
     intro:SetWidth(430)
     intro:SetJustifyH("LEFT")
     intro:SetTextColor(0.85, 0.8, 0.7)
     intro:SetText("Chaque point renforce votre personnage pour de bon. Partez de l'Éveil, au centre, et étendez "
         .. "votre chemin nœud après nœud. L'Ascension d'une branche s'ouvre une fois son Éveil complet, sa "
-        .. "Transcendance une fois son Ascension complète ; les grands nœuds coûtent plusieurs points.")
+        .. "Transcendance une fois son Ascension complète, son Panthéon une fois sa Transcendance complète : "
+        .. "chaque sigille achevé y accorde sa Bénédiction. Les châsses reçoivent vos glyphes.")
 
     -- The points to spend, as the board's clock reads: an emblem, the label and the figure beside it, and the
     -- gauge of what is spent under both
@@ -895,6 +1200,9 @@ local CULL_MARGIN = 120
 -- Zoomed out past this, the small nodes lose their shadow disc and glow: at that size they are specks, and
 -- those two layers are half of every node's textures. Their alpha and colour still show their state.
 local DETAIL_ZOOM = 0.45
+-- Zoomed out past this, every node is a star (refreshNode): its glow alone, larger, and nothing else drawn
+local SKY_ZOOM = 0.16
+local STAR_GROW = 3.2
 local cullKey
 
 local function updateCulling(force)
@@ -907,23 +1215,37 @@ local function updateCulling(force)
     local left = math.floor((h - CULL_MARGIN) / CULL_STEP) * CULL_STEP
     local right = math.ceil((h + width / scale + CULL_MARGIN) / CULL_STEP) * CULL_STEP
     -- Nodes are placed from the board's bottom left; the vertical scroll counts down from its top
-    local top = BOARD_EXTENT - v
+    local top = BOARD_HEIGHT - v
     local high = math.ceil((top + CULL_MARGIN) / CULL_STEP) * CULL_STEP
     local low = math.floor((top - height / scale - CULL_MARGIN) / CULL_STEP) * CULL_STEP
     local detail = scale >= DETAIL_ZOOM
+    local sky = scale < SKY_ZOOM
 
-    local key = left .. ":" .. right .. ":" .. low .. ":" .. high .. (detail and "+" or "-")
+    local key = left .. ":" .. right .. ":" .. low .. ":" .. high .. (detail and "+" or "-") .. (sky and "*" or "")
     if key == cullKey and not force then return end
     cullKey = key
 
-    for _, button in pairs(nodeButtons) do
+    for id, button in pairs(nodeButtons) do
         local x, y = button.boardX, button.boardY
         local inside = x >= left and x <= right and y >= low and y <= high
         if inside ~= button.culledIn then
             button.culledIn = inside
             if inside then button:Show() else button:Hide() end
         end
-        if inside and button.nodeType == 0 and detail ~= button.detailShown then
+        if inside and sky ~= button.starShown then
+            -- Into the sky or back: a star is the glow alone, grown so it reads at that distance
+            button.starShown = sky
+            local size = button.baseSize
+            for _, region in ipairs({ button.icon, button.ring, button.backing, button.costBadge }) do
+                if sky then region:Hide() else region:Show() end
+            end
+            if button.lock and sky then button.lock:Hide() end
+            button.glow:SetSize(size * (sky and STAR_GROW or 1.25), size * (sky and STAR_GROW or 1.25))
+            button.glow:Show()
+            button.detailShown = not sky
+            refreshNode(id)
+        end
+        if inside and not sky and button.nodeType == 0 and detail ~= button.detailShown then
             button.detailShown = detail
             if detail then
                 button.backing:Show()
@@ -947,8 +1269,8 @@ end
 
 local function panTo(x, y)
     local scale = board:GetScale()
-    local maxX = math.max(0, BOARD_EXTENT - canvas:GetWidth() / scale)
-    local maxY = math.max(0, BOARD_EXTENT - canvas:GetHeight() / scale)
+    local maxX = math.max(0, BOARD_WIDTH - canvas:GetWidth() / scale)
+    local maxY = math.max(0, BOARD_HEIGHT - canvas:GetHeight() / scale)
     x = math.max(0, math.min(maxX, x))
     y = math.max(0, math.min(maxY, y))
     -- A drag calls this every frame, moving or not; setting the same scroll again still re-lays the board out
@@ -977,7 +1299,7 @@ local function zoomFloor()
     if not width or width <= 0 then
         return MIN_ZOOM
     end
-    return math.max(MIN_ZOOM, width / BOARD_EXTENT, height / BOARD_EXTENT)
+    return math.max(MIN_ZOOM, width / BOARD_WIDTH, height / BOARD_HEIGHT)
 end
 
 -- Zooming has to hold the middle of the view still. SetScale alone scales the child about its own top-left
@@ -992,6 +1314,7 @@ local function setZoom(scale)
     board:SetScale(scale)
     canvas:UpdateScrollChildRect()
     centreOn(cx, cy)
+    rescaleLabels()
 end
 
 local function createFrame()
@@ -1024,13 +1347,13 @@ local function createFrame()
     insetGround:SetAllPoints(canvas)
 
     board = CreateFrame("Frame", "ParagonBoardCanvas", canvas)
-    board:SetSize(BOARD_EXTENT, BOARD_EXTENT)
+    board:SetSize(BOARD_WIDTH, BOARD_HEIGHT)
     canvas:SetScrollChild(board)
     -- Without this the scroll frame does not know how far the child extends and refuses to scroll
     canvas:UpdateScrollChildRect()
 
     canvas:SetScript("OnMouseWheel", function(_, delta)
-        setZoom(board:GetScale() + delta * ZOOM_STEP)
+        setZoom(board:GetScale() * ZOOM_FACTOR ^ delta)
     end)
 
     canvas:SetScript("OnMouseDown", function(self)
@@ -1144,19 +1467,33 @@ local function createFrame()
         end)
         return button
     end
-    local zoomIn = control("+", 26, function() setZoom(board:GetScale() + ZOOM_STEP) end)
+    local zoomIn = control("+", 26, function() setZoom(board:GetScale() * ZOOM_FACTOR) end)
     zoomIn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 16)
-    local zoomOut = control("-", 26, function() setZoom(board:GetScale() - ZOOM_STEP) end)
+    local zoomOut = control("-", 26, function() setZoom(board:GetScale() / ZOOM_FACTOR) end)
     zoomOut:SetPoint("RIGHT", zoomIn, "LEFT", -4, 0)
     local recentre = control("Recentrer", 90, function()
         setZoom(DEFAULT_ZOOM)
-        centreOn(BOARD_EXTENT / 2, BOARD_EXTENT / 2)
+        centreOn(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
     end)
     recentre:SetPoint("RIGHT", zoomOut, "LEFT", -8, 0)
+    -- The whole sky at once: the view the Panthéon is drawn for
+    local skyView = control("Vue du ciel", 96, function()
+        setZoom(zoomFloor())
+        centreOn(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
+    end)
+    skyView:SetPoint("RIGHT", recentre, "LEFT", -8, 0)
     local bonusButton = control("Vos bonus", 90, function()
         if bonusPanel:IsShown() then bonusPanel:Hide() else bonusPanel:Show() end
     end)
-    bonusButton:SetPoint("RIGHT", recentre, "LEFT", -8, 0)
+    bonusButton:SetPoint("RIGHT", skyView, "LEFT", -8, 0)
+    local glyphButton = control("Glyphes", 84, function()
+        if glyphPanel and glyphPanel:IsShown() and not glyphPanel.socket then
+            glyphPanel:Hide()
+        else
+            ShowParagonGlyphs(nil)
+        end
+    end)
+    glyphButton:SetPoint("RIGHT", bonusButton, "LEFT", -8, 0)
 
     -- The summary: every stat the board gives, added up, and the major nodes by name
     bonusPanel = CreateFrame("Frame", nil, hud)
@@ -1192,6 +1529,243 @@ local function createFrame()
         PlaySound(SOUND_CLOSE)
         state.open = false
     end)
+end
+
+--------------------------------------------------------------------------------
+-- Glyphs: the collection panel and the items' tooltips
+--------------------------------------------------------------------------------
+
+local GLYPH_BUTTON, GLYPH_GAP = 40, 10
+local GLYPH_COLUMNS = 6
+
+local function glyphCopies(glyphId)
+    local glyph = ParagonBoard.glyphs[glyphId]
+    return glyph and GetItemCount(glyph.item) or 0
+end
+
+-- A glyph's lines, for an item tooltip and for the panel's: what it does, its condition, its level
+local function addGlyphLines(tooltip, glyphId, withName)
+    local glyph = ParagonBoard.glyphs[glyphId]
+    if not glyph then return end
+    local known = glyphState[glyphId]
+    if withName then
+        tooltip:AddLine(glyph.name, LEGENDARY[1], LEGENDARY[2], LEGENDARY[3])
+    end
+    tooltip:AddLine(string.format("Glyphe de parangon - %s", sideName(glyph.side)), 1, 0.82, 0.35)
+    if known then
+        local progress = known.needed > 0 and string.format(" (%d / %d)", known.experience, known.needed) or ""
+        tooltip:AddLine(string.format("Niveau %d / %d%s", known.level, GLYPH_MAX_LEVEL, progress), 1, 1, 1)
+    end
+    local level = known and known.level or 1
+    tooltip:AddLine(string.format("Sertie dans une châsse du tableau de parangon, les nœuds acquis à %d liens ou "
+        .. "moins gagnent +%d%% de leurs valeurs (+10%%, +2%% par niveau).", GLYPH_RADIUS, glyphShare(level)),
+        0.9, 0.85, 0.7, true)
+    tooltip:AddLine(string.format("Bonus, avec %d nœuds de %s à sa portée : %s", glyph.need, sideName(glyph.side),
+        glyph.description), 1, 0.86, 0.55, true)
+    if known and known.socket > 0 then
+        local own, need = glyphCondition(glyphId, known.socket)
+        tooltip:AddLine(string.format("Sertie (%d / %d nœuds de %s)%s", own, need, sideName(glyph.side),
+            own >= need and " : bonus actif." or "."), 1, 0.5, 0)
+    elseif known then
+        tooltip:AddLine("Dans votre collection : sertissez-le depuis le tableau de parangon.", 0.75, 0.7, 0.6, true)
+    else
+        tooltip:AddLine("Pas encore appris : utilisez-le pour l'ajouter à votre collection.", 0.75, 0.7, 0.6, true)
+    end
+    if known and known.level < GLYPH_MAX_LEVEL then
+        tooltip:AddLine("Un double s'absorbe en expérience ; le glyphe en gagne aussi, serti, dans les clés +10, le "
+            .. "Donjon infini dès l'étage 50 et les raids héroïques.", 0.62, 0.57, 0.5, true)
+    end
+end
+
+-- The glyph items' tooltips get their level and effect: the item itself only carries its lore
+local function onTooltipSetItem(tooltip)
+    local _, link = tooltip:GetItem()
+    local item = link and tonumber(link:match("item:(%d+)"))
+    local glyphId = item and glyphByItem[item]
+    if glyphId then
+        addGlyphLines(tooltip, glyphId, false)
+        tooltip:Show()
+    end
+end
+GameTooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
+ItemRefTooltip:HookScript("OnTooltipSetItem", onTooltipSetItem)
+
+local function socketLabel(socket)
+    local node = ParagonBoard.nodes[socket]
+    if not node then return "" end
+    return string.format("%s (%s)", node.name, sideName(node.side))
+end
+
+local function refreshGlyphPanel()
+    if not glyphPanel then return end
+    local known = 0
+    for id, button in pairs(glyphButtons) do
+        local state = glyphState[id]
+        local copies = glyphCopies(id)
+        if state then known = known + 1 end
+        button.icon:SetDesaturated(not state)
+        button:SetAlpha(state and 1 or (copies > 0 and 0.85 or 0.35))
+        if state then button.border:Show() else button.border:Hide() end
+        button.level:SetText(state and state.level or "")
+        button.copies:SetText(copies > 0 and ("x" .. copies) or "")
+        if state and state.socket > 0 then button.set:Show() else button.set:Hide() end
+    end
+    if glyphPanel.socket then
+        glyphPanel.subtitle:SetText("Choisissez le glyphe à sertir dans la " .. socketLabel(glyphPanel.socket) .. ".")
+    else
+        glyphPanel.subtitle:SetFormattedText("Votre collection : %d / %d glyphes.", known, #ParagonBoard.glyphs)
+    end
+end
+
+local function createGlyphPanel()
+    glyphPanel = CreateFrame("Frame", nil, hud)
+    local width = GLYPH_COLUMNS * GLYPH_BUTTON + (GLYPH_COLUMNS - 1) * GLYPH_GAP + 28
+    glyphPanel:SetSize(width, 5 * (GLYPH_BUTTON + GLYPH_GAP) + 128)
+    glyphPanel:SetPoint("TOPLEFT", frame.intro, "BOTTOMLEFT", -4, -12)
+    glyphPanel:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    glyphPanel:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
+    glyphPanel:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+    glyphPanel:EnableMouse(true)
+    glyphPanel:Hide()
+
+    local title = glyphPanel:CreateFontString(nil, "OVERLAY")
+    title:SetFont(MORPHEUS, 17)
+    title:SetTextColor(1, 0.86, 0.55)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetText("Glyphes de parangon")
+    glyphPanel.subtitle = glyphPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    glyphPanel.subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+    glyphPanel.subtitle:SetWidth(width - 24)
+    glyphPanel.subtitle:SetJustifyH("LEFT")
+    glyphPanel.subtitle:SetTextColor(0.85, 0.8, 0.7)
+
+    -- One column a branch, five glyphs down each
+    local columns = {}
+    for id, glyph in pairs(ParagonBoard.glyphs) do
+        columns[glyph.side] = columns[glyph.side] or {}
+        table.insert(columns[glyph.side], id)
+    end
+    for side = 0, GLYPH_COLUMNS - 1 do
+        local x = 14 + side * (GLYPH_BUTTON + GLYPH_GAP)
+        local header = glyphPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        header:SetPoint("TOP", glyphPanel, "TOPLEFT", x + GLYPH_BUTTON / 2, -60)
+        header:SetText(sideName(side))
+        local ids = columns[side] or {}
+        table.sort(ids)
+        for row, id in ipairs(ids) do
+            local glyph = ParagonBoard.glyphs[id]
+            local button = CreateFrame("Button", nil, glyphPanel)
+            button:SetSize(GLYPH_BUTTON, GLYPH_BUTTON)
+            button:SetPoint("TOPLEFT", glyphPanel, "TOPLEFT", x, -76 - (row - 1) * (GLYPH_BUTTON + GLYPH_GAP))
+            button.icon = button:CreateTexture(nil, "ARTWORK")
+            button.icon:SetAllPoints()
+            button.icon:SetTexture(glyph.icon)
+            button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            -- The legendary border of a glyph known
+            button.border = button:CreateTexture(nil, "OVERLAY")
+            button.border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+            button.border:SetBlendMode("ADD")
+            button.border:SetVertexColor(LEGENDARY[1], LEGENDARY[2], LEGENDARY[3])
+            button.border:SetPoint("CENTER")
+            button.border:SetSize(GLYPH_BUTTON * 1.8, GLYPH_BUTTON * 1.8)
+            button.level = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+            button.level:SetPoint("BOTTOMRIGHT", -2, 2)
+            button.copies = button:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+            button.copies:SetPoint("TOPLEFT", 2, -2)
+            button.set = button:CreateTexture(nil, "OVERLAY")
+            button.set:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+            button.set:SetSize(18, 18)
+            button.set:SetPoint("TOPRIGHT", 4, 4)
+            button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+            button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            button.glyphId = id
+            button:SetScript("OnClick", function(self, mouse)
+                local known = glyphState[self.glyphId]
+                local copies = glyphCopies(self.glyphId)
+                if mouse == "RightButton" or not known then
+                    -- A copy from the bags: learnt when new, absorbed as experience when known
+                    if copies > 0 then
+                        SendAddonMessage(PREFIX, "ABSORB\t" .. self.glyphId, "WHISPER", UnitName("player"))
+                    else
+                        PlaySound(SOUND_DENIED)
+                    end
+                elseif glyphPanel.socket then
+                    SendAddonMessage(PREFIX, "SOCKET\t" .. glyphPanel.socket .. "\t" .. self.glyphId, "WHISPER",
+                        UnitName("player"))
+                else
+                    UIErrorsFrame:AddMessage("Cliquez d'abord une châsse acquise sur le tableau.", 1, 0.82, 0.3, 1, 3)
+                end
+            end)
+            button:SetScript("OnEnter", function(self)
+                PlaySound(SOUND_HOVER)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                addGlyphLines(GameTooltip, self.glyphId, true)
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(ParagonBoard.glyphs[self.glyphId].lore, 1, 0.82, 0, true)
+                local copies = glyphCopies(self.glyphId)
+                if copies > 0 then
+                    GameTooltip:AddLine(string.format("Clic droit : %s (%d dans vos sacs)",
+                        glyphState[self.glyphId] and "absorber un double" or "apprendre", copies), 1, 0.82, 0.3)
+                end
+                if glyphState[self.glyphId] and glyphPanel.socket then
+                    GameTooltip:AddLine("Clic : sertir ici", 1, 0.82, 0.3)
+                end
+                GameTooltip:Show()
+            end)
+            button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            glyphButtons[id] = button
+        end
+    end
+
+    local hint = glyphPanel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    hint:SetPoint("BOTTOMLEFT", 12, 12)
+    hint:SetWidth(width - 24)
+    hint:SetJustifyH("LEFT")
+    hint:SetText("Clic sur une châsse acquise, puis sur un glyphe : sertir. Clic droit sur la châsse : retirer. "
+        .. "Clic droit sur un glyphe : apprendre ou absorber un exemplaire de vos sacs.")
+
+    glyphPanel.refresh = refreshGlyphPanel
+    glyphPanel:SetScript("OnHide", function(self) self.socket = nil end)
+    glyphPanel:RegisterEvent("BAG_UPDATE")
+    glyphPanel:SetScript("OnEvent", function(self) if self:IsShown() then refreshGlyphPanel() end end)
+end
+
+-- Opens the glyph panel, for a socket or on its own
+function ShowParagonGlyphs(socket)
+    if not frame then return end
+    if not glyphPanel then createGlyphPanel() end
+    glyphPanel.socket = socket
+    glyphPanel:Show()
+    refreshGlyphPanel()
+    PlaySound("igCharacterInfoOpen")
+end
+
+-- The socket each glyph sits in, the other way round, for the board
+local function indexSockets()
+    socketGlyph = {}
+    for id, glyph in pairs(glyphState) do
+        if glyph.socket > 0 then socketGlyph[glyph.socket] = id end
+    end
+end
+
+local function readGlyph(text)
+    local id, level, experience, needed, socket = text:match("^(%d+):(%d+):(%d+):(%d+):(%d+)$")
+    if not id then return end
+    glyphState[tonumber(id)] = { level = tonumber(level), experience = tonumber(experience),
+        needed = tonumber(needed), socket = tonumber(socket) }
+end
+
+local function glyphsChanged()
+    indexSockets()
+    if frame and frame:IsShown() then
+        refreshAll()
+    end
+    refreshGlyphPanel()
 end
 
 --------------------------------------------------------------------------------
@@ -1292,7 +1866,7 @@ local function handle(message)
             PlaySound(SOUND_OPEN)
             -- Start centred on the hub; the board reads from the middle outward
             setZoom(DEFAULT_ZOOM)
-            centreOn(BOARD_EXTENT / 2, BOARD_EXTENT / 2)
+            centreOn(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)
             -- It fades in as the challenge board does, rather than appearing at once
             frame:SetAlpha(0)
             addAnimation({
@@ -1335,6 +1909,50 @@ local function handle(message)
     if command == "PLEVEL" then
         local level = tonumber(rest)
         if level then ShowParagonLevelToast(level) end
+        return
+    end
+
+    if command == "GLYPHBEGIN" then
+        glyphState = {}
+        return
+    end
+
+    if command == "GLYPHS" then
+        for entry in rest:gmatch("[^,]+") do
+            readGlyph(entry)
+        end
+        return
+    end
+
+    if command == "GLYPHEND" then
+        glyphsChanged()
+        return
+    end
+
+    if command == "GLYPH" then
+        readGlyph(rest)
+        glyphsChanged()
+        return
+    end
+
+    if command == "GLYPHNEW" then
+        PlaySound(SOUND_NOTABLE)
+        return
+    end
+
+    if command == "SOCKETED" then
+        local socket, glyphId = rest:match("^(%d+)\t(%d+)$")
+        PlaySound(tonumber(glyphId or 0) > 0 and SOUND_NOTABLE or SOUND_RESET)
+        if glyphPanel and glyphPanel.socket then glyphPanel:Hide() end
+        local button = socket and nodeButtons[tonumber(socket)]
+        if button then animateNode(button) end
+        return
+    end
+
+    if command == "BLESSING" then
+        -- A sigil's last star: the figure lights up (refreshLinks), and the board flares as for a keystone
+        PlaySound(SOUND_KEYSTONE)
+        if frame and frame:IsShown() then flashCanvas() end
         return
     end
 
@@ -1390,7 +2008,16 @@ end
 
 local listener = CreateFrame("Frame")
 listener:RegisterEvent("CHAT_MSG_ADDON")
-listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
+listener:RegisterEvent("PLAYER_ENTERING_WORLD")
+listener:SetScript("OnEvent", function(self, event, prefix, message, _, sender)
+    if event == "PLAYER_ENTERING_WORLD" then
+        -- The glyphs' levels, for their tooltips, without opening the board first
+        if not self.glyphsAsked then
+            self.glyphsAsked = true
+            SendAddonMessage(PREFIX, "GLYPHSYNC", "WHISPER", UnitName("player"))
+        end
+        return
+    end
     if event ~= "CHAT_MSG_ADDON" or prefix ~= PREFIX or sender ~= UnitName("player") then
         return
     end

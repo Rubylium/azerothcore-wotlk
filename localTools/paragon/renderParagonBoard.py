@@ -52,7 +52,7 @@ def main():
         half = 800
     else:
         centre = (0.0, 0.0)
-        half = max(max(abs(n["x"]), abs(n["y"])) for n in nodes) + tree.BOARD_MARGIN
+        half = max(max(abs(n["x"]), abs(n["y"])) for n in nodes) + tree.BOARD_MARGIN + 260
     scale = size / (2.0 * half)
 
     def to_px(x, y):
@@ -60,8 +60,19 @@ def main():
 
     image = Image.new("RGB", (size, size), (6, 6, 14))
 
-    # The sky: a faint nebula and scattered stars in the Panthéon's annulus, the inner zones on marble-dark ground
-    if not only_sigil:
+    # The sky: the frame's own texture when it has been built (buildParagonArt.py), over marble-dark ground
+    sky_png = os.path.join(tree.REPO, "clientPatcher", "interface", "Interface", "Paragon", "Paragon-Sky.png")
+    if not only_sigil and os.path.exists(sky_png):
+        ground = Image.new("RGBA", (size, size), (34, 30, 26, 255))
+        sky = Image.open(sky_png).convert("RGBA")
+        # The texture spans the board, twice as wide as tall; the render is its middle square
+        extent = 2 * (max(max(abs(n["x"]), abs(n["y"])) for n in nodes) + tree.BOARD_MARGIN)
+        side = int(round(extent * scale))
+        sky = sky.crop((sky.width // 4, 0, sky.width * 3 // 4, sky.height)).resize((side, side),
+                                                                                    Image.Resampling.LANCZOS)
+        ground.alpha_composite(sky, ((size - side) // 2, (size - side) // 2))
+        image = ground.convert("RGB")
+    elif not only_sigil:
         nebula = Image.new("RGB", (size, size), (0, 0, 0))
         draw = ImageDraw.Draw(nebula)
         rng = random.Random(7)

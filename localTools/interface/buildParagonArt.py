@@ -1,12 +1,18 @@
-"""Builds the Paragon UI texture package from approved source artwork."""
+"""Builds the Paragon UI texture package from approved source artwork.
+
+Usage: python localTools/interface/buildParagonArt.py [--sky-only]
+--sky-only builds the Panthéon's assets alone (its sky, its link set and their sparks), leaving the rest as it is.
+"""
 
 import io
 import math
 import os
+import random
 import re
 import struct
+import sys
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 
 repoRoot = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -354,18 +360,30 @@ def potAtLeast(value):
     return size
 
 
-def linkGeometries(boardPath):
-    """Every distinct |dx| x |dy| a link on the board spans."""
+# The Panthéon's tier: its links use the shared sky set below, never a texture of their own
+PANTHEON_TIER = 3
+
+
+def readBoard(boardPath):
+    """The board's nodes (position and tier) and its links, from ParagonBoard.lua"""
     text = io.open(boardPath, encoding="utf-8").read()
     nodes = {}
-    for match in re.finditer(r"\[(\d+)\] = \{ type = \d+, x = (-?\d+), y = (-?\d+)", text):
-        nodes[int(match.group(1))] = (int(match.group(2)), int(match.group(3)))
-
+    for match in re.finditer(r"\[(\d+)\] = \{ type = \d+, x = (-?\d+), y = (-?\d+), .*? tier = (\d+),", text):
+        nodes[int(match.group(1))] = (int(match.group(2)), int(match.group(3)), int(match.group(4)))
     body = text.split("links = {", 1)[1]
+    links = [(int(a), int(b)) for a, b in re.findall(r"\{\s*(\d+)\s*,\s*(\d+)\s*\}", body)]
+    return text, nodes, links
+
+
+def linkGeometries(boardPath):
+    """Every distinct |dx| x |dy| a link of the three inner zones spans."""
+    _, nodes, links = readBoard(boardPath)
     shapes = set()
-    for a, b in re.findall(r"\{\s*(\d+)\s*,\s*(\d+)\s*\}", body):
-        ax, ay = nodes[int(a)]
-        bx, by = nodes[int(b)]
+    for a, b in links:
+        ax, ay, at = nodes[a]
+        bx, by, bt = nodes[b]
+        if PANTHEON_TIER in (at, bt):
+            continue
         shapes.add((abs(bx - ax), abs(by - ay)))
     return sorted(shapes)
 
@@ -383,9 +401,9 @@ def crossSection(bar):
     return rows
 
 
-def buildLinkTexture(dx, dy, profile):
+def buildLinkTexture(dx, dy, profile, pad=LINK_PAD, thickness=LINK_THICKNESS):
     """Draws the bar corner to corner of a centred dx by dy box, in the '/' sense."""
-    width, height = potAtLeast(dx + LINK_PAD), potAtLeast(dy + LINK_PAD)
+    width, height = potAtLeast(dx + pad), potAtLeast(dy + pad)
     image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels = image.load()
 
@@ -399,7 +417,7 @@ def buildLinkTexture(dx, dy, profile):
         return image
     ux, uy = vx / span, vy / span
 
-    half = LINK_THICKNESS / 2.0
+    half = thickness / 2.0
     step = 1.0 / LINK_SAMPLES
     reach = int(math.ceil(half)) + 2
 
@@ -426,7 +444,7 @@ def buildLinkTexture(dx, dy, profile):
                     if abs(d) >= half:
                         continue
                     row = profile[min(len(profile) - 1,
-                                      max(0, int((d + half) / LINK_THICKNESS * len(profile))))]
+                                      max(0, int((d + half) / thickness * len(profile))))]
                     for channel in range(3):
                         colour[channel] += row[channel] * row[3]
                     weight += row[3]
@@ -522,8 +540,148 @@ def buildLinkTextures():
     return built, shapes
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# The Panthéon (Paragon.lua): its links share a set drawn by angle and length and are stretched to their exact span,
+# since nearly every one of them has a shape of its own; its sparks are one comet per angle; and its sky is one texture
+# the board's size, clear at the centre where the three inner zones sit on the marble.
+# ---------------------------------------------------------------------------------------------------------------------
+SKY_ANGLE_STEP = 3                  # Paragon.lua's SKY_ANGLE_STEP
+SKY_LENGTHS = (112, 176, 272, 432)  # SKY_LENGTHS
+SKY_TEXEL = 2                       # board units a texel: SKY_TEXEL
+SKY_PAD = 6                         # texels of clearance around the bar: SKY_PAD
+SKY_SIZE = (2048, 1024)             # the sky texture, the board's shape (twice as wide as tall)
+
+
+def skyLinkBox(angle, length):
+    """The bar's box in board units, rounded as Paragon.lua rounds it"""
+    return (int(math.floor(length * math.cos(math.radians(angle)) + 0.5)),
+            int(math.floor(length * math.sin(math.radians(angle)) + 0.5)))
+
+
+def buildSkyLinkTextures():
+    bar = makeSeamless(loadSource("Paragon-Link"), (64, LINK_BAR_HEIGHT), horizontal=True)
+    profile = crossSection(bar)
+    built = 0
+    for angle in range(0, 91, SKY_ANGLE_STEP):
+        for length in SKY_LENGTHS:
+            boxX, boxY = skyLinkBox(angle, length)
+            image = buildLinkTexture(boxX / float(SKY_TEXEL), boxY / float(SKY_TEXEL), profile, pad=SKY_PAD,
+                                     thickness=LINK_THICKNESS / SKY_TEXEL)
+            if max(image.getchannel("A").getdata()) == 0:
+                raise RuntimeError(f"Paragon-SkyLink-{angle}-{length} came out empty")
+            name = f"Paragon-SkyLink-{angle}-{length}"
+            image.save(os.path.join(outputRoot, name + ".png"), optimize=True)
+            writeDxt3Blp(image, os.path.join(outputRoot, name + ".blp"))
+            built += 1
+    return built
+
+
+def buildSkySparks():
+    base = resizeExact(loadSource("Paragon-Link-Spark"), (SPARK_CANVAS, SPARK_CANVAS))
+    bounds = cropVisible(base).size
+    reach = math.hypot(*bounds)
+    if reach > SPARK_CANVAS - 4:
+        scale = (SPARK_CANVAS - 4) / reach
+        shrunk = resizeExact(cropVisible(base), (max(1, int(bounds[0] * scale)), max(1, int(bounds[1] * scale))))
+        base = Image.new("RGBA", (SPARK_CANVAS, SPARK_CANVAS), (0, 0, 0, 0))
+        base.alpha_composite(shrunk, ((SPARK_CANVAS - shrunk.width) // 2, (SPARK_CANVAS - shrunk.height) // 2))
+    built = 0
+    for angle in range(0, 91, SKY_ANGLE_STEP):
+        image = base.rotate(angle, resample=Image.Resampling.BICUBIC, expand=False)
+        name = f"Paragon-SkyLink-Spark-{angle}"
+        image.save(os.path.join(outputRoot, name + ".png"), optimize=True)
+        writeDxt3Blp(image, os.path.join(outputRoot, name + ".blp"))
+        built += 1
+    return built
+
+
+def buildSky(boardPath):
+    """The Panthéon's sky: nebulae and stars over the whole board, densest in the Panthéon's own ring of sky, fading
+    to nothing at the edge of the three inner zones. Gold and parchment stars on deep indigo, the challenge board's
+    palette; seeded, so a rebuild draws the same sky."""
+    text = io.open(boardPath, encoding="utf-8").read()
+    extent = int(re.search(r"extent = (\d+)", text).group(1))
+    sky = re.search(r"sky = \{ inner = (\d+), ring = (\d+), outer = (\d+) \}", text)
+    inner, ring, outer = (int(v) for v in sky.groups())
+    width, height = SKY_SIZE
+    unit = height / float(extent)                    # pixels a board unit; the board is 2 x extent by extent
+    cx, cy = width / 2.0, height / 2.0
+    rng = random.Random(1133)
+
+    def radiusAt(x, y):
+        return math.hypot((x - cx) / unit, (y - cy) / unit)
+
+    # Nebulae: soft clouds, most of them in the Panthéon's annulus, a few far out in the corners
+    nebula = Image.new("RGBA", SKY_SIZE, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(nebula)
+    tints = [(40, 32, 96), (26, 44, 110), (70, 36, 92), (96, 64, 30), (34, 30, 70)]
+    for _ in range(420):
+        distance = rng.uniform(inner, outer * 1.9)
+        angle = rng.uniform(0.0, 2.0 * math.pi)
+        x = cx + distance * math.cos(angle) * unit
+        y = cy + distance * math.sin(angle) * unit
+        size = rng.uniform(140, 520) * unit
+        tint = rng.choice(tints)
+        draw.ellipse((x - size, y - size * rng.uniform(0.5, 1.0), x + size, y + size * rng.uniform(0.5, 1.0)),
+                     fill=tint + (rng.randint(30, 90),))
+    nebula = nebula.filter(ImageFilter.GaussianBlur(18))
+
+    image = Image.new("RGBA", SKY_SIZE, (7, 7, 18, 236))
+    image.alpha_composite(nebula)
+
+    # Stars: many faint, some bright with a small halo
+    stars = Image.new("RGBA", SKY_SIZE, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(stars)
+    palette = [(255, 244, 214), (255, 226, 160), (220, 226, 255), (255, 250, 240)]
+    for _ in range(9000):
+        x, y = rng.uniform(0, width), rng.uniform(0, height)
+        r = radiusAt(x, y)
+        if r < inner or (r > outer * 1.15 and rng.random() < 0.45):
+            continue
+        colour = rng.choice(palette)
+        bright = rng.random()
+        if bright > 0.985:
+            for halo, alpha in ((3.2, 40), (2.0, 90), (1.1, 255)):
+                draw.ellipse((x - halo, y - halo, x + halo, y + halo), fill=colour + (alpha,))
+        else:
+            level = int(90 + 165 * bright ** 2)
+            draw.point((x, y), fill=colour + (level,))
+    image.alpha_composite(stars)
+
+    # The ring of the Titans, a faint band of light under its stars
+    band = Image.new("RGBA", SKY_SIZE, (0, 0, 0, 0))
+    ImageDraw.Draw(band).ellipse((cx - ring * unit, cy - ring * unit, cx + ring * unit, cy + ring * unit),
+                                 outline=(255, 214, 140, 70), width=3)
+    image.alpha_composite(band.filter(ImageFilter.GaussianBlur(2)))
+
+    # Clear where the inner zones are, feathered over a few hundred units so the marble fades into the sky
+    mask = Image.new("L", SKY_SIZE, 255)
+    feather = 260
+    pixels = mask.load()
+    for y in range(height):
+        for x in range(width):
+            r = radiusAt(x, y)
+            if r < inner:
+                pixels[x, y] = 0 if r < inner - feather else int(255 * (1.0 - (inner - r) / feather))
+    alpha = Image.eval(image.getchannel("A"), lambda v: v)
+    image.putalpha(Image.composite(alpha, Image.new("L", SKY_SIZE, 0), mask))
+    image.save(os.path.join(outputRoot, "Paragon-Sky.png"), optimize=True)
+    writeDxt3Blp(image, os.path.join(outputRoot, "Paragon-Sky.blp"))
+    return image.size
+
+
+def buildSkyAssets():
+    boardPath = os.path.join(repoRoot, "clientPatcher", "interface", "Interface", "FrameXML", "ParagonBoard.lua")
+    print(f"Built the Panthéon's sky, {buildSky(boardPath)}")
+    print(f"Built {buildSkyLinkTextures()} sky link textures")
+    print(f"Built {buildSkySparks()} sky link sparks")
+
+
 def main():
     os.makedirs(outputRoot, exist_ok=True)
+    if "--sky-only" in sys.argv[1:]:
+        buildSkyAssets()
+        return
     for name, image in buildAssets().items():
         validateAsset(name, image)
         # The plain bar and the un-turned comet are only raw material now: the per-geometry textures are
@@ -551,6 +709,7 @@ def main():
     if built:
         print(f"Built {built} per-geometry link textures")
         print(f"Built {buildSparkTextures(shapes)} per-geometry link sparks")
+    buildSkyAssets()
 
 
 if __name__ == "__main__":
