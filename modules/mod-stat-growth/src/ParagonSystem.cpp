@@ -7,8 +7,10 @@
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "Group.h"
+#include "Item.h"
 #include "LFGMgr.h"
 #include "Log.h"
+#include "Mail.h"
 #include "Map.h"
 #include "MythicDungeon.h"
 #include "MythicDungeonSystem.h"
@@ -33,6 +35,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <map>
 #include <mutex>
 #include <string_view>
 #include <unordered_map>
@@ -80,6 +83,13 @@ enum class ParagonEffect : uint8
     Insight,            // casting a spell: `chance` to gain `value` spell power for `duration`
     Ward,               // casting a spell: `chance` to absorb `value`% of spell power for `duration`, on `cooldown`
     ManaSurge,          // casting a spell: `chance` to restore `value`% of maximum mana, on `cooldown`
+    // The Pantheon's and the glyphs'. A socket holds a glyph; the rest are what the Blessings and the glyph bonuses add
+    // beside the effects above, each through a cap of its own.
+    Socket,             // holds a glyph: the allocated nodes within GlyphRadius links grow by the glyph's share
+    HealPct,            // `value`% more healing done by the character's spells, up to MaxHealPct
+    HealShare,          // `value`% of the healing received also goes to the most hurt ally near, up to MaxHealSharePct
+    AreaReach,          // the splash and the arc reach `value` more enemies, up to MaxAreaTargets
+    ExecuteReach,       // the execute nodes apply `value`% of health higher, up to MaxExecuteThreshold
     Count
 };
 
@@ -116,7 +126,8 @@ bool Answers(uint8 scope, HitKind kind)
 
 // The hub and the bridges have no side, and so no tier gate
 constexpr uint8 NoSide = 255;
-constexpr uint8 TierCount = 3;
+// Eveil, Ascension, Transcendance, and the Pantheon: a side's Pantheon opens once its Transcendance is complete
+constexpr uint8 TierCount = 4;
 
 // However the outer zones stack, a character can still be hurt and cannot heal off every hit in full. The reduction
 // is low on purpose: it multiplies with armour, which a geared tank already has at WotLK's 75% cap, and at 75% on top
@@ -147,6 +158,46 @@ constexpr float ArcRange = 10.0f;
 // critical strike can echo, so the cap sits higher than a weapon's
 constexpr float MaxEchoChance = 60.0f;
 constexpr uint32 MaxQuickenPct = 30;
+
+// The Pantheon's and the glyphs' guardrails. An area hit of the board's reaches at most MaxAreaTargets enemies, and
+// past AreaFalloffFrom each one takes sqrt(AreaFalloffFrom / n) of its share, so a pack of twenty is barely worse off
+// than one of twelve. The execute bonuses add up to MaxExecutePct at most, below MaxExecuteThreshold% of health at
+// most: one more hit beside the one that set them off, never a multiplier on it.
+constexpr uint32 MaxAreaTargets = 12;
+constexpr uint32 AreaFalloffFrom = 5;
+constexpr uint32 MaxExecutePct = 60;
+constexpr uint32 MaxExecuteThreshold = 40;
+constexpr uint32 MaxHealPct = 20;
+constexpr uint32 MaxHealSharePct = 25;
+constexpr float HealShareRange = 30.0f;
+
+// Glyphs: a socketed glyph raises every allocated node within GlyphRadius links by GlyphBasePct% of its values, and
+// GlyphPctPerLevel% more a level, up to GlyphMaxLevel (+60%). A node within reach of two sockets takes the larger.
+// Experience comes only while socketed: GlyphXpPerLevel times the level to reach the next one (9 000 from 1 to 25).
+constexpr uint32 GlyphRadius = 3;
+constexpr uint32 GlyphMaxLevel = 25;
+constexpr uint32 GlyphBasePct = 10;
+constexpr uint32 GlyphPctPerLevel = 2;
+constexpr uint32 GlyphXpPerLevel = 30;
+// What earns it: a key of +10 and up (GlyphKeyXp, GlyphKeyXpPerLevel more a level past +10), a floor of the Infinite
+// Dungeon's gearing ladder from GlyphFloorFrom on (GlyphFloorXp, one more every GlyphFloorXpStep floors), a heroic raid
+// boss (GlyphRaidBossXp), and a copy of a glyph already known (GlyphDuplicateXp)
+constexpr uint32 GlyphKeyFrom = 10;
+constexpr uint32 GlyphKeyXp = 40;
+constexpr uint32 GlyphKeyXpPerLevel = 4;
+constexpr uint32 GlyphFloorFrom = 50;
+constexpr uint32 GlyphFloorXp = 10;
+constexpr uint32 GlyphFloorXpStep = 5;
+constexpr uint32 GlyphRaidBossXp = 60;
+constexpr uint32 GlyphDuplicateXp = 300;
+// Drops: a finished key's chest, GlyphKeyChance% at +10 and GlyphKeyChancePerLevel% more a level up to
+// GlyphKeyMaxChance% (+30); a sure one every GlyphFloorEvery floors past GlyphFloorFrom; a heroic raid boss,
+// GlyphRaidBossChance%. A glyph the character does not have yet comes first.
+constexpr float GlyphKeyChance = 10.0f;
+constexpr float GlyphKeyChancePerLevel = 1.25f;
+constexpr float GlyphKeyMaxChance = 35.0f;
+constexpr uint32 GlyphFloorEvery = 10;
+constexpr float GlyphRaidBossChance = 15.0f;
 
 // Paragon levels, earned from experience at the level cap. Each level is a point. The bar grows each level, and
 // compounds (ParagonXpGrowth a level), because the experience itself grows with the character (essences raise its
@@ -203,8 +254,21 @@ struct ParagonNode
     uint32 required = 0;        // points already spent on the board before this one can be taken
     uint8 cost = 1;             // points it takes: 1 for a small node, up to 5 for an Apotheosis
     uint8 side = NoSide;        // its branch
-    uint8 tier = 0;             // its zone: 0 Eveil, 1 Ascension, 2 Transcendance
+    uint8 tier = 0;             // its zone: 0 Eveil, 1 Ascension, 2 Transcendance, 3 Pantheon
     uint8 scope = 0;            // ParagonScope: what sets it off
+    uint8 sigil = 0;            // the Pantheon sigil it belongs to, 0 for none
+};
+
+// A paragon glyph: the item it is, its branch, and its bonus - an effect like a node's - given once `need` allocated
+// nodes of its branch are within its radius
+struct ParagonGlyph
+{
+    uint32 id = 0;
+    uint32 item = 0;
+    uint8 side = 0;
+    uint8 need = 0;
+    ParagonNode bonus;
+    std::string name;
 };
 
 // A proc a character currently owns, lifted out of the board so a damage event does not have to walk every
@@ -236,6 +300,14 @@ std::unordered_map<uint32, std::vector<uint32>> Adjacency;
 // Every node of a side's tier, by side * TierCount + tier: what has to be held before the next tier of that side opens
 std::unordered_map<uint32, std::vector<uint32>> TierNodes;
 uint32 BoardSignature = 0;
+// The Pantheon's sigils: their stars, and the Blessing taking all of them grants (an effect like a node's)
+std::unordered_map<uint8, std::vector<uint32>> SigilNodes;
+std::unordered_map<uint8, ParagonNode> Blessings;
+std::unordered_map<uint8, std::string> BlessingNames;
+// The glyphs, by id and by item; and each socket's reach, the nodes within GlyphRadius links of it
+std::map<uint32, ParagonGlyph> Glyphs;
+std::unordered_map<uint32, uint32> GlyphByItem;
+std::unordered_map<uint32, std::vector<uint32>> SocketReach;
 
 // Summed per scope: [any, weapon, spell]. A hit counts the unscoped share and the share of its own kind.
 using ScopedPct = std::array<uint32, static_cast<std::size_t>(ParagonScope::Count)>;
@@ -316,6 +388,27 @@ struct ParagonState : public DataMap::Base
     uint32 manaCooldown = 0;
     uint32 manaReadyAt = 0;
 
+    // The Pantheon's and the glyphs' own, summed the same way
+    uint32 healPct = 0;
+    uint32 healSharePct = 0;
+    uint32 areaReach = 0;
+    uint32 executeReach = 0;
+
+    // The glyphs this character knows, by id: level, experience towards the next, and the socket holding it (0: none)
+    struct GlyphState
+    {
+        uint32 level = 1;
+        uint32 experience = 0;
+        uint32 socket = 0;
+    };
+    std::map<uint32, GlyphState> glyphs;
+    // What the socketed glyphs do to the board, worked out by ComputeGlyphLayer: each node within reach and its share
+    // (percent), and the glyphs whose condition holds. `layer` is what was handed out for the flat stats and armour,
+    // so taking it back is exact.
+    std::unordered_map<uint32, uint32> nodeBoost;
+    std::vector<uint32> activeGlyphs;
+    std::unordered_map<uint32, int32> layer;
+
     // What the character last hit, and with what, so a kill knows whether a weapon or a spell made it
     ObjectGuid lastHitTarget;
     HitKind lastHitKind = HitKind::Other;
@@ -348,12 +441,21 @@ struct ParagonState : public DataMap::Base
         SpellSchoolMask school = SPELL_SCHOOL_MASK_NORMAL;
     };
     std::vector<PendingHit> pending;
+    // Heals the board owes (Freya's share), dealt on the next update like the hits
+    struct PendingHeal
+    {
+        ObjectGuid target;
+        uint32 amount = 0;
+    };
+    std::vector<PendingHeal> pendingHeals;
 };
 
 // Set while the board deals its own damage, so that damage is neither boosted by the board nor sets off more procs,
 // and a kill it makes does not explode again: one pull of trash would otherwise chain through the instance.
 // Per thread, because maps update on several.
 thread_local bool DealingProcDamage = false;
+// The same for the board's own heals: a shared heal is not shared again
+thread_local bool DealingProcHeal = false;
 
 // The damage hook (UnitScript::OnDamage) is not told what dealt the hit. The hooks just before it are: the final
 // damage of a melee swing or of a spell (ModifyFinalDamage) and a periodic tick (ModifyPeriodicDamageAurasTick) name
@@ -629,8 +731,175 @@ void ApplyNode(Player* player, ParagonNode const& node, bool apply)
     }
 }
 
-// The procs from whatever is currently allocated. Walking the whole allocation on every damage event would
-// be wasteful, and damage events are the hottest path this module has.
+// Whether a glyph's share applies to what a node's `value` is: the stats and the percentages that make a character
+// stronger. Never the chances, the thresholds, the mitigation or the survival nodes: those the caps hold tight.
+bool IsBoostable(ParagonEffect effect)
+{
+    switch (effect)
+    {
+        case ParagonEffect::Stat:
+        case ParagonEffect::Armor:
+        case ParagonEffect::ArmorPct:
+        case ParagonEffect::GuardOnHit:
+        case ParagonEffect::RetaliateOnHit:
+        case ParagonEffect::FuryOnHit:
+        case ParagonEffect::SurgeOnKill:
+        case ParagonEffect::DamagePct:
+        case ParagonEffect::Leech:
+        case ParagonEffect::Execute:
+        case ParagonEffect::HealthPct:
+        case ParagonEffect::KillStreak:
+        case ParagonEffect::Splash:
+        case ParagonEffect::ThreatPct:
+        case ParagonEffect::Grudge:
+        case ParagonEffect::Echo:
+        case ParagonEffect::Arc:
+        case ParagonEffect::Insight:
+        case ParagonEffect::Ward:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// A node's value with its glyph's share, if a socketed glyph reaches it
+uint32 BoostedValue(ParagonState const* state, ParagonNode const& node)
+{
+    auto const boost = state->nodeBoost.find(node.id);
+    if (boost == state->nodeBoost.end() || !IsBoostable(static_cast<ParagonEffect>(node.effect)))
+        return node.value;
+    return node.value + node.value * boost->second / 100;
+}
+
+// Every star of a sigil held: its Blessing is granted
+bool IsSigilComplete(std::unordered_set<uint32> const& allocated, uint8 sigil)
+{
+    auto const stars = SigilNodes.find(sigil);
+    if (stars == SigilNodes.end() || stars->second.empty())
+        return false;
+    return std::all_of(stars->second.begin(), stars->second.end(),
+        [&allocated](uint32 nodeId) { return allocated.count(nodeId) > 0; });
+}
+
+// One effect into the character's sums, or its procs: a node's, a Blessing's or a glyph bonus's, all the same way, so
+// all of them meet the same caps
+void FeedEffect(ParagonState* state, ParagonNode const& node, uint32 value)
+{
+    ParagonEffect const effect = static_cast<ParagonEffect>(node.effect);
+    std::size_t const scope = std::min<std::size_t>(node.scope, state->damagePct.size() - 1);
+    switch (effect)
+    {
+        case ParagonEffect::Stat:
+        case ParagonEffect::Armor:
+        case ParagonEffect::ArmorPct:
+        case ParagonEffect::Socket:
+            return;
+        case ParagonEffect::DamagePct:
+            state->damagePct[scope] += value;
+            return;
+        case ParagonEffect::ReductionPct:
+            state->reductionPct += value;
+            return;
+        case ParagonEffect::Leech:
+            state->leechPct[scope] += value;
+            return;
+        case ParagonEffect::HealthPct:
+            state->healthPct += value;
+            return;
+        case ParagonEffect::Explosion:
+            // One roll per kill, however many nodes feed it: the percentages and the chances add up, the widest
+            // reach wins
+            state->explosionScope = MergeScope(state->explosionScope, node.scope, !state->explosionPct);
+            state->explosionPct += value;
+            state->explosionRange = std::max(state->explosionRange, node.value2);
+            state->explosionChance += node.chance;
+            return;
+        case ParagonEffect::KillStreak:
+            // One streak, however many nodes feed it: each stack is worth their sum, the longest one wins
+            state->killStreakScope = MergeScope(state->killStreakScope, node.scope, !state->killStreakPct);
+            state->killStreakPct += value;
+            state->killStreakMax = std::max(state->killStreakMax, node.value2);
+            state->killStreakDuration = std::max(state->killStreakDuration, node.duration);
+            state->killStreakChance += node.chance;
+            return;
+        case ParagonEffect::Splash:
+            state->splashScope = MergeScope(state->splashScope, node.scope, !state->splashPct);
+            state->splashPct += value;
+            state->splashRange = std::max(state->splashRange, node.value2);
+            state->splashChance += node.chance;
+            state->splashCooldown = std::max(state->splashCooldown, node.cooldown);
+            return;
+        case ParagonEffect::ThreatPct:
+            state->threatPct += value;
+            return;
+        case ParagonEffect::Grudge:
+            state->grudgePct += value;
+            state->grudgeCapPct = std::max(state->grudgeCapPct, node.value2);
+            return;
+        // The caster side: each is one roll however many nodes feed it. The chances add up where the effect is a
+        // hit of its own (echo, arc); where it is a buff the best chance and the longest duration win and the
+        // amounts add up, so a second node makes the same proc stronger rather than a second one to track.
+        case ParagonEffect::Echo:
+            state->echoChance += node.chance;
+            state->echoPct = std::max(state->echoPct, value);
+            return;
+        case ParagonEffect::Arc:
+            state->arcChance += node.chance;
+            state->arcPct += value;
+            state->arcTargets = std::max(state->arcTargets, node.value2);
+            state->arcCooldown = std::max(state->arcCooldown, node.cooldown);
+            return;
+        case ParagonEffect::Quicken:
+            state->quickenChance = std::max(state->quickenChance, node.chance);
+            state->quickenPct += value;
+            state->quickenDuration = std::max(state->quickenDuration, node.duration);
+            return;
+        case ParagonEffect::Insight:
+            state->insightChance = std::max(state->insightChance, node.chance);
+            state->insightValue += value;
+            state->insightDuration = std::max(state->insightDuration, node.duration);
+            return;
+        case ParagonEffect::Ward:
+            state->wardChance = std::max(state->wardChance, node.chance);
+            state->wardPct += value;
+            state->wardDuration = std::max(state->wardDuration, node.duration);
+            state->wardCooldown = std::max(state->wardCooldown, node.cooldown);
+            return;
+        case ParagonEffect::ManaSurge:
+            state->manaChance = std::max(state->manaChance, node.chance);
+            state->manaPct += value;
+            state->manaCooldown = std::max(state->manaCooldown, node.cooldown);
+            return;
+        case ParagonEffect::HealPct:
+            state->healPct += value;
+            return;
+        case ParagonEffect::HealShare:
+            state->healSharePct += value;
+            return;
+        case ParagonEffect::AreaReach:
+            state->areaReach += value;
+            return;
+        case ParagonEffect::ExecuteReach:
+            state->executeReach += value;
+            return;
+        default:
+            break;
+    }
+
+    ParagonProc proc;
+    proc.effect = effect;
+    proc.scope = node.scope;
+    proc.value = value;
+    proc.value2 = node.value2;
+    proc.chance = node.chance;
+    proc.duration = node.duration;
+    proc.cooldown = node.cooldown;
+    state->procs.push_back(proc);
+}
+
+// The procs from whatever is currently allocated, the Blessings of the sigils wholly taken and the bonuses of the
+// glyphs whose condition holds. Walking the whole allocation on every damage event would be wasteful, and damage
+// events are the hottest path this module has.
 void RebuildProcs(ParagonState* state)
 {
     if (!state)
@@ -653,112 +922,125 @@ void RebuildProcs(ParagonState* state)
     state->quickenPct = state->quickenDuration = state->insightValue = state->insightDuration = 0;
     state->wardPct = state->wardDuration = state->wardCooldown = 0;
     state->manaPct = state->manaCooldown = 0;
+    state->healPct = state->healSharePct = state->areaReach = state->executeReach = 0;
 
     for (uint32 nodeId : state->allocated)
+        if (auto const entry = Board.find(nodeId); entry != Board.end())
+            FeedEffect(state, entry->second, BoostedValue(state, entry->second));
+
+    for (auto const& [sigil, blessing] : Blessings)
+        if (IsSigilComplete(state->allocated, sigil))
+            FeedEffect(state, blessing, blessing.value);
+
+    for (uint32 glyphId : state->activeGlyphs)
+        if (auto const glyph = Glyphs.find(glyphId); glyph != Glyphs.end())
+            FeedEffect(state, glyph->second.bonus, glyph->second.bonus.value);
+}
+
+// A glyph's share of the nodes it reaches, in percent, at its level
+uint32 GlyphShare(uint32 level)
+{
+    return GlyphBasePct + GlyphPctPerLevel * std::min(level, GlyphMaxLevel);
+}
+
+uint32 GlyphExperienceFor(uint32 level)
+{
+    return GlyphXpPerLevel * std::max<uint32>(level, 1);
+}
+
+// What the socketed glyphs do: every allocated node within reach of one takes its share (the larger, where two reach
+// it), and a glyph whose reach holds `need` allocated nodes of its own branch gives its bonus. A glyph counts only in a
+// socket that is itself allocated.
+void ComputeGlyphLayer(ParagonState* state)
+{
+    state->nodeBoost.clear();
+    state->activeGlyphs.clear();
+    for (auto const& [glyphId, glyph] : state->glyphs)
     {
-        auto const entry = Board.find(nodeId);
-        if (entry == Board.end())
+        if (!glyph.socket || !state->allocated.count(glyph.socket))
+            continue;
+        auto const definition = Glyphs.find(glyphId);
+        auto const reach = SocketReach.find(glyph.socket);
+        if (definition == Glyphs.end() || reach == SocketReach.end())
             continue;
 
-        ParagonNode const& node = entry->second;
-        ParagonEffect const effect = static_cast<ParagonEffect>(node.effect);
-        std::size_t const scope = std::min<std::size_t>(node.scope, state->damagePct.size() - 1);
-        switch (effect)
+        uint32 const share = GlyphShare(glyph.level);
+        uint32 own = 0;
+        for (uint32 nodeId : reach->second)
+        {
+            if (!state->allocated.count(nodeId))
+                continue;
+            uint32& boost = state->nodeBoost[nodeId];
+            boost = std::max(boost, share);
+            if (Board.at(nodeId).side == definition->second.side)
+                ++own;
+        }
+        if (own >= definition->second.need)
+            state->activeGlyphs.push_back(glyphId);
+    }
+}
+
+// The glyphs' share of the flat stats and the armour, handed out as amounts and kept, so taking it back is exact. The
+// percentages' share goes through RebuildProcs instead.
+void AddGlyphLayer(Player* player, ParagonState* state)
+{
+    for (auto const& [nodeId, share] : state->nodeBoost)
+    {
+        ParagonNode const& node = Board.at(nodeId);
+        int32 amount = 0;
+        switch (static_cast<ParagonEffect>(node.effect))
         {
             case ParagonEffect::Stat:
-            case ParagonEffect::Armor:
-            case ParagonEffect::ArmorPct:
-                continue;
-            case ParagonEffect::DamagePct:
-                state->damagePct[scope] += node.value;
-                continue;
-            case ParagonEffect::ReductionPct:
-                state->reductionPct += node.value;
-                continue;
-            case ParagonEffect::Leech:
-                state->leechPct[scope] += node.value;
-                continue;
-            case ParagonEffect::HealthPct:
-                state->healthPct += node.value;
-                continue;
-            case ParagonEffect::Explosion:
-                // One roll per kill, however many nodes feed it: the percentages and the chances add up, the widest
-                // reach wins
-                state->explosionScope = MergeScope(state->explosionScope, node.scope, !state->explosionPct);
-                state->explosionPct += node.value;
-                state->explosionRange = std::max(state->explosionRange, node.value2);
-                state->explosionChance += node.chance;
-                continue;
-            case ParagonEffect::KillStreak:
-                // One streak, however many nodes feed it: each stack is worth their sum, the longest one wins
-                state->killStreakScope = MergeScope(state->killStreakScope, node.scope, !state->killStreakPct);
-                state->killStreakPct += node.value;
-                state->killStreakMax = std::max(state->killStreakMax, node.value2);
-                state->killStreakDuration = std::max(state->killStreakDuration, node.duration);
-                state->killStreakChance += node.chance;
-                continue;
-            case ParagonEffect::Splash:
-                state->splashScope = MergeScope(state->splashScope, node.scope, !state->splashPct);
-                state->splashPct += node.value;
-                state->splashRange = std::max(state->splashRange, node.value2);
-                state->splashChance += node.chance;
-                state->splashCooldown = std::max(state->splashCooldown, node.cooldown);
-                continue;
-            case ParagonEffect::ThreatPct:
-                state->threatPct += node.value;
-                continue;
-            case ParagonEffect::Grudge:
-                state->grudgePct += node.value;
-                state->grudgeCapPct = std::max(state->grudgeCapPct, node.value2);
-                continue;
-            // The caster side: each is one roll however many nodes feed it. The chances add up where the effect is a
-            // hit of its own (echo, arc); where it is a buff the best chance and the longest duration win and the
-            // amounts add up, so a second node makes the same proc stronger rather than a second one to track.
-            case ParagonEffect::Echo:
-                state->echoChance += node.chance;
-                state->echoPct = std::max(state->echoPct, node.value);
-                continue;
-            case ParagonEffect::Arc:
-                state->arcChance += node.chance;
-                state->arcPct += node.value;
-                state->arcTargets = std::max(state->arcTargets, node.value2);
-                state->arcCooldown = std::max(state->arcCooldown, node.cooldown);
-                continue;
-            case ParagonEffect::Quicken:
-                state->quickenChance = std::max(state->quickenChance, node.chance);
-                state->quickenPct += node.value;
-                state->quickenDuration = std::max(state->quickenDuration, node.duration);
-                continue;
-            case ParagonEffect::Insight:
-                state->insightChance = std::max(state->insightChance, node.chance);
-                state->insightValue += node.value;
-                state->insightDuration = std::max(state->insightDuration, node.duration);
-                continue;
-            case ParagonEffect::Ward:
-                state->wardChance = std::max(state->wardChance, node.chance);
-                state->wardPct += node.value;
-                state->wardDuration = std::max(state->wardDuration, node.duration);
-                state->wardCooldown = std::max(state->wardCooldown, node.cooldown);
-                continue;
-            case ParagonEffect::ManaSurge:
-                state->manaChance = std::max(state->manaChance, node.chance);
-                state->manaPct += node.value;
-                state->manaCooldown = std::max(state->manaCooldown, node.cooldown);
-                continue;
-            default:
+                if (node.stat >= static_cast<uint8>(PermanentStat::Count))
+                    continue;
+                amount = static_cast<int32>(node.value * share / 100);
+                if (amount)
+                    ApplyPermanentStat(player, static_cast<PermanentStat>(node.stat), uint32(amount), true);
                 break;
+            case ParagonEffect::Armor:
+                amount = static_cast<int32>(node.value * share / 100);
+                ApplyArmor(player, amount, true);
+                break;
+            case ParagonEffect::ArmorPct:
+                amount = FlatArmorFor(player, node.value) * static_cast<int32>(share) / 100;
+                ApplyArmor(player, amount, true);
+                break;
+            default:
+                continue;
         }
-
-        ParagonProc proc;
-        proc.effect = effect;
-        proc.scope = node.scope;
-        proc.value = node.value;
-        proc.value2 = node.value2;
-        proc.chance = node.chance;
-        proc.duration = node.duration;
-        proc.cooldown = node.cooldown;
-        state->procs.push_back(proc);
+        if (amount)
+            state->layer[nodeId] = amount;
     }
+}
+
+void RemoveGlyphLayer(Player* player, ParagonState* state)
+{
+    for (auto const& [nodeId, amount] : state->layer)
+    {
+        auto const node = Board.find(nodeId);
+        if (node == Board.end())
+            continue;
+        if (node->second.effect == static_cast<uint8>(ParagonEffect::Stat))
+            ApplyPermanentStat(player, static_cast<PermanentStat>(node->second.stat), uint32(amount), false);
+        else
+            ApplyArmor(player, amount, false);
+    }
+    state->layer.clear();
+}
+
+// After anything that moves what the glyphs reach - a node taken, a glyph socketed or levelled, a reset - the layer is
+// taken off, worked out again and put back, and the procs rebuilt with it
+void RefreshGlyphs(Player* player, ParagonState* state)
+{
+    bool const live = state->applied;
+    if (live)
+        RemoveGlyphLayer(player, state);
+    ComputeGlyphLayer(state);
+    if (live)
+        AddGlyphLayer(player, state);
+    RebuildProcs(state);
+    if (live)
+        player->UpdateMaxHealth();
 }
 
 bool HasBuff(ParagonState const* state, ParagonEffect effect)
@@ -833,6 +1115,7 @@ void ClearBuffs(Player* player, ParagonState* state)
         EndBuff(player, buff);
     state->buffs.clear();
     state->pending.clear();
+    state->pendingHeals.clear();
     if (state->killStreakStacks)
         player->RemoveAurasDueToSpell(SPELL_PARAGON_KILL_STREAK);
     state->killStreakStacks = state->killStreakExpiresAt = 0;
@@ -851,6 +1134,46 @@ void SaveEarned(Player* player, ParagonState const* state)
     CharacterDatabase.Execute(
         "REPLACE INTO character_paragon_points (guid, earned, prestige) VALUES ({}, {}, {})",
         player->GetGUID().GetCounter(), state->earned, state->prestige);
+}
+
+void SaveGlyph(Player* player, uint32 glyphId, ParagonState::GlyphState const& glyph)
+{
+    CharacterDatabase.Execute(
+        "REPLACE INTO character_paragon_glyph (guid, glyph, level, experience, socket) VALUES ({}, {}, {}, {}, {})",
+        player->GetGUID().GetCounter(), glyphId, glyph.level, glyph.experience, glyph.socket);
+}
+
+// A glyph as the frame reads it: id:level:experience:needed:socket (needed is 0 at the top level)
+std::string GlyphText(uint32 glyphId, ParagonState::GlyphState const& glyph)
+{
+    return Acore::StringFormat("{}:{}:{}:{}:{}", glyphId, glyph.level, glyph.experience,
+        glyph.level >= GlyphMaxLevel ? 0 : GlyphExperienceFor(glyph.level), glyph.socket);
+}
+
+void SendGlyph(Player* player, uint32 glyphId, ParagonState::GlyphState const& glyph)
+{
+    Send(player, "GLYPH\t" + GlyphText(glyphId, glyph));
+}
+
+// The character's whole collection, chunked like the nodes
+void SendGlyphs(Player* player, ParagonState const* state)
+{
+    Send(player, "GLYPHBEGIN");
+    std::string chunk;
+    for (auto const& [glyphId, glyph] : state->glyphs)
+    {
+        if (chunk.size() > 180)
+        {
+            Send(player, "GLYPHS\t" + chunk);
+            chunk.clear();
+        }
+        if (!chunk.empty())
+            chunk += ",";
+        chunk += GlyphText(glyphId, glyph);
+    }
+    if (!chunk.empty())
+        Send(player, "GLYPHS\t" + chunk);
+    Send(player, "GLYPHEND");
 }
 
 // The whole board a character holds, as the frame needs it. Chunked because an addon whisper is capped well
@@ -879,6 +1202,7 @@ void SendState(Player* player, bool open)
     if (!chunk.empty())
         Send(player, "NODES\t" + chunk);
 
+    SendGlyphs(player, state);
     Send(player, Acore::StringFormat("PXP\t{}\t{}\t{}", state->level, state->experience,
         ExperienceForLevel(state->level)));
     Send(player, "DONE");
@@ -1023,7 +1347,12 @@ float Usefulness(BotRole role, ParagonEffect effect)
         case ParagonEffect::ManaSurge:
             return role == BotRole::Caster || role == BotRole::Healer ? Wanted : Neutral;
         case ParagonEffect::Ward:
+        case ParagonEffect::HealPct:
+        case ParagonEffect::HealShare:
             return role == BotRole::Healer ? Wanted : Neutral;
+        case ParagonEffect::AreaReach:
+        case ParagonEffect::ExecuteReach:
+            return role == BotRole::Healer || role == BotRole::Tank ? Neutral : Wanted;
         default:
             return Neutral;
     }
@@ -1216,6 +1545,51 @@ std::vector<uint32> PlanBotBoard(BotRole role, uint32 budget)
     return order;
 }
 
+// A bot's glyphs are sized by its content like its board: level 1 from BotGlyphFromBudget points (a +18 key), one level
+// more every BotGlyphBudgetPerLevel (+30: 8, +40: 14, the Pantheon's keys past +55: 25)
+constexpr uint32 BotGlyphFromBudget = 40;
+constexpr uint32 BotGlyphBudgetPerLevel = 8;
+
+uint32 BotGlyphLevel(uint32 budget)
+{
+    if (budget <= BotGlyphFromBudget)
+        return 1;
+    return std::min<uint32>(GlyphMaxLevel, 1 + (budget - BotGlyphFromBudget) / BotGlyphBudgetPerLevel);
+}
+
+// One glyph in each socket the bot's plan holds: of the socket's own branch, the one whose bonus its role wants most
+void PlanBotGlyphs(ParagonState* state, BotRole role, uint32 budget)
+{
+    state->glyphs.clear();
+    std::vector<uint32> sockets;
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId);
+            node != Board.end() && node->second.effect == static_cast<uint8>(ParagonEffect::Socket))
+            sockets.push_back(nodeId);
+    std::sort(sockets.begin(), sockets.end());
+
+    uint32 const level = BotGlyphLevel(budget);
+    for (uint32 socket : sockets)
+    {
+        uint8 const side = Board.at(socket).side;
+        uint32 best = 0;
+        float bestWorth = 0.0f;
+        for (auto const& [glyphId, glyph] : Glyphs)
+        {
+            if (glyph.side != side || state->glyphs.count(glyphId))
+                continue;
+            float const worth = Usefulness(role, static_cast<ParagonEffect>(glyph.bonus.effect));
+            if (!best || worth > bestWorth)
+            {
+                best = glyphId;
+                bestWorth = worth;
+            }
+        }
+        if (best)
+            state->glyphs[best] = { level, 0, socket };
+    }
+}
+
 std::vector<uint32> GetBotPlan(BotRole role, uint32 budget)
 {
     uint64 const key = uint64(role) << 32 | budget;
@@ -1310,10 +1684,12 @@ void StripBotBoard(Player* bot, ParagonState* state)
     if (!state->applied)
         return;
     ClearBuffs(bot, state);
+    RemoveGlyphLayer(bot, state);
     for (uint32 nodeId : state->allocated)
         if (auto const node = Board.find(nodeId); node != Board.end())
             ApplyNode(bot, node->second, false);
     state->allocated.clear();
+    state->glyphs.clear();
     state->applied = false;
 }
 
@@ -1355,14 +1731,17 @@ void RefreshBot(Player* bot, bool force = false)
     for (uint32 nodeId : plan)
         if (auto const node = Board.find(nodeId); node != Board.end())
             ApplyNode(bot, node->second, true);
+    PlanBotGlyphs(state, role, budget);
+    ComputeGlyphLayer(state);
+    AddGlyphLayer(bot, state);
     RebuildProcs(state);
     state->applied = true;
     state->botBudget = budget;
     state->botRole = uint8(role);
     bot->UpdateMaxHealth();
 
-    LOG_DEBUG("module", "Paragon: bot {} role={} budget={} spent={} procs={}", bot->GetName(), uint32(role), budget,
-        SpentPoints(state), state->procs.size());
+    LOG_DEBUG("module", "Paragon: bot {} role={} budget={} spent={} procs={} glyphs={}", bot->GetName(), uint32(role),
+        budget, SpentPoints(state), state->procs.size(), state->glyphs.size());
 }
 
 // The group's bots on the same map look again now: a real player's board just changed
@@ -1381,6 +1760,12 @@ void LoadParagonBoard()
     Board.clear();
     Adjacency.clear();
     TierNodes.clear();
+    SigilNodes.clear();
+    Blessings.clear();
+    BlessingNames.clear();
+    Glyphs.clear();
+    GlyphByItem.clear();
+    SocketReach.clear();
     BoardSignature = 0;
     {
         std::lock_guard<std::mutex> guard(BotPlanLock);
@@ -1389,7 +1774,7 @@ void LoadParagonBoard()
 
     QueryResult nodes = WorldDatabase.Query(
         "SELECT id, type, effect, stat, value, value2, chance, duration, cooldown, free, required, cost, side, tier, "
-        "scope FROM paragon_node");
+        "scope, sigil FROM paragon_node");
     if (!nodes)
     {
         LOG_INFO("server.loading", ">> Paragon board is empty (run localTools/paragon/buildParagonTree.py)");
@@ -1415,6 +1800,7 @@ void LoadParagonBoard()
         node.side = field[12].Get<uint8>();
         node.tier = field[13].Get<uint8>();
         node.scope = field[14].Get<uint8>();
+        node.sigil = field[15].Get<uint8>();
         if (node.effect >= static_cast<uint8>(ParagonEffect::Count))
         {
             LOG_ERROR("sql.sql", "paragon_node {} has effect {}, which does not exist", node.id, node.effect);
@@ -1433,11 +1819,13 @@ void LoadParagonBoard()
         Board[node.id] = node;
         if (!node.free && node.side != NoSide)
             TierNodes[uint32(node.side) * TierCount + node.tier].push_back(node.id);
+        if (node.sigil)
+            SigilNodes[node.sigil].push_back(node.id);
 
         // Cheap order-independent signature, matched against the client's copy of the board
         BoardSignature += node.id * 31 + node.value * 7 + node.stat + node.effect * 3 + node.required * 5;
         BoardSignature += uint32(node.cost) * 11 + uint32(node.tier) * 19 + uint32(node.side) * 23 +
-            uint32(node.scope) * 29;
+            uint32(node.scope) * 29 + uint32(node.sigil) * 37;
     } while (nodes->NextRow());
 
     uint32 links = 0;
@@ -1458,8 +1846,85 @@ void LoadParagonBoard()
             ++links;
         } while (result->NextRow());
 
-    LOG_INFO("server.loading", ">> Loaded {} paragon nodes and {} links (signature {})",
-        Board.size(), links, BoardSignature);
+    // Each socket's reach: the nodes within GlyphRadius links of it, found once here rather than on every change
+    for (auto const& [nodeId, node] : Board)
+    {
+        if (node.effect != static_cast<uint8>(ParagonEffect::Socket))
+            continue;
+        std::unordered_map<uint32, uint32> distance{ { nodeId, 0 } };
+        std::vector<uint32> frontier{ nodeId };
+        std::vector<uint32>& reach = SocketReach[nodeId];
+        for (uint32 step = 1; step <= GlyphRadius; ++step)
+        {
+            std::vector<uint32> next;
+            for (uint32 at : frontier)
+                if (auto const around = Adjacency.find(at); around != Adjacency.end())
+                    for (uint32 neighbour : around->second)
+                        if (distance.emplace(neighbour, step).second)
+                        {
+                            next.push_back(neighbour);
+                            reach.push_back(neighbour);
+                        }
+            frontier.swap(next);
+        }
+    }
+
+    // The Blessings, by sigil: an effect like a node's
+    if (QueryResult result = WorldDatabase.Query(
+            "SELECT sigil, effect, value, value2, chance, duration, cooldown, scope, name FROM paragon_blessing"))
+        do
+        {
+            Field* field = result->Fetch();
+            ParagonNode blessing;
+            uint8 const sigil = field[0].Get<uint8>();
+            blessing.effect = field[1].Get<uint8>();
+            blessing.value = field[2].Get<uint32>();
+            blessing.value2 = field[3].Get<uint32>();
+            blessing.chance = field[4].Get<float>();
+            blessing.duration = field[5].Get<uint32>();
+            blessing.cooldown = field[6].Get<uint32>();
+            blessing.scope = std::min<uint8>(field[7].Get<uint8>(), uint8(ParagonScope::Count) - 1);
+            if (blessing.effect >= static_cast<uint8>(ParagonEffect::Count) || !SigilNodes.count(sigil))
+            {
+                LOG_ERROR("sql.sql", "paragon_blessing {} names an effect or a sigil that does not exist", sigil);
+                continue;
+            }
+            Blessings[sigil] = blessing;
+            BlessingNames[sigil] = field[8].Get<std::string>();
+        } while (result->NextRow());
+
+    if (QueryResult result = WorldDatabase.Query(
+            "SELECT id, item, side, need, effect, value, value2, chance, duration, cooldown, scope, name "
+            "FROM paragon_glyph"))
+        do
+        {
+            Field* field = result->Fetch();
+            ParagonGlyph glyph;
+            glyph.id = field[0].Get<uint8>();
+            glyph.item = field[1].Get<uint32>();
+            glyph.side = field[2].Get<uint8>();
+            glyph.need = field[3].Get<uint8>();
+            glyph.bonus.effect = field[4].Get<uint8>();
+            glyph.bonus.value = field[5].Get<uint32>();
+            glyph.bonus.value2 = field[6].Get<uint32>();
+            glyph.bonus.chance = field[7].Get<float>();
+            glyph.bonus.duration = field[8].Get<uint32>();
+            glyph.bonus.cooldown = field[9].Get<uint32>();
+            glyph.bonus.scope = std::min<uint8>(field[10].Get<uint8>(), uint8(ParagonScope::Count) - 1);
+            glyph.name = field[11].Get<std::string>();
+            // Loaded before the item templates are: the item is checked when one is handed out
+            if (glyph.bonus.effect >= static_cast<uint8>(ParagonEffect::Count))
+            {
+                LOG_ERROR("sql.sql", "paragon_glyph {} has effect {}, which does not exist", glyph.id,
+                    glyph.bonus.effect);
+                continue;
+            }
+            GlyphByItem[glyph.item] = glyph.id;
+            Glyphs[glyph.id] = std::move(glyph);
+        } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} paragon nodes and {} links (signature {}), {} sigils, {} glyphs",
+        Board.size(), links, BoardSignature, Blessings.size(), Glyphs.size());
 }
 
 void LoadParagonForPlayer(Player* player)
@@ -1511,6 +1976,30 @@ void LoadParagonForPlayer(Player* player)
         state->overCapReset = true;
         CharacterDatabase.Execute("DELETE FROM character_paragon WHERE guid = {}", guid);
     }
+
+    // The glyphs known. One in a socket the board no longer holds (a reset, a reshaped board) goes back to the
+    // collection: it is never lost, only unset.
+    state->glyphs.clear();
+    if (QueryResult result = CharacterDatabase.Query(
+            "SELECT glyph, level, experience, socket FROM character_paragon_glyph WHERE guid = {}", guid))
+        do
+        {
+            Field* field = result->Fetch();
+            uint32 const glyphId = field[0].Get<uint8>();
+            if (!Glyphs.count(glyphId))
+                continue;
+            ParagonState::GlyphState glyph;
+            glyph.level = std::clamp<uint32>(field[1].Get<uint8>(), 1, GlyphMaxLevel);
+            glyph.experience = field[2].Get<uint32>();
+            glyph.socket = field[3].Get<uint32>();
+            if (glyph.socket && (!state->allocated.count(glyph.socket) || !SocketReach.count(glyph.socket)))
+            {
+                glyph.socket = 0;
+                CharacterDatabase.Execute(
+                    "UPDATE character_paragon_glyph SET socket = 0 WHERE guid = {} AND glyph = {}", guid, glyphId);
+            }
+            state->glyphs[glyphId] = glyph;
+        } while (result->NextRow());
 }
 
 void ForgetParagonForPlayer(Player* player)
@@ -1535,6 +2024,8 @@ void ApplyStoredParagon(Player* player)
         if (auto const node = Board.find(nodeId); node != Board.end())
             ApplyNode(player, node->second, true);
 
+    ComputeGlyphLayer(state);
+    AddGlyphLayer(player, state);
     RebuildProcs(state);
     state->applied = true;
     player->UpdateMaxHealth();
@@ -1667,6 +2158,290 @@ void SendParagonBoard(Player* player)
     SendState(player, true);
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// Glyphs
+//
+// A glyph is an item until it is learnt: using one from the bags (or the frame's collection) puts it in the character's
+// collection, or, for one already known, turns the copy into experience. A known glyph is set into an allocated socket
+// from the frame, and gains experience only while it sits in one.
+// ---------------------------------------------------------------------------------------------------------
+namespace
+{
+std::string GlyphName(Player* player, ParagonGlyph const& glyph)
+{
+    if (!IsFrench(player))
+        if (ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(glyph.item))
+            return itemTemplate->Name1;
+    return glyph.name;
+}
+
+// Experience for one glyph; true when it went up a level
+bool GainGlyphExperience(Player* player, ParagonState* state, uint32 glyphId, uint32 amount)
+{
+    auto const glyph = state->glyphs.find(glyphId);
+    auto const definition = Glyphs.find(glyphId);
+    if (glyph == state->glyphs.end() || definition == Glyphs.end() || glyph->second.level >= GlyphMaxLevel)
+        return false;
+
+    ParagonState::GlyphState& known = glyph->second;
+    known.experience += amount;
+    bool levelled = false;
+    while (known.level < GlyphMaxLevel && known.experience >= GlyphExperienceFor(known.level))
+    {
+        known.experience -= GlyphExperienceFor(known.level);
+        ++known.level;
+        levelled = true;
+    }
+    if (known.level >= GlyphMaxLevel)
+        known.experience = 0;
+
+    SaveGlyph(player, glyphId, known);
+    SendGlyph(player, glyphId, known);
+    if (levelled)
+        ChatHandler(player->GetSession()).PSendSysMessage(IsFrench(player)
+            ? "|cffff8000{}|r atteint le niveau {} : +{}% aux nœuds à sa portée."
+            : "|cffff8000{}|r reaches level {}: +{}% to the nodes within its reach.",
+            GlyphName(player, definition->second), known.level, GlyphShare(known.level));
+    return levelled;
+}
+
+// Every socketed glyph gains the same experience
+void AddGlyphExperience(Player* player, uint32 amount)
+{
+    if (!player || !amount || !player->GetSession() || player->GetSession()->IsBot())
+        return;
+    ParagonState* state = GetState(player);
+    if (!state)
+        return;
+
+    bool levelled = false;
+    for (auto const& [glyphId, glyph] : state->glyphs)
+        if (glyph.socket && state->allocated.count(glyph.socket))
+            levelled |= GainGlyphExperience(player, state, glyphId, amount);
+    if (levelled)
+        RefreshGlyphs(player, state);
+}
+
+// A glyph item: in the bags, or by mail when they are full
+void GiveGlyph(Player* player, ParagonGlyph const& glyph)
+{
+    ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(glyph.item);
+    if (!itemTemplate)
+    {
+        LOG_ERROR("module", "Paragon: glyph {} names item {}, which has no template", glyph.id, glyph.item);
+        return;
+    }
+
+    ItemPosCountVec destination;
+    if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, glyph.item, 1) == EQUIP_ERR_OK)
+    {
+        if (Item* item = player->StoreNewItem(destination, glyph.item, true))
+            player->SendNewItem(item, 1, true, false, true);
+    }
+    else
+    {
+        CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
+        MailDraft draft(IsFrench(player) ? "Glyphe de parangon" : "Paragon glyph",
+            IsFrench(player) ? "Vos sacs étaient pleins." : "Your bags were full.");
+        if (Item* item = Item::CreateItem(glyph.item, 1, player))
+        {
+            item->SaveToDB(transaction);
+            draft.AddItem(item);
+        }
+        draft.SendMailTo(transaction, MailReceiver(player, player->GetGUID().GetCounter()),
+            MailSender(MAIL_NORMAL, 0, MAIL_STATIONERY_GM));
+        CharacterDatabase.CommitTransaction(transaction);
+    }
+
+    ChatHandler(player->GetSession()).PSendSysMessage(IsFrench(player)
+        ? "|cffff8000Un glyphe de parangon : {}.|r Utilisez-le pour l'apprendre, puis sertissez-le depuis le tableau."
+        : "|cffff8000A paragon glyph: {}.|r Use it to learn it, then set it from the board.",
+        GlyphName(player, glyph));
+}
+
+// A drop: a glyph the character has neither learnt nor carries comes first, so the collection fills without droughts
+void DropGlyph(Player* player)
+{
+    ParagonState* state = GetState(player);
+    if (!state || Glyphs.empty())
+        return;
+
+    std::vector<ParagonGlyph const*> missing;
+    std::vector<ParagonGlyph const*> all;
+    for (auto const& [glyphId, glyph] : Glyphs)
+    {
+        all.push_back(&glyph);
+        if (!state->glyphs.count(glyphId) && !player->GetItemCount(glyph.item, true))
+            missing.push_back(&glyph);
+    }
+    std::vector<ParagonGlyph const*> const& pool = missing.empty() ? all : missing;
+    GiveGlyph(player, *pool[urand(0, uint32(pool.size()) - 1)]);
+}
+
+// A copy from the bags: learnt when new, experience when known
+void AbsorbGlyph(Player* player, ParagonState* state, uint32 glyphId)
+{
+    auto const definition = Glyphs.find(glyphId);
+    if (definition == Glyphs.end())
+        return;
+    bool const french = IsFrench(player);
+    if (!player->HasItemCount(definition->second.item, 1))
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Aucun exemplaire de ce glyphe dans vos sacs."
+                                                      : "No copy of this glyph in your bags."));
+        return;
+    }
+    if (player->IsInCombat())
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Impossible en combat." : "Not while in combat."));
+        return;
+    }
+
+    player->DestroyItemCount(definition->second.item, 1, true);
+    auto const known = state->glyphs.find(glyphId);
+    if (known == state->glyphs.end())
+    {
+        ParagonState::GlyphState& glyph = state->glyphs[glyphId];
+        SaveGlyph(player, glyphId, glyph);
+        SendGlyph(player, glyphId, glyph);
+        ChatHandler(player->GetSession()).PSendSysMessage(french
+            ? "|cffff8000{}|r rejoint votre collection. Sertissez-le dans une châsse du tableau de parangon."
+            : "|cffff8000{}|r joins your collection. Set it into a socket of the paragon board.",
+            GlyphName(player, definition->second));
+        Send(player, Acore::StringFormat("GLYPHNEW\t{}", glyphId));
+        return;
+    }
+
+    bool const levelled = GainGlyphExperience(player, state, glyphId, GlyphDuplicateXp);
+    ChatHandler(player->GetSession()).PSendSysMessage(french
+        ? "|cffff8000{}|r absorbe son double : +{} points d'expérience."
+        : "|cffff8000{}|r absorbs its copy: +{} experience.", GlyphName(player, definition->second), GlyphDuplicateXp);
+    if (levelled && known->second.socket)
+        RefreshGlyphs(player, state);
+}
+
+void SocketGlyph(Player* player, ParagonState* state, uint32 socket, uint32 glyphId)
+{
+    bool const french = IsFrench(player);
+    auto const node = Board.find(socket);
+    if (node == Board.end() || node->second.effect != static_cast<uint8>(ParagonEffect::Socket) ||
+        !state->allocated.count(socket))
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Prenez d'abord cette châsse." : "Take that socket first."));
+        return;
+    }
+    auto const glyph = state->glyphs.find(glyphId);
+    if (glyph == state->glyphs.end())
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Apprenez d'abord ce glyphe." : "Learn that glyph first."));
+        return;
+    }
+    if (player->IsInCombat())
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Impossible en combat." : "Not while in combat."));
+        return;
+    }
+
+    // Whatever sat there goes back to the collection; the glyph leaves the socket it was in
+    for (auto& [otherId, other] : state->glyphs)
+        if (other.socket == socket && otherId != glyphId)
+        {
+            other.socket = 0;
+            SaveGlyph(player, otherId, other);
+            SendGlyph(player, otherId, other);
+        }
+    glyph->second.socket = socket;
+    SaveGlyph(player, glyphId, glyph->second);
+    SendGlyph(player, glyphId, glyph->second);
+    RefreshGlyphs(player, state);
+    Send(player, Acore::StringFormat("SOCKETED\t{}\t{}", socket, glyphId));
+}
+
+void UnsocketGlyph(Player* player, ParagonState* state, uint32 socket)
+{
+    if (player->IsInCombat())
+    {
+        Send(player, std::string("ERROR\t") + (IsFrench(player) ? "Impossible en combat." : "Not while in combat."));
+        return;
+    }
+    for (auto& [glyphId, glyph] : state->glyphs)
+        if (glyph.socket == socket)
+        {
+            glyph.socket = 0;
+            SaveGlyph(player, glyphId, glyph);
+            SendGlyph(player, glyphId, glyph);
+        }
+    RefreshGlyphs(player, state);
+    Send(player, Acore::StringFormat("SOCKETED\t{}\t0", socket));
+}
+
+// Real players in a map, for the rewards of a boss or a key
+bool IsRealPlayer(Player* player)
+{
+    return player && player->GetSession() && !player->GetSession()->IsBot();
+}
+}
+
+void OnParagonKeyCompleted(Player* player, uint32 keyLevel)
+{
+    if (!IsRealPlayer(player) || keyLevel < GlyphKeyFrom ||
+        !statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled))
+        return;
+
+    AddGlyphExperience(player, GlyphKeyXp + GlyphKeyXpPerLevel * (keyLevel - GlyphKeyFrom));
+    float const chance = std::min(GlyphKeyMaxChance,
+        GlyphKeyChance + GlyphKeyChancePerLevel * static_cast<float>(keyLevel - GlyphKeyFrom));
+    if (roll_chance_f(chance))
+        DropGlyph(player);
+}
+
+void OnParagonInfiniteFloor(Player* player, uint32 floor, uint32 floorsDown)
+{
+    if (!IsRealPlayer(player) || !statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled))
+        return;
+
+    // Each floor behind the player counts, the ones a fast clear's portal passes over too
+    uint32 experience = 0;
+    for (uint32 passed = floor; passed < floor + std::max<uint32>(floorsDown, 1); ++passed)
+    {
+        if (passed < GlyphFloorFrom)
+            continue;
+        experience += GlyphFloorXp + (passed - GlyphFloorFrom) / GlyphFloorXpStep;
+        if (passed > GlyphFloorFrom && passed % GlyphFloorEvery == 0)
+            DropGlyph(player);
+    }
+    AddGlyphExperience(player, experience);
+}
+
+void OnParagonCreatureDeath(Creature* creature)
+{
+    if (!creature || (!creature->IsDungeonBoss() && !creature->isWorldBoss()))
+        return;
+    Map* map = creature->GetMap();
+    if (!map || !map->IsRaid() || !map->IsHeroic() ||
+        !statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled))
+        return;
+
+    map->DoForAllPlayers([](Player* player)
+    {
+        if (!IsRealPlayer(player))
+            return;
+        AddGlyphExperience(player, GlyphRaidBossXp);
+        if (roll_chance_f(GlyphRaidBossChance))
+            DropGlyph(player);
+    });
+}
+
+bool UseParagonGlyphItem(Player* player, uint32 itemEntry)
+{
+    auto const glyph = GlyphByItem.find(itemEntry);
+    ParagonState* state = GetState(player);
+    if (glyph == GlyphByItem.end() || !state || state->bot)
+        return false;
+    AbsorbGlyph(player, state, glyph->second);
+    return true;
+}
+
 void HandleParagonAddonMessage(Player* player, uint32 language, std::string const& message)
 {
     if (!player || language != LANG_ADDON || !message.starts_with(Prefix))
@@ -1700,13 +2475,21 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
             return;
         }
 
+        RemoveGlyphLayer(player, state);
         for (uint32 nodeId : state->allocated)
             if (auto const node = Board.find(nodeId); node != Board.end())
                 ApplyNode(player, node->second, false);
 
         state->allocated.clear();
         ClearBuffs(player, state);
-        RebuildProcs(state);
+        // The sockets are gone with the rest: their glyphs go back to the collection, levels kept
+        for (auto& [glyphId, glyph] : state->glyphs)
+            if (glyph.socket)
+            {
+                glyph.socket = 0;
+                SaveGlyph(player, glyphId, glyph);
+            }
+        RefreshGlyphs(player, state);
         player->UpdateMaxHealth();
         CharacterDatabase.Execute("DELETE FROM character_paragon WHERE guid = {}",
             player->GetGUID().GetCounter());
@@ -1715,6 +2498,50 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
         chat.SendSysMessage(french ? "Votre tableau de parangon a été réinitialisé."
                                    : "Your paragon board has been reset.");
         RefreshGroupBots(player);
+        return;
+    }
+
+    // The glyphs: the collection on request, and what the frame's glyph panel asks
+    if (body == "GLYPHSYNC")
+    {
+        SendGlyphs(player, state);
+        return;
+    }
+
+    auto const numbers = [](std::string_view text)
+    {
+        std::vector<uint32> values;
+        std::string const copy(text);
+        char const* at = copy.c_str();
+        while (*at)
+        {
+            char* end = nullptr;
+            values.push_back(static_cast<uint32>(std::strtoul(at, &end, 10)));
+            if (end == at)
+                break;
+            at = *end ? end + 1 : end;
+        }
+        return values;
+    };
+    if (body.starts_with("SOCKET\t"))
+    {
+        std::vector<uint32> const values = numbers(body.substr(7));
+        if (values.size() == 2)
+            SocketGlyph(player, state, values[0], values[1]);
+        return;
+    }
+    if (body.starts_with("UNSOCKET\t"))
+    {
+        std::vector<uint32> const values = numbers(body.substr(9));
+        if (values.size() == 1)
+            UnsocketGlyph(player, state, values[0]);
+        return;
+    }
+    if (body.starts_with("ABSORB\t"))
+    {
+        std::vector<uint32> const values = numbers(body.substr(7));
+        if (values.size() == 1)
+            AbsorbGlyph(player, state, values[0]);
         return;
     }
 
@@ -1776,14 +2603,22 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
 
     state->allocated.insert(nodeId);
     ApplyNode(player, node, true);
-    RebuildProcs(state);
-    if (node.effect == static_cast<uint8>(ParagonEffect::HealthPct))
-        player->UpdateMaxHealth();
+    // A node within a socketed glyph's reach takes its share at once, and may meet the glyph's condition
+    RefreshGlyphs(player, state);
     CharacterDatabase.Execute("REPLACE INTO character_paragon (guid, node) VALUES ({}, {})",
         player->GetGUID().GetCounter(), nodeId);
 
     // The frame animates from this, so it carries the node that was taken rather than just the new totals.
     Send(player, Acore::StringFormat("GAINED\t{}\t{}\t{}", nodeId, AvailablePoints(state), SpentPoints(state)));
+
+    // The last star of a sigil: its Blessing
+    if (node.sigil && IsSigilComplete(state->allocated, node.sigil))
+    {
+        auto const name = BlessingNames.find(node.sigil);
+        chat.PSendSysMessage(french ? "|cffff8000{} vous est accordée.|r" : "|cffff8000{} is granted to you.|r",
+            name != BlessingNames.end() ? name->second : std::string("Blessing"));
+        Send(player, Acore::StringFormat("BLESSING\t{}", node.sigil));
+    }
 
     // Outside a key or a challenge, bots track the group's real players, so they move the moment the player does
     RefreshGroupBots(player);
@@ -1950,6 +2785,14 @@ static std::vector<Unit*> NearbyEnemies(Player* player, Unit* centre, float rang
     return targets;
 }
 
+// An area hit's share for each of `targets` enemies: whole up to AreaFalloffFrom, then sqrt(AreaFalloffFrom / n) each
+static uint64 AreaShare(uint64 share, std::size_t targets)
+{
+    if (targets <= AreaFalloffFrom)
+        return share;
+    return static_cast<uint64>(double(share) * std::sqrt(double(AreaFalloffFrom) / double(targets)));
+}
+
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 {
     // Read and cleared on every hit, whoever dealt it, so a note is never left over for a later one
@@ -2012,7 +2855,9 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 
     // The strikes that are their own hits: dealt a moment after this one, under their own name, so they can be seen
     // and counted rather than folded silently into the hit that set them off
-    uint64 finishing = 0;
+    // The execute nodes add up to MaxExecutePct, each below its threshold raised by ExecuteReach (MaxExecuteThreshold
+    // at most): one more hit beside this one, never a multiplier on it
+    uint32 finishingPct = 0;
     float strikeChance = 0.0f;
     uint32 strikePct = 0;
     for (ParagonProc const& proc : state->procs)
@@ -2024,9 +2869,11 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
             strikeChance += proc.chance;
             strikePct = std::max(strikePct, proc.value);
         }
-        else if (proc.effect == ParagonEffect::Execute && victim->GetHealthPct() < static_cast<float>(proc.value2))
-            finishing += dealt * proc.value / 100;
+        else if (proc.effect == ParagonEffect::Execute && victim->GetHealthPct() <
+                 static_cast<float>(std::min(proc.value2 + state->executeReach, MaxExecuteThreshold)))
+            finishingPct += proc.value;
     }
+    uint64 const finishing = dealt * std::min(finishingPct, MaxExecutePct) / 100;
     uint64 const extra = strikePct && roll_chance_f(std::min(strikeChance, MaxDoubleStrikeChance))
         ? dealt * strikePct / 100 : 0;
     QueueHit(state, victim, SPELL_PARAGON_DOUBLE_STRIKE, extra, SPELL_SCHOOL_MASK_NORMAL);
@@ -2041,8 +2888,10 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
         if (now >= state->splashReadyAt && roll_chance_f(std::min(state->splashChance, MaxSplashChance)))
         {
             state->splashReadyAt = now + state->splashCooldown;
-            uint64 const share = dealt * state->splashPct / 100;
-            for (Unit* target : NearbyEnemies(player, victim, static_cast<float>(state->splashRange), MaxSplashTargets))
+            std::vector<Unit*> const targets = NearbyEnemies(player, victim, static_cast<float>(state->splashRange),
+                std::min(MaxSplashTargets + state->areaReach, MaxAreaTargets));
+            uint64 const share = AreaShare(dealt * state->splashPct / 100, targets.size());
+            for (Unit* target : targets)
                 QueueHit(state, target, SPELL_PARAGON_SPLASH, share, SPELL_SCHOOL_MASK_FIRE);
         }
     }
@@ -2096,8 +2945,10 @@ void OnParagonSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spell
         if (now >= state->arcReadyAt && roll_chance_f(std::min(state->arcChance, MaxArcChance)))
         {
             state->arcReadyAt = now + state->arcCooldown;
-            uint64 const share = uint64(damage) * state->arcPct / 100;
-            for (Unit* target : NearbyEnemies(player, victim, ArcRange, state->arcTargets))
+            std::vector<Unit*> const targets = NearbyEnemies(player, victim, ArcRange,
+                std::min(state->arcTargets + state->areaReach, MaxAreaTargets));
+            uint64 const share = AreaShare(uint64(damage) * state->arcPct / 100, targets.size());
+            for (Unit* target : targets)
                 QueueHit(state, target, SPELL_PARAGON_ARC, share, school);
         }
     }
@@ -2228,6 +3079,50 @@ void OnParagonKill(Player* player, Unit* killed)
     }
 }
 
+// Eonar's: the character's own spell heals grow, capped. The board's own heals (leech, Freya's share) do not.
+void OnParagonHealDone(Unit* healer, Unit* /*target*/, uint32& heal, SpellInfo const* spellInfo)
+{
+    Player* player = healer ? healer->ToPlayer() : nullptr;
+    if (!player || !heal || !spellInfo || DealingProcHeal || spellInfo->Id == SPELL_PARAGON_LEECH)
+        return;
+    ParagonState const* state = GetState(player);
+    if (!state || !state->applied || !state->healPct)
+        return;
+    heal = static_cast<uint32>(std::min<uint64>(uint64(heal) * (100 + std::min(state->healPct, MaxHealPct)) / 100,
+        std::numeric_limits<uint32>::max()));
+}
+
+// Freya's: a share of what the character was healed for goes to the most hurt ally nearby, on the next update. A shared
+// heal is never shared again.
+void OnParagonHealReceived(Unit* /*healer*/, Unit* receiver, uint32 gain)
+{
+    Player* player = receiver ? receiver->ToPlayer() : nullptr;
+    if (!player || !gain || DealingProcHeal)
+        return;
+    ParagonState* state = GetState(player);
+    if (!state || !state->applied || !state->healSharePct)
+        return;
+
+    Group* group = player->GetGroup();
+    if (!group)
+        return;
+    Player* hurt = nullptr;
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* member = ref->GetSource();
+        if (!member || member == player || !member->IsAlive() || !member->IsInMap(player) ||
+            member->GetHealth() >= member->GetMaxHealth() || !player->IsWithinDistInMap(member, HealShareRange))
+            continue;
+        if (!hurt || member->GetHealthPct() < hurt->GetHealthPct())
+            hurt = member;
+    }
+    if (!hurt)
+        return;
+    uint32 const amount = static_cast<uint32>(uint64(gain) * std::min(state->healSharePct, MaxHealSharePct) / 100);
+    if (amount)
+        state->pendingHeals.push_back({ hurt->GetGUID(), amount });
+}
+
 void ApplyParagonHealth(Player* player, float& value)
 {
     ParagonState const* state = GetState(player);
@@ -2340,6 +3235,22 @@ void UpdateParagonBuffs(Player* player)
         DealingProcDamage = false;
     }
 
+    if (!state->pendingHeals.empty())
+    {
+        std::vector<ParagonState::PendingHeal> heals;
+        heals.swap(state->pendingHeals);
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_PARAGON_LEECH);
+        DealingProcHeal = true;
+        for (ParagonState::PendingHeal const& heal : heals)
+            if (Player* target = ObjectAccessor::GetPlayer(*player, heal.target);
+                spellInfo && target && target->IsAlive() && player->IsInMap(target))
+            {
+                HealInfo healInfo(player, target, heal.amount, spellInfo, spellInfo->GetSchoolMask());
+                player->HealBySpell(healInfo);
+            }
+        DealingProcHeal = false;
+    }
+
     uint32 const now = GameTime::GetGameTimeMS().count();
     UpdateGrudge(player, state, now);
     if (state->killStreakStacks && state->killStreakExpiresAt <= now)
@@ -2421,6 +3332,7 @@ void SuspendParagon(Player* player)
         return;
 
     ClearBuffs(player, state);
+    RemoveGlyphLayer(player, state);
     for (uint32 nodeId : state->allocated)
         if (auto const node = Board.find(nodeId); node != Board.end())
             ApplyNode(player, node->second, false);
@@ -2480,8 +3392,23 @@ void SaveParagonPoints(Player* player, CharacterDatabaseTransaction trans)
         player->GetGUID().GetCounter(), state->earned, state->prestige));
 }
 
+// A glyph used from the bags: learnt into the collection, or absorbed as experience. The item's on-use spell is only
+// there so the client lets it be used; nothing is cast.
+class item_paragon_glyph : public ItemScript
+{
+public:
+    item_paragon_glyph() : ItemScript("item_paragon_glyph") { }
+
+    bool OnUse(Player* player, Item* item, SpellCastTargets const& /*targets*/) override
+    {
+        UseParagonGlyphItem(player, item->GetEntry());
+        return true;
+    }
+};
+
 void AddParagonScripts()
 {
     new npc_stat_growth_paragon_keeper();
     new ParagonCharacterListScript();
+    new item_paragon_glyph();
 }

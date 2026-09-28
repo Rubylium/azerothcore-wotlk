@@ -1516,6 +1516,10 @@ void RewardFloor(Run const& run, Player* player, Member& member)
             Acore::StringFormat("Âpre combat : butin amélioré ({} % de chance d'équipement).", gearChance) :
             Acore::StringFormat("Hard-fought floor: better loot ({}% gear chance).", gearChance));
 
+    // The gearing ladder's deep floors feed the socketed paragon glyphs, and every tenth one past floor 50 gives one
+    if (run.ladder == Ladder::Gearing)
+        OnParagonInfiniteFloor(player, run.floor, run.floorsDown);
+
     Progress& progress = ProgressOf(player);
     std::size_t const ladder = static_cast<std::size_t>(run.ladder);
     progress.best[ladder] = std::max(progress.best[ladder], passedTo);

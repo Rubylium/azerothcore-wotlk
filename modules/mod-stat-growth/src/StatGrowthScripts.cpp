@@ -590,8 +590,21 @@ public:
         UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
         UNITHOOK_ON_SPELL_DAMAGE_DONE,
         UNITHOOK_ON_UNIT_DEATH,
-        UNITHOOK_ON_UNIT_EXIT_COMBAT
+        UNITHOOK_ON_UNIT_EXIT_COMBAT,
+        UNITHOOK_MODIFY_HEAL_RECEIVED,
+        UNITHOOK_ON_HEAL
     }) { }
+
+    // The Pantheon's healing Blessings (ParagonSystem.cpp): Eonar's on the heal as it is cast, Freya's on what landed
+    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
+    {
+        OnParagonHealDone(healer, target, heal, spellInfo);
+    }
+
+    void OnHeal(Unit* healer, Unit* receiver, uint32& gain) override
+    {
+        OnParagonHealReceived(healer, receiver, gain);
+    }
 
     // What is about to deal the next hit, noted for the paragon board: the damage hook below is not told whether a
     // weapon or a spell dealt it
@@ -648,6 +661,9 @@ public:
     void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
     {
         OnDungeonProgressUnitDeath(unit);
+        // A heroic raid boss: glyph experience and a chance of a glyph for every real player in the raid
+        if (Creature* creature = unit->ToCreature())
+            OnParagonCreatureDeath(creature);
     }
 
     void OnUnitExitCombat(Unit* unit) override

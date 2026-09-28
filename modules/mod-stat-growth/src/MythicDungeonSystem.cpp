@@ -606,7 +606,7 @@ public:
         uint32 const itemLevel = Mythic::GetItemLevel(level);
         uint32 const essenceRolls = 1 + static_cast<uint32>(level) / EssenceRollLevels;
         uint32 const essences = GetMythicEssenceReward(static_cast<uint32>(level));
-        map->DoForAllPlayers([itemLevel, essenceRolls, essences](Player* player)
+        map->DoForAllPlayers([itemLevel, essenceRolls, essences, level](Player* player)
         {
             if (player->GetSession()->IsBot())
                 return;
@@ -615,6 +615,8 @@ public:
             GrantEssenceRewards(player, essences, essenceRolls);
             // Always, for finishing it: a key is worth a known amount rather than a roll of the dice.
             AwardParagonPoints(player, 1, "Mythique+");
+            // From +10: the socketed glyphs' experience, and the chest's chance of a glyph
+            OnParagonKeyCompleted(player, static_cast<uint32>(level));
         });
     }
 

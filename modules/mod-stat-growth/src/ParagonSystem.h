@@ -69,7 +69,8 @@ void SetParagonInstanceBudget(uint32 instanceId, uint32 points);
 // The extra threat the board's tank nodes give, in percent (mod-stat-growth's tank aura applies it)
 uint32 GetParagonThreatPct(Player* player);
 
-// "Paragon\t..." addon whispers from the frame: OPEN, ALLOC <node>, RESET.
+// "Paragon\t..." addon whispers from the frame: OPEN, ALLOC <node>, RESET, and the glyphs' GLYPHSYNC,
+// SOCKET <node> <glyph>, UNSOCKET <node>, ABSORB <glyph>.
 void HandleParagonAddonMessage(Player* player, uint32 language, std::string const& message);
 
 // Opens the board on the client. The gossip option and the NPC script both come through here.
@@ -96,6 +97,21 @@ void ApplyParagonHealth(Player* player, float& value);
 
 // Experience earned at the level cap fills the paragon bar; each paragon level is a point.
 void AddParagonExperience(Player* player, uint32 amount);
+
+// The Pantheon's healing Blessings: Eonar's grows the character's spell heals (ModifyHealReceived), Freya's shares
+// out a part of the healing it receives (OnHeal)
+void OnParagonHealDone(Unit* healer, Unit* target, uint32& heal, SpellInfo const* spellInfo);
+void OnParagonHealReceived(Unit* healer, Unit* receiver, uint32 gain);
+
+// Paragon glyphs. Their experience comes only while socketed, and a drop brings a glyph not yet owned first:
+// - a finished key of +10 and up, and its chest's chance of a glyph (10% at +10 up to 35% at +30);
+// - a floor of the Infinite Dungeon's gearing ladder from floor 50 on, and a sure glyph every 10 floors past it;
+// - a heroic raid boss (every real player in the raid), 15% each.
+void OnParagonKeyCompleted(Player* player, uint32 keyLevel);
+void OnParagonInfiniteFloor(Player* player, uint32 floor, uint32 floorsDown);
+void OnParagonCreatureDeath(Creature* creature);
+// A glyph item used from the bags: learnt, or absorbed as experience. False when the item is not a glyph.
+bool UseParagonGlyphItem(Player* player, uint32 itemEntry);
 
 void AddParagonScripts();
 
