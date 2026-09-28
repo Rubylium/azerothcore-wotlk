@@ -75,6 +75,10 @@ enum Spells : uint32
     SPELL_CRIMSON_SCOURGE           = 92619,
     SPELL_BONE_SHIELD               = 92630,
     SPELL_PILLAR_OF_FROST           = 92640,
+    SPELL_FROSTSCYTHE               = 92641,
+    SPELL_REMORSELESS_WINTER_DAMAGE = 92643,
+    SPELL_FROSTWYRMS_FURY           = 92646,
+    SPELL_GLACIAL_ADVANCE           = 92647,
     SPELL_BREATH_OF_SINDRAGOSA      = 92644,
     SPELL_BREATH_TICK               = 92645,
     SPELL_FESTERING_STRIKE          = 92660,
@@ -128,12 +132,24 @@ constexpr int32 BreathCost = 150;              // 15 runic power, in the tenths 
 constexpr uint8 WoundsMax = 6;
 constexpr int32 WoundRunicPower = 30;
 constexpr uint32 RimeWindowMs = 1000;
+// Pack damage (the combat bench, Fire mage as the reference). Frost's area kit is cloned from Cone of Cold and Blood
+// Boil and scales with the spell power a Death Knight does not have: its hits are raised; Death and Decay a little
+// less for Frost, more for Unholy, which also has Epidemic (on a pack only) and Wandering Plague
+constexpr float FrostAreaFactor = 2.5f;     // Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
+constexpr float FrostDeathAndDecayFactor = 1.5f;
+constexpr float UnholyDeathAndDecayFactor = 1.6f;
+constexpr float UnholyWanderingPlagueFactor = 1.5f;
+constexpr float EpidemicPackFactor = 2.5f;
+constexpr uint32 EpidemicPackEnemies = 3;
+constexpr uint32 SPELL_DEATH_AND_DECAY_DAMAGE = 52212;
+constexpr uint32 SPELL_WANDERING_PLAGUE = 50526;
 
 // A character's state for its talents. Kept on the player, so it dies with the session.
 struct DeathKnightState : public DataMap::Base
 {
     // Blood Boil's charges (Blood): how many are left, the recharge of the next one, and the rank last cast
     uint8 boilCharges = BloodBoilCharges;
+    bool epidemicPack = false;          // the Epidemic being dealt reaches EpidemicPackEnemies or more
     int32 boilRechargeMs = 0;
     uint32 boilSpellId = 0;
     bool boilCooling = false;
@@ -178,6 +194,11 @@ uint32 FirstRank(SpellInfo const* spellInfo)
 bool IsBlood(Unit const* unit)
 {
     return unit->HasAura(SPELL_SPEC_BLOOD);
+}
+
+bool IsFrost(Unit const* unit)
+{
+    return unit->HasAura(SPELL_SPEC_FROST);
 }
 
 bool IsUnholy(Unit const* unit)
@@ -458,16 +479,16 @@ class DeathKnightTalentSpellScript : public AllSpellScript
 public:
     DeathKnightTalentSpellScript() : AllSpellScript("DeathKnightTalentSpellScript", {
         ALLSPELLHOOK_ON_CAST,
-        ALLSPELLHOOK_ON_PREPARE
+        ALLSPELLHOOK_ON_SPELL_CHECK_CAST
     }) { }
 
     // Rage of the Frozen Champion: a Howling Blast cast while Rime's Freezing Fog is up is the one it frees. The fog is
-    // spent while the blast hits, so the cast is marked here, before.
-    void OnSpellPrepare(Spell* /*spell*/, Unit* caster, SpellInfo const* spellInfo) override
+    // spent while the blast hits, so the cast is marked here, before (OnSpellPrepare comes after an instant cast)
+    void OnSpellCheckCast(Spell* spell, bool /*strict*/, SpellCastResult& result) override
     {
-        Player* player = DeathKnight(caster);
-        if (player && HasFlag(spellInfo, 1, FLAG1_HOWLING_BLAST) && player->HasAura(SPELL_FREEZING_FOG) &&
-            player->HasAura(TALENT_FROZEN_CHAMPION))
+        Player* player = DeathKnight(spell->GetCaster());
+        if (result == SPELL_CAST_OK && player && HasFlag(spell->GetSpellInfo(), 1, FLAG1_HOWLING_BLAST) &&
+            player->HasAura(SPELL_FREEZING_FOG) && player->HasAura(TALENT_FROZEN_CHAMPION))
             GetState(player)->rimeUntil = NowMs() + RimeWindowMs;
     }
 
@@ -523,11 +544,18 @@ public:
                 AddWounds(player, player->GetVictim() ? player->GetVictim() : player->GetSelectedUnit(), 4);
                 return;
             case SPELL_EPIDEMIC:
+            {
+                std::vector<Unit*> diseased;
                 for (Unit* enemy : EnemiesNear(player, player, 40.0f))
                     if (enemy->HasAura(SPELL_BLOOD_PLAGUE, player->GetGUID()))
-                        player->CastSpell(enemy, SPELL_EPIDEMIC_DAMAGE, true);
+                        diseased.push_back(enemy);
+                state->epidemicPack = diseased.size() >= EpidemicPackEnemies;
+                for (Unit* enemy : diseased)
+                    player->CastSpell(enemy, SPELL_EPIDEMIC_DAMAGE, true);
+                state->epidemicPack = false;
                 ArmyOfTheDamned(player);
                 return;
+            }
             default:
                 break;
         }
@@ -700,6 +728,34 @@ public:
         // Rage du champion gelé: the Howling Blast Rime freed deals double
         if (HasFlag(spellInfo, 1, FLAG1_HOWLING_BLAST) && NowMs() < GetState(player)->rimeUntil)
             factor *= 2.0f;
+
+        // Pack damage (FrostAreaFactor ...)
+        switch (spellInfo->Id)
+        {
+            case SPELL_REMORSELESS_WINTER_DAMAGE:
+            case SPELL_FROSTSCYTHE:
+            case SPELL_GLACIAL_ADVANCE:
+            case SPELL_FROSTWYRMS_FURY:
+            case SPELL_BREATH_TICK:
+                factor *= FrostAreaFactor;
+                break;
+            case SPELL_DEATH_AND_DECAY_DAMAGE:
+                if (IsFrost(player))
+                    factor *= FrostDeathAndDecayFactor;
+                else if (IsUnholy(player))
+                    factor *= UnholyDeathAndDecayFactor;
+                break;
+            case SPELL_WANDERING_PLAGUE:
+                if (IsUnholy(player))
+                    factor *= UnholyWanderingPlagueFactor;
+                break;
+            case SPELL_EPIDEMIC_DAMAGE:
+                if (GetState(player)->epidemicPack)
+                    factor *= EpidemicPackFactor;
+                break;
+            default:
+                break;
+        }
 
         if (factor != 1.0f)
             damage = int32(damage * factor);
