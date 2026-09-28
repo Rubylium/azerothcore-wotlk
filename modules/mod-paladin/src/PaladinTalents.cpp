@@ -613,7 +613,6 @@ class PaladinTalentSpellScript : public AllSpellScript
 public:
     PaladinTalentSpellScript() : AllSpellScript("PaladinTalentSpellScript", {
         ALLSPELLHOOK_ON_SPELL_CHECK_CAST,
-        ALLSPELLHOOK_ON_PREPARE,
         ALLSPELLHOOK_ON_CAST
     }) { }
 
@@ -625,13 +624,12 @@ public:
         Player* player = Paladin(spell->GetCaster());
         if (player && HolyPower(player) < FinisherCost && !FreeFinisherAura(player, spell->GetSpellInfo()->Id))
             result = SPELL_FAILED_CASTER_AURASTATE;
-    }
 
-    // Tempête vertueuse: Divine Storm has no target limit (its core script set one as the spell loaded)
-    void OnSpellPrepare(Spell* spell, Unit* caster, SpellInfo const* spellInfo) override
-    {
-        Player* player = Paladin(caster);
-        if (player && spellInfo->Id == SPELL_DIVINE_STORM && player->HasAura(TALENT_RIGHTEOUS_STORM))
+        // Tempête vertueuse: Divine Storm has no target limit (its spell data holds 4, its core script 6 in a
+        // dungeon). Set here, after the scripts loaded and before the targets are chosen: OnSpellPrepare comes after
+        // an instant spell was cast
+        if (result == SPELL_CAST_OK && player && spell->GetSpellInfo()->Id == SPELL_DIVINE_STORM &&
+            player->HasAura(TALENT_RIGHTEOUS_STORM))
             spell->SetSpellValue(SPELLVALUE_MAX_TARGETS, 25);
     }
 
