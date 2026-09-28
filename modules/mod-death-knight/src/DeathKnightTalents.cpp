@@ -137,9 +137,18 @@ constexpr uint32 RimeWindowMs = 1000;
 // less for Frost, more for Unholy, which also has Epidemic (on a pack only) and Wandering Plague
 constexpr float FrostAreaFactor = 2.5f;     // Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
 constexpr float FrostDeathAndDecayFactor = 1.5f;
-constexpr float UnholyDeathAndDecayFactor = 1.6f;
+constexpr float UnholyDeathAndDecayFactor = 2.0f;
 constexpr float UnholyWanderingPlagueFactor = 1.5f;
-constexpr float EpidemicPackFactor = 2.5f;
+constexpr float EpidemicPackFactor = 3.0f;
+// Unholy (the combat bench, 2026-09-28: 56-79% of Fire's everywhere): its strikes and Death Coil hit harder, Apocalypse
+// much harder, and its minions (the ghoul, Dark Transformation's cleave, the gargoyle, the Army of the Dead), stock
+// WotLK creatures that did about a hundred a swing at this gear, carry a real share
+constexpr float UnholyStrikeFactor = 1.5f;      // Scourge Strike, Festering Strike, the wounds' bursts, Death Coil
+constexpr float ApocalypseFactor = 3.0f;
+constexpr float EpidemicFactor = 1.5f;          // on one enemy too; EpidemicPackFactor on top on a pack
+constexpr float UnholyMinionFactor = 4.0f;
+constexpr uint32 SPELL_SCOURGE_STRIKE_SHADOW = 70890;
+constexpr uint32 SPELL_DEATH_COIL_DAMAGE = 47632;
 constexpr uint32 EpidemicPackEnemies = 3;
 constexpr uint32 SPELL_DEATH_AND_DECAY_DAMAGE = 52212;
 constexpr uint32 SPELL_WANDERING_PLAGUE = 50526;
@@ -472,6 +481,16 @@ void DeathStrikeHeal(Player* player, DeathKnightState* state)
     player->CastCustomSpell(player, SPELL_DEATH_STRIKE_HEAL, &heal, nullptr, nullptr, true);
 }
 
+// An Unholy Death Knight's minion (its ghoul, gargoyle, Army of the Dead): the factor its damage is dealt with
+float MinionFactor(Unit* attacker)
+{
+    Creature* minion = attacker ? attacker->ToCreature() : nullptr;
+    if (!minion)
+        return 1.0f;
+    Player* owner = DeathKnight(minion->GetCharmerOrOwnerPlayerOrPlayerItself());
+    return owner && IsUnholy(owner) ? UnholyMinionFactor : 1.0f;
+}
+
 // --- Spell casts ---------------------------------------------------------------------------------------------------
 
 class DeathKnightTalentSpellScript : public AllSpellScript
@@ -673,6 +692,10 @@ public:
     // Decay
     void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
     {
+        if (damage && attacker != target)
+            if (float const minion = MinionFactor(attacker); minion != 1.0f)
+                damage = uint32(damage * minion);
+
         Player* player = DeathKnight(target);
         if (!player || attacker == target || !damage)
             return;
@@ -698,10 +721,27 @@ public:
             if (victim != attacker && victim->HasAura(TALENT_SANGUINE_GROUND) && victim->HasAura(SPELL_DEFILED_GROUND))
                 damage = damage * 9 / 10;
 
+        if (float const minion = MinionFactor(attacker); minion != 1.0f)
+        {
+            damage = int32(damage * minion);
+            return;
+        }
+
         Player* player = DeathKnight(attacker);
         if (!player || !spellInfo || !IsDeathKnightSpell(spellInfo))
             return;
         float factor = 1.0f;
+
+        // Unholy's strikes (UnholyStrikeFactor ...)
+        if (IsUnholy(player))
+        {
+            uint32 const id = spellInfo->Id;
+            if (FirstRank(spellInfo) == SPELL_SCOURGE_STRIKE_R1 || id == SPELL_SCOURGE_STRIKE_SHADOW ||
+                id == SPELL_FESTERING_STRIKE || id == SPELL_WOUND_BURST || id == SPELL_DEATH_COIL_DAMAGE)
+                factor *= UnholyStrikeFactor;
+            else if (id == SPELL_APOCALYPSE)
+                factor *= ApocalypseFactor;
+        }
 
         // Ossuaire: Death Strike and Heart Strike behind five bones or more
         if ((HasFlag(spellInfo, 0, FLAG0_DEATH_STRIKE) || HasFlag(spellInfo, 0, FLAG0_HEART_STRIKE)) &&
@@ -750,6 +790,7 @@ public:
                     factor *= UnholyWanderingPlagueFactor;
                 break;
             case SPELL_EPIDEMIC_DAMAGE:
+                factor *= EpidemicFactor;
                 if (GetState(player)->epidemicPack)
                     factor *= EpidemicPackFactor;
                 break;
