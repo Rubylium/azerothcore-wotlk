@@ -103,12 +103,13 @@ bool Begin(Creature* creature, TrashState* state, std::size_t index)
     Unit* victim = creature->GetVictim();
     GroundIndicators::Area area;
     ObjectGuid carrier;
+    uint32 const hit = static_cast<uint32>(MythicTuning::ReferenceHealth(creature) * ability.percent / 100.0f);
 
     switch (ability.shape)
     {
         case MythicTrash::Shape::AroundSelf:
             area = GroundIndicators::ShowCircle(creature, creature->GetPosition(), ability.size, ability.warnMs,
-                ability.theme);
+                ability.theme, hit);
             break;
         case MythicTrash::Shape::UnderTarget:
         case MythicTrash::Shape::CarriedByTarget:
@@ -119,10 +120,10 @@ bool Begin(Creature* creature, TrashState* state, std::size_t index)
             Player* target = Acore::Containers::SelectRandomContainerElement(players);
             if (ability.shape == MythicTrash::Shape::UnderTarget)
                 area = GroundIndicators::ShowCircle(creature, target->GetPosition(), ability.size, ability.warnMs,
-                    ability.theme);
+                    ability.theme, hit);
             else
             {
-                area = GroundIndicators::ShowCarriedCircle(creature, target, ability.size, ability.warnMs);
+                area = GroundIndicators::ShowCarriedCircle(creature, target, ability.size, ability.warnMs, hit);
                 carrier = target->GetGUID();
             }
             break;
@@ -136,10 +137,10 @@ bool Begin(Creature* creature, TrashState* state, std::size_t index)
             creature->SetFacingTo(facing);
             if (ability.shape == MythicTrash::Shape::ConeAtVictim)
                 area = GroundIndicators::ShowCone(creature, creature->GetPosition(), facing, ability.size,
-                    ability.width, ability.warnMs, ability.theme);
+                    ability.width, ability.warnMs, ability.theme, hit);
             else
                 area = GroundIndicators::ShowRectangle(creature, creature->GetPosition(), facing, ability.size,
-                    ability.width, ability.warnMs, ability.theme);
+                    ability.width, ability.warnMs, ability.theme, hit);
             break;
         }
     }

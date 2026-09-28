@@ -53,19 +53,24 @@ namespace GroundIndicators
 
     // Each draws the area for durationMs and returns it as drawn. owner is the unit the indicator belongs to (it
     // is summoned by it). With a theme, particles of it rise over the area while it is drawn.
-    Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme = Theme::None);
+    // hitDamage: what one hit does to a player in it (before their defences), if known - a bot stays in an area it
+    // would survive well (FindEscape); 0, unknown, is always left.
+    Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme = Theme::None,
+                    uint32 hitDamage = 0);
     Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                       uint32 durationMs, Theme theme = Theme::None);
+                       uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
     Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                  uint32 durationMs, Theme theme = Theme::None);
+                  uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
     // A circle that follows carrier wherever it goes: whoever carries it should take it away from the others.
     // Read its position back with CurrentArea when it resolves.
-    Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs);
+    Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0);
     // Where a carried circle is now (it moves with its carrier)
     Area CurrentArea(Unit* carrier, Area const& area);
 
     // Whether unit stands in an area it should leave: in one of the red areas around it, or carrying one next to
-    // another player. If so, escape is the nearest spot where it would not.
+    // another player. If so, escape is the nearest spot where it would not. An area whose hit is known and would
+    // leave the unit above 30% of its health is not one to leave (bots keep fighting in it), unless Imprudence has
+    // piled up on it.
     //
     // A tank holds its ground against a trash creature's circle around itself while that creature is attacking the
     // tank: the creature follows it out, so stepping away only drags the pack and brings the next circle along, and

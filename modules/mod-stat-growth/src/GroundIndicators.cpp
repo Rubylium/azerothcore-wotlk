@@ -124,6 +124,7 @@ struct ActiveArea
     float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
     GroundIndicators::Area area;
     uint64 endMs = 0;
+    uint32 hitDamage = 0;       // one hit's expected damage to a player in it, before their defences; 0 unknown
 };
 
 // An area that ended stays known this long, hidden from the bots: the ability it announced lands as it goes (a cast
@@ -141,9 +142,11 @@ uint64 NowMs()
     return GameTime::GetGameTimeMS().count();
 }
 
-uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, uint32 durationMs)
+uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, uint32 durationMs,
+    uint32 hitDamage = 0)
 {
     ActiveArea active;
+    active.hitDamage = hitDamage;
     if (carrier && carrier->GetObjectScale() > 0.0f)
         active.carriedBase = area.radius / carrier->GetObjectScale();
     active.mapId = owner->GetMapId();
@@ -508,6 +511,64 @@ bool FindArea(Spell const* spell, Unit* caster, SpellArea& area)
     return area.area != nullptr;
 }
 
+// One hit's damage of a spell to a player, before their defences, as the key scales it: its direct damage, a
+// weapon strike's, one tick of what it leaves (a pool's, an aura's pulse). 0 when it cannot be told (a share of the
+// target's health, a scripted effect): an area of unknown damage is always to be left.
+uint32 EstimateHit(Unit* caster, SpellInfo const* spellInfo, uint8 depth = 0)
+{
+    if (!caster || !spellInfo || depth > 2)
+        return 0;
+
+    float const factor = std::max(GetMythicSpellFactor(caster, spellInfo), 0.01f);
+    float spellDamage = 0.0f;
+    float weaponDamage = 0.0f;
+    float const weapon = (caster->GetWeaponDamageRange(BASE_ATTACK, MINDAMAGE) +
+        caster->GetWeaponDamageRange(BASE_ATTACK, MAXDAMAGE)) / 2.0f;
+    for (uint8 effIndex = 0; effIndex < MAX_SPELL_EFFECTS; ++effIndex)
+    {
+        SpellEffectInfo const& effect = spellInfo->Effects[effIndex];
+        switch (effect.Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_HEALTH_LEECH:
+                spellDamage += float(std::max(effect.CalcValue(caster), 0));
+                break;
+            case SPELL_EFFECT_WEAPON_DAMAGE:
+            case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+                weaponDamage += weapon + float(std::max(effect.CalcValue(caster), 0));
+                break;
+            case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
+                weaponDamage += weapon * float(std::max(effect.CalcValue(caster), 0)) / 100.0f;
+                break;
+            case SPELL_EFFECT_TRIGGER_SPELL:
+                // Already scaled by its own spell's factor
+                spellDamage += float(EstimateHit(caster, sSpellMgr->GetSpellInfo(effect.TriggerSpell), depth + 1)) /
+                    factor;
+                break;
+            case SPELL_EFFECT_APPLY_AURA:
+            case SPELL_EFFECT_PERSISTENT_AREA_AURA:
+            case SPELL_EFFECT_APPLY_AREA_AURA_ENEMY:
+                if (effect.ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE ||
+                    effect.ApplyAuraName == SPELL_AURA_PERIODIC_LEECH)
+                    spellDamage += float(std::max(effect.CalcValue(caster), 0));
+                else if (effect.ApplyAuraName == SPELL_AURA_PERIODIC_TRIGGER_SPELL ||
+                    effect.ApplyAuraName == SPELL_AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE)
+                    spellDamage += float(EstimateHit(caster, sSpellMgr->GetSpellInfo(effect.TriggerSpell),
+                        depth + 1)) / factor;
+                else if (effect.ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE_PERCENT)
+                    return 0;
+                break;
+            default:
+                break;
+        }
+    }
+
+    // The key's scaling for spells; a creature's weapon is scaled with the creature itself
+    float const total = spellDamage * factor + weaponDamage;
+    return total >= 1.0f ? uint32(total) : 0;
+}
+
 // Shows the area of a cast that starts now and lasts durationMs. A circle around the target follows it: the spell
 // lands where the target is when it goes off.
 void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
@@ -518,6 +579,7 @@ void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
 
     SpellInfo const* spellInfo = spell->GetSpellInfo();
     Unit* target = spell->m_targets.GetUnitTarget();
+    uint32 const hit = EstimateHit(caster, spellInfo);
 
     if (area.cone)
     {
@@ -530,7 +592,7 @@ void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
         if (stalker)
         {
             Remember(caster, spellInfo->Id, { stalker->GetGUID(), 0, Register(caster, nullptr, cone,
-                durationMs) });
+                durationMs, hit) });
             GroundIndicators::ShowParticles(caster, cone, GroundIndicators::ThemeOf(spellInfo->GetSchoolMask()),
                 durationMs);
         }
@@ -557,7 +619,7 @@ void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
         float drawnRadius = area.radius;
         if (uint32 const aura = Carry(followed, area.radius, durationMs, drawnRadius))
             Remember(caster, spellInfo->Id, { followed->GetGUID(), aura, Register(caster, followed,
-                MakeArea(GroundIndicators::Area::Kind::Circle, center, 0.0f, drawnRadius), durationMs) });
+                MakeArea(GroundIndicators::Area::Kind::Circle, center, 0.0f, drawnRadius), durationMs, hit) });
         return;
     }
 
@@ -565,7 +627,8 @@ void ShowSpellArea(Spell const* spell, Unit* caster, uint32 durationMs)
     {
         GroundIndicators::Area const circle = MakeArea(GroundIndicators::Area::Kind::Circle, center, 0.0f,
             area.radius);
-        Remember(caster, spellInfo->Id, { stalker->GetGUID(), 0, Register(caster, nullptr, circle, durationMs) });
+        Remember(caster, spellInfo->Id, { stalker->GetGUID(), 0, Register(caster, nullptr, circle, durationMs,
+            hit) });
         GroundIndicators::ShowParticles(caster, circle, GroundIndicators::ThemeOf(spellInfo->GetSchoolMask()),
             durationMs);
     }
@@ -746,6 +809,24 @@ bool HeldByTank(Unit* tank, ActiveArea const& entry)
     return entry.area.Contains(owner->GetPosition(), 0.0f);
 }
 
+// An area a unit may stand in: its hit is known, and leaves the unit above SurvivableMarginPct of its maximum health.
+// Not once Imprudence has piled up (MythicTuning::OnHitTaken): every hit taken there adds to it. An area it carries
+// near others is never one of these: the others are the ones to spare.
+constexpr float SurvivableMarginPct = 30.0f;
+constexpr uint32 SPELL_MYTHIC_IMPRUDENCE = 90672;
+constexpr uint8 ImprudenceDodgeStacks = 3;
+
+bool SurvivableHit(Unit* unit, ActiveArea const& entry)
+{
+    if (!entry.hitDamage || entry.carrier == unit->GetGUID())
+        return false;
+    if (Aura const* imprudence = unit->GetAura(SPELL_MYTHIC_IMPRUDENCE))
+        if (imprudence->GetStackAmount() >= ImprudenceDodgeStacks)
+            return false;
+    float const margin = unit->GetMaxHealth() * SurvivableMarginPct / 100.0f;
+    return float(entry.hitDamage) + margin < float(unit->GetHealth());
+}
+
 bool InAnyArea(std::vector<ActiveArea> const& areas, Position const& point, ObjectGuid ignoredCarrier, float margin)
 {
     for (ActiveArea const& entry : areas)
@@ -860,19 +941,20 @@ void Burst(Unit* owner, Position const& where, Theme theme)
                  3000);
 }
 
-Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme)
+Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme,
+                uint32 hitDamage)
 {
     Area area = MakeArea(Area::Kind::Circle, center, 0.0f, radius);
     if (Creature* stalker = Place(owner, center, 0.0f, SPELL_INDICATOR_CIRCLE, radius, durationMs))
     {
-        Register(owner, nullptr, area, durationMs);
+        Register(owner, nullptr, area, durationMs, hitDamage);
         ShowParticles(owner, area, theme, durationMs);
     }
     return area;
 }
 
 Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                   uint32 durationMs, Theme theme)
+                   uint32 durationMs, Theme theme, uint32 hitDamage)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
@@ -881,33 +963,33 @@ Area ShowRectangle(Unit* owner, Position const& start, float orientation, float 
     area.width = length / shape.size;
     if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
     {
-        Register(owner, nullptr, area, durationMs);
+        Register(owner, nullptr, area, durationMs, hitDamage);
         ShowParticles(owner, area, theme, durationMs);
     }
     return area;
 }
 
 Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-              uint32 durationMs, Theme theme)
+              uint32 durationMs, Theme theme, uint32 hitDamage)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
     {
-        Register(owner, nullptr, area, durationMs);
+        Register(owner, nullptr, area, durationMs, hitDamage);
         ShowParticles(owner, area, theme, durationMs);
     }
     return area;
 }
 
-Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs)
+Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage)
 {
     float drawnRadius = radius;
     uint32 const aura = Carry(carrier, radius, durationMs, drawnRadius);
     Area area = MakeArea(Area::Kind::Circle, *carrier, 0.0f, drawnRadius);
     if (aura)
-        Register(owner, carrier, area, durationMs);
+        Register(owner, carrier, area, durationMs, hitDamage);
     return area;
 }
 
@@ -969,6 +1051,9 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     if (tank)
         areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
             { return HeldByTank(unit, entry); }), areas.end());
+    // What would not come close to killing it is not worth giving up the fight for: stood in (SurvivableHit)
+    areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
+        { return SurvivableHit(unit, entry); }), areas.end());
     if (areas.empty())
         return false;
 
@@ -1166,7 +1251,8 @@ void ShowHazard(Creature* creature, Aura* aura)
             return;
 
         hazards->circles.push_back({ aura->GetId(), carried, Register(creature, creature,
-            MakeArea(GroundIndicators::Area::Kind::Circle, *creature, 0.0f, drawnRadius), durationMs) });
+            MakeArea(GroundIndicators::Area::Kind::Circle, *creature, 0.0f, drawnRadius), durationMs,
+            EstimateHit(caster, aura->GetSpellInfo())) });
     }
 }
 
@@ -1274,7 +1360,7 @@ private:
         circle.stalker = stalker->GetGUID();
         circle.radius = radius;
         GroundIndicators::Area const area = MakeArea(GroundIndicators::Area::Kind::Circle, *pool, 0.0f, radius);
-        circle.areaId = Register(caster, nullptr, area, uint32(duration));
+        circle.areaId = Register(caster, nullptr, area, uint32(duration), EstimateHit(caster, spellInfo));
         GroundIndicators::ShowParticles(caster, area, GroundIndicators::ThemeOf(spellInfo->GetSchoolMask()),
             uint32(duration));
     }
