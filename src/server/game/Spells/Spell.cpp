@@ -20,6 +20,7 @@
 #include "BattlefieldMgr.h"
 #include "Battleground.h"
 #include "CharmInfo.h"
+#include "CombatTelemetry.h"
 #include "CellImpl.h"
 #include "Common.h"
 #include "ConditionMgr.h"
@@ -4090,6 +4091,10 @@ void Spell::_cast(bool skipCheck)
             m_caster->ToPlayer()->RemoveSpellCooldown(m_spellInfo->Id, true);
 
     sScriptMgr->OnSpellCast(this, m_caster, m_spellInfo, skipCheck);
+
+    // The combat bench counts casts: what the caster chose to cast (an auto shot too), not what procs from it
+    if (!IsTriggered() || IsAutoRepeat())
+        CombatTelemetry::RecordSpellCast(m_caster, m_spellInfo);
 
     SetExecutedCurrently(false);
 

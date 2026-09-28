@@ -121,6 +121,35 @@ WHERE r.ended_at_ms >= $minimumTimestamp
 ORDER BY e.run_id DESC, e.sequence;
 "@
 
+    # Combat bench tests (run_type 3, mod-playerbots Script/CombatBench.cpp): one row per participant, with what the
+    # bench set a bot up as, its healing and damage taken; the run's boss_name is "<layout> <scaling> <duration>"
+    exportQuery 'benchParticipants' @"
+SELECT r.run_id, FROM_UNIXTIME(r.started_at_ms / 1000) AS started_at, r.result, r.boss_name AS test,
+       r.dungeon_id AS layout, r.difficulty AS scaling, r.key_level AS level, r.duration_seconds,
+       p.guid, p.name, p.is_bot, p.class_id, b.label, p.item_level, p.damage, p.pet_damage,
+       ROUND(p.damage / GREATEST(r.duration_seconds, 1), 2) AS dps,
+       b.healing, b.overhealing, ROUND(b.healing / GREATEST(r.duration_seconds, 1), 2) AS hps,
+       b.damage_taken, ROUND(b.damage_taken / GREATEST(r.duration_seconds, 1), 2) AS dtps, p.deaths
+FROM mod_combat_run r
+JOIN mod_combat_participant p USING (run_id)
+LEFT JOIN mod_combat_bench_participant b ON b.run_id = p.run_id AND b.guid = p.guid
+WHERE r.run_type = 3 AND r.ended_at_ms >= $minimumTimestamp
+ORDER BY r.ended_at_ms DESC, p.damage DESC;
+"@
+
+    # Their spells: kind 1 damage done, 2 healing done, 3 damage taken; spell 0 is melee
+    exportQuery 'benchSpells' @"
+SELECT s.run_id, r.boss_name AS test, p.name, p.class_id, b.label, s.kind, s.spell_id, s.from_pet, s.casts, s.hits,
+       s.crits, ROUND(s.crits * 100 / GREATEST(s.hits, 1), 2) AS crit_percent, s.amount, s.overheal,
+       ROUND(s.amount / GREATEST(r.duration_seconds, 1), 2) AS per_second
+FROM mod_combat_bench_spell s
+JOIN mod_combat_run r USING (run_id)
+JOIN mod_combat_participant p ON p.run_id = s.run_id AND p.guid = s.guid
+LEFT JOIN mod_combat_bench_participant b ON b.run_id = s.run_id AND b.guid = s.guid
+WHERE r.run_type = 3 AND r.ended_at_ms >= $minimumTimestamp
+ORDER BY s.run_id DESC, p.name, s.kind, s.amount DESC;
+"@
+
     # Tank route pulls (MythicTankLead): the bot tank's, and the player tanks' it watches
     exportQuery 'pulls' @"
 SELECT e.run_id, r.dungeon_id, r.key_level, r.human_count, r.result, e.sequence, e.offset_ms, e.event_type,

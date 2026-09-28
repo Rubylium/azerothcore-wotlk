@@ -6780,6 +6780,10 @@ void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
     data << uint32(log->blocked);                           // blocked
     data << uint32(log->HitInfo);
     data << uint8(log->HitInfo & (SPELL_HIT_TYPE_CRIT_DEBUG | SPELL_HIT_TYPE_HIT_DEBUG | SPELL_HIT_TYPE_ATTACK_TABLE_DEBUG));
+    // The combat bench reads the log as it is sent (sent before the damage is dealt: the health is still there)
+    CombatTelemetry::RecordLogDamage(log->attacker, log->target, log->spellInfo, log->damage,
+        log->damage > log->target->GetHealth() ? log->damage - log->target->GetHealth() : 0,
+        (log->HitInfo & SPELL_HIT_TYPE_CRIT) != 0, SPELL_DIRECT_DAMAGE);
     //if (log->HitInfo & SPELL_HIT_TYPE_CRIT_DEBUG)
     //{
     //    data << float(log->CritRoll);
@@ -6885,6 +6889,8 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
                 data << uint32(absorb);                         // absorb
                 data << uint32(pInfo->resist);                  // resist
                 data << uint8(pInfo->critical);                 // new 3.1.2 critical tick
+                CombatTelemetry::RecordLogDamage(aura->GetCaster(), this, aura->GetSpellInfo(), pInfo->damage,
+                    pInfo->overDamage, pInfo->critical, DOT);
             }
             break;
         case SPELL_AURA_PERIODIC_HEAL:
@@ -6893,6 +6899,8 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
             data << uint32(pInfo->overDamage);              // overheal
             data << uint32(pInfo->absorb);                  // absorb
             data << uint8(pInfo->critical);                 // new 3.1.2 critical tick
+            CombatTelemetry::RecordLogHeal(aura->GetCaster(), this, aura->GetSpellInfo(), pInfo->damage,
+                pInfo->overDamage, pInfo->critical);
             break;
         case SPELL_AURA_OBS_MOD_POWER:
         case SPELL_AURA_PERIODIC_ENERGIZE:
@@ -6969,6 +6977,12 @@ void Unit::SendAttackStateUpdate(CalcDamageInfo* damageInfo)
     {
         ++count;
     }
+
+    // The combat bench reads the log as it is sent (before the swing is dealt: the health is still there)
+    uint32 const swingDamage = damageInfo->damages[0].damage + damageInfo->damages[1].damage;
+    CombatTelemetry::RecordLogDamage(damageInfo->attacker, damageInfo->target, nullptr, swingDamage,
+        swingDamage > damageInfo->target->GetHealth() ? swingDamage - damageInfo->target->GetHealth() : 0,
+        (damageInfo->HitInfo & HITINFO_CRITICALHIT) != 0, DIRECT_DAMAGE);
 
     std::size_t const maxsize = 4 + 5 + 5 + 4 + 4 + 1 + count * (4 + 4 + 4 + 4 + 4) + 1 + 4 + 4 + 4 + 4 + 4 * 12;
     WorldPacket data(SMSG_ATTACKERSTATEUPDATE, maxsize);            // we guess size
@@ -8419,6 +8433,9 @@ void Unit::SendHealSpellLog(HealInfo const& healInfo, bool critical)
     data << uint8(critical ? 1 : 0);
     data << uint8(0); // unused
     SendMessageToSet(&data, true);
+
+    CombatTelemetry::RecordLogHeal(this, healInfo.GetTarget(), healInfo.GetSpellInfo(), healInfo.GetHeal(),
+        overheal, critical);
 }
 
 int32 Unit::HealBySpell(HealInfo& healInfo, bool critical)

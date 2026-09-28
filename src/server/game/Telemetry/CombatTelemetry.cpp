@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 namespace CombatTelemetry
@@ -26,7 +27,8 @@ namespace
 enum class RunType : uint8
 {
     MythicPlus = 1,
-    RaidBoss = 2
+    RaidBoss = 2,
+    Bench = 3
 };
 
 enum class RunResult : uint8
@@ -34,7 +36,9 @@ enum class RunResult : uint8
     Completed = 1,
     Depleted = 2,
     Abandoned = 3,
-    RaidKill = 4
+    RaidKill = 4,
+    BenchCompleted = 5,     // a combat bench test that ran its course
+    BenchStopped = 6        // stopped before
 };
 
 struct AbilityTotals
@@ -122,10 +126,54 @@ struct Run
     std::vector<RouteEvent> routeEvents;
 };
 
+// A combat bench test, beside its Run (the tables every run fills): what only the combat log tells
+struct BenchTotals
+{
+    uint32 casts = 0;
+    uint32 hits = 0;
+    uint32 crits = 0;
+    uint64 amount = 0;
+    uint64 overheal = 0;
+};
+
+struct BenchTargetTotals
+{
+    uint32 entry = 0;
+    uint64 damage = 0;
+    uint32 hits = 0;
+};
+
+struct BenchDetail
+{
+    std::string label;
+    uint64 healing = 0;
+    uint64 overhealing = 0;
+    uint64 damageTaken = 0;
+    std::unordered_map<uint64, BenchTotals> spells;     // BenchKey
+    std::unordered_map<uint64, uint32> casts;           // BenchKey(Damage, pet, spell)
+    std::unordered_map<ObjectGuid, BenchTargetTotals> targets;
+};
+
+struct BenchRun
+{
+    Run run;
+    ObjectGuid owner;
+    std::unordered_set<ObjectGuid> dummies;
+    std::unordered_set<ObjectGuid> bossDummies;
+    std::unordered_map<uint32, BenchDetail> details;    // by participant guid counter
+    uint64 firstEventMs = 0;
+};
+
 std::mutex telemetryMutex;
 std::unordered_map<uint64, Run> mythicRuns;
 std::unordered_map<uint64, Run> raidEncounters;
 std::atomic<uint32> runSequence = 0;
+
+// Combat bench tests by owner, and who and what belongs to which. The log hooks look at activeBenchRuns first.
+std::unordered_map<ObjectGuid, BenchRun> benchRuns;
+std::unordered_map<uint32, ObjectGuid> benchParticipants;
+std::unordered_map<ObjectGuid, ObjectGuid> benchDummies;
+std::atomic<uint32> activeBenchRuns = 0;
 
 uint64 GetEpochMilliseconds()
 {
@@ -208,7 +256,7 @@ std::string Escape(std::string value)
     return value;
 }
 
-void PersistRun(Run&& run)
+void AppendRun(CharacterDatabaseTransaction& transaction, Run& run)
 {
     uint64 const endedEpochMs = GetEpochMilliseconds();
     if (!run.elapsedSeconds)
@@ -224,7 +272,6 @@ void PersistRun(Run&& run)
         totalDamage += participant.damage;
     }
 
-    CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
     transaction->Append(
         "INSERT INTO mod_combat_run (run_id, run_type, result, map_id, instance_id, dungeon_id, difficulty, "
         "key_level, time_limit_seconds, boss_entry, boss_name, started_at_ms, ended_at_ms, duration_seconds, "
@@ -275,11 +322,17 @@ void PersistRun(Run&& run)
             run.id, sequence++, event.offsetMs, Escape(event.eventType), event.actorGuid, event.targetEntry,
             event.x, event.y, event.z, Escape(event.details));
 
-    CharacterDatabase.AsyncCommitTransaction(transaction);
     LOG_INFO("combat.telemetry", "Queued combat telemetry run={} type={} result={} map={} instance={} key={} "
         "humans={} bots={} damage={} duration={}s", run.id, static_cast<uint32>(run.type),
         static_cast<uint32>(run.result), run.mapId, run.instanceId, run.keyLevel, humanCount, botCount,
         totalDamage, run.elapsedSeconds);
+}
+
+void PersistRun(Run&& run)
+{
+    CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
+    AppendRun(transaction, run);
+    CharacterDatabase.AsyncCommitTransaction(transaction);
 }
 
 Run* FindActiveRun(uint64 key)
@@ -289,6 +342,168 @@ Run* FindActiveRun(uint64 key)
     if (auto itr = raidEncounters.find(key); itr != raidEncounters.end())
         return &itr->second;
     return nullptr;
+}
+
+uint64 BenchKey(BenchKind kind, bool pet, uint32 spellId)
+{
+    return (static_cast<uint64>(kind) << 40) | (static_cast<uint64>(pet ? 1 : 0) << 32) | spellId;
+}
+
+// The bench test a participant belongs to (the lock held)
+BenchRun* FindBenchRun(Player const* player)
+{
+    auto const participant = benchParticipants.find(player->GetGUID().GetCounter());
+    if (participant == benchParticipants.end())
+        return nullptr;
+    auto const bench = benchRuns.find(participant->second);
+    return bench != benchRuns.end() ? &bench->second : nullptr;
+}
+
+BenchDetail& JoinBench(BenchRun& bench, Player* player, std::string_view label = {})
+{
+    EnsureParticipant(bench.run, player);
+    BenchDetail& detail = bench.details[player->GetGUID().GetCounter()];
+    if (!label.empty())
+        detail.label = label;
+    benchParticipants[player->GetGUID().GetCounter()] = bench.owner;
+    return detail;
+}
+
+// Forgets a bench test and everything pointing to it, handing it to out when given (the lock held)
+bool TakeBench(ObjectGuid owner, BenchRun* out = nullptr)
+{
+    auto const itr = benchRuns.find(owner);
+    if (itr == benchRuns.end())
+        return false;
+
+    for (auto const& [guid, detail] : itr->second.details)
+    {
+        (void)detail;
+        if (auto const participant = benchParticipants.find(guid);
+            participant != benchParticipants.end() && participant->second == owner)
+            benchParticipants.erase(participant);
+    }
+    for (ObjectGuid const& dummy : itr->second.dummies)
+        if (auto const known = benchDummies.find(dummy); known != benchDummies.end() && known->second == owner)
+            benchDummies.erase(known);
+    if (out)
+        *out = std::move(itr->second);
+    benchRuns.erase(itr);
+    activeBenchRuns.fetch_sub(1, std::memory_order_relaxed);
+    return true;
+}
+
+void StartBenchClock(BenchRun& bench)
+{
+    if (!bench.firstEventMs)
+        bench.firstEventMs = GameTime::GetGameTimeMS().count();
+}
+
+void AddBenchSpell(BenchDetail& detail, BenchKind kind, bool pet, uint32 spellId, uint64 amount, uint64 overheal,
+    bool crit)
+{
+    BenchTotals& totals = detail.spells[BenchKey(kind, pet, spellId)];
+    ++totals.hits;
+    totals.crits += crit ? 1 : 0;
+    totals.amount += amount;
+    totals.overheal += overheal;
+}
+
+uint32 GetBenchDurationMs(BenchRun const& bench, bool completed)
+{
+    if (!bench.firstEventMs)
+        return 0;
+    uint64 duration = GameTime::GetGameTimeMS().count() - bench.firstEventMs;
+    // A timed test ends on the world update after its time: not a few milliseconds later on paper
+    if (completed && bench.run.timeLimitSeconds)
+        duration = std::min<uint64>(duration, static_cast<uint64>(bench.run.timeLimitSeconds) * IN_MILLISECONDS);
+    return static_cast<uint32>(std::max<uint64>(duration, 1));
+}
+
+// The casts go with the spell's damage, else its healing, else on their own (a buff, a cooldown)
+void MergeBenchCasts(BenchDetail& detail)
+{
+    for (auto const& [key, casts] : detail.casts)
+    {
+        uint64 const healingKey = (key & ((uint64(1) << 40) - 1)) | (static_cast<uint64>(BenchKind::Healing) << 40);
+        if (auto const damage = detail.spells.find(key); damage != detail.spells.end())
+            damage->second.casts += casts;
+        else if (auto const healing = detail.spells.find(healingKey); healing != detail.spells.end())
+            healing->second.casts += casts;
+        else
+            detail.spells[key].casts += casts;
+    }
+    detail.casts.clear();
+}
+
+BenchResult BuildBenchResult(BenchRun const& bench, uint32 durationMs)
+{
+    BenchResult result;
+    result.runId = bench.run.id;
+    result.durationMs = durationMs;
+    for (auto const& [guid, participant] : bench.run.participants)
+    {
+        BenchParticipant entry;
+        entry.guid = ObjectGuid::Create<HighGuid::Player>(guid);
+        entry.name = participant.name;
+        entry.bot = participant.bot;
+        entry.classId = participant.classId;
+        entry.itemLevel = participant.itemLevel;
+        entry.damage = participant.damage;
+        entry.petDamage = participant.petDamage;
+        entry.deaths = participant.deaths;
+        if (auto const detail = bench.details.find(guid); detail != bench.details.end())
+        {
+            entry.label = detail->second.label;
+            entry.healing = detail->second.healing;
+            entry.overhealing = detail->second.overhealing;
+            entry.damageTaken = detail->second.damageTaken;
+            for (auto const& [key, totals] : detail->second.spells)
+            {
+                BenchSpell spell;
+                spell.spellId = static_cast<uint32>(key & 0xFFFFFFFF);
+                spell.pet = ((key >> 32) & 1) != 0;
+                spell.kind = static_cast<BenchKind>(key >> 40);
+                spell.casts = totals.casts;
+                spell.hits = totals.hits;
+                spell.crits = totals.crits;
+                spell.amount = totals.amount;
+                spell.overheal = totals.overheal;
+                entry.spells.push_back(spell);
+            }
+            for (auto const& [target, totals] : detail->second.targets)
+                entry.targets.push_back({ target, totals.entry, totals.damage, totals.hits });
+        }
+        std::sort(entry.spells.begin(), entry.spells.end(), [](BenchSpell const& left, BenchSpell const& right)
+        {
+            return left.amount != right.amount ? left.amount > right.amount : left.casts > right.casts;
+        });
+        result.participants.push_back(std::move(entry));
+    }
+    std::sort(result.participants.begin(), result.participants.end(),
+        [](BenchParticipant const& left, BenchParticipant const& right)
+    {
+        return left.damage != right.damage ? left.damage > right.damage : left.healing > right.healing;
+    });
+    return result;
+}
+
+void AppendBench(CharacterDatabaseTransaction& transaction, BenchRun const& bench)
+{
+    for (auto const& [guid, detail] : bench.details)
+    {
+        transaction->Append(
+            "INSERT INTO mod_combat_bench_participant (run_id, guid, label, healing, overhealing, damage_taken) "
+            "VALUES ({}, {}, '{}', {}, {}, {})",
+            bench.run.id, guid, Escape(detail.label), detail.healing, detail.overhealing, detail.damageTaken);
+        for (auto const& [key, totals] : detail.spells)
+            transaction->Append(
+                "INSERT INTO mod_combat_bench_spell (run_id, guid, kind, spell_id, from_pet, casts, hits, crits, "
+                "amount, overheal) VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+                bench.run.id, guid, static_cast<uint32>(key >> 40), static_cast<uint32>(key & 0xFFFFFFFF),
+                static_cast<uint32>((key >> 32) & 1), totals.casts, totals.hits, totals.crits, totals.amount,
+                totals.overheal);
+    }
 }
 }
 
@@ -342,6 +557,19 @@ void InitializeDatabase()
         "position_z FLOAT NOT NULL DEFAULT 0, details VARCHAR(255) NOT NULL DEFAULT '', PRIMARY KEY (run_id, "
         "sequence), KEY idx_event_type (event_type)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 "
         "COLLATE=utf8mb4_unicode_ci");
+    CharacterDatabase.DirectExecute(
+        "CREATE TABLE IF NOT EXISTS mod_combat_bench_participant ("
+        "run_id BIGINT UNSIGNED NOT NULL, guid INT UNSIGNED NOT NULL, label VARCHAR(64) NOT NULL DEFAULT '', "
+        "healing BIGINT UNSIGNED NOT NULL DEFAULT 0, overhealing BIGINT UNSIGNED NOT NULL DEFAULT 0, damage_taken "
+        "BIGINT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (run_id, guid)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 "
+        "COLLATE=utf8mb4_unicode_ci");
+    CharacterDatabase.DirectExecute(
+        "CREATE TABLE IF NOT EXISTS mod_combat_bench_spell ("
+        "run_id BIGINT UNSIGNED NOT NULL, guid INT UNSIGNED NOT NULL, kind TINYINT UNSIGNED NOT NULL, spell_id INT "
+        "UNSIGNED NOT NULL, from_pet TINYINT UNSIGNED NOT NULL DEFAULT 0, casts INT UNSIGNED NOT NULL DEFAULT 0, "
+        "hits INT UNSIGNED NOT NULL DEFAULT 0, crits INT UNSIGNED NOT NULL DEFAULT 0, amount BIGINT UNSIGNED NOT "
+        "NULL DEFAULT 0, overheal BIGINT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (run_id, guid, kind, spell_id, "
+        "from_pet), KEY idx_spell (spell_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     LOG_INFO("server.loading", ">> Combat telemetry database ready");
 }
 
@@ -480,6 +708,9 @@ void RecordPlayerDeath(Unit* unit)
     std::lock_guard lock(telemetryMutex);
     if (Run* run = FindActiveRun(GetMapKey(map->GetId(), map->GetInstanceId())))
         ++EnsureParticipant(*run, player).deaths;
+    if (activeBenchRuns.load(std::memory_order_relaxed))
+        if (BenchRun* bench = FindBenchRun(player))
+            ++EnsureParticipant(bench->run, player).deaths;
 }
 
 void RecordMythicRouteEvent(Map* map, std::string_view eventType, Unit const* actor, Unit const* target,
@@ -543,5 +774,202 @@ void AbortRaidEncounter(Unit* unit)
     auto itr = raidEncounters.find(GetMapKey(map->GetId(), map->GetInstanceId()));
     if (itr != raidEncounters.end() && itr->second.bossEntry == boss->GetEntry())
         raidEncounters.erase(itr);
+}
+
+void StartBench(BenchSetup const& setup)
+{
+    if (!setup.map || !setup.owner)
+        return;
+
+    std::lock_guard lock(telemetryMutex);
+    TakeBench(setup.owner);
+
+    BenchRun& bench = benchRuns[setup.owner];
+    activeBenchRuns.fetch_add(1, std::memory_order_relaxed);
+    bench.owner = setup.owner;
+    Run& run = bench.run;
+    run.type = RunType::Bench;
+    run.id = CreateRunId();
+    run.mapId = setup.map->GetId();
+    run.instanceId = setup.map->GetInstanceId();
+    run.dungeonId = setup.layout;
+    run.difficulty = setup.scaling;
+    run.keyLevel = setup.level;
+    run.timeLimitSeconds = setup.limitSeconds;
+    run.bossName = setup.label;
+    run.startedEpochMs = GetEpochMilliseconds();
+    run.startedGameMs = GameTime::GetGameTimeMS().count();
+    for (ObjectGuid const& dummy : setup.dummies)
+    {
+        bench.dummies.insert(dummy);
+        benchDummies[dummy] = setup.owner;
+    }
+    for (ObjectGuid const& boss : setup.bossDummies)
+        bench.bossDummies.insert(boss);
+    // Someone taking part in another owner's test leaves it for this one
+    for (auto const& [player, label] : setup.participants)
+        if (player)
+            JoinBench(bench, player, label);
+}
+
+void AddBenchParticipant(ObjectGuid owner, Player* player, std::string_view label)
+{
+    if (!player)
+        return;
+
+    std::lock_guard lock(telemetryMutex);
+    if (auto const itr = benchRuns.find(owner); itr != benchRuns.end())
+        JoinBench(itr->second, player, label);
+}
+
+bool IsBenchRunning(ObjectGuid owner)
+{
+    std::lock_guard lock(telemetryMutex);
+    return benchRuns.contains(owner);
+}
+
+uint32 GetBenchElapsedMs(ObjectGuid owner)
+{
+    std::lock_guard lock(telemetryMutex);
+    auto const itr = benchRuns.find(owner);
+    if (itr == benchRuns.end() || !itr->second.firstEventMs)
+        return 0;
+    return static_cast<uint32>(std::max<uint64>(GameTime::GetGameTimeMS().count() - itr->second.firstEventMs, 1));
+}
+
+bool FinishBench(ObjectGuid owner, bool completed, bool discard, BenchResult& result)
+{
+    BenchRun finished;
+    {
+        std::lock_guard lock(telemetryMutex);
+        if (!TakeBench(owner, &finished))
+            return false;
+    }
+    if (!finished.firstEventMs)
+        return false;
+
+    uint32 const durationMs = GetBenchDurationMs(finished, completed);
+    for (auto& [guid, detail] : finished.details)
+    {
+        (void)guid;
+        MergeBenchCasts(detail);
+    }
+    result = BuildBenchResult(finished, durationMs);
+    if (discard)
+        return true;
+
+    finished.run.elapsedSeconds = std::max<uint32>(1, (durationMs + 500) / IN_MILLISECONDS);
+    finished.run.result = completed ? RunResult::BenchCompleted : RunResult::BenchStopped;
+    CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
+    AppendRun(transaction, finished.run);
+    AppendBench(transaction, finished);
+    CharacterDatabase.AsyncCommitTransaction(transaction);
+    return true;
+}
+
+void RecordLogDamage(Unit* attacker, Unit* victim, SpellInfo const* spellInfo, uint32 damage, uint32 overkill,
+    bool crit, DamageEffectType damageType)
+{
+    if (!activeBenchRuns.load(std::memory_order_relaxed) || !attacker || !victim || !damage)
+        return;
+
+    // Health actually taken: the overkill of a killing blow is not damage anyone could use
+    uint32 const amount = damage > overkill ? damage - overkill : 0;
+    uint32 const spellId = spellInfo ? spellInfo->Id : 0;
+    Player* dealer = attacker->GetCharmerOrOwnerPlayerOrPlayerItself();
+    Player* taker = victim->ToPlayer();
+
+    std::lock_guard lock(telemetryMutex);
+    if (dealer && victim->IsCreature())
+    {
+        auto const dummy = benchDummies.find(victim->GetGUID());
+        auto const itr = dummy != benchDummies.end() ? benchRuns.find(dummy->second) : benchRuns.end();
+        if (itr != benchRuns.end())
+        {
+            BenchRun& bench = itr->second;
+            // Whoever hits a dummy of a test takes part in it
+            BenchDetail& detail = FindBenchRun(dealer) == &bench ? bench.details[dealer->GetGUID().GetCounter()] :
+                JoinBench(bench, dealer);
+            Participant& participant = EnsureParticipant(bench.run, dealer);
+            StartBenchClock(bench);
+
+            bool const pet = attacker != dealer;
+            bool const boss = bench.bossDummies.contains(victim->GetGUID());
+            uint64 const now = GameTime::GetGameTimeMS().count();
+            if (!participant.firstDamageMs)
+                participant.firstDamageMs = now;
+            participant.lastDamageMs = now;
+            participant.damage += amount;
+            participant.bossDamage += boss ? amount : 0;
+            participant.trashDamage += boss ? 0 : amount;
+            participant.petDamage += pet ? amount : 0;
+            ++participant.hits;
+
+            AbilityTotals& ability = participant.abilities[spellId];
+            ability.damage += amount;
+            ability.bossDamage += boss ? amount : 0;
+            ability.trashDamage += boss ? 0 : amount;
+            ++ability.hits;
+            ability.petHits += pet ? 1 : 0;
+            ability.damageType = static_cast<uint8>(damageType);
+
+            TargetTotals& target = participant.targets[victim->GetEntry()];
+            target.damage += amount;
+            ++target.hits;
+            target.boss = target.boss || boss;
+
+            AddBenchSpell(detail, BenchKind::Damage, pet, spellId, amount, 0, crit);
+            BenchTargetTotals& dummyTotals = detail.targets[victim->GetGUID()];
+            dummyTotals.entry = victim->GetEntry();
+            dummyTotals.damage += amount;
+            ++dummyTotals.hits;
+        }
+    }
+
+    if (taker)
+        if (BenchRun* bench = FindBenchRun(taker))
+        {
+            StartBenchClock(*bench);
+            BenchDetail& detail = bench->details[taker->GetGUID().GetCounter()];
+            detail.damageTaken += amount;
+            AddBenchSpell(detail, BenchKind::DamageTaken, false, spellId, amount, 0, crit);
+        }
+}
+
+void RecordLogHeal(Unit* healer, Unit* target, SpellInfo const* spellInfo, uint32 heal, uint32 overheal, bool crit)
+{
+    if (!activeBenchRuns.load(std::memory_order_relaxed) || !healer || !target || !heal)
+        return;
+
+    Player* dealer = healer->GetCharmerOrOwnerPlayerOrPlayerItself();
+    if (!dealer)
+        return;
+
+    std::lock_guard lock(telemetryMutex);
+    BenchRun* bench = FindBenchRun(dealer);
+    if (!bench)
+        return;
+
+    overheal = std::min(overheal, heal);
+    BenchDetail& detail = bench->details[dealer->GetGUID().GetCounter()];
+    detail.healing += heal - overheal;
+    detail.overhealing += overheal;
+    AddBenchSpell(detail, BenchKind::Healing, healer != dealer, spellInfo ? spellInfo->Id : 0, heal - overheal,
+        overheal, crit);
+}
+
+void RecordSpellCast(Unit* caster, SpellInfo const* spellInfo)
+{
+    if (!activeBenchRuns.load(std::memory_order_relaxed) || !caster || !spellInfo)
+        return;
+
+    Player* dealer = caster->GetCharmerOrOwnerPlayerOrPlayerItself();
+    if (!dealer)
+        return;
+
+    std::lock_guard lock(telemetryMutex);
+    if (BenchRun* bench = FindBenchRun(dealer))
+        ++bench->details[dealer->GetGUID().GetCounter()].casts[BenchKey(BenchKind::Damage, caster != dealer,
+            spellInfo->Id)];
 }
 }

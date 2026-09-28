@@ -635,6 +635,26 @@ bool WantsAoeBuild(Player* player)
     return map && map->IsNonRaidDungeon();
 }
 
+// A recommended build a bot keeps wherever it is (the combat bench's single-target or AoE tests), until cleared
+enum class BuildPreset : uint8
+{
+    Auto    = 0,
+    Single  = 1,
+    Aoe     = 2
+};
+
+constexpr char const* PresetKey = "TalentTreeBuildPreset";
+struct ForcedPreset : DataMap::Base
+{
+    BuildPreset preset = BuildPreset::Auto;
+};
+
+BuildPreset GetForcedPreset(Player* player)
+{
+    ForcedPreset const* forced = player->CustomData.Get<ForcedPreset>(PresetKey);
+    return forced ? forced->preset : BuildPreset::Auto;
+}
+
 // A recommended build as the window's digit format
 std::string PresetDigits(ClassTrees const& data, std::vector<PresetPick> const& preset)
 {
@@ -664,7 +684,14 @@ bool FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state
     std::vector<PresetPick> const* preset = nullptr;
     if (specTree && specTree->spec)
     {
-        if (WantsAoeBuild(player) && !specTree->aoeBuild.empty())
+        BuildPreset const forced = GetForcedPreset(player);
+        if (forced == BuildPreset::Aoe && !specTree->aoeBuild.empty())
+            preset = &specTree->aoeBuild;
+        else if (forced == BuildPreset::Single && !specTree->singleBuild.empty())
+            preset = &specTree->singleBuild;
+        else if (forced != BuildPreset::Auto)
+            preset = nullptr;
+        else if (WantsAoeBuild(player) && !specTree->aoeBuild.empty())
             preset = &specTree->aoeBuild;
         else if (specTree->botOrder.empty() && !specTree->singleBuild.empty())
             preset = &specTree->singleBuild;
@@ -1329,6 +1356,32 @@ void SetTalentSpecializationIndex(Player* player, uint8 index)
     ClassTrees const* data = player ? GetTrees(player->getClass()) : nullptr;
     if (data && index < data->specTrees.size())
         SetTalentSpecialization(player, data->specTrees[index]);
+}
+
+// The combat bench (mod-playerbots Script/CombatBench.cpp): a bot of a class on the trees takes the specialization of
+// that index (-1 keeps its own) and its recommended build - 1 the single-target one, 2 the AoE one, 0 back to what it
+// takes by itself (the AoE build in a dungeon) - and keeps it wherever it goes. Returns false for a class without
+// trees, or a player who is not a bot.
+bool SetTalentBuildPreset(Player* player, int8 index, uint8 preset)
+{
+    ClassTrees const* data = player ? GetTrees(player->getClass()) : nullptr;
+    TalentTreeState* state = GetState(player);
+    if (!data || !state || !IsBot(player))
+        return false;
+
+    if (preset == uint8(BuildPreset::Auto))
+        player->CustomData.Erase(PresetKey);
+    else
+        player->CustomData.GetDefault<ForcedPreset>(PresetKey)->preset =
+            preset == uint8(BuildPreset::Aoe) ? BuildPreset::Aoe : BuildPreset::Single;
+
+    uint8 const slot = ActiveSlot(player);
+    if (index >= 0 && std::size_t(index) < data->specTrees.size())
+        state->specializations[slot] = data->specTrees[index];
+    FillBotBuild(player, *data, state);
+    SaveBuild(player, *data, state, slot);
+    ReconcileActive(player, *data, state);
+    return true;
 }
 
 void AddTalentTreeScripts()

@@ -30,6 +30,12 @@ bool IsGroupTank(Player* player);
 // game's best items, the generated variant of that item level. The Mythic+ reward, also the Infinite Dungeon's.
 void GiveMythicLootItem(Player* player, uint32 itemLevel);
 
+// The combat bench's dummies (mod-playerbots Script/CombatBench.cpp, which declares it itself): a creature outside any
+// mythic instance brought to what a creature of its template is in a Mythic+ key of that level (0: Mythique 0), in
+// that role (MythicTuning::CreatureRole) - level, health and weapon damage, the numbers ScaleCreature gives the real
+// ones. Call it on a creature freshly spawned at its template's level: the rank's health rate is read from it.
+void ApplyMythicBenchScaling(Creature* creature, int32 keyLevel, uint8 role);
+
 void AddMythicDungeonScripts();
 
 #endif

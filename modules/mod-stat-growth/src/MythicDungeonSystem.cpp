@@ -325,24 +325,48 @@ uint32 LimitCreatureHeal(Unit* target, Unit const* healer, uint32 heal)
     return heal;
 }
 
-void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCreatureData& data)
+// How a creature is scaled: its key, its role, whether it is a boss, and the world rate of its rank (the core's
+// health over the template's base, read back from what the core just set)
+struct MythicScaling
+{
+    int32 key = 0;
+    MythicTuning::CreatureRole role = MythicTuning::CreatureRole::Elite;
+    bool boss = false;
+    float rankRate = 1.0f;
+};
+
+// A creature of a mythic instance, as the core just created it
+MythicScaling GetMythicScaling(CreatureTemplate const* cinfo, Creature const* creature, MythicCreatureData const& data)
+{
+    CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(data.level, cinfo->unit_class);
+    bool const classic = std::min<uint32>(cinfo->expansion, EXPANSION_WRATH_OF_THE_LICH_KING) == EXPANSION_CLASSIC;
+    MythicScaling scaling;
+    scaling.key = std::max(GetMythicLevel(creature), 0);
+    scaling.role = GetCreatureRole(cinfo, creature, cinfo->ModHealth * (classic ? ClassicHealthScale : 1.0f));
+    scaling.boss = IsMythicBoss(creature);
+    scaling.rankRate = creature->GetCreateHealth() /
+        static_cast<float>(std::max<uint32>(1, stats->GenerateHealth(cinfo)));
+    return scaling;
+}
+
+void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCreatureData& data,
+    MythicScaling const& scaling)
 {
     CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(data.level, cinfo->unit_class);
     uint32 const expansion = std::min<uint32>(cinfo->expansion, EXPANSION_WRATH_OF_THE_LICH_KING);
     bool const classic = expansion == EXPANSION_CLASSIC;
 
-    // Health: the level-80 WotLK base, the template's own modifier and the world rate of its rank (read back from
-    // what the core just set), then the mythic multiplier
-    float const coreBaseHealth = static_cast<float>(std::max<uint32>(1, stats->GenerateHealth(cinfo)));
-    float const rankRate = creature->GetCreateHealth() / coreBaseHealth;
+    // Health: the level-80 WotLK base, the template's own modifier and the world rate of its rank, then the mythic
+    // multiplier
+    float const rankRate = scaling.rankRate;
     float healthModifier = cinfo->ModHealth * (classic ? ClassicHealthScale : 1.0f);
-    MythicTuning::CreatureRole const role = GetCreatureRole(cinfo, creature, healthModifier);
+    MythicTuning::CreatureRole const role = scaling.role;
     RoleFactors const roleFactors = GetRoleFactors(role);
-    if (IsMythicBoss(creature))
+    if (scaling.boss)
         healthModifier = std::max(healthModifier, BossHealthModifierFloor);
 
     // Health compounds with the key (the players' damage does), damage follows the players' health
-    int32 const key = std::max(GetMythicLevel(creature), 0);
+    int32 const key = scaling.key;
     float const levelScaling = Mythic::GetLevelScaling(key);
     float healthScaling = std::pow(levelScaling, roleFactors.healthGrowth) * roleFactors.health;
     // Bosses and mini-bosses grow slower past +10: the players' single-target damage does not keep up with the
@@ -372,7 +396,7 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
                                                                      : WotlkEliteDamageModifier;
         // A boss keeps its own modifier; a classic one is only raised as far as a WotLK elite
         float limit = reference;
-        if (IsMythicBoss(creature))
+        if (scaling.boss)
             limit = classic ? WotlkEliteDamageModifier : cinfo->DamageModifier;
         damageScale = std::min(modifier, limit) / cinfo->DamageModifier;
     }
@@ -495,7 +519,7 @@ public:
         if (!data)
             return;
 
-        ScaleCreature(cinfo, creature, *data);
+        ScaleCreature(cinfo, creature, *data, GetMythicScaling(cinfo, creature, *data));
 
         // Nothing a mythic group kills comes back while the run lasts. Some rooms repopulate fast enough to be a
         // treadmill rather than a fight -- the Halls of Lightning forge puts its slags back every 20 seconds --
@@ -840,6 +864,28 @@ void GiveMythicLootItem(Player* player, uint32 itemLevel)
 bool IsMythicLootless(Creature const* creature)
 {
     return IsMythicCreature(creature) && (!IsMythicBoss(creature) || GetMythicLevel(creature) > 0);
+}
+
+void ApplyMythicBenchScaling(Creature* creature, int32 keyLevel, uint8 role)
+{
+    if (!creature)
+        return;
+
+    CreatureTemplate const* cinfo = creature->GetCreatureTemplate();
+    CreatureBaseStats const* current = sObjectMgr->GetCreatureBaseStats(creature->GetLevel(), cinfo->unit_class);
+    MythicScaling scaling;
+    scaling.key = std::max(keyLevel, 0);
+    scaling.role = static_cast<MythicTuning::CreatureRole>(
+        std::min<uint8>(role, static_cast<uint8>(MythicTuning::CreatureRole::Minion)));
+    scaling.boss = scaling.role == MythicTuning::CreatureRole::Boss;
+    scaling.rankRate = creature->GetCreateHealth() /
+        static_cast<float>(std::max<uint32>(1, current->GenerateHealth(cinfo)));
+
+    MythicCreatureData data;
+    data.level = scaling.boss ? Mythic::BossLevel : Mythic::CreatureLevel;
+    data.originalLevel = data.level;
+    creature->SetLevel(data.level);
+    ScaleCreature(cinfo, creature, data, scaling);
 }
 
 void AddMythicDungeonScripts()

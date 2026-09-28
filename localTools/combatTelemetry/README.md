@@ -23,3 +23,8 @@ TSV files are written to `var/combatTelemetry` and contain raw runs, participant
 breakdowns, target breakdowns, route events, and `pulls.tsv`: the Mythic+ tank route's pulls (`route_pull_*`: packs,
 mobs, seconds to kill, gather point reached, out of line of sight, deaths, the tank's lowest health, the adapted pull
 budget) and the pulls of player tanks watched passively (`real_pull_*`).
+
+Combat bench tests (the Terrain d'essai, `modules/mod-playerbots/COMBAT_BENCH.md`) are runs of `run_type` 3 (result 5
+when the test ran its course, 6 when stopped early). They read the combat log itself, so beside the usual tables they
+fill `mod_combat_bench_participant` and `mod_combat_bench_spell` (casts, crits, healing, overhealing, damage taken),
+exported as `benchParticipants.tsv` and `benchSpells.tsv`.
