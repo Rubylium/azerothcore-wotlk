@@ -1649,10 +1649,20 @@ BotRole RoleOf(Player* bot, BotRole previous)
 
 // The points a bot's board is worth where it is: the content's recommended paragon, else the average the group's
 // real players have spent. Only players on the bot's own map are read: another map updates on another thread.
+// The combat bench's budget for one of its bots (SetBotParagonBudgetOverride)
+struct BotBudgetOverride : public DataMap::Base
+{
+    uint32 points = 0;
+};
+constexpr char const* BotBudgetOverrideKey = "ParagonBenchBudget";
+
 uint32 BotBudget(Player* bot)
 {
     if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled) || Board.empty())
         return 0;
+
+    if (BotBudgetOverride const* bench = bot->CustomData.Get<BotBudgetOverride>(BotBudgetOverrideKey))
+        return bench->points;
 
     if (Map* map = bot->FindMap(); map && map->IsDungeon())
     {
@@ -2065,6 +2075,17 @@ void UpdateBotParagon(Player* bot, uint32 diff)
         return;
     timer->left = BotCheckMs;
     RefreshBot(bot);
+}
+
+void SetBotParagonBudgetOverride(Player* bot, uint32 points)
+{
+    if (!bot || !bot->GetSession() || !bot->GetSession()->IsBot())
+        return;
+    if (points)
+        bot->CustomData.GetDefault<BotBudgetOverride>(BotBudgetOverrideKey)->points = points;
+    else
+        bot->CustomData.Erase(BotBudgetOverrideKey);
+    RefreshBot(bot, true);
 }
 
 void SetParagonInstanceBudget(uint32 instanceId, uint32 points)

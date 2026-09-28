@@ -66,6 +66,10 @@ void RefreshBotParagon(Player* bot);
 // (mod-playerbots RaidFinder.cpp). 0 forgets the instance.
 void SetParagonInstanceBudget(uint32 instanceId, uint32 points);
 
+// The combat bench's (mod-playerbots Script/CombatBench.cpp): a bench bot's board sized for the key or tier the bench
+// scales its dummies to, wherever it stands. 0 hands the bot back to its content's size.
+void SetBotParagonBudgetOverride(Player* bot, uint32 points);
+
 // The extra threat the board's tank nodes give, in percent (mod-stat-growth's tank aura applies it)
 uint32 GetParagonThreatPct(Player* player);
 
