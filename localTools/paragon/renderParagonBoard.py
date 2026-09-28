@@ -145,6 +145,11 @@ def main():
         away = 760 * scale
         norm = math.hypot(s["x"], s["y"]) or 1
         lx, ly = to_px(s["x"] + s["x"] / norm * 760, s["y"] + s["y"] / norm * 760)
+        # Past the sigil's outer edge, but never past the canvas: clamped in by the name's own size
+        left, top, right, bottom = draw.textbbox((0, 0), s["titan"], font=label, anchor="mm")
+        margin = 8
+        lx = min(max(lx, margin - left), size - margin - right)
+        ly = min(max(ly, margin - top), size - margin - bottom)
         draw.text((lx, ly), s["titan"], fill=(230, 215, 170), font=label, anchor="mm")
         if only_sigil:
             draw.text((size / 2, size - 40), "%s - %d stars, %d points" % (

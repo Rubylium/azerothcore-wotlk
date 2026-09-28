@@ -923,12 +923,17 @@ local function createBoard()
         end
     end
 
-    -- Each Titan named just past the outer edge of its sigil
+    -- Each Titan named just past the outer edge of its sigil, held inside the board: the top and bottom sigils' names
+    -- would otherwise run off it (the board is only as tall as the sky). The margin covers the name at its largest.
+    local labelMargin = 300
     for _, sigil in pairs(ParagonBoard.sigils or {}) do
         local distance = math.sqrt(sigil.x * sigil.x + sigil.y * sigil.y)
         local reach = distance + 780
-        addScaledLabel(sigil.titan, BOARD_WIDTH / 2 + sigil.x * reach / distance,
-            BOARD_HEIGHT / 2 + sigil.y * reach / distance, 26, 0.55, 10, 0.85)
+        local x = BOARD_WIDTH / 2 + sigil.x * reach / distance
+        local y = BOARD_HEIGHT / 2 + sigil.y * reach / distance
+        x = math.max(labelMargin, math.min(BOARD_WIDTH - labelMargin, x))
+        y = math.max(labelMargin, math.min(BOARD_HEIGHT - labelMargin, y))
+        addScaledLabel(sigil.titan, x, y, 26, 0.55, 10, 0.85)
     end
 
     for _, link in ipairs(ParagonBoard.links) do

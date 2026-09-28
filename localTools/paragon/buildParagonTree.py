@@ -893,31 +893,38 @@ class Sigil:
 # The twelve runes. Each draws its own Titan's or Keeper's sign in the Ulduar manner - circles, rays, triangles, arcs -
 # and every one is symmetric about its axis, so the crown of them reads as one design round the sky.
 def sigil_khazgoroth():
-    """The forge: a square set on its point within the circle, crossed by the anvil's two axes"""
+    """The forge: a square on its point within the circle, a cross joining its opposite sides' middles, and a small
+    square at the heart"""
     s = Sigil()
-    ring = s.circle(SIGIL_RADIUS, 12)
+    ring = s.circle(SIGIL_RADIUS, 16)
     heart = s.heart()
-    corners = [ring[0], ring[3], ring[6], ring[9]]                    # -90, 0, 90, 180
+    corners = [ring[0], ring[4], ring[8], ring[12]]                   # -90, 0, 90, 180
+    middles = [s.polar(SIGIL_RADIUS / math.sqrt(2.0), -45.0 + 90.0 * i, NOTABLE) for i in range(4)]
+    inner = s.circle(150, 4, phase=-45.0, kind=NOTABLE)
     for index in range(4):
-        s.line(corners[index], corners[(index + 1) % 4], NOTABLE)
-    for corner in corners:
-        s.line(heart, corner, NOTABLE)
+        s.link(corners[index], middles[index])
+        s.link(middles[index], corners[(index + 1) % 4])
+        # The cross: each side's middle through the small square to the heart
+        s.line(middles[index], inner[index], NOTABLE)
+        s.link(inner[index], heart)
     return s
 
 
 def sigil_tyr():
-    """Justice: the upright blade through the scales' triangle"""
+    """Justice: an upright triangle within the circle, one blade straight up through its heart, a guard across it"""
     s = Sigil()
     ring = s.circle(SIGIL_RADIUS, 12)
     heart = s.heart()
     top, left, right = ring[6], ring[10], ring[2]                      # 90, 210, 330
     base = s.add(0.0, -SIGIL_RADIUS / 2.0, NOTABLE)
-    s.add(0.0, SIGIL_RADIUS / 2.0, NOTABLE)
-    s.line(left, top, NOTABLE)
-    s.line(top, right, NOTABLE)
-    s.line(right, left, NOTABLE)
-    s.line(ring[0], base, NOTABLE)
-    s.line(base, top, NOTABLE)
+    guard = s.add(0.0, 200.0, NOTABLE)
+    s.add(0.0, 400.0, NOTABLE)
+    for side in (-1, 1):
+        s.link(guard, s.add(side * 160.0, 200.0, NOTABLE))
+    s.line(left, top, NOTABLE, step=360)
+    s.line(top, right, NOTABLE, step=360)
+    s.line(right, left, NOTABLE, step=360)
+    s.line(ring[0], top, NOTABLE)                                     # the blade, through base, heart and guard
     return s
 
 
@@ -962,24 +969,22 @@ def sigil_thorim():
 
 
 def sigil_golganneth():
-    """The sky and the sea: a dome of two arcs above the heart and its reflection below, on one axis"""
+    """The sky and the sea: the horizon across the circle, two concentric arcs of sky above it and their reflection,
+    the sea, below"""
     s = Sigil()
     ring = s.circle(SIGIL_RADIUS, 12)
     heart = s.heart()
-    sky = s.circle(450, 5, kind=NOTABLE, degrees=(30, 150))
-    cloud = s.circle(290, 3, kind=NOTABLE, degrees=(45, 135))
-    sea = s.circle(450, 5, kind=NOTABLE, degrees=(-150, -30))
-    swell = s.circle(290, 3, kind=NOTABLE, degrees=(-135, -45))
-    # The axis, from the entry up through both waters to the top of the sky
-    for a, b in ((ring[0], sea[2]), (sea[2], swell[1]), (swell[1], heart), (heart, cloud[1]), (cloud[1], sky[2]),
-                 (sky[2], ring[6])):
-        s.link(a, b)
-    # Each arc's ends reach out: the outer ones to the circle, the inner ones to the outer ones
-    for outer, inner, left, right in ((sky, cloud, ring[4], ring[8]), (sea, swell, ring[10], ring[2])):
-        s.link(outer[0], left)
-        s.link(outer[-1], right)
-        s.link(inner[0], outer[0])
-        s.link(inner[-1], outer[-1])
+    s.line(ring[9], ring[3])                                          # the horizon, 180 to 0, through the heart
+    near = {side: s.add(side * 300.0, 0.0) for side in (-1, 1)}
+    for sign in (1, -1):
+        outer = s.circle(430, 5, kind=NOTABLE, degrees=(sign * 30, sign * 150))
+        inner = s.circle(240, 3, kind=NOTABLE, degrees=(sign * 45, sign * 135))
+        s.link(outer[2], ring[6] if sign > 0 else ring[0])
+        s.link(outer[0], near[1])
+        s.link(outer[-1], near[-1])
+        s.link(inner[0], near[1])
+        s.link(inner[-1], near[-1])
+    del heart
     return s
 
 
@@ -1001,14 +1006,14 @@ def sigil_hodir():
 
 
 def sigil_mimiron():
-    """The engine: a toothed wheel round a turning hub"""
+    """The engine: twelve even teeth round a wheel, a hub ring within it on six spokes"""
     s = Sigil()
     wheel = s.circle(430, 12)
     heart = s.heart()
     hub = s.circle(200, 6, kind=NOTABLE)
+    for index in range(12):
+        s.link(wheel[index], s.polar(SIGIL_RADIUS, -90.0 + 30.0 * index))
     for index in range(6):
-        tooth = s.polar(SIGIL_RADIUS, -90.0 + 60.0 * index, NOTABLE)
-        s.link(tooth, wheel[index * 2])
         s.link(hub[index], wheel[index * 2])
         s.link(heart, hub[index])
     return s
@@ -1062,20 +1067,19 @@ def sigil_eonar():
 
 
 def sigil_freya():
-    """Nature: the tree rune, its trunk rooted below the heart and its branches under a crown of leaves"""
+    """Nature: the tree rune within the circle - a trunk straight up, three pairs of branches at 45 degrees, and
+    three pairs of roots mirroring them below"""
     s = Sigil()
     ring = s.circle(SIGIL_RADIUS, 12)
     heart = s.heart()
-    crown = s.circle(420, 5, kind=NOTABLE, degrees=(30, 150))
-    root = s.add(0.0, -SIGIL_RADIUS / 2.0, NOTABLE)
-    s.line(ring[0], root, NOTABLE)
-    s.link(root, heart)
-    s.line(heart, crown[2], NOTABLE)
-    s.link(crown[2], ring[6])
-    s.line(heart, ring[4], NOTABLE)                                   # through the crown's end at 30 degrees
-    s.line(heart, ring[8], NOTABLE)                                   # and at 150
-    s.line(root, ring[1], NOTABLE)                                    # the roots, down to -60 and -120
-    s.line(root, ring[11], NOTABLE)
+    s.line(ring[0], ring[6], NOTABLE, step=210)                       # the trunk, bottom to top, every 200
+    for height in (0.0, 200.0, 400.0):
+        for sign in (1, -1):                                          # the branches up, the roots down
+            origin = s.add(0.0, sign * height)
+            reach = 250.0 if height < 400.0 else 180.0
+            for side in (-1, 1):
+                s.link(origin, s.add(side * reach * 0.7071, sign * (height + reach * 0.7071), NOTABLE))
+    del heart
     return s
 
 
@@ -1127,6 +1131,25 @@ def pantheon_plain(branch_name, stat, scale, icons, kind, cost):
     return {"effect": E_STAT, "value": value, "icon": icon,
             "name": "%s céleste" % branch_name if kind == MINOR else "%s céleste majeur" % branch_name,
             "branch": branch_name, "description": "+%d %s" % (value, STAT_NAME[stat])}
+
+
+def check_symmetry(name, sigil):
+    """A rune must be its own mirror about its axis: every star and every line reflected (u to -u) is one of its own"""
+    def find(u, v):
+        for index, (pu, pv, _) in enumerate(sigil.points):
+            if math.hypot(pu - u, pv - v) < 3:
+                return index
+        return None
+    mirror = {}
+    for index, (u, v, _) in enumerate(sigil.points):
+        other = find(-u, v)
+        if other is None:
+            raise SystemExit("sigil %s is not symmetric: no mirror for the star at %d, %d" % (name, u, v))
+        mirror[index] = other
+    for a, b in sigil.edges:
+        if (min(mirror[a], mirror[b]), max(mirror[a], mirror[b])) not in sigil.edges:
+            raise SystemExit("sigil %s is not symmetric: no mirror for the line %s - %s" % (
+                name, sigil.points[a][:2], sigil.points[b][:2]))
 
 
 def build_pantheon(nodes, links, apotheoses):
@@ -1199,6 +1222,7 @@ def build_pantheon(nodes, links, apotheoses):
         angle, stat, scale, _, icons = branch_of[branch_name][:5]
         degrees = angle + offset
         sigil = design()
+        check_symmetry(titan, sigil)
         radial = (math.cos(math.radians(degrees)), math.sin(math.radians(degrees)))
         tangent = (-radial[1], radial[0])
         cx, cy = SIGIL_CENTRE * radial[0], SIGIL_CENTRE * radial[1]
