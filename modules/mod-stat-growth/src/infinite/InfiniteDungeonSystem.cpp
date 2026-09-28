@@ -104,7 +104,8 @@ constexpr uint32 SPELL_LOG_ARCANE = 1449;       // Arcane Explosion
 constexpr uint32 SPELL_LOG_HOLY = 26573;        // Consecration
 
 constexpr float BubbleRadius = 6.0f;
-constexpr float HeartPickupRange = 2.5f;
+// Within the rune's glow (display 5991 at size 1)
+constexpr float HeartPickupRange = 3.0f;
 // A heart rising during the fight: this far from the player it is for, and at least this far from a guardian
 constexpr float CombatHeartMinDistance = 4.0f;
 constexpr float CombatHeartMaxDistance = 8.0f;
@@ -1254,12 +1255,13 @@ bool DropHeart(Run& run, Map* map, Position const& where, uint32 lifetimeMs = 0)
     return true;
 }
 
+// Deleted, not despawned: a summoned gameobject without owner nor spell and no respawn delay only goes back to ready
+// on DespawnOrUnsummon (GameObject::Update, GO_JUST_DEACTIVATED) and stays on the ground for good
 void RemoveHeart(Map* map, Heart const& heart)
 {
-    if (GameObject* orb = map->GetGameObject(heart.orb))
-        orb->DespawnOrUnsummon();
-    if (GameObject* light = map->GetGameObject(heart.light))
-        light->DespawnOrUnsummon();
+    for (ObjectGuid const& guid : { heart.orb, heart.light })
+        if (GameObject* object = map->GetGameObject(guid); object && object->IsInWorld())
+            object->Delete();
 }
 
 // Creatures that died since the last look: each may leave a heart where it fell
