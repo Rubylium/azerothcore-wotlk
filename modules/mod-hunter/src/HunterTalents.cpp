@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <list>
 #include <unordered_map>
@@ -199,7 +200,7 @@ constexpr float BeastHitPower = 0.35f;          // a wild beast's melee swing (2
 constexpr float StompPower = 0.35f;             // Piétinement, each enemy
 constexpr float BrutalCompanionShare = 1.5f;    // of a Kill Command hit
 constexpr float BloodshedTickPower = 0.18f;     // each 2 s of Effusion de sang
-constexpr float WildfireSplashPower = 0.45f;    // Bombe de feu sauvage on each other enemy
+constexpr float WildfireSplashPower = 0.8f;     // Bombe de feu sauvage on each other enemy
 constexpr float FlankingPetPower = 1.0f;        // the pet's half of Frappe de flanc
 constexpr float SpearheadTickPower = 0.2f;      // each 2 s of Fer de lance
 constexpr float TermsPower = 0.6f;              // Termes de l'engagement's hit
@@ -207,6 +208,19 @@ constexpr float WailingSplashShare = 0.4f;
 constexpr float TrickShotsShare = 0.55f;
 constexpr float WindArrowShare = 0.2f;
 constexpr float KillCleaveShare = 0.8f;
+// Packs (the combat bench, Fire mage as the reference): Multi-Shot reaches MultiShotMaxTargets (its chain, in
+// SpellInfoCorrections.cpp), each hit MultiShotHitFactor of its own and, past AreaFullTargets enemies,
+// sqrt(AreaFullTargets / enemies) of that - Beast Cleave too. Its old 3 and Beast Cleave's 6 left the Hunter's
+// damage flat from five enemies on.
+constexpr uint8 MultiShotMaxTargets = 12;
+constexpr float MultiShotHitFactor = 0.85f;
+constexpr uint8 AreaFullTargets = 5;
+constexpr uint8 BeastCleaveMaxTargets = 11;     // besides the pet's own target
+constexpr uint8 TrickShotsMaxTargets = 7;       // besides the one hit
+constexpr float WildfireRange = 10.0f;
+constexpr uint8 WildfireMaxTargets = 11;        // besides the one hit
+constexpr float WildfireBurnFactor = 1.5f;      // its burn, on every enemy of the pack
+constexpr float ButcheryFactor = 1.4f;
 
 constexpr uint32 HoldCheckMs = 250;
 constexpr uint32 BoostWindowMs = 3000;
@@ -397,6 +411,12 @@ void Focus(Player* player, int32 amount)
 {
     if (amount && player->getPowerType() == POWER_FOCUS)
         player->ModifyPower(POWER_FOCUS, amount);
+}
+
+// Each hit's share on a pack of `enemies`: whole up to AreaFullTargets, then sqrt(AreaFullTargets / enemies)
+float AreaFalloff(uint8 enemies)
+{
+    return enemies <= AreaFullTargets ? 1.0f : std::sqrt(float(AreaFullTargets) / float(enemies));
 }
 
 // Enemies of the player within range of center, center left out
@@ -653,11 +673,13 @@ void CallWildBeast(Player* player, Unit* target)
 // Beast Cleave and Ordre sauvage: a pet's hit reaches the enemies near its target
 void Cleave(Unit* pet, Player* player, Unit* victim, uint32 damage, float share)
 {
-    int32 const amount = Amount(float(damage) * share);
+    std::list<Unit*> const enemies = EnemiesNear(player, victim, CleaveRange);
+    int32 const amount = Amount(float(damage) * share *
+        AreaFalloff(uint8(std::min<std::size_t>(enemies.size(), BeastCleaveMaxTargets) + 1)));
     uint8 hit = 0;
-    for (Unit* enemy : EnemiesNear(player, victim, CleaveRange))
+    for (Unit* enemy : enemies)
     {
-        if (hit++ >= 6)
+        if (hit++ >= BeastCleaveMaxTargets)
             break;
         pet->CastCustomSpell(enemy, SPELL_BEAST_CLEAVE_HIT, &amount, nullptr, nullptr, true, nullptr, nullptr,
             pet->GetGUID());
@@ -1012,7 +1034,8 @@ public:
             {
                 uint8 targets = 1;
                 if (target)
-                    targets = uint8(std::min<std::size_t>(5, 1 + EnemiesNear(player, target, 10.0f).size()));
+                    targets = uint8(std::min<std::size_t>(MultiShotMaxTargets,
+                        1 + EnemiesNear(player, target, 10.0f).size()));
                 state->multiShotTargets = targets;
                 state->multiShotUntilMs = Now() + BoostWindowMs;
                 ConsumePrecise(player, state, firstRank);
@@ -1170,6 +1193,8 @@ public:
         switch (firstRank)
         {
             case SPELL_MULTI_SHOT_R1:
+                if (Now() <= state->multiShotUntilMs)
+                    factor *= MultiShotHitFactor * AreaFalloff(state->multiShotTargets);
                 // Salve meurtrière
                 if (uint8 const salvo = Rank(player, TALENT_DEADLY_SALVO_1, TALENT_DEADLY_SALVO_2))
                     if (state->multiShotTargets >= 3 && Now() <= state->multiShotUntilMs)
@@ -1183,12 +1208,16 @@ public:
                 if (state->rapidDouble)
                     factor *= 2.0f;
                 break;
+            case SPELL_BUTCHERY:
+                factor *= ButcheryFactor;
+                break;
             case SPELL_WILDFIRE_BOMB:
                 // Tactique de guérilla
                 if (player->HasAura(TALENT_GUERRILLA))
                     factor *= 1.5f;
                 break;
             case SPELL_WILDFIRE_BURN:
+                factor *= WildfireBurnFactor;
                 // Bombes infusées
                 if (player->HasAura(TALENT_INFUSED_BOMBS))
                     factor *= 1.25f;
@@ -1348,29 +1377,29 @@ private:
         return factor;
     }
 
-    // Tirs de ricochet: up to 4 other enemies within 10 yd take 55%
+    // Tirs de ricochet: up to TrickShotsMaxTargets other enemies within 10 yd take 55%
     static void Ricochet(Player* player, Unit* victim, uint32 damage)
     {
         int32 const amount = Amount(float(damage) * TrickShotsShare);
         uint8 hit = 0;
         for (Unit* enemy : EnemiesNear(player, victim, 10.0f))
         {
-            if (hit++ >= 4)
+            if (hit++ >= TrickShotsMaxTargets)
                 break;
             player->CastCustomSpell(enemy, SPELL_TRICK_SHOTS_HIT, &amount, nullptr, nullptr, true);
         }
     }
 
-    // Wildfire Bomb burst: the enemies within 8 yd of the one it hit, and all of them burning
+    // Wildfire Bomb burst: the enemies within WildfireRange of the one it hit, and all of them burning
     static void WildfireBomb(Player* player, Unit* victim)
     {
         int32 amount = Amount(RangedPower(player) * WildfireSplashPower);
         player->ApplySpellMod(SPELL_WILDFIRE_BOMB, SPELLMOD_DAMAGE, amount);
-        std::list<Unit*> enemies = EnemiesNear(player, victim, 8.0f);
+        std::list<Unit*> enemies = EnemiesNear(player, victim, WildfireRange);
         uint8 hit = 0;
         for (Unit* enemy : enemies)
         {
-            if (hit++ >= 8)
+            if (hit++ >= WildfireMaxTargets)
                 break;
             player->CastCustomSpell(enemy, SPELL_WILDFIRE_SPLASH, &amount, nullptr, nullptr, true);
         }
@@ -1380,7 +1409,7 @@ private:
         hit = 0;
         for (Unit* enemy : enemies)
         {
-            if (hit++ >= 9 || !enemy->IsAlive())
+            if (hit++ > WildfireMaxTargets || !enemy->IsAlive())
                 break;
             player->CastSpell(enemy, SPELL_WILDFIRE_BURN, true);
             if (infused)

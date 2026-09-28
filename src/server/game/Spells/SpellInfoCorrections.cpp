@@ -224,6 +224,14 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->AttributesEx2 |= SPELL_ATTR2_IGNORE_LINE_OF_SIGHT;
     });
 
+    // Multi-Shot: up to 12 enemies (mod-hunter's packs: its damage falls off past five, HunterTalents.cpp)
+    ApplySpellFix({ 2643, 14288, 14289, 14290, 25294, 27021, 49047, 49048 }, [](SpellInfo* spellInfo)
+    {
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            if (spellInfo->Effects[i].ChainTarget)
+                spellInfo->Effects[i].ChainTarget = 12;
+    });
+
     // Divine Storm (Damage)
     ApplySpellFix({ 53385 }, [](SpellInfo* spellInfo)
     {
