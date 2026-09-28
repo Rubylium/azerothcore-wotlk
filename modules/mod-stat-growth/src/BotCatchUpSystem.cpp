@@ -33,8 +33,10 @@ constexpr uint32 MaxDisplayStacks = 200;
 
 constexpr uint32 SampleMs = 1000;           // damage summed per second
 constexpr float WindowMs = 30000.0f;        // and smoothed over about this much combat
-constexpr uint32 AdjustMs = 5000;           // a bot's multiplier moves this often
-constexpr float StepFactor = 1.10f;         // by at most 10% each time
+constexpr uint32 AdjustMs = 2000;           // a bot's multiplier moves this often
+// Up quickly, down slowly: up to 25% more each time (x3 in about 10 s), and at most 10% less every 5 s, as before
+constexpr float StepUpFactor = 1.25f;
+constexpr float StepDownFactor = 1.039f;    // 1.10 ^ (AdjustMs / 5000)
 constexpr uint32 MinCombatSamples = 8;      // seconds of combat before a character's damage is trusted
 constexpr float DecayHalfLifeMs = 300000.0f; // out of combat, the bonus halves every 5 minutes
 constexpr float MinRawDps = 1.0f;
@@ -195,13 +197,13 @@ void Adjust(Player* bot, CatchUpTracker* tracker, uint32 elapsed)
     float const limit = maxMultiplier > 0.0f ? maxMultiplier : std::numeric_limits<float>::max();
     float const wanted = statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::BotCatchUpTargetShare) * average;
     float const target = std::clamp(tracker->dps > MinRawDps ? wanted / tracker->dps :
-        std::min(limit, tracker->multiplier * StepFactor), 1.0f, limit);
+        std::min(limit, tracker->multiplier * StepUpFactor), 1.0f, limit);
     tracker->groupDps = average;
     tracker->target = target;
 
     float const current = tracker->multiplier;
-    float const next = target > current ? std::min(target, current * StepFactor)
-                                        : std::max(target, current / StepFactor);
+    float const next = target > current ? std::min(target, current * StepUpFactor)
+                                        : std::max(target, current / StepDownFactor);
     SetMultiplier(bot, tracker, next);
 }
 

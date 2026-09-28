@@ -173,7 +173,8 @@ BotEssences.Enabled = 1
 # Temporary catch-up until every class's bot has a proper rotation: in dungeons
 # and raids, a damage-dealing bot moves its damage multiplier towards TargetShare
 # of the real damage dealers' average DPS (smoothed over about 30 s of combat),
-# 10% at a time every 5 s, from 1 up to MaxMultiplier (0: no limit). Shown on
+# up to 25% every 2 s and down 10% every 5 s at most, from 1 up to
+# MaxMultiplier (0: no limit). Shown on
 # the bot as stacks of Chaotic Charge, one per percent up to 200 (the bonus goes
 # on past it); .botcatchup lists it.
 BotCatchUp.Enabled = 1
