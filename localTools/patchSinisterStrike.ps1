@@ -2010,6 +2010,39 @@ $effectNameOutput = Get-StringDbcOutput $effectNameDbc
 [IO.File]::WriteAllBytes($serverEffectNamePath, $effectNameOutput)
 [IO.File]::WriteAllBytes($clientEffectNamePath, $effectNameOutput)
 
+# --- Paragon glyph icons (Item.dbc) --------------------------------------------------------------------------
+#
+# The 30 paragon glyphs (mod-stat-growth ParagonSystem.cpp) are items 13642-13671: rows the client's Item.dbc already
+# had, empty "ornate box" rows of class 15, with no template on the server. An item's icon comes from this row's
+# display id, so each gets an inscription glyph's (localTools\paragon\glyphItemDisplays.json, written by
+# buildParagonTree.py). Rebuilt from the untouched backup like the rest; the server reads the same file.
+$serverItemPath = Join-Path $serverDbcRoot 'Item.dbc'
+$itemBackupPath = Join-Path $serverDbcRoot 'Item.before-paragon-glyphs.dbc'
+$clientItemPath = Join-Path $clientDbcRoot 'Item.dbc'
+$glyphDisplayPath = Join-Path $repoRoot 'localTools\paragon\glyphItemDisplays.json'
+if (-not (Test-Path -LiteralPath $itemBackupPath)) {
+    Copy-Item -LiteralPath $serverItemPath -Destination $itemBackupPath
+}
+$itemBytes = [IO.File]::ReadAllBytes($itemBackupPath)
+Assert-Wdbc $itemBytes 'Item.dbc'
+$itemCount = [BitConverter]::ToInt32($itemBytes, 4)
+$itemRecordSize = [BitConverter]::ToInt32($itemBytes, 12)
+$itemOffsets = @{}
+for ($index = 0; $index -lt $itemCount; ++$index) {
+    $itemOffsets[[int][BitConverter]::ToUInt32($itemBytes, 20 + $index * $itemRecordSize)] = 20 + $index * $itemRecordSize
+}
+$glyphDisplays = Get-Content -LiteralPath $glyphDisplayPath -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($glyph in $glyphDisplays) {
+    if (-not $itemOffsets.ContainsKey([int]$glyph.item)) {
+        throw "Item.dbc has no row $($glyph.item) for the paragon glyph $($glyph.icon)."
+    }
+    # Field 5: DisplayInfoID
+    [BitConverter]::GetBytes([uint32]$glyph.display).CopyTo($itemBytes, $itemOffsets[[int]$glyph.item] + 5 * 4)
+}
+[IO.File]::WriteAllBytes($serverItemPath, $itemBytes)
+[IO.File]::WriteAllBytes($clientItemPath, $itemBytes)
+Write-Host "Gave $(@($glyphDisplays).Count) paragon glyph items their inscription icons (Item.dbc)."
+
 $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'CombatRogue_*.tga' -ErrorAction SilentlyContinue).Count
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize
 Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisualCount new, $($customVisualKits.Count) new kits)."

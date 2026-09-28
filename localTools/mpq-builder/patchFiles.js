@@ -15,6 +15,8 @@ function getPatchFiles(repoRoot) {
     const files = [
         'Spell.dbc', 'SkillLineAbility.dbc', 'SpellIcon.dbc', 'SpellVisual.dbc', 'SpellVisualKit.dbc', 'SoundEntries.dbc',
         'SpellVisualEffectName.dbc',
+        // The paragon glyphs' icons (localTools/patchSinisterStrike.ps1)
+        'Item.dbc',
     ].map((name) => ({
         source: path.join(dbcRoot, name),
         archive: `DBFilesClient\\${name}`,
