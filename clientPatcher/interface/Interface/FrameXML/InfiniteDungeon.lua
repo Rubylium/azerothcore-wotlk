@@ -13,18 +13,21 @@
 --
 -- Protocol: prefix "Infinite", tab-separated, whispered to oneself (InfiniteDungeonSystem.cpp documents it too).
 --   server  HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best> <clock ms>
---               <par ms> <floors down> <chest floor>
+--               <par ms> <floors down> <chest floor> <variant>
 --               clock: the floor's time so far, running while fighting (counted on from the message), frozen once
 --               cleared or fallen; floors down: where the portal leads once cleared (0 before); chest floor: the
---               checkpoint whose chest stands beside the portal (0 none)
---           ARRIVE <floor> <arena> <ladder> <step> <paragon> <floors down>  the jump that led here (1-3)
+--               checkpoint whose chest stands beside the portal (0 none); variant: the floor's shape (VARIANTS)
+--           ARRIVE <floor> <arena> <ladder> <step> <paragon> <floors down> <variant>  floors down: the jump (1-3)
 --           PROG <foes down> <foes> <boss down> <hearts lying> <hearts taken> <deaths> <partner> <partner state>
---           REWARD <floor> <gold copper> <experience> <essences> <gear 0/1> <gear floor passed over>   before CLEAR
+--                <guardians down> <guardians> <waves come> <waves>     waves: the ambush's (0: none)
+--           REWARD <floor> <gold copper> <experience> <essences> <gear 0/1> <gear floor passed over>
+--                  <chance piece 0/1> <hard fight 0/1> <gear chance percent>                     before CLEAR
 --           CLEAR <floor> <checkpoint reached 0/1> <floors down> <clock ms> <par ms> <checkpoint floor>
 --           CHEST <essences> <paragon>
 --           SUMMARY <ladder> <start> <floor> <cleared> <best> <checkpoint> <gold> <experience> <essences> <items>
 --                   <paragon> <floors passed over> <deepest floor behind>       before END
---           Fields are only ever appended: a missing one reads as before the speed skips.
+--           Fields are only ever appended: a missing one reads as before (no speed skips, a standard floor, no
+--           chance piece).
 --           END <reason> <floor>              reason: 0 left, 1 everyone fell, 2 never arrived
 --           PORTAL, PORTALOFF, KEEPER, KEEPDUO, KEEPREC, KEEPEND, KEEPER_CLOSE: InfiniteDungeonKeeper.lua
 --   client  STATE                              asks for the tracker again (entering the world)
@@ -55,6 +58,12 @@ local CHECKPOINT_FLOORS, GEAR_FLOORS = 10, 5
 -- TwoFloorsParPct)
 local THREE_FLOORS_SHARE, TWO_FLOORS_SHARE = 1 / 3, 0.5    -- 20 s and 30 s of the 1:00 par (InfiniteDungeonScaling.h)
 local LADDER_GEARING = 1
+-- Every floor's gear chance, and a treasure floor's bonus on it (InfiniteDungeonScaling.h FloorGearChance,
+-- TreasureGearBonus)
+local FLOOR_GEAR_CHANCE, TREASURE_GEAR_BONUS = 20, 40
+-- The floors' shapes (InfiniteDungeonScaling.h FloorVariant)
+local VARIANT_STANDARD, VARIANT_GUARDIAN, VARIANT_HORDE, VARIANT_ELITES, VARIANT_GAUNTLET, VARIANT_AMBUSH,
+    VARIANT_TWINS, VARIANT_TREASURE = 0, 1, 2, 3, 4, 5, 6, 7
 local STATE_TRAVELLING, STATE_BUBBLE, STATE_FIGHTING, STATE_CLEARED, STATE_FALLEN = 0, 1, 2, 3, 4
 local REASON_LEFT, REASON_FALLEN = 0, 1
 local PARTNER_NONE, PARTNER_ALIVE, PARTNER_DEAD = 0, 1, 2
@@ -144,6 +153,22 @@ local TEXT = french and {
     arriveSwift = "Descente rapide : +%d étages",
     skippedGear = "l'équipement de l'étage %d",
     summarySkipped = "%d |4étage sauté:étages sautés;",
+    guardians = "Gardiens de l'étage",
+    waves = "Vagues d'embuscade",
+    waveAlert = "Vague d'embuscade %d/%d",
+    hardFight = "Âpre combat : butin amélioré (%d %%)",
+    gearChance = "Équipement : %d %% de chance à chaque étage",
+    treasureGear = "Salle au trésor : %d %% de chance d'équipement",
+    -- The floors' shapes: the name, the arrival banner's kicker (in capitals) and what it means
+    variants = {
+        [VARIANT_GUARDIAN] = { "Gardien seul", "GARDIEN SEUL", "Un seul ennemi, plus coriace" },
+        [VARIANT_HORDE] = { "Horde", "HORDE", "Des meutes nombreuses, plus faibles" },
+        [VARIANT_ELITES] = { "Paire d'élites", "PAIRE D'ÉLITES", "Deux élites gardent le gardien" },
+        [VARIANT_GAUNTLET] = { "Couloir", "COULOIR", "Des meutes tout le long de la salle" },
+        [VARIANT_AMBUSH] = { "Embuscade", "EMBUSCADE", "Des renforts surgissent pendant le combat du gardien" },
+        [VARIANT_TWINS] = { "Deux gardiens", "DEUX GARDIENS", "Deux gardiens, moins robustes chacun" },
+        [VARIANT_TREASURE] = { "Salle au trésor", "SALLE AU TRÉSOR", "Peu d'ennemis, équipement plus probable" },
+    },
 } or {
     title = "Infinite Dungeon",
     kicker = "INFINITE DUNGEON",
@@ -216,6 +241,21 @@ local TEXT = french and {
     arriveSwift = "Swift descent: +%d floors",
     skippedGear = "floor %d's gear",
     summarySkipped = "%d |4floor:floors; skipped",
+    guardians = "The floor's guardians",
+    waves = "Ambush waves",
+    waveAlert = "Ambush wave %d/%d",
+    hardFight = "Hard-fought floor: better loot (%d%%)",
+    gearChance = "Gear: %d%% chance on every floor",
+    treasureGear = "Treasure room: %d%% gear chance",
+    variants = {
+        [VARIANT_GUARDIAN] = { "Lone guardian", "LONE GUARDIAN", "A single, tougher foe" },
+        [VARIANT_HORDE] = { "Horde", "HORDE", "Many packs, each weaker" },
+        [VARIANT_ELITES] = { "Elite pair", "ELITE PAIR", "Two elites stand before the guardian" },
+        [VARIANT_GAUNTLET] = { "Gauntlet", "GAUNTLET", "Packs all along the room" },
+        [VARIANT_AMBUSH] = { "Ambush", "AMBUSH", "Reinforcements join the guardian's fight" },
+        [VARIANT_TWINS] = { "Twin guardians", "TWIN GUARDIANS", "Two guardians, each less sturdy" },
+        [VARIANT_TREASURE] = { "Treasure room", "TREASURE ROOM", "Few foes, better odds of gear" },
+    },
 }
 
 local function Send(body)
@@ -573,10 +613,12 @@ InfiniteDungeonUI = {
 -- What the server last said -----------------------------------------------------------------------------------------
 
 local hud = { floor = 1, checkpoint = 0, ladder = 0, step = 0, paragon = 0, state = STATE_TRAVELLING, arena = "",
-    level = 0, players = 1, best = 0, clock = 0, clockAt = 0, par = 0, down = 0, chestFloor = 0 }
+    level = 0, players = 1, best = 0, clock = 0, clockAt = 0, par = 0, down = 0, chestFloor = 0,
+    variant = VARIANT_STANDARD }
 local progress = { foesDown = 0, foes = 0, bossDown = false, hearts = 0, heartsTaken = 0, deaths = 0, partner = "",
-    partnerState = PARTNER_NONE }
+    partnerState = PARTNER_NONE, bossesDown = 0, bosses = 0, waves = 0, wavesTotal = 0 }
 InfiniteDungeonUI.hud = hud
+InfiniteDungeonUI.FLOOR_GEAR_CHANCE = FLOOR_GEAR_CHANCE
 local chestOpenedOn = 0     -- the floor whose chest was opened
 local pendingReward         -- the floor's REWARD, shown by its CLEAR
 local pendingSummary        -- the run's SUMMARY, shown by its END
@@ -622,6 +664,11 @@ local function FloorsDownAt(seconds)
         return 2
     end
     return 1
+end
+
+-- The floor's shape: its name, kicker and meaning (nil for a standard floor or an unknown one)
+local function VariantText(variant)
+    return TEXT.variants[variant]
 end
 
 -- -----------------------------------------------------------------------------------------------------------------
@@ -806,6 +853,7 @@ local function CreateTracker()
 
     tracker.divider1 = DividerRow()
     tracker.foes = Objective(Row(17))
+    tracker.waves = Objective(Row(17))
     tracker.boss = Objective(Row(17))
     tracker.portal = Objective(Row(17))
     tracker.chest = Objective(Row(17))
@@ -908,8 +956,8 @@ local function CreateTracker()
     portalRow:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     tracker.order = { header, arena, step, status, timer, timerBar, timerMarks, tracker.divider1, tracker.foes,
-        tracker.boss, tracker.portal, tracker.chest, tracker.divider2, barLabel, barRow, gear, tracker.divider3, footer,
-        partner, leave }
+        tracker.waves, tracker.boss, tracker.portal, tracker.chest, tracker.divider2, barLabel, barRow, gear,
+        tracker.divider3, footer, partner, leave }
     -- Folded: the header, what to do now, the clock and the bar
     tracker.folded = { [header] = true, [status] = true, [timer] = true, [timerBar] = true, [barRow] = true }
 
@@ -1055,8 +1103,14 @@ local function RefreshTracker(animate)
     header.record:SetText(format(TEXT.record, hud.best))
     header.wanted = true
 
-    tracker.arena.text:SetText(hud.arena or "")
-    tracker.arena.wanted = hud.arena ~= nil and hud.arena ~= ""
+    local arenaLine = hud.arena or ""
+    local variant = VariantText(hud.variant)
+    if variant then
+        local name = Colored(variant[1], AMBER)
+        arenaLine = arenaLine ~= "" and (arenaLine .. "  ·  " .. name) or name
+    end
+    tracker.arena.text:SetText(arenaLine)
+    tracker.arena.wanted = arenaLine ~= ""
 
     if hud.ladder == LADDER_GEARING then
         local text = format(TEXT.step, hud.step + 1)
@@ -1094,9 +1148,16 @@ local function RefreshTracker(animate)
     tracker.foes.wanted = not building and progress.foes > 0
     SetObjective(tracker.foes, TEXT.foes, format("%d/%d", progress.foesDown, progress.foes),
         progress.foes > 0 and progress.foesDown >= progress.foes, hud.state == STATE_FIGHTING)
+    -- The ambush's waves: how many came of how many
+    tracker.waves.wanted = not building and progress.wavesTotal > 0
+    SetObjective(tracker.waves, TEXT.waves, format("%d/%d", progress.waves, progress.wavesTotal),
+        progress.wavesTotal > 0 and progress.waves >= progress.wavesTotal, hud.state == STATE_FIGHTING)
+    -- The guardian, or the twins (an older server: one)
     tracker.boss.wanted = not building
-    SetObjective(tracker.boss, TEXT.guardian, progress.bossDown and "1/1" or "0/1", progress.bossDown,
-        hud.state == STATE_FIGHTING and progress.foesDown >= progress.foes)
+    local bosses = max(1, progress.bosses)
+    local bossesDown = progress.bossDown and bosses or min(progress.bossesDown, bosses)
+    SetObjective(tracker.boss, bosses > 1 and TEXT.guardians or TEXT.guardian, format("%d/%d", bossesDown, bosses),
+        progress.bossDown, hud.state == STATE_FIGHTING and progress.foesDown >= progress.foes)
     local cleared = hud.state == STATE_CLEARED
     tracker.portal.wanted = cleared
     SetObjective(tracker.portal, TEXT.portal, FloorsDown() > 1 and "+" .. FloorsDown() or nil, false, true)
@@ -1119,6 +1180,9 @@ local function RefreshTracker(animate)
     if gearFloor == hud.floor and not cleared then
         tracker.gear.text:SetText(TEXT.gearHere)
         tracker.gear.text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    elseif hud.variant == VARIANT_TREASURE and not cleared then
+        tracker.gear.text:SetText(format(TEXT.treasureGear, min(100, FLOOR_GEAR_CHANCE + TREASURE_GEAR_BONUS)))
+        tracker.gear.text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
     else
         tracker.gear.text:SetText(format(TEXT.gearNext, gearFloor, gearFloor - hud.floor))
         tracker.gear.text:SetTextColor(SOFT[1], SOFT[2], SOFT[3])
@@ -1128,6 +1192,8 @@ local function RefreshTracker(animate)
     tracker.divider3.wanted = true
     local footer = tracker.footer
     footer.hearts:SetText(format(TEXT.heartsLine, progress.hearts, progress.heartsTaken))
+    footer.hearts:SetTextColor((progress.hearts > 0 and GOLD or SOFT)[1], (progress.hearts > 0 and GOLD or SOFT)[2],
+        (progress.hearts > 0 and GOLD or SOFT)[3])
     footer.deaths:SetText(tostring(progress.deaths))
     footer.skull:SetAlpha(progress.deaths > 0 and 1 or 0.45)
     footer.wanted = true
@@ -1311,7 +1377,9 @@ local function RewardLine(reward)
     if reward.essences > 0 then
         tinsert(parts, "+" .. format(TEXT.essences, reward.essences))
     end
-    if reward.gear then
+    if reward.gear and reward.bonusGear then
+        tinsert(parts, Colored(format(TEXT.items, 2), GOLD))
+    elseif reward.gear or reward.bonusGear then
         tinsert(parts, Colored(TEXT.gearPiece, GOLD))
     end
     if reward.skippedGear > 0 then
@@ -1320,8 +1388,9 @@ local function RewardLine(reward)
     return table.concat(parts, "  ·  ")
 end
 
-local function ShowArrival(floor, arena, ladder, step, paragon, down)
+local function ShowArrival(floor, arena, ladder, step, paragon, down, variant)
     local kicker, detail = TEXT.kicker, nil
+    local shape = VariantText(variant)
     local steps
     if ladder == LADDER_GEARING then
         steps = format(TEXT.step, step + 1)
@@ -1333,6 +1402,20 @@ local function ShowArrival(floor, arena, ladder, step, paragon, down)
         kicker, detail = TEXT.kickerCheckpoint, TEXT.arriveCheckpoint
     elseif floor % GEAR_FLOORS == 0 then
         kicker, detail = TEXT.kickerGear, TEXT.arriveGear
+    elseif shape then
+        -- The floor's shape in the kicker, its meaning below
+        kicker = shape[2]
+    end
+    local subtitle = arena
+    if shape then
+        local meaning = Colored(shape[3], AMBER)
+        if kicker == shape[2] then
+            detail = detail and (meaning .. "  ·  " .. detail) or meaning
+        else
+            -- A checkpoint or gear floor keeps its kicker: the shape goes by the room's name
+            subtitle = (arena ~= "" and (arena .. "  ·  ") or "") .. Colored(shape[1], AMBER)
+            detail = detail and (detail .. "  ·  " .. meaning) or meaning
+        end
     end
     if steps then
         detail = detail and (steps .. "  ·  " .. detail) or steps
@@ -1342,7 +1425,7 @@ local function ShowArrival(floor, arena, ladder, step, paragon, down)
         local swift = Colored(format(TEXT.arriveSwift, down), GOLD)
         detail = detail and (swift .. "  ·  " .. detail) or swift
     end
-    ShowBanner("floor", kicker, format(TEXT.floor, floor), arena, detail, 4, SOUND .. "ChallengeStart.ogg")
+    ShowBanner("floor", kicker, format(TEXT.floor, floor), subtitle, detail, 4, SOUND .. "ChallengeStart.ogg")
 end
 
 -- down: how far the portal leads; clock and par in milliseconds (0: an older server); checkpointFloor: the checkpoint
@@ -1351,8 +1434,13 @@ local function ShowCleared(floor, checkpoint, down, clock, par, checkpointFloor)
     local reward = pendingReward and pendingReward.floor == floor and pendingReward or nil
     pendingReward = nil
     local line = RewardLine(reward)
+    -- A long, hard floor raised the gear chance: said on its own line, whatever it gave
+    if reward and reward.hardFight then
+        local hard = Colored(format(TEXT.hardFight, reward.gearChance), AMBER)
+        line = (line and line ~= "") and (line .. "\n" .. hard) or hard
+    end
     local timeLine = par > 0 and format(TEXT.clearedIn, FormatClock(clock / 1000), FormatClock(par / 1000)) or nil
-    local gearSound = reward and (reward.gear or reward.skippedGear > 0)
+    local gearSound = reward and (reward.gear or reward.bonusGear or reward.skippedGear > 0)
     if checkpoint then
         local reached = checkpointFloor > 0 and checkpointFloor or floor
         local kicker = format(TEXT.kickerCleared, floor)
@@ -1700,7 +1788,7 @@ local function Number(value, default)
 end
 
 local function Handle(message)
-    local kind, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o = strsplit("\t", message)
+    local kind, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, q = strsplit("\t", message)
     if kind == "HUD" then
         local previousFloor = hud.floor
         hud.floor = Number(a, 1)
@@ -1719,8 +1807,10 @@ local function Handle(message)
         hud.down = Number(n)
         -- An older server: the chest stood on the checkpoint floors only
         hud.chestFloor = o and Number(o) or (hud.floor % CHECKPOINT_FLOORS == 0 and hud.floor or 0)
+        hud.variant = Number(q, VARIANT_STANDARD)
         if hud.floor ~= previousFloor then
             progress.foesDown, progress.foes, progress.bossDown, progress.hearts = 0, 0, false, 0
+            progress.bossesDown, progress.bosses, progress.waves, progress.wavesTotal = 0, 0, 0, 0
         end
         local fresh = not (tracker and tracker:IsShown())
         SetTrackerShown(true)
@@ -1729,7 +1819,7 @@ local function Handle(message)
             InfiniteDungeonUI.onHud(hud.state)
         end
     elseif kind == "PROG" then
-        local previousDeaths = progress.deaths
+        local previousDeaths, previousHearts, previousWaves = progress.deaths, progress.hearts, progress.waves
         progress.foesDown = Number(a)
         progress.foes = Number(b)
         progress.bossDown = c == "1"
@@ -1738,15 +1828,36 @@ local function Handle(message)
         progress.deaths = Number(f)
         progress.partner = g or ""
         progress.partnerState = Number(h)
-        if progress.deaths > previousDeaths and tracker and tracker:IsShown() then
+        progress.bossesDown = Number(i)
+        progress.bosses = Number(j)
+        progress.waves = Number(k)
+        progress.wavesTotal = Number(l)
+        local shown = tracker and tracker:IsShown()
+        if progress.deaths > previousDeaths and shown then
+            PlaySound("RaidWarning")
+        end
+        -- An ambush wave came in: said in the middle of the screen, in gold
+        if progress.waves > previousWaves and progress.wavesTotal > 0 and shown then
+            UIErrorsFrame:AddMessage(format(TEXT.waveAlert, progress.waves, progress.wavesTotal), GOLD[1], GOLD[2],
+                GOLD[3], 1, 3)
             PlaySound("RaidWarning")
         end
         RefreshTracker(true)
+        -- A heart appeared: a ping, and the tracker's heart pops
+        if progress.hearts > previousHearts and shown and hud.state == STATE_FIGHTING then
+            PlaySound("MapPing")
+            local icon = tracker.footer.heart
+            Tween(0.45, 0, function(p)
+                local size = 16 + 12 * (1 - OutCubic(p))
+                icon:SetSize(size, size)
+            end, nil, "heartPop")
+        end
     elseif kind == "ARRIVE" then
-        ShowArrival(Number(a, 1), b or "", Number(c), Number(d), Number(e), Number(f, 1))
+        ShowArrival(Number(a, 1), b or "", Number(c), Number(d), Number(e), Number(f, 1), Number(g, VARIANT_STANDARD))
     elseif kind == "REWARD" then
         pendingReward = { floor = Number(a), gold = Number(b), experience = Number(c), essences = Number(d),
-            gear = e == "1", skippedGear = Number(f) }
+            gear = e == "1", skippedGear = Number(f), bonusGear = g == "1", hardFight = h == "1",
+            gearChance = Number(i, FLOOR_GEAR_CHANCE) }
     elseif kind == "CLEAR" then
         ShowCleared(Number(a, 1), b == "1", Number(c, 1), Number(d), Number(e), Number(f))
     elseif kind == "CHEST" then

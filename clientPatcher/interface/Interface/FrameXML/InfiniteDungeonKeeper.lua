@@ -97,7 +97,7 @@ local TEXT = UI.french and {
     remindCheckpointTitle = "Points de passage",
     remindCheckpoint = "Tous les 10 étages",
     remindGearTitle = "Équipement",
-    remindGear = "Tous les 5 étages",
+    remindGear = "Sûr tous les 5 étages, 20 % sinon",
     confirmTitle = "Recommencer à l'étage 1 ?",
     confirmText = "Votre point de passage (étage %d) est conservé : une descente normale repartira toujours de "
         .. "l'étage %d.",
@@ -164,7 +164,7 @@ local TEXT = UI.french and {
     remindCheckpointTitle = "Checkpoints",
     remindCheckpoint = "Every 10 floors",
     remindGearTitle = "Gear",
-    remindGear = "Every 5 floors",
+    remindGear = "Sure every 5 floors, else 20%",
     confirmTitle = "Start over from floor 1?",
     confirmText = "Your checkpoint (floor %d) is kept: an ordinary descent will always start again from floor %d.",
     confirmSolo = "Start over alone",

@@ -88,6 +88,11 @@ constexpr uint32 GO_PORTAL = 920100;
 constexpr uint32 GO_HEART = 920101;
 constexpr uint32 GO_CHEST = 920102;
 constexpr uint32 GO_PORTAL_LIGHT = 920103;
+constexpr uint32 GO_HEART_LIGHT = 920104;
+// A heart taken: the heal is logged as a Healing Potion's (the floating number and the combat log), with Flash Heal's
+// impact on the player (its sparkle and sound)
+constexpr uint32 SPELL_HEART_LOG = 441;
+constexpr uint32 KIT_HEART_PICKUP = 2730;
 
 // Spells the telegraphed abilities are named as in the combat log, by the look of their area
 constexpr uint32 SPELL_LOG_PHYSICAL = 845;      // Cleave
@@ -99,7 +104,16 @@ constexpr uint32 SPELL_LOG_ARCANE = 1449;       // Arcane Explosion
 constexpr uint32 SPELL_LOG_HOLY = 26573;        // Consecration
 
 constexpr float BubbleRadius = 6.0f;
-constexpr float HeartPickupRange = 2.0f;
+constexpr float HeartPickupRange = 2.5f;
+// A heart rising during the fight: this far from the player it is for, and at least this far from a guardian
+constexpr float CombatHeartMinDistance = 4.0f;
+constexpr float CombatHeartMaxDistance = 8.0f;
+constexpr float CombatHeartBossClearance = 8.0f;
+constexpr uint32 CombatHeartRetryMs = 2000;
+// The twin guardians stand this far to each side of the boss spot
+constexpr float TwinSpacing = 4.5f;
+// The ambush's waves come in at least this far from every player
+constexpr float AmbushClearance = 10.0f;
 constexpr float PartnerRange = 40.0f;
 // The keeper's window (KEEPER) closes past this, and its requests are refused from further
 constexpr float KeeperRange = 12.0f;
@@ -202,6 +216,31 @@ struct Member
     uint32 deepest = 0;             // the deepest floor behind it this run, cleared or passed over
 };
 
+// A creature of the floor: its role, and the variant's share of the run's health and damage for it (kept to scale it
+// again when the bubble drops)
+struct FloorMob
+{
+    ObjectGuid guid;
+    MobRole role = MobRole::Trash;
+    float health = 1.0f;
+    float damage = 1.0f;
+};
+
+// A heart on the ground, its light, and when it fades (0: never, a kill's)
+struct Heart
+{
+    ObjectGuid orb;
+    ObjectGuid light;
+    uint64 expiresAt = 0;
+};
+
+// The damage a member took from the floor's creatures since the floor started, for the hard floors' loot
+struct FloorDamage : public DataMap::Base
+{
+    uint64 taken = 0;
+};
+constexpr char const* FloorDamageKey = "InfiniteDungeonDamage";
+
 struct Run
 {
     uint32 id = 0;
@@ -215,6 +254,9 @@ struct Run
     std::size_t arena = 0;
     std::deque<std::size_t> recentArenas;       // the last rooms played, not drawn again soon (PickArena)
     std::optional<std::size_t> forcedArena;
+    FloorVariant variant = FloorVariant::Standard;
+    std::optional<FloorVariant> lastVariant;    // the floor before's: never drawn twice in a row (PickVariant)
+    std::optional<FloorVariant> forcedVariant;
     uint32 mapId = 0;
     uint32 instanceId = 0;          // the floor's instance, once someone arrived
     FloorState state = FloorState::Travelling;
@@ -224,11 +266,17 @@ struct Run
     // The floor
     ObjectGuid anchor;
     ObjectGuid ring;
-    ObjectGuid boss;
-    std::vector<std::pair<ObjectGuid, MobRole>> creatures;
+    std::vector<ObjectGuid> bosses;     // the guardian, or the twins: the floor is cleared when all are down
+    std::vector<FloorMob> creatures;
     std::set<ObjectGuid> fallen;
     std::set<ObjectGuid> deadMembers;   // members dead right now, to count each fall once
-    std::vector<ObjectGuid> hearts;
+    std::vector<Heart> hearts;
+    uint32 heartClockMs = 0;        // combat time towards the next heart rising in the fight
+    uint32 nextHeartMs = 0;
+    uint32 wavesSpawned = 0;        // the ambush's waves come so far, of wavesTotal
+    uint32 wavesTotal = 0;
+    float damageTaken = 0.0f;       // at the clear: the members' average damage taken, in maximum healths
+    uint32 hardFightChance = 0;     // at the clear: the gear chance a long, hard floor earned (0: it was not one)
     std::optional<Position> portal; // where the way down opened, once cleared
     float healthFactor = 1.0f;      // the roles' and the floor's
     float damageFactor = 1.0f;
@@ -507,15 +555,18 @@ uint32 LastCheckpoint(uint32 floor)
 // The messages, prefix "Infinite", tab-separated (InfiniteDungeon.lua reads them; fields are only ever appended, and
 // the client takes a missing one as the old behaviour):
 //   HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best> <clock ms> <par ms>
-//       <floors down> <chest floor>
+//       <floors down> <chest floor> <variant>
 //       clock: the floor's time so far (running while fighting, frozen once cleared or fallen, 0 before); floors
 //       down: where the portal leads once cleared (1-3, 0 before); chest floor: the checkpoint whose chest stands
-//       beside the portal (0 none)
-//   ARRIVE <floor> <arena> <ladder> <step> <paragon> <floors down>        floors down: the jump that led here (1-3)
+//       beside the portal (0 none); variant: the floor's shape (FloorVariant, InfiniteDungeonScaling.h; 0 standard)
+//   ARRIVE <floor> <arena> <ladder> <step> <paragon> <floors down> <variant>
+//                                                                         floors down: the jump that led here (1-3)
 //   PROG <foes down> <foes> <boss down 0/1> <hearts on the ground> <hearts taken> <deaths> <partner> <partner state>
-//        partner state: 0 no partner, 1 alive on the floor, 2 dead, 3 not on the floor
+//        <guardians down> <guardians> <waves come> <waves>
+//        partner state: 0 no partner, 1 alive on the floor, 2 dead, 3 not on the floor; waves: the ambush's (0 none)
 //   REWARD <floor> <gold copper> <experience> <essences> <gear 0/1> <gear floor passed over, 0 none>
-//                                                                         a floor cleared, before CLEAR
+//          <chance piece 0/1> <hard fight 0/1> <gear chance percent>     a floor cleared, before CLEAR
+//          gear: the sure piece of a gear floor; chance piece: the one every floor may give (both can come)
 //   CLEAR <floor> <checkpoint reached 0/1> <floors down> <clock ms> <par ms> <checkpoint floor reached>
 //   CHEST <essences> <paragon points>                                    the checkpoint chest opened
 //   SUMMARY <ladder> <start floor> <floor> <floors cleared> <best> <checkpoint> <gold> <experience> <essences>
@@ -561,14 +612,15 @@ std::string ClockText(uint32 ms)
     return Acore::StringFormat("{}:{:02}", seconds / 60, seconds % 60);
 }
 
-// HUD floor checkpoint ladder step paragon state arena level players best clock par down chest
+// HUD floor checkpoint ladder step paragon state arena level players best clock par down chest variant
 void SendHud(Player* player, Run const& run)
 {
-    SendAddon(player, Acore::StringFormat("HUD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor,
-        LastCheckpoint(run.floor), static_cast<uint32>(run.ladder), GetStep(run.floor),
+    SendAddon(player, Acore::StringFormat("HUD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+        run.floor, LastCheckpoint(run.floor), static_cast<uint32>(run.ladder), GetStep(run.floor),
         GetRecommendedParagon(run.ladder, run.floor), static_cast<uint32>(run.state), ArenaName(player, ArenaOf(run)),
         run.level, run.members.size(), ProgressOf(player).best[static_cast<std::size_t>(run.ladder)],
-        FloorClockMs(run), run.parMs, run.state == FloorState::Cleared ? run.floorsDown : 0, run.chestFloor));
+        FloorClockMs(run), run.parMs, run.state == FloorState::Cleared ? run.floorsDown : 0, run.chestFloor,
+        static_cast<uint32>(run.variant)));
 }
 
 void SendHudToAll(Run const& run, Map const* map)
@@ -583,19 +635,24 @@ void SendProgress(Run& run, Map const* map)
 {
     uint32 foes = 0;
     uint32 foesDown = 0;
-    bool bossDown = run.state == FloorState::Cleared;
-    for (auto const& [guid, role] : run.creatures)
+    uint32 bosses = 0;
+    uint32 bossesDown = 0;
+    bool const cleared = run.state == FloorState::Cleared;
+    for (FloorMob const& mob : run.creatures)
     {
-        bool const down = run.fallen.count(guid) != 0;
-        if (role == MobRole::Boss)
+        bool const down = run.fallen.count(mob.guid) != 0;
+        if (mob.role == MobRole::Boss)
         {
-            bossDown = bossDown || down;
+            ++bosses;
+            if (down || cleared)
+                ++bossesDown;
             continue;
         }
         ++foes;
         if (down)
             ++foesDown;
     }
+    bool const bossDown = cleared || (bosses > 0 && bossesDown >= bosses);
 
     for (Member& member : run.members)
     {
@@ -616,8 +673,9 @@ void SendProgress(Run& run, Map const* map)
             partnerState = partner->IsInWorld() && partner->FindMap() == map ? (partner->IsAlive() ? 1 : 2) : 3;
         }
 
-        std::string line = Acore::StringFormat("PROG\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", foesDown, foes,
-            bossDown ? 1 : 0, run.hearts.size(), run.heartsTaken, run.deaths, partnerName, partnerState);
+        std::string line = Acore::StringFormat("PROG\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", foesDown,
+            foes, bossDown ? 1 : 0, run.hearts.size(), run.heartsTaken, run.deaths, partnerName, partnerState,
+            bossesDown, bosses, run.wavesSpawned, run.wavesTotal);
         if (line == member.lastProgress)
             continue;
         member.lastProgress = line;
@@ -757,20 +815,61 @@ Position GroundPoint(Map* map, float x, float y, float height, float orientation
     return Position(x, y, z + 0.1f, orientation);
 }
 
-TempSummon* SpawnMob(Run const& run, Creature* anchor, uint32 entry, MobRole role, Position const& position)
+// The variant's share of the run's health and damage for a creature of that role
+std::pair<float, float> VariantShare(FloorVariant variant, MobRole role)
 {
-    SpawnContext const context{ run.level, role, run.healthFactor, run.damageFactor, run.referenceHealth,
-        run.meleeFromReference };
+    VariantTuning const& tuning = GetVariantTuning(variant);
+    switch (role)
+    {
+        case MobRole::Boss:
+            return { tuning.bossHealth, tuning.bossDamage };
+        case MobRole::Elite:
+            return { tuning.eliteHealth, tuning.eliteDamage };
+        default:
+            return { tuning.trashHealth, tuning.trashDamage };
+    }
+}
+
+// Spawns a floor creature, sized for the run and the floor's variant, and counts it among the floor's
+TempSummon* SpawnMob(Run& run, Creature* anchor, uint32 entry, MobRole role, Position const& position)
+{
+    auto const [health, damage] = VariantShare(run.variant, role);
+    SpawnContext const context{ run.level, role, run.healthFactor * health, run.damageFactor * damage,
+        run.referenceHealth, run.meleeFromReference };
     CurrentSpawn = &context;
     TempSummon* creature = anchor->SummonCreature(entry, position, TEMPSUMMON_MANUAL_DESPAWN);
     CurrentSpawn = nullptr;
+    if (creature)
+        run.creatures.push_back({ creature->GetGUID(), role, health, damage });
     return creature;
 }
 
-// The spots the packs stand on: the arena's trash spots the boss spot sees, away from the bubble, and else points
-// on the way from the bubble to the boss
-std::vector<Position> PackSpots(ArenaInfo const& arena, Creature* anchor)
+// A point on the way from the bubble to the boss spot, `fraction` of the way, `side` yards off to its left (on the
+// ground; the line itself when the side point is out of the boss spot's sight)
+Position PathPoint(ArenaInfo const& arena, Creature* anchor, float fraction, float side)
 {
+    Position const entry = SpotPosition(arena.entry);
+    Position const boss = SpotPosition(arena.boss);
+    float const x = entry.GetPositionX() + (boss.GetPositionX() - entry.GetPositionX()) * fraction;
+    float const y = entry.GetPositionY() + (boss.GetPositionY() - entry.GetPositionY()) * fraction;
+    float const z = entry.GetPositionZ() + (boss.GetPositionZ() - entry.GetPositionZ()) * fraction;
+    if (side != 0.0f)
+    {
+        float const across = entry.GetAbsoluteAngle(&boss) + float(M_PI) / 2.0f;
+        Position const offset = GroundPoint(anchor->GetMap(), x + side * std::cos(across), y + side * std::sin(across),
+            z, 0.0f);
+        if (anchor->IsWithinLOS(offset.GetPositionX(), offset.GetPositionY(), offset.GetPositionZ() + 2.0f))
+            return offset;
+    }
+    return GroundPoint(anchor->GetMap(), x, y, z, 0.0f);
+}
+
+// The spots `count` packs stand on: the arena's trash spots the boss spot sees, away from the bubble and from each
+// other, and else points on the way from the bubble to the boss
+std::vector<Position> PackSpots(ArenaInfo const& arena, Creature* anchor, std::size_t count)
+{
+    if (!count)
+        return {};
     Position const entry = SpotPosition(arena.entry);
     Position const boss = SpotPosition(arena.boss);
     std::vector<Position> spots;
@@ -793,21 +892,52 @@ std::vector<Position> PackSpots(ArenaInfo const& arena, Creature* anchor)
                 [&spot](Position const& other) { return other.GetExactDist2d(&spot) < PackSpacing; }))
             continue;
         chosen.push_back(spot);
-        if (chosen.size() == 2)
+        if (chosen.size() >= count)
             break;
     }
 
-    // Too few: the way from the bubble to the boss
-    for (float fraction : { 0.45f, 0.72f })
+    // Too few: the way from the bubble to the boss (and beside it), half as far apart as the room's own spots may be
+    constexpr std::array<std::pair<float, float>, 6> Fallbacks = { {
+        { 0.45f, 0.0f }, { 0.72f, 0.0f }, { 0.6f, 6.0f }, { 0.6f, -6.0f }, { 0.85f, 5.0f }, { 0.35f, -5.0f } } };
+    for (auto const& [fraction, side] : Fallbacks)
     {
-        if (chosen.size() >= 2)
+        if (chosen.size() >= count)
             break;
-        float const x = entry.GetPositionX() + (boss.GetPositionX() - entry.GetPositionX()) * fraction;
-        float const y = entry.GetPositionY() + (boss.GetPositionY() - entry.GetPositionY()) * fraction;
-        float const z = entry.GetPositionZ() + (boss.GetPositionZ() - entry.GetPositionZ()) * fraction;
-        chosen.push_back(GroundPoint(anchor->GetMap(), x, y, z, 0.0f));
+        Position const point = PathPoint(arena, anchor, fraction, side);
+        if (point.GetExactDist2d(&boss) < PackSpacing / 2.0f || std::any_of(chosen.begin(), chosen.end(),
+                [&point](Position const& other) { return other.GetExactDist2d(&point) < PackSpacing / 2.0f; }))
+            continue;
+        chosen.push_back(point);
+    }
+    // A cramped room: the way to the boss, however close
+    for (float fraction : { 0.45f, 0.72f, 0.6f })
+    {
+        if (chosen.size() >= count)
+            break;
+        chosen.push_back(PathPoint(arena, anchor, fraction, 0.0f));
     }
     return chosen;
+}
+
+// The gauntlet: `count` spots spread evenly along the way from the bubble to the boss, zigzagging from side to side,
+// the first out of the bubble's reach; the room's own spots when the way is too short to spread them
+std::vector<Position> GauntletSpots(ArenaInfo const& arena, Creature* anchor, std::size_t count)
+{
+    Position const entry = SpotPosition(arena.entry);
+    Position const boss = SpotPosition(arena.boss);
+    float const length = entry.GetExactDist2d(&boss);
+    float const first = std::max(0.3f, length > 0.0f ? PackBubbleClearance / length : 1.0f);
+    float const last = 0.82f;
+    if (count < 2 || first > last - 0.2f)
+        return PackSpots(arena, anchor, count);
+
+    std::vector<Position> spots;
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        float const fraction = first + (last - first) * static_cast<float>(index) / static_cast<float>(count - 1);
+        spots.push_back(PathPoint(arena, anchor, fraction, index % 2 ? -3.0f : 3.0f));
+    }
+    return spots;
 }
 
 void SpawnPack(Run& run, Creature* anchor, Position const& spot, std::vector<uint32> const& entries, bool elite)
@@ -826,10 +956,88 @@ void SpawnPack(Run& run, Creature* anchor, Position const& spot, std::vector<uin
         position.SetOrientation(position.GetAbsoluteAngle(&entry));
 
         uint32 const creatureEntry = isElite ? arena.eliteEntry : entries[elite ? index - 1 : index];
-        if (TempSummon* creature = SpawnMob(run, anchor, creatureEntry, isElite ? MobRole::Elite : MobRole::Trash,
-                position))
-            run.creatures.emplace_back(creature->GetGUID(), isElite ? MobRole::Elite : MobRole::Trash);
+        SpawnMob(run, anchor, creatureEntry, isElite ? MobRole::Elite : MobRole::Trash, position);
     }
+}
+
+// `count` trash entries of the arena, drawn at random
+std::vector<uint32> DrawTrash(ArenaInfo const& arena, std::size_t count)
+{
+    std::vector<uint32> entries;
+    for (uint32 creatureEntry : arena.trashEntries)
+        if (creatureEntry)
+            entries.push_back(creatureEntry);
+    std::vector<uint32> drawn;
+    for (std::size_t index = 0; index < count && !entries.empty(); ++index)
+        drawn.push_back(Acore::Containers::SelectRandomContainerElement(entries));
+    return drawn;
+}
+
+// A pack of the floor: its trash, and whether an elite leads it
+struct PackPlan
+{
+    std::size_t trash;
+    bool elite;
+};
+
+// The packs of each variant (InfiniteDungeonScaling.h FloorVariant has the budgets): alone, then with a partner
+std::vector<PackPlan> PacksOf(FloorVariant variant, bool duo)
+{
+    switch (variant)
+    {
+        case FloorVariant::Guardian:
+            return {};
+        case FloorVariant::Horde:
+            return { { duo ? 4u : 3u, false }, { duo ? 4u : 3u, false }, { duo ? 4u : 3u, false } };
+        case FloorVariant::ElitePair:
+            return { { duo ? 1u : 0u, true }, { duo ? 1u : 0u, true } };
+        case FloorVariant::Gauntlet:
+            return { { duo ? 2u : 1u, false }, { duo ? 2u : 1u, false }, { 0, true }, { 1, false } };
+        case FloorVariant::Ambush:
+            return { { 2, false } };
+        case FloorVariant::Twins:
+        case FloorVariant::Treasure:
+            return { { duo ? 3u : 2u, false } };
+        default:
+            // Alone, packs of two; with a partner, of three. The second pack is led by the elite.
+            return { { duo ? 3u : 2u, false }, { duo ? 2u : 1u, true } };
+    }
+}
+
+// The variants' names, as `.infinite variant` takes them
+constexpr std::array<std::string_view, static_cast<std::size_t>(FloorVariant::Count)> VariantNames = {
+    "standard", "guardian", "horde", "elites", "gauntlet", "ambush", "twins", "treasure"
+};
+
+std::string_view VariantName(FloorVariant variant)
+{
+    std::size_t const index = static_cast<std::size_t>(variant);
+    return index < VariantNames.size() ? VariantNames[index] : "standard";
+}
+
+// The floor's shape: a weighted draw among the variants, never the previous floor's (a GM's choice first)
+FloorVariant PickVariant(Run const& run)
+{
+    if (run.forcedVariant)
+        return *run.forcedVariant;
+
+    uint32 total = 0;
+    for (std::size_t index = 0; index < static_cast<std::size_t>(FloorVariant::Count); ++index)
+        if (!run.lastVariant || static_cast<std::size_t>(*run.lastVariant) != index)
+            total += VariantTunings[index].weight;
+    if (!total)
+        return FloorVariant::Standard;
+
+    uint32 roll = urand(0, total - 1);
+    for (std::size_t index = 0; index < static_cast<std::size_t>(FloorVariant::Count); ++index)
+    {
+        if (run.lastVariant && static_cast<std::size_t>(*run.lastVariant) == index)
+            continue;
+        if (roll < VariantTunings[index].weight)
+            return static_cast<FloorVariant>(index);
+        roll -= VariantTunings[index].weight;
+    }
+    return FloorVariant::Standard;
 }
 
 void SetupFloor(Run& run, Map* map, std::vector<Player*> const& present)
@@ -859,36 +1067,47 @@ void SetupFloor(Run& run, Map* map, std::vector<Player*> const& present)
         run.ring = ring->GetGUID();
     }
 
-    // Trash entries of the arena, drawn at random for each spot of a pack
-    std::vector<uint32> trashEntries;
-    for (uint32 creatureEntry : arena.trashEntries)
-        if (creatureEntry)
-            trashEntries.push_back(creatureEntry);
-    auto draw = [&trashEntries](std::size_t count)
-    {
-        std::vector<uint32> drawn;
-        for (std::size_t index = 0; index < count && !trashEntries.empty(); ++index)
-            drawn.push_back(Acore::Containers::SelectRandomContainerElement(trashEntries));
-        return drawn;
-    };
-
-    // Alone, packs of two; with a partner, of three. The second pack is led by the elite.
+    // The packs of the floor's variant, on the room's spots (the gauntlet's spread along the way to the boss)
     bool const duo = run.members.size() > 1;
-    std::vector<Position> const spots = PackSpots(arena, anchor);
-    if (!spots.empty())
-        SpawnPack(run, anchor, spots[0], draw(duo ? 3 : 2), false);
-    if (spots.size() > 1)
-        SpawnPack(run, anchor, spots[1], draw(duo ? 2 : 1), true);
+    std::vector<PackPlan> const packs = PacksOf(run.variant, duo);
+    std::vector<Position> const spots = run.variant == FloorVariant::Gauntlet ?
+        GauntletSpots(arena, anchor, packs.size()) : PackSpots(arena, anchor, packs.size());
+    for (std::size_t index = 0; index < packs.size() && index < spots.size(); ++index)
+        SpawnPack(run, anchor, spots[index], DrawTrash(arena, packs[index].trash), packs[index].elite);
 
-    Position bossPosition = boss;
-    bossPosition.SetOrientation(boss.GetAbsoluteAngle(&entry));
-    if (TempSummon* creature = SpawnMob(run, anchor, arena.bossEntry, MobRole::Boss, bossPosition))
+    // The guardian on the boss spot; the twins to each side of it
+    float const facing = boss.GetAbsoluteAngle(&entry);
+    std::vector<Position> bossSpots;
+    if (run.variant == FloorVariant::Twins)
     {
-        run.boss = creature->GetGUID();
-        run.creatures.emplace_back(creature->GetGUID(), MobRole::Boss);
+        float const across = facing + float(M_PI) / 2.0f;
+        for (float side : { TwinSpacing, -TwinSpacing })
+        {
+            Position spot = GroundPoint(map, boss.GetPositionX() + side * std::cos(across),
+                boss.GetPositionY() + side * std::sin(across), boss.GetPositionZ(), facing);
+            if (!anchor->IsWithinLOS(spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ() + 2.0f))
+            {
+                // A wall that side: between the boss spot and the way in instead
+                spot = GroundPoint(map,
+                    boss.GetPositionX() + TwinSpacing * std::cos(facing) + side * 0.5f * std::cos(across),
+                    boss.GetPositionY() + TwinSpacing * std::sin(facing) + side * 0.5f * std::sin(across),
+                    boss.GetPositionZ(), facing);
+            }
+            bossSpots.push_back(spot);
+        }
     }
+    else
+    {
+        Position bossPosition = boss;
+        bossPosition.SetOrientation(facing);
+        bossSpots.push_back(bossPosition);
+    }
+    for (Position const& spot : bossSpots)
+        if (TempSummon* creature = SpawnMob(run, anchor, arena.bossEntry, MobRole::Boss, spot))
+            run.bosses.push_back(creature->GetGUID());
 
     run.parMs = ParMs;
+    run.wavesTotal = run.variant == FloorVariant::Ambush ? AmbushWaves : 0;
 
     if (!anchor->IsWithinLOS(entry.GetPositionX(), entry.GetPositionY(), entry.GetPositionZ() + 2.0f))
         LOG_WARN("module", "Infinite Dungeon: the boss spot of {} does not see its bubble", arena.nameEn);
@@ -906,69 +1125,266 @@ void DropBubble(Run& run, Map* map, std::vector<Player*> const& present)
         SetSheltered(player, false);
         if (Member* member = MemberOf(run, player->GetGUID()))
             member->role = RoleOf(player);
+        // The damage the hard floors' loot counts starts here
+        player->CustomData.GetDefault<FloorDamage>(FloorDamageKey)->taken = 0;
     }
 
     ComputeFactors(run);
-    for (auto const& [guid, role] : run.creatures)
-        if (Creature* creature = map->GetCreature(guid); creature && creature->IsAlive() && !creature->IsInCombat())
-            ApplyScaling(creature, role, run.level, run.healthFactor, run.damageFactor, run.referenceHealth,
-                run.meleeFromReference);
+    for (FloorMob const& mob : run.creatures)
+        if (Creature* creature = map->GetCreature(mob.guid); creature && creature->IsAlive() && !creature->IsInCombat())
+            ApplyScaling(creature, mob.role, run.level, run.healthFactor * mob.health, run.damageFactor * mob.damage,
+                run.referenceHealth, run.meleeFromReference);
 
     run.state = FloorState::Fighting;
     run.stateMs = 0;
     run.clockStartMs = NowMs();
     run.clockMs = 0;
+    run.heartClockMs = 0;
+    run.nextHeartMs = urand(CombatHeartMinMs, CombatHeartMaxMs);
     SendHudToAll(run, map);
+}
+
+// The living players of the run on the floor, the nearest to `where` first
+Player* NearestLivingMember(std::vector<Player*> const& present, Position const& where)
+{
+    Player* nearest = nullptr;
+    for (Player* player : present)
+        if (player->IsAlive() && (!nearest || player->GetExactDist2d(&where) < nearest->GetExactDist2d(&where)))
+            nearest = player;
+    return nearest;
+}
+
+// The ambush: at each of the guardian's health marks a wave of trash comes in from the room's edges, away from the
+// players, and goes for the nearest of them
+void UpdateAmbush(Run& run, Map* map, std::vector<Player*> const& present)
+{
+    if (run.variant != FloorVariant::Ambush || run.wavesSpawned >= run.wavesTotal || run.bosses.empty())
+        return;
+    Creature* boss = map->GetCreature(run.bosses.front());
+    Creature* anchor = map->GetCreature(run.anchor);
+    if (!anchor || !boss || !boss->IsAlive() || !boss->IsInCombat() ||
+        boss->GetHealthPct() > AmbushWaveHealthPct[run.wavesSpawned])
+        return;
+
+    ++run.wavesSpawned;
+    ArenaInfo const& arena = ArenaOf(run);
+    auto farFromPlayers = [&present](Position const& spot)
+    {
+        return std::none_of(present.begin(), present.end(), [&spot](Player* player)
+            {
+                return player->IsAlive() && player->GetExactDist2d(&spot) < AmbushClearance;
+            });
+    };
+
+    // The room's trash spots first, then points around the boss spot, and the way in last
+    std::vector<Position> candidates;
+    for (uint32 index = 0; index < arena.trashSpots && index < MaxTrashSpots; ++index)
+    {
+        ArenaSpot const& spot = arena.trash[index];
+        Position const position(spot.x, spot.y, spot.z, 0.0f);
+        if (anchor->IsWithinLOS(spot.x, spot.y, spot.z + 2.0f) && farFromPlayers(position))
+            candidates.push_back(position);
+    }
+    Acore::Containers::RandomShuffle(candidates);
+    Position const bossSpot = SpotPosition(arena.boss);
+    for (uint32 step = 0; step < 8 && candidates.size() < 4; ++step)
+    {
+        float const angle = frand(0.0f, 2.0f * float(M_PI));
+        Position const point = GroundPoint(map, bossSpot.GetPositionX() + 12.0f * std::cos(angle),
+            bossSpot.GetPositionY() + 12.0f * std::sin(angle), bossSpot.GetPositionZ(), 0.0f);
+        if (anchor->IsWithinLOS(point.GetPositionX(), point.GetPositionY(), point.GetPositionZ() + 2.0f) &&
+            farFromPlayers(point))
+            candidates.push_back(point);
+    }
+    if (candidates.empty())
+        candidates.push_back(SpotPosition(arena.entry));
+
+    std::size_t const size = run.members.size() > 1 ? 2 : 1;
+    std::vector<uint32> const entries = DrawTrash(arena, size);
+    for (std::size_t index = 0; index < entries.size(); ++index)
+    {
+        Position spot = candidates[index % candidates.size()];
+        if (index >= candidates.size())
+            spot = GroundPoint(map, spot.GetPositionX() + 2.0f, spot.GetPositionY(), spot.GetPositionZ(), 0.0f);
+        Player* target = NearestLivingMember(present, spot);
+        if (target)
+            spot.SetOrientation(spot.GetAbsoluteAngle(target));
+        TempSummon* creature = SpawnMob(run, anchor, entries[index], MobRole::Trash, spot);
+        if (!creature)
+            continue;
+        GroundIndicators::Burst(anchor, spot, GroundIndicators::Theme::Shadow);
+        if (target && creature->IsAIEnabled)
+        {
+            creature->EngageWithTarget(target);
+            creature->AI()->AttackStart(target);
+        }
+    }
+
+    for (Player* player : present)
+        Say(player, IsFrench(player) ?
+            Acore::StringFormat("Embuscade ! Des renforts rejoignent le combat (vague {}/{}).", run.wavesSpawned,
+                run.wavesTotal) :
+            Acore::StringFormat("Ambush! Reinforcements join the fight (wave {}/{}).", run.wavesSpawned,
+                run.wavesTotal));
 }
 
 // -----------------------------------------------------------------------------------------------------------------
 // Hearts, rewards
 // -----------------------------------------------------------------------------------------------------------------
 
-void DropHeart(Run& run, Map* map, Position const& where)
+// A heart on the ground at `where`: the battlegrounds' restoration rune (display 5991, a glowing, turning red rune
+// players know as the healing one) under a small pillar of light that shows it across the room. A heart that rose
+// during the fight fades after `lifetimeMs`; a kill's stays for the floor.
+bool DropHeart(Run& run, Map* map, Position const& where, uint32 lifetimeMs = 0)
 {
     Creature* anchor = map->GetCreature(run.anchor);
     if (!anchor)
-        return;
-    if (GameObject* heart = anchor->SummonGameObject(GO_HEART, where.GetPositionX(), where.GetPositionY(),
+        return false;
+    GameObject* orb = anchor->SummonGameObject(GO_HEART, where.GetPositionX(), where.GetPositionY(),
+        where.GetPositionZ(), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN);
+    if (!orb)
+        return false;
+    Heart heart;
+    heart.orb = orb->GetGUID();
+    if (GameObject* light = anchor->SummonGameObject(GO_HEART_LIGHT, where.GetPositionX(), where.GetPositionY(),
             where.GetPositionZ(), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, true, GO_SUMMON_TIMED_DESPAWN))
-        run.hearts.push_back(heart->GetGUID());
+        heart.light = light->GetGUID();
+    heart.expiresAt = lifetimeMs ? NowMs() + lifetimeMs : 0;
+    run.hearts.push_back(heart);
+    return true;
+}
+
+void RemoveHeart(Map* map, Heart const& heart)
+{
+    if (GameObject* orb = map->GetGameObject(heart.orb))
+        orb->DespawnOrUnsummon();
+    if (GameObject* light = map->GetGameObject(heart.light))
+        light->DespawnOrUnsummon();
 }
 
 // Creatures that died since the last look: each may leave a heart where it fell
 void UpdateFallen(Run& run, Map* map)
 {
-    for (auto const& [guid, role] : run.creatures)
+    for (FloorMob const& mob : run.creatures)
     {
-        if (run.fallen.count(guid))
+        if (run.fallen.count(mob.guid))
             continue;
-        Creature* creature = map->GetCreature(guid);
+        Creature* creature = map->GetCreature(mob.guid);
         if (creature && creature->IsAlive())
             continue;
 
-        run.fallen.insert(guid);
-        uint32 const chance = role == MobRole::Boss ? 100 : role == MobRole::Elite ? EliteHeartChance :
+        run.fallen.insert(mob.guid);
+        uint32 const chance = mob.role == MobRole::Boss ? 100 : mob.role == MobRole::Elite ? EliteHeartChance :
             TrashHeartChance;
         if (creature && roll_chance_i(static_cast<int32>(chance)))
             DropHeart(run, map, creature->GetPosition());
     }
 }
 
+// Where a heart rises for `player` during the fight: a few yards away on the ground it stands on, which it can walk
+// to in a straight line, and away from the guardians
+std::optional<Position> CombatHeartSpot(Run const& run, Map* map, Player* player)
+{
+    std::vector<Creature*> bosses;
+    for (ObjectGuid const& guid : run.bosses)
+        if (Creature* boss = map->GetCreature(guid); boss && boss->IsAlive())
+            bosses.push_back(boss);
+
+    for (uint32 attempt = 0; attempt < 12; ++attempt)
+    {
+        float const angle = frand(0.0f, 2.0f * float(M_PI));
+        float const distance = frand(CombatHeartMinDistance + 1.0f, CombatHeartMaxDistance);
+        Position const ground = GroundPoint(map, player->GetPositionX() + distance * std::cos(angle),
+            player->GetPositionY() + distance * std::sin(angle), player->GetPositionZ(), 0.0f);
+        float x = ground.GetPositionX();
+        float y = ground.GetPositionY();
+        float z = ground.GetPositionZ();
+        if (std::fabs(z - player->GetPositionZ()) > 3.0f || !map->CanReachPositionAndGetValidCoords(player, x, y, z))
+            continue;
+        Position const spot(x, y, z + 0.1f, 0.0f);
+        if (player->GetExactDist2d(&spot) < CombatHeartMinDistance ||
+            !player->IsWithinLOS(spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ() + 1.0f))
+            continue;
+        if (std::any_of(bosses.begin(), bosses.end(), [&spot](Creature* boss)
+                { return boss->GetExactDist2d(&spot) < CombatHeartBossClearance + boss->GetCombatReach(); }))
+            continue;
+        return spot;
+    }
+    return std::nullopt;
+}
+
+// A heart rises near the most hurt living player; false when no spot would do
+bool SpawnCombatHeart(Run& run, Map* map, std::vector<Player*> const& present)
+{
+    Player* hurt = nullptr;
+    for (Player* player : present)
+        if (player->IsAlive() && (!hurt || player->GetHealthPct() < hurt->GetHealthPct()))
+            hurt = player;
+    if (!hurt)
+        return false;
+    std::optional<Position> const spot = CombatHeartSpot(run, map, hurt);
+    if (!spot || !DropHeart(run, map, *spot, CombatHeartLifetimeMs))
+        return false;
+    if (Creature* anchor = map->GetCreature(run.anchor))
+        GroundIndicators::Burst(anchor, *spot, GroundIndicators::Theme::Holy);
+    return true;
+}
+
+// Hearts during the fight: a clock runs while the players fight (twice as fast when one of them is low), and each
+// time it rings a heart rises, unless enough lie on the ground already
+void UpdateCombatHearts(Run& run, Map* map, std::vector<Player*> const& present, uint32 diff)
+{
+    if (run.state != FloorState::Fighting)
+        return;
+    bool fighting = false;
+    bool low = false;
+    for (Player* player : present)
+    {
+        if (!player->IsAlive())
+            continue;
+        fighting = fighting || player->IsInCombat();
+        low = low || player->GetHealthPct() < CombatHeartLowHealthPct;
+    }
+    if (!fighting)
+        return;
+
+    run.heartClockMs += diff * (low ? CombatHeartLowHealthSpeed : 1);
+    if (run.heartClockMs < run.nextHeartMs)
+        return;
+    // Enough on the ground: the next one waits for one to be taken
+    if (run.hearts.size() >= CombatHeartCap)
+    {
+        run.heartClockMs = run.nextHeartMs;
+        return;
+    }
+    if (!SpawnCombatHeart(run, map, present))
+    {
+        run.heartClockMs = run.nextHeartMs > CombatHeartRetryMs ? run.nextHeartMs - CombatHeartRetryMs : 0;
+        return;
+    }
+    run.heartClockMs = 0;
+    run.nextHeartMs = urand(CombatHeartMinMs, CombatHeartMaxMs);
+}
+
+// Hearts are walked over: 45% health and 30% mana back, with a heal's sparkle, sound and number. A heart of the
+// fight fades when its time is out.
 void PickUpHearts(Run& run, Map* map, std::vector<Player*> const& present)
 {
+    uint64 const now = NowMs();
     for (auto itr = run.hearts.begin(); itr != run.hearts.end();)
     {
-        GameObject* heart = map->GetGameObject(*itr);
-        if (!heart || !heart->isSpawned())
+        GameObject* orb = map->GetGameObject(itr->orb);
+        if (!orb || !orb->isSpawned() || (itr->expiresAt && now >= itr->expiresAt))
         {
+            RemoveHeart(map, *itr);
             itr = run.hearts.erase(itr);
             continue;
         }
 
         Player* taker = nullptr;
         for (Player* player : present)
-            if (player->IsAlive() && player->GetExactDist2d(heart) <= HeartPickupRange &&
-                std::fabs(player->GetPositionZ() - heart->GetPositionZ()) < 3.0f)
+            if (player->IsAlive() && player->GetExactDist2d(orb) <= HeartPickupRange &&
+                std::fabs(player->GetPositionZ() - orb->GetPositionZ()) < 3.0f)
             {
                 taker = player;
                 break;
@@ -979,11 +1395,19 @@ void PickUpHearts(Run& run, Map* map, std::vector<Player*> const& present)
             continue;
         }
 
-        taker->ModifyHealth(static_cast<int32>(CalculatePct(taker->GetMaxHealth(), HeartHealthPct)));
+        uint32 const heal = CalculatePct(taker->GetMaxHealth(), HeartHealthPct);
+        int32 const gain = Unit::DealHeal(taker, taker, heal);
+        if (SpellInfo const* logSpell = sSpellMgr->GetSpellInfo(SPELL_HEART_LOG))
+        {
+            HealInfo healInfo(taker, taker, heal, logSpell, SPELL_SCHOOL_MASK_HOLY);
+            healInfo.SetEffectiveHeal(static_cast<uint32>(std::max(gain, 0)));
+            taker->SendHealSpellLog(healInfo);
+        }
         if (uint32 const maxMana = taker->GetMaxPower(POWER_MANA))
             taker->ModifyPower(POWER_MANA, static_cast<int32>(CalculatePct(maxMana, HeartManaPct)));
+        taker->SendPlaySpellVisual(KIT_HEART_PICKUP);
         GroundIndicators::Burst(taker, taker->GetPosition(), GroundIndicators::Theme::Holy);
-        heart->DespawnOrUnsummon();
+        RemoveHeart(map, *itr);
         ++run.heartsTaken;
         itr = run.hearts.erase(itr);
     }
@@ -1020,8 +1444,9 @@ void GiveItem(Player* player, ItemTemplate const* itemTemplate)
         player->SendNewItem(item, 1, true, false, true);
 }
 
-// Every fifth floor's guardian: one piece fitted to the player's class and slots, at its level while levelling, of
-// the step's item level at the cap (that floor's step, for one passed over)
+// A floor's piece (every fifth floor's guardian, or the chance of any floor): one piece fitted to the player's class
+// and slots, at its level while levelling, of the step's item level at the cap (that floor's step, for one passed
+// over)
 bool GiveFloorGear(Player* player, uint32 floor)
 {
     // At the level cap the piece follows the floor's depth on either ladder: a run begun while levelling (after a
@@ -1043,7 +1468,8 @@ bool GiveFloorGear(Player* player, uint32 floor)
 
 // The floor's rewards, told to the client (REWARD) and kept for the run's summary. A fast clear's floors passed over
 // count too: their gear piece is given and their checkpoint kept (its chest stands beside the portal), while the
-// gold and the essence chance stay one floor's.
+// gold, the essence chance and the chance piece stay one floor's. Every floor may give a piece (FloorGearChance, more
+// on a treasure floor or after a long, hard fight: GetFloorGearChance), on top of a gear floor's sure one.
 void RewardFloor(Run const& run, Player* player, Member& member)
 {
     uint8 const level = player->GetLevel();
@@ -1052,7 +1478,8 @@ void RewardFloor(Run const& run, Player* player, Member& member)
     uint32 const experience = member.floorExperience;
     member.floorExperience = 0;
 
-    uint32 const gold = FloorGoldPerLevelSquared * level * level;
+    uint32 const gold = FloorGoldPerLevelSquared * level * level *
+        (run.variant == FloorVariant::Treasure ? TreasureGoldFactor : 1);
     player->ModifyMoney(static_cast<int32>(gold));
     ChatHandler(player->GetSession()).PSendSysMessage(
         IsFrench(player) ? "|cffffd24dÉtage {} franchi :|r {}." : "|cffffd24dFloor {} cleared:|r {}.", run.floor,
@@ -1067,6 +1494,8 @@ void RewardFloor(Run const& run, Player* player, Member& member)
     for (uint32 passed = run.floor + 1; passed < run.floor + run.floorsDown; ++passed)
         if (IsGearFloor(passed) && GiveFloorGear(player, passed))
             skippedGear = passed;
+    uint32 const gearChance = GetFloorGearChance(run.variant, run.hardFightChance);
+    bool const chanceGear = roll_chance_i(static_cast<int32>(gearChance)) && GiveFloorGear(player, run.floor);
 
     // The deepest floor behind the player: the one cleared and the ones the portal passes over (the floor it leads
     // to counts once cleared)
@@ -1077,9 +1506,13 @@ void RewardFloor(Run const& run, Player* player, Member& member)
     member.gold += gold;
     member.experience += experience;
     member.essences += essences;
-    member.items += (gear ? 1 : 0) + (skippedGear ? 1 : 0);
-    SendAddon(player, Acore::StringFormat("REWARD\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, gold, experience, essences,
-        gear ? 1 : 0, skippedGear));
+    member.items += (gear ? 1 : 0) + (skippedGear ? 1 : 0) + (chanceGear ? 1 : 0);
+    SendAddon(player, Acore::StringFormat("REWARD\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, gold, experience,
+        essences, gear ? 1 : 0, skippedGear, chanceGear ? 1 : 0, run.hardFightChance ? 1 : 0, gearChance));
+    if (run.hardFightChance)
+        Say(player, IsFrench(player) ?
+            Acore::StringFormat("Âpre combat : butin amélioré ({} % de chance d'équipement).", gearChance) :
+            Acore::StringFormat("Hard-fought floor: better loot ({}% gear chance).", gearChance));
 
     Progress& progress = ProgressOf(player);
     std::size_t const ladder = static_cast<std::size_t>(run.ladder);
@@ -1101,8 +1534,12 @@ Position PortalSpot(Run const& run, Map* map, Creature* anchor)
     ArenaInfo const& arena = ArenaOf(run);
     Position const boss = SpotPosition(arena.boss);
     Position const entry = SpotPosition(arena.entry);
-    Creature const* corpse = map->GetCreature(run.boss);
-    Position const body = corpse ? corpse->GetPosition() : boss;
+    std::vector<Position> bodies;
+    for (ObjectGuid const& guid : run.bosses)
+        if (Creature const* corpse = map->GetCreature(guid))
+            bodies.push_back(corpse->GetPosition());
+    if (bodies.empty())
+        bodies.push_back(boss);
     float const towardEntry = boss.GetAbsoluteAngle(&entry);
     float const reach = std::min(PortalOffset, boss.GetExactDist2d(&entry) * 0.5f);
 
@@ -1119,7 +1556,8 @@ Position PortalSpot(Run const& run, Map* map, Creature* anchor)
     candidates.push_back(boss);
 
     for (Position const& spot : candidates)
-        if (spot.GetExactDist2d(&body) >= PortalCorpseClearance &&
+        if (std::all_of(bodies.begin(), bodies.end(),
+                [&spot](Position const& body) { return spot.GetExactDist2d(&body) >= PortalCorpseClearance; }) &&
             anchor->IsWithinLOS(spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ() + 2.0f))
             return spot;
     return candidates.front();
@@ -1133,6 +1571,31 @@ void OnFloorCleared(Run& run, Map* map, std::vector<Player*> const& present)
     run.stateMs = 0;
     run.floorsDown = GetFloorsDown(run.clockMs);
     run.chestFloor = GetCheckpointReached(run.floor, run.floorsDown);
+
+    // A long, hard floor: the damage the members took from the floor's creatures, each in its own maximum health,
+    // on average (a fallen member counts what it took)
+    float damageTaken = 0.0f;
+    if (!present.empty())
+    {
+        for (Player* player : present)
+            if (FloorDamage const* damage = player->CustomData.Get<FloorDamage>(FloorDamageKey))
+                damageTaken += static_cast<float>(damage->taken) / static_cast<float>(std::max<uint32>(
+                    player->GetMaxHealth(), 1));
+        damageTaken /= static_cast<float>(present.size());
+    }
+    run.damageTaken = damageTaken;
+    run.hardFightChance = GetHardFightChance(run.clockMs, damageTaken);
+    // The fight is over: the hearts that rose in it fade, the kills' stay
+    for (auto itr = run.hearts.begin(); itr != run.hearts.end();)
+    {
+        if (!itr->expiresAt)
+        {
+            ++itr;
+            continue;
+        }
+        RemoveHeart(map, *itr);
+        itr = run.hearts.erase(itr);
+    }
 
     if (Creature* anchor = map->GetCreature(run.anchor))
     {
@@ -1320,6 +1783,11 @@ void BeginFloor(Run& run, uint32 floor, Map const* from, uint32 arrivedDown = 1)
     if (!arena)
         return;
     run.forcedArena.reset();
+    // The floor's shape, never the one of the floor before (the run's first is free)
+    if (!run.creatures.empty())
+        run.lastVariant = run.variant;
+    run.variant = PickVariant(run);
+    run.forcedVariant.reset();
     run.recentArenas.push_back(*arena);
     if (run.recentArenas.size() > GetArenas().size())
         run.recentArenas.pop_front();
@@ -1339,11 +1807,17 @@ void BeginFloor(Run& run, uint32 floor, Map const* from, uint32 arrivedDown = 1)
     run.stateMs = 0;
     run.anchor.Clear();
     run.ring.Clear();
-    run.boss.Clear();
+    run.bosses.clear();
     run.creatures.clear();
     run.fallen.clear();
     run.deadMembers.clear();
     run.hearts.clear();
+    run.heartClockMs = 0;
+    run.nextHeartMs = 0;
+    run.wavesSpawned = 0;
+    run.wavesTotal = 0;
+    run.damageTaken = 0.0f;
+    run.hardFightChance = 0;
     run.portal.reset();
     run.parMs = 0;
     run.clockStartMs = 0;
@@ -1413,9 +1887,9 @@ void OnArrival(Run& run, Player* player)
 
     ArenaInfo const& arena = ArenaOf(run);
     SendHud(player, run);
-    SendAddon(player, Acore::StringFormat("ARRIVE\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, ArenaName(player, arena),
+    SendAddon(player, Acore::StringFormat("ARRIVE\t{}\t{}\t{}\t{}\t{}\t{}\t{}", run.floor, ArenaName(player, arena),
         static_cast<uint32>(run.ladder), GetStep(run.floor), GetRecommendedParagon(run.ladder, run.floor),
-        run.arrivedDown));
+        run.arrivedDown, static_cast<uint32>(run.variant)));
     if (Member* member = MemberOf(run, player->GetGUID()))
         member->lastProgress.clear();
 }
@@ -1652,12 +2126,16 @@ bool UpdateRun(Run& run, Map* map, uint32 diff)
         {
             UpdateFallen(run, map);
             PickUpHearts(run, map, present);
-            if (run.state == FloorState::Fighting)
-            {
-                Creature* boss = map->GetCreature(run.boss);
-                if (!run.boss.IsEmpty() && (!boss || !boss->IsAlive()))
-                    OnFloorCleared(run, map, present);
-            }
+            UpdateCombatHearts(run, map, present, diff);
+            UpdateAmbush(run, map, present);
+            // Cleared when every guardian is down (the twins: both)
+            if (run.state == FloorState::Fighting && !run.bosses.empty() &&
+                std::all_of(run.bosses.begin(), run.bosses.end(), [map](ObjectGuid const& guid)
+                    {
+                        Creature* boss = map->GetCreature(guid);
+                        return !boss || !boss->IsAlive();
+                    }))
+                OnFloorCleared(run, map, present);
             if (run.state == FloorState::Cleared)
                 CheckPortal(run, present);
 
@@ -2518,6 +2996,22 @@ public:
     }
 };
 
+// The damage a member of a run takes from the floor's creatures (not its own, nor another player's), for the hard
+// floors' loot: kept on the player itself, read and reset from its floor's update (the same map thread)
+class InfiniteDungeonUnitScript : public UnitScript
+{
+public:
+    InfiniteDungeonUnitScript() : UnitScript("InfiniteDungeonUnitScript", true, { UNITHOOK_ON_DAMAGE }) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        if (!damage || !attacker || !victim || attacker == victim || !victim->IsPlayer() || !ActiveRuns.load() ||
+            attacker->IsControlledByPlayer() || !HasPass(victim->CustomData))
+            return;
+        victim->CustomData.GetDefault<FloorDamage>(FloorDamageKey)->taken += damage;
+    }
+};
+
 class InfiniteDungeonMapScript : public AllMapScript
 {
 public:
@@ -2556,7 +3050,7 @@ public:
 
 // -----------------------------------------------------------------------------------------------------------------
 // Commands, to test: .infinite start [floor], floor <n>, arena <index>, clear, time <seconds>, leave, checkpoint <n>,
-// info, keeper, portal
+// info, keeper, portal, variant <name>, heart, damage <percent>
 // -----------------------------------------------------------------------------------------------------------------
 
 using namespace Acore::ChatCommands;
@@ -2580,6 +3074,9 @@ public:
             { "info",       HandleInfo,       SEC_GAMEMASTER, Console::No },
             { "keeper",     HandleKeeper,     SEC_GAMEMASTER, Console::No },
             { "portal",     HandlePortal,     SEC_GAMEMASTER, Console::No },
+            { "variant",    HandleVariant,    SEC_GAMEMASTER, Console::No },
+            { "heart",      HandleHeart,      SEC_GAMEMASTER, Console::No },
+            { "damage",     HandleDamage,     SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -2643,8 +3140,8 @@ public:
         // The floor starts first: a boss killed while the players still stand in the bubble would never clear it
         if (run->state == FloorState::Bubble)
             DropBubble(*run, player->GetMap(), PresentMembers(*run, player->GetMap()));
-        for (auto const& [guid, role] : run->creatures)
-            if (Creature* creature = player->GetMap()->GetCreature(guid); creature && creature->IsAlive())
+        for (FloorMob const& mob : run->creatures)
+            if (Creature* creature = player->GetMap()->GetCreature(mob.guid); creature && creature->IsAlive())
                 Unit::Kill(player, creature);
         return true;
     }
@@ -2732,6 +3229,76 @@ public:
         return true;
     }
 
+    // The current floor again, in the same room, as that variant (a name of VariantNames or its number)
+    static bool HandleVariant(ChatHandler* handler, std::string name)
+    {
+        std::lock_guard<std::recursive_mutex> guard(Lock);
+        Player* player = handler->GetPlayer();
+        std::optional<FloorVariant> variant;
+        for (std::size_t index = 0; index < VariantNames.size(); ++index)
+            if (name == VariantNames[index] || name == std::to_string(index))
+                variant = static_cast<FloorVariant>(index);
+        if (!variant)
+        {
+            handler->SendSysMessage("Variants: standard, guardian, horde, elites, gauntlet, ambush, twins, treasure.");
+            return false;
+        }
+        Run* run = RunOf(player->GetGUID());
+        if (!run)
+        {
+            handler->SendSysMessage("Not in a run: .infinite start first.");
+            return false;
+        }
+        run->forcedArena = run->arena;
+        run->forcedVariant = *variant;
+        BeginFloor(*run, run->floor, player->FindMap());
+        handler->PSendSysMessage("Floor {} again as '{}'.", run->floor, VariantName(*variant));
+        return true;
+    }
+
+    // A heart rises near the player as in the fight (at its feet when no spot would do)
+    static bool HandleHeart(ChatHandler* handler)
+    {
+        std::lock_guard<std::recursive_mutex> guard(Lock);
+        Player* player = handler->GetPlayer();
+        Run* run = RunOf(player->GetGUID());
+        Map* map = player->FindMap();
+        if (!run || !map || map->GetInstanceId() != run->instanceId || run->anchor.IsEmpty())
+        {
+            handler->SendSysMessage("Not on a floor of a run.");
+            return false;
+        }
+        std::optional<Position> spot = CombatHeartSpot(*run, map, player);
+        if (!spot)
+            spot = GroundPoint(map, player->GetPositionX() + 3.0f * std::cos(player->GetOrientation()),
+                player->GetPositionY() + 3.0f * std::sin(player->GetOrientation()), player->GetPositionZ(), 0.0f);
+        if (!DropHeart(*run, map, *spot, CombatHeartLifetimeMs))
+            return false;
+        if (Creature* anchor = map->GetCreature(run->anchor))
+            GroundIndicators::Burst(anchor, *spot, GroundIndicators::Theme::Holy);
+        SendProgress(*run, map);
+        handler->PSendSysMessage("Heart at {:.1f} yards ({} on the ground).", player->GetExactDist2d(&*spot),
+            run->hearts.size());
+        return true;
+    }
+
+    // Sets the damage the player took on this floor, in percent of its maximum health: with `.infinite time`, to try
+    // the hard floors' loot (more than 180 s and 150%; sure past 360 s and 300%)
+    static bool HandleDamage(ChatHandler* handler, uint32 percent)
+    {
+        std::lock_guard<std::recursive_mutex> guard(Lock);
+        Player* player = handler->GetPlayer();
+        if (!RunOf(player->GetGUID()))
+        {
+            handler->SendSysMessage("Not in a run.");
+            return false;
+        }
+        player->CustomData.GetDefault<FloorDamage>(FloorDamageKey)->taken =
+            static_cast<uint64>(player->GetMaxHealth()) * percent / 100;
+        handler->PSendSysMessage("Damage taken on this floor: {}% of your maximum health.", percent);
+        return true;
+    }
+
     static bool HandleInfo(ChatHandler* handler)
     {
         std::lock_guard<std::recursive_mutex> guard(Lock);
@@ -2752,6 +3319,15 @@ public:
             run->instanceId, static_cast<uint32>(run->state), run->creatures.size(), run->fallen.size(),
             run->healthFactor, run->damageFactor, run->referenceHealth, ClockText(FloorClockMs(*run)),
             ClockText(run->parMs), run->floorsDown);
+        FloorDamage const* damage = player->CustomData.Get<FloorDamage>(FloorDamageKey);
+        float const taken = damage ? static_cast<float>(damage->taken) /
+            static_cast<float>(std::max<uint32>(player->GetMaxHealth(), 1)) : 0.0f;
+        uint32 const hardFight = GetHardFightChance(FloorClockMs(*run), taken);
+        handler->PSendSysMessage("Variant '{}', {} guardian(s), waves {}/{}; hearts {} on the ground, next in {:.1f} s "
+            "of combat; you took {:.0f}% of your health: hard fight {}, gear chance {}%.", VariantName(run->variant),
+            run->bosses.size(), run->wavesSpawned, run->wavesTotal, run->hearts.size(),
+            run->nextHeartMs > run->heartClockMs ? (run->nextHeartMs - run->heartClockMs) / 1000.0f : 0.0f,
+            taken * 100.0f, hardFight ? "yes" : "no", GetFloorGearChance(run->variant, hardFight));
         return true;
     }
 };
@@ -2798,6 +3374,7 @@ void AddInfiniteDungeonScripts()
     new go_infinite_dungeon_chest();
     RegisterCreatureAI(npc_infinite_dungeon_creature);
     new InfiniteDungeonPlayerScript();
+    new InfiniteDungeonUnitScript();
     new InfiniteDungeonMapScript();
     new InfiniteDungeonWorldScript();
     new InfiniteDungeonCommandScript();

@@ -3,7 +3,7 @@
 -- stat_growth_infinite_dungeon_creatures.sql.
 --
 -- Ids: creature 920000 (the keeper), 920010-920299 (floor creatures); spawns 9000300-9000309; gameobjects
--- 920100-920103; npc_text 920000-920001.
+-- 920100-920104; npc_text 920000-920001.
 --
 -- The keeper is Chromie's gnome (display 10008), the bronze dragonflight minding an endless descent. Each spawn stands
 -- beside the city's bankers (or the other keepers in Stormwind's Trade District, and the master smith in Ironforge
@@ -88,23 +88,29 @@ INSERT INTO `npc_text_locale` (`ID`, `Locale`, `Text0_0`, `Text0_1`) VALUES
      'Le gardien est tombé. La voie vers le bas est ouverte.');
 
 -- The portal (a dungeon entrance's swirl, display 672: about 9 yards wide and tall, where the mage portal it replaced
--- was 3, and hard to see among the bodies), the heart (the Heart of Hakkar's model, small), the checkpoint chest (a
--- little larger than life) and a pillar of light over the portal (Uther's shrine beam, display 3272, at half size:
--- about 9 yards high and 5 across) so the way down reads from across the room. The server opens the portal a few
--- yards off the boss spot, away from the guardian's body (InfiniteDungeonSystem.cpp PortalSpot).
-DELETE FROM `gameobject_template_locale` WHERE `entry` BETWEEN 920100 AND 920103;
-DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 920100 AND 920103;
+-- was 3, and hard to see among the bodies), the heart, the checkpoint chest (a little larger than life) and a pillar
+-- of light over the portal (Uther's shrine beam, display 3272, at half size: about 9 yards high and 5 across) so the
+-- way down reads from across the room. The server opens the portal a few yards off the boss spot, away from the
+-- guardian's body (InfiniteDungeonSystem.cpp PortalSpot).
+-- The heart is the battlegrounds' restoration rune (display 5991: a glowing, turning red rune about 2 yards across
+-- and 3 high, the one players know heals them) under a thin pillar of the same light (920104, display 3272 at 0.2:
+-- about 4 yards high and 2 across). It used to be the Heart of Hakkar's model at 0.25: its model is a few inches
+-- across, floating 1.7 yards up, so at that size nobody ever saw one.
+DELETE FROM `gameobject_template_locale` WHERE `entry` BETWEEN 920100 AND 920104;
+DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 920100 AND 920104;
 INSERT INTO `gameobject_template`
     (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `AIName`, `ScriptName`,
      `VerifiedBuild`)
 VALUES
     (920100, 10, 672, 'Descent', 'Interact', '', '', 1, '', 'go_infinite_dungeon_portal', NULL),
-    (920101, 5, 6395, 'Healing Heart', '', '', '', 0.25, '', '', NULL),
+    (920101, 5, 5991, 'Healing Heart', '', '', '', 1, '', '', NULL),
     (920102, 10, 9069, 'Checkpoint Cache', 'Interact', '', '', 1.4, '', 'go_infinite_dungeon_chest', NULL),
-    (920103, 5, 3272, 'Descent Light', '', '', '', 0.5, '', '', NULL);
+    (920103, 5, 3272, 'Descent Light', '', '', '', 0.5, '', '', NULL),
+    (920104, 5, 3272, 'Healing Heart Light', '', '', '', 0.2, '', '', NULL);
 
 INSERT INTO `gameobject_template_locale` (`entry`, `locale`, `name`, `castBarCaption`, `VerifiedBuild`) VALUES
     (920100, 'frFR', 'Descente', '', NULL),
     (920101, 'frFR', 'Cœur guérisseur', '', NULL),
     (920102, 'frFR', 'Coffre du point de passage', '', NULL),
-    (920103, 'frFR', 'Lumière de la descente', '', NULL);
+    (920103, 'frFR', 'Lumière de la descente', '', NULL),
+    (920104, 'frFR', 'Lumière du cœur guérisseur', '', NULL);

@@ -206,6 +206,108 @@ constexpr uint32 TrashHeartChance = 15;
 constexpr uint32 EliteHeartChance = 50;
 constexpr uint32 HeartHealthPct = 45;
 constexpr uint32 HeartManaPct = 30;
+// Hearts also rise during the fight: every CombatHeartMinMs-CombatHeartMaxMs of combat on the floor one appears a few
+// yards from the most hurt player (on the ground they stand on, in their sight, away from the guardians). The clock
+// runs twice as fast while a player is under CombatHeartLowHealthPct. None rises while CombatHeartCap hearts already
+// lie on the floor (kill drops count), and one that rose in the fight fades after CombatHeartLifetimeMs.
+constexpr uint32 CombatHeartMinMs = 12 * 1000;
+constexpr uint32 CombatHeartMaxMs = 20 * 1000;
+constexpr float CombatHeartLowHealthPct = 50.0f;
+constexpr uint32 CombatHeartLowHealthSpeed = 2;
+constexpr std::size_t CombatHeartCap = 3;
+constexpr uint32 CombatHeartLifetimeMs = 45 * 1000;
+
+// Gear on every floor: each member's clear of any floor rolls FloorGearChance percent for one smart-loot piece (the
+// floor's item level), on top of the sure piece of every GearFloors-th floor. InfiniteDungeon.lua and
+// InfiniteDungeonKeeper.lua show the same numbers.
+constexpr uint32 FloorGearChance = 20;
+
+// A long, hard floor: cleared after more than HardFightMinMs (three pars) with the run's members having taken, on
+// average, at least HardFightMinDamage of their maximum health from the floor's creatures (so a floor left to run
+// out while nobody fights does not count), the gear chance becomes HardFightChance, plus HardFightChancePerMinute
+// for each full minute past HardFightMinMs, up to HardFightMaxChance. Past HardFightSureMs with HardFightSureDamage
+// taken, the piece is sure.
+constexpr uint32 HardFightMinMs = ParMs * 3;
+constexpr float HardFightMinDamage = 1.5f;
+constexpr uint32 HardFightChance = 40;
+constexpr uint32 HardFightChancePerMinute = 10;
+constexpr uint32 HardFightMaxChance = 70;
+constexpr uint32 HardFightSureMs = ParMs * 6;
+constexpr float HardFightSureDamage = 3.0f;
+
+// The gear chance a hard floor earns (0: the floor was not one). damageTaken: the members' average, in maximum healths.
+inline uint32 GetHardFightChance(uint32 clearMs, float damageTaken)
+{
+    if (clearMs <= HardFightMinMs || damageTaken < HardFightMinDamage)
+        return 0;
+    if (clearMs >= HardFightSureMs && damageTaken >= HardFightSureDamage)
+        return 100;
+    uint32 const minutes = (clearMs - HardFightMinMs) / (60 * 1000);
+    return std::min(HardFightMaxChance, HardFightChance + HardFightChancePerMinute * minutes);
+}
+
+// Floor variants: every floor is drawn a shape (never the one of the floor before). Each keeps about the same health
+// budget as the standard floor, counted in a lone trash creature's health (standard: solo 2 trash + 1 trash + an elite
+// (3) + the boss (10) = 16; duo 3 + 2 + 3 + 10 = 18) and about the same damage at any moment, so the par time (a
+// minute, +2 in 30 s, +3 in 20 s) stays fair for all of them. The layouts are in InfiniteDungeonSystem.cpp
+// (SetupFloor); InfiniteDungeon.lua names them.
+enum class FloorVariant : uint8
+{
+    Standard = 0,   // two packs (the second led by an elite), the guardian
+    Guardian = 1,   // the guardian alone, x1.6 health (16) and x1.15 damage
+    Horde = 2,      // three packs of 3 (duo 4) trash at x0.65 health and damage (5.9 + 10; duo 7.8 + 10)
+    ElitePair = 3,  // two elites (duo: each with one trash), then the guardian (3 + 3 + 10; duo 8 + 10)
+    Gauntlet = 4,   // four small packs spread from the circle to the guardian, the third an elite (6 + 10; duo 8 + 10)
+    Ambush = 5,     // one pack of 2, then the guardian; at 75, 50 and 25% of its health a wave of 1 (duo 2) trash
+                    // joins the fight (2 + 3 + 10 = 15; duo 2 + 6 + 10 = 18)
+    Twins = 6,      // one pack, two guardians at x0.7 health and damage each (2 + 14; duo 3 + 14)
+    Treasure = 7,   // one pack and a guardian at x0.6 health (about half the floor): +TreasureGearBonus percent gear
+                    // chance and double gold. Rare.
+    Count
+};
+
+struct VariantTuning
+{
+    uint32 weight;              // how often it is drawn, against the others
+    float trashHealth;
+    float trashDamage;
+    float eliteHealth;
+    float eliteDamage;
+    float bossHealth;
+    float bossDamage;
+};
+
+constexpr VariantTuning VariantTunings[static_cast<std::size_t>(FloorVariant::Count)] = {
+    { 30, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },     // Standard
+    { 10, 1.0f, 1.0f, 1.0f, 1.0f, 1.6f, 1.15f },    // Guardian
+    { 12, 0.65f, 0.65f, 1.0f, 1.0f, 1.0f, 1.0f },   // Horde
+    { 12, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },     // ElitePair
+    { 12, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },     // Gauntlet
+    { 12, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },     // Ambush
+    { 12, 1.0f, 1.0f, 1.0f, 1.0f, 0.7f, 0.7f },     // Twins
+    { 5, 1.0f, 1.0f, 1.0f, 1.0f, 0.6f, 1.0f },      // Treasure
+};
+
+inline VariantTuning const& GetVariantTuning(FloorVariant variant)
+{
+    std::size_t const index = static_cast<std::size_t>(variant);
+    return VariantTunings[index < static_cast<std::size_t>(FloorVariant::Count) ? index : 0];
+}
+
+// The ambush's waves join at these health shares of the guardian
+constexpr uint32 AmbushWaves = 3;
+constexpr float AmbushWaveHealthPct[AmbushWaves] = { 75.0f, 50.0f, 25.0f };
+constexpr uint32 TreasureGearBonus = 40;
+constexpr uint32 TreasureGoldFactor = 2;
+
+// The gear chance of a clear, in percent: the base or the hard fight's, whichever is higher, and the treasure floor's
+// bonus on top
+inline uint32 GetFloorGearChance(FloorVariant variant, uint32 hardFightChance)
+{
+    uint32 const chance = std::max(FloorGearChance, hardFightChance) +
+        (variant == FloorVariant::Treasure ? TreasureGearBonus : 0);
+    return std::min<uint32>(chance, 100);
+}
 }
 
 #endif
