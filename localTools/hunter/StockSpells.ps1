@@ -19,6 +19,14 @@ function Focus([int]$cost, $extra = @{}) {
 }
 
 $edits = @(
+    # --- No dead zone -------------------------------------------------------------------------------------------------
+    # Retail's Hunter shoots at any range. The ranged weapon's range entries carry the ranged flag (SpellRange flags 2),
+    # with which the core (Spell::CheckRange) and the client add the melee reach to the minimum range: no shot, Auto
+    # Shot included, reaches a target in melee. Every Hunter spell a skill line teaches (whatever its cost) swaps them
+    # for the plain entry with the same maximum and no minimum: 74 Ranged Weapon (30 yd) for 4, 114 Hunter Range
+    # (35 yd) for 35, 155 Hunter Range Long (45 yd) for 36. A spell's own field 46 below still wins (Kill Shot).
+    @{ Family = $hunter; Ranges = @{ 74 = 4; 114 = 35; 155 = 36 } },
+
     # --- Shots and strikes: retail-like Focus costs ---------------------------------------------------------------
     # Arcane Shot and Multi-Shot lose their cooldowns and the categories they shared with Explosive Shot and Aimed
     # Shot: Focus paces them now
@@ -33,8 +41,7 @@ $edits = @(
     # category
     @{ Family = $hunter; Name = 'Aimed Shot'; Fields = (Focus 35 @{ 1 = 0; 28 = 19; 29 = 12000; 30 = 0 })
        Description = "Un tir soigneusement ajusté qui inflige de lourds dégâts physiques et réduit de 50% les soins reçus par la cible pendant 10 s. Précision : 2 charges." },
-    # Kill Shot: 10 s instead of 15, and usable from melee range (40 yd, range 5, without the ranged weapon's dead
-    # zone): Survival executes too
+    # Kill Shot: 10 s instead of 15, 40 yd (range 5), usable from melee range like every shot: Survival executes too
     @{ Family = $hunter; Name = 'Kill Shot'; Fields = (Focus 10 @{ 30 = 10000; 46 = 5 }) },
     @{ Family = $hunter; Name = 'Chimera Shot'; Fields = (Focus 35) },
     @{ Family = $hunter; Name = 'Explosive Shot'; Fields = (Focus 25) },

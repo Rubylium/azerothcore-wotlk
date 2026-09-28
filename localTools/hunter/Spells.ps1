@@ -8,9 +8,10 @@
 # Clone field notes: 1 category, 3 mechanic, 12-13 stances, 16 target flags, 28 casting time index (1 instant, 5 2 s,
 # 19 2.5 s), 29 cooldown, 30 category cooldown, 40 duration index (1 10 s, 3 1 min, 8 15 s, 18 20 s, 21 never, 27 3 s,
 # 31 8 s, 32 6 s, 35 4 s, 39 2 s, 85 18 s, 305 14 s), 41 power type (2 Focus), 42 cost, 46 range index (1 self, 5 40 yd,
-# 35 35 yd, 37 50 yd, 54 5-30 yd, 114 the ranged weapon's), 47 speed (float bits; 0 instant), 49 stack amount, 68-70
-# equipped item, 80-82 base points, 84-85 effect mechanic, 86-88 target A, 89-91 target B (15 enemies around the
-# source), 92-94 radius index (8 5 yd, 13 10 yd, 14 8 yd), 98-100 periodic interval, 116-118 triggered spell, 122-130
+# 35 35 yd, 37 50 yd, 54 5-30 yd; never 74, 114 or 155, the ranged weapon's, whose ranged flag adds a melee dead zone),
+# 47 speed (float bits; 0 instant), 49 stack amount, 68-70 equipped item, 80-82 base points, 84-85 effect mechanic,
+# 86-88 target A, 89-91 target B (15 enemies around the source), 92-94 radius index (8 5 yd, 13 10 yd, 14 8 yd),
+# 98-100 periodic interval, 116-118 triggered spell, 122-130
 # the effects' class masks, 131 visual, 204 mana cost percentage (0: the flat cost is Focus), 205-206 global cooldown
 # category and time (0 0: off the global cooldown), 208 family (9 Hunter), 209-211 family flags, 212 max targets, 213
 # damage class (2 melee, 3 ranged), 225 school (1 physical, 4 fire, 8 nature), 226 rune cost (cleared on Death Knight
@@ -51,8 +52,8 @@ $maskKillCommand = 0x800
 $maskRaptorStrike = 0x2
 
 # Arcane Shot's layout for a ranged shot of the Hunter's own: a projectile (speed 40) on the ranged weapon. Its range
-# (114, the ranged weapon's) cannot reach a target in melee: what Survival uses in melee (Counter Shot, the chakram,
-# Spearhead) takes range 5 instead, 40 yd without that dead zone
+# (114, the ranged weapon's) cannot reach a target in melee, and the Hunter has no dead zone (StockSpells.ps1 swaps it
+# on the stock shots): every clone sets its own, 35 (35 yd) or 5 (40 yd)
 $shot = 49045
 # Death Coil's for damage the module sets (no weapon, so the pet can cast it too): speed and visual cleared
 $computed = 47632
@@ -141,7 +142,7 @@ $spells = @(
        Description = "Un tir barbelé qui fait saigner la cible pendant 8 s, attise la Frénésie de votre familier (10% de vitesse d'attaque par charge, 3 au plus), vous rend 20 points de focalisation en 8 s et réduit de 12 s le temps de recharge de Courroux bestial. 2 charges."
        AuraDescription = 'Saigne.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_PeriodicDamage; TargetA = 6; Value = 250 })
-       Fields = @{ 1 = 0; 2 = 0; 3 = 15; 30 = 0; 40 = 31; 41 = 2; 83 = 15; 98 = 2000; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = $flagBarbedShot; 225 = 1 } },
+       Fields = @{ 1 = 0; 2 = 0; 3 = 15; 30 = 0; 40 = 31; 41 = 2; 46 = 35; 83 = 15; 98 = 2000; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = $flagBarbedShot; 225 = 1 } },
     @{ Id = 93221; Clone = 2983; Name = 'Frénésie'; IconPath = 'Interface\Icons\Ability_Druid_Mangle2'; FallbackIconSpell = 19574; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 3; Spellbook = $false
        Description = "Vitesse d'attaque augmentée."; AuraDescription = "Vitesse d'attaque augmentée de 10% par charge."
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModMeleeHaste; TargetA = 1; Value = 10 })
@@ -154,7 +155,7 @@ $spells = @(
     @{ Id = 93223; Clone = $shot; Name = 'Tir du cobra'; IconPath = 'Interface\Icons\Ability_Hunter_CobraStrikes'; FallbackIconSpell = 1978; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $beastMastery; ClassMask = $classMask
        Description = "Un tir rapide qui inflige des dégâts physiques et réduit de 1 s le temps de recharge d'Ordre de tuer."
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 600 })
-       Fields = @{ 1 = 0; 30 = 0; 41 = 2; 131 = 3179; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = $flagCobraShot; 225 = 1 } },
+       Fields = @{ 1 = 0; 30 = 0; 41 = 2; 46 = 35; 131 = 3179; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = $flagCobraShot; 225 = 1 } },
     # Ordre de tuer's hit, cast by the pet at an amount mod-hunter works out from the Hunter's ranged attack power
     @{ Id = 93224; Clone = $computed; Name = 'Ordre de tuer'; IconPath = 'Interface\Icons\Ability_Hunter_KillCommand'; FallbackIconSpell = 34026; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Dégâts physiques.'
@@ -230,7 +231,7 @@ $spells = @(
        Effects = @(
            @{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 6 },
            @{ Index = 1; Effect = 6; Aura = 23; TargetA = 1 })
-       Fields = @{ 40 = 39; 41 = 2; 46 = 114; 99 = 333; 117 = 93251; 131 = 0; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = $flagRapidFire; 225 = 1 } },
+       Fields = @{ 40 = 39; 41 = 2; 46 = 35; 99 = 333; 117 = 93251; 131 = 0; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = $flagRapidFire; 225 = 1 } },
     @{ Id = 93251; Clone = $shot; Name = 'Tir en rafale'; IconPath = 'Interface\Icons\Ability_Hunter_RunningShot'; FallbackIconSpell = 3045; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Dégâts physiques.'
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 77; Value = 180 })
@@ -295,7 +296,7 @@ $spells = @(
     @{ Id = 93262; Clone = $shot; Name = 'Flèche gémissante'; IconPath = 'Interface\Icons\Ability_Hunter_EagleEye'; FallbackIconSpell = 19434; Cost = 15; Cooldown = 60000; Level = 1; Spellbook = $true; SkillLine = $marksmanship; ClassMask = $classMask
        Description = 'Une flèche hurlante qui inflige de lourds dégâts à la cible, 40% aux ennemis à moins de 8 m, et les réduit tous au silence pendant 3 s.'
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 1500 })
-       Fields = @{ 1 = 0; 28 = 5; 30 = 0; 41 = 2; 131 = 7955; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
+       Fields = @{ 1 = 0; 28 = 5; 30 = 0; 41 = 2; 46 = 35; 131 = 7955; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
     @{ Id = 93263; Clone = 15487; Name = 'Flèche gémissante'; IconPath = 'Interface\Icons\Ability_Hunter_EagleEye'; FallbackIconSpell = 19434; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Réduit au silence.'; AuraDescription = 'Réduit au silence.'
        Fields = @{ 1 = 0; 12 = 0; 29 = 0; 40 = 27; 41 = 0; 204 = 0; 208 = 9; 209 = 0; 210 = 0; 211 = 0 } },

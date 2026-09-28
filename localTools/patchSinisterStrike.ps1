@@ -884,7 +884,12 @@ $stockSpellEdits = @(& ([ScriptBlock]::Create($hunterStockSource)))
 $stockEditsById = @{}
 $stockEditsByName = @{}
 $stockEditFamilies = [Collections.Generic.HashSet[int]]::new()
+# Range entries swapped on every spell of a family that a skill line teaches (the Hunter's shots lose the ranged
+# weapon's dead zone), before the named edits so their own range still wins
+$stockRangeRemaps = @{}
+$stockRangeRemapCount = 0
 foreach ($stockEdit in $stockSpellEdits) {
+    if ($stockEdit.Ranges) { $stockRangeRemaps[[int]$stockEdit.Family] = $stockEdit.Ranges; continue }
     if ($stockEdit.Id) { $stockEditsById[[int]$stockEdit.Id] = $stockEdit; continue }
     $stockEditsByName["$([int]$stockEdit.Family)|$($stockEdit.Name)"] = $stockEdit
     [void]$stockEditFamilies.Add([int]$stockEdit.Family)
@@ -1552,6 +1557,14 @@ for ($index = 0; $index -lt $recordCount; ++$index) {
             }
         }
     }
+    $stockRangeRemap = $stockRangeRemaps[[int](Read-Field $records $offset 208)]
+    if ($stockRangeRemap -and $stockSkillSpells.Contains([uint32]$spellId)) {
+        $stockNewRange = $stockRangeRemap[[int](Read-Field $records $offset 46)]
+        if ($stockNewRange) {
+            Write-Field $records $offset 46 ([long]$stockNewRange)
+            ++$stockRangeRemapCount
+        }
+    }
     $stockEdit = $stockEditsById[[int]$spellId]
     if (-not $stockEdit) {
         $stockFamily = [int](Read-Field $records $offset 208)
@@ -1992,6 +2005,7 @@ Write-Host "Oathblade: $($blueEffectIds.Count) blue effect models of its own, us
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
 Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1)."
+Write-Host "Swapped the range of $stockRangeRemapCount stock spells (no ranged dead zone, localTools\hunter\StockSpells.ps1)."
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
 Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."
 Write-Host "Combat rogue icons generated: $generatedIcons (missing ones use stock game icons)."
