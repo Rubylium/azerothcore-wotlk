@@ -135,18 +135,23 @@ constexpr uint32 RimeWindowMs = 1000;
 // Pack damage (the combat bench, Fire mage as the reference). Frost's area kit is cloned from Cone of Cold and Blood
 // Boil and scales with the spell power a Death Knight does not have: its hits are raised; Death and Decay a little
 // less for Frost, more for Unholy, which also has Epidemic (on a pack only) and Wandering Plague
-constexpr float FrostAreaFactor = 2.5f;     // Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
-constexpr float FrostDeathAndDecayFactor = 1.5f;
-constexpr float UnholyDeathAndDecayFactor = 2.0f;
-constexpr float UnholyWanderingPlagueFactor = 1.5f;
-constexpr float EpidemicPackFactor = 3.0f;
+// Retuned 2026-09-29 on the bench's packs of 3 to 12: Frost 59-84% of Fire's, Unholy 210% on three enemies (its
+// minions) but 63% on twelve. Big pulls (twenty) are what the area kit is weighed on.
+constexpr float FrostAreaFactor = 3.2f;     // Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
+constexpr float FrostDeathAndDecayFactor = 2.2f;
+constexpr float FrostStrikeFactor = 1.4f;   // Obliterate, Frost Strike, Howling Blast
+constexpr float UnholyDeathAndDecayFactor = 2.6f;
+constexpr float UnholyWanderingPlagueFactor = 2.5f;
+constexpr float EpidemicPackFactor = 4.0f;
 // Unholy (the combat bench, 2026-09-28: 56-79% of Fire's everywhere): its strikes and Death Coil hit harder, Apocalypse
 // much harder, and its minions (the ghoul, Dark Transformation's cleave, the gargoyle, the Army of the Dead), stock
 // WotLK creatures that did about a hundred a swing at this gear, carry a real share
-constexpr float UnholyStrikeFactor = 1.5f;      // Scourge Strike, Festering Strike, the wounds' bursts, Death Coil
+constexpr float UnholyStrikeFactor = 1.3f;      // Scourge Strike, Festering Strike, the wounds' bursts, Death Coil
 constexpr float ApocalypseFactor = 3.0f;
 constexpr float EpidemicFactor = 1.5f;          // on one enemy too; EpidemicPackFactor on top on a pack
-constexpr float UnholyMinionFactor = 4.0f;
+constexpr float UnholyMinionFactor = 3.0f;      // the ghoul and the Army of the Dead
+constexpr float GargoyleFactor = 1.5f;          // a third of a boss's damage at x4: a cooldown, not the spec
+constexpr uint32 NPC_EBON_GARGOYLE = 27829;
 constexpr uint32 SPELL_SCOURGE_STRIKE_SHADOW = 70890;
 constexpr uint32 SPELL_DEATH_COIL_DAMAGE = 47632;
 constexpr uint32 EpidemicPackEnemies = 3;
@@ -488,7 +493,9 @@ float MinionFactor(Unit* attacker)
     if (!minion)
         return 1.0f;
     Player* owner = DeathKnight(minion->GetCharmerOrOwnerPlayerOrPlayerItself());
-    return owner && IsUnholy(owner) ? UnholyMinionFactor : 1.0f;
+    if (!owner || !IsUnholy(owner))
+        return 1.0f;
+    return minion->GetEntry() == NPC_EBON_GARGOYLE ? GargoyleFactor : UnholyMinionFactor;
 }
 
 // --- Spell casts ---------------------------------------------------------------------------------------------------
@@ -742,6 +749,9 @@ public:
             else if (id == SPELL_APOCALYPSE)
                 factor *= ApocalypseFactor;
         }
+        else if (IsFrost(player) && (HasFlag(spellInfo, 1, FLAG1_OBLITERATE) ||
+            HasFlag(spellInfo, 1, FLAG1_FROST_STRIKE) || HasFlag(spellInfo, 1, FLAG1_HOWLING_BLAST)))
+            factor *= FrostStrikeFactor;
 
         // Ossuaire: Death Strike and Heart Strike behind five bones or more
         if ((HasFlag(spellInfo, 0, FLAG0_DEATH_STRIKE) || HasFlag(spellInfo, 0, FLAG0_HEART_STRIKE)) &&
