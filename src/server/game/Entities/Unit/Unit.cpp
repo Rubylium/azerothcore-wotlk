@@ -2821,7 +2821,8 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType /*= BASE_A
         for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
         {
             Unit::DealDamageMods(victim, damageInfo.damages[i].damage, &damageInfo.damages[i].absorb);
-            if (damageInfo.damages[i].damage)
+            // A swing shields took whole still reaches it, with its absorbed part (damage 0)
+            if (damageInfo.damages[i].damage || damageInfo.damages[i].absorb)
                 sScriptMgr->ModifyFinalDamage(this, victim, damageInfo.damages[i].damage, damageInfo.damages[i].absorb, nullptr);
         }
 

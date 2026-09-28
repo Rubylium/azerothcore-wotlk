@@ -2860,7 +2860,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
             }
 
             Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
-            if (damageInfo.damage)
+            // A hit shields took whole still reaches it, with its absorbed part (damage 0)
+            if (damageInfo.damage || damageInfo.absorb)
                 sScriptMgr->ModifyFinalDamage(caster, damageInfo.target, damageInfo.damage, damageInfo.absorb, m_spellInfo);
 
             // xinef: health leech handling

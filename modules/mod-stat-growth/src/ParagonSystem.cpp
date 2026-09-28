@@ -1808,6 +1808,23 @@ void NoteParagonDamageSource(Unit* attacker, Unit* victim, SpellInfo const* spel
     PendingSource.set = true;
 }
 
+// Rancune (Bastion) counts every hit taken as it would have landed without the player's defences: what shields
+// absorbed and what damage-taken reductions (Shield Wall, Pain Suppression, ...) took off are counted back, and the
+// board's own Ward, Last Stand and reduction come after. Defending oneself must not starve it.
+void NoteParagonHitTaken(Unit* victim, Unit* attacker, uint32 amount, SpellSchoolMask schoolMask)
+{
+    Player* player = victim ? victim->ToPlayer() : nullptr;
+    if (!player || !amount || !attacker || attacker == victim || player->IsFriendlyTo(attacker))
+        return;
+
+    ParagonState* state = GetState(player);
+    if (!state || !state->applied || !state->grudgePct)
+        return;
+
+    float const taken = player->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
+    state->grudgePool += double(amount) / std::max(taken, 0.1f);
+}
+
 void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
 {
     Player* player = victim ? victim->ToPlayer() : nullptr;
@@ -1847,10 +1864,6 @@ void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage)
         }
     if (!damage)
         return;
-
-    // Rancune counts what actually lands
-    if (state->grudgePct)
-        state->grudgePool += damage;
 
     for (ParagonProc& proc : state->procs)
     {

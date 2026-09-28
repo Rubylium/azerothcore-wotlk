@@ -78,6 +78,8 @@ void SendParagonBoard(Player* player);
 // Combat hooks. Each returns immediately for a character with no procs allocated, which is almost all of
 // them, so they are cheap enough to sit on the damage path.
 void OnParagonDamageTaken(Unit* victim, Unit* attacker, uint32& damage);
+// Rancune's count of a hit taken: landed plus absorbed, before the player's damage-taken reductions
+void NoteParagonHitTaken(Unit* victim, Unit* attacker, uint32 amount, SpellSchoolMask schoolMask);
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage);
 void OnParagonKill(Player* player, Unit* killed);
 // What is about to deal the next hit (ModifyFinalDamage, ModifyPeriodicDamageAurasTick): no spell for a white swing.
