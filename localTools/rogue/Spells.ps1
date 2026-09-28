@@ -106,10 +106,10 @@ $spells = @(
        AuraDescription = 'Dégâts augmentés de 15%.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = 79; TargetA = 1; Value = 15; Misc = 127 }, @{ Index = 1; Effect = 30; TargetA = 1; Value = 40; Misc = 3 })
        Fields = @{ 34 = 0; 35 = 0; 36 = 0; 40 = 1; 41 = 3; 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
-    # Tempête de shurikens: Fan of Knives at 10 yd for 35 Energy; mod-rogue adds a combo point for the first enemy hit and
+    # Tempête de shurikens: Fan of Knives at 10 yd for 35 Energy; mod-rogue sets its hit to 180% of the attack power (40% of it on fewer than 3 enemies), adds a combo point for the first enemy hit and
     # two for every other one, up to 5 (Shadow Blades: one more)
     @{ Id = 92321; Clone = 51723; Name = 'Tempête de shurikens'; IconPath = 'Interface\Icons\Ability_Rogue_FanOfKnives'; FallbackIconSpell = 51723; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask; NoEquipment = $true
-       Description = "Projette des shurikens sur tous les ennemis à 10 m : dégâts d'arme, 1 point de combo pour le premier ennemi touché et 2 pour chacun des suivants, jusqu'à 5."
+       Description = "Projette des shurikens sur tous les ennemis à 10 m : dégâts physiques égaux à 180% de la puissance d'attaque (40% contre moins de 3 ennemis), 1 point de combo pour le premier ennemi touché et 2 pour chacun des suivants, jusqu'à 5."
        Fields = @{ 92 = 13; 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
     # Lames de l'ombre: a 10 s dummy buff with Shadow Dance's look, every 30 s; mod-rogue adds the damage and combo points
     @{ Id = 92322; Clone = 51713; Name = "Lames de l'ombre"; IconPath = 'Interface\Icons\Spell_Shadow_ShadowWordDominate'; FallbackIconSpell = 51713; Cost = 0; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask
@@ -120,7 +120,7 @@ $spells = @(
     # Poudre noire: a finisher on the target; mod-rogue deals shadow damage to every enemy within 10 yd, more for every
     # enemy beyond the first (up to two) and in Shadow Dance, and gives energy back for the enemies beyond the first
     @{ Id = 92340; Clone = 48668; Name = 'Poudre noire'; IconPath = 'Interface\Icons\Spell_Shadow_Shadowfury'; FallbackIconSpell = 30283; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask
-       Description = "Coup de grâce qui inflige des dégâts d'Ombre à tous les ennemis à 10 m, plus par point de combo : 35% de plus par ennemi touché au-delà du premier, jusqu'à 70%, et 25% de plus pendant Danse de l'ombre. Vous rend 6 points d'énergie par ennemi touché au-delà du premier, jusqu'à 18."
+       Description = "Coup de grâce qui inflige des dégâts d'Ombre à tous les ennemis à 10 m, plus par point de combo : 25% de plus par ennemi touché au-delà du premier, jusqu'à 50%, et 25% de plus pendant Danse de l'ombre. Vous rend 6 points d'énergie par ennemi touché au-delà du premier, jusqu'à 18."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
        Fields = @{ 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
     # Technique secrète: a finisher every 30 s; mod-rogue strikes every enemy within 10 yd three times, the rogue and two

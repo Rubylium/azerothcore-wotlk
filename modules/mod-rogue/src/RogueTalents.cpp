@@ -131,14 +131,23 @@ constexpr uint32 BleedEnergyGapMs = 500;
 constexpr uint32 CrimsonTempestTickMs = 2000;
 // Finesse's pack finisher. Alone, a little under Eviscerate; on a pack, it hits harder the more enemies it reaches (up
 // to three), harder still in Shadow Dance, and gives energy back for every enemy beyond the first.
-constexpr float BlackPowderPerPoint = 0.12f;
+// On a pack the loop is a Shuriken Storm (five combo points) then a Black Powder: the builder carries a real share
+// of the damage (ShurikenStormPerEnemy), so the pack's damage is not all in the finisher
+constexpr float BlackPowderPerPoint = 0.075f;
 constexpr uint32 BlackPowderFlatPerPoint = 200;
-constexpr int32 BlackPowderPerExtraEnemyPct = 35;
+constexpr int32 BlackPowderPerExtraEnemyPct = 25;
 constexpr uint32 BlackPowderMaxExtraEnemies = 2;
 constexpr int32 BlackPowderDancePct = 25;
 constexpr uint32 BlackPowderEnergyPerExtraEnemy = 6;
 constexpr uint32 BlackPowderMaxEnergy = 18;
-constexpr float SecretTechniquePerPoint = 0.12f;        // each of its three strikes
+// Shuriken Storm's hit on every enemy, a share of the attack power in place of the weapon damage it was cloned with
+// (Fan of Knives' without a dagger bonus: a few hundred, next to the finisher's thousands). About two thirds of a Black
+// Powder's hit on each enemy of a pack (the bench: physical, armour takes a share); on one or two enemies it keeps
+// ShurikenStormFewEnemiesPct of it, under Backstab, not a single-target builder
+constexpr float ShurikenStormPerEnemy = 1.8f;
+constexpr uint32 ShurikenStormFullEnemies = 3;
+constexpr int32 ShurikenStormFewEnemiesPct = 40;
+constexpr float SecretTechniquePerPoint = 0.10f;        // each of its three strikes
 constexpr uint32 SecretTechniqueFlatPerPoint = 150;
 constexpr uint32 SecretTechniqueStrikes = 3;
 // Finesse's own damage (its passive, Danseur des ombres): Eviscerate and the dagger builders
@@ -801,8 +810,20 @@ public:
 
     void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
     {
-        if (Player* player = RoguePlayer(attacker); player && target && damage > 0)
-            damage = int32(damage * DamageBonus(player, target, spellInfo, false));
+        Player* player = RoguePlayer(attacker);
+        if (!player || !target || damage <= 0)
+            return;
+
+        // Shuriken Storm: its hit from the attack power, with the rogue's and the target's bonuses (as DealAbility)
+        if (spellInfo && spellInfo->Id == SPELL_SHURIKEN_STORM)
+        {
+            uint32 amount = uint32(player->GetTotalAttackPowerValue(BASE_ATTACK) * ShurikenStormPerEnemy);
+            if (EnemiesAround(player, player, AreaRadius).size() < ShurikenStormFullEnemies)
+                amount = amount * ShurikenStormFewEnemiesPct / 100;
+            uint32 const done = player->SpellDamageBonusDone(target, spellInfo, amount, SPELL_DIRECT_DAMAGE, EFFECT_0);
+            damage = int32(target->SpellDamageBonusTaken(player, spellInfo, done, SPELL_DIRECT_DAMAGE));
+        }
+        damage = int32(damage * DamageBonus(player, target, spellInfo, false));
     }
 
     void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage, SpellInfo const* spellInfo) override
