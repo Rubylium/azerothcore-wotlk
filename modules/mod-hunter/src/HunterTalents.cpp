@@ -186,10 +186,11 @@ enum Spells : uint32
     SPELL_PET_CHARGE                = 61685,
 };
 
-// The wild beast of Bête sauvage and Appel de la nature sauvage (modules/mod-hunter SQL), called as Force of Nature
-// calls its treants (summon properties 1562: a guardian of the owner's), for 8 s
+// The wild beast of Bête sauvage and Appel de la nature sauvage (modules/mod-hunter SQL), for 8 s: an allied guardian
+// of the Hunter's (summon properties 61: category ally, type guardian). Force of Nature's 1562 is in the pet category,
+// which makes it a controllable guardian - the owner's pet slot - and sent the Hunter's own pet away.
 constexpr uint32 NpcWildBeast = 93240;
-constexpr uint32 WildBeastSummonProperties = 1562;
+constexpr uint32 WildBeastSummonProperties = 61;
 constexpr uint32 WildBeastMs = 8000;
 
 // --- Tuning (README.md): shares of the Hunter's ranged attack power ------------------------------------------------
@@ -625,8 +626,8 @@ void ApplySerpentSting(Player* player, Unit* target)
         player->CastSpell(target, SPELL_SERPENT_STING_MELEE, true);
 }
 
-// A wild beast (Bête sauvage, Appel de la nature sauvage): a guardian of the Hunter's beside it (Force of Nature's
-// summon properties: it fights its owner's target), its swings set from the Hunter's ranged attack power, sent at the
+// A wild beast (Bête sauvage, Appel de la nature sauvage): a guardian of the Hunter's beside it, next to its pet (it
+// fights its owner's target), its swings set from the Hunter's ranged attack power, sent at the
 // target. Bêtes redoutables: harder and 1-2 s longer.
 void CallWildBeast(Player* player, Unit* target)
 {
