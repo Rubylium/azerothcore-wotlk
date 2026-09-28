@@ -62,7 +62,7 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 
 ## Where each class is tuned
 
-Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter` (constants at
-the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
+Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter`,
+`mod-priest` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
 `localTools/<class>/Spells.ps1`, talent trees and presets in `localTools/<class>/talentTree.json`. Name the bench
 in the commit when a change was tuned on it.
