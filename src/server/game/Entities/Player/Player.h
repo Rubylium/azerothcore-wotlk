@@ -1352,6 +1352,8 @@ public:
     void SetAmmo(uint32 item);
     void RemoveAmmo();
     [[nodiscard]] float GetAmmoDPS() const { return m_ammoDPS; }
+    // the arrow or bullet a bow, crossbow or gun shoots without any ammo owned: the best one of the player's level
+    [[nodiscard]] ItemTemplate const* GetAutoAmmoTemplate() const;
     bool CheckAmmoCompatibility(ItemTemplate const* ammo_proto) const;
     void QuickEquipItem(uint16 pos, Item* pItem);
     void VisualizeItem(uint8 slot, Item* pItem);

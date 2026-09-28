@@ -4958,6 +4958,12 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
                         ammoInventoryType = pProto->InventoryType;
                     }
                 }
+                // no ammo equipped: the projectile shown is the arrow or bullet the shot is counted with
+                else if (ItemTemplate const* autoAmmo = m_caster->ToPlayer()->GetAutoAmmoTemplate())
+                {
+                    ammoDisplayID = autoAmmo->DisplayInfoID;
+                    ammoInventoryType = autoAmmo->InventoryType;
+                }
                 else if (m_caster->HasAura(46699))      // Requires No Ammo
                 {
                     ammoDisplayID = 5996;                   // normal arrow
@@ -5408,9 +5414,7 @@ void Spell::TakeAmmo()
                 m_caster->ToPlayer()->DestroyItemCount(pItem, count, true);
             }
         }
-        else if (!sWorld->getBoolConfig(CONFIG_ENABLE_INFINITEAMMO))
-            if (uint32 ammo = m_caster->ToPlayer()->GetUInt32Value(PLAYER_AMMO_ID))
-                m_caster->ToPlayer()->DestroyItemCount(ammo, 1, true);
+        // bows, crossbows and guns spend no ammo (see CheckItems)
     }
 }
 
@@ -7745,49 +7749,11 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
                                     return SPELL_FAILED_NO_AMMO;
                             };
                             break;
+                        // Bows, crossbows and guns need no ammo: they always shoot the best arrow or bullet of the
+                        // player's level (Player::GetAutoAmmoTemplate), none is owned or spent
                         case ITEM_SUBCLASS_WEAPON_GUN:
                         case ITEM_SUBCLASS_WEAPON_BOW:
                         case ITEM_SUBCLASS_WEAPON_CROSSBOW:
-                            {
-                                uint32 ammo = m_caster->ToPlayer()->GetUInt32Value(PLAYER_AMMO_ID);
-                                if (!ammo)
-                                {
-                                    // Requires No Ammo
-                                    if (m_caster->HasAura(46699))
-                                        break;                      // skip other checks
-
-                                    return SPELL_FAILED_NO_AMMO;
-                                }
-
-                                ItemTemplate const* ammoProto = sObjectMgr->GetItemTemplate(ammo);
-                                if (!ammoProto)
-                                    return SPELL_FAILED_NO_AMMO;
-
-                                if (ammoProto->Class != ITEM_CLASS_PROJECTILE)
-                                    return SPELL_FAILED_NO_AMMO;
-
-                                // check ammo ws. weapon compatibility
-                                switch (pItem->GetTemplate()->SubClass)
-                                {
-                                    case ITEM_SUBCLASS_WEAPON_BOW:
-                                    case ITEM_SUBCLASS_WEAPON_CROSSBOW:
-                                        if (ammoProto->SubClass != ITEM_SUBCLASS_ARROW)
-                                            return SPELL_FAILED_NO_AMMO;
-                                        break;
-                                    case ITEM_SUBCLASS_WEAPON_GUN:
-                                        if (ammoProto->SubClass != ITEM_SUBCLASS_BULLET)
-                                            return SPELL_FAILED_NO_AMMO;
-                                        break;
-                                    default:
-                                        return SPELL_FAILED_NO_AMMO;
-                                }
-
-                                if (!m_caster->ToPlayer()->HasItemCount(ammo))
-                                {
-                                    m_caster->ToPlayer()->SetUInt32Value(PLAYER_AMMO_ID, 0);
-                                    return SPELL_FAILED_NO_AMMO;
-                                }
-                            };
                             break;
                         case ITEM_SUBCLASS_WEAPON_WAND:
                             break;

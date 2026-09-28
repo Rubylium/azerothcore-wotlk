@@ -2544,6 +2544,9 @@ void Player::GiveLevel(uint8 level)
 
     SetLevel(level);
 
+    // the ranged weapon's automatic ammo follows the level
+    _ApplyAmmoBonuses();
+
     UpdateSkillsForLevel();
 
     // save base values (bonuses already included in stored stats
@@ -7861,20 +7864,95 @@ void Player::_ApplyAllLevelScaleItemMods(bool apply)
     }
 }
 
+namespace
+{
+    float GetAmmoTemplateDPS(ItemTemplate const* proto)
+    {
+        return (proto->Damage[0].DamageMin + proto->Damage[0].DamageMax) / 2;
+    }
+
+    // For each level, the best arrow and the best bullet a character of that level can shoot: the projectile with
+    // the most damage per second whose required level is reached. Dummy, deprecated and legendary ammo is left out.
+    struct AutoAmmoTable
+    {
+        std::vector<ItemTemplate const*> arrows;
+        std::vector<ItemTemplate const*> bullets;
+    };
+
+    std::vector<ItemTemplate const*> BuildAutoAmmoLevels(uint32 ammoSubClass)
+    {
+        std::vector<ItemTemplate const*> best;
+        for (auto const& [entry, proto] : *sObjectMgr->GetItemTemplateStore())
+        {
+            if (proto.Class != ITEM_CLASS_PROJECTILE || proto.SubClass != ammoSubClass || !proto.RequiredLevel ||
+                proto.Quality > ITEM_QUALITY_EPIC || proto.HasFlag(ITEM_FLAG_DEPRECATED) ||
+                GetAmmoTemplateDPS(&proto) <= 0.0f)
+                continue;
+
+            if (best.size() <= proto.RequiredLevel)
+                best.resize(proto.RequiredLevel + 1, nullptr);
+
+            ItemTemplate const*& current = best[proto.RequiredLevel];
+            if (!current || GetAmmoTemplateDPS(&proto) > GetAmmoTemplateDPS(current) ||
+                (GetAmmoTemplateDPS(&proto) == GetAmmoTemplateDPS(current) && proto.ItemId < current->ItemId))
+                current = &proto;
+        }
+
+        // a level keeps the best projectile of the levels below it
+        for (std::size_t level = 1; level < best.size(); ++level)
+        {
+            ItemTemplate const* below = best[level - 1];
+            if (below && (!best[level] || GetAmmoTemplateDPS(below) > GetAmmoTemplateDPS(best[level])))
+                best[level] = below;
+        }
+
+        return best;
+    }
+
+    AutoAmmoTable const& GetAutoAmmoTable()
+    {
+        static AutoAmmoTable const table =
+            { BuildAutoAmmoLevels(ITEM_SUBCLASS_ARROW), BuildAutoAmmoLevels(ITEM_SUBCLASS_BULLET) };
+        return table;
+    }
+}
+
+ItemTemplate const* Player::GetAutoAmmoTemplate() const
+{
+    Item* weapon = GetWeaponForAttack(RANGED_ATTACK);
+    if (!weapon || weapon->IsBroken())
+        return nullptr;
+
+    ItemTemplate const* weaponProto = weapon->GetTemplate();
+    if (!weaponProto || weaponProto->Class != ITEM_CLASS_WEAPON)
+        return nullptr;
+
+    std::vector<ItemTemplate const*> const* levels;
+    switch (weaponProto->SubClass)
+    {
+        case ITEM_SUBCLASS_WEAPON_BOW:
+        case ITEM_SUBCLASS_WEAPON_CROSSBOW:
+            levels = &GetAutoAmmoTable().arrows;
+            break;
+        case ITEM_SUBCLASS_WEAPON_GUN:
+            levels = &GetAutoAmmoTable().bullets;
+            break;
+        default:
+            return nullptr;
+    }
+
+    if (levels->empty())
+        return nullptr;
+
+    return (*levels)[std::min<std::size_t>(GetLevel(), levels->size() - 1)];
+}
+
 void Player::_ApplyAmmoBonuses()
 {
-    // check ammo
-    uint32 ammo_id = GetUInt32Value(PLAYER_AMMO_ID);
-    if (!ammo_id)
-        return;
-
-    float currentAmmoDPS;
-
-    ItemTemplate const* ammo_proto = sObjectMgr->GetItemTemplate(ammo_id);
-    if (!ammo_proto || ammo_proto->Class != ITEM_CLASS_PROJECTILE || !CheckAmmoCompatibility(ammo_proto))
-        currentAmmoDPS = 0.0f;
-    else
-        currentAmmoDPS = (ammo_proto->Damage[0].DamageMin + ammo_proto->Damage[0].DamageMax) / 2;
+    // Ranged weapons need no ammo: a bow, crossbow or gun adds the damage of the best arrow or bullet of the
+    // player's level, whatever is (or is not) in the ammo slot
+    ItemTemplate const* ammo_proto = GetAutoAmmoTemplate();
+    float currentAmmoDPS = ammo_proto ? GetAmmoTemplateDPS(ammo_proto) : 0.0f;
 
     sScriptMgr->OnPlayerApplyAmmoBonuses(this, ammo_proto, currentAmmoDPS);
 

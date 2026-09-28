@@ -465,7 +465,10 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recvData)
         queryData << pProto->ArcaneRes;
 
         queryData << pProto->Delay;
-        queryData << pProto->AmmoType;
+        // Ranged weapons need no ammo. The client refuses a ranged shot on its own ("Needs Arrow") when the weapon's
+        // ammo type is set and no matching projectile is in the bags; a zero ammo type is the only thing it reads
+        // it for, and skips that check
+        queryData << uint32(0);                              // pProto->AmmoType
         queryData << pProto->RangedModRange;
 
         for (int s = 0; s < MAX_ITEM_PROTO_SPELLS; ++s)
