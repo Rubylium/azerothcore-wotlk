@@ -1319,9 +1319,11 @@ void StripBotBoard(Player* bot, ParagonState* state)
 
 // Looks at the bot's content and role, and rebuilds its board if either moved. Never in combat: the board would be
 // pulled from under a fight, and a proc running would end early.
-void RefreshBot(Player* bot)
+// force: on a map change, whatever the combat flag it carried over (a bot leaving a key for a raid kept the key's
+// board while it stayed in combat)
+void RefreshBot(Player* bot, bool force = false)
 {
-    if (bot->IsInCombat() || !bot->IsInWorld())
+    if ((bot->IsInCombat() && !force) || !bot->IsInWorld())
         return;
 
     uint32 const budget = BotBudget(bot);
@@ -1556,7 +1558,7 @@ void RefreshBotParagon(Player* bot)
     if (!bot || !bot->GetSession() || !bot->GetSession()->IsBot())
         return;
 
-    RefreshBot(bot);
+    RefreshBot(bot, true);
     if (BotParagonTimer* timer = bot->CustomData.GetDefault<BotParagonTimer>(BotTimerKey))
         timer->left = BotCheckMs;
 }

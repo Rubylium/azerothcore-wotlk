@@ -125,9 +125,10 @@ void ApplyStats(Player* bot, BotEssenceState* state, uint32 statPoints)
 
 // Looks at the bot's group again and rebuilds the mirror if the players' averages moved. Never in combat, like the
 // bot's paragon board: stats and health are not pulled from under a fight.
-void RefreshBot(Player* bot)
+// force: on a map change, whatever the combat flag it carried over
+void RefreshBot(Player* bot, bool force = false)
 {
-    if (bot->IsInCombat() || !bot->IsInWorld())
+    if ((bot->IsInCombat() && !force) || !bot->IsInWorld())
         return;
 
     GroupEssences const wanted = ReadGroupEssences(bot);
@@ -181,7 +182,7 @@ void RefreshBotEssences(Player* bot)
     if (!IsBot(bot))
         return;
 
-    RefreshBot(bot);
+    RefreshBot(bot, true);
     bot->CustomData.GetDefault<BotEssenceTimer>(TimerKey)->left = CheckMs;
 }
 
