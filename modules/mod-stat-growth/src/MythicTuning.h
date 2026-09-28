@@ -59,6 +59,13 @@ namespace MythicTuning
     // Deals `percent` of the reference health at the caster's key, as `spellId`, whatever the spell or the dungeon's
     // era: the way to set new abilities. The target's defensives, resistances and absorbs still apply.
     void DealReferenceDamage(Unit* caster, Unit* target, uint32 spellId, float percent);
+
+    // Imprudence: a player hit by an enemy ability while standing in its red area (GroundIndicators::StoodInAreaOf)
+    // in a mythic dungeon takes a stack of a debuff that costs a share of their maximum health every second
+    // (spell 90672: HazardPercentPerStack per stack, HazardDurationMs, up to HazardMaxStacks, one stack a
+    // HazardStackGapMs at most). Staying in the red is then never worth it, whatever the health. Every enemy hit
+    // taken goes through here: a spell's (absorbed ones too), a periodic tick's, a scripted ability's.
+    void OnHitTaken(Unit* victim, Unit* attacker, SpellInfo const* spellInfo);
 }
 
 // Telegraphed abilities for trash (MythicTuning.cpp runs them): a creature of a listed entry, in combat in a mythic

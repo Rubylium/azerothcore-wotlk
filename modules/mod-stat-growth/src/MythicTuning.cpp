@@ -36,6 +36,16 @@ constexpr float TrashTargetRange = 30.0f;
 std::mutex InstanceGapLock;
 std::unordered_map<uint32, uint32> NextTrashStart;      // instance id -> getMSTime
 
+// Imprudence (MythicTuning::OnHitTaken): SPELL_AURA_PERIODIC_DAMAGE_PERCENT, 1% of the maximum health a second per
+// stack, 6 s refreshed by each new stack, up to 10 (spell data: localTools/patchSinisterStrike.ps1)
+constexpr uint32 SPELL_MYTHIC_IMPRUDENCE = 90672;
+constexpr uint32 HazardStackGapMs = 1000;           // a multi-hit ability or a pool's tick adds one a second at most
+
+struct HazardState : public DataMap::Base
+{
+    uint32 lastStackMs = 0;
+};
+
 int32 KeyOf(Unit const* unit)
 {
     Map const* map = unit ? unit->FindMap() : nullptr;
@@ -305,6 +315,31 @@ void DealAbilityDamage(Unit* caster, Unit* target, uint32 spellId, uint32 amount
     Unit::DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
     caster->SendSpellNonMeleeDamageLog(&damageInfo);
     caster->DealSpellDamage(&damageInfo, true);
+    OnHitTaken(target, caster, spellInfo);
+}
+
+void OnHitTaken(Unit* victim, Unit* attacker, SpellInfo const* spellInfo)
+{
+    Player* player = victim ? victim->ToPlayer() : nullptr;
+    if (!player || !attacker || !spellInfo || attacker == victim || !player->IsAlive() ||
+        spellInfo->Id == SPELL_MYTHIC_IMPRUDENCE)
+        return;
+
+    // An enemy creature's ability (or its trigger's, or its add's), in a mythic dungeon
+    Map const* map = player->FindMap();
+    if (!map || !map->IsMythic() || attacker->IsControlledByPlayer() || player->IsFriendlyTo(attacker))
+        return;
+
+    uint32 const now = getMSTime();
+    HazardState* state = player->CustomData.GetDefault<HazardState>("MythicImprudence");
+    if (state->lastStackMs && getMSTimeDiff(state->lastStackMs, now) < HazardStackGapMs)
+        return;
+    if (!GroundIndicators::StoodInAreaOf(player, attacker))
+        return;
+
+    state->lastStackMs = now;
+    // Self-cast: its own ticks come from the player, never from the creature whose area it was
+    player->AddAura(SPELL_MYTHIC_IMPRUDENCE, player);
 }
 
 void DealReferenceDamage(Unit* caster, Unit* target, uint32 spellId, float percent)

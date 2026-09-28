@@ -420,6 +420,12 @@ $customSpells = @(
        Fields = @{ 40 = 21 } },
     @{ Id = 90671; Clone = 2983; Name = 'Illumination du parangon'; Icon = 'ParagonNode_Illumination'; FallbackIconSpell = 20215; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Rend une partie du mana maximum.' },
+    # Imprudence (mod-stat-growth MythicTuning.cpp OnHitTaken): hit in a mythic dungeon while standing in an enemy's red
+    # area - 1% of the maximum health a second per stack (SPELL_AURA_PERIODIC_DAMAGE_PERCENT), 6 s, up to 10
+    @{ Id = 90672; Clone = 2983; Name = 'Imprudence'; IconPath = 'Interface\Icons\Ability_Creature_Disease_02'; FallbackIconSpell = 172; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 10; Spellbook = $false
+       Description = "Touché dans une zone dangereuse : vous perdez 1% de vos points de vie maximum par seconde et par charge."
+       AuraDescription = 'Perd 1% de ses points de vie maximum par seconde et par charge. Sortez des zones rouges !'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 89; TargetA = 1; Value = 1 }); Fields = @{ 40 = 32; 98 = 1000 } },
     # Threat in dungeons and raids (mod-stat-growth MythicDungeonSystem.cpp): the tank's presence and everyone else's
     # discretion. The module sets the amount; the paragon board's tank nodes add to the presence.
     @{ Id = 90664; Clone = 2983; CantCancel = $true; Name = 'Présence du gardien'; FallbackIconSpell = 71; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false

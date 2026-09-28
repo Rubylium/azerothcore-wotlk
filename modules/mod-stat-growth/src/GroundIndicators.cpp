@@ -126,6 +126,11 @@ struct ActiveArea
     uint64 endMs = 0;
 };
 
+// An area that ended stays known this long, hidden from the bots: the ability it announced lands as it goes (a cast
+// indicator is taken away when the spell goes off, its damage comes a moment later), and a hit then still reads as
+// taken standing in it (StoodInAreaOf)
+constexpr uint64 EndedAreaGraceMs = 1500;
+
 // Maps update on several threads: every access to the registry holds the lock
 std::mutex RegistryLock;
 std::vector<ActiveArea> Registry;
@@ -151,7 +156,7 @@ uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, 
     uint64 const now = NowMs();
     std::lock_guard<std::mutex> guard(RegistryLock);
     Registry.erase(std::remove_if(Registry.begin(), Registry.end(),
-        [now](ActiveArea const& entry) { return entry.endMs <= now; }), Registry.end());
+        [now](ActiveArea const& entry) { return entry.endMs + EndedAreaGraceMs <= now; }), Registry.end());
     active.id = ++NextAreaId;
     Registry.push_back(active);
     return active.id;
@@ -166,11 +171,14 @@ void Resize(uint64 areaId, float radius)
             entry.area.radius = radius;
 }
 
+// Ended now: it leaves the bots' view, and is dropped once EndedAreaGraceMs has passed
 void Unregister(uint64 areaId)
 {
+    uint64 const now = NowMs();
     std::lock_guard<std::mutex> guard(RegistryLock);
-    Registry.erase(std::remove_if(Registry.begin(), Registry.end(),
-        [areaId](ActiveArea const& entry) { return entry.id == areaId; }), Registry.end());
+    for (ActiveArea& entry : Registry)
+        if (entry.id == areaId)
+            entry.endMs = std::min(entry.endMs, now);
 }
 
 // The areas on show in unit's instance, carried ones where their carrier is now
@@ -909,6 +917,47 @@ Area CurrentArea(Unit* carrier, Area const& area)
     if (carrier)
         current.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
     return current;
+}
+
+bool StoodInAreaOf(Unit* victim, Unit* attacker)
+{
+    if (!victim || !attacker || !victim->IsInWorld())
+        return false;
+
+    // The creature an area belongs to, or the one that summoned what hit (a boss's trigger or add)
+    ObjectGuid const attackerGuid = attacker->GetGUID();
+    ObjectGuid const ownerGuid = attacker->GetCharmerOrOwnerGUID();
+    uint64 const now = NowMs();
+    std::vector<ActiveArea> areas;
+    {
+        std::lock_guard<std::mutex> guard(RegistryLock);
+        for (ActiveArea const& entry : Registry)
+            if (entry.endMs + EndedAreaGraceMs > now && entry.mapId == victim->GetMapId() &&
+                entry.instanceId == victim->GetInstanceId() &&
+                (entry.owner == attackerGuid || (!ownerGuid.IsEmpty() && entry.owner == ownerGuid)))
+                areas.push_back(entry);
+    }
+
+    Position const here = victim->GetPosition();
+    for (ActiveArea& entry : areas)
+    {
+        // A circle carried by the victim itself is theirs to take away, not to dodge
+        if (entry.carrier == victim->GetGUID())
+            continue;
+        if (!entry.carrier.IsEmpty())
+            if (Unit* carrier = ObjectAccessor::GetUnit(*victim, entry.carrier))
+            {
+                entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
+                if (entry.carriedBase > 0.0f)
+                    entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
+            }
+        // A trash creature's circle around itself hits the tank it is fighting: a tank holds its ground there
+        if (HeldByTank(victim, entry))
+            continue;
+        if (entry.area.Contains(here, 0.0f))
+            return true;
+    }
+    return false;
 }
 
 bool FindEscape(Unit* unit, Position& escape, bool tank)

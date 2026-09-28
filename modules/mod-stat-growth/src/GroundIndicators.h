@@ -73,6 +73,11 @@ namespace GroundIndicators
     // carrying a circle does not run from the group either; the group leaves it. Bosses' circles, and every area
     // laid elsewhere, a tank still dodges.
     bool FindEscape(Unit* unit, Position& escape, bool tank = false);
+
+    // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
+    // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it
+    // as its tank, do not count.
+    bool StoodInAreaOf(Unit* victim, Unit* attacker);
 }
 
 void AddGroundIndicatorScripts();

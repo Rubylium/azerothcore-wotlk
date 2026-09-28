@@ -563,6 +563,7 @@ public:
         NoteParagonDamageSource(attacker, victim, spellInfo, false);
         NoteParagonHitTaken(victim, attacker, damage + absorb,
             spellInfo ? spellInfo->GetSchoolMask() : SPELL_SCHOOL_MASK_NORMAL);
+        MythicTuning::OnHitTaken(victim, attacker, spellInfo);
     }
 
     // A bot trailing its players deals more (BotCatchUpSystem.cpp): before mitigation, so the combat log and the
@@ -584,6 +585,8 @@ public:
         // Before its absorb: a tick a shield soaks still counts for Rancune (a heal tick's healer is friendly)
         NoteParagonHitTaken(target, attacker, damage,
             spellInfo ? spellInfo->GetSchoolMask() : SPELL_SCHOOL_MASK_NORMAL);
+        if (damage)
+            MythicTuning::OnHitTaken(target, attacker, spellInfo);
         // A heal tick comes through here too, but on a friendly target, which never gets the bonus
         ScaleByCatchUp(attacker, target, damage);
     }
