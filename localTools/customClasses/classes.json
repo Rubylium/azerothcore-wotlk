@@ -86,6 +86,13 @@
       "family": 9,
       "powerType": 2,
       "talentTree": "localTools/hunter/talentTree.json"
+    },
+    {
+      "_comment": "The Priest keeps mana; Shadow's Insanity is an aura of stacks (modules/mod-priest).",
+      "id": 5,
+      "token": "PRIEST",
+      "family": 6,
+      "talentTree": "localTools/priest/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {

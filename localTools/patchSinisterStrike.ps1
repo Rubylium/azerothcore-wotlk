@@ -867,6 +867,10 @@ $customSpells += & ([ScriptBlock]::Create($paladinSpellSource))
 # The Hunter on its retail-style talent trees (localTools/hunter/talentTree.json): abilities, auras and talent ranks
 $hunterSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hunter\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($hunterSpellSource))
+# The Priest on its retail-style talent trees (localTools/priest/talentTree.json): Insanity, abilities, auras and
+# talent ranks
+$priestSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\priest\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($priestSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
@@ -878,9 +882,11 @@ $mageFreeReagents = @(17020, 17031, 17032, 17056)
 
 # Stock spells changed in place, by family and English name (every rank of a trainer's chain; only the ranks a skill
 # line teaches and that had a cost, so the creatures' and the triggered spells sharing a name are left alone) or by id: fields, and optionally new effects and
-# texts. The Hunter's Focus costs, Kill Command, Aimed Shot and Raptor Strike (localTools/hunter/StockSpells.ps1).
+# texts. The Hunter's Focus costs, Kill Command, Aimed Shot and Raptor Strike (localTools/hunter/StockSpells.ps1); the
+# Priest's snappier casts and Devouring Plague on Insanity (localTools/priest/StockSpells.ps1).
 $hunterStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hunter\StockSpells.ps1') -Raw -Encoding UTF8
-$stockSpellEdits = @(& ([ScriptBlock]::Create($hunterStockSource)))
+$priestStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\priest\StockSpells.ps1') -Raw -Encoding UTF8
+$stockSpellEdits = @(& ([ScriptBlock]::Create($hunterStockSource))) + @(& ([ScriptBlock]::Create($priestStockSource)))
 $stockEditsById = @{}
 $stockEditsByName = @{}
 $stockEditFamilies = [Collections.Generic.HashSet[int]]::new()
@@ -2004,7 +2010,7 @@ Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisua
 Write-Host "Oathblade: $($blueEffectIds.Count) blue effect models of its own, used by its $($oathbladeKits.Count) kits."
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
-Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1)."
+Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1, localTools\priest\StockSpells.ps1)."
 Write-Host "Swapped the range of $stockRangeRemapCount stock spells (no ranged dead zone, localTools\hunter\StockSpells.ps1)."
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
 Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."

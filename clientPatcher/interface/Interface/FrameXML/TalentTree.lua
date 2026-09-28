@@ -825,6 +825,12 @@ local function PaintBackground()
     local key = classId .. "-" .. SpecOf().def.id
     local file = ART.backgrounds[key] or ART.backgrounds[classId]
     local background = ART.pieces["background-" .. (ART.backgrounds[key] and key or classId)]
+    -- A class whose art is not built yet (localTools/interface/buildTalentTreeArt.py) keeps the plain ground
+    if not background then
+        frame.art:SetTexture(nil)
+        frame.shownBackground = nil
+        return
+    end
     if frame.shownBackground ~= file then
         frame.art:SetTexture(file)
         frame.shownBackground = file
