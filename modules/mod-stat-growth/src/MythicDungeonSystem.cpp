@@ -86,6 +86,9 @@ struct MythicCreatureData : DataMap::Base
 //   value: many summons are a boss's mechanic carriers.
 // An entry with its own melee multiplier (MythicTuning::SetMeleeMultiplier) was tuned by hand: only the boss factor
 // still applies to its melee.
+// Past +10, the share of the key's health growth bosses and mini-bosses take (x21 instead of x36 at +40 overall)
+constexpr float BossHealthGrowthPastGear = 0.8f;
+
 struct RoleFactors
 {
     float health;
@@ -341,7 +344,15 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     // Health compounds with the key (the players' damage does), damage follows the players' health
     int32 const key = std::max(GetMythicLevel(creature), 0);
     float const levelScaling = Mythic::GetLevelScaling(key);
-    float const healthScaling = std::pow(levelScaling, roleFactors.healthGrowth) * roleFactors.health;
+    float healthScaling = std::pow(levelScaling, roleFactors.healthGrowth) * roleFactors.health;
+    // Bosses and mini-bosses grow slower past +10: the players' single-target damage does not keep up with the
+    // growth their AoE damage follows, and at +39 a boss took several minutes (telemetry: 20-27M health)
+    if ((role == MythicTuning::CreatureRole::Boss || role == MythicTuning::CreatureRole::MiniBoss) &&
+        key > Mythic::GearLevels)
+    {
+        float const atGear = Mythic::GetLevelScaling(Mythic::GearLevels);
+        healthScaling = atGear * std::pow(levelScaling / atGear, BossHealthGrowthPastGear) * roleFactors.health;
+    }
     float const damageScaling = Mythic::GetDamageScaling(static_cast<float>(key));
     uint32 const health = std::max<uint32>(1, ScaleValue(stats->BaseHealth[EXPANSION_WRATH_OF_THE_LICH_KING],
         healthModifier * rankRate * Mythic::HealthMultiplier * healthScaling));
