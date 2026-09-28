@@ -17,6 +17,7 @@
 #include <bitset>
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -25,7 +26,8 @@ namespace
 constexpr char TrackerKey[] = "StatGrowthBotCatchUp";
 
 // Chaotic Charge: a stock dummy aura with no effect, stacking to 200 and lasting until removed. Only a Black Temple
-// creature script reads it (on its own creature), so it is free to name the bonus on a bot: a stack per percent.
+// creature script reads it (on its own creature), so it is free to name the bonus on a bot: a stack per percent. The
+// bonus itself has no limit (BotCatchUp.MaxMultiplier 0): past +200% the display stays at 200, .botcatchup shows it.
 constexpr uint32 SPELL_CATCH_UP_DISPLAY = 41033;
 constexpr uint32 MaxDisplayStacks = 200;
 
@@ -188,10 +190,12 @@ void Adjust(Player* bot, CatchUpTracker* tracker, uint32 elapsed)
         return;
     }
 
+    // MaxMultiplier 0: no limit. A bot dealing next to nothing then keeps climbing a step at a time.
     float const maxMultiplier = statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::BotCatchUpMaxMultiplier);
+    float const limit = maxMultiplier > 0.0f ? maxMultiplier : std::numeric_limits<float>::max();
     float const wanted = statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::BotCatchUpTargetShare) * average;
-    float const target = std::clamp(tracker->dps > MinRawDps ? wanted / tracker->dps : maxMultiplier, 1.0f,
-        maxMultiplier);
+    float const target = std::clamp(tracker->dps > MinRawDps ? wanted / tracker->dps :
+        std::min(limit, tracker->multiplier * StepFactor), 1.0f, limit);
     tracker->groupDps = average;
     tracker->target = target;
 
@@ -234,10 +238,12 @@ public:
             return true;
         }
 
-        handler->PSendSysMessage("Bot catch-up: {} (target {:.0f}% of the players' average, max x{:.2f}).",
+        float const maxMultiplier =
+            statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::BotCatchUpMaxMultiplier);
+        handler->PSendSysMessage("Bot catch-up: {} (target {:.0f}% of the players' average, {}).",
             IsEnabled() ? "on" : "off",
             statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::BotCatchUpTargetShare) * 100.0f,
-            statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::BotCatchUpMaxMultiplier));
+            maxMultiplier > 0.0f ? Acore::StringFormat("max x{:.2f}", maxMultiplier) : std::string("no limit"));
 
         for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
         {
