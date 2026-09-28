@@ -1,7 +1,8 @@
 """Generates everything a custom playable class needs, from localTools/customClasses/classes.json.
 
 Client data (written to clientPatcher/interface/DBFilesClient, packed into the interface patch):
-  ChrClasses.dbc          the class itself: name, power type, class token
+  ChrClasses.dbc          the class itself: name, power type, class token (and a stock class's new power type,
+                          stockTalentTrees powerType: the Hunter's Focus)
   CharBaseInfo.dbc        which races may pick it
   SkillRaceClassInfo.dbc  its skills: weapons, armor, defense, languages (copied from the template class)
   CharStartOutfit.dbc     the gear new characters start with (copied from the template class)
@@ -186,6 +187,19 @@ def add_class_row(dbc, definition):
     dbc.set_field(record, CHRCLASSES_CINEMATIC, 0)
     dbc.set_field(record, CHRCLASSES_EXPANSION, 0)
     dbc.records.append(record)
+
+
+def stock_power_types(entries):
+    """A stock class moved to another power (`powerType` in its stockTalentTrees entry: the Hunter's Focus). The server
+    gives a character its class's power from ChrClasses; the client copy says the same."""
+    powers = {entry['id']: entry['powerType'] for entry in entries if 'powerType' in entry}
+
+    def finish(dbc):
+        for record in dbc.records:
+            class_id = dbc.field(record, 0)
+            if class_id in powers:
+                dbc.set_field(record, CHRCLASSES_POWER, powers[class_id])
+    return finish
 
 
 def add_race_pairs(dbc, definition):
@@ -750,7 +764,8 @@ def main():
     for definition in definitions:
         definition['_templateClassSkills'] = class_skills
 
-    builders = [('ChrClasses.dbc', add_class_row), ('CharBaseInfo.dbc', add_race_pairs),
+    builders = [('ChrClasses.dbc', add_class_row, stock_power_types(root.get('stockTalentTrees', []))),
+                ('CharBaseInfo.dbc', add_race_pairs),
                 ('SkillLine.dbc', add_class_skill_line),
                 ('SkillRaceClassInfo.dbc', add_skills),
                 ('CharStartOutfit.dbc', add_start_outfit, dress_stock_previews(root.get('stockPreviewOutfits', {})))]

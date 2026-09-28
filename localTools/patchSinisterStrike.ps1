@@ -864,6 +864,9 @@ $customSpells += & ([ScriptBlock]::Create($deathKnightSpellSource))
 # talent ranks
 $paladinSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\paladin\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($paladinSpellSource))
+# The Hunter on its retail-style talent trees (localTools/hunter/talentTree.json): abilities, auras and talent ranks
+$hunterSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hunter\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($hunterSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
@@ -872,6 +875,31 @@ $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
 # of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class
 # already asks for none.
 $mageFreeReagents = @(17020, 17031, 17032, 17056)
+
+# Stock spells changed in place, by family and English name (every rank of a trainer's chain; only the ranks a skill
+# line teaches and that had a cost, so the creatures' and the triggered spells sharing a name are left alone) or by id: fields, and optionally new effects and
+# texts. The Hunter's Focus costs, Kill Command, Aimed Shot and Raptor Strike (localTools/hunter/StockSpells.ps1).
+$hunterStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hunter\StockSpells.ps1') -Raw -Encoding UTF8
+$stockSpellEdits = @(& ([ScriptBlock]::Create($hunterStockSource)))
+$stockEditsById = @{}
+$stockEditsByName = @{}
+$stockEditFamilies = [Collections.Generic.HashSet[int]]::new()
+foreach ($stockEdit in $stockSpellEdits) {
+    if ($stockEdit.Id) { $stockEditsById[[int]$stockEdit.Id] = $stockEdit; continue }
+    $stockEditsByName["$([int]$stockEdit.Family)|$($stockEdit.Name)"] = $stockEdit
+    [void]$stockEditFamilies.Add([int]$stockEdit.Family)
+}
+$stockEditTexts = @{}
+$stockEditCount = 0
+# A name reaches the players' spells only: those a skill line teaches (SkillLineAbility), not the creatures' spells
+# of the same name and family (an archer's Aimed Shot) that would then ask for a power they do not have
+$stockSkillSpells = [Collections.Generic.HashSet[uint32]]::new()
+$stockSkillSource = [IO.File]::ReadAllBytes($(if (Test-Path -LiteralPath $skillBackupPath) { $skillBackupPath } else { $serverSkillPath }))
+$stockSkillCount = [BitConverter]::ToInt32($stockSkillSource, 4)
+$stockSkillRecordSize = [BitConverter]::ToInt32($stockSkillSource, 12)
+for ($index = 0; $index -lt $stockSkillCount; ++$index) {
+    [void]$stockSkillSpells.Add([BitConverter]::ToUInt32($stockSkillSource, 20 + $index * $stockSkillRecordSize + 2 * 4))
+}
 
 & python (Join-Path $repoRoot 'localTools\oathblade\buildSounds.py')
 if ($LASTEXITCODE -ne 0) { throw 'Oathblade sound compilation failed.' }
@@ -1524,6 +1552,27 @@ for ($index = 0; $index -lt $recordCount; ++$index) {
             }
         }
     }
+    $stockEdit = $stockEditsById[[int]$spellId]
+    if (-not $stockEdit) {
+        $stockFamily = [int](Read-Field $records $offset 208)
+        if ($stockEditFamilies.Contains($stockFamily) -and $stockSkillSpells.Contains([uint32]$spellId) -and
+            ((Read-Field $records $offset 204) -ne 0 -or (Read-Field $records $offset $F_ManaCost) -ne 0)) {
+            $stockEdit = $stockEditsByName["$stockFamily|$(Get-SourceString (Read-Field $records $offset $F_Name))"]
+        }
+    }
+    if ($stockEdit) {
+        if ($stockEdit.Effects) { Write-Effects $records $offset $stockEdit.Effects }
+        foreach ($field in $stockEdit.Fields.Keys) {
+            Write-Field $records $offset ([int]$field) ([long]$stockEdit.Fields[$field])
+        }
+        foreach ($text in @(@($F_Description, $stockEdit.Description), @($F_AuraDescription, $stockEdit.AuraDescription))) {
+            if ($null -eq $text[1]) { continue }
+            if (-not $text[1]) { Write-LocalizedString $records $offset $text[0] 0; continue }
+            if (-not $stockEditTexts.ContainsKey($text[1])) { $stockEditTexts[$text[1]] = Add-DbcString $strings $text[1] }
+            Write-LocalizedString $records $offset $text[0] $stockEditTexts[$text[1]]
+        }
+        ++$stockEditCount
+    }
     if ($sinisterStrikeRanks -contains $spellId) {
         Write-Field $records $offset $F_ManaCost 0
         Write-LocalizedString $records $offset $F_Description $sinisterDescription
@@ -1942,6 +1991,7 @@ Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisua
 Write-Host "Oathblade: $($blueEffectIds.Count) blue effect models of its own, used by its $($oathbladeKits.Count) kits."
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
+Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1)."
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
 Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."
 Write-Host "Combat rogue icons generated: $generatedIcons (missing ones use stock game icons)."

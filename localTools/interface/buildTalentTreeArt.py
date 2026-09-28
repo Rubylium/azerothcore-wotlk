@@ -94,7 +94,10 @@ BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw',
                'deathknight-unholy': 'talents-background-deathknight-unholy',
                'paladin-holy': 'talents-background-paladin-holy',
                'paladin-protection': 'talents-background-paladin-protection',
-               'paladin-retribution': 'talents-background-paladin-retribution'}
+               'paladin-retribution': 'talents-background-paladin-retribution',
+               'hunter-beastmastery': 'talents-background-hunter-beastmastery',
+               'hunter-marksmanship': 'talents-background-hunter-marksmanship',
+               'hunter-survival': 'talents-background-hunter-survival'}
 # The specialization page's figures: the right of each spec's painting, from this fraction of its width
 SPEC_ART_LEFT = 0.62
 SPEC_ART_WIDTH = 400

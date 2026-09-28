@@ -1815,6 +1815,10 @@ void Player::RegenerateAll()
 
     Regenerate(POWER_MANA);
 
+    // Focus, for a class whose power it is (the Hunter): every update, like energy
+    if (getPowerType() == POWER_FOCUS)
+        Regenerate(POWER_FOCUS);
+
     // Runes act as cooldowns, and they don't need to send any data
     if (IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
         for (uint8 i = 0; i < MAX_RUNES; ++i)
@@ -1960,8 +1964,13 @@ void Player::Regenerate(Powers power)
                 }
             }
             break;
+        case POWER_FOCUS:                                   // Regenerate focus (a class whose power it is)
+            // 5 a second, faster with ranged haste (the quiver, haste rating, Rapid Fire), at most twice as fast
+            addvalue += 5.0f / std::max(0.5f, m_modAttackSpeedPct[RANGED_ATTACK]);
+            addvalue *= 0.001f * m_regenTimer;
+            addvalue *= sWorld->getRate(RATE_POWER_FOCUS);
+            break;
         case POWER_RUNE:
-        case POWER_FOCUS:
         case POWER_HAPPINESS:
             break;
         case POWER_HEALTH:
@@ -1977,7 +1986,7 @@ void Player::Regenerate(Powers power)
 
         // Butchery requires combat for this effect
         if (power != POWER_RUNIC_POWER || IsInCombat())
-            addvalue += float(GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, power) * ((power != POWER_ENERGY) ? m_regenTimerCount : m_regenTimer)) / (5.0f * IN_MILLISECONDS);
+            addvalue += float(GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, power) * ((power != POWER_ENERGY && power != POWER_FOCUS) ? m_regenTimerCount : m_regenTimer)) / (5.0f * IN_MILLISECONDS);
     }
 
     sScriptMgr->OnPlayerBeforeRegeneratePower(this, power, addvalue);
@@ -2024,7 +2033,13 @@ void Player::Regenerate(Powers power)
             m_powerFraction[power] = addvalue - integerValue;
     }
 
-    if (m_regenTimerCount >= 2000 || curValue == 0 || curValue == maxValue)
+    // Focus is sent as it changes, without a power packet: the client does not predict it the way it does energy
+    if (power == POWER_FOCUS)
+    {
+        if (integerValue)
+            SetPower(power, curValue, false, true);
+    }
+    else if (m_regenTimerCount >= 2000 || curValue == 0 || curValue == maxValue)
         SetPower(power, curValue, true, true);
     else
         UpdateUInt32Value(UNIT_FIELD_POWER1 + AsUnderlyingType(power), curValue);
@@ -2557,7 +2572,8 @@ void Player::GiveLevel(uint8 level)
         SetPower(POWER_ENERGY, GetMaxPower(POWER_ENERGY));
         if (GetPower(POWER_RAGE) > GetMaxPower(POWER_RAGE))
             SetPower(POWER_RAGE, GetMaxPower(POWER_RAGE));
-        SetPower(POWER_FOCUS, 0);
+        // Full, for a class whose power it is (the Hunter)
+        SetPower(POWER_FOCUS, GetMaxPower(POWER_FOCUS));
         SetPower(POWER_HAPPINESS, 0);
     }
 
@@ -2776,7 +2792,8 @@ void Player::InitStatsForLevel(bool reapplyMods)
     SetPower(POWER_ENERGY, GetMaxPower(POWER_ENERGY));
     if (GetPower(POWER_RAGE) > GetMaxPower(POWER_RAGE))
         SetPower(POWER_RAGE, GetMaxPower(POWER_RAGE));
-    SetPower(POWER_FOCUS, 0);
+    // Full, for a class whose power it is (the Hunter)
+    SetPower(POWER_FOCUS, GetMaxPower(POWER_FOCUS));
     SetPower(POWER_HAPPINESS, 0);
     SetPower(POWER_RUNIC_POWER, 0);
 

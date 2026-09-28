@@ -12557,7 +12557,14 @@ uint32 Unit::GetCreatePowers(Powers power) const
         case POWER_RAGE:
             return 1000;
         case POWER_FOCUS:
-            return (IsPlayer() || !((Creature const*)this)->IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : 100);
+            // A class whose power is Focus in ChrClasses (the Hunter's, localTools/customClasses/classes.json) has 100
+            // of it, like a hunter pet
+            if (IsPlayer())
+            {
+                ChrClassesEntry const* classEntry = sChrClassesStore.LookupEntry(getClass());
+                return classEntry && classEntry->powerType == POWER_FOCUS ? 100 : 0;
+            }
+            return (!((Creature const*)this)->IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : 100);
         case POWER_ENERGY:
             return 100;
         case POWER_HAPPINESS:

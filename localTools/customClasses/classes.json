@@ -78,6 +78,14 @@
       "token": "PALADIN",
       "family": 10,
       "talentTree": "localTools/paladin/talentTree.json"
+    },
+    {
+      "_comment": "powerType: the class's power on the server and in the client's ChrClasses (2 Focus: the Hunter's power bar, the core regenerating it).",
+      "id": 3,
+      "token": "HUNTER",
+      "family": 9,
+      "powerType": 2,
+      "talentTree": "localTools/hunter/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {
