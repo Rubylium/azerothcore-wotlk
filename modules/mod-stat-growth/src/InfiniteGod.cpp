@@ -73,12 +73,15 @@ float GetChallengeDamageFactorOf(Unit* attacker);
 namespace
 {
 // --- Tuning ---------------------------------------------------------------------------------------------------------
-// Damage is a share of the reference health: what a damage dealer ready for a +10 key has (Mythic::GetDamageReference,
-// about 66 000). Défi I asks for no paragon, the gear of a +10 (ChallengeTiers.h). Every tier above multiplies the
-// god's damage again (ChallengeTierUnitScript: x1.12 a tier, x2.7 at Défi X) while the players it asks for grow
-// slower (about x1.6 health at Défi X's paragon): at Défi X a share below lands about 1.7 times as hard. A tank has
-// about 1.45 reference. Its health: HealthModifier in stat_growth_infinite_god.sql (7.0 million at Défi I).
-constexpr float ReferenceKey = 10.0f;
+// The super high-end boss: Défi I is tuned on a group in item level 300 gear with the paragon that goes with it
+// (mod-playerbots ChallengeTiers::BossProfiles, shown on the board's card). In the key curves of MythicDungeon.h that
+// is the gear of a key of 20.25 (one key under its loot, 219 + 4 x key), whose recommended paragon is 51 (5 x 10.25).
+// Damage is a share of that key's reference health (Mythic::GetDamageReference(20.25): a damage dealer's 97 300
+// health times the key's pressure 1.26, about 122 300); a tank has about 1.45 of a damage dealer's health. Every tier
+// above multiplies the god's damage (ChallengeTierUnitScript: x1.12 a tier, x2.7 at Défi X) and health (x1.22 a tier,
+// x6.1 at Défi X) and asks for 15 paragon more (66 at Défi II, 186 at Défi X), the players' own health growing slower
+// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (11.0 million at Défi I).
+constexpr float ReferenceKey = 20.25f;
 
 constexpr float CleaveTankPct = 55.0f;          // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone

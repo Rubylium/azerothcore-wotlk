@@ -14,6 +14,7 @@
 #include "StringFormat.h"
 #include "WorldSession.h"
 #include <algorithm>
+#include <array>
 #include <bitset>
 #include <cmath>
 #include <cstdlib>
@@ -300,6 +301,19 @@ void LoadBotCatchUpConfig()
     }
 }
 
+namespace
+{
+// Creatures bots must not carry a group through: L'Infini and its fragments (InfiniteGod.cpp), whose challenge's bots
+// are geared a little under the fight on purpose
+constexpr std::array<uint32, 2> NoCatchUpEntries = { 930000, 930001 };
+
+bool IsNoCatchUpVictim(Unit const* victim)
+{
+    return victim->IsCreature() &&
+        std::ranges::find(NoCatchUpEntries, victim->GetEntry()) != NoCatchUpEntries.end();
+}
+}
+
 void RecordBotCatchUpDamage(Unit* attacker, Unit* victim, uint32 damage)
 {
     if (!damage || !attacker || !victim || attacker == victim || victim->IsCharmedOwnedByPlayerOrPlayer() ||
@@ -312,7 +326,8 @@ void RecordBotCatchUpDamage(Unit* attacker, Unit* victim, uint32 damage)
 
     // What the hit really took, before a bot's bonus: the bonus must not feed its own measure
     CatchUpTracker* tracker = owner->CustomData.GetDefault<CatchUpTracker>(TrackerKey);
-    tracker->bucket += static_cast<double>(std::min<uint32>(damage, victim->GetHealth())) / tracker->multiplier;
+    float const applied = IsNoCatchUpVictim(victim) ? 1.0f : tracker->multiplier;
+    tracker->bucket += static_cast<double>(std::min<uint32>(damage, victim->GetHealth())) / applied;
 }
 
 float GetBotCatchUpDps(Player const* player)
@@ -325,6 +340,8 @@ float GetBotCatchUpMultiplier(Unit* attacker, Unit* victim)
 {
     if (!attacker || !victim || victim->IsCharmedOwnedByPlayerOrPlayer() ||
         !attacker->IsCharmedOwnedByPlayerOrPlayer())
+        return 1.0f;
+    if (IsNoCatchUpVictim(victim))
         return 1.0f;
 
     Player* owner = attacker->GetCharmerOrOwnerPlayerOrPlayerItself();

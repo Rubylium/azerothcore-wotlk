@@ -1,11 +1,13 @@
 -- L'Infini, the Défi board's god fight in Ulduar's Celestial Planetarium (InfiniteGod.cpp; the board posts it from
 -- mod-playerbots ChallengeBoard.cpp, 10 players). Every creature is a copy of a stock one of Algalon's fight:
 -- 930000 L'Infini: Algalon the Observer (32871), hostile to all, no longer immune to players, its health set for a
---        timeline fight of 5 minutes: 502 x 13 945 (level 83 elite) = 7.0 million at Défi I, the tier multiplying it
---        (a good 10-player group, six damage dealers around 5 000 each at +10 gear with the movement the fight asks,
---        kills it around 4:30-4:50). Its melee: a 2 s swing at 45 damage modifier, about 7% of a damage dealer's
---        health on a plate tank. Algalon's own chest loot (Gift of the Observer, 10 players) on its corpse.
--- 930001 Fragment d'éternité: a Living Constellation (33052) that walks to the god in intermission 1, 250 000 health.
+--        timeline fight of 5 minutes at Défi I, tuned on item level 300 gear and 51 paragon (InfiniteGod.cpp):
+--        790 x 13 945 (level 83 elite) = 11.0 million, the tier multiplying it. The estimate: at that gear and paragon
+--        a damage dealer does about 7 500 on one target (between the bench's 4 600 for a Fire mage at +10 and
+--        10 000-20 000 at +40 with 150 paragon), six of them and two tanks about 50 000, 80% of the fight on the god
+--        with the movement it asks, so a good group kills it around 4:30-4:50. Its melee: a 2 s swing at 45 damage
+--        modifier. Algalon's own chest loot (Gift of the Observer, 10 players) on its corpse.
+-- 930001 Fragment d'éternité: a Living Constellation (33052) that walks to the god in intermission 1, 418 000 health.
 -- 930002 Étoile effondrée: a Collapsing Star (32955) to share, friendly (nothing attacks it), rooted.
 -- 930003 Singularité: a Black Hole (32953), the look of the pull, friendly and rooted.
 -- The god's static spawn stands in the middle of the Planetarium in every 10-player Ulduar; its script hides it and
@@ -38,7 +40,7 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `flags_extra` = `flags_extra` & ~0x80000000,
     `DamageModifier` = 45,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 502,
+    `HealthModifier` = 790,
     `lootid` = 930000,
     `AIName` = '',
     `ScriptName` = 'boss_infinite_god',
@@ -54,7 +56,7 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `faction` = 14,
     `speed_walk` = 0.8,
     `unit_flags` = 0,
-    `HealthModifier` = 18,
+    `HealthModifier` = 30,
     `lootid` = 0,
     `AIName` = '',
     `ScriptName` = '',

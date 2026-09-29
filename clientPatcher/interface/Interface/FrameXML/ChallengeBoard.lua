@@ -62,6 +62,7 @@ local TEXT = french and {
     heroic = "Héroïque",
     heroicTag = "HÉROÏQUE",
     itemLevel = "Butin de niveau d'objet %d",
+    required = "Requis : niv. d'objet %d+ · parangon %d",
     paragon = "+%d Parangon",
     essences = "+%d essences",
     rewards = "Récompenses",
@@ -155,6 +156,7 @@ local TEXT = french and {
     heroic = "Heroic",
     heroicTag = "HEROIC",
     itemLevel = "Drops item level %d",
+    required = "Requires item level %d+ · paragon %d",
     paragon = "+%d Paragon",
     essences = "+%d essences",
     rewards = "Rewards",
@@ -689,7 +691,13 @@ local function FillCard(card, mission)
     card.size:SetText(format(TEXT.players, mission.players, heroic and TEXT.heroic or TEXT.normal))
     local kind = TEXT.challenge .. " " .. (TIER_ROMAN[tier] or "")
     card.kind:SetText(heroic and (kind .. "  |cffff8000" .. TEXT.heroicTag .. "|r") or kind)
-    card.itemLevel:SetText(mission.itemLevel > 0 and format(TEXT.itemLevel, mission.itemLevel) or "")
+    if (mission.requiredItemLevel or 0) > 0 then
+        -- A boss of the board's own, tuned on its own gear: what it asks, at the card's tier
+        card.itemLevel:SetText(format(TEXT.required, mission.requiredItemLevel,
+            (mission.baseParagon or 0) + TierParagon(tier)))
+    else
+        card.itemLevel:SetText(mission.itemLevel > 0 and format(TEXT.itemLevel, mission.itemLevel) or "")
+    end
     local gold, paragon, essences = MissionReward(mission, tier)
     card.gold:SetText(Money(gold))
     card.paragon:SetText(paragon > 0 and format(TEXT.paragon, paragon) or "")
@@ -1625,6 +1633,8 @@ local function Handle(message)
             name = j or "",
             essences = tonumber(k) or 0,
             wonAt = tonumber((select(13, strsplit("\t", message)))) or 0,
+            requiredItemLevel = tonumber((select(14, strsplit("\t", message)))) or 0,
+            baseParagon = tonumber((select(15, strsplit("\t", message)))) or 0,
         })
     elseif kind == "D" then
         tinsert(incoming.dungeons, {
