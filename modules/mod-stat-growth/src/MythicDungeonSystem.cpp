@@ -17,6 +17,7 @@
 #include "MythicDungeon.h"
 #include "MythicTuning.h"
 #include "ObjectMgr.h"
+#include "Random.h"
 #include "ParagonSystem.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -433,41 +434,21 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
 }
 
 // L'Infini's touch on its gear (SpellItemEnchantment rows of localTools/patchSinisterStrike.ps1): five enchantments a
-// kind, one in each random property slot, the tooltip's five lines - the bonus's name (its equip spell,
-// localTools/infiniteBoss/Spells.ps1), what it does and a line of its lore
+// bonus, one in each random property slot, the tooltip's five lines - the bonus's name (its equip spell,
+// localTools/infiniteBoss/Spells.ps1), what it does and a line of its lore. Which bonus is drawn for every piece,
+// whatever its slot or its wearer's role: a tank can find the damage one, a healer the armour one.
 enum InfiniteGodEnchants : uint32
 {
-    ENCHANT_INFINI_AEGIS        = 3890,     // armour: Égide des astres
-    ENCHANT_INFINI_SHARD        = 3895,     // weapons: Éclat d'étoile filante
-    ENCHANT_INFINI_SPARK        = 3900,     // jewellery, cloak, trinket, held in off-hand, relic: Étincelle d'éternité
+    ENCHANT_INFINI_AEGIS        = 3890,     // Égide des astres: less damage taken
+    ENCHANT_INFINI_SHARD        = 3895,     // Éclat d'étoile filante: arcane damage
+    ENCHANT_INFINI_SPARK        = 3900,     // Étincelle d'éternité: haste
 };
 constexpr uint32 InfiniteGodEnchantLines = 5;
 
 void TouchByInfiniteGod(Item* item)
 {
-    uint32 first = ENCHANT_INFINI_AEGIS;
-    switch (item->GetTemplate()->InventoryType)
-    {
-        case INVTYPE_WEAPON:
-        case INVTYPE_2HWEAPON:
-        case INVTYPE_WEAPONMAINHAND:
-        case INVTYPE_WEAPONOFFHAND:
-        case INVTYPE_RANGED:
-        case INVTYPE_THROWN:
-        case INVTYPE_RANGEDRIGHT:
-            first = ENCHANT_INFINI_SHARD;
-            break;
-        case INVTYPE_NECK:
-        case INVTYPE_FINGER:
-        case INVTYPE_TRINKET:
-        case INVTYPE_CLOAK:
-        case INVTYPE_HOLDABLE:
-        case INVTYPE_RELIC:
-            first = ENCHANT_INFINI_SPARK;
-            break;
-        default:
-            break;
-    }
+    constexpr std::array<uint32, 3> Bonuses = { ENCHANT_INFINI_AEGIS, ENCHANT_INFINI_SHARD, ENCHANT_INFINI_SPARK };
+    uint32 const first = Bonuses[urand(0, uint32(Bonuses.size() - 1))];
     for (uint32 line = 0; line < InfiniteGodEnchantLines; ++line)
         item->SetEnchantment(EnchantmentSlot(PROP_ENCHANTMENT_SLOT_0 + line), first + line, 0, 0);
 }

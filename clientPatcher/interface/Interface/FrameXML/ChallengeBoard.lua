@@ -151,14 +151,14 @@ local TEXT = french and {
     godItemLevel = "Niveau d'objet %d+",
     godGear = "Équipement épique imprégné, niveau d'objet %d",
     godGearTitle = "Imprégné par L'Infini",
-    godGearHelp = "Chaque pièce qu'il laisse porte un pouvoir de plus, selon sa nature :",
+    godGearHelp = "Chaque pièce qu'il laisse porte l'un de ces pouvoirs, tiré au hasard, quelle qu'elle soit :",
     godGearBonuses = {
-        { "Armure : Égide des astres", "Quand vous subissez des dégâts, chance de réduire de 5% les dégâts subis "
+        { "Égide des astres", "Quand vous subissez des dégâts, chance de réduire de 5% les dégâts subis "
             .. "pendant 10 s." },
-        { "Armes : Éclat d'étoile filante", "Vos attaques et sorts nuisibles ont une chance d'infliger 4000 points de "
+        { "Éclat d'étoile filante", "Vos attaques et sorts nuisibles ont une chance d'infliger 4000 points de "
             .. "dégâts des Arcanes à la cible." },
-        { "Bijoux, cape, bibelot : Étincelle d'éternité", "Vos attaques et sorts ont une chance d'augmenter votre "
-            .. "score de hâte de 150 pendant 10 s." },
+        { "Étincelle d'éternité", "Vos attaques et sorts ont une chance d'augmenter votre score de hâte de 150 "
+            .. "pendant 10 s." },
     },
     godParagon = "Parangon conseillé %d · vous %d",
     godFace = "Affronter L'Infini",
@@ -277,13 +277,12 @@ local TEXT = french and {
     godItemLevel = "Item level %d+",
     godGear = "Imbued epic gear, item level %d",
     godGearTitle = "Imbued by L'Infini",
-    godGearHelp = "Every piece it leaves carries one more power, by its kind:",
+    godGearHelp = "Every piece it leaves carries one of these powers, drawn at random, whatever the piece:",
     godGearBonuses = {
-        { "Armour: Aegis of the Stars", "When you take damage, a chance to take 5% less damage for 10 sec." },
-        { "Weapons: Shooting Star Shard", "Your attacks and harmful spells have a chance to deal 4000 Arcane damage "
-            .. "to the target." },
-        { "Jewellery, cloak, trinket: Spark of Eternity", "Your attacks and spells have a chance to raise your haste "
-            .. "rating by 150 for 10 sec." },
+        { "Aegis of the Stars", "When you take damage, a chance to take 5% less damage for 10 sec." },
+        { "Shooting Star Shard", "Your attacks and harmful spells have a chance to deal 4000 Arcane damage to the "
+            .. "target." },
+        { "Spark of Eternity", "Your attacks and spells have a chance to raise your haste rating by 150 for 10 sec." },
     },
     godParagon = "Recommended paragon %d · yours %d",
     godFace = "Face L'Infini",
