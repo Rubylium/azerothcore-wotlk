@@ -78,7 +78,7 @@ namespace
 // health times the key's pressure 1.26, about 122 300); a tank has about 1.45 of a damage dealer's health. Every tier
 // above multiplies the god's damage (ChallengeTierUnitScript: x1.12 a tier, x2.7 at Défi X) and health (x1.22 a tier,
 // x6.1 at Défi X) and asks for 15 paragon more (66 at Défi II, 186 at Défi X), the players' own health growing slower
-// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (42.0 million at Défi I, a tight damage
+// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (43.3 million at Défi I, a tight damage
 // check for damage dealers at 20 000-30 000 on one target).
 constexpr float ReferenceKey = 20.25f;
 
@@ -220,7 +220,7 @@ constexpr uint32 SPELL_REVEAL_GLOW = 49411;         // Arcane Power State
 enum Kits : uint32
 {
     KIT_BIG_BANG_GATHER     = 12688,
-    KIT_BIG_BANG_BLAST      = 12211,
+    KIT_BIG_BANG_BLAST      = 12211,    // Sunwell's beam, a flash over the whole screen: the hard enrage alone
     KIT_BIG_BANG_HIT        = 9168,
     KIT_ARRIVAL             = 12817,
     KIT_ASCEND_CAST         = 12706,
@@ -1062,7 +1062,8 @@ private:
 
     void BigBang()
     {
-        me->SendPlaySpellVisual(KIT_BIG_BANG_BLAST);
+        // One bright moment in the fight: the true form's arrival (phase 3); the blast here stays on the ground
+        GroundIndicators::Burst(me, Ground(_liftFrom), GroundIndicators::Theme::Arcane);
         for (Player* player : PlayersIn(_bigBang))
         {
             player->SendPlaySpellVisual(KIT_BIG_BANG_HIT);
@@ -1339,7 +1340,20 @@ private:
         me->SendPlaySpellVisual(KIT_BIG_BANG_GATHER);
         scheduler.Schedule(Milliseconds(SupernovaWarningMs), [this, areas](TaskContext)
         {
-            me->SendPlaySpellVisual(KIT_BIG_BANG_BLAST);
+            // Bursts over the core and along each cone, on the ground: no flash over the whole screen
+            for (GroundIndicators::Area const& area : areas)
+            {
+                if (area.kind != GroundIndicators::Area::Kind::Cone)
+                {
+                    GroundIndicators::Burst(me, area.origin, GroundIndicators::Theme::Holy);
+                    continue;
+                }
+                float const facing = area.origin.GetOrientation();
+                for (float distance : { 20.0f, 35.0f, 50.0f })
+                    GroundIndicators::Burst(me, Position(area.origin.GetPositionX() + std::cos(facing) * distance,
+                        area.origin.GetPositionY() + std::sin(facing) * distance, ArenaFloorZ),
+                        GroundIndicators::Theme::Holy);
+            }
             for (Player* player : ArenaPlayers())
                 if (std::ranges::any_of(areas, [player](GroundIndicators::Area const& area)
                     { return area.Contains(*player); }))
