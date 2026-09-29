@@ -8,6 +8,7 @@
 #include "GlobalScript.h"
 #include "Item.h"
 #include "Log.h"
+#include "MythicAppearance.h"
 #include "MythicDungeon.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -367,12 +368,14 @@ bool IsWeaponSlot(uint8 slot)
     return slot == EQUIPMENT_SLOT_MAINHAND || slot == EQUIPMENT_SLOT_OFFHAND || slot == EQUIPMENT_SLOT_RANGED;
 }
 
+// A Mythic+ weapon of an appearance tier shows that tier's glow instead (mod-stat-growth MythicAppearance.cpp): its
+// forged ranks are in its item level already, and the client would draw this glow over that one
 void ShowGlow(Player* player, ForgeState const* state, uint8 slot, Item const* item)
 {
     if (!item || item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT))
         return;
     uint32 const field = PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + slot * 2;
-    uint16 const glow = uint16(GlowFor(RankOf(state, item)));
+    uint16 const glow = MythicAppearance::GetWeaponGlow(player, item) ? 0 : uint16(GlowFor(RankOf(state, item)));
     if (player->GetUInt16Value(field, 1) != glow)
         player->SetUInt16Value(field, 1, glow);
 }
