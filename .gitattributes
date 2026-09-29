@@ -35,6 +35,9 @@ data/sql/*    linguist-documentation
 *.gif    binary
 *.tga    binary
 *.blp    binary
+*.m2     binary
+*.skin   binary
+*.anim   binary
 *.dbc    binary
 *.MPQ    binary
 *.mpq    binary
