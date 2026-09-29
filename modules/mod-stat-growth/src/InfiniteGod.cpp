@@ -48,8 +48,8 @@
 // 1:12.5 Phase 2: phase 1 faster, plus Singularité (a black hole pulling players into its pools) and Étoile effondrée
 //      (a star to share, three players or more).
 // 1:54.8 Intermission 2 "Les cieux se déchirent": it channels in the middle, Constellation lines fire across the
-//      platform, and Rayons stellaires mark three players with a star of four rays that follows them and turns with
-//      their facing: they hold still and aim it away from the others.
+//      platform, and Rayons stellaires mark three players with a star of four rays that follows them (its rays keep
+//      their own direction): they keep it away from the others.
 // 2:19 Setup: the platform's edge turns deadly, meteor waves. 2:32.9 the break: it rises, "Contemplez l'infini.", and
 //      on the drop at 2:36.9 shows its true form (bigger, glowing, the Planetarium's floor turns to stars).
 // 2:36.9 Phase 3: everything at once and faster, the cleave alternating with Frappes jumelles (a buster on each
@@ -88,7 +88,8 @@ constexpr float ReferenceKey = 20.25f;
 constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
 constexpr float TwinStrikePct = 130.0f;         // Frappes jumelles, on each tank (phase 3)
-constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle
+constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle or line
+constexpr float SweepPct = 60.0f;               // Rayon cosmique, the cone from the god
 constexpr float GravityPct[3] = { 24.0f, 30.0f, 18.0f };   // Onde de gravité, by phase (1, 2, 3)
 constexpr float MeleeFloorPct = 8.0f;           // its melee on a player: at least this, whatever their armour
 constexpr float TankArcanePct = 20.0f;          // Fracture stellaire: arcane on its target, every TankArcaneMs
@@ -123,6 +124,11 @@ constexpr float CleaveRadius = 35.0f;
 constexpr float CleaveArc = 60.0f;
 constexpr uint32 CleaveWarningMs = 3000;          // the cones turn with their tanks until they land
 constexpr float StarfallRadius = 5.0f;
+constexpr float StarfallLineLength = 26.0f;     // ... or, half the time, a line through the target at any angle
+constexpr float StarfallLineWidth = 4.5f;
+constexpr float SweepRadius = 38.0f;            // Rayon cosmique: a cone from the god at a player who is no tank
+constexpr float SweepArc = 50.0f;
+constexpr uint32 SweepWarningMs = 2500;
 constexpr uint32 StarfallWarningMs = 2000;
 constexpr float BigBangSafeRadius = 9.0f;
 constexpr float BigBangRadius = 45.0f;          // the ring reaches past the platform's edge
@@ -227,6 +233,7 @@ constexpr NamedSpell SPELL_JUDGEMENT = { 90751, 64443 };
 constexpr NamedSpell SPELL_END_OF_TIMES = { 90752, 64487 };     // Ascend to the Heavens
 constexpr NamedSpell SPELL_ETERNITY_SHARD = { 90755, 64443 };
 constexpr NamedSpell SPELL_STAR_RAYS = { 90756, 64596 };
+constexpr NamedSpell SPELL_SWEEP = { 90764, 64596 };            // Rayon cosmique
 constexpr NamedSpell SPELL_TANK_ARCANE = { 90763, 64412 };      // Fracture stellaire (Phase Punch)
 // Debuffs the players see: dummy auras, the script does what they say
 constexpr uint32 SPELL_DOOM = 90753;            // Fin imminente
@@ -299,6 +306,7 @@ enum class Ability : uint8
     Starfall,
     Gravity,
     TankArcane,
+    Sweep,
     BigBangRise,
     BigBangYell,
     BigBang,
@@ -367,6 +375,8 @@ std::vector<Step> BuildTimeline()
     for (uint32 at : { 10000u, 20000u, 31500u, 40000u })
         once(Ability::Gravity, at);
     every(Ability::TankArcane, 4000, TankArcaneMs, AtIntermission1);
+    for (uint32 at : { 12500u, 37500u })
+        once(Ability::Sweep, at);
     once(Ability::BigBangRise, AtBigBangRise);
     once(Ability::BigBangYell, AtBigBangYell);
     once(Ability::BigBang, AtBigBang);
@@ -383,6 +393,7 @@ std::vector<Step> BuildTimeline()
     every(Ability::Starfall, AtPhase2 + 1500, 5000, AtIntermission2 - 2500);
     every(Ability::Gravity, AtPhase2 + 7500, 10000, AtIntermission2);
     every(Ability::TankArcane, AtPhase2 + 2000, TankArcaneMs, AtIntermission2);
+    every(Ability::Sweep, AtPhase2 + 9000, 15000, AtIntermission2 - SweepWarningMs);
     every(Ability::Singularity, AtPhase2 + 5500, 15000, AtIntermission2 - 8000);
     every(Ability::CollapsingStar, AtPhase2 + 10500, 20000, AtIntermission2 - StarSoakMs);
 
@@ -972,6 +983,7 @@ private:
             case Ability::TwinStrikes:      TwinStrikes(); break;
             case Ability::Starfall:         Starfall(4 + TierAbove() / 2); break;
             case Ability::TankArcane:       TankArcane(); break;
+            case Ability::Sweep:            Sweep(); break;
             case Ability::Gravity:          Gravity(); break;
             case Ability::BigBangRise:      BigBangRise(); break;
             case Ability::BigBangYell:      Talk(SAY_BIG_BANG); break;
@@ -1099,15 +1111,61 @@ private:
         Acore::Containers::RandomResize(players, count);
         for (Player* target : players)
         {
-            GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, Ground(*target), StarfallRadius,
-                StarfallWarningMs, GroundIndicators::Theme::Arcane);
+            // A circle under the target, or a line through it at any angle
+            GroundIndicators::Area area;
+            Position const at = Ground(*target);
+            if (roll_chance_i(50))
+                area = GroundIndicators::ShowCircle(me, at, StarfallRadius, StarfallWarningMs,
+                    GroundIndicators::Theme::Arcane);
+            else
+            {
+                float const facing = frand(0.0f, 2.0f * float(M_PI));
+                Position const start = Ground(Position(at.GetPositionX() - std::cos(facing) * StarfallLineLength / 2.0f,
+                    at.GetPositionY() - std::sin(facing) * StarfallLineLength / 2.0f, at.GetPositionZ()));
+                area = GroundIndicators::ShowRectangle(me, start, facing, StarfallLineLength, StarfallLineWidth,
+                    StarfallWarningMs, GroundIndicators::Theme::Arcane);
+            }
             scheduler.Schedule(Milliseconds(StarfallWarningMs), [this, area](TaskContext)
             {
-                PlayOnGround(area.origin, KIT_COSMIC_SMASH);
+                if (area.kind == GroundIndicators::Area::Kind::Rectangle)
+                {
+                    float const facing = area.origin.GetOrientation();
+                    for (float along = 4.0f; along < area.radius; along += 8.0f)
+                        PlayOnGround(Position(area.origin.GetPositionX() + std::cos(facing) * along,
+                            area.origin.GetPositionY() + std::sin(facing) * along, area.origin.GetPositionZ()),
+                            KIT_COSMIC_SMASH);
+                }
+                else
+                    PlayOnGround(area.origin, KIT_COSMIC_SMASH);
                 for (Player* player : PlayersIn(area))
                     Hit(player, SPELL_STARFALL, StarfallPct, true);
             });
         }
+    }
+
+    // Rayon cosmique: a cone from the god at a player who is no tank (phases 1 and 2)
+    void Sweep()
+    {
+        if (_lifted)
+            return;
+        std::vector<Player*> players = ArenaPlayers();
+        std::erase_if(players, [](Player* player) { return IsGroupTank(player); });
+        if (players.empty())
+            return;
+        Player* target = Acore::Containers::SelectRandomContainerElement(players);
+        Position const apex = Ground(me->GetPosition());
+        GroundIndicators::Area const area = GroundIndicators::ShowCone(me, apex, apex.GetAngle(target), SweepRadius,
+            SweepArc, SweepWarningMs, GroundIndicators::Theme::Arcane);
+        scheduler.Schedule(Milliseconds(SweepWarningMs), [this, area](TaskContext)
+        {
+            float const facing = area.origin.GetOrientation();
+            for (float along = 8.0f; along < area.radius; along += 10.0f)
+                PlayOnGround(Position(area.origin.GetPositionX() + std::cos(facing) * along,
+                    area.origin.GetPositionY() + std::sin(facing) * along, area.origin.GetPositionZ()),
+                    KIT_COSMIC_SMASH);
+            for (Player* player : PlayersIn(area))
+                Hit(player, SPELL_SWEEP, SweepPct, true);
+        });
     }
 
     // Fracture stellaire: arcane on whoever it is fighting, armour no help
@@ -1277,8 +1335,12 @@ private:
         Position const hole = ArenaSpot(10.0f, 20.0f);
         uint32 const lasts = SingularityWarningMs + SingularityTicks * 1000;
         me->SummonCreature(NPC_SINGULARITY, hole, TEMPSUMMON_TIMED_DESPAWN, lasts);
-        GroundIndicators::Area const pool = GroundIndicators::ShowCircle(me, hole, SingularityRadius, lasts,
-            GroundIndicators::Theme::Shadow);
+        // No red: the black hole's own look says where its pool is. The bots still keep out of it.
+        GroundIndicators::Area pool;
+        pool.kind = GroundIndicators::Area::Kind::Circle;
+        pool.origin = hole;
+        pool.radius = SingularityRadius;
+        GroundIndicators::WatchArea(me, pool, lasts);
         PlayOnGround(hole, KIT_SINGULARITY);
         for (uint32 tick = 1; tick <= SingularityTicks; ++tick)
         {
@@ -1484,9 +1546,9 @@ private:
         }
     }
 
-    // Rayons stellaires: three players carry a star of four rays that follows them and turns with their facing; when
-    // it lands whoever else stands in a ray takes it. Held still and aimed away from the others, it only costs its
-    // carrier a little.
+    // Rayons stellaires: three players carry a star of four rays that follows them, its rays pointing a way of their
+    // own; when it lands whoever else stands in a ray takes it. Kept away from the others, it only costs its carrier
+    // a little.
     void StarRays()
     {
         Talk(EMOTE_STAR_RAYS);

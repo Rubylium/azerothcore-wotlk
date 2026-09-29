@@ -973,7 +973,7 @@ $customSounds = @(
     @{ Key = 'InfiniteGodTrack'; Id = 30100; Clone = 15877; Name = 'Evolutions_LInfini'
        Directory = 'Sound\Music\Evolutions'
        Files = @('LInfini.mp3')
-       Volume = 0.8 }
+       Volume = 1.0 }
     # What ends the track (a wipe, the kill): 2 s of silence, the same music type. A music is only ended by sending
     # another; once this one is over the client goes back to the zone's own music. Never send a zone's stock music
     # entry instead: the client's zone music then stops whatever music plays about 20 s later (measured 2026-09-29).
@@ -987,7 +987,7 @@ $customSounds = @(
     @{ Key = 'InfiniteGodRoom'; Id = 30102; Clone = 15842; Name = 'Evolutions_LInfiniRoom'
        Directory = 'Sound\Music\Evolutions'
        Files = @('LInfiniRoom.mp3')
-       Volume = 0.8 }
+       Volume = 1.0 }
 )
 
 # A kit's CharProc parameters are floats; the kit fields are written as raw 32-bit values

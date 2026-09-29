@@ -81,11 +81,14 @@ namespace GroundIndicators
     // A circle that follows carrier wherever it goes: whoever carries it should take it away from the others.
     // Read its position back with CurrentArea when it resolves.
     Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0);
-    // Four arms of a star around carrier (CarriedStarArm long, CarriedStarWidth wide): it moves with them and turns
-    // with their facing, so they aim it. Read it back with CurrentArea when it resolves.
+    // Four arms of a star around carrier (CarriedStarArm long, CarriedStarWidth wide): it follows them where they go,
+    // its arms pointing a direction of their own (not turning with the carrier). Read it back with CurrentArea when it
+    // resolves.
     constexpr float CarriedStarArm = 10.0f;
     constexpr float CarriedStarWidth = 3.0f;
     Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDamage = 0);
+    // An area the bots keep out of, drawn by nothing here: its own visual says where it is (a black hole's pool)
+    void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage = 0);
     // Where a carried area is now (it moves with its carrier; a star turns with them too)
     Area CurrentArea(Unit* carrier, Area const& area);
     // Ends every area owner has on show, for the bots too (a fight reset while a long one was still drawn). Its

@@ -11,6 +11,7 @@
 #include "DynamicObject.h"
 #include "GameTime.h"
 #include "Map.h"
+#include "MoveSplineInit.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -208,9 +209,8 @@ bool Follow(ActiveArea& entry, WorldObject const& reference)
     if (!carrier)
         return false;
     entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
-    if (entry.area.kind == GroundIndicators::Area::Kind::Cross)
-        entry.area.origin.SetOrientation(carrier->GetOrientation());
-    else if (entry.carriedBase > 0.0f)
+    // A carried star keeps its own facing (ShowCarriedStar); a carried circle grows with its carrier
+    if (entry.area.kind != GroundIndicators::Area::Kind::Cross && entry.carriedBase > 0.0f)
         entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
     return true;
 }
@@ -271,8 +271,6 @@ ThemeKits KitsOf(GroundIndicators::Theme theme)
 // How often a warning kit is replayed on an emitter, and how many emitters an area may take
 constexpr uint32 ParticlePulseMs = 1100;
 constexpr std::size_t MaxEmitters = 28;
-// Emitters stand about this far apart
-constexpr float EmitterSpacing = 6.0f;
 
 // An invisible emitter: it plays its kit every intervalMs (once, when intervalMs is 0), a moment after it is created
 // so the client has it before the first one
@@ -336,6 +334,44 @@ private:
     uint32 _timer = TurnEveryMs;
 };
 
+// A star's stalker at its carrier's feet: stepped onto them every FollowEveryMs, in a straight line and just fast
+// enough to be there by the next step, its facing fixed. (An aura on the carrier turned with the carrier's facing; a
+// stock follow lagged and slid around them.)
+struct FollowCarrierAI : public NullCreatureAI
+{
+    FollowCarrierAI(Creature* creature, ObjectGuid carrier) : NullCreatureAI(creature), _carrier(carrier) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+        _timer = FollowEveryMs;
+
+        Unit* carrier = ObjectAccessor::GetUnit(*me, _carrier);
+        if (!carrier)
+            return;
+        float const distance = me->GetExactDist(carrier);
+        if (distance < MinStep)
+            return;
+        Movement::MoveSplineInit init(me);
+        init.MoveTo(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ(), false);
+        init.SetFacing(me->GetOrientation());
+        init.SetOrientationFixed(true);
+        init.SetVelocity(std::max(distance * 1000.0f / float(FollowEveryMs), 1.0f));
+        init.Launch();
+    }
+
+private:
+    static constexpr uint32 FollowEveryMs = 100;
+    static constexpr float MinStep = 0.15f;
+
+    ObjectGuid _carrier;
+    uint32 _timer = FollowEveryMs;
+};
+
 Position OnGround(Unit* owner, float x, float y, float z)
 {
     float ground = owner->GetMap()->GetHeight(owner->GetPhaseMask(), x, y, z + 6.0f, true, 30.0f);
@@ -344,93 +380,107 @@ Position OnGround(Unit* owner, float x, float y, float z)
     return Position(x, y, ground);
 }
 
-void SpawnEmitter(Unit* owner, Position const& where, uint32 kit, uint32 intervalMs, uint32 durationMs)
+void SpawnEmitter(Unit* owner, Position const& where, uint32 kit, uint32 intervalMs, uint32 durationMs,
+                  float scale = 1.0f)
 {
     TempSummon* emitter = owner->SummonCreature(NPC_GROUND_INDICATOR, where, TEMPSUMMON_TIMED_DESPAWN, durationMs);
     if (!emitter)
         return;
+
+    // The kit's models are drawn at the emitter's scale: one big effect rather than many small ones
+    emitter->SetObjectScale(scale);
 
     // Pulses spread over the interval, so an area shimmers rather than blinking all at once
     uint32 const first = 150 + (intervalMs ? urand(0, intervalMs) : 0);
     emitter->AIM_Initialize(new ParticleEmitterAI(emitter, kit, intervalMs, first));
 }
 
-// The spots an area's emitters stand on: spread over its shape about EmitterSpacing apart
-std::vector<Position> EmitterSpots(Unit* owner, GroundIndicators::Area const& area)
+// An emitter's place and its scale. A theme's effect covers about ParticleRadius yards at scale 1: every shape is
+// covered by as few effects as it takes, each scaled to the part it covers - one for a circle, a row along a line, a
+// few down a cone - rather than a carpet of small copies.
+struct EmitterSpot
+{
+    Position where;
+    float scale;
+};
+
+constexpr float ParticleRadius = 3.0f;
+constexpr float MinParticleScale = 0.6f;
+constexpr float MaxParticleScale = 6.0f;
+
+std::vector<EmitterSpot> EmitterSpots(Unit* owner, GroundIndicators::Area const& area)
 {
     using Kind = GroundIndicators::Area::Kind;
-    std::vector<Position> spots;
+    std::vector<EmitterSpot> spots;
     Position const& origin = area.origin;
     float const z = origin.GetPositionZ();
-    auto add = [&](float x, float y)
+    // One effect covering covered yards around (x, y)
+    auto add = [&](float x, float y, float covered)
     {
         if (spots.size() < MaxEmitters)
-            spots.push_back(OnGround(owner, x, y, z));
+            spots.push_back({ OnGround(owner, x, y, z),
+                              std::clamp(covered / ParticleRadius, MinParticleScale, MaxParticleScale) });
     };
 
     switch (area.kind)
     {
         case Kind::Circle:
-        {
-            add(origin.GetPositionX(), origin.GetPositionY());
-            for (float share : { 0.55f, 0.9f })
-            {
-                float const ring = area.radius * share;
-                if (ring < EmitterSpacing * 0.6f)
-                    continue;
-                uint32 const count = std::max<uint32>(4, uint32(2.0f * float(M_PI) * ring / EmitterSpacing));
-                float const turn = share * 1.3f;
-                for (uint32 index = 0; index < count; ++index)
-                {
-                    float const angle = turn + 2.0f * float(M_PI) * index / count;
-                    add(origin.GetPositionX() + std::cos(angle) * ring, origin.GetPositionY() + std::sin(angle) * ring);
-                }
-            }
+            add(origin.GetPositionX(), origin.GetPositionY(), area.radius);
             break;
-        }
         case Kind::Rectangle:
         {
+            // A row along it, each effect as wide as the line, about as many as it is long in widths
             float const facing = origin.GetOrientation();
-            std::vector<float> across = { 0.0f };
-            if (area.width > EmitterSpacing * 1.2f)
-                across = { -area.width / 4.0f, area.width / 4.0f };
-            for (float along = EmitterSpacing / 2.0f; along < area.radius; along += EmitterSpacing)
-                for (float side : across)
-                    add(origin.GetPositionX() + std::cos(facing) * along - std::sin(facing) * side,
-                        origin.GetPositionY() + std::sin(facing) * along + std::cos(facing) * side);
+            float const half = std::max(area.width / 2.0f, 1.0f);
+            uint32 const count = std::clamp<uint32>(uint32(area.radius / (half * 2.0f) + 0.5f), 1, MaxEmitters);
+            float const step = area.radius / float(count);
+            for (uint32 index = 0; index < count; ++index)
+            {
+                float const along = step * (float(index) + 0.5f);
+                add(origin.GetPositionX() + std::cos(facing) * along, origin.GetPositionY() + std::sin(facing) * along,
+                    std::max(half, step / 2.0f));
+            }
             break;
         }
         case Kind::Ring:
         {
-            // Along the band, a few rings of emitters from the hole's edge out: a wide ring would take more than
-            // MaxEmitters, so they spread out rather than all crowding its inner edge
+            // Round the band, each effect as thick as it
             float const band = std::max(area.radius - area.inner, 1.0f);
-            uint32 const rings = std::clamp<uint32>(uint32(band / (EmitterSpacing * 2.0f)), 1, 3);
-            for (uint32 index = 0; index < rings; ++index)
+            float const middle = area.inner + band / 2.0f;
+            uint32 const count = std::clamp<uint32>(uint32(2.0f * float(M_PI) * middle / band), 4, MaxEmitters);
+            for (uint32 step = 0; step < count; ++step)
             {
-                float const ring = area.inner + band * (float(index) + 0.5f) / float(rings);
-                uint32 const count = std::max<uint32>(6, uint32(2.0f * float(M_PI) * ring / (EmitterSpacing * 2.0f)));
-                for (uint32 step = 0; step < count; ++step)
-                {
-                    float const angle = float(index) * 0.7f + 2.0f * float(M_PI) * step / count;
-                    add(origin.GetPositionX() + std::cos(angle) * ring, origin.GetPositionY() + std::sin(angle) * ring);
-                }
+                float const angle = 2.0f * float(M_PI) * step / count;
+                add(origin.GetPositionX() + std::cos(angle) * middle, origin.GetPositionY() + std::sin(angle) * middle,
+                    std::max(band / 2.0f, float(M_PI) * middle / float(count)));
             }
             break;
         }
         case Kind::Cone:
         {
+            // Down its middle, each effect as wide as the cone where it stands
             float const facing = origin.GetOrientation();
-            for (float along = EmitterSpacing * 0.7f; along <= area.radius; along += EmitterSpacing)
+            float const halfArc = std::min(area.arc / 2.0f, float(M_PI) / 2.0f);
+            float along = area.radius * 0.25f;
+            while (along < area.radius && spots.size() < MaxEmitters)
             {
-                float const span = area.arc * 0.8f;
-                uint32 const count = std::max<uint32>(1, uint32(span * along / EmitterSpacing));
-                for (uint32 index = 0; index < count; ++index)
-                {
-                    float const angle = count == 1 ? facing :
-                        facing - span / 2.0f + span * float(index) / float(count - 1);
-                    add(origin.GetPositionX() + std::cos(angle) * along, origin.GetPositionY() + std::sin(angle) * along);
-                }
+                float const width = std::max(along * std::sin(halfArc), 1.5f);
+                add(origin.GetPositionX() + std::cos(facing) * along, origin.GetPositionY() + std::sin(facing) * along,
+                    width);
+                along += std::max(width * 1.6f, 2.0f);
+            }
+            break;
+        }
+        case Kind::Cross:
+        {
+            // The middle and each arm's far half
+            float const facing = origin.GetOrientation();
+            add(origin.GetPositionX(), origin.GetPositionY(), area.width);
+            for (uint32 arm = 0; arm < 4; ++arm)
+            {
+                float const angle = facing + arm * float(M_PI) / 2.0f;
+                add(origin.GetPositionX() + std::cos(angle) * area.radius * 0.6f,
+                    origin.GetPositionY() + std::sin(angle) * area.radius * 0.6f, area.width);
             }
             break;
         }
@@ -1060,8 +1110,8 @@ void ShowParticles(Unit* owner, Area const& area, Theme theme, uint32 durationMs
     if (!kit || !owner || !owner->IsInWorld() || durationMs == 0)
         return;
 
-    for (Position const& spot : EmitterSpots(owner, area))
-        SpawnEmitter(owner, spot, kit, ParticlePulseMs, durationMs);
+    for (EmitterSpot const& spot : EmitterSpots(owner, area))
+        SpawnEmitter(owner, spot.where, kit, ParticlePulseMs, durationMs, spot.scale);
 }
 
 void Burst(Unit* owner, Position const& where, Theme theme)
@@ -1194,18 +1244,26 @@ Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 duration
 
 Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDamage)
 {
-    Area area = MakeArea(Area::Kind::Cross, *carrier, carrier->GetOrientation(), CarriedStarArm);
+    // Its rays point the way they are drawn, whichever way the carrier turns: a direction of its own, drawn at random
+    float const facing = frand(0.0f, float(M_PI) / 2.0f);
+    Area area = MakeArea(Area::Kind::Cross, *carrier, facing, CarriedStarArm);
     area.width = CarriedStarWidth;
     if (!carrier->IsInWorld() || !carrier->IsAlive() || durationMs == 0)
         return area;
-    if (Aura* aura = carrier->AddAura(SPELL_INDICATOR_CARRIED_STAR, carrier))
+    // The model is drawn at its own size (Star10): the stalker at scale 1
+    if (Creature* stalker = Place(owner, *carrier, facing, SPELL_INDICATOR_CARRIED_STAR, 1.0f, durationMs))
     {
-        aura->SetMaxDuration(int32(durationMs));
-        aura->SetDuration(int32(durationMs));
-        // Its carrier's own: a star is its carrier's to aim, not to step out of (as a carried circle)
+        stalker->AIM_Initialize(new FollowCarrierAI(stalker, carrier->GetGUID()));
+        // Its carrier's own: a star is its carrier's to keep away from the others, not to step out of
         Register(owner, carrier, area, durationMs, hitDamage);
     }
     return area;
+}
+
+void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage)
+{
+    if (owner && owner->IsInWorld() && durationMs)
+        Register(owner, nullptr, area, durationMs, hitDamage);
 }
 
 Area CurrentArea(Unit* carrier, Area const& area)
@@ -1214,8 +1272,6 @@ Area CurrentArea(Unit* carrier, Area const& area)
     if (carrier)
     {
         current.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
-        if (current.kind == Area::Kind::Cross)
-            current.origin.SetOrientation(carrier->GetOrientation());
     }
     return current;
 }
