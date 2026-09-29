@@ -7,7 +7,7 @@
 --        them at 25 000 and two tanks at 8 000, on the god 85% of the time with the movement it asks (+50% in
 --        intermission 1's window), deal about 42 million by 4:50. The first estimate (7 500 a damage dealer, 11.0
 --        million) died far too early; 42.0 million, then 3% more, then 10% more (kills came early).
---        Its melee: a 2 s swing at 45 damage
+--        Its melee: a 2 s swing at 90 damage
 --        modifier. No gear on its corpse: the challenge board gives its own (ChallengeBoard.cpp GodItemLevel), gold
 --        only.
 -- 930001 Fragment d'éternité: a Living Constellation (33052) that walks to the god in intermission 1, 0.5 million
@@ -43,7 +43,7 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `unit_flags` = `unit_flags` & ~(0x100 | 0x200),
     -- Not Algalon's hard reset (a despawn on evade): the board follows the god by its guid through the wipes
     `flags_extra` = `flags_extra` & ~0x80000000,
-    `DamageModifier` = 45,
+    `DamageModifier` = 90,
     `BaseAttackTime` = 2000,
     `HealthModifier` = 3412,
     `lootid` = 0,

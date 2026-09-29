@@ -84,9 +84,9 @@ namespace
 // check for damage dealers at 20 000-30 000 on one target).
 constexpr float ReferenceKey = 20.25f;
 
-constexpr float CleaveTankPct = 55.0f;          // Double fauchage cosmique, on each tank a cone is aimed at
+constexpr float CleaveTankPct = 75.0f;          // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
-constexpr float TwinStrikePct = 65.0f;          // Frappes jumelles, on each tank (phase 3)
+constexpr float TwinStrikePct = 90.0f;          // Frappes jumelles, on each tank (phase 3)
 constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle
 constexpr float GravityPct[3] = { 15.0f, 20.0f, 18.0f };   // Onde de gravité, by phase (1, 2, 3)
 constexpr float BigBangPct = 140.0f;            // anyone off the god's feet
@@ -1590,10 +1590,14 @@ public:
         return commandTable;
     }
 
-    // .infini gear [item level]: a piece of the god's gear for the game master (304 unless given), as a win gives it
-    static bool HandleGear(ChatHandler* handler, Optional<uint32> itemLevel)
+    // .infini gear [item level] [plain]: a piece of the god's gear for the game master (304 unless given), as a win
+    // gives it; plain: the same Mythic+ piece without the god's touch, to compare
+    static bool HandleGear(ChatHandler* handler, Optional<uint32> itemLevel, Optional<std::string> plain)
     {
-        GiveInfiniteGodLootItem(handler->GetPlayer(), itemLevel.value_or(304));
+        if (plain && *plain == "plain")
+            GiveMythicLootItem(handler->GetPlayer(), itemLevel.value_or(304));
+        else
+            GiveInfiniteGodLootItem(handler->GetPlayer(), itemLevel.value_or(304));
         return true;
     }
 
