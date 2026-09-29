@@ -69,6 +69,7 @@
 // mod-playerbots (RaidFinder.cpp), built into the same modules library
 bool IsChallengeInstanceFor(Map const* map, uint32 bossEntry);
 float GetChallengeDamageFactorOf(Unit* attacker);
+uint8 GetChallengeTierOf(Map const* map);
 
 namespace
 {
@@ -84,11 +85,18 @@ namespace
 // check for damage dealers at 20 000-30 000 on one target).
 constexpr float ReferenceKey = 20.25f;
 
-constexpr float CleaveTankPct = 75.0f;          // Double fauchage cosmique, on each tank a cone is aimed at
+constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
-constexpr float TwinStrikePct = 90.0f;          // Frappes jumelles, on each tank (phase 3)
+constexpr float TwinStrikePct = 130.0f;         // Frappes jumelles, on each tank (phase 3)
 constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle
-constexpr float GravityPct[3] = { 15.0f, 20.0f, 18.0f };   // Onde de gravité, by phase (1, 2, 3)
+constexpr float GravityPct[3] = { 24.0f, 30.0f, 18.0f };   // Onde de gravité, by phase (1, 2, 3)
+constexpr float MeleeFloorPct = 8.0f;           // its melee on a player: at least this, whatever their armour
+constexpr float TankArcanePct = 20.0f;          // Fracture stellaire: arcane on its target, every TankArcaneMs
+constexpr uint32 TankArcaneMs = 6000;
+// Each tier above Défi I: avoidable hits this much harder (on top of the tier's own damage), and more to dodge -
+// Pluie d'étoiles a circle more every two tiers, Constellation a line more every three, Rayons stellaires a carrier
+// more at Défi IV and VII, four Fragments d'éternité from Défi II
+constexpr float AvoidablePctPerTier = 10.0f;
 constexpr float BigBangPct = 140.0f;            // anyone off the god's feet
 constexpr float RaidTickPct = 3.0f;             // intermissions, every 2 s
 constexpr float FragmentBurstPct = 25.0f;       // a fragment reaching the god: the raid...
@@ -147,7 +155,8 @@ constexpr uint32 StarRaysMs = 5000;
 constexpr uint32 StarRaysCarriers = 3;
 constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
-constexpr uint32 FragmentCount = 2;
+constexpr uint32 FragmentCount = 2;             // at Défi I; FragmentCountHigh from Défi II
+constexpr uint32 FragmentCountHigh = 4;
 constexpr Seconds WipeRespawnDelay = 5s;       // a wipe despawns the god; it is back this long after
 constexpr float FragmentReach = 1.5f;           // a fragment this close to the god's middle merges with it
 constexpr float FragmentSpawnDistance = 34.0f;
@@ -217,6 +226,7 @@ constexpr NamedSpell SPELL_JUDGEMENT = { 90751, 64443 };
 constexpr NamedSpell SPELL_END_OF_TIMES = { 90752, 64487 };     // Ascend to the Heavens
 constexpr NamedSpell SPELL_ETERNITY_SHARD = { 90755, 64443 };
 constexpr NamedSpell SPELL_STAR_RAYS = { 90756, 64596 };
+constexpr NamedSpell SPELL_TANK_ARCANE = { 90763, 64412 };      // Fracture stellaire (Phase Punch)
 // Debuffs the players see: dummy auras, the script does what they say
 constexpr uint32 SPELL_DOOM = 90753;            // Fin imminente
 constexpr uint32 SPELL_WEIGHT = 90754;          // Poids de l'éternité
@@ -287,6 +297,7 @@ enum class Ability : uint8
     TwinStrikes,
     Starfall,
     Gravity,
+    TankArcane,
     BigBangRise,
     BigBangYell,
     BigBang,
@@ -354,6 +365,7 @@ std::vector<Step> BuildTimeline()
         once(Ability::Starfall, at);
     for (uint32 at : { 10000u, 20000u, 31500u, 40000u })
         once(Ability::Gravity, at);
+    every(Ability::TankArcane, 4000, TankArcaneMs, AtIntermission1);
     once(Ability::BigBangRise, AtBigBangRise);
     once(Ability::BigBangYell, AtBigBangYell);
     once(Ability::BigBang, AtBigBang);
@@ -369,6 +381,7 @@ std::vector<Step> BuildTimeline()
     every(Ability::Cleave, AtPhase2 + 3000, 15000, AtIntermission2 - 4000);
     every(Ability::Starfall, AtPhase2 + 1500, 5000, AtIntermission2 - 2500);
     every(Ability::Gravity, AtPhase2 + 7500, 10000, AtIntermission2);
+    every(Ability::TankArcane, AtPhase2 + 2000, TankArcaneMs, AtIntermission2);
     every(Ability::Singularity, AtPhase2 + 5500, 15000, AtIntermission2 - 8000);
     every(Ability::CollapsingStar, AtPhase2 + 10500, 20000, AtIntermission2 - StarSoakMs);
 
@@ -392,6 +405,7 @@ std::vector<Step> BuildTimeline()
     every(Ability::Starfall, AtPhase3 + 1500, 5000, AtFinal - 2000);
     every(Ability::Gravity, AtPhase3 + 6000, 15000, AtFinal);
     every(Ability::Weight, AtPhase3 + 10000, 10000, AtFinal);
+    every(Ability::TankArcane, AtPhase3 + 2000, TankArcaneMs, AtFinal);
     std::vector<Step> big;
     for (uint32 at = AtPhase3 + 8000, index = 0; at < AtFinal - StarSoakMs; at += 12500, ++index)
         big.push_back({ at, index % 2 ? Ability::CollapsingStar : Ability::Singularity });
@@ -559,10 +573,14 @@ struct boss_infinite_god : public ScriptedAI
     }
 
     // Its melee follows the players' Poids de l'éternité and Fin imminente, as its abilities do
+    // Never less than MeleeFloorPct of the reference hit, whatever the target's armour: a tank has to be healed
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType type, SpellSchoolMask /*mask*/) override
     {
         if (type == DIRECT_DAMAGE && victim && victim->IsPlayer())
-            damage = uint32(float(damage) * TakenFactor(victim));
+        {
+            float const floor = Reference() * MeleeFloorPct / 100.0f * std::max(GetChallengeDamageFactorOf(me), 1.0f);
+            damage = uint32(std::max(float(damage), floor) * TakenFactor(victim));
+        }
     }
 
     void MovementInform(uint32 type, uint32 id) override
@@ -788,10 +806,19 @@ private:
 
     // A share of the reference health, as spell: the tier's factor applies on the way (ChallengeTierUnitScript), then
     // the player's defences. An avoidable one (it stood in the red) adds Imprudence, as in a key.
+    // Défi tiers above I (0 at Défi I, and outside a challenge)
+    uint32 TierAbove() const
+    {
+        uint8 const tier = GetChallengeTierOf(me->GetMap());
+        return tier > 1 ? tier - 1u : 0u;
+    }
+
     void Hit(Player* player, NamedSpell const& spell, float percent, bool avoidable)
     {
         if (!player || !player->IsAlive())
             return;
+        if (avoidable)
+            percent *= 1.0f + AvoidablePctPerTier / 100.0f * float(TierAbove());
         float const amount = Reference() * percent / 100.0f * TakenFactor(player);
         MythicTuning::DealAbilityDamage(me, player, SpellOf(spell), uint32(std::max(1.0f, amount)));
         if (avoidable)
@@ -931,7 +958,8 @@ private:
         {
             case Ability::Cleave:           DoubleCleave(); break;
             case Ability::TwinStrikes:      TwinStrikes(); break;
-            case Ability::Starfall:         Starfall(_phase == Phase::Three ? 4 : 3); break;
+            case Ability::Starfall:         Starfall(4 + TierAbove() / 2); break;
+            case Ability::TankArcane:       TankArcane(); break;
             case Ability::Gravity:          Gravity(); break;
             case Ability::BigBangRise:      BigBangRise(); break;
             case Ability::BigBangYell:      Talk(SAY_BIG_BANG); break;
@@ -1044,6 +1072,18 @@ private:
         }
     }
 
+    // Fracture stellaire: arcane on whoever it is fighting, armour no help
+    void TankArcane()
+    {
+        if (!CanMelee())
+            return;
+        if (Player* victim = me->GetVictim() ? me->GetVictim()->ToPlayer() : nullptr)
+        {
+            victim->SendPlaySpellVisual(KIT_PHASE_PUNCH_HIT);
+            Hit(victim, SPELL_TANK_ARCANE, TankArcanePct, false);
+        }
+    }
+
     // Onde de gravité: the whole raid, the healers' rhythm
     void Gravity()
     {
@@ -1107,9 +1147,10 @@ private:
     {
         _fragments.clear();
         float const base = frand(0.0f, 2.0f * float(M_PI));
-        for (uint32 index = 0; index < FragmentCount; ++index)
+        uint32 const count = TierAbove() > 0 ? FragmentCountHigh : FragmentCount;
+        for (uint32 index = 0; index < count; ++index)
         {
-            float const angle = base + float(M_PI) * 2.0f * float(index) / float(FragmentCount);
+            float const angle = base + float(M_PI) * 2.0f * float(index) / float(count);
             Position const spawn = Ground(Position(me->GetPositionX() + std::cos(angle) * FragmentSpawnDistance,
                 me->GetPositionY() + std::sin(angle) * FragmentSpawnDistance, ArenaFloorZ));
             if (TempSummon* fragment = me->SummonCreature(NPC_FRAGMENT, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000))
@@ -1259,7 +1300,7 @@ private:
     void Constellation()
     {
         me->SendPlaySpellVisual(KIT_REORIGINATION);
-        for (uint32 line = 0; line < 2; ++line)
+        for (uint32 line = 0; line < 2 + TierAbove() / 3; ++line)
         {
             float const from = frand(0.0f, 2.0f * float(M_PI));
             Position const start = Ground(Position(ArenaCenter.GetPositionX() + std::cos(from) * 40.0f,
@@ -1412,7 +1453,7 @@ private:
     {
         Talk(EMOTE_STAR_RAYS);
         std::vector<Player*> players = ArenaPlayers();
-        Acore::Containers::RandomResize(players, StarRaysCarriers);
+        Acore::Containers::RandomResize(players, StarRaysCarriers + (TierAbove() >= 3) + (TierAbove() >= 6));
         for (Player* carrier : players)
         {
             GroundIndicators::Area const area = GroundIndicators::ShowCarriedStar(me, carrier, StarRaysMs);

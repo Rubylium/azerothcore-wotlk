@@ -16,6 +16,11 @@ local FORGE_RANKS = 8                   -- MythicDungeon.h, ForgeRanks: the Forg
 
 local french = GetLocale() == "frFR"
 local TAG = french and "Mythique+" or "Mythic+"
+-- L'Infini's gear (the challenge board's god) is a generated item too, touched by it: its bonus's name is one of the
+-- item's lines (SpellItemEnchantment, localTools/patchSinisterStrike.ps1), which is how it is told apart. Tagged with
+-- the god's name, in the bonus's starry blue.
+local GOD_TAG = "L'Infini"
+local GOD_BONUSES = { "Égide des astres", "Éclat d'étoile filante", "Étincelle d'éternité" }
 local FORGE_TAG = french and "Forgé %d/%d" or "Forged %d/%d"
 
 -- The same green the client uses for its own difficulty tag
@@ -36,6 +41,21 @@ local function TagOf(link)
     end
 end
 
+-- Whether a tooltip shows one of the god's bonuses among its lines
+local function IsGodPiece(tooltip)
+    local name = tooltip:GetName()
+    for line = 1, tooltip:NumLines() do
+        local text = _G[name .. "TextLeft" .. line]:GetText()
+        if text then
+            for _, bonus in ipairs(GOD_BONUSES) do
+                if text:find(bonus, 1, true) then
+                    return true
+                end
+            end
+        end
+    end
+end
+
 local function Tag(tooltip)
     -- Guarded: a tooltip that has already been tagged this time round must not collect the line twice, which
     -- happens because several of these fire OnTooltipSetItem more than once for one hover.
@@ -49,6 +69,9 @@ local function Tag(tooltip)
         return
     end
 
+    if text == TAG and IsGodPiece(tooltip) then
+        text, r, g, b = GOD_TAG, 0.5, 0.75, 1
+    end
     tooltip.mythicTagged = true
     tooltip:AddLine(text, r, g, b)
     tooltip:Show()

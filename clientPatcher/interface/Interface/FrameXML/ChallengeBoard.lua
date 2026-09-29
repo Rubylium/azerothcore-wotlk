@@ -35,7 +35,9 @@ local GOD_BOSS = 930000
 local GOD_ART = "Interface\\ChallengeBoard\\"
 local GOD_FIGURE_BOTTOM = 0.6367
 -- Its gear: the server sends Défi I's item level as the mission's, each tier adds this (ChallengeBoard.cpp)
-local GOD_ITEM_LEVEL_PER_TIER = 12
+local GOD_ITEM_LEVEL_PER_TIER = 10
+-- The paragon it asks: the server sends Défi I's as the mission's base, each tier adds this (ChallengeTiers.h)
+local GOD_PARAGON_PER_TIER = 50
 -- One attempt at every tier (ChallengeTiers.h BossProfiles): a wipe sends everyone home
 local GOD_ATTEMPTS = 1
 
@@ -1364,7 +1366,7 @@ local function CreateGodPage()
         SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
 
         itemLevel:SetText(format(TEXT.godItemLevel, mission.requiredItemLevel or 0))
-        local wanted = (mission.baseParagon or 0) + TierParagon(tier)
+        local wanted = (mission.baseParagon or 0) + GOD_PARAGON_PER_TIER * (tier - TIER_MIN)
         paragonNeed:SetText(format(TEXT.godParagon, wanted, state.paragon or 0))
         if (state.paragon or 0) >= wanted then
             paragonNeed:SetTextColor(1, 0.86, 0.55)
