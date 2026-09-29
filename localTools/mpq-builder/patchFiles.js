@@ -15,8 +15,10 @@ function getPatchFiles(repoRoot) {
     const files = [
         'Spell.dbc', 'SkillLineAbility.dbc', 'SpellIcon.dbc', 'SpellVisual.dbc', 'SpellVisualKit.dbc', 'SoundEntries.dbc',
         'SpellVisualEffectName.dbc',
-        // The paragon glyphs' icons (localTools/patchSinisterStrike.ps1)
+        // The paragon glyphs' icons and the retail import test items (localTools/patchSinisterStrike.ps1)
         'Item.dbc',
+        // The looks imported from the retail client (localTools/retailImport)
+        'ItemDisplayInfo.dbc',
     ].map((name) => ({
         source: path.join(dbcRoot, name),
         archive: `DBFilesClient\\${name}`,
@@ -85,6 +87,24 @@ function getPatchFiles(repoRoot) {
     };
     if (fs.existsSync(oathbladeEffectRoot)) {
         addOathbladeEffects(oathbladeEffectRoot);
+    }
+
+    // Item models, textures and icons imported from the retail client (localTools/retailImport), stored at their
+    // archive path: Item\ObjectComponents\..., Interface\Icons\...
+    const retailItemRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled',
+        'retail-items');
+    const addRetailItems = (directory) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const source = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                addRetailItems(source);
+                continue;
+            }
+            files.push({ source, archive: path.relative(retailItemRoot, source).split(path.sep).join('\\') });
+        }
+    };
+    if (fs.existsSync(retailItemRoot)) {
+        addRetailItems(retailItemRoot);
     }
 
     // The red ground indicators of enemy abilities (localTools/groundIndicators/buildGroundIndicators.py)

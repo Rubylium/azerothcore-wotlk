@@ -2039,9 +2039,70 @@ foreach ($glyph in $glyphDisplays) {
     # Field 5: DisplayInfoID
     [BitConverter]::GetBytes([uint32]$glyph.display).CopyTo($itemBytes, $itemOffsets[[int]$glyph.item] + 5 * 4)
 }
+
+# --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
+#
+# localTools\retailImport converts retail item models into modules\mod-stat-growth\client-assets\compiled\
+# retail-items (shipped by patchFiles.js) and lists the rows that use them in retailItems.generated.json:
+# - new ItemDisplayInfo rows (70001+), each copying a stock row's sound group and flags, with the retail model,
+#   texture and icon and nothing else (no body textures, geosets or item visual of the stock row)
+# - the Item.dbc rows of its test items: rows the client already had, with no template on the server, given a
+#   class, slot and display. The server enforces these over item_template (DBC.EnforceItemAttributes).
+# ItemDisplayInfo is built on the copy the client reads today, Patch-D's (HD weapon remakes of 124 stock rows),
+# kept once as ItemDisplayInfo.before-retail-items.dbc; the server reads the same file.
+$retailItemsPath = Join-Path $repoRoot 'localTools\retailImport\retailItems.generated.json'
+$retailItems = Get-Content -LiteralPath $retailItemsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($item in $retailItems.items) {
+    if (-not $itemOffsets.ContainsKey([int]$item.entry)) {
+        throw "Item.dbc has no row $($item.entry) for the retail import test item."
+    }
+    $offset = $itemOffsets[[int]$item.entry]
+    # ClassID, SubclassID, SoundOverrideSubclassID, Material, DisplayInfoID, InventoryType, SheatheType
+    $values = @($item.class, $item.subclass, -1, $item.material, $item.display, $item.inventoryType, $item.sheath)
+    for ($field = 1; $field -le 7; ++$field) {
+        Write-Field $itemBytes $offset $field ([long]$values[$field - 1])
+    }
+}
 [IO.File]::WriteAllBytes($serverItemPath, $itemBytes)
 [IO.File]::WriteAllBytes($clientItemPath, $itemBytes)
 Write-Host "Gave $(@($glyphDisplays).Count) paragon glyph items their inscription icons (Item.dbc)."
+
+$serverDisplayPath = Join-Path $serverDbcRoot 'ItemDisplayInfo.dbc'
+$displayBackupPath = Join-Path $serverDbcRoot 'ItemDisplayInfo.before-retail-items.dbc'
+$clientDisplayPath = Join-Path $clientDbcRoot 'ItemDisplayInfo.dbc'
+if (-not (Test-Path -LiteralPath $displayBackupPath)) {
+    & node (Join-Path $repoRoot 'localTools\mpq-builder\extractEffectiveClientFile.js') `
+        'DBFilesClient\ItemDisplayInfo.dbc' $displayBackupPath
+    if ($LASTEXITCODE -ne 0) { throw "Could not extract the client's ItemDisplayInfo.dbc." }
+}
+$displayDbc = Read-StringDbc $displayBackupPath 'ItemDisplayInfo.dbc' 25
+foreach ($display in $retailItems.displays) {
+    if ($displayDbc.Offsets.ContainsKey([int]$display.id)) {
+        throw "ItemDisplayInfo.dbc already has a row $($display.id)."
+    }
+    if (-not $displayDbc.Offsets.ContainsKey([int]$display.cloneOf)) {
+        throw "ItemDisplayInfo.dbc has no row $($display.cloneOf) to copy for $($display.id)."
+    }
+    $record = [byte[]]::new($displayDbc.RecordSize)
+    [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[[int]$display.cloneOf], $record, 0, $displayDbc.RecordSize)
+    # Kept from the clone: 10 Flags, 11 SpellVisualID, 12 GroupSoundIndex. Cleared: 6 second icon, 7-9 geoset
+    # groups, 13-14 helmet geoset visibility, 15-22 body textures, 23 ItemVisual, 24 ParticleColorID.
+    foreach ($field in @(6, 7, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24)) { Set-Field $record $field 0 }
+    Set-Field $record 0 ([uint32]$display.id)
+    for ($slot = 0; $slot -lt 2; ++$slot) {
+        $model = [string]$display.modelName[$slot]
+        $texture = [string]$display.modelTexture[$slot]
+        Set-Field $record (1 + $slot) $(if ($model) { Add-DbcString $displayDbc.Strings $model } else { 0 })
+        Set-Field $record (3 + $slot) $(if ($texture) { Add-DbcString $displayDbc.Strings $texture } else { 0 })
+    }
+    if ($display.icon) { Set-Field $record 5 (Add-DbcString $displayDbc.Strings ([string]$display.icon)) }
+    $displayDbc.NewRecords.AddRange($record)
+}
+$displayOutput = Get-StringDbcOutput $displayDbc
+[IO.File]::WriteAllBytes($serverDisplayPath, $displayOutput)
+[IO.File]::WriteAllBytes($clientDisplayPath, $displayOutput)
+Write-Host ("Installed $(@($retailItems.displays).Count) retail item looks (ItemDisplayInfo.dbc) and " +
+    "$(@($retailItems.items).Count) test items (Item.dbc).")
 
 $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'CombatRogue_*.tga' -ErrorAction SilentlyContinue).Count
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize
