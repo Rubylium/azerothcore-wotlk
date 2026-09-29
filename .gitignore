@@ -179,3 +179,7 @@ compile_commands.json
 
 # TACTTool download cache of localTools/interface/extractRetailUi.py
 localTools/interface/cache/
+# localTools/retailImport: MultiConverter checkout, listfile, DB2 definitions, TACTSharp cache, work files, previews
+/localTools/retailImport/.deps/
+/localTools/retailImport/RetailImport/bin/
+/localTools/retailImport/RetailImport/obj/

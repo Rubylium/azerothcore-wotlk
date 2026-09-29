@@ -1,0 +1,31 @@
+{
+  // What `RetailImport import` converts (see README.md). Display ids 70001-79999 are the retail imports' range,
+  // above the client's highest stock ItemDisplayInfo id (68742).
+  "outputRoot": "modules/mod-stat-growth/client-assets/compiled/retail-items",
+  "generated": "localTools/retailImport/retailItems.generated.json",
+  "sql": "modules/mod-stat-growth/data/sql/db-world/base/stat_growth_retail_items.sql",
+
+  // retailDisplay: the retail ItemDisplayInfo id (RetailImport probe <item id> lists them per appearance).
+  // clone: a stock 3.3.5 display whose pickup sound group and flags the new row keeps.
+  "displays": [
+    { "id": 70001, "retailDisplay": 152523, "slot": "weapon", "clone": 31808,
+      "note": "Fangs of the Devourer, the Legion Subtlety rogue artifact daggers (7.0), base appearance" },
+    { "id": 70002, "retailDisplay": 163375, "slot": "shoulder", "clone": 45430,
+      "note": "Shoulderpads of the Dashing Scoundrel, rogue Tier 21 (Antorus, Legion 7.3), Mythic look" }
+  ],
+
+  // Test items: entries below 65536 that the client's Item.dbc already has and the world database has no
+  // template for. statsFrom: the stock item whose stats they copy.
+  "items": [
+    { "entry": 19313, "display": 70001, "class": 2, "subclass": 15, "material": 1, "inventoryType": 21, "sheath": 3,
+      "statsFrom": 50641, "name": "Fangs of the Devourer", "nameFr": "Crocs du Dévoreur",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 19314, "display": 70001, "class": 2, "subclass": 15, "material": 1, "inventoryType": 22, "sheath": 3,
+      "statsFrom": 50676, "name": "Fangs of the Devourer", "nameFr": "Crocs du Dévoreur",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 16144, "display": 70002, "class": 4, "subclass": 2, "material": 8, "inventoryType": 3, "sheath": 0,
+      "statsFrom": 50646, "name": "Shoulderpads of the Dashing Scoundrel",
+      "nameFr": "Protège-épaules du scélérat fringant",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." }
+  ]
+}

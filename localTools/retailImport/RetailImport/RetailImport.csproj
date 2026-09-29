@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Retail item model importer (see ../README.md). Reads the local retail install through TACTSharp, the retail
+    DB2s through DBCD, and converts the models with MultiConverter's M2/skin converters, compiled in from the
+    pinned checkout that ../setup.ps1 clones into ../.deps (MultiConverter ships without a license, so its
+    source is not copied into this repository).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- MultiConverter predates nullable annotations and uses WebClient (never reached here) -->
+    <NoWarn>$(NoWarn);SYSLIB0014;CS0168;CS0219;CS8632</NoWarn>
+    <DepsDir>$(MSBuildThisFileDirectory)..\.deps\</DepsDir>
+    <MultiConverterLib>$(DepsDir)MultiConverter\MultiConverter.Lib\</MultiConverterLib>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TACTSharp" Version="0.2.0-alpha" />
+    <PackageReference Include="DBCD" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="$(MultiConverterLib)Converters\Base\WowFile.cs" Link="MultiConverter\WowFile.cs" />
+    <Compile Include="$(MultiConverterLib)Converters\Base\ChunkedWowFile.cs" Link="MultiConverter\ChunkedWowFile.cs" />
+    <Compile Include="$(MultiConverterLib)Converters\Base\IChunk.cs" Link="MultiConverter\IChunk.cs" />
+    <Compile Include="$(MultiConverterLib)Converters\ModelConverter.cs" Link="MultiConverter\ModelConverter.cs" />
+    <Compile Include="$(MultiConverterLib)Converters\SkinConverter.cs" Link="MultiConverter\SkinConverter.cs" />
+    <Compile Include="$(MultiConverterLib)Util\Listfile.cs" Link="MultiConverter\Listfile.cs" />
+  </ItemGroup>
+
+</Project>
