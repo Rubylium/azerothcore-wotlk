@@ -19,14 +19,16 @@ namespace GroundIndicators
         {
             Circle,
             Rectangle,  // from origin, forward along its orientation
-            Cone        // from origin, around its orientation
+            Cone,       // from origin, around its orientation
+            Ring        // around origin, between inner and radius: the middle is safe
         };
 
         Kind kind = Kind::Circle;
         Position origin;
-        float radius = 0.0f;        // a circle's or a cone's radius, a rectangle's length
+        float radius = 0.0f;        // a circle's, a cone's or a ring's (outer) radius, a rectangle's length
         float width = 0.0f;         // a rectangle's width, as its model draws it
         float arc = 0.0f;           // a cone's full arc, in radians, as its model draws it
+        float inner = 0.0f;         // a ring's inner radius, as its model draws it
 
         // Whether a point stands in the area, on the ground (height is ignored), grown by margin yards
         [[nodiscard]] bool Contains(Position const& point, float margin = 0.0f) const;
@@ -61,11 +63,33 @@ namespace GroundIndicators
                        uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
     Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
                   uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
+    // A cone aimed at one unit (a tank buster that must land on its tank): that unit does not step out of it, and a
+    // hit it takes from it does not count as standing in the red. Everyone else is to leave it.
+    Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
+                       uint32 durationMs, Unit* aimedAt, Theme theme = Theme::None, uint32 hitDamage = 0);
+    // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a
+    // few proportions (inner / outer 0.2, 0.4, 0.6, 0.8): the nearest one to what is asked is drawn, and returned.
+    Area ShowRing(Unit* owner, Position const& center, float outerRadius, float innerRadius, uint32 durationMs,
+                  Theme theme = Theme::None, uint32 hitDamage = 0);
     // A circle that follows carrier wherever it goes: whoever carries it should take it away from the others.
     // Read its position back with CurrentArea when it resolves.
     Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0);
     // Where a carried circle is now (it moves with its carrier)
     Area CurrentArea(Unit* carrier, Area const& area);
+    // Ends every area owner has on show, for the bots too (a fight reset while a long one was still drawn). Its
+    // stalkers are its summons: despawning them is the owner's business.
+    void ClearAreasOf(Unit* owner);
+
+    // Where a fight wants the players to stand, for bots (FindGoal). Nothing red: a soak is shown by golden
+    // particles over it, the off-tank's spot not at all.
+    // - A soak: a circle `wanted` players should stand in together (a shared hit). The players nearest to it go,
+    //   tanks aside, until that many stand in it.
+    // - The off-tank's spot: where a tank that is not owner's current target should stand (a boss aiming a cleave at
+    //   each tank: the two apart, their cones away from the group). Set again as the boss moves.
+    void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted);
+    void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs);
+    // Whether unit should go somewhere for one of those, and where. Always after FindEscape: the red comes first.
+    bool FindGoal(Unit* unit, Position& spot, bool tank);
 
     // Whether unit stands in an area it should leave: in one of the red areas around it, or carrying one next to
     // another player. If so, escape is the nearest spot where it would not. An area whose hit is known and would
@@ -90,5 +114,7 @@ void AddGroundIndicatorScripts();
 void AddOnyxiaReworkScripts();
 void AddBronjahmReworkScripts();
 void AddDevourerReworkScripts();
+// InfiniteGod.cpp: L'Infini, the Défi board's god fight in the Celestial Planetarium
+void AddInfiniteGodScripts();
 
 #endif

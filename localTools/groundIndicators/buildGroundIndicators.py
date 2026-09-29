@@ -69,7 +69,7 @@ spec.loader.exec_module(blp_writer)
 def shape_bounds(shape):
     """(x0, x1, y0, y1) of the shape: x forward from its owner, y to its left"""
     kind = shape['kind']
-    if kind == 'circle':
+    if kind in ('circle', 'ring'):
         return -1.0, 1.0, -1.0, 1.0
     if kind == 'rect':
         half = 0.5 / shape['ratio']
@@ -86,6 +86,10 @@ def shape_distance(shape, x, y):
     kind = shape['kind']
     if kind == 'circle':
         return math.hypot(x, y) - 1.0
+    if kind == 'ring':
+        # The band between the hole and the outer edge: its outline runs along both
+        radius = math.hypot(x, y)
+        return max(radius - 1.0, shape['inner'] - radius)
     if kind == 'rect':
         half = 0.5 / shape['ratio']
         dx = max(-x, x - 1.0)
@@ -104,6 +108,8 @@ def shape_distance(shape, x, y):
 
 
 def outline_thickness(shape):
+    if shape['kind'] == 'ring':
+        return min(OUTLINE_MAX, OUTLINE_SHARE * (1.0 - shape['inner']))
     x0, x1, y0, y1 = shape_bounds(shape)
     return min(OUTLINE_MAX, OUTLINE_SHARE * min(x1 - x0, y1 - y0))
 

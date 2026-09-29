@@ -1,5 +1,5 @@
 {
-  "comment": "Ground indicators of enemy abilities (buildGroundIndicators.py, patchSinisterStrike.ps1, modules/mod-stat-growth/src/GroundIndicators.cpp keeps the same spell ids). Every model is one yard: a circle of radius 1, a rectangle 1 long from its owner forward and 1/ratio wide, a cone of radius 1. The server sizes it with its owner's scale. A carried circle (carried: true) is an aura on the player who carries it, so it moves with them exactly: it cannot be scaled, and comes at its own size (scale, in yards) instead, drawn with another shape's texture.",
+  "comment": "Ground indicators of enemy abilities (buildGroundIndicators.py, patchSinisterStrike.ps1, modules/mod-stat-growth/src/GroundIndicators.cpp keeps the same spell ids). Every model is one yard: a circle of radius 1, a rectangle 1 long from its owner forward and 1/ratio wide, a cone of radius 1, a ring of outer radius 1 around a hole of radius inner. The server sizes it with its owner's scale. A carried circle (carried: true) is an aura on the player who carries it, so it moves with them exactly: it cannot be scaled, and comes at its own size (scale, in yards) instead, drawn with another shape's texture.",
   "color": [220, 20, 10],
   "alpha": 0.2,
   "shapes": [
@@ -31,6 +31,10 @@
     { "key": "Carried20", "kind": "circle", "scale": 20, "texture": "Circle", "carried": true, "spell": 90725 },
     { "key": "Carried25", "kind": "circle", "scale": 25, "texture": "Circle", "carried": true, "spell": 90726 },
     { "key": "Carried30", "kind": "circle", "scale": 30, "texture": "Circle", "carried": true, "spell": 90727 },
-    { "key": "Carried40", "kind": "circle", "scale": 40, "texture": "Circle", "carried": true, "spell": 90728 }
+    { "key": "Carried40", "kind": "circle", "scale": 40, "texture": "Circle", "carried": true, "spell": 90728 },
+    { "key": "Ring20", "kind": "ring", "inner": 0.2, "spell": 90729 },
+    { "key": "Ring40", "kind": "ring", "inner": 0.4, "spell": 90730 },
+    { "key": "Ring60", "kind": "ring", "inner": 0.6, "spell": 90731 },
+    { "key": "Ring80", "kind": "ring", "inner": 0.8, "spell": 90732 }
   ]
 }

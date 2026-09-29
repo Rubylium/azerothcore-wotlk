@@ -72,6 +72,10 @@ constexpr std::array<ShapeSpell, 12> CarriedSpells = { {
     { 3.0f, 90717 }, { 4.0f, 90718 }, { 5.0f, 90719 }, { 6.0f, 90720 }, { 8.0f, 90721 }, { 10.0f, 90722 },
     { 12.0f, 90723 }, { 15.0f, 90724 }, { 20.0f, 90725 }, { 25.0f, 90726 }, { 30.0f, 90727 }, { 40.0f, 90728 },
 } };
+// A ring is one yard across to its outer edge; its hole is this share of it
+constexpr std::array<ShapeSpell, 4> RingSpells = { {
+    { 0.2f, 90729 }, { 0.4f, 90730 }, { 0.6f, 90731 }, { 0.8f, 90732 },
+} };
 
 // Smaller is a melee swing, bigger is the whole room: neither is something to step out of
 constexpr float MinRadius = 2.0f;
@@ -121,6 +125,7 @@ struct ActiveArea
     uint32 instanceId = 0;
     ObjectGuid owner;           // the creature whose ability it is
     ObjectGuid carrier;
+    ObjectGuid aimedAt;         // the one unit it is meant to land on (ShowAimedCone)
     float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
     GroundIndicators::Area area;
     uint64 endMs = 0;
@@ -143,10 +148,11 @@ uint64 NowMs()
 }
 
 uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, uint32 durationMs,
-    uint32 hitDamage = 0)
+    uint32 hitDamage = 0, ObjectGuid aimedAt = ObjectGuid::Empty)
 {
     ActiveArea active;
     active.hitDamage = hitDamage;
+    active.aimedAt = aimedAt;
     if (carrier && carrier->GetObjectScale() > 0.0f)
         active.carriedBase = area.radius / carrier->GetObjectScale();
     active.mapId = owner->GetMapId();
@@ -345,6 +351,24 @@ std::vector<Position> EmitterSpots(Unit* owner, GroundIndicators::Area const& ar
                 for (float side : across)
                     add(origin.GetPositionX() + std::cos(facing) * along - std::sin(facing) * side,
                         origin.GetPositionY() + std::sin(facing) * along + std::cos(facing) * side);
+            break;
+        }
+        case Kind::Ring:
+        {
+            // Along the band, a few rings of emitters from the hole's edge out: a wide ring would take more than
+            // MaxEmitters, so they spread out rather than all crowding its inner edge
+            float const band = std::max(area.radius - area.inner, 1.0f);
+            uint32 const rings = std::clamp<uint32>(uint32(band / (EmitterSpacing * 2.0f)), 1, 3);
+            for (uint32 index = 0; index < rings; ++index)
+            {
+                float const ring = area.inner + band * (float(index) + 0.5f) / float(rings);
+                uint32 const count = std::max<uint32>(6, uint32(2.0f * float(M_PI) * ring / (EmitterSpacing * 2.0f)));
+                for (uint32 step = 0; step < count; ++step)
+                {
+                    float const angle = float(index) * 0.7f + 2.0f * float(M_PI) * step / count;
+                    add(origin.GetPositionX() + std::cos(angle) * ring, origin.GetPositionY() + std::sin(angle) * ring);
+                }
+            }
             break;
         }
         case Kind::Cone:
@@ -870,6 +894,58 @@ bool OtherPlayerNear(Unit* unit, Position const& point, float reach)
     }
     return false;
 }
+
+// Where a fight wants players to stand (ShowSoak, SetOffTankSpot), per instance, until it ends. Kept apart from the
+// red areas: nothing here is to be left.
+struct Goal
+{
+    enum class Kind : uint8
+    {
+        Soak,
+        OffTank
+    };
+
+    Kind kind = Kind::Soak;
+    uint32 mapId = 0;
+    uint32 instanceId = 0;
+    ObjectGuid owner;
+    Position center;
+    float radius = 0.0f;
+    uint32 wanted = 0;
+    uint64 endMs = 0;
+};
+
+std::mutex GoalLock;
+std::vector<Goal> Goals;
+
+// A soak is looked at by the players this close to it; a player this far inside its edge stands in it
+constexpr float SoakReach = 50.0f;
+constexpr float SoakInsideMargin = 1.0f;
+// The off-tank goes back to its spot once this far from it
+constexpr float OffTankSlack = 3.0f;
+
+void AddGoal(Goal goal, bool replaceOwnersOfKind)
+{
+    uint64 const now = NowMs();
+    std::lock_guard<std::mutex> guard(GoalLock);
+    Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [&goal, now, replaceOwnersOfKind](Goal const& entry)
+        {
+            return entry.endMs <= now ||
+                (replaceOwnersOfKind && entry.owner == goal.owner && entry.kind == goal.kind);
+        }), Goals.end());
+    Goals.push_back(goal);
+}
+
+std::vector<Goal> GoalsAround(Unit* unit)
+{
+    std::vector<Goal> found;
+    uint64 const now = NowMs();
+    std::lock_guard<std::mutex> guard(GoalLock);
+    for (Goal const& entry : Goals)
+        if (entry.endMs > now && entry.mapId == unit->GetMapId() && entry.instanceId == unit->GetInstanceId())
+            found.push_back(entry);
+    return found;
+}
 }
 
 namespace GroundIndicators
@@ -900,6 +976,8 @@ bool Area::Contains(Position const& point, float margin) const
             angle = std::remainder(angle, 2.0f * float(M_PI));
             return std::fabs(angle) <= arc / 2.0f + std::asin(std::min(1.0f, margin / distance));
         }
+        case Kind::Ring:
+            return distance <= radius + margin && distance >= inner - margin;
     }
     return false;
 }
@@ -983,6 +1061,49 @@ Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius
     return area;
 }
 
+Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
+                   uint32 durationMs, Unit* aimedAt, Theme theme, uint32 hitDamage)
+{
+    ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
+    Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
+    area.arc = shape.size * float(M_PI) / 180.0f;
+    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
+    {
+        Register(owner, nullptr, area, durationMs, hitDamage, aimedAt ? aimedAt->GetGUID() : ObjectGuid::Empty);
+        ShowParticles(owner, area, theme, durationMs);
+    }
+    return area;
+}
+
+Area ShowRing(Unit* owner, Position const& center, float outerRadius, float innerRadius, uint32 durationMs,
+              Theme theme, uint32 hitDamage)
+{
+    outerRadius = std::max(outerRadius, 1.0f);
+    ShapeSpell const& shape = NearestShape(RingSpells.data(), RingSpells.data() + RingSpells.size(),
+        std::clamp(innerRadius / outerRadius, 0.05f, 0.95f));
+    Area area = MakeArea(Area::Kind::Ring, center, 0.0f, outerRadius);
+    area.inner = outerRadius * shape.size;
+    if (Creature* stalker = Place(owner, center, 0.0f, shape.spell, outerRadius, durationMs))
+    {
+        Register(owner, nullptr, area, durationMs, hitDamage);
+        ShowParticles(owner, area, theme, durationMs);
+    }
+    return area;
+}
+
+void ClearAreasOf(Unit* owner)
+{
+    if (!owner)
+        return;
+
+    ObjectGuid const guid = owner->GetGUID();
+    uint64 const now = NowMs();
+    std::lock_guard<std::mutex> guard(RegistryLock);
+    for (ActiveArea& entry : Registry)
+        if (entry.owner == guid)
+            entry.endMs = std::min(entry.endMs, now);
+}
+
 Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage)
 {
     float drawnRadius = radius;
@@ -1023,8 +1144,9 @@ bool StoodInAreaOf(Unit* victim, Unit* attacker)
     Position const here = victim->GetPosition();
     for (ActiveArea& entry : areas)
     {
-        // A circle carried by the victim itself is theirs to take away, not to dodge
-        if (entry.carrier == victim->GetGUID())
+        // A circle carried by the victim itself is theirs to take away, not to dodge; a cone aimed at them is theirs
+        // to take
+        if (entry.carrier == victim->GetGUID() || entry.aimedAt == victim->GetGUID())
             continue;
         if (!entry.carrier.IsEmpty())
             if (Unit* carrier = ObjectAccessor::GetUnit(*victim, entry.carrier))
@@ -1051,6 +1173,9 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     if (tank)
         areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
             { return HeldByTank(unit, entry); }), areas.end());
+    // A cone aimed at it lands on it wherever it goes: it holds its ground (a tank keeps it pointed away)
+    areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
+        { return entry.aimedAt == unit->GetGUID(); }), areas.end());
     // What would not come close to killing it is not worth giving up the fight for: stood in (SurvivableHit)
     areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
         { return SurvivableHit(unit, entry); }), areas.end());
@@ -1120,6 +1245,104 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     if (found)
         escape = best.spot;
     return found;
+}
+
+void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+
+    Goal goal;
+    goal.kind = Goal::Kind::Soak;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = center;
+    goal.radius = radius;
+    goal.wanted = wanted;
+    goal.endMs = NowMs() + durationMs;
+    AddGoal(goal, false);
+    ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), Theme::Holy, durationMs);
+}
+
+void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+
+    Goal goal;
+    goal.kind = Goal::Kind::OffTank;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = spot;
+    goal.endMs = NowMs() + durationMs;
+    AddGoal(goal, true);
+}
+
+bool FindGoal(Unit* unit, Position& spot, bool tank)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+
+    for (Goal const& goal : GoalsAround(unit))
+    {
+        Unit* owner = ObjectAccessor::GetUnit(*unit, goal.owner);
+        if (!owner || !owner->IsAlive())
+            continue;
+
+        if (goal.kind == Goal::Kind::OffTank)
+        {
+            // Only a tank the owner is not hitting: the one it is stays where it holds it
+            if (!tank || !owner->IsInCombat() || owner->GetVictim() == unit ||
+                unit->GetExactDist2d(&goal.center) <= OffTankSlack)
+                continue;
+            spot = goal.center;
+            return true;
+        }
+
+        // A soak: the players nearest to it go, until `wanted` stand in it. The owner's target (its tank) and
+        // tanks stay on the boss; a player already in it stays there.
+        if (tank || owner->GetVictim() == unit)
+            continue;
+        float const inside = std::max(goal.radius - SoakInsideMargin, 0.5f);
+        if (unit->GetExactDist2d(&goal.center) <= inside)
+            continue;
+
+        uint32 standing = 0;
+        std::vector<std::pair<float, ObjectGuid>> candidates;
+        for (auto const& ref : unit->GetMap()->GetPlayers())
+        {
+            Player* player = ref.GetSource();
+            if (!player || !player->IsAlive() || player->IsGameMaster() || player == owner->GetVictim())
+                continue;
+            float const distance = player->GetExactDist2d(&goal.center);
+            if (distance <= inside)
+                ++standing;
+            else if (distance <= SoakReach)
+                candidates.emplace_back(distance, player->GetGUID());
+        }
+        if (standing >= goal.wanted)
+            continue;
+
+        std::sort(candidates.begin(), candidates.end(), [](auto const& left, auto const& right)
+            { return left.first < right.first; });
+        uint32 const missing = goal.wanted - standing;
+        bool chosen = false;
+        for (std::size_t index = 0; index < candidates.size() && index < missing; ++index)
+            if (candidates[index].second == unit->GetGUID())
+                chosen = true;
+        if (!chosen)
+            continue;
+
+        // Each to a spot of its own inside it, not all onto its very middle
+        float const angle = UnitSpread(unit, 3) * 2.0f * float(M_PI);
+        float const distance = inside * 0.5f * UnitSpread(unit, 4);
+        spot.Relocate(goal.center.GetPositionX() + std::cos(angle) * distance,
+            goal.center.GetPositionY() + std::sin(angle) * distance, goal.center.GetPositionZ());
+        return true;
+    }
+    return false;
 }
 }
 

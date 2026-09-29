@@ -331,11 +331,24 @@ void OnHitTaken(Unit* victim, Unit* attacker, SpellInfo const* spellInfo)
     if (!map || !map->IsMythic() || attacker->IsControlledByPlayer() || player->IsFriendlyTo(attacker))
         return;
 
+    HazardState* state = player->CustomData.GetDefault<HazardState>("MythicImprudence");
+    if (state->lastStackMs && getMSTimeDiff(state->lastStackMs, getMSTime()) < HazardStackGapMs)
+        return;
+    if (!GroundIndicators::StoodInAreaOf(player, attacker))
+        return;
+
+    ApplyImprudence(player);
+}
+
+void ApplyImprudence(Unit* victim)
+{
+    Player* player = victim ? victim->ToPlayer() : nullptr;
+    if (!player || !player->IsAlive() || !sSpellMgr->GetSpellInfo(SPELL_MYTHIC_IMPRUDENCE))
+        return;
+
     uint32 const now = getMSTime();
     HazardState* state = player->CustomData.GetDefault<HazardState>("MythicImprudence");
     if (state->lastStackMs && getMSTimeDiff(state->lastStackMs, now) < HazardStackGapMs)
-        return;
-    if (!GroundIndicators::StoodInAreaOf(player, attacker))
         return;
 
     state->lastStackMs = now;

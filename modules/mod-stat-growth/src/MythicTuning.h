@@ -66,6 +66,9 @@ namespace MythicTuning
     // HazardStackGapMs at most). Staying in the red is then never worth it, whatever the health. Every enemy hit
     // taken goes through here: a spell's (absorbed ones too), a periodic tick's, a scripted ability's.
     void OnHitTaken(Unit* victim, Unit* attacker, SpellInfo const* spellInfo);
+    // A stack of Imprudence on a player hit in the red outside a mythic dungeon (a raid boss resolving its own
+    // areas, which knows the hit was one to dodge), with the same one-a-second gap
+    void ApplyImprudence(Unit* victim);
 }
 
 // Telegraphed abilities for trash (MythicTuning.cpp runs them): a creature of a listed entry, in combat in a mythic
