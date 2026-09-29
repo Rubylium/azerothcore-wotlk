@@ -41,6 +41,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'TalentTreeData.lua', 'TalentTreeArt.lua', 'TalentTree.lua',
     // ParagonBoard.lua is the generated node table and must load before the frame that draws it
     'ParagonBoard.lua', 'Paragon.lua', 'Prestige.lua', 'ChallengeBoard.lua',
+    // L'Infini's music (mod-stat-growth InfiniteGod.cpp): its track, a fade on a wipe, the arena's own music
+    'InfiniteMusic.lua',
     // The Forge's window (mod-forge)
     'ItemForge.lua',
     // The Infinite Dungeon's panel, banner and map pins (mod-stat-growth); needs DungeonTracker.lua

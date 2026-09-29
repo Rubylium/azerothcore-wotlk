@@ -276,6 +276,11 @@ local BACKGROUND_BY_DUNGEON = {
     [257] = "Interface\\LFGFrame\\UI-LFG-BACKGROUND-ONYXIASLAIR",
 }
 local BACKGROUND_FALLBACK = "Interface\\LFGFrame\\UI-LFG-BACKGROUND-GENERICDUNGEON"
+-- Bosses of the board's own, fought somewhere in a raid rather than as its boss there: where, under the boss's name
+-- (L'Infini, mod-stat-growth InfiniteGod.cpp: Ulduar's Celestial Planetarium)
+local PLACE_BY_BOSS = {
+    [930000] = GetLocale() == "frFR" and "Ulduar - Planétarium céleste" or "Ulduar - Celestial Planetarium",
+}
 
 local function DungeonTexture(dungeonId, kind)
     local textureName = dungeonId and dungeonId > 0 and select(10, GetLFGDungeonInfo(dungeonId))
@@ -678,7 +683,7 @@ local function FillCard(card, mission)
     SetBackground(card.art, mission.dungeon)
     card.icon:SetTexture(DungeonTexture(mission.dungeon, "LFGIcon-"))
     card.name:SetText(mission.name)
-    card.raid:SetText(DungeonName(mission.dungeon))
+    card.raid:SetText(PLACE_BY_BOSS[mission.boss] or DungeonName(mission.dungeon))
     local heroic = mission.difficulty >= 2
     local tier = CardTier(mission)
     card.size:SetText(format(TEXT.players, mission.players, heroic and TEXT.heroic or TEXT.normal))
