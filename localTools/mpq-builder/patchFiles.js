@@ -129,6 +129,11 @@ function getPatchFiles(repoRoot) {
     if (fs.existsSync(infiniteBossRoot)) {
         addInfiniteBoss(infiniteBossRoot);
     }
+    // Its music (SoundEntries 30100, patchSinisterStrike.ps1), in this base patch rather than a locale one
+    files.push({
+        source: path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music', 'LInfini.mp3'),
+        archive: 'Sound\\Music\\Evolutions\\LInfini.mp3',
+    });
 
     // The red ground indicators of enemy abilities (localTools/groundIndicators/buildGroundIndicators.py)
     const indicatorRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'indicators');
@@ -139,4 +144,12 @@ function getPatchFiles(repoRoot) {
     return files;
 }
 
-module.exports = { getPatchFiles };
+// How a file goes into an archive. Sound (music above all) is stored as it is, neither compressed nor encrypted, as
+// the game's own archives store it: the client streams music straight out of the archive, and StormLib's default
+// (compressed and encrypted) left a track it would not play. Anything else takes the default.
+const AUDIO = /\.(mp3|ogg|wav)$/i;
+function addOptions(archiveName) {
+    return AUDIO.test(archiveName) ? { flags: 0 } : undefined;
+}
+
+module.exports = { getPatchFiles, addOptions };

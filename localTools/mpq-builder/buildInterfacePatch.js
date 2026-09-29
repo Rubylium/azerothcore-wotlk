@@ -2,6 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { Archive } = require('@jamiephan/stormlib');
+const { addOptions } = require('./patchFiles');
 
 // Builds the client interface patches from clientPatcher/interface and clientPatcher/vendor:
 // - Data/<locale>/patch-<locale>-R.MPQ: the retail glue package (clientPatcher/vendor/retail-glue, Noa-1995's
@@ -41,8 +42,6 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'TalentTreeData.lua', 'TalentTreeArt.lua', 'TalentTree.lua',
     // ParagonBoard.lua is the generated node table and must load before the frame that draws it
     'ParagonBoard.lua', 'Paragon.lua', 'Prestige.lua', 'ChallengeBoard.lua',
-    // L'Infini's music (mod-stat-growth InfiniteGod.cpp): its track, a fade on a wipe, the arena's own music
-    'InfiniteMusic.lua',
     // The Forge's window (mod-forge)
     'ItemForge.lua',
     // The Infinite Dungeon's panel, banner and map pins (mod-stat-growth); needs DungeonTracker.lua
@@ -120,7 +119,7 @@ function writeArchive(outputPath, files) {
     const archive = new Archive();
     archive.create(outputPath, { maxFileCount: Math.max(64, files.length * 2), flags: 0 });
     for (const file of files) {
-        archive.addFile(file.source, file.archive);
+        archive.addFile(file.source, file.archive, addOptions(file.archive));
     }
     archive.close();
 

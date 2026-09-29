@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { Archive } = require('@jamiephan/stormlib');
 
-const { getPatchFiles } = require('./patchFiles');
+const { addOptions, getPatchFiles } = require('./patchFiles');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const outputPath = process.argv[2] || path.join(__dirname, 'patch-Z.MPQ');
@@ -22,7 +22,7 @@ if (fs.existsSync(outputPath)) {
 const archive = new Archive();
 archive.create(outputPath, { maxFileCount: Math.max(64, files.length * 2), flags: 0 });
 for (const file of files) {
-    archive.addFile(file.source, file.archive);
+    archive.addFile(file.source, file.archive, addOptions(file.archive));
 }
 archive.close();
 

@@ -967,6 +967,13 @@ $customSounds = @(
            '2H_Sword_CritHit_Stone_Body_03.ogg', '2H_Sword_CritHit_Stone_Body_04.ogg',
            '2H_Sword_CritHit_Stone_Body_05.ogg')
        Volume = 0.95 }
+    # L'Infini's track (modules/mod-stat-growth/src/InfiniteGod.cpp sends it with SMSG_PLAY_MUSIC, as stock boss
+    # scripts do): a music entry copied from Algalon's own fight music (15877 UR_CelestialPlanetariumBattle: type 28,
+    # flags 0, its volume), at a fixed id the server names. The file ships in patch-Z (patchFiles.js).
+    @{ Key = 'InfiniteGodTrack'; Id = 30100; Clone = 15877; Name = 'Evolutions_LInfini'
+       Directory = 'Sound\Music\Evolutions'
+       Files = @('LInfini.mp3')
+       Volume = 0.8 }
 )
 
 # A kit's CharProc parameters are floats; the kit fields are written as raw 32-bit values
@@ -1308,8 +1315,16 @@ function Add-SoundEntry($dbc, $sound) {
     }
     $record = [byte[]]::new($dbc.RecordSize)
     [Array]::Copy($dbc.Data, $dbc.Offsets[[int]$sound.Clone], $record, 0, $dbc.RecordSize)
-    $dbc.MaxId = $dbc.MaxId + 1
-    Set-Field $record 0 ([uint32]$dbc.MaxId)
+    # An entry the server sends by id (music) keeps the one it is given; the others take the next free one
+    if ($sound.Id) {
+        if ($dbc.Offsets.ContainsKey([int]$sound.Id)) { throw "$($dbc.Name) already has a row $($sound.Id)." }
+        $id = [uint32]$sound.Id
+    }
+    else {
+        $dbc.MaxId = $dbc.MaxId + 1
+        $id = [uint32]$dbc.MaxId
+    }
+    Set-Field $record 0 $id
     Set-Field $record 2 (Add-DbcString $dbc.Strings $sound.Name)
     for ($index = 0; $index -lt 10; ++$index) {
         if ($index -lt $sound.Files.Count) {
@@ -1326,7 +1341,7 @@ function Add-SoundEntry($dbc, $sound) {
     Set-Field $record 23 (Add-DbcString $dbc.Strings $sound.Directory)
     Set-Field $record 24 ([BitConverter]::ToUInt32([BitConverter]::GetBytes([single]$sound.Volume), 0))
     $dbc.NewRecords.AddRange($record)
-    return [uint32]$dbc.MaxId
+    return $id
 }
 
 function Get-StringDbcOutput($dbc) {

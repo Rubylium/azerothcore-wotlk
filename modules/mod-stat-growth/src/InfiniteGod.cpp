@@ -14,7 +14,6 @@
 #include "MythicDungeon.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
-#include "PlayerScript.h"
 #include "Random.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
@@ -23,7 +22,6 @@
 #include "StringFormat.h"
 #include "TemporarySummon.h"
 #include "Timer.h"
-#include "WorldPacket.h"
 #include "WorldSession.h"
 
 #include <algorithm>
@@ -37,7 +35,7 @@
 
 // L'Infini (the Infinite), the Défi board's god fight: a 10-player boss of the board's own in Ulduar's Celestial
 // Planetarium, on Algalon's platform (plan: .agents/plans/infinite-boss). The fight runs on a fixed timeline set by its
-// music (clientPatcher/interface/Sound/Music/Evolutions/LInfini.mp3, 5:06), not on the boss's health: phases,
+// music (Sound\Music\Evolutions\LInfini.mp3 in patch-Z, 5:06), not on the boss's health: phases,
 // intermissions and abilities come at set times from the pull, the Big Bang on the track's first drop, the god's
 // true form on the second, the end of times as it fades, and at 5:05, in the silence, everyone dies.
 //
@@ -63,8 +61,8 @@
 // side (GroundIndicators::FindGoal). Damage is a share of the reference health (below), and the Défi tier scales it.
 //
 // The god only exists in a challenge's instance: its static spawn hides at once and goes from any other Ulduar
-// instance (IsChallengeInstanceFor, mod-playerbots RaidFinder.cpp). Its music plays in the players' clients: the
-// server tells them when (addon messages, prefix "Infini": FrameXML/InfiniteMusic.lua).
+// instance (IsChallengeInstanceFor, mod-playerbots RaidFinder.cpp). Its music is sent the way stock encounters send
+// theirs (SMSG_PLAY_MUSIC, below).
 
 // mod-playerbots (RaidFinder.cpp), built into the same modules library
 bool IsChallengeInstanceFor(Map const* map, uint32 bossEntry);
@@ -417,26 +415,19 @@ std::vector<Step> BuildTimeline()
     return steps;
 }
 
-// --- Music: addon messages the client's controller plays (FrameXML/InfiniteMusic.lua) ------------------------------
-//   A                  the arena's music (out of combat in the Planetarium)
-//   P <tab> <ms>       the fight: the god's track, <ms> after it began (a client that joins late stays silent)
-//   W                  a wipe: the track fades out, the arena's music comes back
-//   K                  the kill: the track plays to its end
-//   S                  stop everything (the god is gone)
-// Client to server: HELLO (a client that just loaded asks where it is)
-constexpr std::string_view MusicPrefix = "Infini";
+// --- Music: SoundEntries sent with SMSG_PLAY_MUSIC (PlayDirectMusic), as stock encounters and world events do ------
+// - L'Infini's track: 30100 (localTools/patchSinisterStrike.ps1, a copy of Algalon's own fight music entry 15877), on
+//   the pull, for the players in the Planetarium then. It plays once, 5:06, to its end (a kill lets it finish).
+// - The arena's: the stock Celestial Planetarium music, 15842 UR_CelestialHallWalk (Algalon's Planetary Hall and
+//   Voices), out of combat. A wipe sends it, and the client switches from the track to it itself.
+// Like the stock senders (the Brewfest and pirate day music, go_scripts.cpp), the music playing is sent again every
+// few seconds: the client keeps a music it already plays, and takes it back from the zone's music if that took over.
+// The god's track is only sent again to the players who heard it from the pull: one arriving late would hear it from
+// its start, off the fight's timeline.
+constexpr uint32 MUSIC_FIGHT = 30100;
+constexpr uint32 MUSIC_ARENA = 15842;
+constexpr uint32 MusicRepeatMs = 5000;
 constexpr float MusicReach = 120.0f;
-
-void SendMusic(Player* player, std::string const& body)
-{
-    if (!player || !player->IsInWorld() || !player->GetSession() || player->GetSession()->IsBot())
-        return;
-
-    WorldPacket packet;
-    std::string const payload = std::string(MusicPrefix) + "\t" + body;
-    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player, payload);
-    player->GetSession()->SendPacket(&packet);
-}
 
 uint32 SpellOf(NamedSpell const& spell)
 {
@@ -476,12 +467,11 @@ struct boss_infinite_god : public ScriptedAI
     {
         bool const wiped = _phase != Phase::None && _phase != Phase::Over;
         ResetFight();
+        // The arena's music takes over from the track
         if (wiped)
             for (Player* player : Listeners())
-            {
-                SendMusic(player, "W");
-                _arenaTold.insert(player->GetGUID());
-            }
+                SendMusic(player, MUSIC_ARENA);
+        _fightListeners.clear();
         ScriptedAI::EnterEvadeMode(why);
     }
 
@@ -496,10 +486,12 @@ struct boss_infinite_god : public ScriptedAI
         _nextOffTankMs = 0;
         _nextEdgeMs = 0;
         Talk(SAY_AGGRO);
+        _fightListeners.clear();
+        _nextMusicMs = MusicRepeatMs;
         for (Player* player : Listeners())
         {
-            SendMusic(player, "P\t0");
-            _arenaTold.insert(player->GetGUID());
+            SendMusic(player, MUSIC_FIGHT);
+            _fightListeners.insert(player->GetGUID());
         }
         LOG_INFO("module.infinite", "L'Infini pulled instance={} health={} tier factor={}", me->GetInstanceId(),
                  me->GetMaxHealth(), GetChallengeDamageFactorOf(me));
@@ -518,9 +510,8 @@ struct boss_infinite_god : public ScriptedAI
 
     void JustDied(Unit* /*killer*/) override
     {
+        // The track plays on to its end
         Talk(SAY_DEATH);
-        for (Player* player : Listeners())
-            SendMusic(player, "K");
         LOG_INFO("module.infinite", "L'Infini killed instance={} elapsed={}ms", me->GetInstanceId(), Elapsed());
         ResetFight();
         _phase = Phase::Over;
@@ -590,21 +581,25 @@ struct boss_infinite_god : public ScriptedAI
         }
         if (_phase == Phase::Intermission1)
             UpdateFragments();
+        // The track again for those who heard it from the pull, while it still plays
+        if (elapsed >= _nextMusicMs && elapsed + MusicRepeatMs < TrackLengthMs)
+        {
+            _nextMusicMs = elapsed + MusicRepeatMs;
+            for (ObjectGuid const& guid : _fightListeners)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid);
+                    player && player->GetExactDist2d(&ArenaCenter) <= MusicReach)
+                    SendMusic(player, MUSIC_FIGHT);
+        }
 
         if (CanMelee())
             DoMeleeAttackIfReady();
     }
 
-    // --- For the music controller and the game master's commands ---------------------------------------------------
-    void SendMusicState(Player* player)
+    // --- Music, and the game master's commands -----------------------------------------------------------------
+    void SendMusic(Player* player, uint32 soundId)
     {
-        if (!_defiConfirmed || !me->IsAlive())
-            return;
-        if (_phase == Phase::None)
-            SendMusic(player, "A");
-        else if (_phase != Phase::Over)
-            SendMusic(player, Acore::StringFormat("P\t{}", Elapsed()));
-        _arenaTold.insert(player->GetGUID());
+        if (player && player->IsInWorld() && player->GetSession() && !player->GetSession()->IsBot())
+            me->PlayDirectMusic(soundId, player);
     }
 
     std::string Describe() const
@@ -668,20 +663,14 @@ private:
             return;
         }
 
-        // The arena's music for whoever is in the Planetarium and has not heard it; forgotten once gone
-        for (auto itr = _arenaTold.begin(); itr != _arenaTold.end();)
-        {
-            Player* player = ObjectAccessor::GetPlayer(*me, *itr);
-            if (!player || player->GetMapId() != me->GetMapId() || player->GetExactDist2d(&ArenaCenter) > MusicReach)
-                itr = _arenaTold.erase(itr);
-            else
-                ++itr;
-        }
-        if (!me->IsAlive())
+        // The arena's music for whoever is in the Planetarium, again every few seconds; none after the kill, whose
+        // track plays on
+        _arenaMusicTimer += 1000;
+        if (!me->IsAlive() || _arenaMusicTimer < MusicRepeatMs)
             return;
+        _arenaMusicTimer = 0;
         for (Player* player : Listeners())
-            if (_arenaTold.insert(player->GetGUID()).second)
-                SendMusic(player, "A");
+            SendMusic(player, MUSIC_ARENA);
     }
 
     void UpdateDefi()
@@ -1498,7 +1487,9 @@ private:
     GroundIndicators::Area _bigBang;
     GroundIndicators::Area _edgeArea;
     std::vector<ObjectGuid> _fragments;
-    std::set<ObjectGuid> _arenaTold;
+    std::set<ObjectGuid> _fightListeners;
+    uint32 _nextMusicMs = 0;
+    uint32 _arenaMusicTimer = MusicRepeatMs;
     std::map<ObjectGuid, uint32> _weight;
     std::map<ObjectGuid, uint32> _doom;
 };
@@ -1511,28 +1502,10 @@ boss_infinite_god* FindGod(Player* player)
     return god ? dynamic_cast<boss_infinite_god*>(god->AI()) : nullptr;
 }
 
-// A client that just loaded (a reload, a disconnection, the loading screen) asks where its music stands
-class InfiniteGodPlayerScript final : public PlayerScript
-{
-public:
-    InfiniteGodPlayerScript() : PlayerScript("InfiniteGodPlayerScript", { PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE }) { }
-
-    void OnPlayerBeforeSendChatMessage(Player* player, uint32&, uint32& language, std::string& message) override
-    {
-        if (language != LANG_ADDON || !message.starts_with(MusicPrefix) || message.size() <= MusicPrefix.size() ||
-            message[MusicPrefix.size()] != '\t')
-            return;
-
-        if (std::string_view(message).substr(MusicPrefix.size() + 1) != "HELLO")
-            return;
-        if (boss_infinite_god* god = FindGod(player))
-            god->SendMusicState(player);
-    }
-};
-
 using namespace Acore::ChatCommands;
 
-// .infini info | skip <seconds> | music <arena|pull|wipe|kill|stop>: for game masters trying the fight
+// .infini info | skip <seconds> | music <pull|arena|wipe>: for game masters trying the fight; the music goes to the
+// game master alone, as the fight sends it (pull: the track, arena and wipe: the arena's)
 class InfiniteGodCommandScript final : public CommandScript
 {
 public:
@@ -1573,17 +1546,16 @@ public:
 
     static bool HandleMusic(ChatHandler* handler, std::string event)
     {
-        static std::map<std::string, std::string> const bodies = {
-            { "arena", "A" }, { "pull", "P\t0" }, { "wipe", "W" }, { "kill", "K" }, { "stop", "S" },
-        };
-        auto const body = bodies.find(event);
-        if (body == bodies.end())
+        Player* player = handler->GetPlayer();
+        uint32 const soundId = event == "pull" ? MUSIC_FIGHT : (event == "arena" || event == "wipe") ? MUSIC_ARENA : 0;
+        if (!soundId)
         {
-            handler->SendSysMessage(".infini music <arena|pull|wipe|kill|stop>");
+            handler->SendSysMessage(".infini music <pull|arena|wipe>");
             handler->SetSentErrorMessage(true);
             return false;
         }
-        SendMusic(handler->GetPlayer(), body->second);
+        player->PlayDirectMusic(soundId, player);
+        handler->SendSysMessage(Acore::StringFormat("SMSG_PLAY_MUSIC {} sent.", soundId));
         return true;
     }
 };
@@ -1592,6 +1564,5 @@ public:
 void AddInfiniteGodScripts()
 {
     RegisterCreatureAI(boss_infinite_god);
-    new InfiniteGodPlayerScript();
     new InfiniteGodCommandScript();
 }
