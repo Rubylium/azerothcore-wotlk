@@ -19,6 +19,8 @@ function getPatchFiles(repoRoot) {
         'Item.dbc',
         // The looks imported from the retail client (localTools/retailImport)
         'ItemDisplayInfo.dbc',
+        // The Celestial Planetarium's room music (L'Infini, patchSinisterStrike.ps1)
+        'ZoneMusic.dbc',
     ].map((name) => ({
         source: path.join(dbcRoot, name),
         archive: `DBFilesClient\\${name}`,
@@ -133,6 +135,12 @@ function getPatchFiles(repoRoot) {
     files.push({
         source: path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music', 'LInfini.mp3'),
         archive: 'Sound\\Music\\Evolutions\\LInfini.mp3',
+    });
+    // Its room music before the pull (SoundEntries 30102, the Planetarium's zone music)
+    files.push({
+        source: path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music',
+            'LInfiniRoom.mp3'),
+        archive: 'Sound\\Music\\Evolutions\\LInfiniRoom.mp3',
     });
     // What ends it (SoundEntries 30101): 2 s of silence
     files.push({

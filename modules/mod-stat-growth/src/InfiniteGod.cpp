@@ -78,7 +78,7 @@ namespace
 // health times the key's pressure 1.26, about 122 300); a tank has about 1.45 of a damage dealer's health. Every tier
 // above multiplies the god's damage (ChallengeTierUnitScript: x1.12 a tier, x2.7 at Défi X) and health (x1.22 a tier,
 // x6.1 at Défi X) and asks for 15 paragon more (66 at Défi II, 186 at Défi X), the players' own health growing slower
-// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (43.3 million at Défi I, a tight damage
+// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (47.6 million at Défi I, a tight damage
 // check for damage dealers at 20 000-30 000 on one target).
 constexpr float ReferenceKey = 20.25f;
 

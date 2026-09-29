@@ -34,6 +34,8 @@ local KEYSTONE_ICON = "Interface\\Icons\\INV_Relics_Hourglass"
 local GOD_BOSS = 930000
 local GOD_ART = "Interface\\ChallengeBoard\\"
 local GOD_FIGURE_BOTTOM = 0.6367
+-- Its gear: the server sends Défi I's item level as the mission's, each tier adds this (ChallengeBoard.cpp)
+local GOD_ITEM_LEVEL_PER_TIER = 12
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -143,6 +145,7 @@ local TEXT = french and {
         .. "l'ordre des étoiles, et les rend à la poussière dont ils sont faits.",
     godRequired = "Requis",
     godItemLevel = "Niveau d'objet %d+",
+    godGear = "Équipement épique, niveau d'objet %d",
     godParagon = "Parangon conseillé %d · vous %d",
     godFace = "Affronter L'Infini",
     godOnce = "Une victoire par tableau : il revient avec les nouvelles missions.",
@@ -258,6 +261,7 @@ local TEXT = french and {
         .. "stars, and returns them to the dust they are made of.",
     godRequired = "Requires",
     godItemLevel = "Item level %d+",
+    godGear = "Epic gear, item level %d",
     godParagon = "Recommended paragon %d · yours %d",
     godFace = "Face L'Infini",
     godOnce = "One win per board: it returns with the new missions.",
@@ -1245,6 +1249,8 @@ local function CreateGodPage()
     paragon:SetPoint("TOPLEFT", gold, "BOTTOMLEFT", 0, -3)
     local essences = GodText(rewards, FRIZ, 11, 0.45, 0.9, 0.55)
     essences:SetPoint("LEFT", paragon, "RIGHT", 8, 0)
+    local gear = GodText(rewards, FRIZ, 11, 0.78, 0.55, 1)
+    gear:SetPoint("TOPLEFT", paragon, "BOTTOMLEFT", 0, -3)
 
     local satchel = CreateFrame("Button", nil, rewards)
     satchel:SetSize(30, 30)
@@ -1333,6 +1339,7 @@ local function CreateGodPage()
         gold:SetText(Money(goldAmount))
         paragon:SetText(paragonAmount > 0 and format(TEXT.paragon, paragonAmount) or "")
         essences:SetText(essenceAmount > 0 and format(TEXT.essences, essenceAmount) or "")
+        gear:SetText(format(TEXT.godGear, (mission.itemLevel or 0) + GOD_ITEM_LEVEL_PER_TIER * (shownTier - TIER_MIN)))
 
         local done = mission.state == STATE_CLAIMED
         scene.figure:SetDesaturated(done)

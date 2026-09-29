@@ -452,9 +452,9 @@ void MailMythicItem(Player* player, ItemTemplate const* itemTemplate)
         "|cffa335eeYour bags are full: {} was sent to your mailbox.|r", itemTemplate->Name1);
 }
 
-// One epic of the run's item level, fitted to the player's class, straight into their bags. Above the game's best
-// items it is the generated variant of that item level (MythicItemGeneration.cpp) of a best item.
-void GiveMythicItem(Player* player, uint32 itemLevel)
+// An epic of that item level fitted to the player's class. Above the game's best items it is the generated variant of
+// that item level (MythicItemGeneration.cpp) of a best item.
+ItemTemplate const* SelectMythicItem(Player* player, uint32 itemLevel)
 {
     ItemTemplate const* itemTemplate = SelectMythicLootItem(player, std::min(itemLevel, Mythic::MaxItemLevel),
         itemLevel > Mythic::MaxItemLevel ? Mythic::GetGeneratedItemLevel(Mythic::GetGeneratedVariant(itemLevel)) : 0);
@@ -462,6 +462,13 @@ void GiveMythicItem(Player* player, uint32 itemLevel)
         if (ItemTemplate const* generated = sObjectMgr->GetItemTemplate(
                 Mythic::GetGeneratedItemEntry(itemTemplate->ItemId, Mythic::GetGeneratedVariant(itemLevel))))
             itemTemplate = generated;
+    return itemTemplate;
+}
+
+// One epic of the run's item level, fitted to the player's class, straight into their bags
+void GiveMythicItem(Player* player, uint32 itemLevel)
+{
+    ItemTemplate const* itemTemplate = SelectMythicItem(player, itemLevel);
     if (!itemTemplate)
     {
         ChatHandler(player->GetSession()).SendSysMessage("No mythic item fits your class this time.");
@@ -861,6 +868,12 @@ void GiveMythicLootItem(Player* player, uint32 itemLevel)
 {
     if (player)
         GiveMythicItem(player, itemLevel);
+}
+
+uint32 SelectMythicLootEntry(Player* player, uint32 itemLevel)
+{
+    ItemTemplate const* itemTemplate = player ? SelectMythicItem(player, itemLevel) : nullptr;
+    return itemTemplate ? itemTemplate->ItemId : 0;
 }
 
 bool IsMythicLootless(Creature const* creature)

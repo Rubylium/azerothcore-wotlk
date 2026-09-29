@@ -981,6 +981,13 @@ $customSounds = @(
        Directory = 'Sound\Music\Evolutions'
        Files = @('LInfiniSilence.mp3')
        Volume = 0.8 }
+    # The Planetarium's own music before the pull ("Demon God's Chamber", made for the fight): the zone music the
+    # client plays there (ZoneMusic 514, patched below), copied from the stock entry it replaces (15842
+    # UR_CelestialHallWalk). The server never sends it: the fight's track goes over it on the pull.
+    @{ Key = 'InfiniteGodRoom'; Id = 30102; Clone = 15842; Name = 'Evolutions_LInfiniRoom'
+       Directory = 'Sound\Music\Evolutions'
+       Files = @('LInfiniRoom.mp3')
+       Volume = 0.8 }
 )
 
 # A kit's CharProc parameters are floats; the kit fields are written as raw 32-bit values
@@ -2187,6 +2194,31 @@ Add-InfiniDisplay $clientModelBackup $clientDisplayBackup `
     @((Join-Path $clientOnlyDbcRoot 'CreatureModelData.dbc'), (Join-Path $clientDbcRoot 'CreatureModelData.dbc')) `
     @((Join-Path $clientOnlyDbcRoot 'CreatureDisplayInfo.dbc'), (Join-Path $clientDbcRoot 'CreatureDisplayInfo.dbc'))
 Write-Host "Installed L'Infini's display $($infiniDisplay.Id) (CreatureModelData.dbc, CreatureDisplayInfo.dbc)."
+
+# The Celestial Planetarium's zone music (ZoneMusic 514 Zone-UlduarRaidCelestialHallWalk, the only WMO area playing
+# it): L'Infini's room music (SoundEntries 30102 above) instead of Algalon's hall, and 2 s of silence between two
+# plays instead of 3 to 5 minutes, so it holds while players wait for the pull. Fields: 2-3 SilenceIntervalMin,
+# 4-5 SilenceIntervalMax (day, night), 6-7 Sounds.
+$serverZoneMusicPath = Join-Path $serverDbcRoot 'ZoneMusic.dbc'
+$zoneMusicBackupPath = Join-Path $serverDbcRoot 'ZoneMusic.before-infinite-room.dbc'
+if (-not (Test-Path -LiteralPath $zoneMusicBackupPath)) {
+    Copy-Item -LiteralPath $serverZoneMusicPath -Destination $zoneMusicBackupPath
+}
+$zoneMusicBytes = [IO.File]::ReadAllBytes($zoneMusicBackupPath)
+Assert-Wdbc $zoneMusicBytes 'ZoneMusic.dbc'
+$zoneMusicRecordSize = [BitConverter]::ToInt32($zoneMusicBytes, 12)
+$planetariumMusic = $null
+for ($index = 0; $index -lt [BitConverter]::ToInt32($zoneMusicBytes, 4); ++$index) {
+    if ([BitConverter]::ToUInt32($zoneMusicBytes, 20 + $index * $zoneMusicRecordSize) -eq 514) {
+        $planetariumMusic = 20 + $index * $zoneMusicRecordSize
+    }
+}
+if ($null -eq $planetariumMusic) { throw 'ZoneMusic.dbc has no row 514.' }
+foreach ($field in 2..5) { Write-Field $zoneMusicBytes $planetariumMusic $field 2000 }
+foreach ($field in 6..7) { Write-Field $zoneMusicBytes $planetariumMusic $field 30102 }
+[IO.File]::WriteAllBytes($serverZoneMusicPath, $zoneMusicBytes)
+[IO.File]::WriteAllBytes((Join-Path $clientDbcRoot 'ZoneMusic.dbc'), $zoneMusicBytes)
+Write-Host "Gave the Celestial Planetarium L'Infini's room music (ZoneMusic.dbc 514)."
 
 $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'CombatRogue_*.tga' -ErrorAction SilentlyContinue).Count
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize

@@ -2,13 +2,14 @@
 -- mod-playerbots ChallengeBoard.cpp, 10 players). Every creature is a copy of a stock one of Algalon's fight:
 -- 930000 L'Infini: Algalon the Observer (32871), hostile to all, no longer immune to players, its health set for a
 --        timeline fight of 5 minutes at Défi I, tuned on item level 300 gear and 51 paragon (InfiniteGod.cpp):
---        3 102 x 13 945 (level 83 elite) = 43.3 million, the tier multiplying it: a tight damage check at the 5 minute
+--        3 412 x 13 945 (level 83 elite) = 47.6 million, the tier multiplying it: a tight damage check at the 5 minute
 --        mark. Measured in game (2026-09-29): its players' damage dealers do 20 000-30 000 on one target, so six of
 --        them at 25 000 and two tanks at 8 000, on the god 85% of the time with the movement it asks (+50% in
 --        intermission 1's window), deal about 42 million by 4:50. The first estimate (7 500 a damage dealer, 11.0
---        million) died far too early; 42.0 million, then 3% more (a kill came a little early).
+--        million) died far too early; 42.0 million, then 3% more, then 10% more (kills came early).
 --        Its melee: a 2 s swing at 45 damage
---        modifier. Algalon's own chest loot (Gift of the Observer, 10 players) on its corpse.
+--        modifier. No gear on its corpse: the challenge board gives its own (ChallengeBoard.cpp GodItemLevel), gold
+--        only.
 -- 930001 Fragment d'éternité: a Living Constellation (33052) that walks to the god in intermission 1, 0.5 million
 --        health (90 x 13 933): the raid kills both in the 20 s they walk, if it turns on them.
 -- 930002 Étoile effondrée: a Collapsing Star (32955) to share, friendly (nothing attacks it), rooted.
@@ -43,8 +44,8 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `flags_extra` = `flags_extra` & ~0x80000000,
     `DamageModifier` = 45,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 3102,
-    `lootid` = 930000,
+    `HealthModifier` = 3412,
+    `lootid` = 0,
     `AIName` = '',
     `ScriptName` = 'boss_infinite_god',
     `VerifiedBuild` = NULL
@@ -117,12 +118,6 @@ INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `Ver
     (930002, 'frFR', 'Étoile effondrée', NULL, NULL),
     (930003, 'frFR', 'Singularité', NULL, NULL);
 
--- Algalon's chest loot (Gift of the Observer, 10 players: gameobject loot 27030), on the god's corpse
-INSERT INTO `creature_loot_template`
-    (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`)
-SELECT 930000, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`,
-    'L''Infini - Gift of the Observer (10)'
-FROM `gameobject_loot_template` WHERE `Entry` = 27030;
 
 -- Type 14: yell, 41: boss emote (the middle of the screen; %s is the god's name). TextRange 3: the whole map.
 INSERT INTO `creature_text`
