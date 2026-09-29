@@ -151,6 +151,7 @@ constexpr uint32 OrbLaserBackMs = 1600;
 constexpr float OrbHeight = 16.0f;
 constexpr float OrbScale = 0.6f;               // the sphere's size: its model at 1 filled the view
 constexpr float OrbLaserReach = 44.0f;
+constexpr float BeamEndDrop = 2.5f;            // a beam's far end under the floor: the beam lands on the ground
 constexpr float OrbLaserWidth = 4.0f;
 // Rayon du Gardien (phase 2): a laser straight ahead, then swept a full turn
 constexpr uint32 SpinWarningMs = 2500;
@@ -170,7 +171,6 @@ constexpr uint32 SPELL_FX_BEAM = 64367;         // Algalon Event Beam: a thick b
 constexpr uint32 SPELL_FX_ORB = 50756;
 constexpr uint32 SPELL_FX_MARK = 69275;         // Mark of Rimefang: a red reticle over the head, a dummy aura
 constexpr uint32 KIT_FX_STAR_FALL = 11742;      // Malygos's platform breaking: a huge blue column and burst
-constexpr uint32 KIT_FX_CROSS_HIT = 12497;      // Arcane Explosion Visual (Massive)
 constexpr uint32 StarfallWarningMs = 2000;
 constexpr float BigBangSafeRadius = 9.0f;
 constexpr float BigBangRadius = 45.0f;          // the ring reaches past the platform's edge
@@ -1338,13 +1338,14 @@ private:
                 }
                 scheduler.Schedule(Milliseconds(CrossWarningMs), [this, lines, center, facing](TaskContext)
                 {
+                    // Smashes down the arms, as the constellation's lines: the line bursts, not the whole platform
                     for (uint32 arm = 0; arm < 4; ++arm)
                     {
                         float const angle = facing + float(arm) * float(M_PI) / 2.0f;
-                        for (float along : { 12.0f, 30.0f })
+                        for (float along = 6.0f; along < CrossLength; along += 12.0f)
                             PlayOnGround(Position(center.GetPositionX() + std::cos(angle) * along,
                                 center.GetPositionY() + std::sin(angle) * along, center.GetPositionZ()),
-                                KIT_FX_CROSS_HIT ? KIT_FX_CROSS_HIT : KIT_COSMIC_SMASH);
+                                KIT_COSMIC_SMASH);
                     }
                     for (Player* player : ArenaPlayers())
                         if (std::ranges::any_of(lines, [player](GroundIndicators::Area const& line)
@@ -1373,37 +1374,40 @@ private:
             if (SPELL_FX_ORB)
                 orb->AddAura(SPELL_FX_ORB, orb);
         }
-        // The four lines they sweep, red from the start
+        // No red on the ground: the orb and its beams are the warning. Each beam from a stalker of its own in the orb
+        // (a unit channels one beam at a time) to a far end sent out and back along its arm, just under the floor so
+        // the beam grazes it
+        Position const low(center.GetPositionX(), center.GetPositionY(), center.GetPositionZ() - BeamEndDrop);
+        std::vector<std::pair<ObjectGuid, ObjectGuid>> beams;
         for (uint32 arm = 0; arm < 4; ++arm)
-            GroundIndicators::ShowRectangle(me, center, facing + float(arm) * float(M_PI) / 2.0f, OrbLaserReach,
-                OrbLaserWidth, lasts - 500);
-
-        // The beams' far ends, sent out and back along the arms
-        std::vector<ObjectGuid> ends;
-        for (uint32 arm = 0; arm < 4; ++arm)
-            if (Creature* end = FxStalker(center, lasts))
-                ends.push_back(end->GetGUID());
-        ObjectGuid const orbGuid = orb ? orb->GetGUID() : ObjectGuid::Empty;
-        scheduler.Schedule(Milliseconds(OrbChargeMs), [this, ends, orbGuid, center, facing](TaskContext)
         {
-            Creature* source = me->GetMap()->GetCreature(orbGuid);
-            for (std::size_t arm = 0; arm < ends.size(); ++arm)
-                if (Creature* end = me->GetMap()->GetCreature(ends[arm]))
+            Creature* source = FxStalker(orbAt, lasts, NPC_HOVER_STALKER);
+            Creature* end = FxStalker(low, lasts);
+            if (source && end)
+                beams.emplace_back(source->GetGUID(), end->GetGUID());
+        }
+        std::vector<ObjectGuid> ends;
+        for (auto const& beam : beams)
+            ends.push_back(beam.second);
+        scheduler.Schedule(Milliseconds(OrbChargeMs), [this, beams, low, facing](TaskContext)
+        {
+            for (std::size_t arm = 0; arm < beams.size(); ++arm)
+                if (Creature* end = me->GetMap()->GetCreature(beams[arm].second))
                 {
                     float const angle = facing + float(arm) * float(M_PI) / 2.0f;
-                    Position const farEnd(center.GetPositionX() + std::cos(angle) * OrbLaserReach,
-                        center.GetPositionY() + std::sin(angle) * OrbLaserReach, center.GetPositionZ());
+                    Position const farEnd(low.GetPositionX() + std::cos(angle) * OrbLaserReach,
+                        low.GetPositionY() + std::sin(angle) * OrbLaserReach, low.GetPositionZ());
                     end->GetMotionMaster()->MovePoint(1, farEnd, FORCED_MOVEMENT_NONE,
                         OrbLaserReach / (float(OrbLaserOutMs) / 1000.0f), false);
-                    Beam(source, end, OrbLaserOutMs + OrbLaserBackMs);
+                    Beam(me->GetMap()->GetCreature(beams[arm].first), end, OrbLaserOutMs + OrbLaserBackMs);
                 }
-            scheduler.Schedule(Milliseconds(OrbLaserOutMs), [this, ends, center](TaskContext)
-            {
-                for (ObjectGuid const& guid : ends)
-                    if (Creature* end = me->GetMap()->GetCreature(guid))
-                        end->GetMotionMaster()->MovePoint(2, center, FORCED_MOVEMENT_NONE,
-                            OrbLaserReach / (float(OrbLaserBackMs) / 1000.0f), false);
-            });
+        });
+        scheduler.Schedule(Milliseconds(OrbChargeMs + OrbLaserOutMs), [this, ends, low](TaskContext)
+        {
+            for (ObjectGuid const& guid : ends)
+                if (Creature* end = me->GetMap()->GetCreature(guid))
+                    end->GetMotionMaster()->MovePoint(2, low, FORCED_MOVEMENT_NONE,
+                        OrbLaserReach / (float(OrbLaserBackMs) / 1000.0f), false);
         });
 
         // The hits, pass by pass: a laser reaches out to its length of the moment
@@ -1448,7 +1452,7 @@ private:
         uint32 const lasts = SpinWarningMs + SpinMs + 300;
         // On the platform's level: past its edge the ground found is the floor far below
         Creature* end = FxStalker(Position(center.GetPositionX() + std::cos(facing) * SpinReach,
-            center.GetPositionY() + std::sin(facing) * SpinReach, center.GetPositionZ()), lasts);
+            center.GetPositionY() + std::sin(facing) * SpinReach, center.GetPositionZ() - BeamEndDrop), lasts);
         ObjectGuid const endGuid = end ? end->GetGUID() : ObjectGuid::Empty;
         // Shot from a stalker at the god's chest, not the god: its own casts would cut the channel
         Creature* source = FxStalker(Position(center.GetPositionX(), center.GetPositionY(),
@@ -1467,7 +1471,7 @@ private:
                 {
                     float const angle = facing + turn * (float(SpinMs) / 1000.0f) * float(step) / 36.0f;
                     path.push_back(G3D::Vector3(center.GetPositionX() + std::cos(angle) * SpinReach,
-                        center.GetPositionY() + std::sin(angle) * SpinReach, center.GetPositionZ()));
+                        center.GetPositionY() + std::sin(angle) * SpinReach, center.GetPositionZ() - BeamEndDrop));
                 }
                 init.MovebyPath(path);
                 init.SetSmooth();
