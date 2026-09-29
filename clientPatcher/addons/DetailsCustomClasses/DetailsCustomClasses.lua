@@ -133,3 +133,117 @@ hooksecurefunc(_detalhes, "ApplyProfile", applyToLiveTables)
 
 -- 3. A profile may already have been applied before this addon loaded
 applyToLiveTables()
+
+-- Real specs ---------------------------------------------------------------------------------------------------------
+--
+-- Details finds a spec on its own: from WotLK talent points, else from the spells it sees cast. Neither works for the
+-- classes whose talents were rebuilt (their WotLK talent points are always 0, their spells are not the stock ones it
+-- looks for), so it guessed, often wrong. The server knows every group member's spec, bots included, and whispers it
+-- (mod-playerbots GroupSpecSync.cpp):
+--   GroupSpec  S <tab> <guid> <tab> <class id> <tab> <spec tab, 0-based>
+-- A spec known that way is the only one Details gets for that player: it is written into its cache and onto the
+-- players already in the meter, guessing is skipped for them, and it is put back whenever Details wipes or re-tracks
+-- its cache. The server's custom classes have no Details spec ids: they keep their class icon.
+
+-- Class ids to Details' class tokens (the stock classes only: Details has no spec ids for the others)
+local CLASS_TOKENS = {
+    [1] = "WARRIOR", [2] = "PALADIN", [3] = "HUNTER", [4] = "ROGUE", [5] = "PRIEST", [6] = "DEATHKNIGHT",
+    [7] = "SHAMAN", [8] = "MAGE", [9] = "WARLOCK", [11] = "DRUID",
+}
+-- Details lists four druid specs (feral and guardian apart); the third talent tab is restoration
+local DRUID_SPECS = { 102, 103, 105 }
+
+local realSpecs = {}
+
+local function SpecIdOf(classId, tab)
+    local token = CLASS_TOKENS[classId]
+    if not token then
+        return nil
+    end
+    if token == "DRUID" then
+        return DRUID_SPECS[tab + 1]
+    end
+    local specId = framework and framework.GetSpecializationID and framework.GetSpecializationID(token, tab + 1)
+    return specId ~= 0 and specId or nil
+end
+
+-- A spec onto every copy of that player in the meter: the current fight's and the overall one
+local function ApplySpec(guid, specId)
+    if type(_detalhes.cached_specs) == "table" then
+        _detalhes.cached_specs[guid] = specId
+    end
+    for _, combat in ipairs({ _detalhes.tabela_vigente, _detalhes.tabela_overall }) do
+        if type(combat) == "table" then
+            for attribute = 1, 4 do
+                local container = combat[attribute]
+                if type(container) == "table" and container._ActorTable then
+                    for _, actor in ipairs(container._ActorTable) do
+                        if actor.serial == guid and actor.spec ~= specId then
+                            actor.spec = specId
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function ApplyAll()
+    for guid, specId in pairs(realSpecs) do
+        ApplySpec(guid, specId)
+    end
+end
+
+-- Guessing, only for the players the server has not told us about
+for _, name in ipairs({ "GuessSpec", "ReGuessSpec" }) do
+    local guess = _detalhes[name]
+    if type(guess) == "function" then
+        _detalhes[name] = function(self, t, ...)
+            local actor = type(t) == "table" and t[1]
+            local specId = actor and actor.serial and realSpecs[actor.serial]
+            if specId then
+                actor.spec = specId
+                if type(_detalhes.cached_specs) == "table" then
+                    _detalhes.cached_specs[actor.serial] = specId
+                end
+                return specId
+            end
+            return guess(self, t, ...)
+        end
+    end
+end
+
+-- Details wipes its cache (ResetSpecCache) and re-reads it from spells and talents (TrackSpecsNow): the real specs
+-- go back on after
+for _, name in ipairs({ "ResetSpecCache", "TrackSpecsNow" }) do
+    if type(_detalhes[name]) == "function" then
+        hooksecurefunc(_detalhes, name, ApplyAll)
+    end
+end
+
+local specListener = CreateFrame("Frame")
+specListener:RegisterEvent("CHAT_MSG_ADDON")
+specListener:SetScript("OnEvent", function(_, _, prefix, message, _, sender)
+    if prefix ~= "GroupSpec" or sender ~= UnitName("player") then
+        return
+    end
+    local kind, guid, classId, tab = strsplit("\t", message)
+    if kind ~= "S" or not guid then
+        return
+    end
+    local specId = SpecIdOf(tonumber(classId), tonumber(tab) or 0)
+    if specId then
+        realSpecs[guid] = specId
+        ApplySpec(guid, specId)
+    end
+end)
+
+-- Anything that still slips past (a talent library callback writing the cache): corrected every few seconds
+local elapsedSinceApply = 0
+specListener:SetScript("OnUpdate", function(_, elapsed)
+    elapsedSinceApply = elapsedSinceApply + elapsed
+    if elapsedSinceApply >= 3 then
+        elapsedSinceApply = 0
+        ApplyAll()
+    end
+end)
