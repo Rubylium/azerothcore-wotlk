@@ -131,6 +131,9 @@ struct ActiveArea
     ObjectGuid aimedAt;         // the one unit it is meant to land on (ShowAimedCone)
     ObjectGuid turnsTo;         // a cone turning to face this unit as it moves (ShowTrackingCone)
     float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
+    float sweepSpeed = 0.0f;    // a sweeping rectangle (ShowSweepingRectangle): radians a second, from sweepFromMs
+    uint64 sweepFromMs = 0;
+    float sweepFrom = 0.0f;     // ... its facing then
     GroundIndicators::Area area;
     uint64 endMs = 0;
     uint32 hitDamage = 0;       // one hit's expected damage to a player in it, before their defences; 0 unknown
@@ -195,10 +198,13 @@ void Unregister(uint64 areaId)
             entry.endMs = std::min(entry.endMs, now);
 }
 
-// Where an area is now: a carried one on its carrier, a tracking cone facing the unit it turns to. False if what it
-// moves with is gone.
+// Where an area is now: a carried one on its carrier, a tracking cone facing the unit it turns to, a sweeping one at
+// its angle of the moment. False if what it moves with is gone.
 bool Follow(ActiveArea& entry, WorldObject const& reference)
 {
+    if (entry.sweepSpeed != 0.0f)
+        entry.area.origin.SetOrientation(Position::NormalizeOrientation(entry.sweepFrom +
+            entry.sweepSpeed * float(NowMs() - entry.sweepFromMs) / 1000.0f));
     if (!entry.turnsTo.IsEmpty())
         if (Unit* turnsTo = ObjectAccessor::GetUnit(reference, entry.turnsTo))
             entry.area.origin.SetOrientation(entry.area.origin.GetAngle(turnsTo->GetPositionX(),
@@ -332,6 +338,32 @@ private:
 
     ObjectGuid _turnsTo;
     uint32 _timer = TurnEveryMs;
+};
+
+// A sweeping rectangle's stalker turning at its pace, from its facing when it starts
+struct SweepAI : public NullCreatureAI
+{
+    SweepAI(Creature* creature, float from, float speed) : NullCreatureAI(creature), _from(from), _speed(speed) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _elapsed += diff;
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+        _timer = TurnEveryMs;
+        me->SetFacingTo(Position::NormalizeOrientation(_from + _speed * float(_elapsed) / 1000.0f));
+    }
+
+private:
+    static constexpr uint32 TurnEveryMs = 50;
+
+    float _from;
+    float _speed;
+    uint32 _elapsed = 0;
+    uint32 _timer = 0;
 };
 
 // A star's stalker at its carrier's feet: stepped onto them every FollowEveryMs, in a straight line and just fast
@@ -1150,6 +1182,38 @@ Area ShowRectangle(Unit* owner, Position const& start, float orientation, float 
         ShowParticles(owner, area, theme, durationMs);
     }
     return area;
+}
+
+Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
+                           float width, uint32 durationMs, uint32 hitDamage)
+{
+    width = std::max(width, 0.5f);
+    ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
+        length / width);
+    Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
+    area.width = length / shape.size;
+    if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
+    {
+        stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond));
+        uint64 const id = Register(owner, nullptr, area, durationMs, hitDamage);
+        std::lock_guard<std::mutex> guard(RegistryLock);
+        for (ActiveArea& entry : Registry)
+            if (entry.id == id)
+            {
+                entry.sweepSpeed = radiansPerSecond;
+                entry.sweepFromMs = NowMs();
+                entry.sweepFrom = orientation;
+            }
+    }
+    return area;
+}
+
+Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs)
+{
+    Area current = area;
+    current.origin.SetOrientation(Position::NormalizeOrientation(area.origin.GetOrientation() +
+        radiansPerSecond * float(elapsedMs) / 1000.0f));
+    return current;
 }
 
 Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,

@@ -12,6 +12,7 @@
 #include "Group.h"
 #include "Log.h"
 #include "Map.h"
+#include "MoveSplineInit.h"
 #include "MythicDungeon.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -29,6 +30,7 @@
 #include <array>
 #include <cmath>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <string_view>
@@ -90,6 +92,12 @@ constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
 constexpr float TwinStrikePct = 130.0f;         // Frappes jumelles, on each tank (phase 3)
 constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle
 constexpr float SweepPct = 60.0f;               // Rayon cosmique, the cone from the god
+constexpr float FallenStarCarrierPct = 25.0f;   // Étoile déchue: the one marked...
+constexpr float FallenStarMaxPct = 250.0f;      // ... everyone else, next to them (death), fading to nothing at
+constexpr float FallenStarReach = 40.0f;        //     this distance
+constexpr float CrossWavePct = 70.0f;           // Croix céleste, each wave's lines
+constexpr float OrbLaserPct = 80.0f;            // Lances de l'orbe, each pass of a laser (out, then back)
+constexpr float SpinLaserPct = 90.0f;           // Rayon du Gardien, the laser swept round
 constexpr float GravityPct[3] = { 24.0f, 30.0f, 18.0f };   // Onde de gravité, by phase (1, 2, 3)
 constexpr float MeleeFloorPct = 8.0f;           // its melee on a player: at least this, whatever their armour
 constexpr float TankArcanePct = 20.0f;          // Fracture stellaire: arcane on its target, every TankArcaneMs
@@ -127,6 +135,42 @@ constexpr float StarfallRadius = 5.0f;
 constexpr float SweepRadius = 38.0f;            // Rayon cosmique: a cone from the god at a player who is no tank
 constexpr float SweepArc = 50.0f;
 constexpr uint32 SweepWarningMs = 2500;
+// Étoile déchue (phase 1): a player who is no tank is marked, a star falls on them; the closer the others, the harder
+constexpr uint32 FallenStarMs = 5500;
+constexpr float FallenStarLethalRadius = 10.0f; // drawn red around the marked one: where it kills
+// Croix céleste (phase 1): crosses through the god's feet one after the other, each turned 45 degrees from the last
+constexpr uint32 CrossWaves = 5;
+constexpr uint32 CrossWaveMs = 1200;            // a wave lands, the next is already drawn
+constexpr uint32 CrossWarningMs = 1300;
+constexpr float CrossLength = 42.0f;            // each arm, from the middle
+constexpr float CrossWidth = 6.0f;
+// Lances de l'orbe (phase 2): an orb over the god, then four lasers from it out across the platform and back
+constexpr uint32 OrbChargeMs = 3500;
+constexpr uint32 OrbLaserOutMs = 1600;
+constexpr uint32 OrbLaserBackMs = 1600;
+constexpr float OrbHeight = 16.0f;
+constexpr float OrbScale = 0.6f;               // the sphere's size: its model at 1 filled the view
+constexpr float OrbLaserReach = 44.0f;
+constexpr float OrbLaserWidth = 4.0f;
+// Rayon du Gardien (phase 2): a laser straight ahead, then swept a full turn
+constexpr uint32 SpinWarningMs = 2500;
+constexpr float SpinSourceHeight = 6.0f;
+constexpr uint32 SpinMs = 9000;
+constexpr float SpinReach = 46.0f;
+constexpr float SpinWidth = 5.0f;
+constexpr uint32 SpinHitEveryMs = 1500;         // one player is hit at most this often by it
+constexpr uint32 LaserTickMs = 100;
+// The hovering orb's stalker (a stock one that flies)
+constexpr uint32 NPC_HOVER_STALKER = 15214;
+
+// Their effects: stock spells and kits, harmless as they are used (0: none, the red on the ground alone)
+constexpr uint32 SPELL_FX_BEAM = 64367;         // Algalon Event Beam: a thick blue beam, a dummy aura, channelled
+// Unstable Sphere Passive: the Oculus's blue sphere, a dummy aura (Light Essence's white sphere, tried first, washed
+// the screen out)
+constexpr uint32 SPELL_FX_ORB = 50756;
+constexpr uint32 SPELL_FX_MARK = 69275;         // Mark of Rimefang: a red reticle over the head, a dummy aura
+constexpr uint32 KIT_FX_STAR_FALL = 11742;      // Malygos's platform breaking: a huge blue column and burst
+constexpr uint32 KIT_FX_CROSS_HIT = 12497;      // Arcane Explosion Visual (Massive)
 constexpr uint32 StarfallWarningMs = 2000;
 constexpr float BigBangSafeRadius = 9.0f;
 constexpr float BigBangRadius = 45.0f;          // the ring reaches past the platform's edge
@@ -232,6 +276,10 @@ constexpr NamedSpell SPELL_END_OF_TIMES = { 90752, 64487 };     // Ascend to the
 constexpr NamedSpell SPELL_ETERNITY_SHARD = { 90755, 64443 };
 constexpr NamedSpell SPELL_STAR_RAYS = { 90756, 64596 };
 constexpr NamedSpell SPELL_SWEEP = { 90764, 64596 };            // Rayon cosmique
+constexpr NamedSpell SPELL_FALLEN_STAR = { 90765, 64596 };      // Étoile déchue
+constexpr NamedSpell SPELL_CROSS = { 90766, 64596 };            // Croix céleste
+constexpr NamedSpell SPELL_ORB_LASER = { 90767, 64596 };        // Lances de l'orbe
+constexpr NamedSpell SPELL_SPIN_LASER = { 90768, 64596 };       // Rayon du Gardien
 constexpr NamedSpell SPELL_TANK_ARCANE = { 90763, 64412 };      // Fracture stellaire (Phase Punch)
 // Debuffs the players see: dummy auras, the script does what they say
 constexpr uint32 SPELL_DOOM = 90753;            // Fin imminente
@@ -282,6 +330,9 @@ enum Texts : uint8
     SAY_DEATH               = 17,
     EMOTE_FRAGMENT          = 18,
     EMOTE_STAR_RAYS         = 19,
+    EMOTE_FALLEN_STAR       = 20,
+    EMOTE_ORB               = 21,
+    EMOTE_SPIN              = 22,
 };
 
 enum class Phase : uint8
@@ -305,6 +356,10 @@ enum class Ability : uint8
     Gravity,
     TankArcane,
     Sweep,
+    FallenStar,
+    CrossWaves,
+    OrbLasers,
+    SpinLaser,
     BigBangRise,
     BigBangYell,
     BigBang,
@@ -368,13 +423,17 @@ std::vector<Step> BuildTimeline()
     // Phase 1: the Big Bang's break (23-29.5 s) keeps clear of everything else
     for (uint32 at : { 7000u, 18000u, 35000u })
         once(Ability::Cleave, at);
-    for (uint32 at : { 3000u, 9000u, 15000u, 20500u, 33500u, 39000u })
+    // Phase 1: fewer circles, the fallen star and the crosses between them
+    for (uint32 at : { 9000u, 20500u, 39000u })
         once(Ability::Starfall, at);
+    for (uint32 at : { 14500u, 41500u })
+        once(Ability::FallenStar, at);
+    for (uint32 at : { 2500u, 30500u })
+        once(Ability::CrossWaves, at);
     for (uint32 at : { 10000u, 20000u, 31500u, 40000u })
         once(Ability::Gravity, at);
     every(Ability::TankArcane, 4000, TankArcaneMs, AtIntermission1);
-    for (uint32 at : { 12500u, 37500u })
-        once(Ability::Sweep, at);
+    once(Ability::Sweep, 12500);
     once(Ability::BigBangRise, AtBigBangRise);
     once(Ability::BigBangYell, AtBigBangYell);
     once(Ability::BigBang, AtBigBang);
@@ -388,10 +447,13 @@ std::vector<Step> BuildTimeline()
     // Phase 2: phase 1 a fifth faster, the black hole and the star
     once(Ability::Phase2, AtPhase2);
     every(Ability::Cleave, AtPhase2 + 3000, 15000, AtIntermission2 - 4000);
-    every(Ability::Starfall, AtPhase2 + 1500, 5000, AtIntermission2 - 2500);
+    every(Ability::Starfall, AtPhase2 + 1500, 10000, AtIntermission2 - 2500);
+    for (uint32 at : { AtPhase2 + 8500, AtPhase2 + 35500 })
+        once(Ability::OrbLasers, at);
+    once(Ability::SpinLaser, AtPhase2 + 21500);
     every(Ability::Gravity, AtPhase2 + 7500, 10000, AtIntermission2);
     every(Ability::TankArcane, AtPhase2 + 2000, TankArcaneMs, AtIntermission2);
-    every(Ability::Sweep, AtPhase2 + 9000, 15000, AtIntermission2 - SweepWarningMs);
+
     every(Ability::Singularity, AtPhase2 + 5500, 15000, AtIntermission2 - 8000);
     every(Ability::CollapsingStar, AtPhase2 + 10500, 20000, AtIntermission2 - StarSoakMs);
 
@@ -982,6 +1044,10 @@ private:
             case Ability::Starfall:         Starfall(4 + TierAbove() / 2); break;
             case Ability::TankArcane:       TankArcane(); break;
             case Ability::Sweep:            Sweep(); break;
+            case Ability::FallenStar:       FallenStar(); break;
+            case Ability::CrossWaves:       CrossWavesStart(); break;
+            case Ability::OrbLasers:        OrbLasers(); break;
+            case Ability::SpinLaser:        SpinLaser(); break;
             case Ability::Gravity:          Gravity(); break;
             case Ability::BigBangRise:      BigBangRise(); break;
             case Ability::BigBangYell:      Talk(SAY_BIG_BANG); break;
@@ -1143,6 +1209,294 @@ private:
             for (Player* player : PlayersIn(area))
                 Hit(player, SPELL_SWEEP, SweepPct, true);
         });
+    }
+
+public:
+    // .infini cast: one attack now, the fight going on
+    bool CastNow(std::string const& what)
+    {
+        if (!me->IsInCombat())
+            return false;
+        if (what == "star")
+            FallenStar();
+        else if (what == "crosses")
+            CrossWavesStart();
+        else if (what == "orb")
+            OrbLasers();
+        else if (what == "spin")
+            SpinLaser();
+        else if (what == "sweep")
+            Sweep();
+        else if (what == "cleave")
+            DoubleCleave();
+        else if (what == "twin")
+            TwinStrikes();
+        else
+            return false;
+        return true;
+    }
+
+private:
+
+    // --- Patterns: the fallen star, the crosses, the orb's lasers, the swept laser ---------------------------------
+
+    // A player stands in a line from start along facing, length long and width wide
+    static bool InLine(Position const& start, float facing, float length, float width, Position const& at)
+    {
+        float const dx = at.GetPositionX() - start.GetPositionX();
+        float const dy = at.GetPositionY() - start.GetPositionY();
+        float const along = dx * std::cos(facing) + dy * std::sin(facing);
+        float const across = -dx * std::sin(facing) + dy * std::cos(facing);
+        return along >= 0.0f && along <= length && std::fabs(across) <= width / 2.0f;
+    }
+
+    // A stalker that lives lasts ms, an effect on it or a beam's end
+    Creature* FxStalker(Position const& at, uint32 lasts, uint32 entry = NPC_STALKER)
+    {
+        // Held where it is put: a beam's end past the platform's edge does not fall
+        Creature* stalker = me->SummonCreature(entry, at, TEMPSUMMON_TIMED_DESPAWN, lasts);
+        if (stalker)
+            stalker->SetDisableGravity(true);
+        return stalker;
+    }
+
+    // A beam from one stalker to another, for lasts ms (nothing without an effect for it). A spell cannot take a unit
+    // that cannot be selected as its target, and the stalkers are made so: the beam's end is made selectable (it has
+    // no model to click).
+    void Beam(Creature* from, Creature* to, uint32 lasts)
+    {
+        if (!SPELL_FX_BEAM || !from || !to)
+            return;
+        to->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+        from->CastSpell(to, SPELL_FX_BEAM, true);
+        ObjectGuid const guid = from->GetGUID();
+        scheduler.Schedule(Milliseconds(lasts), [this, guid](TaskContext)
+        {
+            if (Creature* source = me->GetMap()->GetCreature(guid))
+                source->InterruptNonMeleeSpells(false);
+        });
+    }
+
+    // Étoile déchue: a mark on a player who is no tank, then a star falls on them - a little for them, for the others
+    // all the more the closer they stand: next to them it kills, FallenStarReach away it is nothing. The marked one
+    // runs from the group.
+    void FallenStar()
+    {
+        std::vector<Player*> players = ArenaPlayers();
+        std::erase_if(players, [](Player* player) { return IsGroupTank(player); });
+        if (players.empty())
+            return;
+        Player* marked = Acore::Containers::SelectRandomContainerElement(players);
+        Talk(EMOTE_FALLEN_STAR);
+        GroundIndicators::ShowCarriedCircle(me, marked, FallenStarLethalRadius, FallenStarMs);
+        if (SPELL_FX_MARK)
+            if (Aura* aura = me->AddAura(SPELL_FX_MARK, marked))
+            {
+                aura->SetMaxDuration(int32(FallenStarMs));
+                aura->SetDuration(int32(FallenStarMs));
+            }
+        ObjectGuid const guid = marked->GetGUID();
+        scheduler.Schedule(Milliseconds(FallenStarMs), [this, guid](TaskContext)
+        {
+            Player* target = ObjectAccessor::GetPlayer(*me, guid);
+            if (!target || !target->IsAlive())
+                return;
+            Position const at = Ground(*target);
+            PlayOnGround(at, KIT_FX_STAR_FALL ? KIT_FX_STAR_FALL : KIT_BIG_BANG_HIT);
+            Hit(target, SPELL_FALLEN_STAR, FallenStarCarrierPct, false);
+            for (Player* player : ArenaPlayers())
+            {
+                if (player == target)
+                    continue;
+                float const distance = player->GetExactDist2d(&at);
+                float const share = std::max(0.0f, 1.0f - distance / FallenStarReach);
+                if (share > 0.02f)
+                    Hit(player, SPELL_FALLEN_STAR, FallenStarMaxPct * share * share,
+                        distance <= FallenStarLethalRadius);
+            }
+        });
+    }
+
+    // Croix céleste: CrossWaves crosses through the god's feet, each drawn as the last lands and turned 45 degrees
+    // from it: the gaps move every wave
+    void CrossWavesStart()
+    {
+        Position const center = Ground(me->GetPosition());
+        float const first = frand(0.0f, float(M_PI) / 2.0f);
+        for (uint32 wave = 0; wave < CrossWaves; ++wave)
+        {
+            float const facing = first + float(wave) * float(M_PI) / 4.0f;
+            scheduler.Schedule(Milliseconds(wave * CrossWaveMs), [this, center, facing](TaskContext)
+            {
+                std::vector<GroundIndicators::Area> lines;
+                for (float arm : { facing, facing + float(M_PI) / 2.0f })
+                {
+                    Position const start = Ground(Position(center.GetPositionX() - std::cos(arm) * CrossLength,
+                        center.GetPositionY() - std::sin(arm) * CrossLength, center.GetPositionZ()));
+                    lines.push_back(GroundIndicators::ShowRectangle(me, start, arm, CrossLength * 2.0f, CrossWidth,
+                        CrossWarningMs, GroundIndicators::Theme::Arcane));
+                }
+                scheduler.Schedule(Milliseconds(CrossWarningMs), [this, lines, center, facing](TaskContext)
+                {
+                    for (uint32 arm = 0; arm < 4; ++arm)
+                    {
+                        float const angle = facing + float(arm) * float(M_PI) / 2.0f;
+                        for (float along : { 12.0f, 30.0f })
+                            PlayOnGround(Position(center.GetPositionX() + std::cos(angle) * along,
+                                center.GetPositionY() + std::sin(angle) * along, center.GetPositionZ()),
+                                KIT_FX_CROSS_HIT ? KIT_FX_CROSS_HIT : KIT_COSMIC_SMASH);
+                    }
+                    for (Player* player : ArenaPlayers())
+                        if (std::ranges::any_of(lines, [player](GroundIndicators::Area const& line)
+                            { return line.Contains(*player); }))
+                            Hit(player, SPELL_CROSS, CrossWavePct, true);
+                });
+            });
+        }
+    }
+
+    // Lances de l'orbe: an orb gathers over the god, then four lasers from it - ahead, behind, to either side - sweep
+    // out across the platform and back; each pass (out, back) hits whoever it crosses
+    void OrbLasers()
+    {
+        Talk(EMOTE_ORB);
+        Position const center = Ground(me->GetPosition());
+        float const facing = me->GetOrientation();
+        uint32 const lasts = OrbChargeMs + OrbLaserOutMs + OrbLaserBackMs + 500;
+        Position const orbAt(center.GetPositionX(), center.GetPositionY(), center.GetPositionZ() + OrbHeight);
+        Creature* orb = FxStalker(orbAt, lasts, NPC_HOVER_STALKER);
+        if (orb)
+        {
+            orb->SetDisableGravity(true);
+            // The sphere's model is drawn at the stalker's scale: at 1 it filled the view
+            orb->SetObjectScale(OrbScale);
+            if (SPELL_FX_ORB)
+                orb->AddAura(SPELL_FX_ORB, orb);
+        }
+        // The four lines they sweep, red from the start
+        for (uint32 arm = 0; arm < 4; ++arm)
+            GroundIndicators::ShowRectangle(me, center, facing + float(arm) * float(M_PI) / 2.0f, OrbLaserReach,
+                OrbLaserWidth, lasts - 500);
+
+        // The beams' far ends, sent out and back along the arms
+        std::vector<ObjectGuid> ends;
+        for (uint32 arm = 0; arm < 4; ++arm)
+            if (Creature* end = FxStalker(center, lasts))
+                ends.push_back(end->GetGUID());
+        ObjectGuid const orbGuid = orb ? orb->GetGUID() : ObjectGuid::Empty;
+        scheduler.Schedule(Milliseconds(OrbChargeMs), [this, ends, orbGuid, center, facing](TaskContext)
+        {
+            Creature* source = me->GetMap()->GetCreature(orbGuid);
+            for (std::size_t arm = 0; arm < ends.size(); ++arm)
+                if (Creature* end = me->GetMap()->GetCreature(ends[arm]))
+                {
+                    float const angle = facing + float(arm) * float(M_PI) / 2.0f;
+                    Position const farEnd(center.GetPositionX() + std::cos(angle) * OrbLaserReach,
+                        center.GetPositionY() + std::sin(angle) * OrbLaserReach, center.GetPositionZ());
+                    end->GetMotionMaster()->MovePoint(1, farEnd, FORCED_MOVEMENT_NONE,
+                        OrbLaserReach / (float(OrbLaserOutMs) / 1000.0f), false);
+                    Beam(source, end, OrbLaserOutMs + OrbLaserBackMs);
+                }
+            scheduler.Schedule(Milliseconds(OrbLaserOutMs), [this, ends, center](TaskContext)
+            {
+                for (ObjectGuid const& guid : ends)
+                    if (Creature* end = me->GetMap()->GetCreature(guid))
+                        end->GetMotionMaster()->MovePoint(2, center, FORCED_MOVEMENT_NONE,
+                            OrbLaserReach / (float(OrbLaserBackMs) / 1000.0f), false);
+            });
+        });
+
+        // The hits, pass by pass: a laser reaches out to its length of the moment
+        auto hitOut = std::make_shared<std::set<ObjectGuid>>();
+        auto hitBack = std::make_shared<std::set<ObjectGuid>>();
+        for (uint32 at = 0; at <= OrbLaserOutMs + OrbLaserBackMs; at += LaserTickMs)
+            scheduler.Schedule(Milliseconds(OrbChargeMs + at), [this, at, center, facing, hitOut, hitBack](TaskContext)
+            {
+                bool const out = at <= OrbLaserOutMs;
+                float const reach = out ? OrbLaserReach * float(at) / float(OrbLaserOutMs) :
+                    OrbLaserReach * (1.0f - float(at - OrbLaserOutMs) / float(OrbLaserBackMs));
+                auto& hit = out ? *hitOut : *hitBack;
+                for (Player* player : ArenaPlayers())
+                {
+                    if (hit.contains(player->GetGUID()))
+                        continue;
+                    for (uint32 arm = 0; arm < 4; ++arm)
+                        if (InLine(center, facing + float(arm) * float(M_PI) / 2.0f, reach, OrbLaserWidth, *player))
+                        {
+                            hit.insert(player->GetGUID());
+                            Hit(player, SPELL_ORB_LASER, OrbLaserPct, true);
+                            break;
+                        }
+                }
+            });
+    }
+
+    // Rayon du Gardien: the god holds still and a laser shoots straight ahead, then it turns a full circle with it,
+    // one way or the other: run ahead of it, never through it
+    void SpinLaser()
+    {
+        if (_lifted)
+            return;
+        Talk(EMOTE_SPIN);
+        float const facing = me->GetOrientation();
+        float const turn = (roll_chance_i(50) ? 1.0f : -1.0f) * 2.0f * float(M_PI) / (float(SpinMs) / 1000.0f);
+        Position const center = Ground(me->GetPosition());
+        BeginWindup(facing);
+        GroundIndicators::ShowRectangle(me, center, facing, SpinReach, SpinWidth, SpinWarningMs,
+            GroundIndicators::Theme::Arcane);
+
+        uint32 const lasts = SpinWarningMs + SpinMs + 300;
+        // On the platform's level: past its edge the ground found is the floor far below
+        Creature* end = FxStalker(Position(center.GetPositionX() + std::cos(facing) * SpinReach,
+            center.GetPositionY() + std::sin(facing) * SpinReach, center.GetPositionZ()), lasts);
+        ObjectGuid const endGuid = end ? end->GetGUID() : ObjectGuid::Empty;
+        // Shot from a stalker at the god's chest, not the god: its own casts would cut the channel
+        Creature* source = FxStalker(Position(center.GetPositionX(), center.GetPositionY(),
+            center.GetPositionZ() + SpinSourceHeight), lasts, NPC_HOVER_STALKER);
+        ObjectGuid const sourceGuid = source ? source->GetGUID() : ObjectGuid::Empty;
+        scheduler.Schedule(Milliseconds(SpinWarningMs), [this, center, facing, turn, endGuid, sourceGuid](TaskContext)
+        {
+            GroundIndicators::ShowSweepingRectangle(me, center, facing, turn, SpinReach, SpinWidth, SpinMs);
+            if (Creature* end = me->GetMap()->GetCreature(endGuid))
+            {
+                // The beam's end round the circle, along a smooth path the client flies itself
+                Movement::MoveSplineInit init(end);
+                Movement::PointsArray path;
+                path.push_back(G3D::Vector3(end->GetPositionX(), end->GetPositionY(), end->GetPositionZ()));
+                for (uint32 step = 1; step <= 36; ++step)
+                {
+                    float const angle = facing + turn * (float(SpinMs) / 1000.0f) * float(step) / 36.0f;
+                    path.push_back(G3D::Vector3(center.GetPositionX() + std::cos(angle) * SpinReach,
+                        center.GetPositionY() + std::sin(angle) * SpinReach, center.GetPositionZ()));
+                }
+                init.MovebyPath(path);
+                init.SetSmooth();
+                init.SetFly();
+                init.SetVelocity(2.0f * float(M_PI) * SpinReach / (float(SpinMs) / 1000.0f));
+                init.Launch();
+                Beam(me->GetMap()->GetCreature(sourceGuid), end, SpinMs);
+            }
+        });
+
+        auto lastHit = std::make_shared<std::map<ObjectGuid, uint32>>();
+        for (uint32 at = 0; at <= SpinMs; at += LaserTickMs)
+            scheduler.Schedule(Milliseconds(SpinWarningMs + at), [this, at, center, facing, turn, lastHit](TaskContext)
+            {
+                float const angle = facing + turn * float(at) / 1000.0f;
+                me->SetFacingTo(Position::NormalizeOrientation(angle));
+                for (Player* player : ArenaPlayers())
+                {
+                    auto const last = lastHit->find(player->GetGUID());
+                    if (last != lastHit->end() && at < last->second + SpinHitEveryMs)
+                        continue;
+                    if (InLine(center, angle, SpinReach, SpinWidth, *player))
+                    {
+                        (*lastHit)[player->GetGUID()] = at;
+                        Hit(player, SPELL_SPIN_LASER, SpinLaserPct, true);
+                    }
+                }
+            });
+        scheduler.Schedule(Milliseconds(SpinWarningMs + SpinMs + 100), [this](TaskContext) { EndWindup(); });
     }
 
     // Fracture stellaire: arcane on whoever it is fighting, armour no help
@@ -1702,6 +2056,7 @@ public:
             { "pull",  HandlePull,  SEC_GAMEMASTER, Console::No },
             { "gear",  HandleGear,  SEC_GAMEMASTER, Console::No },
             { "wmo",   HandleWmo,   SEC_GAMEMASTER, Console::No },
+            { "cast",  HandleCast,  SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "infini", infiniTable },
@@ -1717,6 +2072,20 @@ public:
             GiveMythicLootItem(handler->GetPlayer(), itemLevel.value_or(304));
         else
             GiveInfiniteGodLootItem(handler->GetPlayer(), itemLevel.value_or(304));
+        return true;
+    }
+
+    // .infini cast <star|crosses|orb|spin|sweep|cleave|twin>: one of its attacks now, in a fight (to try one out)
+    static bool HandleCast(ChatHandler* handler, std::string what)
+    {
+        boss_infinite_god* god = FindGod(handler->GetPlayer());
+        if (!god || !god->CastNow(what))
+        {
+            handler->SendSysMessage("No fighting L'Infini within 250 yards, or no such attack "
+                "(star, crosses, orb, spin, sweep, cleave, twin).");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
         return true;
     }
 

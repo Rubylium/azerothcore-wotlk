@@ -68,6 +68,11 @@ namespace GroundIndicators
     // hit it takes from it does not count as standing in the red. Everyone else is to leave it.
     Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
                        uint32 durationMs, Unit* aimedAt, Theme theme = Theme::None, uint32 hitDamage = 0);
+    // A line from start that turns radiansPerSecond (negative: the other way) while it is drawn: a laser swept round.
+    // No particles. Where it points after some time: CurrentSweep.
+    Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
+                               float length, float width, uint32 durationMs, uint32 hitDamage = 0);
+    Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
     // A cone from apex aimed at one unit, as ShowAimedCone, that turns to face it wherever it goes until it lands
     // (no particles: they would stay behind). Read where it points back with CurrentCone when it resolves.
     Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,

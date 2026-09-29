@@ -1,4 +1,4 @@
-# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90764;
+# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90768;
 # 90729-90732 are its ring-shaped ground indicators (localTools/groundIndicators/shapes.json).
 #
 # The abilities are never cast: the script deals their damage on the areas it drew (MythicTuning::DealAbilityDamage),
@@ -65,6 +65,18 @@ $spells = @(
        Fields = @{ 4 = $debuff; 40 = 21 } },
     @{ Id = 90755; Clone = 64443; Name = 'Éclat d''éternité'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'L''énergie de L''Infini frappe tout le groupe.'
+       Fields = @{ 225 = $arcane } },
+    @{ Id = 90765; Clone = 64596; Name = 'Étoile déchue'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Une étoile s''abat sur le marqué : plus on se tient près de lui, plus elle frappe fort.'
+       Fields = @{ 225 = $arcane } },
+    @{ Id = 90766; Clone = 64596; Name = 'Croix céleste'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Des croix de lumière traversent le Planétarium, l''une après l''autre.'
+       Fields = @{ 225 = $arcane } },
+    @{ Id = 90767; Clone = 64596; Name = 'Lances de l''orbe'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Quatre rayons partent de l''orbe et balaient le Planétarium, à l''aller et au retour.'
+       Fields = @{ 225 = $arcane } },
+    @{ Id = 90768; Clone = 64596; Name = 'Rayon du Gardien'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Un rayon que L''Infini fait tourner sur un tour complet.'
        Fields = @{ 225 = $arcane } },
     @{ Id = 90764; Clone = 64596; Name = 'Rayon cosmique'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Un cône de lumière part de L''Infini vers un joueur.'

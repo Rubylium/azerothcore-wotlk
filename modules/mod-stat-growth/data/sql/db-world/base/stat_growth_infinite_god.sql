@@ -152,7 +152,12 @@ VALUES
     (930000, 18, 0, 'A Fragment of Eternity merges with %s!', 41, 0, 100, 0, 0, 0, 0, 3,
      'L''Infini - fragment merges'),
     (930000, 19, 0, 'Stellar rays burst from the marked! Hold still, and keep them off the others.', 41, 0, 100, 0,
-     0, 0, 0, 3, 'L''Infini - stellar rays');
+     0, 0, 0, 3, 'L''Infini - stellar rays'),
+    (930000, 20, 0, 'A dying star is falling on the marked one! Run far from the others.', 41, 0, 100, 0, 0, 0, 0, 3,
+     'L''Infini - fallen star'),
+    (930000, 21, 0, '%s gathers an orb of light above itself...', 41, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - orb lasers'),
+    (930000, 22, 0, '%s turns its gaze upon the whole Planetarium!', 41, 0, 100, 0, 0, 0, 0, 3,
+     'L''Infini - spinning laser');
 
 INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Text`) VALUES
     (930000, 0, 0, 'frFR', 'Voici ce que vous affrontez.'),
@@ -175,7 +180,10 @@ INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Te
     (930000, 17, 0, 'frFR', 'L''infini... a donc... une fin.'),
     (930000, 18, 0, 'frFR', 'Un Fragment d''éternité fusionne avec %s !'),
     (930000, 19, 0, 'frFR',
-     'Des rayons stellaires jaillissent des marqués ! Ne bougez plus, et détournez-les des autres.');
+     'Des rayons stellaires jaillissent des marqués ! Ne bougez plus, et détournez-les des autres.'),
+    (930000, 20, 0, 'frFR', 'Une étoile mourante s''abat sur le marqué ! Éloignez-vous des autres.'),
+    (930000, 21, 0, 'frFR', '%s rassemble une sphère de lumière au-dessus de lui...'),
+    (930000, 22, 0, 'frFR', '%s pose son regard sur tout le Planétarium !');
 
 -- In the middle of the Planetarium, facing the way in (Algalon's own spot, boss_algalon_the_observer.cpp), in the
 -- 10-player Ulduar only (spawn mask 1)
