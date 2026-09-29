@@ -8,7 +8,7 @@
 --        intermission 1's window), deal about 42 million by 4:50. The first estimate (7 500 a damage dealer, 11.0
 --        million) died far too early. Its melee: a 2 s swing at 45 damage
 --        modifier. Algalon's own chest loot (Gift of the Observer, 10 players) on its corpse.
--- 930001 Fragment d'éternité: a Living Constellation (33052) that walks to the god in intermission 1, 1.25 million
+-- 930001 Fragment d'éternité: a Living Constellation (33052) that walks to the god in intermission 1, 0.5 million
 --        health (90 x 13 933): the raid kills both in the 20 s they walk, if it turns on them.
 -- 930002 Étoile effondrée: a Collapsing Star (32955) to share, friendly (nothing attacks it), rooted.
 -- 930003 Singularité: a Black Hole (32953), the look of the pull, friendly and rooted.
@@ -58,7 +58,7 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `faction` = 14,
     `speed_walk` = 0.8,
     `unit_flags` = 0,
-    `HealthModifier` = 90,
+    `HealthModifier` = 36,
     `lootid` = 0,
     `AIName` = '',
     `ScriptName` = '',

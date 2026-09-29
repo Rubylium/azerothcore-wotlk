@@ -67,6 +67,12 @@ namespace GroundIndicators
     // hit it takes from it does not count as standing in the red. Everyone else is to leave it.
     Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
                        uint32 durationMs, Unit* aimedAt, Theme theme = Theme::None, uint32 hitDamage = 0);
+    // A cone from apex aimed at one unit, as ShowAimedCone, that turns to face it wherever it goes until it lands
+    // (no particles: they would stay behind). Read where it points back with CurrentCone when it resolves.
+    Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
+                          Unit* aimedAt, uint32 hitDamage = 0);
+    // Where a tracking cone points now
+    Area CurrentCone(Unit* aimedAt, Area const& area);
     // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a
     // few proportions (inner / outer 0.2, 0.4, 0.6, 0.8): the nearest one to what is asked is drawn, and returned.
     Area ShowRing(Unit* owner, Position const& center, float outerRadius, float innerRadius, uint32 durationMs,

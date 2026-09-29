@@ -126,6 +126,7 @@ struct ActiveArea
     ObjectGuid owner;           // the creature whose ability it is
     ObjectGuid carrier;
     ObjectGuid aimedAt;         // the one unit it is meant to land on (ShowAimedCone)
+    ObjectGuid turnsTo;         // a cone turning to face this unit as it moves (ShowTrackingCone)
     float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
     GroundIndicators::Area area;
     uint64 endMs = 0;
@@ -148,11 +149,12 @@ uint64 NowMs()
 }
 
 uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, uint32 durationMs,
-    uint32 hitDamage = 0, ObjectGuid aimedAt = ObjectGuid::Empty)
+    uint32 hitDamage = 0, ObjectGuid aimedAt = ObjectGuid::Empty, ObjectGuid turnsTo = ObjectGuid::Empty)
 {
     ActiveArea active;
     active.hitDamage = hitDamage;
     active.aimedAt = aimedAt;
+    active.turnsTo = turnsTo;
     if (carrier && carrier->GetObjectScale() > 0.0f)
         active.carriedBase = area.radius / carrier->GetObjectScale();
     active.mapId = owner->GetMapId();
@@ -190,6 +192,25 @@ void Unregister(uint64 areaId)
             entry.endMs = std::min(entry.endMs, now);
 }
 
+// Where an area is now: a carried one on its carrier, a tracking cone facing the unit it turns to. False if what it
+// moves with is gone.
+bool Follow(ActiveArea& entry, WorldObject const& reference)
+{
+    if (!entry.turnsTo.IsEmpty())
+        if (Unit* turnsTo = ObjectAccessor::GetUnit(reference, entry.turnsTo))
+            entry.area.origin.SetOrientation(entry.area.origin.GetAngle(turnsTo->GetPositionX(),
+                turnsTo->GetPositionY()));
+    if (entry.carrier.IsEmpty())
+        return true;
+    Unit* carrier = ObjectAccessor::GetUnit(reference, entry.carrier);
+    if (!carrier)
+        return false;
+    entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
+    if (entry.carriedBase > 0.0f)
+        entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
+    return true;
+}
+
 // The areas on show in unit's instance, carried ones where their carrier is now
 std::vector<ActiveArea> AreasAround(Unit* unit)
 {
@@ -203,18 +224,8 @@ std::vector<ActiveArea> AreasAround(Unit* unit)
     }
 
     for (ActiveArea& entry : areas)
-    {
-        if (entry.carrier.IsEmpty())
-            continue;
-        if (Unit* carrier = ObjectAccessor::GetUnit(*unit, entry.carrier))
-        {
-            entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
-            if (entry.carriedBase > 0.0f)
-                entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
-        }
-        else
+        if (!Follow(entry, *unit))
             entry.endMs = 0;
-    }
     areas.erase(std::remove_if(areas.begin(), areas.end(),
         [](ActiveArea const& entry) { return entry.endMs == 0; }), areas.end());
     return areas;
@@ -287,6 +298,38 @@ private:
     uint32 _kit;
     uint32 _interval;
     uint32 _timer;
+};
+
+// A cone's stalker turning to face one unit for as long as it is drawn
+struct TrackingConeAI : public NullCreatureAI
+{
+    TrackingConeAI(Creature* creature, ObjectGuid turnsTo) : NullCreatureAI(creature), _turnsTo(turnsTo) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+        _timer = TurnEveryMs;
+
+        Unit* turnsTo = ObjectAccessor::GetUnit(*me, _turnsTo);
+        if (!turnsTo)
+            return;
+        float const facing = me->GetAngle(turnsTo);
+        float turn = std::fabs(facing - me->GetOrientation());
+        turn = std::min(turn, 2.0f * float(M_PI) - turn);
+        if (turn > MinTurn)
+            me->SetFacingTo(facing);
+    }
+
+private:
+    static constexpr uint32 TurnEveryMs = 100;
+    static constexpr float MinTurn = 0.02f;
+
+    ObjectGuid _turnsTo;
+    uint32 _timer = TurnEveryMs;
 };
 
 Position OnGround(Unit* owner, float x, float y, float z)
@@ -1075,6 +1118,29 @@ Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float r
     return area;
 }
 
+Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
+                      Unit* aimedAt, uint32 hitDamage)
+{
+    ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
+    float const facing = apex.GetAngle(aimedAt->GetPositionX(), aimedAt->GetPositionY());
+    Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
+    area.arc = shape.size * float(M_PI) / 180.0f;
+    if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs))
+    {
+        stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID()));
+        Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID());
+    }
+    return area;
+}
+
+Area CurrentCone(Unit* aimedAt, Area const& area)
+{
+    Area current = area;
+    if (aimedAt)
+        current.origin.SetOrientation(current.origin.GetAngle(aimedAt->GetPositionX(), aimedAt->GetPositionY()));
+    return current;
+}
+
 Area ShowRing(Unit* owner, Position const& center, float outerRadius, float innerRadius, uint32 durationMs,
               Theme theme, uint32 hitDamage)
 {
@@ -1148,13 +1214,7 @@ bool StoodInAreaOf(Unit* victim, Unit* attacker)
         // to take
         if (entry.carrier == victim->GetGUID() || entry.aimedAt == victim->GetGUID())
             continue;
-        if (!entry.carrier.IsEmpty())
-            if (Unit* carrier = ObjectAccessor::GetUnit(*victim, entry.carrier))
-            {
-                entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
-                if (entry.carriedBase > 0.0f)
-                    entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
-            }
+        Follow(entry, *victim);
         // A trash creature's circle around itself hits the tank it is fighting: a tank holds its ground there
         if (HeldByTank(victim, entry))
             continue;

@@ -109,7 +109,7 @@ constexpr float ExposedDamageTakenPct = 50.0f;  // intermission 1
 // Sizes (yards) and warnings (ms)
 constexpr float CleaveRadius = 35.0f;
 constexpr float CleaveArc = 60.0f;
-constexpr uint32 CleaveWarningMs = 1500;
+constexpr uint32 CleaveWarningMs = 3000;          // the cones turn with their tanks until they land
 constexpr float StarfallRadius = 5.0f;
 constexpr uint32 StarfallWarningMs = 2000;
 constexpr float BigBangSafeRadius = 9.0f;
@@ -142,9 +142,9 @@ constexpr uint32 JudgementCarriers = 2;
 constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;
-constexpr float FragmentReach = 5.0f;           // a fragment this close to the god merges with it
+constexpr float FragmentReach = 1.5f;           // a fragment this close to the god's middle merges with it
 constexpr float FragmentSpawnDistance = 34.0f;
-// They walk: 1.5 yd/s (MOVE_WALK 2.5 x 0.6), about 20 s to the god - the intermission's window to kill or slow them
+// They walk: 1.5 yd/s (MOVE_WALK 2.5 x 0.6), about 22 s to the god's middle - the window to kill or slow them
 // (running, they reached it in 5 s)
 constexpr float FragmentWalkSpeedRate = 0.6f;
 
@@ -338,7 +338,7 @@ std::vector<Step> BuildTimeline()
     auto once = [&steps](Ability what, uint32 at) { steps.push_back({ at, what }); };
 
     // Phase 1: the Big Bang's break (23-29.5 s) keeps clear of everything else
-    for (uint32 at : { 6000u, 18000u, 30500u, 42000u })
+    for (uint32 at : { 7000u, 18000u, 35000u })
         once(Ability::Cleave, at);
     for (uint32 at : { 3000u, 9000u, 15000u, 20500u, 33500u, 39000u })
         once(Ability::Starfall, at);
@@ -356,7 +356,7 @@ std::vector<Step> BuildTimeline()
 
     // Phase 2: phase 1 a fifth faster, the black hole and the star
     once(Ability::Phase2, AtPhase2);
-    every(Ability::Cleave, AtPhase2 + 3000, 10000, AtIntermission2 - 2000);
+    every(Ability::Cleave, AtPhase2 + 3000, 15000, AtIntermission2 - 4000);
     every(Ability::Starfall, AtPhase2 + 1500, 5000, AtIntermission2 - 2500);
     every(Ability::Gravity, AtPhase2 + 7500, 10000, AtIntermission2);
     every(Ability::Singularity, AtPhase2 + 5500, 15000, AtIntermission2 - 8000);
@@ -943,8 +943,9 @@ private:
         }
     }
 
-    // Double fauchage cosmique: a cone at each of the two highest on its threat, at once. It lands on the one it is
-    // aimed at wherever that one stands (tanks: keep it away from the group); anyone else in a cone takes far more.
+    // Double fauchage cosmique: a cone at each of the two highest on its threat, at once, each turning with its tank
+    // until it lands. It lands on the one it is aimed at wherever that one stands; anyone else in a cone takes far
+    // more - the two tanks stacked take each other's and die (tanks: stand apart, cones away from the group).
     void DoubleCleave()
     {
         Unit* first = SelectTarget(SelectTargetMethod::MaxThreat, 0, 0.0f, true);
@@ -957,9 +958,8 @@ private:
         std::vector<std::pair<ObjectGuid, GroundIndicators::Area>> cones;
         for (Unit* aimed : { first, second })
             if (aimed)
-                cones.emplace_back(aimed->GetGUID(), GroundIndicators::ShowAimedCone(me, me->GetPosition(),
-                    me->GetAngle(aimed), CleaveRadius, CleaveArc, CleaveWarningMs, aimed,
-                    GroundIndicators::Theme::Arcane));
+                cones.emplace_back(aimed->GetGUID(), GroundIndicators::ShowTrackingCone(me, me->GetPosition(),
+                    CleaveRadius, CleaveArc, CleaveWarningMs, aimed));
 
         scheduler.Schedule(Milliseconds(CleaveWarningMs), [this, cones](TaskContext)
         {
@@ -972,7 +972,8 @@ private:
                 {
                     if (player->GetGUID() == aimed)
                         percent = std::max(percent, CleaveTankPct);
-                    else if (area.Contains(*player))
+                    else if (GroundIndicators::CurrentCone(ObjectAccessor::GetUnit(*me, aimed), area)
+                        .Contains(*player))
                     {
                         percent = std::max(percent, CleaveOtherPct);
                         stoodIn = true;
@@ -1131,7 +1132,8 @@ private:
             Creature* fragment = me->GetMap()->GetCreature(guid);
             if (!fragment || !fragment->IsAlive())
                 continue;
-            if (fragment->GetExactDist2d(me) <= FragmentReach + me->GetCombatReach())
+            // Its middle at the god's: the god's large hitbox leaves no time to kill it otherwise
+            if (fragment->GetExactDist2d(me) <= FragmentReach)
             {
                 MergeFragment(fragment);
                 continue;
