@@ -1184,6 +1184,20 @@ Area ShowRectangle(Unit* owner, Position const& start, float orientation, float 
     return area;
 }
 
+// A sweeping line in the registry: the bots read it at its angle of the moment
+void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32 durationMs, uint32 hitDamage)
+{
+    uint64 const id = Register(owner, nullptr, area, durationMs, hitDamage);
+    std::lock_guard<std::mutex> guard(RegistryLock);
+    for (ActiveArea& entry : Registry)
+        if (entry.id == id)
+        {
+            entry.sweepSpeed = radiansPerSecond;
+            entry.sweepFromMs = NowMs();
+            entry.sweepFrom = area.origin.GetOrientation();
+        }
+}
+
 Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
                            float width, uint32 durationMs, uint32 hitDamage)
 {
@@ -1195,17 +1209,19 @@ Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation
     if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
     {
         stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond));
-        uint64 const id = Register(owner, nullptr, area, durationMs, hitDamage);
-        std::lock_guard<std::mutex> guard(RegistryLock);
-        for (ActiveArea& entry : Registry)
-            if (entry.id == id)
-            {
-                entry.sweepSpeed = radiansPerSecond;
-                entry.sweepFromMs = NowMs();
-                entry.sweepFrom = orientation;
-            }
+        RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
     }
     return area;
+}
+
+void WatchSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
+                            float length, float width, uint32 durationMs, uint32 hitDamage)
+{
+    if (!owner || !owner->IsInWorld() || !durationMs)
+        return;
+    Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
+    area.width = std::max(width, 0.5f);
+    RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
 }
 
 Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs)

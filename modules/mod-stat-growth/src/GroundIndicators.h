@@ -73,6 +73,9 @@ namespace GroundIndicators
     Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
                                float length, float width, uint32 durationMs, uint32 hitDamage = 0);
     Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
+    // The same line for the bots only, nothing drawn: a sweep shown by its own visual (a beam)
+    void WatchSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
+                                float length, float width, uint32 durationMs, uint32 hitDamage = 0);
     // A cone from apex aimed at one unit, as ShowAimedCone, that turns to face it wherever it goes until it lands
     // (no particles: they would stay behind). Read where it points back with CurrentCone when it resolves.
     Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,

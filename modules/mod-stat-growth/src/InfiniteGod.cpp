@@ -155,7 +155,7 @@ constexpr float BeamEndDrop = 2.5f;            // a beam's far end under the flo
 constexpr float OrbLaserWidth = 4.0f;
 // Rayon du Gardien (phase 2): a laser straight ahead, then swept a full turn
 constexpr uint32 SpinWarningMs = 2500;
-constexpr float SpinSourceHeight = 6.0f;
+constexpr float SpinSourceHeight = 1.0f;       // the beam's start just over the floor: a flat line
 constexpr uint32 SpinMs = 9000;
 constexpr float SpinReach = 46.0f;
 constexpr float SpinWidth = 5.0f;
@@ -1260,6 +1260,28 @@ private:
         return stalker;
     }
 
+    // A beam's end flown straight to where, at speed yards a second (not walked: it is under the floor, or past
+    // the platform's edge)
+    void FlyTo(Creature* stalker, Position const& where, float speed)
+    {
+        Movement::MoveSplineInit init(stalker);
+        init.MoveTo(where.GetPositionX(), where.GetPositionY(), where.GetPositionZ(), false);
+        init.SetFly();
+        init.SetVelocity(std::max(speed, 1.0f));
+        init.Launch();
+    }
+
+    // A line from start along facing, length long and width wide, for the bots (nothing drawn)
+    static GroundIndicators::Area LineArea(Position const& start, float facing, float length, float width)
+    {
+        GroundIndicators::Area area;
+        area.kind = GroundIndicators::Area::Kind::Rectangle;
+        area.origin = Position(start.GetPositionX(), start.GetPositionY(), start.GetPositionZ(), facing);
+        area.radius = length;
+        area.width = width;
+        return area;
+    }
+
     // A beam from one stalker to another, for lasts ms (nothing without an effect for it). A spell cannot take a unit
     // that cannot be selected as its target, and the stalkers are made so: the beam's end is made selectable (it has
     // no model to click).
@@ -1397,18 +1419,23 @@ private:
                     float const angle = facing + float(arm) * float(M_PI) / 2.0f;
                     Position const farEnd(low.GetPositionX() + std::cos(angle) * OrbLaserReach,
                         low.GetPositionY() + std::sin(angle) * OrbLaserReach, low.GetPositionZ());
-                    end->GetMotionMaster()->MovePoint(1, farEnd, FORCED_MOVEMENT_NONE,
-                        OrbLaserReach / (float(OrbLaserOutMs) / 1000.0f), false);
+                    FlyTo(end, farEnd, OrbLaserReach / (float(OrbLaserOutMs) / 1000.0f));
                     Beam(me->GetMap()->GetCreature(beams[arm].first), end, OrbLaserOutMs + OrbLaserBackMs);
                 }
         });
-        scheduler.Schedule(Milliseconds(OrbChargeMs + OrbLaserOutMs), [this, ends, low](TaskContext)
+        // Back to the god's feet, wherever it stands now
+        scheduler.Schedule(Milliseconds(OrbChargeMs + OrbLaserOutMs), [this, ends](TaskContext)
         {
+            Position const feet = Ground(me->GetPosition());
+            Position const back(feet.GetPositionX(), feet.GetPositionY(), feet.GetPositionZ() - BeamEndDrop);
             for (ObjectGuid const& guid : ends)
                 if (Creature* end = me->GetMap()->GetCreature(guid))
-                    end->GetMotionMaster()->MovePoint(2, low, FORCED_MOVEMENT_NONE,
-                        OrbLaserReach / (float(OrbLaserBackMs) / 1000.0f), false);
+                    FlyTo(end, back, end->GetExactDist(&back) / (float(OrbLaserBackMs) / 1000.0f));
         });
+        // The bots see the four lines, nothing drawn
+        for (uint32 arm = 0; arm < 4; ++arm)
+            GroundIndicators::WatchArea(me, LineArea(center, facing + float(arm) * float(M_PI) / 2.0f, OrbLaserReach,
+                OrbLaserWidth), lasts - 500);
 
         // The hits, pass by pass: a laser reaches out to its length of the moment
         auto hitOut = std::make_shared<std::set<ObjectGuid>>();
@@ -1446,21 +1473,22 @@ private:
         float const turn = (roll_chance_i(50) ? 1.0f : -1.0f) * 2.0f * float(M_PI) / (float(SpinMs) / 1000.0f);
         Position const center = Ground(me->GetPosition());
         BeginWindup(facing);
-        GroundIndicators::ShowRectangle(me, center, facing, SpinReach, SpinWidth, SpinWarningMs,
-            GroundIndicators::Theme::Arcane);
+        // No red on the ground: the beam shows the line, held straight ahead for the warning, then swept (the bots
+        // read both from the registry)
+        GroundIndicators::WatchArea(me, LineArea(center, facing, SpinReach, SpinWidth), SpinWarningMs);
 
         uint32 const lasts = SpinWarningMs + SpinMs + 300;
-        // On the platform's level: past its edge the ground found is the floor far below
+        // On the platform's level (past its edge the ground found is the floor far below), from a stalker just over
+        // the floor (not the god: its own casts would cut the channel): a line flat along the ground
         Creature* end = FxStalker(Position(center.GetPositionX() + std::cos(facing) * SpinReach,
-            center.GetPositionY() + std::sin(facing) * SpinReach, center.GetPositionZ() - BeamEndDrop), lasts);
+            center.GetPositionY() + std::sin(facing) * SpinReach, center.GetPositionZ()), lasts);
         ObjectGuid const endGuid = end ? end->GetGUID() : ObjectGuid::Empty;
-        // Shot from a stalker at the god's chest, not the god: its own casts would cut the channel
         Creature* source = FxStalker(Position(center.GetPositionX(), center.GetPositionY(),
             center.GetPositionZ() + SpinSourceHeight), lasts, NPC_HOVER_STALKER);
-        ObjectGuid const sourceGuid = source ? source->GetGUID() : ObjectGuid::Empty;
-        scheduler.Schedule(Milliseconds(SpinWarningMs), [this, center, facing, turn, endGuid, sourceGuid](TaskContext)
+        Beam(source, end, SpinWarningMs + SpinMs);
+        scheduler.Schedule(Milliseconds(SpinWarningMs), [this, center, facing, turn, endGuid](TaskContext)
         {
-            GroundIndicators::ShowSweepingRectangle(me, center, facing, turn, SpinReach, SpinWidth, SpinMs);
+            GroundIndicators::WatchSweepingRectangle(me, center, facing, turn, SpinReach, SpinWidth, SpinMs);
             if (Creature* end = me->GetMap()->GetCreature(endGuid))
             {
                 // The beam's end round the circle, along a smooth path the client flies itself
@@ -1471,14 +1499,13 @@ private:
                 {
                     float const angle = facing + turn * (float(SpinMs) / 1000.0f) * float(step) / 36.0f;
                     path.push_back(G3D::Vector3(center.GetPositionX() + std::cos(angle) * SpinReach,
-                        center.GetPositionY() + std::sin(angle) * SpinReach, center.GetPositionZ() - BeamEndDrop));
+                        center.GetPositionY() + std::sin(angle) * SpinReach, center.GetPositionZ()));
                 }
                 init.MovebyPath(path);
                 init.SetSmooth();
                 init.SetFly();
                 init.SetVelocity(2.0f * float(M_PI) * SpinReach / (float(SpinMs) / 1000.0f));
                 init.Launch();
-                Beam(me->GetMap()->GetCreature(sourceGuid), end, SpinMs);
             }
         });
 
