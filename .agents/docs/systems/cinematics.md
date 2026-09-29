@@ -92,3 +92,6 @@ The screenshot rig of `.agents/plans/infinite-boss/boardshot/` (gitignored; memo
 - The client caps a font's size (asked 54, drew about 24 px): big titles are drawn in a scaled child frame.
 - Heavy `OUTLINE` muddies Morpheus once scaled; a shadow reads better.
 - A probe file written in another encoding than UTF-8 loses its accents in game (é, è dropped).
+- The game never sets the camera's field of view again once made (only at creation or a cameraFov change): a flight
+  that changes it must put the player's back itself. `CameraPath.cpp` remembers it at the start, blends back to it and
+  writes it at the end (a flight's close-up left players at 50° once).

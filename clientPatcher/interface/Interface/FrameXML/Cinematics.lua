@@ -213,18 +213,18 @@ end
 -- Planetarium (ChallengeBoard.lua, its arrival event), before the pull's countdown. The god stands in the middle of
 -- the platform (1632.7, -302.8, 417.3), facing the way in, where the group lands (1632.3, -280.5). The camera stays
 -- inside the dome: an indoor room is drawn only with the camera inside it (outside, the screen went black). The god
--- is about 13 yards tall: its face is near z 430.
+-- is about 13 yards tall: its face is near z 430. One slow pan, not a cut of shots: an arc across its front (115° to
+-- 65° around it, the way in at 90°), easing in from 28 to 22 yards and rising a little, its upper body in the middle.
 local french = GetLocale() == "frFR"
 Cinematics.Register("LInfini", {
     keys = {
-        { t = 0, x = 1632.7, y = -266.0, z = 438.0, lx = 1632.7, ly = -302.8, lz = 425.0, ease = true },
-        { t = 3.0, x = 1610.0, y = -287.0, z = 428.0, lx = 1632.7, ly = -302.8, lz = 427.0 },
-        { t = 6.0, x = 1643.0, y = -283.0, z = 418.5, lx = 1632.7, ly = -302.8, lz = 429.0 },
-        { t = 8.5, x = 1636.0, y = -290.0, z = 429.0, lx = 1632.7, ly = -302.8, lz = 430.0, fov = 50 },
+        { t = 0, x = 1620.9, y = -277.4, z = 422.0, lx = 1632.7, ly = -302.8, lz = 427.0 },
+        { t = 4.5, x = 1632.7, y = -277.8, z = 424.5, lx = 1632.7, ly = -302.8, lz = 428.5 },
+        { t = 9.0, x = 1642.0, y = -282.9, z = 427.0, lx = 1632.7, ly = -302.8, lz = 430.0 },
     },
-    blendIn = 1.0,
-    blendOut = 1.2,
+    blendIn = 1.2,
+    blendOut = 1.4,
     title = "L'Infini",
     subtitle = french and "Gardien du Planétarium céleste" or "Keeper of the Celestial Planetarium",
-    titleAt = 5.2,
+    titleAt = 5.0,
 })
