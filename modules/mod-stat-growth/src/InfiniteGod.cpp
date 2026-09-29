@@ -88,7 +88,7 @@ constexpr float ReferenceKey = 20.25f;
 constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
 constexpr float TwinStrikePct = 130.0f;         // Frappes jumelles, on each tank (phase 3)
-constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle or line
+constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle
 constexpr float SweepPct = 60.0f;               // Rayon cosmique, the cone from the god
 constexpr float GravityPct[3] = { 24.0f, 30.0f, 18.0f };   // Onde de gravité, by phase (1, 2, 3)
 constexpr float MeleeFloorPct = 8.0f;           // its melee on a player: at least this, whatever their armour
@@ -124,8 +124,6 @@ constexpr float CleaveRadius = 35.0f;
 constexpr float CleaveArc = 60.0f;
 constexpr uint32 CleaveWarningMs = 3000;          // the cones turn with their tanks until they land
 constexpr float StarfallRadius = 5.0f;
-constexpr float StarfallLineLength = 26.0f;     // ... or, half the time, a line through the target at any angle
-constexpr float StarfallLineWidth = 4.5f;
 constexpr float SweepRadius = 38.0f;            // Rayon cosmique: a cone from the god at a player who is no tank
 constexpr float SweepArc = 50.0f;
 constexpr uint32 SweepWarningMs = 2500;
@@ -1111,32 +1109,11 @@ private:
         Acore::Containers::RandomResize(players, count);
         for (Player* target : players)
         {
-            // A circle under the target, or a line through it at any angle
-            GroundIndicators::Area area;
-            Position const at = Ground(*target);
-            if (roll_chance_i(50))
-                area = GroundIndicators::ShowCircle(me, at, StarfallRadius, StarfallWarningMs,
-                    GroundIndicators::Theme::Arcane);
-            else
-            {
-                float const facing = frand(0.0f, 2.0f * float(M_PI));
-                Position const start = Ground(Position(at.GetPositionX() - std::cos(facing) * StarfallLineLength / 2.0f,
-                    at.GetPositionY() - std::sin(facing) * StarfallLineLength / 2.0f, at.GetPositionZ()));
-                area = GroundIndicators::ShowRectangle(me, start, facing, StarfallLineLength, StarfallLineWidth,
-                    StarfallWarningMs, GroundIndicators::Theme::Arcane);
-            }
+            GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, Ground(*target), StarfallRadius,
+                StarfallWarningMs, GroundIndicators::Theme::Arcane);
             scheduler.Schedule(Milliseconds(StarfallWarningMs), [this, area](TaskContext)
             {
-                if (area.kind == GroundIndicators::Area::Kind::Rectangle)
-                {
-                    float const facing = area.origin.GetOrientation();
-                    for (float along = 4.0f; along < area.radius; along += 8.0f)
-                        PlayOnGround(Position(area.origin.GetPositionX() + std::cos(facing) * along,
-                            area.origin.GetPositionY() + std::sin(facing) * along, area.origin.GetPositionZ()),
-                            KIT_COSMIC_SMASH);
-                }
-                else
-                    PlayOnGround(area.origin, KIT_COSMIC_SMASH);
+                PlayOnGround(area.origin, KIT_COSMIC_SMASH);
                 for (Player* player : PlayersIn(area))
                     Hit(player, SPELL_STARFALL, StarfallPct, true);
             });
