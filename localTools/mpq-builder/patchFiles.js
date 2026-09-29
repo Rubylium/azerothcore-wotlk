@@ -23,6 +23,11 @@ function getPatchFiles(repoRoot) {
         source: path.join(dbcRoot, name),
         archive: `DBFilesClient\\${name}`,
     }));
+    // L'Infini's display (localTools/infiniteBoss): the client's own copies, built on Patch-D's rather than the
+    // server's (patchSinisterStrike.ps1)
+    for (const name of ['CreatureModelData.dbc', 'CreatureDisplayInfo.dbc']) {
+        files.push({ source: path.join(dbcRoot, 'client-only', name), archive: `DBFilesClient\\${name}` });
+    }
 
     for (const name of fs.readdirSync(iconRoot).filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
         files.push({ source: path.join(iconRoot, name), archive: `Interface\\Icons\\${name}` });
@@ -105,6 +110,24 @@ function getPatchFiles(repoRoot) {
     };
     if (fs.existsSync(retailItemRoot)) {
         addRetailItems(retailItemRoot);
+    }
+
+    // L'Infini, Algalon recoloured (localTools/infiniteBoss/buildInfiniModel.py), stored at its archive path:
+    // Creature\Evolutions\Infini\...
+    const infiniteBossRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled',
+        'infinite-boss');
+    const addInfiniteBoss = (directory) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const source = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                addInfiniteBoss(source);
+                continue;
+            }
+            files.push({ source, archive: path.relative(infiniteBossRoot, source).split(path.sep).join('\\') });
+        }
+    };
+    if (fs.existsSync(infiniteBossRoot)) {
+        addInfiniteBoss(infiniteBossRoot);
     }
 
     // The red ground indicators of enemy abilities (localTools/groundIndicators/buildGroundIndicators.py)
