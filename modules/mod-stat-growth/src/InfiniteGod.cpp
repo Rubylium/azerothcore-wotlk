@@ -418,15 +418,19 @@ std::vector<Step> BuildTimeline()
 
 // --- Music: SoundEntries sent with SMSG_PLAY_MUSIC (PlayDirectMusic), as stock encounters and world events do ------
 // - L'Infini's track: 30100 (localTools/patchSinisterStrike.ps1, a copy of Algalon's own fight music entry 15877), on
-//   the pull, for the players in the Planetarium then. It plays once (5:06); a kill ends it.
-// - The arena's: the stock Celestial Planetarium music, 15842 UR_CelestialHallWalk (Algalon's Planetary Hall and
-//   Voices), out of combat. A wipe sends it, and the client switches from the track to it itself.
-// Each is sent once to a player: this client starts a music over when it is sent again (the track restarted every
-// 5 s when it was repeated, as the stock world event senders do). The arena's music on arriving in the Planetarium
-// and after a wipe; the god's track on the pull only (one arriving late would hear it off the fight's timeline).
+//   the pull, once, to the players in the Planetarium then (sent again, this client starts it over; one arriving late
+//   would hear it off the fight's timeline). It plays once (5:06).
+// - A music is only ended by sending another: 30101, two seconds of silence, on a wipe and on the kill. The client
+//   fades the track out, and the zone's own music comes back by itself later.
+// - Nothing else is ever sent: a music sent while another music this server sent still plays dies a few seconds later,
+//   once the old one's fade is over (measured: an arena's music after a wipe killed the next pull's track 7 s in).
+// Out of combat nothing is sent: the Planetarium's own zone music (WMOAreaTable ZoneMusic 514, 15842) plays by itself
+// and is the arena's tense music. Never send a zone's stock music entry (15842 was, as the arena's music): the
+// client's zone music then stops whatever music plays about 20 s later, which cut the track a few seconds into every
+// pull (measured on a live client with the speakers recorded, 2026-09-29: cut 8 s in with it sent, 83 s unbroken
+// without).
 constexpr uint32 MUSIC_FIGHT = 30100;
-constexpr uint32 MUSIC_ARENA = 15842;
-constexpr uint32 ArenaMusicCheckMs = 2000;      // how often arrivals in the Planetarium are looked for
+constexpr uint32 MUSIC_SILENCE = 30101;
 constexpr float MusicReach = 120.0f;
 
 uint32 SpellOf(NamedSpell const& spell)
@@ -467,15 +471,9 @@ struct boss_infinite_god : public ScriptedAI
     {
         bool const wiped = _phase != Phase::None && _phase != Phase::Over;
         ResetFight();
-        // The arena's music takes over from the track
-        _arenaListeners.clear();
+        // The track fades out for those who heard it, wherever they are in the instance
         if (wiped)
-            for (Player* player : Listeners())
-            {
-                SendMusic(player, MUSIC_ARENA);
-                _arenaListeners.insert(player->GetGUID());
-            }
-        _fightListeners.clear();
+            EndTrack(MUSIC_SILENCE);
         ScriptedAI::EnterEvadeMode(why);
     }
 
@@ -513,10 +511,9 @@ struct boss_infinite_god : public ScriptedAI
 
     void JustDied(Unit* /*killer*/) override
     {
-        // The track stops with the god: the arena's music takes over (a music is only ended by sending another)
+        // The track stops with the god
         Talk(SAY_DEATH);
-        for (Player* player : Listeners())
-            SendMusic(player, MUSIC_ARENA);
+        EndTrack(MUSIC_SILENCE);
         LOG_INFO("module.infinite", "L'Infini killed instance={} elapsed={}ms", me->GetInstanceId(), Elapsed());
         ResetFight();
         _phase = Phase::Over;
@@ -591,6 +588,15 @@ struct boss_infinite_god : public ScriptedAI
     }
 
     // --- Music, and the game master's commands -----------------------------------------------------------------
+    // What ends the track, to each player it was sent to and still in the instance
+    void EndTrack(uint32 soundId)
+    {
+        for (ObjectGuid const& guid : _fightListeners)
+            if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                SendMusic(player, soundId);
+        _fightListeners.clear();
+    }
+
     void SendMusic(Player* player, uint32 soundId)
     {
         if (player && player->IsInWorld() && player->GetSession() && !player->GetSession()->IsBot())
@@ -644,7 +650,7 @@ private:
         return _phase == Phase::None ? 0 : getMSTimeDiff(_pullMs, getMSTime());
     }
 
-    // --- The challenge's instance, the arena's music ---------------------------------------------------------------
+    // --- The challenge's instance ------------------------------------------------------------------------------------
     void UpdateOutOfCombat(uint32 diff)
     {
         _checkTimer += diff;
@@ -658,23 +664,10 @@ private:
             return;
         }
 
-        // The arena's music, once, for whoever arrives in the Planetarium (again if they leave and come back); never
-        // while a fight runs - this runs whenever the god has no victim, which a fight has for moments (the board's
-        // hold right after the pull), and the arena's music then replaced the track a few seconds in - nor after the
-        // kill (JustDied sends it)
-        _arenaMusicTimer += 1000;
-        if (!me->IsAlive() || _phase != Phase::None || _arenaMusicTimer < ArenaMusicCheckMs)
-            return;
-        _arenaMusicTimer = 0;
-        std::set<ObjectGuid> present;
-        for (Player* player : Listeners())
-        {
-            present.insert(player->GetGUID());
-            if (_arenaListeners.insert(player->GetGUID()).second)
-                SendMusic(player, MUSIC_ARENA);
-        }
-        std::erase_if(_arenaListeners, [&present](ObjectGuid const& guid) { return !present.contains(guid); });
     }
+
+
+
 
     void UpdateDefi()
     {
@@ -1491,8 +1484,7 @@ private:
     GroundIndicators::Area _edgeArea;
     std::vector<ObjectGuid> _fragments;
     std::set<ObjectGuid> _fightListeners;
-    std::set<ObjectGuid> _arenaListeners;      // those the arena's music was sent to, still in the Planetarium
-    uint32 _arenaMusicTimer = ArenaMusicCheckMs;
+
     std::map<ObjectGuid, uint32> _weight;
     std::map<ObjectGuid, uint32> _doom;
 };
@@ -1520,6 +1512,7 @@ public:
             { "info",  HandleInfo,  SEC_GAMEMASTER, Console::No },
             { "skip",  HandleSkip,  SEC_GAMEMASTER, Console::No },
             { "music", HandleMusic, SEC_GAMEMASTER, Console::No },
+            { "pull",  HandlePull,  SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "infini", infiniTable },
@@ -1550,15 +1543,32 @@ public:
     static bool HandleMusic(ChatHandler* handler, std::string event)
     {
         Player* player = handler->GetPlayer();
-        uint32 const soundId = event == "pull" ? MUSIC_FIGHT : (event == "arena" || event == "wipe") ? MUSIC_ARENA : 0;
+        uint32 const soundId = event == "pull" ? MUSIC_FIGHT : (event == "stop" || event == "wipe") ? MUSIC_SILENCE : 0;
         if (!soundId)
         {
-            handler->SendSysMessage(".infini music <pull|arena|wipe>");
+            handler->SendSysMessage(".infini music <pull|wipe|stop>");
             handler->SetSentErrorMessage(true);
             return false;
         }
         player->PlayDirectMusic(soundId, player);
         handler->SendSysMessage(Acore::StringFormat("SMSG_PLAY_MUSIC {} sent.", soundId));
+        return true;
+    }
+
+    // .infini pull: the god engages the game master (a test pull without walking up to it)
+    static bool HandlePull(ChatHandler* handler)
+    {
+        Player* player = handler->GetPlayer();
+        Creature* god = player ? player->FindNearestCreature(NPC_INFINI, 150.0f) : nullptr;
+        if (!god || !god->IsAlive())
+        {
+            handler->SendSysMessage("No living L'Infini within 150 yards.");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+        god->SetReactState(REACT_AGGRESSIVE);
+        god->AI()->AttackStart(player);
+        handler->SendSysMessage("L'Infini pulled.");
         return true;
     }
 };

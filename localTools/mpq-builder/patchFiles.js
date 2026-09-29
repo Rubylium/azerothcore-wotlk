@@ -134,6 +134,12 @@ function getPatchFiles(repoRoot) {
         source: path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music', 'LInfini.mp3'),
         archive: 'Sound\\Music\\Evolutions\\LInfini.mp3',
     });
+    // What ends it (SoundEntries 30101): 2 s of silence
+    files.push({
+        source: path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music',
+            'LInfiniSilence.mp3'),
+        archive: 'Sound\\Music\\Evolutions\\LInfiniSilence.mp3',
+    });
 
     // The red ground indicators of enemy abilities (localTools/groundIndicators/buildGroundIndicators.py)
     const indicatorRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'indicators');
