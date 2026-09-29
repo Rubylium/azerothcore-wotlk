@@ -142,6 +142,7 @@ constexpr uint32 JudgementCarriers = 2;
 constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;
+constexpr Seconds WipeRespawnDelay = 5s;       // a wipe despawns the god; it is back this long after
 constexpr float FragmentReach = 1.5f;           // a fragment this close to the god's middle merges with it
 constexpr float FragmentSpawnDistance = 34.0f;
 // They walk: 1.5 yd/s (MOVE_WALK 2.5 x 0.6), about 22 s to the god's middle - the window to kill or slow them
@@ -473,7 +474,12 @@ struct boss_infinite_god : public ScriptedAI
         ResetFight();
         // The track fades out for those who heard it, wherever they are in the instance
         if (wiped)
+        {
             EndTrack(MUSIC_SILENCE);
+            // Gone at once, back at its spot a few seconds later: nothing to walk back to or reset in front of them
+            me->DespawnOnEvade(WipeRespawnDelay);
+            return;
+        }
         ScriptedAI::EnterEvadeMode(why);
     }
 
