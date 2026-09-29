@@ -8,8 +8,17 @@
 --   K              the kill: the track plays to its end, then stops
 --   S              stop, at once
 -- and asks the server where it stands (HELLO) whenever it enters the world. Leaving the instance stops everything.
--- A fade ramps the music volume (Sound_MusicVolume) down and back: the player's own setting is restored after every
--- fade, and on logout or reload.
+--
+-- Everything plays with PlayMusic: the music channel, at the player's own music volume, silent when their music is
+-- off. Two rules keep it playing:
+-- - PlayMusic replaces whatever the channel plays. It is never preceded by StopMusic: the client carries a stop out
+--   after the new file has started, and a StopMusic right before a PlayMusic silenced the new track a moment after
+--   it began (the god's track was heard for an instant on the pull, then nothing).
+-- - Only a wipe's fade touches the music volume (Sound_MusicVolume): the player's own value is kept as the string
+--   the client gave, and written back as it was once the fade is over, on logout and on reload.
+-- PlayMusic's file should hold the channel over the zone's music until StopMusic; in case a subzone's music takes it
+-- back, the arena's own track is asked for again whenever the subzone changes (it restarts, which a loop of ambience
+-- does not mind). The god's track is never asked for again: it would start over, off the fight's timeline.
 
 local PREFIX = "Infini"
 local TRACK = "Sound\\Music\\Evolutions\\LInfini.mp3"
@@ -20,24 +29,40 @@ local FADE_IN_SECONDS = 3
 -- A pull message this old still starts the track: past it, the music would run behind the fight
 local LATE_PULL_MS = 2500
 
-local playing              -- nil, "arena" or "fight"
-local trackEndsAt          -- GetTime() at which the fight's track ends (it loops otherwise)
+local playing              -- nil, "arena", "fight" or "fading" (the fight's track on its way out)
+local trackEndsAt          -- GetTime() at which the fight's track ends (PlayMusic loops it otherwise)
 local fade                 -- the fade under way: from, to, start, seconds, done
-local ownVolume            -- the player's music volume while a fade has it
+local ownVolume            -- the player's Sound_MusicVolume, as the client gave it, while a fade has it
 
 local frame = CreateFrame("Frame")
 
-local function SetMusicVolume(volume)
-    SetCVar("Sound_MusicVolume", format("%.3f", max(0, min(1, volume))))
-end
-
--- The fade under way is dropped and the player's volume put back
+-- The player's own music volume back, exactly, and no fade running
 local function RestoreVolume()
     fade = nil
     if ownVolume then
-        SetMusicVolume(ownVolume)
+        SetCVar("Sound_MusicVolume", ownVolume)
         ownVolume = nil
     end
+end
+
+-- Ramps the music volume from where it is to a share of the player's own
+local function Fade(share, seconds, done)
+    if not ownVolume then
+        ownVolume = GetCVar("Sound_MusicVolume")
+    end
+    local own = tonumber(ownVolume) or 1
+    fade = {
+        from = tonumber(GetCVar("Sound_MusicVolume")) or own,
+        to = share * own,
+        start = GetTime(),
+        seconds = seconds,
+        done = done,
+    }
+end
+
+local function Play(file, kind)
+    PlayMusic(file)
+    playing = kind
 end
 
 local function StopAll()
@@ -49,37 +74,28 @@ local function StopAll()
     trackEndsAt = nil
 end
 
-local function Fade(to, seconds, done)
-    if not ownVolume then
-        ownVolume = tonumber(GetCVar("Sound_MusicVolume")) or 1
-    end
-    local from = tonumber(GetCVar("Sound_MusicVolume")) or ownVolume
-    fade = { from = from, to = to * ownVolume, start = GetTime(), seconds = seconds, done = done }
-end
-
 local function PlayArena()
     if playing == "arena" then
         return
     end
-    StopAll()
-    playing = "arena"
-    ownVolume = tonumber(GetCVar("Sound_MusicVolume")) or 1
-    SetMusicVolume(0)
-    PlayMusic(ARENA)
-    Fade(1, FADE_IN_SECONDS, RestoreVolume)
+    RestoreVolume()
+    trackEndsAt = nil
+    Play(ARENA, "arena")
 end
 
 local function PlayFight(elapsedMs)
-    StopAll()
+    RestoreVolume()
     if elapsedMs > LATE_PULL_MS then
+        if playing == "arena" then
+            StopAll()
+        end
         return
     end
-    playing = "fight"
+    Play(TRACK, "fight")
     trackEndsAt = GetTime() + TRACK_SECONDS - elapsedMs / 1000
-    PlayMusic(TRACK)
 end
 
--- The track fades out, and the arena's tense music comes back in
+-- The track fades out, the arena's music takes over from it at no volume and fades in to the player's own
 local function Wipe()
     if playing ~= "fight" then
         PlayArena()
@@ -88,10 +104,8 @@ local function Wipe()
     playing = "fading"
     trackEndsAt = nil
     Fade(0, FADE_OUT_SECONDS, function()
-        StopMusic()
-        playing = nil
-        RestoreVolume()
-        PlayArena()
+        Play(ARENA, "arena")
+        Fade(1, FADE_IN_SECONDS, RestoreVolume)
     end)
 end
 
@@ -99,7 +113,7 @@ frame:SetScript("OnUpdate", function()
     local now = GetTime()
     if fade then
         local progress = min(1, (now - fade.start) / fade.seconds)
-        SetMusicVolume(fade.from + (fade.to - fade.from) * progress)
+        SetCVar("Sound_MusicVolume", format("%.3f", fade.from + (fade.to - fade.from) * progress))
         if progress >= 1 then
             local done = fade.done
             fade = nil
@@ -108,7 +122,6 @@ frame:SetScript("OnUpdate", function()
             end
         end
     end
-    -- PlayMusic loops: the fight's track stops at its end, a kill's too
     if trackEndsAt and now >= trackEndsAt then
         trackEndsAt = nil
         if playing == "fight" then
@@ -142,6 +155,8 @@ frame:RegisterEvent("CHAT_MSG_ADDON")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_LEAVING_WORLD")
 frame:RegisterEvent("PLAYER_LOGOUT")
+frame:RegisterEvent("ZONE_CHANGED")
+frame:RegisterEvent("ZONE_CHANGED_INDOORS")
 frame:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
     if event == "CHAT_MSG_ADDON" then
         if prefix == PREFIX and sender == UnitName("player") then
@@ -151,6 +166,10 @@ frame:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
         -- A new map, a reload, a reconnection: whatever played is over; the server says what plays here
         StopAll()
         SendAddonMessage(PREFIX, "HELLO", "WHISPER", UnitName("player"))
+    elseif event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" then
+        if playing == "arena" and not fade then
+            PlayMusic(ARENA)
+        end
     else
         StopAll()
     end
