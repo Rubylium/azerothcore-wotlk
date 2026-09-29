@@ -29,11 +29,11 @@ local EVENT_PULLING = 7
 local EVENT_DUNGEON_WON = 20
 local KIND_DUNGEON = 2
 local KEYSTONE_ICON = "Interface\\Icons\\INV_Relics_Hourglass"
--- The board's god: L'Infini, and its page's art (localTools/interface/buildChallengeGodArt.py): its portrait fills
--- the top GOD_PORTRAIT_BOTTOM of its texture
+-- The board's god: L'Infini, and its page's art (localTools/interface/buildChallengeGodArt.py): its figure fills the
+-- top GOD_FIGURE_BOTTOM of its texture
 local GOD_BOSS = 930000
 local GOD_ART = "Interface\\ChallengeBoard\\"
-local GOD_PORTRAIT_BOTTOM = 0.6357
+local GOD_FIGURE_BOTTOM = 0.6367
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -875,13 +875,7 @@ end
 -- Cards drop in one after the other: each falls a little and fades in
 local function AnimateCardsIn()
     if state.page == "god" then
-        if godPage:IsShown() then
-            godPage:SetAlpha(0)
-            Tween(0.45, 0, function(p)
-                godPage:SetAlpha(p)
-                godPage:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -108 - 18 * (1 - OutCubic(p)))
-            end)
-        end
+        godPage.Enter(true)
         return
     end
     for index, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
@@ -941,6 +935,7 @@ local function Refresh(animate)
         keyStrip.Refresh()
     end
     local god = GodMission()
+    godPage.SetScene(godShown)
     SetShown(godPage, godShown and god ~= nil)
     if godPage:IsShown() then
         godPage.Refresh(god)
@@ -998,12 +993,18 @@ local function Refresh(animate)
     end
 end
 
--- L'Infini's page: the Celestial Planetarium behind it all, the god's portrait framed as a card on the left, and
--- beside it its own tier dial, its words and its story, then what it asks and what it pays --------------------------
+-- L'Infini's page: one scene filling the window. The board's parchment and header give way to the Celestial
+-- Planetarium, the god standing on its left and melting into it (its edges faded in its texture), its name at its
+-- feet; down the right, the page's title, its tier dial, its words and its story, then what it asks and pays and the
+-- way in. The footer (roles, rewards waiting) stays, drawn over the scene (buildChallengeGodArt.py for the art).
+-- Opening it and taking it up have sounds of their own, short effects, never music.
 
-local GOD_PORTRAIT_WIDTH, GOD_PORTRAIT_HEIGHT = 272, 346
-local GOD_INSET = 12
-local GOD_STRIP_HEIGHT = 100
+-- The window's inside (ChallengeBoard ground: 2 in from the sides, under the 21 of the title bar) and the god in it
+local GOD_SCENE_LEFT, GOD_SCENE_TOP = 2, 21
+local GOD_FIGURE_WIDTH = 444
+local GOD_COLUMN_LEFT, GOD_COLUMN_RIGHT = 424, 26
+-- Ulduar's cosmic chest opening, for stepping in
+local GOD_OPEN_SOUND = "Sound\\Doodad\\UL_Chest_Cosmic_Open.wav"
 
 -- A line of text with the board's shadow, so it reads on the painting
 local function GodText(parent, font, size, r, g, b)
@@ -1015,122 +1016,141 @@ local function GodText(parent, font, size, r, g, b)
     return text
 end
 
-local function CreateGodPage()
-    godPage = CreateFrame("Frame", nil, frame)
-    godPage:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -108)
-    godPage:SetSize(WIDTH - 48, GOD_PORTRAIT_HEIGHT + 2 * GOD_INSET)
-    godPage:SetBackdrop({
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    godPage:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
-    godPage:Hide()
+-- The scene itself: textures of the window in place of its ground and parchment (hidden with them), under everything
+-- the window draws on top (the footer's labels and buttons, its border). One draw layer each: the client ignores a
+-- texture's sublevel, so the backdrop, the god and the shade take BACKGROUND, BORDER and ARTWORK (the window's own
+-- ARTWORK, the header's divider, is hidden with the header).
+local function CreateGodScene()
+    local scene = {}
+    local function Layer(layer)
+        local texture = frame:CreateTexture(nil, layer)
+        texture:Hide()
+        tinsert(scene, texture)
+        return texture
+    end
 
-    -- The Planetarium, darkened a little more under the text
-    local backdrop = godPage:CreateTexture(nil, "BACKGROUND")
+    local backdrop = Layer("BACKGROUND")
+    scene.backdrop = backdrop
     backdrop:SetTexture(GOD_ART .. "ChallengeGod-Backdrop")
-    backdrop:SetPoint("TOPLEFT", 4, -4)
-    backdrop:SetPoint("BOTTOMRIGHT", -4, 4)
-    local veil = godPage:CreateTexture(nil, "BACKGROUND", nil, 1)
-    veil:SetTexture("Interface\\Buttons\\WHITE8X8")
-    veil:SetPoint("TOPLEFT", 4, -4)
-    veil:SetPoint("BOTTOMRIGHT", -4, 4)
-    veil:SetGradientAlpha("HORIZONTAL", 0, 0, 0, 0.2, 0, 0, 0, 0.5)
+    backdrop:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
+    backdrop:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
 
-    -- The god's card
-    local portrait = CreateFrame("Frame", nil, godPage)
-    portrait:SetPoint("TOPLEFT", GOD_INSET, -GOD_INSET)
-    portrait:SetSize(GOD_PORTRAIT_WIDTH, GOD_PORTRAIT_HEIGHT)
-    portrait:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    portrait:SetBackdropColor(0, 0, 0, 1)
-    portrait:SetBackdropBorderColor(0.85, 0.7, 0.4, 1)
+    local figure = Layer("BORDER")
+    figure:SetTexture(GOD_ART .. "ChallengeGod-Figure")
+    figure:SetTexCoord(0, 1, 0, GOD_FIGURE_BOTTOM)
+    figure:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
+    figure:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOD_SCENE_LEFT, GOD_SCENE_LEFT)
+    figure:SetWidth(GOD_FIGURE_WIDTH)
+    scene.figure = figure
 
-    -- A reward waiting: the same warm glow as a card's, behind it
-    local glow = godPage:CreateTexture(nil, "BORDER")
-    SetAtlas(glow, "ChallengeMode-SoftYellowGlow")
-    glow:SetBlendMode("ADD")
-    glow:SetPoint("TOPLEFT", portrait, "TOPLEFT", -30, 30)
-    glow:SetPoint("BOTTOMRIGHT", portrait, "BOTTOMRIGHT", 30, -30)
-    glow:Hide()
-    godPage.glow = glow
+    -- Shade: the text column a little darker, the footer and the title bar's edge darker still
+    local column = Layer("ARTWORK")
+    column:SetTexture("Interface\\Buttons\\WHITE8X8")
+    column:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_COLUMN_LEFT - 60, -GOD_SCENE_TOP)
+    column:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
+    column:SetGradientAlpha("HORIZONTAL", 0, 0, 0, 0, 0, 0, 0, 0.55)
+    local foot = Layer("ARTWORK")
+    foot:SetTexture("Interface\\Buttons\\WHITE8X8")
+    foot:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOD_SCENE_LEFT, GOD_SCENE_LEFT)
+    foot:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
+    foot:SetHeight(150)
+    foot:SetGradientAlpha("VERTICAL", 0, 0, 0, 0.8, 0, 0, 0, 0)
+    local head = Layer("ARTWORK")
+    head:SetTexture("Interface\\Buttons\\WHITE8X8")
+    head:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
+    head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -GOD_SCENE_LEFT, -GOD_SCENE_TOP)
+    head:SetHeight(60)
+    head:SetGradientAlpha("VERTICAL", 0, 0, 0, 0, 0, 0, 0, 0.6)
 
-    local art = portrait:CreateTexture(nil, "ARTWORK")
-    art:SetTexture(GOD_ART .. "ChallengeGod-Portrait")
-    art:SetTexCoord(0, 1, 0, GOD_PORTRAIT_BOTTOM)
-    art:SetPoint("TOPLEFT", 4, -4)
-    art:SetPoint("BOTTOMRIGHT", -4, 4)
-    godPage.art = art
+    -- A soft gold light that swells when the challenge is taken up (never a flash: it stays dim)
+    local swell = Layer("ARTWORK")
+    SetAtlas(swell, "ChallengeMode-SoftYellowGlow")
+    swell:SetBlendMode("ADD")
+    swell:SetPoint("CENTER", figure, "CENTER", 0, 40)
+    swell:SetSize(520, 520)
+    swell:SetAlpha(0)
+    scene.swell = swell
+    return scene
+end
 
-    local shade = portrait:CreateTexture(nil, "ARTWORK", nil, 1)
-    shade:SetTexture("Interface\\Buttons\\WHITE8X8")
-    shade:SetPoint("BOTTOMLEFT", 4, 4)
-    shade:SetPoint("BOTTOMRIGHT", -4, 4)
-    shade:SetHeight(130)
-    shade:SetGradientAlpha("VERTICAL", 0, 0, 0, 0.92, 0, 0, 0, 0)
+local function CreateGodPage()
+    local scene = CreateGodScene()
 
-    local topShade = portrait:CreateTexture(nil, "ARTWORK", nil, 1)
-    topShade:SetTexture("Interface\\Buttons\\WHITE8X8")
-    topShade:SetPoint("TOPLEFT", 4, -4)
-    topShade:SetPoint("TOPRIGHT", -4, -4)
-    topShade:SetHeight(40)
-    topShade:SetGradientAlpha("VERTICAL", 0, 0, 0, 0, 0, 0, 0, 0.7)
+    godPage = CreateFrame("Frame", nil, frame)
+    godPage:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
+    godPage:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
+    godPage:Hide()
+    godPage.scene = scene
 
-    local kind = GodText(portrait, FRIZ, 11, 1, 0.82, 0.3)
-    kind:SetPoint("TOPLEFT", portrait, "TOPLEFT", 14, -13)
-    godPage.kind = kind
+    -- At the god's feet: its name
+    local kind = GodText(godPage, FRIZ, 11, 1, 0.82, 0.3)
+    kind:SetPoint("TOPLEFT", godPage, "TOPLEFT", 22, -18)
 
-    local name = GodText(portrait, MORPHEUS, 32, 1, 0.9, 0.7)
-    name:SetPoint("BOTTOM", portrait, "BOTTOM", 0, 48)
-    godPage.name = name
+    local name = GodText(godPage, MORPHEUS, 46, 1, 0.9, 0.7)
+    name:SetPoint("BOTTOMLEFT", godPage, "BOTTOMLEFT", 30, 128)
 
-    local epithet = GodText(portrait, FRIZ, 11, 1, 0.82, 0.3)
-    epithet:SetPoint("TOP", name, "BOTTOM", 0, -3)
+    local epithet = GodText(godPage, FRIZ, 12, 1, 0.82, 0.3)
+    epithet:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 4, -2)
     epithet:SetText(TEXT.godEpithet)
 
-    local place = GodText(portrait, FRIZ, 10, 0.78, 0.74, 0.66)
-    place:SetPoint("TOP", epithet, "BOTTOM", 0, -3)
-    godPage.place = place
+    local place = GodText(godPage, FRIZ, 11, 0.78, 0.74, 0.66)
+    place:SetPoint("TOPLEFT", epithet, "BOTTOMLEFT", 0, -3)
 
-    local check = portrait:CreateTexture(nil, "OVERLAY", nil, 3)
+    local check = godPage:CreateTexture(nil, "OVERLAY", nil, 3)
     SetAtlas(check, "ui-questtracker-tracker-check-2x")
-    check:SetSize(64, 64)
-    check:SetPoint("CENTER", portrait, "CENTER", 0, 20)
+    check:SetSize(72, 72)
+    check:SetPoint("CENTER", scene.figure, "CENTER", 0, 40)
     check:Hide()
-    godPage.check = check
 
-    local stamp = portrait:CreateFontString(nil, "OVERLAY")
-    stamp:SetFont(MORPHEUS, 26, "OUTLINE")
+    local stamp = godPage:CreateFontString(nil, "OVERLAY")
+    stamp:SetFont(MORPHEUS, 30, "OUTLINE")
     stamp:SetTextColor(1, 0.82, 0.2)
-    stamp:SetPoint("CENTER", portrait, "CENTER", 0, 20)
+    stamp:SetPoint("CENTER", scene.figure, "CENTER", 0, 40)
     stamp:SetAlpha(0)
 
-    -- Beside it: the dial, the god's words and story, then what it asks and pays
-    local side = CreateFrame("Frame", nil, godPage)
-    side:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 18, 0)
-    side:SetPoint("BOTTOMRIGHT", godPage, "BOTTOMRIGHT", -GOD_INSET, GOD_INSET)
+    -- Down the right: title, dial, words, story, then what it asks and pays
+    local column = CreateFrame("Frame", nil, godPage)
+    column:SetPoint("TOPLEFT", godPage, "TOPLEFT", GOD_COLUMN_LEFT, 0)
+    column:SetPoint("BOTTOMRIGHT", godPage, "BOTTOMRIGHT", -GOD_COLUMN_RIGHT, 0)
+    local columnWidth = WIDTH - 2 * GOD_SCENE_LEFT - GOD_COLUMN_LEFT - GOD_COLUMN_RIGHT
 
-    local dialGlow = side:CreateTexture(nil, "BACKGROUND")
+    local title = GodText(column, MORPHEUS, 30, 1, 0.86, 0.55)
+    title:SetPoint("TOP", column, "TOP", 0, -20)
+    title:SetText(TEXT.headingGod)
+
+    local subtitle = GodText(column, FRIZ, 11, 0.85, 0.8, 0.7)
+    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -6)
+    subtitle:SetWidth(columnWidth - 10)
+    subtitle:SetJustifyH("CENTER")
+    subtitle:SetSpacing(2)
+    subtitle:SetText(TEXT.introGod)
+
+    local function Divider(y)
+        local divider = column:CreateTexture(nil, "ARTWORK")
+        SetAtlas(divider, "ChallengeMode-ThinDivider")
+        divider:SetHeight(10)
+        divider:SetPoint("TOPLEFT", column, "TOPLEFT", 0, y)
+        divider:SetPoint("TOPRIGHT", column, "TOPRIGHT", 0, y)
+    end
+    Divider(-96)
+
+    -- Its tier dial (its own ladder)
+    local dialY = -128
+    local dialGlow = column:CreateTexture(nil, "BACKGROUND")
     SetAtlas(dialGlow, "ChallengeMode-SoftYellowGlow")
     dialGlow:SetBlendMode("ADD")
-    dialGlow:SetPoint("CENTER", side, "TOP", 0, -20)
-    dialGlow:SetSize(250, 64)
+    dialGlow:SetPoint("CENTER", column, "TOP", 0, dialY)
+    dialGlow:SetSize(230, 60)
 
-    local tierText = GodText(side, MORPHEUS, 26, 1, 0.86, 0.55)
-    tierText:SetPoint("CENTER", side, "TOP", 0, -20)
+    local tierText = GodText(column, MORPHEUS, 26, 1, 0.86, 0.55)
+    tierText:SetPoint("CENTER", column, "TOP", 0, dialY)
 
-    local tierInfo = GodText(side, FRIZ, 11, 0.85, 0.8, 0.7)
+    local tierInfo = GodText(column, FRIZ, 11, 0.85, 0.8, 0.7)
     tierInfo:SetPoint("TOP", tierText, "BOTTOM", 0, -4)
 
-    local dialArea = CreateFrame("Frame", nil, side)
-    dialArea:SetPoint("TOPLEFT", side, "TOPLEFT", 60, 0)
-    dialArea:SetPoint("TOPRIGHT", side, "TOPRIGHT", -60, 0)
-    dialArea:SetHeight(56)
+    local dialArea = CreateFrame("Frame", nil, column)
+    dialArea:SetPoint("CENTER", column, "TOP", 0, dialY - 8)
+    dialArea:SetSize(170, 52)
     dialArea:EnableMouse(true)
     dialArea:SetScript("OnEnter", function(self)
         local tier = GodTier()
@@ -1152,15 +1172,14 @@ local function CreateGodPage()
     dialArea:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local function Arrow(direction)
-        local button = CreateFrame("Button", nil, side)
+        local button = CreateFrame("Button", nil, column)
         button:SetSize(30, 30)
         local page = direction < 0 and "Prev" or "Next"
         button:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Up")
         button:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Down")
         button:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Disabled")
         button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-        button:SetPoint("CENTER", side, "TOP", direction * 104, -20)
-        button:SetFrameLevel(dialArea:GetFrameLevel() + 2)
+        button:SetPoint("CENTER", column, "TOP", direction * 100, dialY)
         button:SetScript("OnClick", function()
             local tier = GodTier() + direction
             if tier < TIER_MIN or tier > state.godOpenTier then
@@ -1179,58 +1198,42 @@ local function CreateGodPage()
     local previousTier = Arrow(-1)
     local nextTier = Arrow(1)
 
-    local divider = side:CreateTexture(nil, "ARTWORK")
-    SetAtlas(divider, "ChallengeMode-ThinDivider")
-    divider:SetHeight(10)
-    divider:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -62)
-    divider:SetPoint("TOPRIGHT", side, "TOPRIGHT", 0, -62)
-
     -- Its words, then its story
-    local quote = GodText(side, FRIZ, 13, 1, 0.86, 0.55)
-    quote:SetPoint("TOP", side, "TOP", 0, -82)
-    quote:SetWidth(420)
+    local quote = GodText(column, FRIZ, 13, 1, 0.86, 0.55)
+    quote:SetPoint("TOP", column, "TOP", 0, -178)
+    quote:SetWidth(columnWidth - 10)
     quote:SetJustifyH("CENTER")
     quote:SetSpacing(3)
     quote:SetText(TEXT.godQuote)
 
-    local signature = GodText(side, FRIZ, 11, 0.75, 0.62, 0.4)
-    signature:SetPoint("TOPRIGHT", quote, "BOTTOMRIGHT", -10, -5)
+    local signature = GodText(column, FRIZ, 11, 0.75, 0.62, 0.4)
+    signature:SetPoint("TOPRIGHT", quote, "BOTTOMRIGHT", -6, -5)
     signature:SetText(TEXT.godSignature)
 
-    local lore = GodText(side, FRIZ, 12, 0.86, 0.83, 0.76)
+    local lore = GodText(column, FRIZ, 12, 0.86, 0.83, 0.76)
     -- A width and a height of its own: anchored at both sides only, the client keeps it to one line
-    lore:SetPoint("TOP", side, "TOP", 0, -140)
-    lore:SetWidth(WIDTH - 48 - GOD_PORTRAIT_WIDTH - 2 * GOD_INSET - 18 - 20)
-    lore:SetHeight(100)
+    lore:SetPoint("TOP", column, "TOP", 0, -252)
+    lore:SetWidth(columnWidth - 6)
+    lore:SetHeight(132)
     lore:SetJustifyH("LEFT")
     lore:SetJustifyV("TOP")
     lore:SetSpacing(3)
     lore:SetText(TEXT.godLore)
 
-    -- What it asks and what it pays, on a darker strip at the foot, the way in under them
-    local strip = CreateFrame("Frame", nil, side)
-    strip:SetPoint("BOTTOMLEFT")
-    strip:SetPoint("BOTTOMRIGHT")
-    strip:SetHeight(GOD_STRIP_HEIGHT)
-    strip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
-    strip:SetBackdropColor(0, 0, 0, 0.55)
-    local stripLine = strip:CreateTexture(nil, "ARTWORK")
-    SetAtlas(stripLine, "ChallengeMode-ThinDivider")
-    stripLine:SetHeight(10)
-    stripLine:SetPoint("LEFT", strip, "TOPLEFT", 0, 0)
-    stripLine:SetPoint("RIGHT", strip, "TOPRIGHT", 0, 0)
+    Divider(-392)
 
-    local requiredLabel = GodText(strip, FRIZ, 11, 1, 0.82, 0.3)
-    requiredLabel:SetPoint("TOPLEFT", strip, "TOPLEFT", 12, -12)
+    -- What it asks, what it pays
+    local requiredLabel = GodText(column, FRIZ, 11, 1, 0.82, 0.3)
+    requiredLabel:SetPoint("TOPLEFT", column, "TOPLEFT", 4, -408)
     requiredLabel:SetText(TEXT.godRequired)
-    local itemLevel = GodText(strip, FRIZ, 11, 0.78, 0.55, 1)
+    local itemLevel = GodText(column, FRIZ, 11, 0.78, 0.55, 1)
     itemLevel:SetPoint("TOPLEFT", requiredLabel, "BOTTOMLEFT", 0, -4)
-    local paragonNeed = GodText(strip, FRIZ, 11, 1, 0.86, 0.55)
+    local paragonNeed = GodText(column, FRIZ, 11, 1, 0.86, 0.55)
     paragonNeed:SetPoint("TOPLEFT", itemLevel, "BOTTOMLEFT", 0, -3)
 
-    local rewards = CreateFrame("Frame", nil, strip)
-    rewards:SetPoint("TOPLEFT", strip, "TOP", 16, 0)
-    rewards:SetPoint("TOPRIGHT", strip, "TOPRIGHT", 0, 0)
+    local rewards = CreateFrame("Frame", nil, column)
+    rewards:SetPoint("TOPLEFT", column, "TOP", 10, -396)
+    rewards:SetPoint("TOPRIGHT", column, "TOPRIGHT", 0, -396)
     rewards:SetHeight(56)
     godPage.rewards = rewards
     local rewardLabel = GodText(rewards, FRIZ, 11, 1, 0.82, 0.3)
@@ -1241,11 +1244,11 @@ local function CreateGodPage()
     local paragon = GodText(rewards, FRIZ, 11, 0.72, 0.4, 1)
     paragon:SetPoint("TOPLEFT", gold, "BOTTOMLEFT", 0, -3)
     local essences = GodText(rewards, FRIZ, 11, 0.45, 0.9, 0.55)
-    essences:SetPoint("LEFT", paragon, "RIGHT", 10, 0)
+    essences:SetPoint("LEFT", paragon, "RIGHT", 8, 0)
 
     local satchel = CreateFrame("Button", nil, rewards)
-    satchel:SetSize(32, 32)
-    satchel:SetPoint("TOPRIGHT", rewards, "TOPRIGHT", -14, -16)
+    satchel:SetSize(30, 30)
+    satchel:SetPoint("TOPRIGHT", rewards, "TOPRIGHT", -6, -16)
     local satchelIcon = satchel:CreateTexture(nil, "ARTWORK")
     satchelIcon:SetAllPoints()
     satchelIcon:SetTexture(SATCHEL_ICON)
@@ -1253,8 +1256,8 @@ local function CreateGodPage()
     satchelBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     satchelBorder:SetBlendMode("ADD")
     satchelBorder:SetVertexColor(0.64, 0.21, 0.93)
-    satchelBorder:SetPoint("TOPLEFT", -13, 13)
-    satchelBorder:SetPoint("BOTTOMRIGHT", 13, -13)
+    satchelBorder:SetPoint("TOPLEFT", -12, 12)
+    satchelBorder:SetPoint("BOTTOMRIGHT", 12, -12)
     satchel:SetScript("OnEnter", CardTooltipSatchel)
     satchel:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
@@ -1271,17 +1274,33 @@ local function CreateGodPage()
     popText:SetPoint("BOTTOM", satchel, "TOP", 0, 6)
     popText:SetAlpha(0)
 
-    local button = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
-    button:SetSize(240, 26)
-    button:SetPoint("BOTTOM", strip, "BOTTOM", 0, 10)
+    -- The way in; a reward waiting glows behind it
+    local glow = column:CreateTexture(nil, "BACKGROUND")
+    SetAtlas(glow, "ChallengeMode-SoftYellowGlow")
+    glow:SetBlendMode("ADD")
+    glow:SetPoint("CENTER", column, "TOP", 0, -490)
+    glow:SetSize(330, 70)
+    glow:Hide()
+
+    local button = CreateFrame("Button", nil, column, "UIPanelButtonTemplate")
+    button:SetSize(250, 28)
+    button:SetPoint("CENTER", column, "TOP", 0, -490)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine(TEXT.godOnce, 1, 0.9, 0.7, true)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    local status = GodText(strip, FRIZ, 13, 1, 0.86, 0.55)
-    status:SetPoint("BOTTOM", strip, "BOTTOM", 0, 16)
+    local status = GodText(column, FRIZ, 14, 1, 0.86, 0.55)
+    status:SetPoint("CENTER", column, "TOP", 0, -490)
+
+    local pulse = 0
+    godPage:SetScript("OnUpdate", function(_, elapsed)
+        pulse = pulse + elapsed
+        if glow:IsShown() then
+            glow:SetAlpha(0.35 + 0.35 * (0.5 + 0.5 * math.sin(pulse * 3)))
+        end
+    end)
 
     godPage.Refresh = function(mission)
         rewards.mission = mission
@@ -1316,11 +1335,9 @@ local function CreateGodPage()
         essences:SetText(essenceAmount > 0 and format(TEXT.essences, essenceAmount) or "")
 
         local done = mission.state == STATE_CLAIMED
-        art:SetDesaturated(done)
+        scene.figure:SetDesaturated(done)
         SetShown(check, done)
         SetShown(glow, mission.state == STATE_WON)
-        portrait:SetBackdropBorderColor(unpack(mission.state == STATE_WON and { 1, 0.82, 0.25, 1 } or
-            mission.state == STATE_UNDERWAY and { 0.35, 0.65, 1, 1 } or { 0.85, 0.7, 0.4, 1 }))
 
         button:SetScript("OnClick", nil)
         status:SetText("")
@@ -1355,6 +1372,33 @@ local function CreateGodPage()
         end
     end
 
+    -- The scene in place of the board's parchment and header, or the board back
+    godPage.SetScene = function(shown)
+        for _, texture in ipairs(scene) do
+            SetShown(texture, shown)
+        end
+        for _, region in ipairs(frame.boardArt) do
+            SetShown(region, not shown)
+        end
+    end
+
+    -- Stepping in: the scene fades up, the god rising out of the dark
+    godPage.Enter = function(withSound)
+        if withSound then
+            PlaySoundFile(GOD_OPEN_SOUND)
+        end
+        -- Only the two paintings fade: a texture's SetAlpha turns a gradient's colour white (the shade's)
+        Tween(0.7, 0, function(p)
+            local eased = OutCubic(p)
+            scene.backdrop:SetAlpha(eased)
+            scene.figure:SetAlpha(eased)
+            scene.figure:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP + 16 * (1 - eased))
+            scene.figure:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOD_SCENE_LEFT, GOD_SCENE_LEFT - 16 * (1 - eased))
+        end)
+        godPage:SetAlpha(0)
+        Tween(0.5, 0.25, function(p) godPage:SetAlpha(p) end)
+    end
+
     -- A tier of the god just opened: the dial moves to it and its name bursts
     godPage.Opened = function(tier)
         state.godTier = tier
@@ -1366,13 +1410,18 @@ local function CreateGodPage()
         end)
     end
 
+    -- Taken up: a Mythic+ start's weight rather than a quest's, a dim gold swell over the god, the stamp
     godPage.Accepted = function()
+        PlaySoundFile(SOUND .. "ChallengeStart.ogg")
+        PlaySoundFile(SOUND .. "DomeOpen.ogg")
         stamp:SetText(TEXT.accepted)
-        Tween(0.35, 0, function(p)
+        Tween(0.5, 0, function(p)
             stamp:SetAlpha(p)
-            stamp:SetFont(MORPHEUS, 26 + 22 * (1 - OutCubic(p)), "OUTLINE")
+            stamp:SetFont(MORPHEUS, 30 + 26 * (1 - OutCubic(p)), "OUTLINE")
         end)
-        Tween(0.6, 1.4, function(p) stamp:SetAlpha(1 - p) end)
+        Tween(0.8, 1.9, function(p) stamp:SetAlpha(1 - p) end)
+        Tween(1, 0, function(p) scene.swell:SetAlpha(0.45 * OutCubic(p)) end)
+        Tween(2.2, 1.2, function(p) scene.swell:SetAlpha(0.45 * (1 - p)) end)
     end
 
     godPage.Claimed = function(goldAmount, paragonAmount, essenceAmount)
@@ -1381,7 +1430,7 @@ local function CreateGodPage()
             ("\n|cff4dff73" .. format(TEXT.essences, essenceAmount) .. "|r") or ""))
         Tween(0.9, 0, function(p)
             local grow = OutBack(min(1, p * 1.6))
-            popIcon:SetSize(32 + 36 * grow, 32 + 36 * grow)
+            popIcon:SetSize(30 + 36 * grow, 30 + 36 * grow)
             popIcon:SetAlpha(p < 0.6 and 1 or (1 - p) / 0.4)
             burst:SetSize(40 + 150 * p, 40 + 150 * p)
             burst:SetAlpha(0.9 * (1 - p))
@@ -1512,6 +1561,10 @@ local function CreateBoard()
     divider:SetHeight(12)
     divider:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -100)
     divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -100)
+
+    -- What L'Infini's scene takes the place of (CreateGodPage)
+    frame.boardArt = { ground, parchment, heading, intro, timerIcon, timerIconBorder, timerLabel, timerText, timerBar,
+        divider }
 
     -- The tier dial: an arrow either side of the tier's name, what it does to the boss under it. Only the tiers open
     -- can be picked; the one after the highest says how to open it.
@@ -1915,12 +1968,13 @@ local function AnimateClaim(boss, gold, paragon, essences)
 end
 
 local function AnimateAccepted(boss)
+    -- The god's page has a sound of its own
+    if boss == GOD_BOSS and frame and frame:IsShown() and state.page == "god" and godPage:IsShown() then
+        return godPage.Accepted()
+    end
     PlaySound("WriteQuest")
     if not frame or not frame:IsShown() then
         return
-    end
-    if boss == GOD_BOSS and state.page == "god" and godPage:IsShown() then
-        return godPage.Accepted()
     end
 
     for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
