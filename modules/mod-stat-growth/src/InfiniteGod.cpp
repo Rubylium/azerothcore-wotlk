@@ -78,7 +78,8 @@ namespace
 // health times the key's pressure 1.26, about 122 300); a tank has about 1.45 of a damage dealer's health. Every tier
 // above multiplies the god's damage (ChallengeTierUnitScript: x1.12 a tier, x2.7 at Défi X) and health (x1.22 a tier,
 // x6.1 at Défi X) and asks for 15 paragon more (66 at Défi II, 186 at Défi X), the players' own health growing slower
-// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (11.0 million at Défi I).
+// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (42.0 million at Défi I, a tight damage
+// check for damage dealers at 20 000-30 000 on one target).
 constexpr float ReferenceKey = 20.25f;
 
 constexpr float CleaveTankPct = 55.0f;          // Double fauchage cosmique, on each tank a cone is aimed at
@@ -417,7 +418,7 @@ std::vector<Step> BuildTimeline()
 
 // --- Music: SoundEntries sent with SMSG_PLAY_MUSIC (PlayDirectMusic), as stock encounters and world events do ------
 // - L'Infini's track: 30100 (localTools/patchSinisterStrike.ps1, a copy of Algalon's own fight music entry 15877), on
-//   the pull, for the players in the Planetarium then. It plays once, 5:06, to its end (a kill lets it finish).
+//   the pull, for the players in the Planetarium then. It plays once (5:06); a kill ends it.
 // - The arena's: the stock Celestial Planetarium music, 15842 UR_CelestialHallWalk (Algalon's Planetary Hall and
 //   Voices), out of combat. A wipe sends it, and the client switches from the track to it itself.
 // Each is sent once to a player: this client starts a music over when it is sent again (the track restarted every
@@ -513,8 +514,10 @@ struct boss_infinite_god : public ScriptedAI
 
     void JustDied(Unit* /*killer*/) override
     {
-        // The track plays on to its end
+        // The track stops with the god: the arena's music takes over (a music is only ended by sending another)
         Talk(SAY_DEATH);
+        for (Player* player : Listeners())
+            SendMusic(player, MUSIC_ARENA);
         LOG_INFO("module.infinite", "L'Infini killed instance={} elapsed={}ms", me->GetInstanceId(), Elapsed());
         ResetFight();
         _phase = Phase::Over;
