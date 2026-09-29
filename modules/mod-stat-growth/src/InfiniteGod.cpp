@@ -420,13 +420,12 @@ std::vector<Step> BuildTimeline()
 //   the pull, for the players in the Planetarium then. It plays once, 5:06, to its end (a kill lets it finish).
 // - The arena's: the stock Celestial Planetarium music, 15842 UR_CelestialHallWalk (Algalon's Planetary Hall and
 //   Voices), out of combat. A wipe sends it, and the client switches from the track to it itself.
-// Like the stock senders (the Brewfest and pirate day music, go_scripts.cpp), the music playing is sent again every
-// few seconds: the client keeps a music it already plays, and takes it back from the zone's music if that took over.
-// The god's track is only sent again to the players who heard it from the pull: one arriving late would hear it from
-// its start, off the fight's timeline.
+// Each is sent once to a player: this client starts a music over when it is sent again (the track restarted every
+// 5 s when it was repeated, as the stock world event senders do). The arena's music on arriving in the Planetarium
+// and after a wipe; the god's track on the pull only (one arriving late would hear it off the fight's timeline).
 constexpr uint32 MUSIC_FIGHT = 30100;
 constexpr uint32 MUSIC_ARENA = 15842;
-constexpr uint32 MusicRepeatMs = 5000;
+constexpr uint32 ArenaMusicCheckMs = 2000;      // how often arrivals in the Planetarium are looked for
 constexpr float MusicReach = 120.0f;
 
 uint32 SpellOf(NamedSpell const& spell)
@@ -468,9 +467,13 @@ struct boss_infinite_god : public ScriptedAI
         bool const wiped = _phase != Phase::None && _phase != Phase::Over;
         ResetFight();
         // The arena's music takes over from the track
+        _arenaListeners.clear();
         if (wiped)
             for (Player* player : Listeners())
+            {
                 SendMusic(player, MUSIC_ARENA);
+                _arenaListeners.insert(player->GetGUID());
+            }
         _fightListeners.clear();
         ScriptedAI::EnterEvadeMode(why);
     }
@@ -487,7 +490,7 @@ struct boss_infinite_god : public ScriptedAI
         _nextEdgeMs = 0;
         Talk(SAY_AGGRO);
         _fightListeners.clear();
-        _nextMusicMs = MusicRepeatMs;
+        _arenaListeners.clear();
         for (Player* player : Listeners())
         {
             SendMusic(player, MUSIC_FIGHT);
@@ -581,16 +584,6 @@ struct boss_infinite_god : public ScriptedAI
         }
         if (_phase == Phase::Intermission1)
             UpdateFragments();
-        // The track again for those who heard it from the pull, while it still plays
-        if (elapsed >= _nextMusicMs && elapsed + MusicRepeatMs < TrackLengthMs)
-        {
-            _nextMusicMs = elapsed + MusicRepeatMs;
-            for (ObjectGuid const& guid : _fightListeners)
-                if (Player* player = ObjectAccessor::GetPlayer(*me, guid);
-                    player && player->GetExactDist2d(&ArenaCenter) <= MusicReach)
-                    SendMusic(player, MUSIC_FIGHT);
-        }
-
         if (CanMelee())
             DoMeleeAttackIfReady();
     }
@@ -663,14 +656,20 @@ private:
             return;
         }
 
-        // The arena's music for whoever is in the Planetarium, again every few seconds; none after the kill, whose
-        // track plays on
+        // The arena's music, once, for whoever arrives in the Planetarium (again if they leave and come back); none
+        // after the kill, whose track plays on
         _arenaMusicTimer += 1000;
-        if (!me->IsAlive() || _arenaMusicTimer < MusicRepeatMs)
+        if (!me->IsAlive() || _arenaMusicTimer < ArenaMusicCheckMs)
             return;
         _arenaMusicTimer = 0;
+        std::set<ObjectGuid> present;
         for (Player* player : Listeners())
-            SendMusic(player, MUSIC_ARENA);
+        {
+            present.insert(player->GetGUID());
+            if (_arenaListeners.insert(player->GetGUID()).second)
+                SendMusic(player, MUSIC_ARENA);
+        }
+        std::erase_if(_arenaListeners, [&present](ObjectGuid const& guid) { return !present.contains(guid); });
     }
 
     void UpdateDefi()
@@ -1488,8 +1487,8 @@ private:
     GroundIndicators::Area _edgeArea;
     std::vector<ObjectGuid> _fragments;
     std::set<ObjectGuid> _fightListeners;
-    uint32 _nextMusicMs = 0;
-    uint32 _arenaMusicTimer = MusicRepeatMs;
+    std::set<ObjectGuid> _arenaListeners;      // those the arena's music was sent to, still in the Planetarium
+    uint32 _arenaMusicTimer = ArenaMusicCheckMs;
     std::map<ObjectGuid, uint32> _weight;
     std::map<ObjectGuid, uint32> _doom;
 };
