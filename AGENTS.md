@@ -25,6 +25,7 @@ Read the matching doc(s) BEFORE starting the task:
 - Self-reviewing, or opening or updating a PR → also `.agents/docs/self-review-rules.md`
 - Touching a subsystem that has a doc in `.agents/docs/systems/` → read that doc too
 - Class tuning, a new class or spec, talent / rotation / bot combat changes → `.agents/docs/systems/combat-bench.md` (measure on the combat bench, not dungeon runs)
+- Importing retail item models (weapons, shoulders) into the 3.3.5 client, or any custom item/display id → `.agents/docs/systems/retail-import.md`
 - Writing, debugging, or changing live-stack e2e (`e2e/`) → `e2e/README.md`, `.agents/docs/e2e-policy.md`, and AzerothGhost `e2e/LLM_GUIDE.md` (scratch work → `e2e/local/`)
 - Capturing a lesson or adding/updating agent docs → `.agents/docs/README.md`
 

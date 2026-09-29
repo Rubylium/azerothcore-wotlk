@@ -1,5 +1,7 @@
 # retailImport: retail item models in the 3.3.5 client
 
+Step-by-step procedure: `.agents/docs/systems/retail-import.md`.
+
 Converts item looks from the local retail install (`C:\Program Files (x86)\World of Warcraft`, read only) into
 3.3.5a client files, plus the DBC rows and test items that use them. Proof of concept: weapons and shoulders.
 
@@ -34,6 +36,7 @@ $tool = 'localTools/retailImport/RetailImport/bin/Release/net10.0/RetailImport.e
 & $tool probe 128476          # an item's appearances: retail display ids, model/texture FileDataIDs, icons
 & $tool probe-model 1627181   # the items (and displays) using a model file, e.g. one found in the listfile
 & $tool import                # convert everything in items.json
+python localTools/retailImport/freeItemIds.py --class 2   # free item entries to carry a new look
 python localTools/retailImport/preview.py
 ```
 
