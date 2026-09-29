@@ -145,6 +145,9 @@ constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;
 constexpr float FragmentReach = 5.0f;           // a fragment this close to the god merges with it
 constexpr float FragmentSpawnDistance = 34.0f;
+// They walk: 1.5 yd/s (MOVE_WALK 2.5 x 0.6), about 20 s to the god - the intermission's window to kill or slow them
+// (running, they reached it in 5 s)
+constexpr float FragmentWalkSpeedRate = 0.6f;
 
 // The Planetarium: the middle of Algalon's platform (boss_algalon_the_observer.cpp), players this close are in it
 Position const ArenaCenter = { 1632.668f, -302.7656f, 417.3211f, 1.53f };
@@ -1108,6 +1111,8 @@ private:
             if (TempSummon* fragment = me->SummonCreature(NPC_FRAGMENT, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000))
             {
                 fragment->SetFacingToObject(me);
+                fragment->SetWalk(true);
+                fragment->SetSpeed(MOVE_WALK, FragmentWalkSpeedRate);
                 _fragments.push_back(fragment->GetGUID());
             }
         }
