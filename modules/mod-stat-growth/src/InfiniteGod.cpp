@@ -1582,6 +1582,7 @@ public:
             { "music", HandleMusic, SEC_GAMEMASTER, Console::No },
             { "pull",  HandlePull,  SEC_GAMEMASTER, Console::No },
             { "gear",  HandleGear,  SEC_GAMEMASTER, Console::No },
+            { "wmo",   HandleWmo,   SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "infini", infiniTable },
@@ -1593,6 +1594,26 @@ public:
     static bool HandleGear(ChatHandler* handler, Optional<uint32> itemLevel)
     {
         GiveInfiniteGodLootItem(handler->GetPlayer(), itemLevel.value_or(304));
+        return true;
+    }
+
+    // .infini wmo: the WMO area under the game master (root and group ids, as WMOAreaTable.dbc names them), and its
+    // WMOAreaTable row: where a room's zone music comes from. Logged too (module.infinite).
+    static bool HandleWmo(ChatHandler* handler)
+    {
+        Player* player = handler->GetPlayer();
+        uint32 flags = 0;
+        int32 adtId = 0;
+        int32 rootId = 0;
+        int32 groupId = 0;
+        bool const found = player->GetMap()->GetAreaInfo(player->GetPhaseMask(), player->GetPositionX(),
+            player->GetPositionY(), player->GetPositionZ(), flags, adtId, rootId, groupId);
+        WMOAreaTableEntry const* row = found ? GetWMOAreaTableEntryByTripple(rootId, adtId, groupId) : nullptr;
+        std::string const text = Acore::StringFormat("map {} at {:.1f} {:.1f} {:.1f}: vmap {} root {} adt {} group {} "
+            "flags {:#x}, WMOAreaTable {}", player->GetMapId(), player->GetPositionX(), player->GetPositionY(),
+            player->GetPositionZ(), found ? "found" : "none", rootId, adtId, groupId, flags, row ? row->Id : 0);
+        LOG_INFO("module.infinite", "infini wmo: {}", text);
+        handler->SendSysMessage(text);
         return true;
     }
 

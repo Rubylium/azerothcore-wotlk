@@ -2195,30 +2195,49 @@ Add-InfiniDisplay $clientModelBackup $clientDisplayBackup `
     @((Join-Path $clientOnlyDbcRoot 'CreatureDisplayInfo.dbc'), (Join-Path $clientDbcRoot 'CreatureDisplayInfo.dbc'))
 Write-Host "Installed L'Infini's display $($infiniDisplay.Id) (CreatureModelData.dbc, CreatureDisplayInfo.dbc)."
 
-# The Celestial Planetarium's zone music (ZoneMusic 514 Zone-UlduarRaidCelestialHallWalk, the only WMO area playing
-# it): L'Infini's room music (SoundEntries 30102 above) instead of Algalon's hall, and 2 s of silence between two
-# plays instead of 3 to 5 minutes, so it holds while players wait for the pull. Fields: 2-3 SilenceIntervalMin,
-# 4-5 SilenceIntervalMax (day, night), 6-7 Sounds.
+# The Celestial Planetarium's own music: L'Infini's room music (SoundEntries 30102 above), in a ZoneMusic row of its own
+# (a copy of 514 Zone-UlduarRaidCelestialHallWalk, the hall leading to it) with 2 s of silence between two plays
+# instead of 3 to 5 minutes, so it holds while players wait for the pull. The platform is one WMO group, 24083, whose
+# WMOAreaTable row (43600 "The Celestial Planetarium") had no music at all (found with .infini wmo, 2026-09-29): it gets
+# the new row. ZoneMusic fields: 2-3 SilenceIntervalMin, 4-5 SilenceIntervalMax (day, night), 6-7 Sounds.
+# WMOAreaTable field 7: ZoneMusic.
 $serverZoneMusicPath = Join-Path $serverDbcRoot 'ZoneMusic.dbc'
 $zoneMusicBackupPath = Join-Path $serverDbcRoot 'ZoneMusic.before-infinite-room.dbc'
 if (-not (Test-Path -LiteralPath $zoneMusicBackupPath)) {
     Copy-Item -LiteralPath $serverZoneMusicPath -Destination $zoneMusicBackupPath
 }
-$zoneMusicBytes = [IO.File]::ReadAllBytes($zoneMusicBackupPath)
-Assert-Wdbc $zoneMusicBytes 'ZoneMusic.dbc'
-$zoneMusicRecordSize = [BitConverter]::ToInt32($zoneMusicBytes, 12)
-$planetariumMusic = $null
-for ($index = 0; $index -lt [BitConverter]::ToInt32($zoneMusicBytes, 4); ++$index) {
-    if ([BitConverter]::ToUInt32($zoneMusicBytes, 20 + $index * $zoneMusicRecordSize) -eq 514) {
-        $planetariumMusic = 20 + $index * $zoneMusicRecordSize
+$zoneMusicDbc = Read-StringDbc $zoneMusicBackupPath 'ZoneMusic.dbc' 8
+$roomMusic = [byte[]]::new($zoneMusicDbc.RecordSize)
+[Array]::Copy($zoneMusicDbc.Data, $zoneMusicDbc.Offsets[514], $roomMusic, 0, $zoneMusicDbc.RecordSize)
+$roomMusicId = [uint32]($zoneMusicDbc.MaxId + 1)
+Set-Field $roomMusic 0 $roomMusicId
+Set-Field $roomMusic 1 (Add-DbcString $zoneMusicDbc.Strings 'Zone-EvolutionsLInfiniRoom')
+foreach ($field in 2..5) { Set-Field $roomMusic $field 2000 }
+foreach ($field in 6..7) { Set-Field $roomMusic $field 30102 }
+$zoneMusicDbc.NewRecords.AddRange($roomMusic)
+$zoneMusicOutput = Get-StringDbcOutput $zoneMusicDbc
+[IO.File]::WriteAllBytes($serverZoneMusicPath, $zoneMusicOutput)
+[IO.File]::WriteAllBytes((Join-Path $clientDbcRoot 'ZoneMusic.dbc'), $zoneMusicOutput)
+
+$serverWmoAreaPath = Join-Path $serverDbcRoot 'WMOAreaTable.dbc'
+$wmoAreaBackupPath = Join-Path $serverDbcRoot 'WMOAreaTable.before-infinite-room.dbc'
+if (-not (Test-Path -LiteralPath $wmoAreaBackupPath)) {
+    Copy-Item -LiteralPath $serverWmoAreaPath -Destination $wmoAreaBackupPath
+}
+$wmoAreaBytes = [IO.File]::ReadAllBytes($wmoAreaBackupPath)
+Assert-Wdbc $wmoAreaBytes 'WMOAreaTable.dbc'
+$wmoAreaRecordSize = [BitConverter]::ToInt32($wmoAreaBytes, 12)
+$planetariumArea = $null
+for ($index = 0; $index -lt [BitConverter]::ToInt32($wmoAreaBytes, 4); ++$index) {
+    if ([BitConverter]::ToUInt32($wmoAreaBytes, 20 + $index * $wmoAreaRecordSize) -eq 43600) {
+        $planetariumArea = 20 + $index * $wmoAreaRecordSize
     }
 }
-if ($null -eq $planetariumMusic) { throw 'ZoneMusic.dbc has no row 514.' }
-foreach ($field in 2..5) { Write-Field $zoneMusicBytes $planetariumMusic $field 2000 }
-foreach ($field in 6..7) { Write-Field $zoneMusicBytes $planetariumMusic $field 30102 }
-[IO.File]::WriteAllBytes($serverZoneMusicPath, $zoneMusicBytes)
-[IO.File]::WriteAllBytes((Join-Path $clientDbcRoot 'ZoneMusic.dbc'), $zoneMusicBytes)
-Write-Host "Gave the Celestial Planetarium L'Infini's room music (ZoneMusic.dbc 514)."
+if ($null -eq $planetariumArea) { throw 'WMOAreaTable.dbc has no row 43600.' }
+Write-Field $wmoAreaBytes $planetariumArea 7 $roomMusicId
+[IO.File]::WriteAllBytes($serverWmoAreaPath, $wmoAreaBytes)
+[IO.File]::WriteAllBytes((Join-Path $clientDbcRoot 'WMOAreaTable.dbc'), $wmoAreaBytes)
+Write-Host "Gave the Celestial Planetarium L'Infini's room music (ZoneMusic.dbc $roomMusicId, WMOAreaTable.dbc 43600)."
 
 # L'Infini's gear (modules/mod-stat-growth/src/MythicDungeonSystem.cpp TouchByInfiniteGod): five enchantments on every
 # piece it gives, one in each of its random property slots, shown by the tooltip as five lines of the item: the bonus's

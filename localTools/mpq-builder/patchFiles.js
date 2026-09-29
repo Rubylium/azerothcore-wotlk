@@ -21,6 +21,7 @@ function getPatchFiles(repoRoot) {
         'ItemDisplayInfo.dbc',
         // The Celestial Planetarium's room music (L'Infini, patchSinisterStrike.ps1)
         'ZoneMusic.dbc',
+        'WMOAreaTable.dbc',
         // L'Infini's gear: its bonuses and lore lines (patchSinisterStrike.ps1)
         'SpellItemEnchantment.dbc',
     ].map((name) => ({
