@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <set>
 
@@ -431,13 +432,55 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
     creature->UpdateAllStats();
 }
 
-void MailMythicItem(Player* player, ItemTemplate const* itemTemplate)
+// L'Infini's touch on its gear (SpellItemEnchantment rows of localTools/patchSinisterStrike.ps1): five enchantments a
+// kind, one in each random property slot, the tooltip's five lines - the bonus's name (its equip spell,
+// localTools/infiniteBoss/Spells.ps1), what it does and a line of its lore
+enum InfiniteGodEnchants : uint32
+{
+    ENCHANT_INFINI_AEGIS        = 3890,     // armour: Égide des astres
+    ENCHANT_INFINI_SHARD        = 3895,     // weapons: Éclat d'étoile filante
+    ENCHANT_INFINI_SPARK        = 3900,     // jewellery, cloak, trinket, held in off-hand, relic: Étincelle d'éternité
+};
+constexpr uint32 InfiniteGodEnchantLines = 5;
+
+void TouchByInfiniteGod(Item* item)
+{
+    uint32 first = ENCHANT_INFINI_AEGIS;
+    switch (item->GetTemplate()->InventoryType)
+    {
+        case INVTYPE_WEAPON:
+        case INVTYPE_2HWEAPON:
+        case INVTYPE_WEAPONMAINHAND:
+        case INVTYPE_WEAPONOFFHAND:
+        case INVTYPE_RANGED:
+        case INVTYPE_THROWN:
+        case INVTYPE_RANGEDRIGHT:
+            first = ENCHANT_INFINI_SHARD;
+            break;
+        case INVTYPE_NECK:
+        case INVTYPE_FINGER:
+        case INVTYPE_TRINKET:
+        case INVTYPE_CLOAK:
+        case INVTYPE_HOLDABLE:
+        case INVTYPE_RELIC:
+            first = ENCHANT_INFINI_SPARK;
+            break;
+        default:
+            break;
+    }
+    for (uint32 line = 0; line < InfiniteGodEnchantLines; ++line)
+        item->SetEnchantment(EnchantmentSlot(PROP_ENCHANTMENT_SLOT_0 + line), first + line, 0, 0);
+}
+
+void MailMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch = {})
 {
     CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
     MailDraft draft("Mythic loot", "Your bags were full: here is the item a mythic boss gave you.");
     Item* item = Item::CreateItem(itemTemplate->ItemId, 1, player);
     if (item)
     {
+        if (touch)
+            touch(item);
         item->SaveToDB(transaction);
         draft.AddItem(item);
     }
@@ -465,8 +508,9 @@ ItemTemplate const* SelectMythicItem(Player* player, uint32 itemLevel)
     return itemTemplate;
 }
 
-// One epic of the run's item level, fitted to the player's class, straight into their bags
-void GiveMythicItem(Player* player, uint32 itemLevel)
+// One epic of the run's item level, fitted to the player's class, straight into their bags; touch, if given, marks it
+// before it is shown to them
+void GiveMythicItem(Player* player, uint32 itemLevel, std::function<void(Item*)> const& touch = {})
 {
     ItemTemplate const* itemTemplate = SelectMythicItem(player, itemLevel);
     if (!itemTemplate)
@@ -478,13 +522,15 @@ void GiveMythicItem(Player* player, uint32 itemLevel)
     ItemPosCountVec destination;
     if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, itemTemplate->ItemId, 1) != EQUIP_ERR_OK)
     {
-        MailMythicItem(player, itemTemplate);
+        MailMythicItem(player, itemTemplate, touch);
         return;
     }
 
     if (Item* item = player->StoreNewItem(destination, itemTemplate->ItemId, true,
             Item::GenerateItemRandomPropertyId(itemTemplate->ItemId)))
     {
+        if (touch)
+            touch(item);
         player->SendNewItem(item, 1, true, false, true);
         TryRollPersonalLoot(player, item);
     }
@@ -870,10 +916,10 @@ void GiveMythicLootItem(Player* player, uint32 itemLevel)
         GiveMythicItem(player, itemLevel);
 }
 
-uint32 SelectMythicLootEntry(Player* player, uint32 itemLevel)
+void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)
 {
-    ItemTemplate const* itemTemplate = player ? SelectMythicItem(player, itemLevel) : nullptr;
-    return itemTemplate ? itemTemplate->ItemId : 0;
+    if (player)
+        GiveMythicItem(player, itemLevel, TouchByInfiniteGod);
 }
 
 bool IsMythicLootless(Creature const* creature)

@@ -18,6 +18,7 @@
 -- removes it from any instance that is not a challenge's.
 
 DELETE FROM `creature` WHERE `guid` = 9000400;
+DELETE FROM `spell_proc` WHERE `SpellId` IN (90757, 90759, 90761);
 DELETE FROM `creature_text_locale` WHERE `CreatureID` = 930000;
 DELETE FROM `creature_text` WHERE `CreatureID` = 930000;
 DELETE FROM `creature_loot_template` WHERE `Entry` = 930000;
@@ -186,3 +187,13 @@ INSERT INTO `creature`
 VALUES
     (9000400, 930000, 603, 0, 0, 1, 1, 0, 1632.668, -302.7656, 417.3211, 1.5302, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
      NULL, 0, 'L''Infini - Celestial Planetarium (Défi board only)');
+
+-- Its gear's bonuses (localTools/infiniteBoss/Spells.ps1 90757-90762, put on the pieces by MythicDungeonSystem.cpp
+-- TouchByInfiniteGod): the equip auras' proc chance stays their spell's own, the cooldowns are here. SpellTypeMask
+-- 1 damage, 3 damage or heal; SpellPhaseMask 2 on the hit. As the stock trinkets they copy (60221, 60482, 60490).
+INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`,
+    `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`,
+    `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
+    (90757, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 30000, 0),     -- Égide des astres
+    (90759, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 8000, 0),      -- Éclat d'étoile filante
+    (90761, 0, 0, 0, 0, 0, 0, 3, 2, 0, 0, 0, 0, 0, 45000, 0);     -- Étincelle d'éternité

@@ -2220,6 +2220,63 @@ foreach ($field in 6..7) { Write-Field $zoneMusicBytes $planetariumMusic $field 
 [IO.File]::WriteAllBytes((Join-Path $clientDbcRoot 'ZoneMusic.dbc'), $zoneMusicBytes)
 Write-Host "Gave the Celestial Planetarium L'Infini's room music (ZoneMusic.dbc 514)."
 
+# L'Infini's gear (modules/mod-stat-growth/src/MythicDungeonSystem.cpp TouchByInfiniteGod): five enchantments on every
+# piece it gives, one in each of its random property slots, shown by the tooltip as five lines of the item: the bonus's
+# name (starry blue; the one carrying its equip spell, localTools\infiniteBoss\Spells.ps1), what it does in two lines
+# (green, as the item's own "Équipé :" lines) and a line of its lore in two (gold, as an item's flavour text). A
+# tooltip line is never wrapped: each stays about as wide as the item's own lines. Five ids a kind from 3890: armour, weapons,
+# jewellery. Fields: 2-4 Effect, 11-13 EffectArg, 14-29 Name, 30 its locale mask.
+$infiniName = '|cff7fbfff{0}|r'
+$infiniEffect = '|cff00ff00{0}|r'
+$infiniLore = '|cffffd100{0}|r'
+$infiniGear = @(
+    @{ Spell = 90757; Lines = @(($infiniName -f 'Égide des astres'),
+        ($infiniEffect -f 'Équipé : quand vous subissez des dégâts, chance'),
+        ($infiniEffect -f 'de réduire de 5% les dégâts subis pendant 10 s.'),
+        ($infiniLore -f '« Tissé dans la lumière d''étoiles mortes'),
+        ($infiniLore -f 'bien avant la naissance d''Azeroth. »')) }
+    @{ Spell = 90759; Lines = @(($infiniName -f 'Éclat d''étoile filante'),
+        ($infiniEffect -f 'Équipé : vos attaques et sorts nuisibles ont'),
+        ($infiniEffect -f 'une chance d''infliger 4000 dégâts des Arcanes.'),
+        ($infiniLore -f '« Une étoile filante, figée'),
+        ($infiniLore -f 'à l''instant de sa chute. »')) }
+    @{ Spell = 90761; Lines = @(($infiniName -f 'Étincelle d''éternité'),
+        ($infiniEffect -f 'Équipé : vos attaques et sorts ont une chance'),
+        ($infiniEffect -f 'd''augmenter votre score de hâte de 150 (10 s).'),
+        ($infiniLore -f '« Une parcelle du temps'),
+        ($infiniLore -f 'que L''Infini a laissée s''échapper. »')) }
+)
+$infiniEnchants = @()
+for ($kind = 0; $kind -lt $infiniGear.Count; ++$kind) {
+    for ($line = 0; $line -lt 5; ++$line) {
+        $infiniEnchants += @{ Id = 3890 + 5 * $kind + $line; Name = $infiniGear[$kind].Lines[$line]
+            Spell = $(if ($line -eq 0) { $infiniGear[$kind].Spell } else { 0 }) }
+    }
+}
+$serverEnchantPath = Join-Path $serverDbcRoot 'SpellItemEnchantment.dbc'
+$enchantBackupPath = Join-Path $serverDbcRoot 'SpellItemEnchantment.before-infinite-gear.dbc'
+if (-not (Test-Path -LiteralPath $enchantBackupPath)) {
+    Copy-Item -LiteralPath $serverEnchantPath -Destination $enchantBackupPath
+}
+$enchantDbc = Read-StringDbc $enchantBackupPath 'SpellItemEnchantment.dbc' 38
+foreach ($enchant in $infiniEnchants) {
+    if ($enchantDbc.Offsets.ContainsKey([int]$enchant.Id)) { throw "SpellItemEnchantment.dbc already has a row $($enchant.Id)." }
+    $record = [byte[]]::new($enchantDbc.RecordSize)
+    Set-Field $record 0 ([uint32]$enchant.Id)
+    if ($enchant.Spell) {
+        Set-Field $record 2 3
+        Set-Field $record 11 ([uint32]$enchant.Spell)
+    }
+    $nameOffset = Add-DbcString $enchantDbc.Strings $enchant.Name
+    for ($locale = 0; $locale -lt 16; ++$locale) { Set-Field $record (14 + $locale) $nameOffset }
+    Set-Field $record 30 16712190
+    $enchantDbc.NewRecords.AddRange($record)
+}
+$enchantOutput = Get-StringDbcOutput $enchantDbc
+[IO.File]::WriteAllBytes($serverEnchantPath, $enchantOutput)
+[IO.File]::WriteAllBytes((Join-Path $clientDbcRoot 'SpellItemEnchantment.dbc'), $enchantOutput)
+Write-Host "Added L'Infini's $($infiniEnchants.Count) gear enchantments (SpellItemEnchantment.dbc)."
+
 $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'CombatRogue_*.tga' -ErrorAction SilentlyContinue).Count
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize
 Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisualCount new, $($customVisualKits.Count) new kits)."

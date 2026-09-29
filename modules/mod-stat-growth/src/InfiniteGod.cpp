@@ -1,4 +1,5 @@
 #include "GroundIndicators.h"
+#include "MythicDungeonSystem.h"
 #include "MythicTuning.h"
 
 #include "Chat.h"
@@ -1580,11 +1581,19 @@ public:
             { "skip",  HandleSkip,  SEC_GAMEMASTER, Console::No },
             { "music", HandleMusic, SEC_GAMEMASTER, Console::No },
             { "pull",  HandlePull,  SEC_GAMEMASTER, Console::No },
+            { "gear",  HandleGear,  SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "infini", infiniTable },
         };
         return commandTable;
+    }
+
+    // .infini gear [item level]: a piece of the god's gear for the game master (304 unless given), as a win gives it
+    static bool HandleGear(ChatHandler* handler, Optional<uint32> itemLevel)
+    {
+        GiveInfiniteGodLootItem(handler->GetPlayer(), itemLevel.value_or(304));
+        return true;
     }
 
     static bool HandleInfo(ChatHandler* handler)

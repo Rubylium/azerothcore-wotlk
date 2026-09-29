@@ -1,4 +1,4 @@
-# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90756;
+# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90762;
 # 90729-90732 are its ring-shaped ground indicators (localTools/groundIndicators/shapes.json).
 #
 # The abilities are never cast: the script deals their damage on the areas it drew (MythicTuning::DealAbilityDamage),
@@ -68,7 +68,37 @@ $spells = @(
        Fields = @{ 225 = $arcane } },
     @{ Id = 90756; Clone = 64596; Name = 'Rayons stellaires'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Quatre rayons partent du joueur marqué : lourds pour quiconque d''autre s''y trouve.'
-       Fields = @{ 225 = $arcane } }
+       Fields = @{ 225 = $arcane } },
+
+    # Its gear's bonuses (MythicDungeonSystem.cpp TouchByInfiniteGod puts them on the pieces as SpellItemEnchantment
+    # equip spells, patchSinisterStrike.ps1). Each is a stock proc trinket's pair copied: the equip aura (field 34
+    # its proc flags, 35 its chance, 116 the spell it triggers) and what it triggers (80 its base points, one less than
+    # the value; 40 its duration, 1 = 10 s). Their cooldowns are in stat_growth_infinite_god.sql (spell_proc).
+    # Égide des astres (armour): Essence of Gossamer's "when struck" (60221) triggering Arcane Shroud (26400) turned
+    # into 5% less damage taken (aura 87, all schools)
+    @{ Id = 90757; Clone = 60221; Name = 'Égide des astres'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Quand vous subissez des dégâts, chance de réduire de 5% les dégâts subis pendant 10 s.'
+       Fields = @{ 35 = 10; 116 = 90758 } },
+    @{ Id = 90758; Clone = 26400; Name = 'Égide des astres'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Dégâts subis réduits de 5%.'; AuraDescription = 'Dégâts subis réduits de 5%.'
+       Fields = @{ 40 = 1; 80 = -6; 95 = 87; 110 = 127 } },
+    # Éclat d'étoile filante (weapons): the Pendulum of Telluric Currents (60482: harmful spells) on melee and ranged
+    # hits too (0x4 | 0x10 | 0x40 | 0x100 | 0x10000), its bolt (60483) turned arcane, 4000 damage
+    @{ Id = 90759; Clone = 60482; Name = 'Éclat d''étoile filante'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Vos attaques et sorts nuisibles ont une chance de frapper la cible d''un éclat d''étoile, infligeant 4000 points de dégâts des Arcanes.'
+       Fields = @{ 34 = 0x10154; 35 = 15; 116 = 90760 } },
+    @{ Id = 90760; Clone = 60483; Name = 'Éclat d''étoile filante'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Inflige 4000 points de dégâts des Arcanes.'
+       Fields = @{ 80 = 3999; 225 = $arcane } },
+    # Étincelle d'éternité (jewellery, cloak, trinket, off-hand item, relic): Embrace of the Spider (60490: spells) on
+    # attacks and heals too (0x4 | 0x10 | 0x40 | 0x100 | 0x4000 | 0x10000), Scale of Fates' haste (64707) at 150
+    # rating for 10 s
+    @{ Id = 90761; Clone = 60490; Name = 'Étincelle d''éternité'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Vos attaques et sorts ont une chance d''augmenter votre score de hâte de 150 pendant 10 s.'
+       Fields = @{ 34 = 0x14154; 35 = 10; 116 = 90762 } },
+    @{ Id = 90762; Clone = 64707; Name = 'Étincelle d''éternité'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Score de hâte augmenté de 150.'; AuraDescription = 'Score de hâte augmenté de 150.'
+       Fields = @{ 40 = 1; 80 = 149 } }
 )
 
 return $spells
