@@ -310,31 +310,20 @@ enum Kits : uint32
 };
 
 // creature_text of NPC_INFINI (stat_growth_infinite_god.sql), French in creature_text_locale
+// Its lines only: the mechanics are never announced on screen, the players read them from the fight
 enum Texts : uint8
 {
     SAY_AGGRO               = 0,
-    EMOTE_BIG_BANG          = 1,
     SAY_BIG_BANG            = 2,
     SAY_INTERMISSION_1      = 3,
-    EMOTE_EXPOSED           = 4,
     SAY_INTERMISSION_1_END  = 5,
-    EMOTE_COLLAPSING_STAR   = 6,
-    EMOTE_SINGULARITY       = 7,
     SAY_INTERMISSION_2      = 8,
     SAY_SETUP               = 9,
-    EMOTE_EDGE              = 10,
     SAY_REVEAL              = 11,
-    EMOTE_SUPERNOVA         = 12,
-    EMOTE_JUDGEMENT         = 13,
     SAY_FINAL               = 14,
     SAY_HARD_ENRAGE         = 15,
     SAY_KILL                = 16,
     SAY_DEATH               = 17,
-    EMOTE_FRAGMENT          = 18,
-    EMOTE_STAR_RAYS         = 19,
-    EMOTE_FALLEN_STAR       = 20,
-    EMOTE_ORB               = 21,
-    EMOTE_SPIN              = 22,
 };
 
 enum class Phase : uint8
@@ -1345,7 +1334,6 @@ private:
         if (players.empty())
             return;
         Player* marked = Acore::Containers::SelectRandomContainerElement(players);
-        Talk(EMOTE_FALLEN_STAR);
         GroundIndicators::ShowCarriedCircle(me, marked, FallenStarLethalRadius, FallenStarMs);
         if (SPELL_FX_MARK)
             if (Aura* aura = me->AddAura(SPELL_FX_MARK, marked))
@@ -1418,7 +1406,6 @@ private:
     // out across the platform and back; each pass (out, back) hits whoever it crosses
     void OrbLasers()
     {
-        Talk(EMOTE_ORB);
         Position const center = Ground(me->GetPosition());
         float const facing = me->GetOrientation();
         uint32 const lasts = OrbChargeMs + OrbLaserOutMs + OrbLaserBackMs + 500;
@@ -1504,7 +1491,6 @@ private:
     {
         if (_lifted)
             return;
-        Talk(EMOTE_SPIN);
         float const facing = me->GetOrientation();
         float const turn = (roll_chance_i(50) ? 1.0f : -1.0f) * 2.0f * float(M_PI) / (float(SpinMs) / 1000.0f);
         Position const center = Ground(me->GetPosition());
@@ -1591,7 +1577,6 @@ private:
     void BigBangRise()
     {
         EndWindup();
-        Talk(EMOTE_BIG_BANG);
         Lift();
         me->SendPlaySpellVisual(KIT_BIG_BANG_GATHER);
         Position const center = Ground(_liftFrom);
@@ -1629,7 +1614,6 @@ private:
         EndWindup();
         Land(false);
         Talk(SAY_INTERMISSION_1);
-        Talk(EMOTE_EXPOSED);
         Hold();
         me->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         _exposed = true;
@@ -1698,7 +1682,6 @@ private:
 
     void MergeFragment(Creature* fragment)
     {
-        Talk(EMOTE_FRAGMENT);
         fragment->SendPlaySpellVisual(KIT_BLACK_HOLE_HIT);
         me->ModifyHealth(int32(float(me->GetMaxHealth()) * FragmentHealPct / 100.0f));
         for (Player* player : ArenaPlayers())
@@ -1729,7 +1712,6 @@ private:
     // Singularité: a black hole in the platform, pulling everyone near it into its pool
     void Singularity()
     {
-        Talk(EMOTE_SINGULARITY);
         Position const hole = ArenaSpot(10.0f, 20.0f);
         uint32 const lasts = SingularityWarningMs + SingularityTicks * 1000;
         me->SummonCreature(NPC_SINGULARITY, hole, TEMPSUMMON_TIMED_DESPAWN, lasts);
@@ -1761,7 +1743,6 @@ private:
     // Étoile effondrée: a star to share, three players or more in its circle, or it bursts on everyone
     void CollapsingStar()
     {
-        Talk(EMOTE_COLLAPSING_STAR);
         Position const where = ArenaSpot(12.0f, 22.0f);
         me->SummonCreature(NPC_COLLAPSING_STAR, where, TEMPSUMMON_TIMED_DESPAWN, StarSoakMs + 500);
         GroundIndicators::ShowSoak(me, where, StarRadius, StarSoakMs, StarSoakersBots);
@@ -1823,7 +1804,6 @@ private:
     {
         _phase = Phase::Setup;
         Talk(SAY_SETUP);
-        Talk(EMOTE_EDGE);
         Resume();
         uint32 const lasts = AtHardEnrage - Elapsed() + 2000;
         _edgeArea = GroundIndicators::ShowRing(me, ArenaCenter, EdgeOuterRadius, EdgeInnerRadius, lasts,
@@ -1874,7 +1854,6 @@ private:
     // Supernova: everything around the god but three lanes, marked in gold
     void Supernova()
     {
-        Talk(EMOTE_SUPERNOVA);
         Position const center = Ground(me->GetPosition());
         float const base = frand(0.0f, 2.0f * float(M_PI));
         std::vector<GroundIndicators::Area> areas;
@@ -1920,7 +1899,6 @@ private:
     // Jugement divin: two players carry a circle; whoever else is in one when it lands takes it
     void Judgement()
     {
-        Talk(EMOTE_JUDGEMENT);
         Unit* tank = me->GetVictim();
         std::vector<Player*> players = ArenaPlayers();
         std::erase_if(players, [tank](Player* player) { return player == tank; });
@@ -1949,7 +1927,6 @@ private:
     // a little.
     void StarRays()
     {
-        Talk(EMOTE_STAR_RAYS);
         std::vector<Player*> players = ArenaPlayers();
         Acore::Containers::RandomResize(players, StarRaysCarriers + (TierAbove() >= 3) + (TierAbove() >= 6));
         for (Player* carrier : players)

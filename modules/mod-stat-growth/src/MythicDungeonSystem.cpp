@@ -26,6 +26,7 @@
 #include "SpellInfo.h"
 #include "TemporarySummon.h"
 #include "Timer.h"
+#include "WorldPacket.h"
 #include "WorldSession.h"
 #include <algorithm>
 #include <array>
@@ -453,8 +454,20 @@ void TouchByInfiniteGod(Item* item)
         item->SetEnchantment(EnchantmentSlot(PROP_ENCHANTMENT_SLOT_0 + line), first + line, 0, 0);
 }
 
+// A generated item's record, sent before the item itself: the client only asks for it once it sees the item, and an
+// answer it misses leaves the item nameless ("Retrieving item information") for the whole session
+void SendGeneratedItemRecord(Player* player, uint32 entry)
+{
+    if (!Mythic::IsGeneratedItem(entry) || !player->GetSession())
+        return;
+    WorldPacket query(CMSG_ITEM_QUERY_SINGLE, 4);
+    query << entry;
+    player->GetSession()->HandleItemQuerySingleOpcode(query);
+}
+
 void MailMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch = {})
 {
+    SendGeneratedItemRecord(player, itemTemplate->ItemId);
     CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
     MailDraft draft("Mythic loot", "Your bags were full: here is the item a mythic boss gave you.");
     Item* item = Item::CreateItem(itemTemplate->ItemId, 1, player);
@@ -507,6 +520,7 @@ void GiveMythicItem(Player* player, uint32 itemLevel, std::function<void(Item*)>
         return;
     }
 
+    SendGeneratedItemRecord(player, itemTemplate->ItemId);
     if (Item* item = player->StoreNewItem(destination, itemTemplate->ItemId, true,
             Item::GenerateItemRandomPropertyId(itemTemplate->ItemId)))
     {

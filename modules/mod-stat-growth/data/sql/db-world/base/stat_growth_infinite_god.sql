@@ -120,70 +120,35 @@ INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `Ver
     (930003, 'frFR', 'Singularité', NULL, NULL);
 
 
--- Type 14: yell, 41: boss emote (the middle of the screen; %s is the god's name). TextRange 3: the whole map.
+-- Type 14: yell, its lines only (no boss emote announcing a mechanic). TextRange 3: the whole map.
 INSERT INTO `creature_text`
     (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`,
      `BroadcastTextId`, `TextRange`, `comment`)
 VALUES
     (930000, 0, 0, 'This is what you face.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - aggro'),
-    (930000, 1, 0, '%s gathers the stars into itself... Stand at its feet!', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - Big Bang warning'),
     (930000, 2, 0, 'Everything begins... and everything ends.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - Big Bang'),
     (930000, 3, 0, 'Mortals... still standing? Interesting.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - intermission 1'),
-    (930000, 4, 0, '%s is exposed! Strike now, and stop the Fragments of Eternity!', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - exposed'),
     (930000, 5, 0, 'Then let the real fight begin.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - intermission 1 end'),
-    (930000, 6, 0, 'A star collapses! Share it: three of you or more.', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - collapsing star'),
-    (930000, 7, 0, 'A singularity opens! Break free of its pull.', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - singularity'),
     (930000, 8, 0, 'The heavens tear apart.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - intermission 2'),
     (930000, 9, 0, 'The void devours the edge of the world.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - setup'),
-    (930000, 10, 0, 'The edge of the Planetarium turns deadly!', 41, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - edge'),
     (930000, 11, 0, 'Behold infinity.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - reveal'),
-    (930000, 12, 0, '%s calls a Supernova! Find the golden lanes.', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - supernova'),
-    (930000, 13, 0, 'Divine Judgement! Those marked, keep away from the others.', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - divine judgement'),
     (930000, 14, 0, 'The End of Times.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - final'),
     (930000, 15, 0, 'All returns to the void.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - hard enrage'),
     (930000, 16, 0, 'Stardust.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - kill'),
-    (930000, 17, 0, 'So infinity... has an end.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - death'),
-    (930000, 18, 0, 'A Fragment of Eternity merges with %s!', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - fragment merges'),
-    (930000, 19, 0, 'Stellar rays burst from the marked! Hold still, and keep them off the others.', 41, 0, 100, 0,
-     0, 0, 0, 3, 'L''Infini - stellar rays'),
-    (930000, 20, 0, 'A dying star is falling on the marked one! Run far from the others.', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - fallen star'),
-    (930000, 21, 0, '%s gathers an orb of light above itself...', 41, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - orb lasers'),
-    (930000, 22, 0, '%s turns its gaze upon the whole Planetarium!', 41, 0, 100, 0, 0, 0, 0, 3,
-     'L''Infini - spinning laser');
+    (930000, 17, 0, 'So infinity... has an end.', 14, 0, 100, 0, 0, 0, 0, 3, 'L''Infini - death');
 
 INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Text`) VALUES
     (930000, 0, 0, 'frFR', 'Voici ce que vous affrontez.'),
-    (930000, 1, 0, 'frFR', '%s rassemble les étoiles en lui... Rapprochez-vous de ses pieds !'),
     (930000, 2, 0, 'frFR', 'Tout commence... et tout finit.'),
     (930000, 3, 0, 'frFR', 'Des mortels... encore debout ? Intéressant.'),
-    (930000, 4, 0, 'frFR', '%s est exposé ! Frappez maintenant, et arrêtez les Fragments d''éternité !'),
     (930000, 5, 0, 'frFR', 'Alors que le vrai combat commence.'),
-    (930000, 6, 0, 'frFR', 'Une étoile s''effondre ! Partagez-la : à trois ou plus.'),
-    (930000, 7, 0, 'frFR', 'Une singularité s''ouvre ! Échappez à son attraction.'),
     (930000, 8, 0, 'frFR', 'Les cieux se déchirent.'),
     (930000, 9, 0, 'frFR', 'Le néant dévore les bords du monde.'),
-    (930000, 10, 0, 'frFR', 'Le bord du Planétarium devient mortel !'),
     (930000, 11, 0, 'frFR', 'Contemplez l''infini.'),
-    (930000, 12, 0, 'frFR', '%s déclenche une Supernova ! Rejoignez les couloirs dorés.'),
-    (930000, 13, 0, 'frFR', 'Jugement divin ! Les marqués, écartez-vous des autres.'),
     (930000, 14, 0, 'frFR', 'La Fin des Temps.'),
     (930000, 15, 0, 'frFR', 'Tout retourne au néant.'),
     (930000, 16, 0, 'frFR', 'Poussière d''étoiles.'),
-    (930000, 17, 0, 'frFR', 'L''infini... a donc... une fin.'),
-    (930000, 18, 0, 'frFR', 'Un Fragment d''éternité fusionne avec %s !'),
-    (930000, 19, 0, 'frFR',
-     'Des rayons stellaires jaillissent des marqués ! Ne bougez plus, et détournez-les des autres.'),
-    (930000, 20, 0, 'frFR', 'Une étoile mourante s''abat sur le marqué ! Éloignez-vous des autres.'),
-    (930000, 21, 0, 'frFR', '%s rassemble une sphère de lumière au-dessus de lui...'),
-    (930000, 22, 0, 'frFR', '%s pose son regard sur tout le Planétarium !');
+    (930000, 17, 0, 'frFR', 'L''infini... a donc... une fin.');
 
 -- In the middle of the Planetarium, facing the way in (Algalon's own spot, boss_algalon_the_observer.cpp), in the
 -- 10-player Ulduar only (spawn mask 1)
