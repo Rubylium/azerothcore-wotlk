@@ -2155,6 +2155,10 @@ local function OnEvent(event, boss, value, name, tier)
     if event == EVENT_ARRIVED then
         PlaySoundFile(SOUND .. "ChallengeStart.ogg")
         ShowBanner(name, format(TEXT.fight, name), dungeon)
+        -- The god is introduced as the group arrives, before the pull's countdown (Cinematics.lua)
+        if boss == GOD_BOSS and Cinematics then
+            Cinematics.Play("LInfini")
+        end
     elseif event == EVENT_KILLED then
         PlaySoundFile(SOUND .. "NewRecord.ogg")
         ShowBanner(name, format(TEXT.killed, name), dungeon)

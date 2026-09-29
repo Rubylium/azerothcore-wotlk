@@ -41,7 +41,9 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // The talent tree window: its generated trees and art first (it needs CustomClasses and RetailUI too)
     'TalentTreeData.lua', 'TalentTreeArt.lua', 'TalentTree.lua',
     // ParagonBoard.lua is the generated node table and must load before the frame that draws it
-    'ParagonBoard.lua', 'Paragon.lua', 'Prestige.lua', 'ChallengeBoard.lua',
+    'ParagonBoard.lua', 'Paragon.lua', 'Prestige.lua',
+    // Camera flights with a title card (the client extension's CameraPath); the board plays L'Infini's
+    'Cinematics.lua', 'ChallengeBoard.lua',
     // The Forge's window (mod-forge)
     'ItemForge.lua',
     // The Infinite Dungeon's panel, banner and map pins (mod-stat-growth); needs DungeonTracker.lua
