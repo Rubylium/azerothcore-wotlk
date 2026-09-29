@@ -101,6 +101,7 @@ local TEXT = french and {
     pulling = "Le tank engage le combat dans %d",
     wiped = "Le groupe est tombé. Tentatives restantes : %d",
     won = "Défi réussi ! Votre récompense vous attend au tableau.",
+    deadInChallenge = "Défi en cours : vous serez relevé à la fin du combat.",
     tabRaids = "Raids",
     tabDungeons = "Donjons",
     headingDungeons = "Donjons",
@@ -227,6 +228,7 @@ local TEXT = french and {
     pulling = "The tank pulls in %d",
     wiped = "The group fell. Attempts left: %d",
     won = "Challenge won! Your reward waits at the board.",
+    deadInChallenge = "Challenge under way: you will be raised when the fight ends.",
     tabRaids = "Raids",
     tabDungeons = "Dungeons",
     headingDungeons = "Dungeons",
@@ -2337,6 +2339,27 @@ local function Handle(message)
         ShowError(a)
     end
 end
+
+-- In a challenge the dead wait, no release: a wipe raises the group at the landing spot, the challenge's end brings
+-- everyone home (RaidFinder.cpp). The death window is closed as it opens, and they are told why.
+local function InChallenge()
+    return state.challenge ~= 0
+end
+
+hooksecurefunc("StaticPopup_Show", function(which)
+    if which == "DEATH" and InChallenge() then
+        StaticPopup_Hide("DEATH")
+    end
+end)
+
+local deathWatch = CreateFrame("Frame")
+deathWatch:RegisterEvent("PLAYER_DEAD")
+deathWatch:SetScript("OnEvent", function()
+    if InChallenge() then
+        StaticPopup_Hide("DEATH")
+        UIErrorsFrame:AddMessage(TEXT.deadInChallenge, 1, 0.86, 0.55, 1)
+    end
+end)
 
 local listener = CreateFrame("Frame")
 listener:RegisterEvent("CHAT_MSG_ADDON")

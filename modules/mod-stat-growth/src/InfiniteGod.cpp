@@ -157,6 +157,7 @@ constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;             // at Défi I; FragmentCountHigh from Défi II
 constexpr uint32 FragmentCountHigh = 4;
+constexpr Milliseconds WipeLinger = 8s;         // a wipe: the god stands this long, the music on, before it goes
 constexpr Seconds WipeRespawnDelay = 5s;       // a wipe despawns the god; it is back this long after
 constexpr float FragmentReach = 1.5f;           // a fragment this close to the god's middle merges with it
 constexpr float FragmentSpawnDistance = 34.0f;
@@ -494,14 +495,24 @@ struct boss_infinite_god : public ScriptedAI
 
     void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
     {
+        if (_lingering)
+            return;
         bool const wiped = _phase != Phase::None && _phase != Phase::Over;
         ResetFight();
-        // The track fades out for those who heard it, wherever they are in the instance
         if (wiped)
         {
-            EndTrack(MUSIC_SILENCE);
-            // Gone at once, back at its spot a few seconds later: nothing to walk back to or reset in front of them
-            me->DespawnOnEvade(WipeRespawnDelay);
+            // The end is seen: the god stands WipeLinger, the music playing on (the hard enrage's silence, the track's
+            // last bars), then the track fades out for those who heard it and it goes, back at its spot a few seconds
+            // later - nothing to walk back to or reset in front of them
+            _lingering = true;
+            me->CombatStop(true);
+            me->AttackStop();
+            me->SetReactState(REACT_PASSIVE);
+            me->m_Events.AddEventAtOffset([this]()
+            {
+                EndTrack(MUSIC_SILENCE);
+                me->DespawnOnEvade(WipeRespawnDelay);
+            }, WipeLinger);
             return;
         }
         ScriptedAI::EnterEvadeMode(why);
@@ -623,10 +634,11 @@ struct boss_infinite_god : public ScriptedAI
 
     // --- Music, and the game master's commands -----------------------------------------------------------------
     // What ends the track, to each player it was sent to and still in the instance
+    // Wherever they are now: a wipe's players may be home already, the track still playing for them
     void EndTrack(uint32 soundId)
     {
         for (ObjectGuid const& guid : _fightListeners)
-            if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+            if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
                 SendMusic(player, soundId);
         _fightListeners.clear();
     }
@@ -988,15 +1000,42 @@ private:
         }
     }
 
-    // Double fauchage cosmique: a cone at each of the two highest on its threat, at once, each turning with its tank
+    // The two its tank busters go to: the group's tanks (MythicDungeonSystem IsGroupTank: the tank role, else a tank
+    // stance) standing in the Planetarium, the most threat first; while fewer than two stand, the highest on its threat
+    // make up the pair.
+    std::vector<Unit*> BusterTargets()
+    {
+        std::vector<Unit*> tanks;
+        for (Player* player : ArenaPlayers())
+            if (IsGroupTank(player))
+                tanks.push_back(player);
+        std::sort(tanks.begin(), tanks.end(), [this](Unit* a, Unit* b)
+        {
+            return me->GetThreatMgr().GetThreat(a) > me->GetThreatMgr().GetThreat(b);
+        });
+        if (tanks.size() > 2)
+            tanks.resize(2);
+        for (uint32 position = 0; tanks.size() < 2 && position < 10; ++position)
+        {
+            Unit* next = SelectTarget(SelectTargetMethod::MaxThreat, position, 0.0f, true);
+            if (!next)
+                break;
+            if (std::find(tanks.begin(), tanks.end(), next) == tanks.end())
+                tanks.push_back(next);
+        }
+        return tanks;
+    }
+
+    // Double fauchage cosmique: a cone at each of the two tanks (BusterTargets), at once, each turning with its tank
     // until it lands. It lands on the one it is aimed at wherever that one stands; anyone else in a cone takes far
     // more - the two tanks stacked take each other's and die (tanks: stand apart, cones away from the group).
     void DoubleCleave()
     {
-        Unit* first = SelectTarget(SelectTargetMethod::MaxThreat, 0, 0.0f, true);
+        std::vector<Unit*> const targets = BusterTargets();
+        Unit* first = targets.empty() ? nullptr : targets[0];
         if (!first || _lifted)
             return;
-        Unit* second = SelectTarget(SelectTargetMethod::MaxThreat, 1, 0.0f, true);
+        Unit* second = targets.size() > 1 ? targets[1] : nullptr;
 
         BeginWindup(me->GetAngle(first));
         me->HandleEmoteCommand(EMOTE_ONESHOT_SPELL_CAST_OMNI);
@@ -1031,13 +1070,12 @@ private:
         });
     }
 
-    // Frappes jumelles: a buster on each of the two highest on its threat, nothing to dodge
+    // Frappes jumelles: a buster on each of the two tanks (BusterTargets), nothing to dodge
     void TwinStrikes()
     {
         std::vector<ObjectGuid> targets;
-        for (uint32 position = 0; position < 2; ++position)
-            if (Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, position, 0.0f, true))
-                targets.push_back(target->GetGUID());
+        for (Unit* target : BusterTargets())
+            targets.push_back(target->GetGUID());
         if (targets.empty())
             return;
 
@@ -1578,6 +1616,7 @@ private:
     uint32 _pullMs = 0;
     Phase _phase = Phase::None;
     bool _windup = false;
+    bool _lingering = false;                    // a wipe's WipeLinger: standing, before it goes
     bool _lifted = false;
     bool _exposed = false;
     bool _edge = false;
