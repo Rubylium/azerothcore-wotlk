@@ -491,7 +491,6 @@ struct boss_infinite_god : public ScriptedAI
         _nextEdgeMs = 0;
         Talk(SAY_AGGRO);
         _fightListeners.clear();
-        _arenaListeners.clear();
         for (Player* player : Listeners())
         {
             SendMusic(player, MUSIC_FIGHT);
@@ -659,10 +658,12 @@ private:
             return;
         }
 
-        // The arena's music, once, for whoever arrives in the Planetarium (again if they leave and come back); none
-        // after the kill, whose track plays on
+        // The arena's music, once, for whoever arrives in the Planetarium (again if they leave and come back); never
+        // while a fight runs - this runs whenever the god has no victim, which a fight has for moments (the board's
+        // hold right after the pull), and the arena's music then replaced the track a few seconds in - nor after the
+        // kill (JustDied sends it)
         _arenaMusicTimer += 1000;
-        if (!me->IsAlive() || _arenaMusicTimer < ArenaMusicCheckMs)
+        if (!me->IsAlive() || _phase != Phase::None || _arenaMusicTimer < ArenaMusicCheckMs)
             return;
         _arenaMusicTimer = 0;
         std::set<ObjectGuid> present;
