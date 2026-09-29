@@ -36,6 +36,8 @@ local GOD_ART = "Interface\\ChallengeBoard\\"
 local GOD_FIGURE_BOTTOM = 0.6367
 -- Its gear: the server sends Défi I's item level as the mission's, each tier adds this (ChallengeBoard.cpp)
 local GOD_ITEM_LEVEL_PER_TIER = 12
+-- One attempt at every tier (ChallengeTiers.h BossProfiles): a wipe sends everyone home
+local GOD_ATTEMPTS = 1
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -1355,9 +1357,8 @@ local function CreateGodPage()
         kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
 
         tierText:SetText(TierName(tier))
-        local wipes = TierWipes(tier)
-        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier)), Decimal(TierDamage(tier)), wipes,
-            wipes > 1 and "s" or ""))
+        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier)), Decimal(TierDamage(tier)), GOD_ATTEMPTS,
+            GOD_ATTEMPTS > 1 and "s" or ""))
         dialGlow:SetAlpha(0.18 + 0.05 * tier)
         SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)
         SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
