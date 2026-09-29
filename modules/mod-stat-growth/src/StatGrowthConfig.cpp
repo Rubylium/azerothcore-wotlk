@@ -124,4 +124,5 @@ void StatGrowthConfig::BuildConfigCache()
         Reloadable::Yes, [](float value) { return value == 0.0f || value >= 1.0f; }, "0 (no limit), or 1 and more");
     SetConfigValue<std::string>(StatGrowthConfigKey::BotCatchUpExcludedClasses, "BotCatchUp.ExcludedClasses",
         "2,3,4,5,6,8,10");
+    SetConfigValue<bool>(StatGrowthConfigKey::MythicAppearanceEnabled, "MythicAppearance.Enabled", true);
 }

@@ -13,6 +13,7 @@
 #include "GladiatorStanceSystem.h"
 #include "GroundIndicators.h"
 #include "InfiniteDungeonSystem.h"
+#include "MythicAppearance.h"
 #include "MythicDungeonSystem.h"
 #include "MythicItemGeneration.h"
 #include "PersonalLootSystem.h"
@@ -733,6 +734,7 @@ void AddStatGrowthScripts()
     AddMythicDeadminesScripts();
     AddMythicScarletCathedralScripts();
     AddMythicItemGenerationScripts();
+    AddMythicAppearanceScripts();
     AddSmartLootScripts();
     AddInfiniteDungeonScripts();
     new StatGrowthWorldScript();

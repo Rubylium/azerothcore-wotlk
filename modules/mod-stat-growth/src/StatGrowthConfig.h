@@ -63,6 +63,7 @@ enum class StatGrowthConfigKey : uint8
     BotCatchUpTargetShare,
     BotCatchUpMaxMultiplier,
     BotCatchUpExcludedClasses,
+    MythicAppearanceEnabled,
     Count
 };
 
