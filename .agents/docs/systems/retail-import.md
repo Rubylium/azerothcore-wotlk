@@ -64,3 +64,27 @@ Conversion losses: particle emitters are dropped (a flame, a mist), retail shade
 - A new look is invisible to the gear-looks system (`localTools/mythicAppearance/buildMythicAppearance.py`,
   `mythic_appearance_tier`) until a carrier item exists. Weapons go in `WEAPONS`; armour needs a per-slot override
   (tiers are picked by item set).
+
+## Open work (to look into later)
+
+Asked by the user on 2026-09-29 ("keep the limits in touch, we need to look into that later"):
+
+1. **More free item ids**:
+   - Today a carrier item must be an existing client Item.dbc row with no template: about 500 left.
+   - The patch script already appends DBC rows (`Add-DbcRecordCopy` in `patchSinisterStrike.ps1`). Doing it for
+     Item.dbc opens every unused id below 65536: 8 729 above the highest stock item (56806) plus the gaps, about
+     19 900 in all, with no DLL change.
+   - Then teach `freeItemIds.py` to list them.
+   - Only if that ever runs out: move the Mythic+ generated range (`Mythic::GeneratedItemBase`, the client DLL's
+     GeneratedItems) far higher, which needs a migration of every generated item instance.
+2. **Particles**:
+   - Legion+ emitters are dropped (the T21 shoulders lose their flame).
+   - Port the particle layout to 3.3.5's M2Particle, or rebuild each emitter from a stock one.
+3. **Helmets**: generate the per-race/gender models (`<name>_<Race><Gender>.m2`) and the ItemDisplayInfo rows.
+4. **Body armour**:
+   - Repack retail ItemDisplayInfoMaterialRes textures (HD layout) into 3.3.5's texture regions (ArmUpper,
+     TorsoUpper, LegUpper, …).
+   - Needs a per-region resample and probably manual review per set.
+5. **Newer models**: Dragonflight/The War Within M2s are outside MultiConverter's range. Our own converter would also
+   remove the dependency on an unlicensed, unmaintained library.
+6. **Gear-looks wiring**: feed imported weapons and shoulders into `mythic_appearance_tier` for the high tiers.
