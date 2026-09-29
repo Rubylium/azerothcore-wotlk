@@ -6,6 +6,8 @@
 -- health and damage, fewer attempts, and a bigger reward. Winning at the highest tier open opens the next.
 -- The Donjons tab posts dungeons of the Mythic+ pool: one taken up here runs as a key at the player's level, and once
 -- it is done a reward waits here, on top of the key's own.
+-- The L'Infini tab is the board's god alone (mod-stat-growth InfiniteGod.cpp), the highest raid fight there is: on
+-- every level-80 board, with a tier ladder of its own (only a win against it opens its next tier).
 
 local PREFIX = "Challenge"
 local SOUND = "Sound\\Interface\\MythicPlus\\"
@@ -27,6 +29,11 @@ local EVENT_PULLING = 7
 local EVENT_DUNGEON_WON = 20
 local KIND_DUNGEON = 2
 local KEYSTONE_ICON = "Interface\\Icons\\INV_Relics_Hourglass"
+-- The board's god: L'Infini, its recoloured display (CreatureDisplayInfo, localTools/infiniteBoss), the gear it is
+-- tuned on (ChallengeTiers::BossProfiles) and the Panthéon's sky it stands on (Paragon.lua)
+local GOD_BOSS = 930000
+local GOD_DISPLAY = 60001
+local GOD_SKY = "Interface\\Paragon\\Paragon-Sky"
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -122,6 +129,29 @@ local TEXT = french and {
     keyParagonNone = "Jusqu'à +10, aucun parangon requis : la clé se joue à l'équipement.",
     satchelChance = "Butin du boss : %d%% de chances.",
     satchelSure = "Un butin du boss assuré, un second à %d%%.",
+    tabGod = "L'Infini",
+    headingGod = "Le défi ultime",
+    introGod = "Le sommet du raid : le dieu du Planétarium céleste, à dix. Cinq minutes réglées sur sa musique, "
+        .. "et aucune erreur pardonnée.",
+    godEpithet = "Dieu du Planétarium céleste",
+    godFight = "Le combat",
+    godTimeline = {
+        { "0:00", "Phase 1 · double fauchage, pluie d'étoiles, Big Bang" },
+        { "0:47", "Intermission · les fragments d'éternité marchent vers lui" },
+        { "1:12", "Phase 2 · singularité, étoile effondrée à partager" },
+        { "1:55", "Le ciel se déchire · constellations, pluie de météores" },
+        { "2:35", "Phase 3 · sa vraie forme : supernova, jugement divin" },
+        { "4:55", "La Fin des Temps · à 5:05, le silence" },
+    },
+    godRequired = "Requis",
+    godItemLevel = "Niveau d'objet %d+",
+    godParagon = "Parangon conseillé %d · vous %d",
+    godFace = "Affronter L'Infini",
+    godOnce = "Une victoire par tableau : il revient avec les nouvelles missions.",
+    godLocked = "L'Infini attend les aventuriers de niveau 80.",
+    godTierTitle = "Paliers de L'Infini",
+    godTierHelp = "Ses paliers s'ouvrent à part des missions : seule une victoire contre lui ouvre le suivant.",
+    godTierNext = "Vainquez L'Infini en Défi %s pour ouvrir le palier suivant.",
     failed = {
         [1] = "Défi échoué : trop de tentatives.",
         [2] = "Défi échoué : le temps est écoulé.",
@@ -216,6 +246,29 @@ local TEXT = french and {
     keyParagonNone = "Up to +10 no paragon is needed: the key is a matter of gear.",
     satchelChance = "Boss drop: %d%% chance.",
     satchelSure = "One boss drop for sure, a second at %d%%.",
+    tabGod = "L'Infini",
+    headingGod = "The Ultimate Challenge",
+    introGod = "The summit of raiding: the god of the Celestial Planetarium, ten players. Five minutes set to its "
+        .. "music, and no mistake forgiven.",
+    godEpithet = "God of the Celestial Planetarium",
+    godFight = "The fight",
+    godTimeline = {
+        { "0:00", "Phase 1 · twin cleaves, starfall, Big Bang" },
+        { "0:47", "Intermission · the fragments of eternity walk to it" },
+        { "1:12", "Phase 2 · singularity, a collapsing star to share" },
+        { "1:55", "The sky tears · constellations, meteor showers" },
+        { "2:35", "Phase 3 · its true form: supernova, divine judgement" },
+        { "4:55", "The End of Time · at 5:05, silence" },
+    },
+    godRequired = "Requires",
+    godItemLevel = "Item level %d+",
+    godParagon = "Recommended paragon %d · yours %d",
+    godFace = "Face L'Infini",
+    godOnce = "One win per board: it returns with the new missions.",
+    godLocked = "L'Infini awaits adventurers of level 80.",
+    godTierTitle = "L'Infini's tiers",
+    godTierHelp = "Its tiers open apart from the missions': only a win against it opens the next.",
+    godTierNext = "Defeat L'Infini at tier %s to open the next one.",
     failed = {
         [1] = "Challenge failed: too many attempts.",
         [2] = "Challenge failed: time ran out.",
@@ -251,15 +304,17 @@ local state = {
     shownRotation = nil,
     openTier = TIER_MIN,        -- the highest tier open to the player in their bracket
     tier = nil,                 -- the tier picked on the dial (the highest open until they pick another)
+    godOpenTier = TIER_MIN,     -- the same two for the god, on its own ladder
+    godTier = nil,
     currentTier = 0,            -- the tier of the challenge they are in
-    page = "raids",             -- the tab shown: "raids" or "dungeons"
+    page = "raids",             -- the tab shown: "raids", "dungeons" or "god"
     key = 2,                    -- the player's Mythic+ key level
     contract = 0,               -- the dungeon challenge they took up (Dungeon Finder entry), 0 for none
     dungeons = {},
 }
 
 local frame, cards, rewardRows, emptyText, timerText, timerFill, errorText, quitButton, roleButtons
-local dial, keyStrip, dungeonCards, tabs
+local dial, keyStrip, dungeonCards, tabs, godPage
 local banner
 local incoming = { missions = {}, rewards = {}, dungeons = {} }
 
@@ -352,14 +407,34 @@ local function MissionReward(mission, tier)
         mission.essences + TierExtraEssences(tier)
 end
 
--- The tier a card shows: the one it was won at, the challenge's own while under way, or the dial's
+local function IsGod(mission)
+    return mission and mission.boss == GOD_BOSS
+end
+
+-- The god's tier dial: the tier picked, never above the highest open
+local function GodTier()
+    state.godTier = min(state.godTier or state.godOpenTier, state.godOpenTier)
+    return state.godTier
+end
+
+-- The tier a card shows: the one it was won at, the challenge's own while under way, or the dial's (the god's own)
 local function CardTier(mission)
     if mission.wonAt and mission.wonAt > 0 then
         return mission.wonAt
     elseif mission.state == STATE_UNDERWAY and state.currentTier > 0 then
         return state.currentTier
+    elseif IsGod(mission) then
+        return GodTier()
     end
     return state.tier or state.openTier
+end
+
+local function GodMission()
+    for _, mission in ipairs(state.missions) do
+        if IsGod(mission) then
+            return mission
+        end
+    end
 end
 
 -- Tweens: every animation of the board and the banner, driven by one clock ---------------------------------------
@@ -803,6 +878,16 @@ end
 
 -- Cards drop in one after the other: each falls a little and fades in
 local function AnimateCardsIn()
+    if state.page == "god" then
+        if godPage:IsShown() then
+            godPage:SetAlpha(0)
+            Tween(0.45, 0, function(p)
+                godPage:SetAlpha(p)
+                godPage:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -108 - 18 * (1 - OutCubic(p)))
+            end)
+        end
+        return
+    end
     for index, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission then
             card:SetAlpha(0)
@@ -821,11 +906,19 @@ local function Refresh(animate)
     end
 
     local dungeonsPage = state.page == "dungeons"
-    local shown = min(#state.missions, #cards)
+    local godShown = state.page == "god"
+    -- The god has its page: the raid cards are the drawn missions
+    local raidMissions = {}
+    for _, mission in ipairs(state.missions) do
+        if not IsGod(mission) then
+            tinsert(raidMissions, mission)
+        end
+    end
+    local shown = min(#raidMissions, #cards)
     LayoutCards(max(shown, 1), cards)
     for index, card in ipairs(cards) do
-        local mission = state.missions[index]
-        if mission and not dungeonsPage then
+        local mission = raidMissions[index]
+        if mission and state.page == "raids" then
             FillCard(card, mission)
             card:Show()
         else
@@ -846,13 +939,23 @@ local function Refresh(animate)
         end
     end
 
-    SetShown(dial, not dungeonsPage and state.bracket ~= 0)
+    SetShown(dial, state.page == "raids" and state.bracket ~= 0)
     SetShown(keyStrip, dungeonsPage and shownDungeons > 0)
     if keyStrip:IsShown() then
         keyStrip.Refresh()
     end
+    local god = GodMission()
+    SetShown(godPage, godShown and god ~= nil)
+    if godPage:IsShown() then
+        godPage.Refresh(god)
+    end
 
-    if dungeonsPage and shownDungeons == 0 then
+    if godShown and not god then
+        emptyText:SetText(state.bracket < 80 and TEXT.godLocked or TEXT.empty)
+        emptyText:Show()
+    elseif godShown then
+        emptyText:Hide()
+    elseif dungeonsPage and shownDungeons == 0 then
         emptyText:SetText(state.bracket < 80 and TEXT.dungeonsLocked or TEXT.empty)
         emptyText:Show()
     elseif not dungeonsPage and state.bracket == 0 then
@@ -896,6 +999,394 @@ local function Refresh(animate)
 
     if animate then
         AnimateCardsIn()
+    end
+end
+
+-- L'Infini's page: the god turning slowly on the Panthéon's sky, framed as a card; beside it its own tier dial, the
+-- fight at a glance on the music's clock, what it asks and what it pays ---------------------------------------------
+
+local GOD_PORTRAIT_WIDTH = 300
+
+local function CreateGodPage()
+    godPage = CreateFrame("Frame", nil, frame)
+    godPage:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -108)
+    godPage:SetSize(WIDTH - 48, HEIGHT - 108 - 110)
+    godPage:Hide()
+
+    local portrait = CreateFrame("Frame", nil, godPage)
+    portrait:SetPoint("TOPLEFT")
+    portrait:SetPoint("BOTTOMLEFT")
+    portrait:SetWidth(GOD_PORTRAIT_WIDTH)
+    portrait:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    portrait:SetBackdropColor(0.02, 0.02, 0.05, 0.95)
+    portrait:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
+    godPage.portrait = portrait
+
+    -- A reward waiting: the same warm glow as a card's, behind the portrait
+    local glow = godPage:CreateTexture(nil, "BACKGROUND")
+    SetAtlas(glow, "ChallengeMode-SoftYellowGlow")
+    glow:SetBlendMode("ADD")
+    glow:SetPoint("TOPLEFT", portrait, "TOPLEFT", -34, 34)
+    glow:SetPoint("BOTTOMRIGHT", portrait, "BOTTOMRIGHT", 34, -34)
+    glow:Hide()
+    godPage.glow = glow
+
+    -- The sky's left side: stars and nebulae, away from the Panthéon's clear middle
+    local sky = portrait:CreateTexture(nil, "BORDER")
+    sky:SetTexture(GOD_SKY)
+    sky:SetTexCoord(0.02, 0.32, 0.08, 0.92)
+    sky:SetPoint("TOPLEFT", 5, -5)
+    sky:SetPoint("BOTTOMRIGHT", -5, 5)
+    godPage.sky = sky
+
+    local model = CreateFrame("PlayerModel", nil, portrait)
+    model:SetPoint("TOPLEFT", 6, -26)
+    model:SetPoint("BOTTOMRIGHT", -6, 70)
+    local sway = 0
+    model:SetScript("OnShow", function(self)
+        self:SetDisplayInfo(GOD_DISPLAY)
+        self:SetFacing(0)
+    end)
+    -- It sways a little, facing the viewer, never turning its back
+    model:SetScript("OnUpdate", function(self, elapsed)
+        sway = sway + elapsed
+        self:SetFacing(0.35 * math.sin(sway * 0.45))
+    end)
+    godPage.model = model
+
+    local shade = portrait:CreateTexture(nil, "ARTWORK", nil, 1)
+    shade:SetTexture("Interface\\Buttons\\WHITE8X8")
+    shade:SetPoint("BOTTOMLEFT", 5, 5)
+    shade:SetPoint("BOTTOMRIGHT", -5, 5)
+    shade:SetHeight(110)
+    shade:SetGradientAlpha("VERTICAL", 0.02, 0.02, 0.05, 1, 0.02, 0.02, 0.05, 0)
+
+    local overlay = CreateFrame("Frame", nil, portrait)
+    overlay:SetAllPoints()
+    overlay:SetFrameLevel(model:GetFrameLevel() + 2)
+
+    local kind = overlay:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    kind:SetPoint("TOPLEFT", portrait, "TOPLEFT", 12, -11)
+    kind:SetTextColor(1, 0.82, 0.3)
+    kind:SetShadowOffset(1, -1)
+    godPage.kind = kind
+
+    local name = overlay:CreateFontString(nil, "OVERLAY")
+    name:SetFont(MORPHEUS, 32)
+    name:SetShadowOffset(1, -1)
+    name:SetTextColor(1, 0.9, 0.7)
+    name:SetPoint("BOTTOM", portrait, "BOTTOM", 0, 42)
+    godPage.name = name
+
+    local epithet = overlay:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    epithet:SetPoint("TOP", name, "BOTTOM", 0, -2)
+    epithet:SetTextColor(1, 0.82, 0.3)
+    epithet:SetText(TEXT.godEpithet)
+
+    local place = overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    place:SetPoint("TOP", epithet, "BOTTOM", 0, -2)
+    place:SetTextColor(0.75, 0.7, 0.6)
+    godPage.place = place
+
+    local check = overlay:CreateTexture(nil, "OVERLAY", nil, 3)
+    SetAtlas(check, "ui-questtracker-tracker-check-2x")
+    check:SetSize(64, 64)
+    check:SetPoint("CENTER", portrait, "CENTER", 0, 30)
+    check:Hide()
+    godPage.check = check
+
+    local stamp = overlay:CreateFontString(nil, "OVERLAY")
+    stamp:SetFont(MORPHEUS, 26, "OUTLINE")
+    stamp:SetTextColor(1, 0.82, 0.2)
+    stamp:SetPoint("CENTER", portrait, "CENTER", 0, 30)
+    stamp:SetAlpha(0)
+    godPage.stamp = stamp
+
+    -- Beside it: the dial, the fight, what it asks, what it pays
+    local side = CreateFrame("Frame", nil, godPage)
+    side:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 20, 0)
+    side:SetPoint("BOTTOMRIGHT", godPage, "BOTTOMRIGHT", -4, 0)
+
+    local dialGlow = side:CreateTexture(nil, "BACKGROUND")
+    SetAtlas(dialGlow, "ChallengeMode-SoftYellowGlow")
+    dialGlow:SetBlendMode("ADD")
+    dialGlow:SetPoint("CENTER", side, "TOP", 0, -16)
+    dialGlow:SetSize(250, 64)
+
+    local tierText = side:CreateFontString(nil, "OVERLAY")
+    tierText:SetFont(MORPHEUS, 26)
+    tierText:SetShadowOffset(1, -1)
+    tierText:SetTextColor(1, 0.86, 0.55)
+    tierText:SetPoint("CENTER", side, "TOP", 0, -16)
+
+    local tierInfo = side:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    tierInfo:SetPoint("TOP", tierText, "BOTTOM", 0, -4)
+    tierInfo:SetTextColor(0.85, 0.8, 0.7)
+
+    local dialArea = CreateFrame("Frame", nil, side)
+    dialArea:SetPoint("TOPLEFT", side, "TOPLEFT", 60, 0)
+    dialArea:SetPoint("TOPRIGHT", side, "TOPRIGHT", -60, 0)
+    dialArea:SetHeight(52)
+    dialArea:EnableMouse(true)
+    dialArea:SetScript("OnEnter", function(self)
+        local tier = GodTier()
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine(TEXT.godTierTitle, 1, 0.82, 0.3)
+        GameTooltip:AddLine(TEXT.godTierHelp, 1, 0.9, 0.7, true)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(TierName(tier), 1, 0.86, 0.55)
+        GameTooltip:AddLine(format(TEXT.tierReward, TierGoldPercent(tier) - 100, TierExtraEssences(tier),
+            TierExtraParagon(tier)), 0.85, 0.8, 0.7, true)
+        GameTooltip:AddLine(" ")
+        if state.godOpenTier >= TIER_MAX then
+            GameTooltip:AddLine(TEXT.tierTop, 0.62, 0.57, 0.5, true)
+        else
+            GameTooltip:AddLine(format(TEXT.godTierNext, TIER_ROMAN[state.godOpenTier]), 0.62, 0.57, 0.5, true)
+        end
+        GameTooltip:Show()
+    end)
+    dialArea:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    local function Arrow(direction)
+        local button = CreateFrame("Button", nil, side)
+        button:SetSize(30, 30)
+        local page = direction < 0 and "Prev" or "Next"
+        button:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Up")
+        button:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Down")
+        button:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Disabled")
+        button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+        button:SetPoint("CENTER", side, "TOP", direction * 104, -16)
+        button:SetFrameLevel(dialArea:GetFrameLevel() + 2)
+        button:SetScript("OnClick", function()
+            local tier = GodTier() + direction
+            if tier < TIER_MIN or tier > state.godOpenTier then
+                return
+            end
+            state.godTier = tier
+            PlaySound("igMainMenuOptionCheckBoxOn")
+            Refresh(false)
+            Tween(0.3, 0, function(p)
+                tierText:SetFont(MORPHEUS, 26 + 8 * (1 - OutCubic(p)))
+                godPage.rewards:SetAlpha(0.3 + 0.7 * p)
+            end)
+        end)
+        return button
+    end
+    local previousTier = Arrow(-1)
+    local nextTier = Arrow(1)
+
+    local function Divider(y)
+        local divider = side:CreateTexture(nil, "ARTWORK")
+        SetAtlas(divider, "ChallengeMode-ThinDivider")
+        divider:SetHeight(10)
+        divider:SetPoint("TOPLEFT", side, "TOPLEFT", 0, y)
+        divider:SetPoint("TOPRIGHT", side, "TOPRIGHT", 0, y)
+    end
+    Divider(-58)
+
+    -- The fight on the music's clock
+    local fightLabel = side:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    fightLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 6, -72)
+    fightLabel:SetText(TEXT.godFight)
+    local previous = fightLabel
+    for _, step in ipairs(TEXT.godTimeline) do
+        local at = side:CreateFontString(nil, "OVERLAY")
+        at:SetFont(FRIZ, 11)
+        at:SetTextColor(1, 0.82, 0.3)
+        at:SetWidth(34)
+        at:SetJustifyH("LEFT")
+        at:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, previous == fightLabel and -6 or -5)
+        at:SetText(step[1])
+        local line = side:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        line:SetPoint("LEFT", at, "RIGHT", 6, 0)
+        line:SetPoint("RIGHT", side, "RIGHT", -6, 0)
+        line:SetJustifyH("LEFT")
+        line:SetTextColor(0.85, 0.8, 0.7)
+        line:SetText(step[2])
+        previous = at
+    end
+    Divider(-196)
+
+    -- What it asks
+    local requiredLabel = side:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    requiredLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 6, -210)
+    requiredLabel:SetText(TEXT.godRequired)
+    local itemLevel = side:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    itemLevel:SetPoint("TOPLEFT", requiredLabel, "BOTTOMLEFT", 0, -4)
+    itemLevel:SetTextColor(0.75, 0.45, 1)
+    local paragonNeed = side:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    paragonNeed:SetPoint("TOPLEFT", itemLevel, "BOTTOMLEFT", 0, -3)
+
+    -- What it pays, at the tier shown
+    local rewards = CreateFrame("Frame", nil, side)
+    rewards:SetPoint("TOPLEFT", side, "TOP", 10, -206)
+    rewards:SetPoint("TOPRIGHT", side, "TOPRIGHT", 0, -206)
+    rewards:SetHeight(64)
+    godPage.rewards = rewards
+    local rewardLabel = rewards:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rewardLabel:SetPoint("TOPLEFT", 0, -4)
+    rewardLabel:SetText(TEXT.rewards)
+    local gold = rewards:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    gold:SetPoint("TOPLEFT", rewardLabel, "BOTTOMLEFT", 0, -6)
+    local paragon = rewards:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    paragon:SetPoint("TOPLEFT", gold, "BOTTOMLEFT", 0, -3)
+    paragon:SetTextColor(0.64, 0.21, 0.93)
+    local essences = rewards:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    essences:SetPoint("LEFT", paragon, "RIGHT", 10, 0)
+    essences:SetTextColor(0.3, 1, 0.45)
+
+    local satchel = CreateFrame("Button", nil, rewards)
+    satchel:SetSize(34, 34)
+    satchel:SetPoint("TOPRIGHT", rewards, "TOPRIGHT", -14, -18)
+    local satchelIcon = satchel:CreateTexture(nil, "ARTWORK")
+    satchelIcon:SetAllPoints()
+    satchelIcon:SetTexture(SATCHEL_ICON)
+    local satchelBorder = satchel:CreateTexture(nil, "OVERLAY")
+    satchelBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    satchelBorder:SetBlendMode("ADD")
+    satchelBorder:SetVertexColor(0.64, 0.21, 0.93)
+    satchelBorder:SetPoint("TOPLEFT", -14, 14)
+    satchelBorder:SetPoint("BOTTOMRIGHT", 14, -14)
+    satchel:SetScript("OnEnter", CardTooltipSatchel)
+    satchel:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    local burst = rewards:CreateTexture(nil, "OVERLAY", nil, 4)
+    SetAtlas(burst, "ChallengeMode-SpikeyStar")
+    burst:SetBlendMode("ADD")
+    burst:SetPoint("CENTER", satchel, "CENTER")
+    burst:SetAlpha(0)
+    local popIcon = rewards:CreateTexture(nil, "OVERLAY", nil, 5)
+    popIcon:SetTexture(SATCHEL_ICON)
+    popIcon:SetPoint("CENTER", satchel, "CENTER")
+    popIcon:SetAlpha(0)
+    local popText = rewards:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    popText:SetPoint("BOTTOM", satchel, "TOP", 0, 6)
+    popText:SetAlpha(0)
+
+    Divider(-280)
+
+    local once = side:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    once:SetPoint("TOPLEFT", side, "TOPLEFT", 6, -294)
+    once:SetPoint("RIGHT", side, "RIGHT", -6, 0)
+    once:SetJustifyH("LEFT")
+    once:SetText(TEXT.godOnce)
+
+    local button = CreateFrame("Button", nil, side, "UIPanelButtonTemplate")
+    button:SetSize(240, 26)
+    button:SetPoint("BOTTOM", side, "BOTTOM", 0, 10)
+    local status = side:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    status:SetPoint("BOTTOM", side, "BOTTOM", 0, 16)
+
+    godPage.Refresh = function(mission)
+        rewards.mission = mission
+        local tier = GodTier()
+        local shownTier = CardTier(mission)
+        local open = mission.state == STATE_OPEN
+
+        godPage.name:SetText(mission.name)
+        godPage.place:SetText(format(TEXT.players, mission.players, PLACE_BY_BOSS[GOD_BOSS]))
+        godPage.kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
+
+        tierText:SetText(TierName(tier))
+        local wipes = TierWipes(tier)
+        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier)), Decimal(TierDamage(tier)), wipes,
+            wipes > 1 and "s" or ""))
+        dialGlow:SetAlpha(0.18 + 0.05 * tier)
+        SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)
+        SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
+
+        itemLevel:SetText(format(TEXT.godItemLevel, mission.requiredItemLevel or 0))
+        local wanted = (mission.baseParagon or 0) + TierParagon(tier)
+        paragonNeed:SetText(format(TEXT.godParagon, wanted, state.paragon or 0))
+        if (state.paragon or 0) >= wanted then
+            paragonNeed:SetTextColor(1, 0.86, 0.55)
+        else
+            paragonNeed:SetTextColor(0.85, 0.53, 0.37)
+        end
+
+        local goldAmount, paragonAmount, essenceAmount = MissionReward(mission, shownTier)
+        gold:SetText(Money(goldAmount))
+        paragon:SetText(paragonAmount > 0 and format(TEXT.paragon, paragonAmount) or "")
+        essences:SetText(essenceAmount > 0 and format(TEXT.essences, essenceAmount) or "")
+
+        local done = mission.state == STATE_CLAIMED
+        godPage.sky:SetDesaturated(done)
+        SetShown(godPage.check, done)
+        SetShown(godPage.glow, mission.state == STATE_WON)
+        portrait:SetBackdropBorderColor(unpack(mission.state == STATE_WON and { 1, 0.82, 0.25, 1 } or
+            mission.state == STATE_UNDERWAY and { 0.35, 0.65, 1, 1 } or { 0.75, 0.6, 0.35, 1 }))
+
+        button:SetScript("OnClick", nil)
+        status:SetText("")
+        if open then
+            button:Show()
+            button:SetText(TEXT.godFace)
+            SetEnabled(button, state.challenge == 0)
+            button:SetScript("OnClick", function()
+                local roles = RolesMask()
+                if roles == 0 then
+                    return ShowError(8)
+                end
+                PlaySound("igMainMenuOptionCheckBoxOn")
+                state.starting = GOD_BOSS
+                Send("START\t" .. GOD_BOSS .. "\t" .. roles .. "\t" .. GodTier())
+            end)
+        elseif mission.state == STATE_WON then
+            button:Show()
+            button:SetText(TEXT.claim)
+            SetEnabled(button, true)
+            button:SetScript("OnClick", function()
+                Send("CLAIM\t" .. state.rotation .. "\t" .. GOD_BOSS)
+            end)
+        else
+            button:Hide()
+            status:SetText(mission.state == STATE_UNDERWAY and TEXT.underway or TEXT.claimed)
+            if mission.state == STATE_UNDERWAY then
+                status:SetTextColor(0.45, 0.75, 1)
+            else
+                status:SetTextColor(1, 0.86, 0.55)
+            end
+        end
+    end
+
+    -- A tier of the god just opened: the dial moves to it and its name bursts
+    godPage.Opened = function(tier)
+        state.godTier = tier
+        PlaySoundFile(SOUND .. "NewRecord.ogg")
+        UIErrorsFrame:AddMessage(format(TEXT.tierOpened, TIER_ROMAN[tier]), 1, 0.86, 0.55, 1)
+        Tween(0.8, 0, function(p)
+            tierText:SetFont(MORPHEUS, 26 + 14 * (1 - OutCubic(p)))
+            dialGlow:SetAlpha((0.18 + 0.05 * tier) + 0.6 * (1 - p))
+        end)
+    end
+
+    godPage.Accepted = function()
+        stamp:SetText(TEXT.accepted)
+        Tween(0.35, 0, function(p)
+            stamp:SetAlpha(p)
+            stamp:SetFont(MORPHEUS, 26 + 22 * (1 - OutCubic(p)), "OUTLINE")
+        end)
+        Tween(0.6, 1.4, function(p) stamp:SetAlpha(1 - p) end)
+    end
+
+    godPage.Claimed = function(goldAmount, paragonAmount, essenceAmount)
+        popText:SetText("+" .. Money(goldAmount) .. (paragonAmount > 0 and
+            ("\n|cffa335ee" .. format(TEXT.paragon, paragonAmount) .. "|r") or "") .. ((essenceAmount or 0) > 0 and
+            ("\n|cff4dff73" .. format(TEXT.essences, essenceAmount) .. "|r") or ""))
+        Tween(0.9, 0, function(p)
+            local grow = OutBack(min(1, p * 1.6))
+            popIcon:SetSize(34 + 36 * grow, 34 + 36 * grow)
+            popIcon:SetAlpha(p < 0.6 and 1 or (1 - p) / 0.4)
+            burst:SetSize(40 + 150 * p, 40 + 150 * p)
+            burst:SetAlpha(0.9 * (1 - p))
+            popText:SetAlpha(p < 0.7 and 1 or (1 - p) / 0.3)
+            popText:SetPoint("BOTTOM", satchel, "TOP", 0, 6 + 40 * OutCubic(p))
+        end)
     end
 end
 
@@ -1216,6 +1707,8 @@ local function CreateBoard()
         dungeonCards[index] = card
     end
 
+    CreateGodPage()
+
     emptyText = frame:CreateFontString(nil, "OVERLAY")
     emptyText:SetFont(FRIZ, 16)
     emptyText:SetTextColor(0.9, 0.8, 0.6)
@@ -1299,9 +1792,12 @@ local function CreateBoard()
         rewardRows[index] = row
     end
 
-    -- The tabs under the window, as on the character sheet: the raid missions and the dungeon challenges
+    -- The tabs under the window, as on the character sheet: the raid missions, the dungeon challenges, the god
     tabs = {}
-    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons }) do
+    local pages = { "raids", "dungeons", "god" }
+    local headings = { raids = TEXT.heading, dungeons = TEXT.headingDungeons, god = TEXT.headingGod }
+    local intros = { raids = TEXT.intro, dungeons = TEXT.introDungeons, god = TEXT.introGod }
+    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons, TEXT.tabGod }) do
         local tab = CreateFrame("Button", "ChallengeBoardFrameTab" .. index, frame, "CharacterFrameTabButtonTemplate")
         tab:SetID(index)
         tab:SetText(label)
@@ -1312,20 +1808,20 @@ local function CreateBoard()
             tab:SetPoint("LEFT", tabs[index - 1], "RIGHT", -16, 0)
         end
         tab:SetScript("OnClick", function(self)
-            local page = self:GetID() == 2 and "dungeons" or "raids"
+            local page = pages[self:GetID()]
             if page == state.page then
                 return
             end
             PlaySound("igCharacterInfoTab")
             state.page = page
             PanelTemplates_SetTab(frame, self:GetID())
-            frame.heading:SetText(page == "dungeons" and TEXT.headingDungeons or TEXT.heading)
-            frame.intro:SetText(page == "dungeons" and TEXT.introDungeons or TEXT.intro)
+            frame.heading:SetText(headings[page])
+            frame.intro:SetText(intros[page])
             Refresh(true)
         end)
         tabs[index] = tab
     end
-    PanelTemplates_SetNumTabs(frame, 2)
+    PanelTemplates_SetNumTabs(frame, 3)
     PanelTemplates_SetTab(frame, 1)
 
     -- The clock ticks, the waiting rewards breathe, and a new board is asked for when the time runs out
@@ -1395,6 +1891,9 @@ local function AnimateClaim(boss, gold, paragon, essences)
     if not frame or not frame:IsShown() then
         return
     end
+    if boss == GOD_BOSS and state.page == "god" and godPage:IsShown() then
+        return godPage.Claimed(gold, paragon, essences)
+    end
 
     for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission and card.mission.boss == boss then
@@ -1418,6 +1917,9 @@ local function AnimateAccepted(boss)
     PlaySound("WriteQuest")
     if not frame or not frame:IsShown() then
         return
+    end
+    if boss == GOD_BOSS and state.page == "god" and godPage:IsShown() then
+        return godPage.Accepted()
     end
 
     for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
@@ -1616,6 +2118,7 @@ local function Handle(message)
         incoming.key = tonumber(g) or 2
         incoming.contract = tonumber(h) or 0
         incoming.paragon = tonumber(i)
+        incoming.godOpenTier = tonumber(j) or TIER_MIN
         incoming.dungeons = {}
         incoming.missions = {}
         incoming.rewards = {}
@@ -1687,6 +2190,12 @@ local function Handle(message)
         -- A tier opened since the last board: the dial moves up to it
         local opened = state.openTier and (incoming.openTier or TIER_MIN) > state.openTier and state.seenBoard
         state.openTier = incoming.openTier or TIER_MIN
+        -- The same for the god's own ladder
+        local godOpened = (incoming.godOpenTier or TIER_MIN) > state.godOpenTier and state.seenBoard
+        state.godOpenTier = incoming.godOpenTier or TIER_MIN
+        if godOpened then
+            state.godTier = state.godOpenTier
+        end
         state.seenBoard = true
         -- The answer to this player's own START: the card gets its stamp
         if state.challenge ~= 0 and previousChallenge == 0 and state.starting == state.challenge then
@@ -1700,6 +2209,10 @@ local function Handle(message)
             ShowBoard(true)
         elseif frame and frame:IsShown() then
             ShowBoard(false)
+        end
+        if godOpened and godPage and godPage:IsShown() then
+            godPage.Opened(state.godOpenTier)
+            Refresh(false)
         end
         if opened and dial and frame:IsShown() then
             dial.Opened(state.openTier)
