@@ -724,6 +724,7 @@ void AddStatGrowthScripts()
     AddOnyxiaReworkScripts();
     AddBronjahmReworkScripts();
     AddDevourerReworkScripts();
+    AddInfiniteGodScripts();
     AddMythicTuningScripts();
     AddMythicForgeOfSoulsScripts();
     AddMythicHallsOfLightningScripts();

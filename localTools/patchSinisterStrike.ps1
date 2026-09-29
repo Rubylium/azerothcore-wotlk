@@ -880,6 +880,10 @@ $customSpells += & ([ScriptBlock]::Create($priestSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
+# L'Infini, the Défi board's god fight (modules/mod-stat-growth/src/InfiniteGod.cpp): its abilities' names in the log
+# and its two debuffs
+$infiniteBossSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\infiniteBoss\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($infiniteBossSpellSource))
 
 # The Mage's reagents, gone: Arcane Powder (Arcane Brilliance, Dalaran Brilliance, Ritual of Refreshment), the Runes
 # of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class
@@ -2103,6 +2107,64 @@ $displayOutput = Get-StringDbcOutput $displayDbc
 [IO.File]::WriteAllBytes($clientDisplayPath, $displayOutput)
 Write-Host ("Installed $(@($retailItems.displays).Count) retail item looks (ItemDisplayInfo.dbc) and " +
     "$(@($retailItems.items).Count) test items (Item.dbc).")
+
+# --- L'Infini's display (CreatureModelData.dbc, CreatureDisplayInfo.dbc) --------------------------------------
+#
+# The Défi board's god (modules/mod-stat-growth/src/InfiniteGod.cpp) is Algalon recoloured: a copy of his model at its
+# own path (localTools\infiniteBoss\buildInfiniModel.py, shipped by patchFiles.js). A CreatureModelData row copying
+# Algalon's (3064) points at it, and a CreatureDisplayInfo row copying his display (28641) at that model; both 60001.
+# The server's copies and the client's differ: the client reads Patch-D's (HD creature remakes), the server its stock
+# ones, and each keeps its own. The client's go to server\Data\dbc\client-only, which patchFiles.js ships in patch-Z.
+$infiniDisplay = @{ Id = 60001; CloneModel = 3064; CloneDisplay = 28641; Model = 'Creature\Evolutions\Infini\Infini.mdx' }
+$clientOnlyDbcRoot = Join-Path $serverDbcRoot 'client-only'
+New-Item -ItemType Directory -Path $clientOnlyDbcRoot -Force | Out-Null
+
+function Add-InfiniDisplay([string]$modelSource, [string]$displaySource, [string[]]$modelTargets, [string[]]$displayTargets) {
+    $modelDbc = Read-StringDbc $modelSource 'CreatureModelData.dbc' 28
+    $displayDbc = Read-StringDbc $displaySource 'CreatureDisplayInfo.dbc' 16
+    foreach ($check in @(@($modelDbc, $infiniDisplay.CloneModel), @($displayDbc, $infiniDisplay.CloneDisplay))) {
+        if (-not $check[0].Offsets.ContainsKey([int]$check[1])) { throw "$($check[0].Name) has no row $($check[1]) to copy." }
+        if ($check[0].Offsets.ContainsKey([int]$infiniDisplay.Id)) { throw "$($check[0].Name) already has a row $($infiniDisplay.Id)." }
+    }
+    $model = [byte[]]::new($modelDbc.RecordSize)
+    [Array]::Copy($modelDbc.Data, $modelDbc.Offsets[[int]$infiniDisplay.CloneModel], $model, 0, $modelDbc.RecordSize)
+    Set-Field $model 0 ([uint32]$infiniDisplay.Id)
+    Set-Field $model 2 (Add-DbcString $modelDbc.Strings $infiniDisplay.Model)
+    $modelDbc.NewRecords.AddRange($model)
+    $display = [byte[]]::new($displayDbc.RecordSize)
+    [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[[int]$infiniDisplay.CloneDisplay], $display, 0, $displayDbc.RecordSize)
+    Set-Field $display 0 ([uint32]$infiniDisplay.Id)
+    Set-Field $display 1 ([uint32]$infiniDisplay.Id)
+    $displayDbc.NewRecords.AddRange($display)
+    $modelOutput = Get-StringDbcOutput $modelDbc
+    $displayOutput = Get-StringDbcOutput $displayDbc
+    foreach ($target in $modelTargets) { [IO.File]::WriteAllBytes($target, $modelOutput) }
+    foreach ($target in $displayTargets) { [IO.File]::WriteAllBytes($target, $displayOutput) }
+}
+
+$serverModelBackup = Join-Path $serverDbcRoot 'CreatureModelData.before-infinite-boss.dbc'
+$serverDisplayBackup = Join-Path $serverDbcRoot 'CreatureDisplayInfo.before-infinite-boss.dbc'
+$clientModelBackup = Join-Path $serverDbcRoot 'CreatureModelData.client-before-infinite-boss.dbc'
+$clientDisplayBackup = Join-Path $serverDbcRoot 'CreatureDisplayInfo.client-before-infinite-boss.dbc'
+if (-not (Test-Path -LiteralPath $serverModelBackup)) {
+    Copy-Item -LiteralPath (Join-Path $serverDbcRoot 'CreatureModelData.dbc') -Destination $serverModelBackup
+}
+if (-not (Test-Path -LiteralPath $serverDisplayBackup)) {
+    Copy-Item -LiteralPath (Join-Path $serverDbcRoot 'CreatureDisplayInfo.dbc') -Destination $serverDisplayBackup
+}
+foreach ($pair in @(@('DBFilesClient\CreatureModelData.dbc', $clientModelBackup),
+                    @('DBFilesClient\CreatureDisplayInfo.dbc', $clientDisplayBackup))) {
+    if (-not (Test-Path -LiteralPath $pair[1])) {
+        & node (Join-Path $repoRoot 'localTools\mpq-builder\extractEffectiveClientFile.js') $pair[0] $pair[1]
+        if ($LASTEXITCODE -ne 0) { throw "Could not extract the client's $($pair[0])." }
+    }
+}
+Add-InfiniDisplay $serverModelBackup $serverDisplayBackup @(Join-Path $serverDbcRoot 'CreatureModelData.dbc') `
+    @(Join-Path $serverDbcRoot 'CreatureDisplayInfo.dbc')
+Add-InfiniDisplay $clientModelBackup $clientDisplayBackup `
+    @((Join-Path $clientOnlyDbcRoot 'CreatureModelData.dbc'), (Join-Path $clientDbcRoot 'CreatureModelData.dbc')) `
+    @((Join-Path $clientOnlyDbcRoot 'CreatureDisplayInfo.dbc'), (Join-Path $clientDbcRoot 'CreatureDisplayInfo.dbc'))
+Write-Host "Installed L'Infini's display $($infiniDisplay.Id) (CreatureModelData.dbc, CreatureDisplayInfo.dbc)."
 
 $generatedIcons = @(Get-ChildItem -LiteralPath $compiledIconRoot -Filter 'CombatRogue_*.tga' -ErrorAction SilentlyContinue).Count
 $newVisualCount = $visualDbc.NewRecords.Count / $visualDbc.RecordSize
