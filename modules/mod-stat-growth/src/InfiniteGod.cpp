@@ -205,6 +205,8 @@ constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;             // at Défi I; FragmentCountHigh from Défi II
 constexpr uint32 FragmentCountHigh = 4;
+constexpr uint32 FinishPulses = 3;              // the bots left alone: pulses, the last one kills them
+constexpr uint32 FinishPulseMs = 1000;
 constexpr Milliseconds WipeLinger = 8s;         // a wipe: the god stands this long, the music on, before it goes
 constexpr Seconds WipeRespawnDelay = 5s;       // a wipe despawns the god; it is back this long after
 constexpr float FragmentReach = 1.5f;           // a fragment this close to the god's middle merges with it
@@ -409,6 +411,18 @@ struct Step
     Ability what;
 };
 
+// How long a phase 3 big ability holds the stage, the next one waiting for it
+uint32 BigBusyMs(Ability what)
+{
+    switch (what)
+    {
+        case Ability::Supernova: return SupernovaWarningMs + 1500;
+        case Ability::OrbLasers: return OrbChargeMs + OrbLaserOutMs + OrbLaserBackMs + 1500;
+        case Ability::SpinLaser: return SpinWarningMs + SpinMs + 1500;
+        default:                 return 3000;
+    }
+}
+
 // The whole fight, in order. Repeating abilities are laid out here too, so the timeline reads as one table.
 std::vector<Step> BuildTimeline()
 {
@@ -448,7 +462,7 @@ std::vector<Step> BuildTimeline()
     once(Ability::Phase2, AtPhase2);
     every(Ability::Cleave, AtPhase2 + 3000, 15000, AtIntermission2 - 4000);
     every(Ability::Starfall, AtPhase2 + 1500, 10000, AtIntermission2 - 2500);
-    for (uint32 at : { AtPhase2 + 8500, AtPhase2 + 35500 })
+    for (uint32 at : { AtPhase2 + 3000, AtPhase2 + 13500, AtPhase2 + 33500 })
         once(Ability::OrbLasers, at);
     once(Ability::SpinLaser, AtPhase2 + 21500);
     every(Ability::Gravity, AtPhase2 + 7500, 10000, AtIntermission2);
@@ -470,10 +484,9 @@ std::vector<Step> BuildTimeline()
     once(Ability::RevealYell, AtRevealYell);
 
     // Phase 3: the cleave and the twin strikes alternating every 10 s, the black hole and the star alternating,
-    // Supernova every 30 s and Jugement divin every 25 s kept 3 s off the big ones
+    // Supernova every 30 s, Jugement divin every 25 s, the orb's lasers and the Gardien's ray every 40 s each, the big
+    // ones one after the other (BigBusyMs); the tank busters never under Supernova's cones or the ray
     once(Ability::Phase3, AtPhase3);
-    for (uint32 at = AtPhase3 + 3000, index = 0; at < AtFinal - 1500; at += 10000, ++index)
-        once(index % 2 ? Ability::TwinStrikes : Ability::Cleave, at);
     every(Ability::Starfall, AtPhase3 + 1500, 5000, AtFinal - 2000);
     every(Ability::Gravity, AtPhase3 + 6000, 15000, AtFinal);
     every(Ability::Weight, AtPhase3 + 10000, 10000, AtFinal);
@@ -485,16 +498,32 @@ std::vector<Step> BuildTimeline()
         big.push_back({ at, Ability::Supernova });
     for (uint32 at = AtPhase3 + 26000; at < AtFinal - JudgementMs; at += 25000)
         big.push_back({ at, Ability::Judgement });
+    for (uint32 at = AtPhase3 + 19000; at < AtFinal - 10000; at += 40000)
+        big.push_back({ at, Ability::OrbLasers });
+    for (uint32 at = AtPhase3 + 39000; at < AtFinal - 14000; at += 40000)
+        big.push_back({ at, Ability::SpinLaser });
     std::sort(big.begin(), big.end(), [](Step const& left, Step const& right) { return left.at < right.at; });
-    uint32 previous = 0;
+    std::vector<std::pair<uint32, uint32>> clear;   // Supernova's and the ray's spans: no tank buster in them
+    uint32 free = 0;
     for (Step step : big)
     {
-        if (previous && step.at < previous + 3000)
-            step.at = previous + 3000;
+        step.at = std::max(step.at, free);
         if (step.at >= AtFinal - 2000)
             continue;
         steps.push_back(step);
-        previous = step.at;
+        free = step.at + BigBusyMs(step.what);
+        if (step.what == Ability::Supernova || step.what == Ability::SpinLaser)
+            clear.emplace_back(step.at, free);
+    }
+    for (uint32 at = AtPhase3 + 3000, index = 0; at < AtFinal - 1500; at += 10000, ++index)
+    {
+        // Pushed past a span it would land in (its cones drawn to their landing)
+        uint32 when = at;
+        for (auto const& [from, until] : clear)
+            if (when + CleaveWarningMs + 500 > from && when < until)
+                when = until + 500;
+        if (when < AtFinal - 1500)
+            once(index % 2 ? Ability::TwinStrikes : Ability::Cleave, when);
     }
 
     // The end of times, then silence
@@ -699,6 +728,11 @@ struct boss_infinite_god : public ScriptedAI
         }
         if (_phase == Phase::Intermission1)
             UpdateFragments();
+        if (elapsed >= _nextStandingCheckMs && !_finishing)
+        {
+            _nextStandingCheckMs = elapsed + 500;
+            CheckPlayersStanding();
+        }
         if (CanMelee())
             DoMeleeAttackIfReady();
     }
@@ -824,6 +858,8 @@ private:
         _phase = Phase::None;
         _edge = false;
         _exposed = false;
+        _finishing = false;
+        _nextStandingCheckMs = 0;
         _offTankSide = 0.0f;
         _fragments.clear();
         _lifted = false;
@@ -1996,6 +2032,34 @@ private:
         }
     }
 
+    // No player stands, only bots: the fight is lost (RaidFinder counts the wipe from the last player), so the god ends
+    // it - pulses of the end of times, the last one killing what still stands - and the players do not watch their
+    // bots fight on before they are brought home
+    void CheckPlayersStanding()
+    {
+        bool botStanding = false;
+        for (Player* player : ArenaPlayers())
+        {
+            if (!player->GetSession() || !player->GetSession()->IsBot())
+                return;
+            botStanding = true;
+        }
+        if (!botStanding)
+            return;
+        _finishing = true;
+        for (uint32 pulse = 0; pulse < FinishPulses; ++pulse)
+            scheduler.Schedule(Milliseconds(pulse * FinishPulseMs), [this, pulse](TaskContext)
+            {
+                me->SendPlaySpellVisual(KIT_ASCEND_CAST);
+                for (Player* player : ArenaPlayers())
+                {
+                    player->SendPlaySpellVisual(KIT_ASCEND_HIT);
+                    if (pulse + 1 == FinishPulses)
+                        Unit::Kill(me, player);
+                }
+            });
+    }
+
     // 5:05, the silence: everyone in the Planetarium dies, whatever protects them, and the wipe counts
     void HardEnrage()
     {
@@ -2040,6 +2104,8 @@ private:
     uint32 _pullMs = 0;
     Phase _phase = Phase::None;
     bool _windup = false;
+    bool _finishing = false;                    // no player standing: the bots are being finished off
+    uint32 _nextStandingCheckMs = 0;
     bool _lingering = false;                    // a wipe's WipeLinger: standing, before it goes
     bool _lifted = false;
     bool _exposed = false;

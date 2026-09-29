@@ -25,6 +25,7 @@ local STATE_OPEN, STATE_UNDERWAY, STATE_WON, STATE_CLAIMED = 0, 1, 2, 3
 -- RaidFinder::ChallengeEvent
 local EVENT_ARRIVED, EVENT_KILLED, EVENT_RETURNING, EVENT_WIPED, EVENT_WON, EVENT_FAILED = 1, 2, 3, 4, 5, 6
 local EVENT_PULLING = 7
+local EVENT_FADING = 8
 -- A dungeon challenge completed (ChallengeBoard.cpp EVENT_DUNGEON_WON)
 local EVENT_DUNGEON_WON = 20
 local KIND_DUNGEON = 2
@@ -2137,6 +2138,55 @@ local function ShowBanner(title, text, dungeon, hideAfter)
     end)
 end
 
+-- The wipe that ends a challenge (RaidFinder.cpp ChallengeFadeSeconds): the screen goes to black and the music fades
+-- out, then the way home in the dark. Once there (the fight's silence arrived), the music's volume is put back and the
+-- screen clears. The volume is put back at a logout too: it is never left at nothing.
+local fade = CreateFrame("Frame", nil, UIParent)
+fade:SetFrameStrata("FULLSCREEN_DIALOG")
+fade:SetAllPoints(UIParent)
+fade:EnableMouse(false)
+fade.black = fade:CreateTexture(nil, "BACKGROUND")
+fade.black:SetAllPoints()
+fade.black:SetTexture(0, 0, 0, 1)
+fade:Hide()
+local FADE_BACK_DELAY, FADE_BACK_SECONDS = 2, 1
+
+local function RestoreMusic()
+    if fade.music then
+        SetCVar("Sound_MusicVolume", fade.music)
+        fade.music = nil
+    end
+end
+
+local function FadeToBlack(seconds)
+    seconds = max(tonumber(seconds) or 3, 0.5)
+    fade.music = fade.music or tonumber(GetCVar("Sound_MusicVolume")) or 1
+    fade.waiting = true
+    local music = fade.music
+    fade:SetAlpha(0)
+    fade:Show()
+    Tween(seconds, 0, function(p)
+        fade:SetAlpha(p)
+        SetCVar("Sound_MusicVolume", music * (1 - p))
+    end)
+end
+
+fade:RegisterEvent("PLAYER_ENTERING_WORLD")
+fade:RegisterEvent("PLAYER_LOGOUT")
+fade:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_LOGOUT" then
+        RestoreMusic()
+    elseif fade.waiting then
+        fade.waiting = false
+        Tween(FADE_BACK_SECONDS, FADE_BACK_DELAY, function(p)
+            fade:SetAlpha(1 - p)
+        end, function()
+            fade:Hide()
+            RestoreMusic()
+        end)
+    end
+end)
+
 local function OnEvent(event, boss, value, name, tier)
     if tier and tier > TIER_MIN then
         name = name .. " · " .. TierName(tier)
@@ -2175,6 +2225,8 @@ local function OnEvent(event, boss, value, name, tier)
         banner.countdownFormat = TEXT.returning
         banner.countdownEnd = GetTime() + value
         banner.countdownShown = value
+    elseif event == EVENT_FADING then
+        FadeToBlack(value)
     elseif event == EVENT_WIPED then
         PlaySound("RaidWarning")
         ShowBanner(name, format(TEXT.wiped, value), dungeon)
