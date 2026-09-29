@@ -207,10 +207,12 @@ class MythicAppearanceWorldScript : public WorldScript
 {
 public:
     MythicAppearanceWorldScript() : WorldScript("MythicAppearanceWorldScript", {
-        WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE
+        WORLDHOOK_ON_STARTUP
     }) { }
 
-    void OnLoadCustomDatabaseTable() override
+    // Once the world is up: the item templates and the enchantments the rows are checked against are loaded by then
+    // (OnLoadCustomDatabaseTable came before both, and every row was dropped)
+    void OnStartup() override
     {
         LoadAppearances();
     }
