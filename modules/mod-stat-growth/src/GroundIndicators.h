@@ -20,7 +20,8 @@ namespace GroundIndicators
             Circle,
             Rectangle,  // from origin, forward along its orientation
             Cone,       // from origin, around its orientation
-            Ring        // around origin, between inner and radius: the middle is safe
+            Ring,       // around origin, between inner and radius: the middle is safe
+            Cross       // four arms from origin (forward, back, both sides), radius long and width wide
         };
 
         Kind kind = Kind::Circle;
@@ -80,7 +81,12 @@ namespace GroundIndicators
     // A circle that follows carrier wherever it goes: whoever carries it should take it away from the others.
     // Read its position back with CurrentArea when it resolves.
     Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0);
-    // Where a carried circle is now (it moves with its carrier)
+    // Four arms of a star around carrier (CarriedStarArm long, CarriedStarWidth wide): it moves with them and turns
+    // with their facing, so they aim it. Read it back with CurrentArea when it resolves.
+    constexpr float CarriedStarArm = 10.0f;
+    constexpr float CarriedStarWidth = 3.0f;
+    Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDamage = 0);
+    // Where a carried area is now (it moves with its carrier; a star turns with them too)
     Area CurrentArea(Unit* carrier, Area const& area);
     // Ends every area owner has on show, for the bots too (a fight reset while a long one was still drawn). Its
     // stalkers are its summons: despawning them is the owner's business.

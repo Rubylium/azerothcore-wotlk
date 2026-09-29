@@ -72,6 +72,8 @@ constexpr std::array<ShapeSpell, 12> CarriedSpells = { {
     { 3.0f, 90717 }, { 4.0f, 90718 }, { 5.0f, 90719 }, { 6.0f, 90720 }, { 8.0f, 90721 }, { 10.0f, 90722 },
     { 12.0f, 90723 }, { 15.0f, 90724 }, { 20.0f, 90725 }, { 25.0f, 90726 }, { 30.0f, 90727 }, { 40.0f, 90728 },
 } };
+// A carried star (shapes.json Star10): four arms of GroundIndicators::CarriedStarArm, drawn at its own size
+constexpr uint32 SPELL_INDICATOR_CARRIED_STAR = 90733;
 // A ring is one yard across to its outer edge; its hole is this share of it
 constexpr std::array<ShapeSpell, 4> RingSpells = { {
     { 0.2f, 90729 }, { 0.4f, 90730 }, { 0.6f, 90731 }, { 0.8f, 90732 },
@@ -206,7 +208,9 @@ bool Follow(ActiveArea& entry, WorldObject const& reference)
     if (!carrier)
         return false;
     entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
-    if (entry.carriedBase > 0.0f)
+    if (entry.area.kind == GroundIndicators::Area::Kind::Cross)
+        entry.area.origin.SetOrientation(carrier->GetOrientation());
+    else if (entry.carriedBase > 0.0f)
         entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
     return true;
 }
@@ -1021,6 +1025,14 @@ bool Area::Contains(Position const& point, float margin) const
         }
         case Kind::Ring:
             return distance <= radius + margin && distance >= inner - margin;
+        case Kind::Cross:
+        {
+            float const facing = origin.GetOrientation();
+            float const forward = std::fabs(dx * std::cos(facing) + dy * std::sin(facing));
+            float const across = std::fabs(-dx * std::sin(facing) + dy * std::cos(facing));
+            float const half = width / 2.0f + margin;
+            return (forward <= radius + margin && across <= half) || (across <= radius + margin && forward <= half);
+        }
     }
     return false;
 }
@@ -1180,11 +1192,31 @@ Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 duration
     return area;
 }
 
+Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDamage)
+{
+    Area area = MakeArea(Area::Kind::Cross, *carrier, carrier->GetOrientation(), CarriedStarArm);
+    area.width = CarriedStarWidth;
+    if (!carrier->IsInWorld() || !carrier->IsAlive() || durationMs == 0)
+        return area;
+    if (Aura* aura = carrier->AddAura(SPELL_INDICATOR_CARRIED_STAR, carrier))
+    {
+        aura->SetMaxDuration(int32(durationMs));
+        aura->SetDuration(int32(durationMs));
+        // Its carrier's own: a star is its carrier's to aim, not to step out of (as a carried circle)
+        Register(owner, carrier, area, durationMs, hitDamage);
+    }
+    return area;
+}
+
 Area CurrentArea(Unit* carrier, Area const& area)
 {
     Area current = area;
     if (carrier)
+    {
         current.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
+        if (current.kind == Area::Kind::Cross)
+            current.origin.SetOrientation(carrier->GetOrientation());
+    }
     return current;
 }
 

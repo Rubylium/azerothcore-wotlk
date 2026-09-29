@@ -1,4 +1,4 @@
-# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90755;
+# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90756;
 # 90729-90732 are its ring-shaped ground indicators (localTools/groundIndicators/shapes.json).
 #
 # The abilities are never cast: the script deals their damage on the areas it drew (MythicTuning::DealAbilityDamage),
@@ -65,6 +65,9 @@ $spells = @(
        Fields = @{ 4 = $debuff; 40 = 21 } },
     @{ Id = 90755; Clone = 64443; Name = 'Éclat d''éternité'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'L''énergie de L''Infini frappe tout le groupe.'
+       Fields = @{ 225 = $arcane } },
+    @{ Id = 90756; Clone = 64596; Name = 'Rayons stellaires'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Quatre rayons partent du joueur marqué : lourds pour quiconque d''autre s''y trouve.'
        Fields = @{ 225 = $arcane } }
 )
 

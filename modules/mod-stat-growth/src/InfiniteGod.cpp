@@ -47,7 +47,8 @@
 // 1:12.5 Phase 2: phase 1 faster, plus Singularité (a black hole pulling players into its pools) and Étoile effondrée
 //      (a star to share, three players or more).
 // 1:54.8 Intermission 2 "Les cieux se déchirent": it channels in the middle, Constellation lines fire across the
-//      platform.
+//      platform, and Rayons stellaires mark three players with a star of four rays that follows them and turns with
+//      their facing: they hold still and aim it away from the others.
 // 2:19 Setup: the platform's edge turns deadly, meteor waves. 2:32.9 the break: it rises, "Contemplez l'infini.", and
 //      on the drop at 2:36.9 shows its true form (bigger, glowing, the Planetarium's floor turns to stars).
 // 2:36.9 Phase 3: everything at once and faster, the cleave alternating with Frappes jumelles (a buster on each
@@ -101,6 +102,8 @@ constexpr float RevealPulsePct = 10.0f;         // the true form bursting out
 constexpr float SupernovaPct = 150.0f;          // anywhere but the three lanes
 constexpr float JudgementOtherPct = 90.0f;      // Jugement divin, to everyone else in a carried circle
 constexpr float JudgementCarrierPct = 20.0f;    // ... to the one carrying it
+constexpr float StarRaysOtherPct = 75.0f;       // Rayons stellaires, to everyone else in a marked star's rays
+constexpr float StarRaysCarrierPct = 15.0f;     // ... to the one marked
 constexpr float WeightPerStackPct = 3.0f;       // Poids de l'éternité: damage taken, every stack
 constexpr float EndPulseHealthPct = 45.0f;      // La Fin des Temps, of the target's maximum health (not tier-scaled)
 constexpr float DoomPerStackPct = 20.0f;        // Fin imminente: damage taken, every stack
@@ -139,6 +142,8 @@ constexpr uint32 SupernovaWarningMs = 4000;
 constexpr float JudgementRadius = 8.0f;
 constexpr uint32 JudgementMs = 6000;
 constexpr uint32 JudgementCarriers = 2;
+constexpr uint32 StarRaysMs = 5000;
+constexpr uint32 StarRaysCarriers = 3;
 constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;
@@ -210,6 +215,7 @@ constexpr NamedSpell SPELL_SUPERNOVA = { 90750, 64443 };
 constexpr NamedSpell SPELL_JUDGEMENT = { 90751, 64443 };
 constexpr NamedSpell SPELL_END_OF_TIMES = { 90752, 64487 };     // Ascend to the Heavens
 constexpr NamedSpell SPELL_ETERNITY_SHARD = { 90755, 64443 };
+constexpr NamedSpell SPELL_STAR_RAYS = { 90756, 64596 };
 // Debuffs the players see: dummy auras, the script does what they say
 constexpr uint32 SPELL_DOOM = 90753;            // Fin imminente
 constexpr uint32 SPELL_WEIGHT = 90754;          // Poids de l'éternité
@@ -258,6 +264,7 @@ enum Texts : uint8
     SAY_KILL                = 16,
     SAY_DEATH               = 17,
     EMOTE_FRAGMENT          = 18,
+    EMOTE_STAR_RAYS         = 19,
 };
 
 enum class Phase : uint8
@@ -291,6 +298,7 @@ enum class Ability : uint8
     CollapsingStar,
     Intermission2,
     Constellation,
+    StarRays,
     Setup,
     Meteors,
     RevealRise,
@@ -366,6 +374,7 @@ std::vector<Step> BuildTimeline()
     // Intermission 2: the heavens tear
     once(Ability::Intermission2, AtIntermission2);
     every(Ability::Constellation, AtIntermission2 + 3000, 2500, AtSetup - 1500);
+    every(Ability::StarRays, AtIntermission2 + 4000, 7000, AtSetup - StarRaysMs);
     every(Ability::RaidTick, AtIntermission2 + 1200, 2000, AtSetup - 1000);
 
     // Setup: the edge, meteor waves, then the break and the reveal
@@ -935,6 +944,7 @@ private:
             case Ability::CollapsingStar:   CollapsingStar(); break;
             case Ability::Intermission2:    EnterIntermission2(); break;
             case Ability::Constellation:    Constellation(); break;
+            case Ability::StarRays:         StarRays(); break;
             case Ability::Setup:            EnterSetup(); break;
             case Ability::Meteors:          Meteors(); break;
             case Ability::RevealRise:       Lift(); break;
@@ -1390,6 +1400,41 @@ private:
                 for (Player* player : PlayersIn(GroundIndicators::CurrentArea(carrier, area)))
                     if (player != carrier)
                         Hit(player, SPELL_JUDGEMENT, JudgementOtherPct, true);
+            });
+        }
+    }
+
+    // Rayons stellaires: three players carry a star of four rays that follows them and turns with their facing; when
+    // it lands whoever else stands in a ray takes it. Held still and aimed away from the others, it only costs its
+    // carrier a little.
+    void StarRays()
+    {
+        Talk(EMOTE_STAR_RAYS);
+        std::vector<Player*> players = ArenaPlayers();
+        Acore::Containers::RandomResize(players, StarRaysCarriers);
+        for (Player* carrier : players)
+        {
+            GroundIndicators::Area const area = GroundIndicators::ShowCarriedStar(me, carrier, StarRaysMs);
+            ObjectGuid const guid = carrier->GetGUID();
+            scheduler.Schedule(Milliseconds(StarRaysMs), [this, area, guid](TaskContext)
+            {
+                Player* carrier = ObjectAccessor::GetPlayer(*me, guid);
+                if (!carrier || !carrier->IsAlive())
+                    return;
+                GroundIndicators::Area const rays = GroundIndicators::CurrentArea(carrier, area);
+                // The rays flare along their length
+                for (uint32 arm = 0; arm < 4; ++arm)
+                {
+                    float const facing = rays.origin.GetOrientation() + arm * float(M_PI) / 2.0f;
+                    for (float along : { 4.0f, 8.5f })
+                        GroundIndicators::Burst(me, Position(rays.origin.GetPositionX() + std::cos(facing) * along,
+                            rays.origin.GetPositionY() + std::sin(facing) * along, rays.origin.GetPositionZ()),
+                            GroundIndicators::Theme::Arcane);
+                }
+                Hit(carrier, SPELL_STAR_RAYS, StarRaysCarrierPct, false);
+                for (Player* player : PlayersIn(rays))
+                    if (player != carrier)
+                        Hit(player, SPELL_STAR_RAYS, StarRaysOtherPct, true);
             });
         }
     }

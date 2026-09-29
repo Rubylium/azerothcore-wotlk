@@ -69,7 +69,7 @@ spec.loader.exec_module(blp_writer)
 def shape_bounds(shape):
     """(x0, x1, y0, y1) of the shape: x forward from its owner, y to its left"""
     kind = shape['kind']
-    if kind in ('circle', 'ring'):
+    if kind in ('circle', 'ring', 'star'):
         return -1.0, 1.0, -1.0, 1.0
     if kind == 'rect':
         half = 0.5 / shape['ratio']
@@ -96,6 +96,15 @@ def shape_distance(shape, x, y):
         dy = abs(y) - half
         outside = math.hypot(max(dx, 0.0), max(dy, 0.0))
         return outside + min(max(dx, dy), 0.0)
+    if kind == 'star':
+        # Two bars through the middle, one along x and one along y: inside either
+        half = 0.5 / shape['ratio']
+
+        def bar(along, across):
+            dx = abs(along) - 1.0
+            dy = abs(across) - half
+            return math.hypot(max(dx, 0.0), max(dy, 0.0)) + min(max(dx, dy), 0.0)
+        return min(bar(x, y), bar(y, x))
     if kind == 'cone':
         half = math.radians(shape['angle']) / 2
         radius = math.hypot(x, y)
@@ -110,6 +119,8 @@ def shape_distance(shape, x, y):
 def outline_thickness(shape):
     if shape['kind'] == 'ring':
         return min(OUTLINE_MAX, OUTLINE_SHARE * (1.0 - shape['inner']))
+    if shape['kind'] == 'star':
+        return min(OUTLINE_MAX, OUTLINE_SHARE / shape['ratio'])
     x0, x1, y0, y1 = shape_bounds(shape)
     return min(OUTLINE_MAX, OUTLINE_SHARE * min(x1 - x0, y1 - y0))
 

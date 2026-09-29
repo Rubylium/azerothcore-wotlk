@@ -1,5 +1,5 @@
 {
-  "comment": "Ground indicators of enemy abilities (buildGroundIndicators.py, patchSinisterStrike.ps1, modules/mod-stat-growth/src/GroundIndicators.cpp keeps the same spell ids). Every model is one yard: a circle of radius 1, a rectangle 1 long from its owner forward and 1/ratio wide, a cone of radius 1, a ring of outer radius 1 around a hole of radius inner. The server sizes it with its owner's scale. A carried circle (carried: true) is an aura on the player who carries it, so it moves with them exactly: it cannot be scaled, and comes at its own size (scale, in yards) instead, drawn with another shape's texture.",
+  "comment": "Ground indicators of enemy abilities (buildGroundIndicators.py, patchSinisterStrike.ps1, modules/mod-stat-growth/src/GroundIndicators.cpp keeps the same spell ids). Every model is one yard: a circle of radius 1, a rectangle 1 long from its owner forward and 1/ratio wide, a cone of radius 1, a ring of outer radius 1 around a hole of radius inner. The server sizes it with its owner's scale. A carried circle (carried: true) is an aura on the player who carries it, so it moves with them exactly: it cannot be scaled, and comes at its own size (scale, in yards) instead, drawn with another shape's texture. A star (kind star) is four arms from its middle, forward, back and to both sides, each 1 long and 1/ratio wide; carried (Star10, 10 yards), it turns with its carrier.",
   "color": [220, 20, 10],
   "alpha": 0.2,
   "shapes": [
@@ -35,6 +35,7 @@
     { "key": "Ring20", "kind": "ring", "inner": 0.2, "spell": 90729 },
     { "key": "Ring40", "kind": "ring", "inner": 0.4, "spell": 90730 },
     { "key": "Ring60", "kind": "ring", "inner": 0.6, "spell": 90731 },
-    { "key": "Ring80", "kind": "ring", "inner": 0.8, "spell": 90732 }
+    { "key": "Ring80", "kind": "ring", "inner": 0.8, "spell": 90732 },
+    { "key": "Star10", "kind": "star", "ratio": 3.3333, "scale": 10, "carried": true, "spell": 90733 }
   ]
 }
