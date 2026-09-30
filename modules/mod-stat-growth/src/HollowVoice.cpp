@@ -259,7 +259,9 @@ constexpr uint32 AtJudgement = 119700;          // the Archbishop's track fades:
 // in, 2026-09-30).
 constexpr uint32 AtSecondTrack = 122000;
 constexpr uint32 RevealTestStartMs = 110000;    // a pull armed with .hollow reveal starts here, the Archbishop at 1%
-constexpr uint32 TrackEndMarginMs = 500;        // a wipe before it ends the track this long before it
+// A wipe before the demon's part ends the track at least this long before it: the client fades a track out over a
+// few seconds, and the demon's part must not be heard in that fade (it would spoil him)
+constexpr uint32 TrackEndMarginMs = 5000;
 constexpr uint32 AtReveal = AtSecondTrack + 1500;               // its first hit
 // The second track's sections, from its start
 constexpr uint32 T2(uint32 ms) { return AtSecondTrack + ms; }
@@ -1429,6 +1431,8 @@ private:
     // --- Music: sent as stock encounters send theirs (SMSG_PLAY_MUSIC); only a music ends a music -------------------
     void EndTrack(uint32 soundId)
     {
+        if (!_fightListeners.empty())
+            LOG_INFO("module.hollowvoice", "hv music ended ({}) at={:.1f}s", soundId, Elapsed() / 1000.0f);
         for (ObjectGuid const& guid : _fightListeners)
             if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
                 SendMusic(player, soundId);
@@ -2221,6 +2225,8 @@ private:
         _phase = Phase::Over;
         scheduler.CancelAll();
         Talk(SAY_ALDRIC_LAST_RITES);
+        // The track ends now, its fade over well before the demon's part (2:02): the group never hears him
+        EndTrack(MUSIC_SILENCE);
         me->PlayDirectSound(SOUND_LAST_RITES);
         me->SendPlaySpellVisual(KIT_HOLY_NOVA_CAST);
         for (Player* player : ArenaPlayers())
