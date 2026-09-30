@@ -304,8 +304,9 @@ void LoadBotCatchUpConfig()
 namespace
 {
 // Creatures bots must not carry a group through: L'Infini and its fragments (InfiniteGod.cpp), whose challenge's bots
-// are geared a little under the fight on purpose
-constexpr std::array<uint32, 2> NoCatchUpEntries = { 930000, 930001 };
+// are geared a little under the fight on purpose, and The Hollow Voice's two bosses (HollowVoice.cpp), sized for the
+// bots at its profile
+constexpr std::array<uint32, 4> NoCatchUpEntries = { 930000, 930001, 930100, 930101 };
 
 bool IsNoCatchUpVictim(Unit const* victim)
 {

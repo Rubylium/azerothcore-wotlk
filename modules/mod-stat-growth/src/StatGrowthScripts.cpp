@@ -746,6 +746,7 @@ void AddStatGrowthScripts()
     AddBronjahmReworkScripts();
     AddDevourerReworkScripts();
     AddInfiniteGodScripts();
+    AddHollowVoiceScripts();
     AddMythicTuningScripts();
     AddMythicForgeOfSoulsScripts();
     AddMythicHallsOfLightningScripts();

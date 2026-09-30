@@ -145,5 +145,7 @@ void AddBronjahmReworkScripts();
 void AddDevourerReworkScripts();
 // InfiniteGod.cpp: L'Infini, the Défi board's god fight in the Celestial Planetarium
 void AddInfiniteGodScripts();
+// HollowVoice.cpp: The Hollow Voice, the board's pinnacle in Sunwell's M'uru chamber
+void AddHollowVoiceScripts();
 
 #endif

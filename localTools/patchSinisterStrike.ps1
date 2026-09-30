@@ -988,6 +988,94 @@ $customSounds = @(
        Directory = 'Sound\Music\Evolutions'
        Files = @('LInfiniRoom.mp3')
        Volume = 1.0 }
+    # The Hollow Voice (modules/mod-stat-growth/src/HollowVoice.cpp): Archbishop Aldric's track (phase 1) and
+    # Vel'thazar's (the rest), boss music as L'Infini's; the fight ends them with L'Infini's silence (30101).
+    @{ Key = 'HollowVoiceAldric'; Id = 30110; Clone = 15877; Name = 'Evolutions_HollowVoiceAldric'
+       Directory = 'Sound\Music\Evolutions'
+       Files = @('HollowVoiceAldric.mp3')
+       Volume = 1.0 }
+    @{ Key = 'HollowVoiceVelthazar'; Id = 30111; Clone = 15877; Name = 'Evolutions_HollowVoiceVelthazar'
+       Directory = 'Sound\Music\Evolutions'
+       Files = @('HollowVoiceVelthazar.mp3')
+       Volume = 1.0 }
+    # Its abilities' sounds (retail paladin and dreadlord sounds, the Voidspire's paladin trio for the Archbishop's),
+    # at fixed ids the server plays (HollowVoice.cpp SoundId): 30120 on, in this order
+    @{ Key = 'HollowVoiceJudgement'; Id = 30120; Clone = 13269; Name = 'Evolutions_HollowVoice_Judgement'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_Judgement.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceBlessedHammers'; Id = 30121; Clone = 13269; Name = 'Evolutions_HollowVoice_BlessedHammers'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_BlessedHammers.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceWrathOfThePulpit'; Id = 30122; Clone = 13269; Name = 'Evolutions_HollowVoice_WrathOfThePulpit'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_WrathOfThePulpit.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceConsecratedAisles'; Id = 30123; Clone = 13269; Name = 'Evolutions_HollowVoice_ConsecratedAisles'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_ConsecratedAisles.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceLightOfDawn'; Id = 30124; Clone = 13269; Name = 'Evolutions_HollowVoice_LightOfDawn'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_LightOfDawn.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceChoir'; Id = 30125; Clone = 13269; Name = 'Evolutions_HollowVoice_Choir'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_Choir.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceAbsolution'; Id = 30126; Clone = 13269; Name = 'Evolutions_HollowVoice_Absolution'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_Absolution.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceExecutionSentence'; Id = 30127; Clone = 13269; Name = 'Evolutions_HollowVoice_ExecutionSentence'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_ExecutionSentence.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceVerdict'; Id = 30128; Clone = 13269; Name = 'Evolutions_HollowVoice_Verdict'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_Verdict.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceSeraphim'; Id = 30129; Clone = 13269; Name = 'Evolutions_HollowVoice_Seraphim'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_Seraphim.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceWakeOfAshes'; Id = 30130; Clone = 13269; Name = 'Evolutions_HollowVoice_WakeOfAshes'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_WakeOfAshes.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceLastRites'; Id = 30131; Clone = 13269; Name = 'Evolutions_HollowVoice_LastRites'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_LastRites.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceReveal'; Id = 30132; Clone = 13269; Name = 'Evolutions_HollowVoice_Reveal'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_Reveal.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceCarrionSwarm'; Id = 30133; Clone = 13269; Name = 'Evolutions_HollowVoice_CarrionSwarm'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_CarrionSwarm.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceVampiricBrand'; Id = 30134; Clone = 13269; Name = 'Evolutions_HollowVoice_VampiricBrand'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_VampiricBrand.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceHollowEcho'; Id = 30135; Clone = 13269; Name = 'Evolutions_HollowVoice_HollowEcho'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_HollowEcho.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceNightmareLances'; Id = 30136; Clone = 13269; Name = 'Evolutions_HollowVoice_NightmareLances'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_NightmareLances.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceVoiceOfRuin'; Id = 30137; Clone = 13269; Name = 'Evolutions_HollowVoice_VoiceOfRuin'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_VoiceOfRuin.ogg')
+       Volume = 0.9 }
+    @{ Key = 'HollowVoiceHardEnrage'; Id = 30138; Clone = 13269; Name = 'Evolutions_HollowVoice_HardEnrage'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_HardEnrage.ogg')
+       Volume = 0.9 }
 )
 
 # A kit's CharProc parameters are floats; the kit fields are written as raw 32-bit values
