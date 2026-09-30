@@ -11,15 +11,16 @@ local MYTHIC_ID_BASE = 100000
 local SOUND = "Sound\\Interface\\MythicPlus\\"
 local KEYSTONE_ICON = "Interface\\Icons\\INV_Relics_Hourglass"
 local FONT = "Fonts\\FRIZQT__.TTF"
--- The dungeon grid: four to a row, each row as tall as the tab can afford (see LayoutTiles)
+-- The dungeon grid, as retail's Mythic+ tab shows its dungeons: large icons in their frame, the best level set in
+-- the icon, the name in the tooltip. Four to a row, each row as tall as the tab can afford (see LayoutTiles).
 local COLUMNS = 4
-local TILE_WIDTH = 74
-local ICON_SIZE = 38
-local ICON_CENTER = 22        -- the icon's centre under the top of its tile
-local GRID_TOP = 84           -- the first row, under the key header and its line
-local ROW_HEIGHT = 74
-local MIN_ROW_HEIGHT = 48     -- squeezed rows: icons only, no dungeon names
-local GRID_BOTTOM_ROOM = 46   -- kept under the grid for the chosen dungeon / status line
+local TILE_WIDTH = 78
+local ICON_SIZE = 54
+local ICON_CENTER = 34        -- the icon's centre under the top of its tile
+local GRID_TOP = 106          -- the first row, under the header and its line
+local ROW_HEIGHT = 76
+local MIN_ROW_HEIGHT = 58     -- squeezed rows: smaller gaps, the icons keep their size
+local GRID_BOTTOM_ROOM = 22   -- kept under the grid for the chosen dungeon / status line
 
 local french = GetLocale() == "frFR"
 local TEXT = french and {
@@ -156,11 +157,6 @@ local function DungeonName(dungeonId)
     return (dungeonId and GetLFGDungeonInfo(dungeonId)) or ""
 end
 
-local function ShortDungeonName(dungeonId)
-    local name = DungeonName(dungeonId)
-    return string.match(name, " %- (.+)$") or name
-end
-
 -- The Dungeon Finder's own art of the dungeon, as its queue frame shows it
 local function DungeonBackground(dungeonId)
     local textureName = dungeonId and select(10, GetLFGDungeonInfo(dungeonId))
@@ -245,13 +241,13 @@ end
 -- -----------------------------------------------------------------------------------------------------------------
 
 local frame = CreateFrame("Frame", "MythicPlusFrame", LFDQueueFrame)
-frame:SetPoint("TOPLEFT", LFDQueueFrame, "TOPLEFT", 20, -122)
+frame:SetPoint("TOPLEFT", LFDQueueFrame, "TOPLEFT", 16, -118)
 frame:SetPoint("BOTTOMRIGHT", LFDQueueFrame, "BOTTOMRIGHT", -8, 34)
 frame:SetFrameLevel(LFDQueueFrame:GetFrameLevel() + 6)
 frame:EnableMouse(true)
 frame:Hide()
 
-local HEADER_HEIGHT = 78
+local HEADER_HEIGHT = 100
 
 -- The retail ground. Its own art fades in from the top, so it starts under the header, and everything laid on it
 -- (the dungeon tiles) is kept above it: see ApplyLevels
@@ -270,51 +266,59 @@ headerBackground:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", 0, -HEADER_HEIGHT)
 
 -- The keystone: slot, hourglass, glow and runes that spin up when it is activated
 local slot = CreateFrame("Frame", nil, frame)
-slot:SetWidth(64)
-slot:SetHeight(64)
-slot:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, -6)
+slot:SetWidth(72)
+slot:SetHeight(72)
+slot:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -6)
+
+-- Retail's small rune circle behind the keystone, turning slowly: the emblem of the tab
+local slotCircle = slot:CreateTexture(nil, "BACKGROUND")
+SetAtlas(slotCircle, "ChallengeMode-Runes-Small", 104)
+slotCircle:SetPoint("CENTER")
+slotCircle:SetBlendMode("ADD")
+slotCircle:SetAlpha(0.35)
 
 local slotRunes = slot:CreateTexture(nil, "BACKGROUND")
-SetAtlas(slotRunes, "ChallengeMode-Runes-Large", 72)
+SetAtlas(slotRunes, "ChallengeMode-Runes-Large", 84)
 slotRunes:SetPoint("CENTER")
 slotRunes:SetBlendMode("ADD")
 slotRunes:SetAlpha(0)
 local slotBackground = slot:CreateTexture(nil, "BORDER")
-SetAtlas(slotBackground, "ChallengeMode-KeystoneSlotBG", 56)
+SetAtlas(slotBackground, "ChallengeMode-KeystoneSlotBG", 62)
 slotBackground:SetPoint("CENTER")
 local slotIcon = slot:CreateTexture(nil, "ARTWORK")
 slotIcon:SetTexture(KEYSTONE_ICON)
 slotIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-slotIcon:SetWidth(36)
-slotIcon:SetHeight(36)
+slotIcon:SetWidth(40)
+slotIcon:SetHeight(40)
 slotIcon:SetPoint("CENTER")
 local slotFrame = slot:CreateTexture(nil, "OVERLAY")
-SetAtlas(slotFrame, "ChallengeMode-KeystoneSlotFrame", 64)
+SetAtlas(slotFrame, "ChallengeMode-KeystoneSlotFrame", 72)
 slotFrame:SetPoint("CENTER")
 local slotGlow = slot:CreateTexture(nil, "OVERLAY")
-SetAtlas(slotGlow, "ChallengeMode-KeystoneSlotFrameGlow", 64)
+SetAtlas(slotGlow, "ChallengeMode-KeystoneSlotFrameGlow", 72)
 slotGlow:SetPoint("CENTER")
 slotGlow:SetBlendMode("ADD")
 slotGlow:SetAlpha(0)
 
 local keyLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-keyLabel:SetPoint("BOTTOMLEFT", slot, "RIGHT", 6, 9)
+keyLabel:SetPoint("BOTTOMLEFT", slot, "RIGHT", 8, 10)
 keyLabel:SetText(TEXT.key)
 local keyText = frame:CreateFontString(nil, "ARTWORK")
-keyText:SetFont(FONT, 26, "OUTLINE")
-keyText:SetPoint("TOPLEFT", slot, "RIGHT", 6, 7)
--- Under the key level, clear of the rating on the right
-local keyParagon = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-keyParagon:SetPoint("TOPLEFT", keyText, "BOTTOMLEFT", 0, -1)
-keyParagon:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
-keyParagon:SetJustifyH("LEFT")
+keyText:SetFont(FONT, 32, "OUTLINE")
+keyText:SetShadowOffset(1, -1)
+keyText:SetPoint("TOPLEFT", slot, "RIGHT", 8, 9)
 
-local scoreLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-scoreLabel:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -12, -37)
+local scoreLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+scoreLabel:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -12, -32)
 scoreLabel:SetText(TEXT.score)
 local scoreText = frame:CreateFontString(nil, "ARTWORK")
-scoreText:SetFont(FONT, 22, "OUTLINE")
-scoreText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -41)
+scoreText:SetFont(FONT, 28, "OUTLINE")
+scoreText:SetShadowOffset(1, -1)
+scoreText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -34)
+
+-- Across the header, under the key and the rating: the paragon the key asks for
+local keyParagon = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+keyParagon:SetPoint("TOP", frame, "TOP", 0, -HEADER_HEIGHT + 16)
 
 local divider = frame:CreateTexture(nil, "ARTWORK")
 SetAtlas(divider, "ChallengeMode-ThinDivider")
@@ -365,7 +369,7 @@ local function CreateTile(index)
     tile:SetFrameLevel(frame:GetFrameLevel() + 3)
 
     tile.glow = tile:CreateTexture(nil, "BACKGROUND")
-    SetAtlas(tile.glow, "ChallengeMode-SoftYellowGlow", 70)
+    SetAtlas(tile.glow, "ChallengeMode-SoftYellowGlow", 96)
     tile.glow:SetPoint("CENTER", tile, "TOP", 0, -ICON_CENTER)
     tile.glow:SetBlendMode("ADD")
     tile.icon = tile:CreateTexture(nil, "ARTWORK")
@@ -373,7 +377,7 @@ local function CreateTile(index)
     tile.icon:SetHeight(ICON_SIZE)
     tile.icon:SetPoint("CENTER", tile, "TOP", 0, -ICON_CENTER)
     tile.border = tile:CreateTexture(nil, "OVERLAY")
-    SetAtlas(tile.border, "ChallengeMode-DungeonIconFrame", 48)
+    SetAtlas(tile.border, "ChallengeMode-DungeonIconFrame", ICON_SIZE + 10)
     tile.border:SetPoint("CENTER", tile.icon, "CENTER")
     -- The picked dungeon keeps a square gold ring, the shape of the icon, so the choice stays visible
     tile.selection = tile:CreateTexture(nil, "OVERLAY")
@@ -383,14 +387,16 @@ local function CreateTile(index)
     tile.selection:SetPoint("CENTER", tile.icon, "CENTER")
     tile.selection:SetBlendMode("ADD")
     tile.selection:Hide()
+    -- The best level in the lower part of the icon, as retail sets it; a dark fade under it keeps it readable
+    tile.shade = tile:CreateTexture(nil, "ARTWORK")
+    tile.shade:SetTexture(0, 0, 0)
+    tile.shade:SetGradientAlpha("VERTICAL", 0, 0, 0, 0.85, 0, 0, 0, 0)
+    tile.shade:SetPoint("BOTTOMLEFT", tile.icon, "BOTTOMLEFT")
+    tile.shade:SetPoint("BOTTOMRIGHT", tile.icon, "BOTTOMRIGHT")
+    tile.shade:SetHeight(ICON_SIZE / 2)
     tile.level = tile:CreateFontString(nil, "OVERLAY")
-    tile.level:SetFont(FONT, 15, "OUTLINE")
-    tile.level:SetPoint("CENTER", tile.icon, "BOTTOM", 0, 2)
-    tile.name = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    tile.name:SetWidth(TILE_WIDTH + 2)
-    tile.name:SetHeight(24)
-    tile.name:SetPoint("TOP", tile.icon, "BOTTOM", 0, -7)
-    tile.name:SetJustifyV("TOP")
+    tile.level:SetFont(FONT, 21, "OUTLINE")
+    tile.level:SetPoint("BOTTOM", tile.icon, "BOTTOM", 0, 3)
 
     -- A square hover, the shape of the icon: the retail keystone glow is a disc and sat badly on it
     local highlight = tile:CreateTexture(nil, "HIGHLIGHT")
@@ -419,12 +425,6 @@ local function LayoutTiles(count)
         tile:SetHeight(rowHeight - 2)
         tile:ClearAllPoints()
         tile:SetPoint("TOPLEFT", frame, "TOPLEFT", 6 + column * (TILE_WIDTH + 4), -GRID_TOP - row * rowHeight)
-        -- The name only has room under the icon while the rows are not squeezed
-        if rowHeight >= ROW_HEIGHT - 6 then
-            tile.name:Show()
-        else
-            tile.name:Hide()
-        end
     end
     return GRID_TOP + rows * rowHeight
 end
@@ -451,6 +451,7 @@ closeButton:SetPoint("BOTTOMRIGHT", LFDQueueFrame, "BOTTOMRIGHT", -7, 6)
 -- The keystone slot lights up and its runes spin while the key is being activated
 local activation = 0
 slot:SetScript("OnUpdate", function(_, elapsed)
+    SetRotation(slotCircle, "ChallengeMode-Runes-Small", -GetTime() * 0.12)
     if activation <= 0 then
         return
     end
@@ -500,7 +501,6 @@ function UpdateTab()
         local tile = tiles[index] or CreateTile(index)
         tile.dungeon = dungeonId
         tile.icon:SetTexture(DungeonIcon(dungeonId))
-        tile.name:SetText(ShortDungeonName(dungeonId))
         local best = bests[dungeonId]
         if best and best.level > 0 then
             local lr, lg, lb = LevelColor(best.level)
@@ -509,18 +509,18 @@ function UpdateTab()
             end
             tile.level:SetText(Colored("+" .. best.level, lr, lg, lb))
             tile.icon:SetDesaturated(false)
+            tile.shade:Show()
         else
             tile.level:SetText("")
             tile.icon:SetDesaturated(true)
+            tile.shade:Hide()
         end
         if chosen == dungeonId then
             tile.glow:Show()
             tile.selection:Show()
-            tile.name:SetTextColor(1, 0.82, 0)
         else
             tile.glow:Hide()
             tile.selection:Hide()
-            tile.name:SetTextColor(1, 1, 1)
         end
         tile:Show()
     end
