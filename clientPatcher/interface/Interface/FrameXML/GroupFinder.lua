@@ -54,6 +54,24 @@ hooksecurefunc(LFDQueueFrameBackground, "SetTexture", CropBackground)
 LFDParentFramePortrait:ClearAllPoints()
 LFDParentFramePortrait:SetPoint("TOPLEFT", LFDParentFrame, "TOPLEFT", -8, 7)
 
+-- Moved freely: out of the panel manager (which would put it back at the left edge each time it opens), dragged
+-- by any empty part of it, kept where it was left (the client saves a placed frame's spot), closed by Escape
+UIPanelWindows["LFDParentFrame"] = nil
+tinsert(UISpecialFrames, "LFDParentFrame")
+LFDParentFrame:SetMovable(true)
+LFDParentFrame:EnableMouse(true)
+LFDParentFrame:SetClampedToScreen(true)
+LFDParentFrame:RegisterForDrag("LeftButton")
+LFDParentFrame:SetScript("OnDragStart", LFDParentFrame.StartMoving)
+LFDParentFrame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    self:SetUserPlaced(true)
+end)
+if not LFDParentFrame:IsUserPlaced() then
+    LFDParentFrame:ClearAllPoints()
+    LFDParentFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 40, -104)
+end
+
 -- The close button has no name of its own: RetailUI finds it by a global of ours
 local closeName
 for _, child in ipairs({ LFDParentFrame:GetChildren() }) do
@@ -84,6 +102,9 @@ local column = CreateFrame("Frame", "GroupFinderModeColumn", LFDParentFrame)
 column:SetPoint("TOPLEFT", LFDParentFrame, "TOPLEFT", 0, 0)
 column:SetWidth(SIDE_WIDTH)
 column:SetHeight(QUEUE_HEIGHT)
+
+-- The eye above the column's art, under the chrome's portrait ring (RetailUI draws the chrome 12 levels up)
+LFDParentFramePortrait:SetFrameLevel(column:GetFrameLevel() + 4)
 
 -- The column's height past retail's 428: its edges grow by as much
 local EXTRA = QUEUE_HEIGHT - 428
