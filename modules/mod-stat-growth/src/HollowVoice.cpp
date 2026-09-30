@@ -389,6 +389,17 @@ enum Paint : uint32
     PAINT_INFERNAL,
     PAINT_VOID_SCORCH,
 };
+// A tower's looks (shapes.json): the sigils lit once held, the gems round its rim (empty, lit), one a soaker
+constexpr uint32 LOOK_SIGIL_RADIANT_LIT = 90673;
+constexpr uint32 LOOK_SIGIL_VOID_LIT = 90674;
+constexpr uint32 LOOK_SIGIL_BASTION_LIT = 90675;
+constexpr uint32 LOOK_PIP_HOLY_EMPTY = 90676;
+constexpr uint32 LOOK_PIP_HOLY_LIT = 90677;
+constexpr uint32 LOOK_PIP_VOID_EMPTY = 90678;
+constexpr uint32 LOOK_PIP_VOID_LIT = 90679;
+constexpr float PipRadius = 0.8f;
+constexpr float PipGap = 1.2f;                  // past the tower's edge
+constexpr uint32 TowerCheckMs = 250;
 constexpr uint32 StrikeMs = 900;
 constexpr uint32 ScorchMs = 3000;
 // Stock: a red reticle over the head (Mark of Rimefang), a purple beam (a dummy channel)
@@ -1009,6 +1020,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         {
             scheduler.Update(diff);
             UpdateChamber(diff);
+            UpdateTowers();
             UpdateClock(false);
             UpdateStanding();
             return;
@@ -1022,6 +1034,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
 
         scheduler.Update(diff);
         UpdateChamber(diff);
+        UpdateTowers();
         UpdateClock(false);
         UpdateStanding();
         if (_phase == Phase::Aldric && !_kneeling && !_windup)
@@ -1286,6 +1299,7 @@ private:
         _edge = false;
         _prisonCracks = 0;
         _prisonLights.clear();
+        _towers.clear();
         _condemned.clear();
         _brand.clear();
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
@@ -1480,6 +1494,107 @@ private:
     void Scorch(Position const& where, float radius, uint32 look)
     {
         GroundIndicators::ShowDecal(me, Ground(where), frand(0.0f, 2.0f * float(M_PI)), radius, ScorchMs, look);
+    }
+
+    // A look of the ground (shapes.json) on an invisible stalker of its own, radius yards: kept by guid, so it can
+    // change looks (a tower waiting, held)
+    Creature* Look(Position const& at, float orientation, float radius, uint32 lasts, uint32 look)
+    {
+        TempSummon* stalker = me->SummonCreature(NPC_STALKER, Position(at.GetPositionX(), at.GetPositionY(),
+            at.GetPositionZ(), orientation), TEMPSUMMON_TIMED_DESPAWN, lasts);
+        if (!stalker)
+            return nullptr;
+        stalker->SetObjectScale(radius);
+        stalker->AddAura(look, stalker);
+        return stalker;
+    }
+
+    void SwapLook(ObjectGuid guid, uint32 from, uint32 to)
+    {
+        if (Creature* stalker = guid ? me->GetMap()->GetCreature(guid) : nullptr)
+        {
+            stalker->RemoveAurasDueToSpell(from);
+            stalker->AddAura(to, stalker);
+        }
+    }
+
+    void ShowTower(Position const& spot, float orientation, float radius, uint32 lasts, uint32 needed, bool tanksOnly,
+                   bool holy, uint32 waiting, uint32 held, bool pillar = true)
+    {
+        Tower tower;
+        tower.center = Ground(spot);
+        tower.radius = radius;
+        tower.needed = needed;
+        tower.tanksOnly = tanksOnly;
+        tower.pillar = pillar;
+        tower.waiting = waiting;
+        tower.held = held;
+        tower.pipEmpty = holy ? LOOK_PIP_HOLY_EMPTY : LOOK_PIP_VOID_EMPTY;
+        tower.pipLit = holy ? LOOK_PIP_HOLY_LIT : LOOK_PIP_VOID_LIT;
+        tower.endsAt = getMSTime() + lasts;
+        if (Creature* sigil = Look(tower.center, orientation, radius, lasts, waiting))
+            tower.sigil = sigil->GetGUID();
+        // The gems in an arc over the tower's far side from the middle of the chamber, a gem's width apart
+        float const facing = Center().GetAngle(&tower.center);
+        float const step = 2.0f * (PipRadius + 0.3f) / (radius + PipGap);
+        for (uint32 index = 0; index < needed; ++index)
+        {
+            float const angle = facing + (float(index) - float(needed - 1) / 2.0f) * step;
+            if (Creature* pip = Look(AtAngle(tower.center, angle, radius + PipGap), 0.0f, PipRadius, lasts,
+                tower.pipEmpty))
+                tower.pips.push_back(pip->GetGUID());
+        }
+        _towers.push_back(tower);
+    }
+
+    // Every TowerCheckMs: who stands in each tower, its gems and sigil following
+    void UpdateTowers()
+    {
+        uint32 const now = getMSTime();
+        if (_towers.empty() || getMSTimeDiff(_nextTowerCheck, now) > 0x80000000u)
+            return;
+        _nextTowerCheck = now + TowerCheckMs;
+        std::erase_if(_towers, [now](Tower const& tower) { return getMSTimeDiff(tower.endsAt, now) < 0x80000000u; });
+        for (Tower& tower : _towers)
+        {
+            uint32 standing = 0;
+            for (Player* player : ArenaPlayers())
+                if (player->GetExactDist2d(&tower.center) <= tower.radius && (!tower.tanksOnly || IsGroupTank(player)))
+                    ++standing;
+            uint32 const lit = std::min(standing, tower.needed);
+            for (uint32 index = 0; index < tower.pips.size(); ++index)
+            {
+                bool const was = index < tower.lit;
+                bool const is = index < lit;
+                if (was != is)
+                    SwapLook(tower.pips[index], was ? tower.pipLit : tower.pipEmpty,
+                             is ? tower.pipLit : tower.pipEmpty);
+            }
+            tower.lit = lit;
+            bool const full = standing >= tower.needed;
+            if (full == tower.full)
+                continue;
+            tower.full = full;
+            if (tower.held != tower.waiting)
+                SwapLook(tower.sigil, full ? tower.waiting : tower.held, full ? tower.held : tower.waiting);
+            if (!tower.pillar)
+                continue;
+            if (full)
+            {
+                uint32 const left = getMSTimeDiff(now, tower.endsAt);
+                if (Creature* light = FxStalker(tower.center, std::max<uint32>(left, 100), NPC_HOVER_STALKER))
+                {
+                    light->AddAura(SPELL_LIGHT_FX, light);
+                    tower.light = light->GetGUID();
+                }
+                PlayOnGround(tower.center, KIT_HOLY_WRATH_HIT);
+            }
+            else if (Creature* light = tower.light ? me->GetMap()->GetCreature(tower.light) : nullptr)
+            {
+                light->DespawnOrUnsummon();
+                tower.light = ObjectGuid::Empty;
+            }
+        }
     }
 
     // An aura for a set time (a mark, a light carried)
@@ -1866,16 +1981,17 @@ private:
             float const angle = base + float(index) * 2.0f * float(M_PI) / float(count) + frand(-0.25f, 0.25f);
             Position const spot = AtAngle(center, angle, frand(17.0f, 26.0f));
             towers.push_back(spot);
-            GroundIndicators::ShowDecal(me, spot, angle, TowerRadius, TowerMs,
-                sermon ? GroundIndicators::SPELL_SIGIL_VOID : GroundIndicators::SPELL_SIGIL_RADIANT);
+            ShowTower(spot, angle, TowerRadius, TowerMs, 2, false, !sermon,
+                sermon ? GroundIndicators::SPELL_SIGIL_VOID : GroundIndicators::SPELL_SIGIL_RADIANT,
+                sermon ? LOOK_SIGIL_VOID_LIT : LOOK_SIGIL_RADIANT_LIT);
             GroundIndicators::ShowSoak(Caster(), spot, TowerRadius, TowerMs, 2,
                 sermon ? GroundIndicators::Theme::Shadow : GroundIndicators::Theme::Holy);
         }
         // The Bastion: between two towers, nearer the middle; the tank not on the boss goes
         float const bastionAngle = base + float(M_PI) / float(count);
         Position const bastion = AtAngle(center, bastionAngle, 12.0f);
-        GroundIndicators::ShowDecal(me, bastion, bastionAngle, TowerRadius, TowerMs,
-            GroundIndicators::SPELL_SIGIL_BASTION);
+        ShowTower(bastion, bastionAngle, TowerRadius, TowerMs, 1, true, true, GroundIndicators::SPELL_SIGIL_BASTION,
+            LOOK_SIGIL_BASTION_LIT);
         GroundIndicators::SetOffTankSpot(Caster(), bastion, TowerMs);
 
         scheduler.Schedule(Milliseconds(TowerMs), [this, towers, bastion, sermon](TaskContext)
@@ -1976,7 +2092,7 @@ private:
             Position const spot = Ground(marked->GetPosition());
             AddTimedAura(marked, SPELL_SENTENCE_MARK, SentenceMs);
             AddTimedAura(marked, SPELL_FX_MARK, SentenceMs);
-            GroundIndicators::ShowDecal(me, spot, 0.0f, SentenceRadius, SentenceMs, PAINT_SENTENCE);
+            ShowTower(spot, 0.0f, SentenceRadius, SentenceMs, 3, false, true, PAINT_SENTENCE, PAINT_SENTENCE);
             GroundIndicators::ShowSoak(Caster(), spot, SentenceRadius, SentenceMs, SentenceSoakersBots);
             scheduler.Schedule(Milliseconds(SentenceMs), [this, spot](TaskContext)
             {
@@ -2338,7 +2454,8 @@ private:
                  ++attempt)
                 spot = ArenaSpot(12.0f, 24.0f);
             spots.push_back(spot);
-            GroundIndicators::ShowDecal(me, spot, 0.0f, InfernalRadius, InfernalWarningMs, PAINT_INFERNAL);
+            ShowTower(spot, 0.0f, InfernalRadius, InfernalWarningMs, 2, false, false, PAINT_INFERNAL, PAINT_INFERNAL,
+                false);
             GroundIndicators::ShowSoak(Caster(), spot, InfernalRadius, InfernalWarningMs, InfernalSoakersBots,
                 GroundIndicators::Theme::Fire);
         }
@@ -2800,6 +2917,29 @@ private:
     GroundIndicators::Area _inhaleCore;
     GroundIndicators::Area _edgeArea;
     std::set<ObjectGuid> _fightListeners;
+    // A soak drawn as a tower (FFXIV's): waiting - its sigil breathing, an empty gem round its rim for each soaker it
+    // asks for - the gems lighting up as players stand in it, then held - its sigil lit and turning fast, a pillar
+    // of light over it - once it has them all (for a Bastion: a tank). Someone stepping out takes it back.
+    struct Tower
+    {
+        Position center;
+        float radius = 0.0f;
+        uint32 needed = 0;
+        bool tanksOnly = false;
+        bool pillar = true;
+        uint32 waiting = 0;                     // the sigil's looks
+        uint32 held = 0;
+        uint32 pipEmpty = 0;
+        uint32 pipLit = 0;
+        ObjectGuid sigil;
+        ObjectGuid light;
+        std::vector<ObjectGuid> pips;
+        uint32 lit = 0;
+        bool full = false;
+        uint32 endsAt = 0;                      // getMSTime
+    };
+    std::vector<Tower> _towers;
+    uint32 _nextTowerCheck = 0;
     std::map<std::string, AbilityStats> _stats;
     bool _inHit = false;                        // an ability's damage being dealt: a kill now is its own
     // Stacks by player: how many, and when they lapse (getMSTime)

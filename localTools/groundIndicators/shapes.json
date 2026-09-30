@@ -37,9 +37,9 @@
     { "key": "Ring60", "kind": "ring", "inner": 0.6, "spell": 90731 },
     { "key": "Ring80", "kind": "ring", "inner": 0.8, "spell": 90732 },
     { "key": "Star10", "kind": "star", "ratio": 3.3333, "scale": 10, "carried": true, "spell": 90733 },
-    { "key": "SigilRadiant", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilRadiant.png", "brightness": 1.0, "alpha": 0.85, "spin": 24000, "spell": 90734 },
-    { "key": "SigilBastion", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilBastion.png", "brightness": 1.0, "alpha": 0.85, "spell": 90735 },
-    { "key": "SigilVoid", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilVoid.png", "brightness": 1.0, "alpha": 0.9, "spin": 18000, "spell": 90736 },
+    { "key": "SigilRadiant", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilRadiant.png", "brightness": 1.0, "alpha": 0.85, "spin": 24000, "pulse": [0.45, 0.85, 1000], "spell": 90734 },
+    { "key": "SigilBastion", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilBastion.png", "brightness": 1.0, "alpha": 0.85, "pulse": [0.45, 0.85, 1000], "spell": 90735 },
+    { "key": "SigilVoid", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilVoid.png", "brightness": 1.0, "alpha": 0.9, "spin": 18000, "pulse": [0.45, 0.9, 1000], "spell": 90736 },
     { "key": "SigilAegis", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilAegis.png", "brightness": 1.0, "alpha": 0.8, "spin": 30000, "spell": 90737 },
     { "key": "HV_Aisles", "kind": "texture", "image": "localTools/hollowVoice/textures/consecratedAisles.png", "shape": "rect", "ratio": 11.25, "pulse": [0.55, 0.9, 1200], "spell": 90769 },
     { "key": "HV_AislesHit", "kind": "texture", "image": "localTools/hollowVoice/textures/consecratedAisles.png", "shape": "rect", "ratio": 11.25, "spell": 90770 },
@@ -70,6 +70,13 @@
     { "key": "HV_Edge", "kind": "texture", "image": "localTools/hollowVoice/textures/devouredEdge.png", "shape": "ring", "inner": 0.6, "spin": 40000, "alpha": 0.9, "spell": 90795 },
     { "key": "HV_Inhale", "kind": "texture", "image": "localTools/hollowVoice/textures/inhaleOfTheVoid.png", "shape": "circle", "spin": 3000, "spell": 90796 },
     { "key": "HV_Infernal", "kind": "texture", "image": "localTools/hollowVoice/textures/dreadInfernalCrash.png", "shape": "circle", "pulse": [0.6, 1.0, 900], "spell": 90797 },
-    { "key": "HV_VoidScorch", "kind": "texture", "image": "localTools/hollowVoice/textures/voidScorch.png", "shape": "circle", "spell": 90798 }
+    { "key": "HV_VoidScorch", "kind": "texture", "image": "localTools/hollowVoice/textures/voidScorch.png", "shape": "circle", "spell": 90798 },
+    { "key": "SigilRadiantLit", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilRadiant.png", "brightness": 1.0, "alpha": 1.0, "spin": 6000, "spell": 90673 },
+    { "key": "SigilVoidLit", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilVoid.png", "brightness": 1.0, "alpha": 1.0, "spin": 6000, "spell": 90674 },
+    { "key": "SigilBastionLit", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilBastion.png", "brightness": 1.0, "alpha": 1.0, "spin": 8000, "spell": 90675 },
+    { "key": "PipHolyEmpty", "kind": "texture", "image": "localTools/hollowVoice/textures/pipHolyEmpty.png", "shape": "circle", "pulse": [0.6, 1.0, 1000], "spell": 90676 },
+    { "key": "PipHolyLit", "kind": "texture", "image": "localTools/hollowVoice/textures/pipHolyLit.png", "shape": "circle", "spell": 90677 },
+    { "key": "PipVoidEmpty", "kind": "texture", "image": "localTools/hollowVoice/textures/pipVoidEmpty.png", "shape": "circle", "pulse": [0.6, 1.0, 1000], "spell": 90678 },
+    { "key": "PipVoidLit", "kind": "texture", "image": "localTools/hollowVoice/textures/pipVoidLit.png", "shape": "circle", "spell": 90679 }
   ]
 }
