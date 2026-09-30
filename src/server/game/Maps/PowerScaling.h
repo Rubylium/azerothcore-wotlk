@@ -76,12 +76,38 @@ inline float DpsIndex(float itemLevel)
 }
 
 // Damage of the reference damage dealer with paragon points active (its board spent as a bench bot spends it), over
-// its damage with none: measured too, grows by ParagonDpsPerPoint a point, compounded.
-constexpr float ParagonDpsPerPoint = 1.0065f;
+// its damage with none. Measured on the combat bench 2026-09-30 (a Fire mage at item levels 280 and 460, 60 s on one
+// target, power-scaling.md "Measures"): it grows about as 1.0065 a point compounded up to some 250 points, then
+// flattens - past about 425 points what is left of the board is defence and other roles' nodes, and a damage dealer
+// gains nothing more. The compounded rule it replaces put 650 points at x67 (measured: about x9.6).
+struct ParagonPoint
+{
+    float points;
+    float index;
+};
+
+constexpr ParagonPoint ParagonCurve[] = {
+    { 0.0f, 1.0f },
+    { 85.0f, 2.0f },
+    { 212.0f, 3.7f },
+    { 255.0f, 5.4f },
+    { 340.0f, 7.8f },
+    { 425.0f, 9.6f },
+};
 
 inline float ParagonDpsIndex(float paragonPoints)
 {
-    return std::pow(ParagonDpsPerPoint, std::max(paragonPoints, 0.0f));
+    constexpr std::size_t count = std::size(ParagonCurve);
+    float const points = std::max(paragonPoints, 0.0f);
+    if (points >= ParagonCurve[count - 1].points)
+        return ParagonCurve[count - 1].index;
+    std::size_t upper = 1;
+    while (points > ParagonCurve[upper].points)
+        ++upper;
+    ParagonPoint const& low = ParagonCurve[upper - 1];
+    ParagonPoint const& high = ParagonCurve[upper];
+    float const t = (points - low.points) / (high.points - low.points);
+    return low.index + (high.index - low.index) * t;
 }
 
 // Essences (mod-stat-growth EssenceTuning.h): Growth (a stat of the class a point) and Vitality (40 health a point

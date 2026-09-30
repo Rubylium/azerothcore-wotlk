@@ -50,16 +50,28 @@ local TIER_GUARANTEED_ITEM = 7
 -- ChallengeBoard.cpp SatchelExtraItemChance, by raid mode (10, 25, 10 heroic, 25 heroic)
 local SATCHEL_ITEM_CHANCE = { [0] = 35, 45, 50, 60 }
 
--- A tier asks for 31 more paragon points, and the boss's health grows by what they are measured to be worth (0.65%
--- each, compounded: PowerScaling.h), its damage 11.5% a tier; L'Infini by its own profile (below). A key past +10
--- asks for 8.5 a level (MythicDungeon.h). ChallengeTiers.h holds the server's: change them together.
-local PARAGON_DPS_PER_POINT = 1.0065
+-- A tier asks for 31 more paragon points, and the boss's health grows by what they are measured to be worth (the
+-- bench's curve, flat past 425 points: PowerScaling.h ParagonCurve), its damage 11.5% a tier; L'Infini by its own
+-- profile (below). A key past +10 asks for 8.5 a level (MythicDungeon.h). ChallengeTiers.h holds the server's:
+-- change them together.
+local PARAGON_CURVE = { { 0, 1.0 }, { 85, 2.0 }, { 212, 3.7 }, { 255, 5.4 }, { 340, 7.8 }, { 425, 9.6 } }
+local function ParagonDpsIndex(points)
+    local last = PARAGON_CURVE[#PARAGON_CURVE]
+    if points >= last[1] then return last[2] end
+    for index = 2, #PARAGON_CURVE do
+        local low, high = PARAGON_CURVE[index - 1], PARAGON_CURVE[index]
+        if points <= high[1] then
+            return low[2] + (high[2] - low[2]) * (points - low[1]) / (high[1] - low[1])
+        end
+    end
+    return last[2]
+end
 local function TierParagon(tier) return 31 * (tier - 1) end
-local function TierHealth(tier) return PARAGON_DPS_PER_POINT ^ TierParagon(tier) end
+local function TierHealth(tier) return ParagonDpsIndex(TierParagon(tier)) end
 local function TierDamage(tier) return 1.1152 ^ (tier - 1) end
 -- L'Infini's tiers, from its profile (ChallengeTiers.h HealthMultiplier / DamageMultiplier with its BossProfile,
 -- worked out on the power model): health by the profile's power, damage by its health. Change them together.
-local GOD_TIER_HEALTH = { 1.00, 1.43, 2.04, 2.91, 4.14, 5.88, 8.35, 11.85, 16.81, 23.84 }
+local GOD_TIER_HEALTH = { 1.00, 1.35, 1.72, 2.61, 3.44, 4.24, 4.93, 5.35, 5.49, 5.63 }
 local GOD_TIER_DAMAGE = { 1.00, 1.08, 1.15, 1.23, 1.31, 1.39, 1.47, 1.55, 1.63, 1.72 }
 local function KeyParagon(level) return level > 10 and floor((17 * (level - 10) + 1) / 2) or 0 end
 -- Paragon only exists at the level cap: below it the boards say nothing about it

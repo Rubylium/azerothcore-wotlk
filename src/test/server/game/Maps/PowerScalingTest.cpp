@@ -24,11 +24,16 @@ TEST(PowerScaling, DpsIndexIsOneAtReferenceAndClimbs)
         EXPECT_GT(Power::DpsIndex(itemLevel + 1.0f), Power::DpsIndex(itemLevel));
 }
 
-TEST(PowerScaling, ParagonCompoundsAndPowerIndexCombines)
+TEST(PowerScaling, ParagonFollowsItsMeasuresAndPowerIndexCombines)
 {
     EXPECT_FLOAT_EQ(Power::ParagonDpsIndex(0.0f), 1.0f);
     EXPECT_FLOAT_EQ(Power::ParagonDpsIndex(-5.0f), 1.0f);
-    EXPECT_NEAR(Power::ParagonDpsIndex(100.0f), std::pow(Power::ParagonDpsPerPoint, 100.0f), 1e-4f);
+    for (auto const& point : Power::ParagonCurve)
+        EXPECT_FLOAT_EQ(Power::ParagonDpsIndex(point.points), point.index);
+    for (float points = 0.0f; points < 425.0f; points += 1.0f)
+        EXPECT_GT(Power::ParagonDpsIndex(points + 1.0f), Power::ParagonDpsIndex(points));
+    // Flat past the board's damage nodes
+    EXPECT_FLOAT_EQ(Power::ParagonDpsIndex(650.0f), Power::ParagonDpsIndex(425.0f));
     EXPECT_FLOAT_EQ(Power::PowerIndex(370.0f, 100.0f), Power::DpsIndex(370.0f) * Power::ParagonDpsIndex(100.0f) *
         Power::EssenceDpsIndex(Power::ProgressKeys(370.0f)));
     EXPECT_FLOAT_EQ(Power::DpsCheckHealth(284.0f, 0.0f, 3.0f, 60.0f),

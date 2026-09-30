@@ -15,9 +15,11 @@ The Mythic+ keys (`MythicDungeon.h`) and the Défi tiers (`mod-playerbots Challe
   - secondary ratings (hit, crit, haste, expertise, armour penetration, defence, dodge, parry, block, resilience) grow
     by `r^0.5` (`RatingExponent`). They become percentages that cap. With the old `r^2` on everything, crit reached
     95-100% at item level 390 and damage roughly quadrupled per 1.5x item level.
-- **Paragon.** Points active on the board, spent as a bench bot spends them. Measured at about +0.65% damage per
-  point, compounded (`ParagonDpsPerPoint = 1.0065`): 100 points is x1.9 and 200 points is x3.7. **Paragon moves
-  power far more than gear does past 284.**
+- **Paragon.** Points active on the board, spent as a bench bot spends them. The measured curve
+  (`Power::ParagonCurve`): x2.0 at 85 points, x3.7 at 212, x5.4 at 255, x7.8 at 340, x9.6 at 425 and **flat past
+  425** - what is left of the board is defence and other roles' nodes. Up to ~250 points it grows about as +0.65% a
+  point compounded; the compounded rule used before went on growing (x67 at 650) and oversized everything past ~300
+  points by up to seven times. **Paragon moves power far more than gear does past 284, up to 425 points.**
 - **Essences** come with progress and are not an input of their own. The model's player gathers 8 Growth points of
   each stat and 25 Vitality a key of progress (`ProgressKeys(I)`).
 
@@ -104,8 +106,8 @@ health nodes, and buffs:
 |---|---|---|
 | Mythic+ key `k` | `GetExpectedItemLevel(k)` (223 + 2.45 ilvl a key, one key behind, capped 370) with `GetRecommendedParagon(k)` = round(8.5 x (k - 10)) past +10. For example +20 = 270 / 85, +30 = 294 / 170, +52 = 348 / 357, +60 = 368 / 425. Creature health grows 1.08 a key to +10, then by the power index ratio over +10's. Damage follows the player health of the profile, plus a pressure of 2.5% a key past +10 (capped at 1.6). | `MythicDungeon.h` |
 | Défi tier `T`, normal missions | The raid as it is at Défi I, plus 31 paragon a tier (Défi X: 279). Health `x ParagonDpsIndex(31 (T-1))` (x1.22 a tier, x6.1 at X). Damage x1.115 a tier (x2.7 at X). | `ChallengeTiers.h` |
-| L'Infini, Défi `T` | 300 / 100 at Défi I, then +10 item level and +50 paragon a tier (Défi III 320 / 200, Défi X 390 / 550). Health x the tier profile's `PowerIndex` over Défi I's (x2.04 at III, x23.8 at X), damage x its `ExpectedPlayerHealth` over Défi I's (x1.15 at III, x1.72 at X), avoidable hits +10% a tier on top. Its base health (`HealthModifier` 3412) and damage reference (122k) were set by play at Défi I. Bots: the profile minus 9 item levels and 8 paragon, and at least a typical player's essences for their gear (`SetBotEssenceFloor`). | `ChallengeTiers.h` BossProfiles, `InfiniteGod.cpp` |
-| The Hollow Voice | 460 / 650, 10 players, one difficulty (`PowerIndex` 113, x54 L'Infini's Défi I). Sized on the profile's group (six damage dealers, two tanks, two healers: 5.3 million a second): the Archbishop 505 million (`HealthModifier` 36214, about 110 s of the 2:00 his track gives), Vel'thazar 1.19 billion (85336, about 257 s). Hits are shares of `ExpectedPlayerHealth(460, 650)` (about 221k). Bots at the full profile (margins 0): it starts from a game master's `.defi start 930100` for now. | `ChallengeTiers.h` BossProfiles, `HollowVoice.cpp` |
+| L'Infini, Défi `T` | 300 / 100 at Défi I, then +10 item level and +50 paragon a tier (Défi III 320 / 200, Défi X 390 / 550). Health x the tier profile's `PowerIndex` over Défi I's (x1.72 at III, x5.63 at X), damage x its `ExpectedPlayerHealth` over Défi I's (x1.15 at III, x1.72 at X), avoidable hits +10% a tier on top. Its base health (`HealthModifier` 3412) and damage reference (122k) were set by play at Défi I. Bots: the profile minus 9 item levels and 8 paragon, and at least a typical player's essences for their gear (`SetBotEssenceFloor`). | `ChallengeTiers.h` BossProfiles, `InfiniteGod.cpp` |
+| The Hollow Voice | 460 / 650, 10 players, one difficulty (`PowerIndex` 16.1: 103k a second a damage dealer, what the bench measures). Sized on the profile's group (six damage dealers, two tanks, two healers: 750k a second): the Archbishop 72 million (`HealthModifier` 5163, about 110 s of the 2:00 his track gives), Vel'thazar 168 million (12050, about 257 s), Dread Infernals 4 million. Hits are shares of `ExpectedPlayerHealth(460, 650)` (about 221k). Bots at the full profile (margins 0), their health sized to it; bots alone reach about a third of the group's damage (tested headless: `e2e/local/hollowvoice`). It starts from a game master's `.defi start 930100` for now. | `ChallengeTiers.h` BossProfiles, `HollowVoice.cpp` |
 | Infinite Dungeon | **Not on the model yet.** It has its own ladder (`gearRatio^2` from item level 200 to 310, 12k-28.8k reference). | `infinite/InfiniteDungeonScaling.h` |
 
 ## Measures, and re-measuring
@@ -113,13 +115,16 @@ health nodes, and buffs:
 Measured on 2026-09-30 on the combat bench (`localTools/combatBench/runBench.ps1`): four Fire mages per run, single
 target and pack of five, 60 s.
 - **Gear:** item levels 223, 264, 284, 330, 370 and 460 at key +10 (no paragon).
-- **Paragon:** item levels 284 and 370 at keys +30 (100 paragon) and +50 (200 paragon). The bench gives bots the
-  key's recommended paragon.
+- **Paragon:** the bench gives bots the key's recommended paragon. A Fire mage at item level ~280, 60 s single
+  target: 7.4k with none, 15.6k at 85 (+20), 26.7k at 212 (+35), 47.5k at 255 (+40), 82-86k at 425 (+60); at item
+  level 460: 13.5k with none, 101.6k at 340 (+50), 112.6k at 425 (+60), 110.3k at 510 (+70), 93-96k at 654 (+87).
+  `ParagonCurve` sits between the two gear levels. (A bench bot re-asked for another item level kept its gear once:
+  read the worn item level in the row.)
 - **Noise:** runs vary by up to +-20% per bot, so the curve past 284 is smoothed to `(I / 284)^0.85`.
 
 To re-measure after a class or board change, run the same benches, then update together:
-- `DpsCurve`, `ParagonDpsPerPoint` and `Reference*Dps` in `PowerScaling.h`;
-- the client copies: `ChallengeBoard.lua` `PARAGON_DPS_PER_POINT` and the tier formulas, and `MythicPlus.lua` /
+- `DpsCurve`, `ParagonCurve` and `Reference*Dps` in `PowerScaling.h`;
+- the client copies: `ChallengeBoard.lua` `PARAGON_CURVE`, `GOD_TIER_HEALTH` and the tier formulas, and `MythicPlus.lua` /
   `ChallengeBoard.lua` `KeyParagon` (8.5 a key);
 - this doc's tables (`python` over the same formulas);
 - the unit tests (`src/test/server/game/Maps/PowerScalingTest.cpp`).
@@ -133,5 +138,8 @@ To re-measure after a class or board change, run the same benches, then update t
   applied. Do not use it for the curve.
 - **The reference bot has no essences.** `PowerIndex` adds a typical player's (x1.04 at 284, x1.08 at 370, at most
   x1.15). Real players with far more saved essences than that sit only a little above it: the curve bounds them.
+- **Bots are not players in health.** A bot's board and gear give it a fraction of a player's health (52k at
+  460 / 650 against about 221k). A challenge's bots are brought up to `ExpectedPlayerHealth` of their profile (x1.45
+  for a tank) and never scaled to the player they came with (mod-playerbots `ApplyChallengeBotScaling`).
 - The power index is a damage dealer's. Healing and tanking scale differently: size tank damage on the tank's 1.45x
   health, not on the index.
