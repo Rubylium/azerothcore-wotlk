@@ -1,8 +1,12 @@
 #include "MythicTuning.h"
 
+#include "CellImpl.h"
 #include "Chat.h"
 #include "CommandScript.h"
 #include "CreatureScript.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
+#include "InstanceScript.h"
 #include "Log.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
@@ -16,6 +20,7 @@
 
 #include <algorithm>
 #include <array>
+#include <list>
 #include <set>
 #include <string>
 #include <vector>
@@ -27,10 +32,10 @@
 // 0:00 Archbishop Aldric Dawnmantle (HollowVoiceAldric.mp3, 2:03.4). His health stops at 1%. At 1:59.7, as his
 //      track fades: at 1% he falls; above it, Last Rites - a holy judgement kills the group, and the demon is never
 //      seen.
-// 2:03.4 Vel'thazar's track (HollowVoiceVelthazar.mp3, 5:30) starts; on its first hit (2:04.9) Vel'thazar, the
+// 2:02.0 Vel'thazar's track (HollowVoiceVelthazar.mp3, 5:30) starts; on its first hit (2:03.5) Vel'thazar, the
 //      Hollow Voice, tears out of the Archbishop, who stays hidden. Killing the demon frees and kills the Archbishop:
 //      his kill is the board's win (RaidFinder follows the board's boss, 930100).
-// 7:20.5 / 7:21.1 / 7:21.5 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
+// 7:19.1 / 7:19.7 / 7:20.1 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
 //      everyone's health, then a pulse every second that kills whatever protects them.
 //
 // This is the fight's frame: phases, music, the 1% hold, the reveal, the wipes and the enrage. The abilities come on it
@@ -66,7 +71,9 @@ constexpr float ChamberClearRadius = 60.0f;     // the chamber's own occupants t
 
 // --- Timeline (ms from the pull), on the tracks' beats (measured on their loudness) ---------------------------------
 constexpr uint32 AtJudgement = 119700;          // the Archbishop's track fades: he falls at 1%, or Last Rites
-constexpr uint32 AtSecondTrack = 123450;        // his track's end: Vel'thazar's starts
+// Vel'thazar's track starts in the fade of his (1:59.7-2:03.4), before it ends by itself: a track reaching its end
+// ended the music the client had just been sent (sent at 2:03.45, the second track never played)
+constexpr uint32 AtSecondTrack = 122000;
 constexpr uint32 AtReveal = AtSecondTrack + 1500;               // its first hit
 constexpr std::array<uint32, 3> AtEnrageBlasts = { AtSecondTrack + 317090, AtSecondTrack + 317650,
                                                    AtSecondTrack + 318100 };
@@ -207,6 +214,8 @@ struct boss_hollow_voice_aldric : public ScriptedAI
     {
         ResetFight();
         _lingering = false;
+        // He never regenerates (his hold at 1%), so he would keep his spawn's stored health: full on every reset
+        me->SetFullHealth();
         if (_defiConfirmed)
             me->SetVisible(true);
         // The board holds him until the group pulls (RaidFinder HoldChallengeBoss)
@@ -319,6 +328,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         if (_phase == Phase::Fallen || _phase == Phase::Hollow)
         {
             scheduler.Update(diff);
+            UpdateChamber(diff);
             UpdateClock();
             UpdateStanding();
             return;
@@ -331,6 +341,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         }
 
         scheduler.Update(diff);
+        UpdateChamber(diff);
         UpdateClock();
         UpdateStanding();
         if (_phase == Phase::Aldric)
@@ -404,6 +415,17 @@ private:
             ClearChamber();
     }
 
+    // Every second of the fight too: what the chamber's stock fight sends in later goes as it comes
+    void UpdateChamber(uint32 diff)
+    {
+        _checkTimer += diff;
+        if (_checkTimer < 1000)
+            return;
+        _checkTimer = 0;
+        if (_defiConfirmed && !_lingering)
+            ClearChamber();
+    }
+
     void UpdateDefi()
     {
         Map* map = me->GetMap();
@@ -417,6 +439,7 @@ private:
         {
             _defiConfirmed = true;
             me->SetVisible(true);
+            me->SetFullHealth();
             ClearChamber();
             LOG_INFO("module.hollowvoice", "The Hollow Voice appears for a challenge instance={}", me->GetInstanceId());
             return;
@@ -431,18 +454,32 @@ private:
         }
     }
 
-    // M'uru's chamber is his: M'uru and the guards around it go (spawns only; triggers stay). The board's own clearing
-    // (RaidFinder ClearChallengeTrash) leaves what stands in the boss's room, the adds a stock fight is made of.
+    // M'uru's chamber is his: M'uru, the guards around it and anything its fight summoned go (triggers stay). The
+    // board's own clearing (RaidFinder ClearChallengeTrash) leaves what stands in the boss's room, the adds a stock
+    // fight is made of.
+    // A player landing in the chamber can engage M'uru before it goes: its encounter is left in progress, and a raid
+    // lets nobody in while one is (Map::CannotEnter, ZONE_IN_COMBAT) - the bots were kept out. No stock encounter is
+    // fought in his instance: any left in progress is set back.
     void ClearChamber()
     {
-        std::vector<Creature*> occupants;
-        for (auto const& [spawnId, creature] : me->GetMap()->GetCreatureBySpawnIdStore())
-            if (creature != me && creature->IsInWorld() && creature->IsAlive() && !creature->IsTrigger() &&
-                creature->GetEntry() != NPC_ALDRIC && creature->IsHostileToPlayers() &&
-                creature->GetExactDist2d(&me->GetHomePosition()) <= ChamberClearRadius)
-                occupants.push_back(creature);
-        for (Creature* creature : occupants)
-            creature->DespawnOrUnsummon(0ms, Seconds(DAY));
+        std::list<Creature*> found;
+        Acore::AllWorldObjectsInRange check(me, ChamberClearRadius);
+        Acore::CreatureListSearcher<Acore::AllWorldObjectsInRange> searcher(me, found, check);
+        Cell::VisitObjects(me, searcher, ChamberClearRadius);
+        for (Creature* creature : found)
+            if (creature != me && creature->IsAlive() && !creature->IsTrigger() &&
+                creature->GetEntry() != NPC_ALDRIC && creature->GetEntry() != NPC_VELTHAZAR &&
+                !creature->IsCharmedOwnedByPlayerOrPlayer() && creature->IsHostileToPlayers())
+                creature->DespawnOrUnsummon(0ms, Seconds(DAY));
+
+        if (InstanceScript* instance = me->GetInstanceScript())
+            for (uint32 boss = 0; boss < instance->GetEncounterCount(); ++boss)
+                if (instance->GetBossState(boss) == IN_PROGRESS)
+                {
+                    instance->SetBossState(boss, NOT_STARTED);
+                    LOG_INFO("module.hollowvoice", "The Hollow Voice: stock encounter {} set back instance={}", boss,
+                             me->GetInstanceId());
+                }
     }
 
     // --- Fight state -----------------------------------------------------------------------------------------------
@@ -570,7 +607,7 @@ private:
         Wipe();
     }
 
-    // 2:04.9, the second track's first hit: Vel'thazar tears out of the Archbishop, who is no longer seen
+    // 2:03.5, the second track's first hit: Vel'thazar tears out of the Archbishop, who is no longer seen
     void Reveal()
     {
         _phase = Phase::Hollow;
@@ -591,7 +628,7 @@ private:
                  me->GetInstanceId(), demon->GetMaxHealth());
     }
 
-    // 7:20.5 / 7:21.1 / 7:21.5: three blasts of three times everyone's health (an immunity still holds)...
+    // 7:19.1 / 7:19.7 / 7:20.1: three blasts of three times everyone's health (an immunity still holds)...
     void EnrageBlast(uint32 index)
     {
         Creature* demon = Velthazar();
