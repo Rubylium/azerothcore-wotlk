@@ -145,13 +145,24 @@ if ($packageName -or $skipBuild) {
 Write-Host "Package: $($package.Name)"
 Expand-Archive -LiteralPath $package.FullName -DestinationPath $payloadRoot
 
-# 2. The launcher
-Write-Host 'Building the launcher...'
-& dotnet build (Join-Path $patcherRoot 'launcher\Evolutions.csproj') -c Release -nologo -v q | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Launcher build failed (exit $LASTEXITCODE)."
+# 2. The launcher, built again when a source of it is newer than the one built (a release of client files alone
+# needs no .NET SDK: one update of .NET took the SDK away and held every release)
+$launcherRoot = Join-Path $patcherRoot 'launcher'
+$launcherPath = Join-Path $launcherRoot 'bin\Release\net48\Evolutions.exe'
+$launcherBuilt = if (Test-Path -LiteralPath $launcherPath) { (Get-Item -LiteralPath $launcherPath).LastWriteTimeUtc } else { [datetime]::MinValue }
+$launcherChanged = Get-ChildItem -LiteralPath $launcherRoot -Recurse -File |
+    Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' -and $_.LastWriteTimeUtc -gt $launcherBuilt } |
+    Select-Object -First 1
+if ($launcherChanged) {
+    Write-Host 'Building the launcher...'
+    & dotnet build (Join-Path $launcherRoot 'Evolutions.csproj') -c Release -nologo -v q | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Launcher build failed (exit $LASTEXITCODE)."
+    }
 }
-$launcherPath = Join-Path $patcherRoot 'launcher\bin\Release\net48\Evolutions.exe'
+else {
+    Write-Host 'The launcher is up to date.'
+}
 
 # 3. What the latest release already holds
 $previous = $null
