@@ -16,6 +16,7 @@
 #include "MythicDungeon.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
+#include "PowerScaling.h"
 #include "Random.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
@@ -76,9 +77,11 @@ uint8 GetChallengeTierOf(Map const* map);
 namespace
 {
 // --- Tuning ---------------------------------------------------------------------------------------------------------
-// Keep the raid's established damage budget independent of changes to the Mythic+ reward curve.
-// Entry requirements and tier paragon recommendations live in ChallengeTiers::BossProfiles.
-constexpr float ReferenceHealth = 122284.61f;
+// Its hits are shares of the health of a player of its Défi I profile (ChallengeTiers::BossProfiles: item level 300,
+// 100 paragon), on the power model: 102 000. It was 122 000, set by play when its bots were scaled on the player they
+// came with; they come at the profile now (a little under: 96 500), and every hit was a fifth heavier than meant.
+constexpr float ProfileItemLevel = 300.0f;
+constexpr float ProfileParagon = 100.0f;
 
 constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
@@ -551,7 +554,7 @@ uint32 SpellOf(NamedSpell const& spell)
 
 float Reference()
 {
-    return ReferenceHealth;
+    return Power::ExpectedPlayerHealth(ProfileItemLevel, ProfileParagon);
 }
 
 struct boss_infinite_god : public ScriptedAI

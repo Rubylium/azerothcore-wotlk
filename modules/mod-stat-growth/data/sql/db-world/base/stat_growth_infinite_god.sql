@@ -1,12 +1,13 @@
 -- L'Infini, the Défi board's god fight in Ulduar's Celestial Planetarium (InfiniteGod.cpp; the board posts it from
 -- mod-playerbots ChallengeBoard.cpp, 10 players). Every creature is a copy of a stock one of Algalon's fight:
 -- 930000 L'Infini: Algalon the Observer (32871), hostile to all, no longer immune to players, its health set for a
---        timeline fight of 5 minutes at Défi I, tuned on item level 300 gear and 51 paragon (InfiniteGod.cpp):
---        3 412 x 13 945 (level 83 elite) = 47.6 million, the tier multiplying it: a tight damage check at the 5 minute
---        mark. Measured in game (2026-09-29): its players' damage dealers do 20 000-30 000 on one target, so six of
---        them at 25 000 and two tanks at 8 000, on the god 85% of the time with the movement it asks (+50% in
---        intermission 1's window), deal about 42 million by 4:50. The first estimate (7 500 a damage dealer, 11.0
---        million) died far too early; 42.0 million, then 3% more, then 10% more (kills came early).
+--        timeline fight of 5 minutes at Défi I, on the power model (PowerScaling.h) at its profile, item level 300
+--        and 100 paragon (ChallengeTiers.h BossProfiles): 2 016 x 13 945 (level 83 elite) = 28.1 million, the tier
+--        multiplying it - a tight damage check at the 5 minute mark. Power::DpsCheckHealth(300, 100, 7.33, 246.5):
+--        a damage dealer of the profile deals 15 550 on one target, six of them and four tanks and healers at a
+--        third each, on the god 85% of 4:50. It was 47.6 million, measured in game (2026-09-29) on bots then scaled
+--        on the player they came with (20 000-30 000 each); a challenge's bots come at its profile now (291 / 92:
+--        14 300 each), and fell far short of it.
 --        Its melee: a 1.5 s swing at 90 damage
 --        modifier. No gear on its corpse: the challenge board gives its own (ChallengeBoard.cpp GodItemLevel), gold
 --        only.
@@ -45,7 +46,7 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `flags_extra` = `flags_extra` & ~0x80000000,
     `DamageModifier` = 90,
     `BaseAttackTime` = 1500,
-    `HealthModifier` = 3412,
+    `HealthModifier` = 2016,
     `lootid` = 0,
     `AIName` = '',
     `ScriptName` = 'boss_infinite_god',
