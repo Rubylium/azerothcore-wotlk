@@ -20,6 +20,11 @@ How the client draws them (found by testing in game, see .agents/plans/ground-in
   replaced. A model written from nothing froze the client, so the rest of the stock file is kept as it is.
 - A texture's outermost texels must be fully transparent: the client clamps to them past the quad, and anything
   left there streaks outward over the whole painted area. Each texture keeps a clear border around the shape.
+
+A shape of kind "image" is a picture painted on the ground the same way (a boss's sigil: The Hollow Voice's, from
+localTools/hollowVoice/sigils): a circle of radius 1 carrying the picture, its image path relative to the repository,
+softened (brightness, alpha: a projected texture on bright ground reads as a flash otherwise) and cut round, its edge
+faded, so the border stays clear.
 """
 import importlib.util
 import json
@@ -57,6 +62,10 @@ ANTIALIAS_PIXELS = 1.2
 # line's outline is still a few pixels wide.
 TEXTURE_SIZE = 256
 MIN_TEXTURE_SIDE = 64
+# A picture's texture: detailed enough to read on a 10-yard circle
+IMAGE_TEXTURE_SIZE = 512
+# Its white core (a sigil's glow) is taken down to this share of its alpha: blown-out white over the ground is a flash
+IMAGE_WHITE_ALPHA = 0.55
 
 spec = importlib.util.spec_from_file_location(
     'buildParagonArt', os.path.join(REPO_ROOT, 'localTools', 'interface', 'buildParagonArt.py'))
@@ -69,7 +78,7 @@ spec.loader.exec_module(blp_writer)
 def shape_bounds(shape):
     """(x0, x1, y0, y1) of the shape: x forward from its owner, y to its left"""
     kind = shape['kind']
-    if kind in ('circle', 'ring', 'star'):
+    if kind in ('circle', 'ring', 'star', 'image'):
         return -1.0, 1.0, -1.0, 1.0
     if kind == 'rect':
         half = 0.5 / shape['ratio']
@@ -179,6 +188,41 @@ def build_texture(shape, color, alpha):
     return image
 
 
+def build_image_texture(shape):
+    """The shape's picture fitted into the padded circle, softened and cut round (see the module's comment)"""
+    x0, x1, _, _ = padded_bounds(shape)
+    size = IMAGE_TEXTURE_SIZE
+    source = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGBA')
+    # The picture spans the circle (radius 1) inside the padded square
+    inner = int(round(size * 2.0 / (x1 - x0)))
+    picture = source.resize((inner, inner), Image.LANCZOS)
+    image = Image.new('RGBA', (size, size))
+    offset = (size - inner) // 2
+    image.alpha_composite(picture, (offset, offset))
+    brightness = shape.get('brightness', 0.85)
+    alpha_scale = shape.get('alpha', 0.8)
+    pixels = image.load()
+    center = (size - 1) / 2.0
+    edge = inner / 2.0
+    fade = size * 0.02
+    for row in range(size):
+        for column in range(size):
+            r, g, b, a = pixels[column, row]
+            radius = math.hypot(column - center, row - center)
+            cut = min(1.0, max(0.0, (edge - radius) / fade))
+            white = min(r, g, b) / 255.0
+            soften = 1.0 - (1.0 - IMAGE_WHITE_ALPHA) * max(0.0, (white - 0.75) / 0.25)
+            alpha = a / 255.0 * alpha_scale * cut * soften
+            pixels[column, row] = (int(r * brightness), int(g * brightness), int(b * brightness),
+                                   int(round(255 * alpha)))
+    for column in range(size):
+        for row in (0, size - 1):
+            pixels[column, row] = (0, 0, 0, 0)
+            pixels[row, column] = (0, 0, 0, 0)
+    # The texture's u runs forward along x: the picture's top faces the owner's front
+    return image.transpose(Image.ROTATE_270)
+
+
 # --- Models ------------------------------------------------------------------------------------------------------
 
 def array(data, offset):
@@ -278,7 +322,7 @@ def main():
         texture_stem = f"GI_{shape.get('texture', shape['key'])}"
         texture_path = f'{ARCHIVE_ROOT}\\{texture_stem}.blp'
         if 'texture' not in shape:
-            image = build_texture(shape, config['color'], config['alpha'])
+            image = build_image_texture(shape) if shape['kind'] == 'image' else                 build_texture(shape, config['color'], config['alpha'])
             blp_writer.writeRawBlp(image, os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
         with open(os.path.join(OUTPUT_ROOT, f'{stem}.m2'), 'wb') as output:
             output.write(build_model(template, shape, texture_path))

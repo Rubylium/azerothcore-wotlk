@@ -7,21 +7,23 @@
 --        board's boss (its kill is the win), and stays hidden once the demon is out.
 -- 930101 Vel'thazar, the Hollow Voice: Balnazzar's look (10813, display 10691), the demon inside him, summoned by his
 --        script. 85 336 x 13 945 = 1.19 billion, about 257 s of the group's damage outside the intermissions.
+-- 930102 Dread Infernal: an Infernal (89), two crashing down in phase 3, an off-tank holding them: 2 150 x 13 945 =
+--        30 million each, about 11 s of the group for the two.
 -- The Archbishop's static spawn stands where M'uru floats, in every Sunwell (spawn mask 1: its only mode); his script
 -- hides him and removes him from any instance that is not a challenge's, and clears the chamber of its own occupants.
 
 DELETE FROM `creature` WHERE `guid` = 9000401;
 DELETE FROM `creature_text_locale` WHERE `CreatureID` IN (930100, 930101);
 DELETE FROM `creature_text` WHERE `CreatureID` IN (930100, 930101);
-DELETE FROM `creature_template_movement` WHERE `CreatureId` IN (930100, 930101);
-DELETE FROM `creature_template_locale` WHERE `entry` IN (930100, 930101);
-DELETE FROM `creature_template_model` WHERE `CreatureID` IN (930100, 930101);
-DELETE FROM `creature_template` WHERE `entry` IN (930100, 930101);
+DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 930100 AND 930102;
+DELETE FROM `creature_template_locale` WHERE `entry` BETWEEN 930100 AND 930102;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 930100 AND 930102;
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 930100 AND 930102;
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_stat_growth_hollow_voice`;
 CREATE TEMPORARY TABLE `tmp_stat_growth_hollow_voice` LIKE `creature_template`;
 INSERT INTO `tmp_stat_growth_hollow_voice`
-SELECT * FROM `creature_template` WHERE `entry` IN (29542, 10813);
+SELECT * FROM `creature_template` WHERE `entry` IN (29542, 10813, 89);
 UPDATE `tmp_stat_growth_hollow_voice` SET
     `entry` = 930100,
     `difficulty_entry_1` = 0,
@@ -82,6 +84,31 @@ UPDATE `tmp_stat_growth_hollow_voice` SET
     `ScriptName` = 'boss_hollow_voice_velthazar',
     `VerifiedBuild` = NULL
 WHERE `entry` = 10813;
+UPDATE `tmp_stat_growth_hollow_voice` SET
+    `entry` = 930102,
+    `difficulty_entry_1` = 0,
+    `name` = 'Dread Infernal',
+    `subname` = '',
+    `minlevel` = 83,
+    `maxlevel` = 83,
+    `exp` = 2,
+    `faction` = 14,
+    `unit_class` = 1,
+    `rank` = 1,
+    `npcflag` = 0,
+    `unit_flags` = 0,
+    `DamageModifier` = 40,
+    `BaseAttackTime` = 2000,
+    `HealthModifier` = 2150,
+    `RegenHealth` = 0,
+    `flags_extra` = 0,
+    `lootid` = 0,
+    `mingold` = 0,
+    `maxgold` = 0,
+    `AIName` = '',
+    `ScriptName` = 'npc_hollow_voice_infernal',
+    `VerifiedBuild` = NULL
+WHERE `entry` = 89;
 INSERT INTO `creature_template` SELECT * FROM `tmp_stat_growth_hollow_voice`;
 DROP TEMPORARY TABLE `tmp_stat_growth_hollow_voice`;
 
@@ -90,17 +117,20 @@ INSERT INTO `creature_template_model`
     (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 VALUES
     (930100, 0, 26326, 1.3, 1, NULL),
-    (930101, 0, 10691, 1.6, 1, NULL);
+    (930101, 0, 10691, 1.6, 1, NULL),
+    (930102, 0, 169, 1.3, 1, NULL);
 
 INSERT INTO `creature_template_movement`
     (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`)
 VALUES
     (930100, 1, 0, 0, 0, 0, 0, NULL),
-    (930101, 1, 0, 0, 0, 0, 0, NULL);
+    (930101, 1, 0, 0, 0, 0, 0, NULL),
+    (930102, 1, 0, 0, 0, 0, 0, NULL);
 
 INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `VerifiedBuild`) VALUES
     (930100, 'frFR', 'Archevêque Aldric Mantaube', NULL, NULL),
-    (930101, 'frFR', 'Vel''thazar', 'La Voix creuse', NULL);
+    (930101, 'frFR', 'Vel''thazar', 'La Voix creuse', NULL),
+    (930102, 'frFR', 'Infernal de l''effroi', NULL, NULL);
 
 -- Type 14: yell, lore only (no line announcing a mechanic). TextRange 3: the whole map. The Archbishop never hints at
 -- the demon: his last line is a man's.
@@ -129,12 +159,13 @@ INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Te
     (930101, 2, 0, 'frFR', 'Silence.'),
     (930101, 3, 0, 'frFR', 'La voix... est... creuse...');
 
--- Where M'uru floats, on the chamber's floor, facing the way in, in Sunwell's only mode (spawn mask 1)
+-- Where M'uru floats, on the chamber's floor (69.6 in its middle, 71.2 at its edge, 39 yards round: measured with
+-- .hollow floor), facing the way in, in Sunwell's only mode (spawn mask 1)
 INSERT INTO `creature`
     (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
      `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`,
      `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`,
      `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`)
 VALUES
-    (9000401, 930100, 580, 0, 0, 1, 1, 0, 1816.25, 625.484, 71.35, 5.62435, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
+    (9000401, 930100, 580, 0, 0, 1, 1, 0, 1816.25, 625.484, 69.65, 5.62435, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
      NULL, 0, 'The Hollow Voice - M''uru''s chamber (Défi board only)');

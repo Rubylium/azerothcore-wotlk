@@ -36,6 +36,10 @@
     { "key": "Ring40", "kind": "ring", "inner": 0.4, "spell": 90730 },
     { "key": "Ring60", "kind": "ring", "inner": 0.6, "spell": 90731 },
     { "key": "Ring80", "kind": "ring", "inner": 0.8, "spell": 90732 },
-    { "key": "Star10", "kind": "star", "ratio": 3.3333, "scale": 10, "carried": true, "spell": 90733 }
+    { "key": "Star10", "kind": "star", "ratio": 3.3333, "scale": 10, "carried": true, "spell": 90733 },
+    { "key": "SigilRadiant", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilRadiant.png", "brightness": 0.8, "alpha": 0.75, "spell": 90734 },
+    { "key": "SigilBastion", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilBastion.png", "brightness": 0.85, "alpha": 0.8, "spell": 90735 },
+    { "key": "SigilVoid", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilVoid.png", "brightness": 1.0, "alpha": 0.85, "spell": 90736 },
+    { "key": "SigilAegis", "kind": "image", "image": "localTools/hollowVoice/sigils/SigilAegis.png", "brightness": 0.9, "alpha": 0.7, "spell": 90737 }
   ]
 }

@@ -884,6 +884,10 @@ $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
 # and its two debuffs
 $infiniteBossSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\infiniteBoss\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($infiniteBossSpellSource))
+# The Hollow Voice, the Défi board's pinnacle (modules/mod-stat-growth/src/HollowVoice.cpp): its abilities' names in
+# the log, its debuffs and the looks its bosses wear
+$hollowVoiceSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hollowVoice\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($hollowVoiceSpellSource))
 
 # The Mage's reagents, gone: Arcane Powder (Arcane Brilliance, Dalaran Brilliance, Ritual of Refreshment), the Runes
 # of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class

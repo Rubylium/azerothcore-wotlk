@@ -1524,7 +1524,7 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     return found;
 }
 
-void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted)
+void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted, Theme theme)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return;
@@ -1539,7 +1539,12 @@ void ShowSoak(Unit* owner, Position const& center, float radius, uint32 duration
     goal.wanted = wanted;
     goal.endMs = NowMs() + durationMs;
     AddGoal(goal, false);
-    ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), Theme::Holy, durationMs);
+    ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), theme, durationMs);
+}
+
+void ShowDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs, uint32 spellId)
+{
+    Place(owner, center, orientation, spellId, radius, durationMs);
 }
 
 void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs)

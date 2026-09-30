@@ -105,6 +105,15 @@ namespace GroundIndicators
     void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage = 0);
     // Where a carried area is now (it moves with its carrier; a star turns with them too)
     Area CurrentArea(Unit* carrier, Area const& area);
+    // A picture painted on the ground at center, radius yards, turned to orientation, for durationMs: a boss's sigil
+    // (localTools/groundIndicators/shapes.json, kind image: spells 90734-90737). Nothing to leave: no area, no bot
+    // reads it - what it marks is told to them by the area or the soak shown with it.
+    constexpr uint32 SPELL_SIGIL_RADIANT = 90734;
+    constexpr uint32 SPELL_SIGIL_BASTION = 90735;
+    constexpr uint32 SPELL_SIGIL_VOID = 90736;
+    constexpr uint32 SPELL_SIGIL_AEGIS = 90737;
+    void ShowDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs,
+                   uint32 spellId);
     // Ends every area owner has on show, for the bots too (a fight reset while a long one was still drawn). Its
     // stalkers are its summons: despawning them is the owner's business.
     void ClearAreasOf(Unit* owner);
@@ -115,7 +124,8 @@ namespace GroundIndicators
     //   tanks aside, until that many stand in it.
     // - The off-tank's spot: where a tank that is not owner's current target should stand (a boss aiming a cleave at
     //   each tank: the two apart, their cones away from the group). Set again as the boss moves.
-    void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted);
+    void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted,
+                  Theme theme = Theme::Holy);
     void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs);
     // Whether unit should go somewhere for one of those, and where. Always after FindEscape: the red comes first.
     bool FindGoal(Unit* unit, Position& spot, bool tank);
