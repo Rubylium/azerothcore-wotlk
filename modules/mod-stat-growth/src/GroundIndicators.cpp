@@ -1291,14 +1291,14 @@ void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32
 }
 
 Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
-                           float width, uint32 durationMs, uint32 hitDamage)
+                           float width, uint32 durationMs, uint32 hitDamage, uint32 look)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
         length / width);
     Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
-    area.width = length / shape.size;
-    if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
+    area.width = look ? width : length / shape.size;
+    if (Creature* stalker = Place(owner, start, orientation, look ? look : shape.spell, length, durationMs))
     {
         stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond));
         RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
@@ -1314,6 +1314,16 @@ void WatchSweepingRectangle(Unit* owner, Position const& start, float orientatio
     Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
     area.width = std::max(width, 0.5f);
     RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
+}
+
+Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme, uint32 hitDamage)
+{
+    if (Place(owner, area.origin, area.origin.GetOrientation(), look, area.radius, durationMs))
+    {
+        Register(owner, nullptr, area, durationMs, hitDamage);
+        ShowParticles(owner, area, theme, durationMs);
+    }
+    return area;
 }
 
 Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs)

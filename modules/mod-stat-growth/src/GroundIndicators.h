@@ -70,8 +70,9 @@ namespace GroundIndicators
                        uint32 durationMs, Unit* aimedAt, Theme theme = Theme::None, uint32 hitDamage = 0);
     // A line from start that turns radiansPerSecond (negative: the other way) while it is drawn: a laser swept round.
     // No particles. Where it points after some time: CurrentSweep.
+    // look: a painted line (shapes.json kind texture) drawn in place of the red, at width as given
     Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
-                               float length, float width, uint32 durationMs, uint32 hitDamage = 0);
+                               float length, float width, uint32 durationMs, uint32 hitDamage = 0, uint32 look = 0);
     Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
     // The same line for the bots only, nothing drawn: a sweep shown by its own visual (a beam)
     void WatchSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
@@ -105,6 +106,12 @@ namespace GroundIndicators
     void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage = 0);
     // Where a carried area is now (it moves with its carrier; a star turns with them too)
     Area CurrentArea(Unit* carrier, Area const& area);
+    // An area drawn as a painted ability in place of the red (shapes.json kind texture: a line, a cone, a ring or a
+    // circle painted to the area's own proportions), and registered as any red one: the bots leave it, a hit in it is
+    // one in the red. area: its kind, origin (and facing) and size, as the painting was made for (a line's width is its
+    // length over the painting's ratio, a ring's inner radius its proportion of the outer).
+    Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme = Theme::None,
+                     uint32 hitDamage = 0);
     // A picture painted on the ground at center, radius yards, turned to orientation, for durationMs: a boss's sigil
     // (localTools/groundIndicators/shapes.json, kind image: spells 90734-90737). Nothing to leave: no area, no bot
     // reads it - what it marks is told to them by the area or the soak shown with it.

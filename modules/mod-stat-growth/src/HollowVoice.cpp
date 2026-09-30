@@ -364,6 +364,33 @@ constexpr uint32 SPELL_PRISON_AURA = 94030;
 constexpr uint32 SPELL_BLESSING = 94031;
 constexpr uint32 SPELL_CARRY_LIGHT = 94032;
 constexpr uint32 SPELL_TRUE_FORM = 94041;
+// Its abilities painted on the ground in place of the red (localTools/hollowVoice/textures, shapes.json kind texture:
+// each painting warped to the area it marks). A warning breathes; its "hit" twin, at full strength, flashes where it
+// lands (StrikeMs). The rings and round ones turn slowly.
+enum Paint : uint32
+{
+    PAINT_AISLES = 90769, PAINT_AISLES_HIT,
+    PAINT_PULPIT60, PAINT_PULPIT60_HIT,
+    PAINT_PULPIT80, PAINT_PULPIT80_HIT,
+    PAINT_DAWN, PAINT_DAWN_HIT,
+    PAINT_WAKE, PAINT_WAKE_HIT,
+    PAINT_VERDICT,
+    PAINT_SENTENCE,
+    PAINT_HOLY_SCORCH,
+    PAINT_ECHO_AISLES, PAINT_ECHO_AISLES_HIT,
+    PAINT_ECHO_RING, PAINT_ECHO_RING_HIT,
+    PAINT_ECHO_CORE, PAINT_ECHO_CORE_HIT,
+    PAINT_CARRION, PAINT_CARRION_HIT,
+    PAINT_LANCE, PAINT_LANCE_HIT,
+    PAINT_CROSS, PAINT_CROSS_HIT,
+    PAINT_SWARM,
+    PAINT_EDGE,
+    PAINT_INHALE,
+    PAINT_INFERNAL,
+    PAINT_VOID_SCORCH,
+};
+constexpr uint32 StrikeMs = 900;
+constexpr uint32 ScorchMs = 3000;
 // Stock: a red reticle over the head (Mark of Rimefang), a purple beam (a dummy channel)
 constexpr uint32 SPELL_FX_MARK = 69275;
 constexpr uint32 SPELL_FX_PURPLE_BEAM = 28309;
@@ -707,6 +734,26 @@ GroundIndicators::Area CircleArea(Position const& center, float radius)
     area.kind = GroundIndicators::Area::Kind::Circle;
     area.origin = center;
     area.radius = radius;
+    return area;
+}
+
+GroundIndicators::Area ConeArea(Position const& apex, float facing, float radius, float arcDegrees)
+{
+    GroundIndicators::Area area;
+    area.kind = GroundIndicators::Area::Kind::Cone;
+    area.origin = Position(apex.GetPositionX(), apex.GetPositionY(), apex.GetPositionZ(), facing);
+    area.radius = radius;
+    area.arc = arcDegrees * float(M_PI) / 180.0f;
+    return area;
+}
+
+GroundIndicators::Area RingArea(Position const& center, float outer, float inner)
+{
+    GroundIndicators::Area area;
+    area.kind = GroundIndicators::Area::Kind::Ring;
+    area.origin = center;
+    area.radius = outer;
+    area.inner = inner;
     return area;
 }
 
@@ -1423,6 +1470,18 @@ private:
         aura->SetDuration(int32(durationMs));
     }
 
+    // Where a painted area lands: its painting at full strength, a moment
+    void Strike(GroundIndicators::Area const& area, uint32 look)
+    {
+        GroundIndicators::ShowDecal(me, area.origin, area.origin.GetOrientation(), area.radius, StrikeMs, look);
+    }
+
+    // What a landing leaves on the floor a while (a hammer's, a crash's)
+    void Scorch(Position const& where, float radius, uint32 look)
+    {
+        GroundIndicators::ShowDecal(me, Ground(where), frand(0.0f, 2.0f * float(M_PI)), radius, ScorchMs, look);
+    }
+
     // An aura for a set time (a mark, a light carried)
     void AddTimedAura(Unit* target, uint32 spellId, uint32 durationMs)
     {
@@ -1631,14 +1690,12 @@ private:
         float const facing = apex.GetAngle(target);
         BeginWindup(facing);
         me->SendPlaySpellVisual(KIT_DIVINE_STORM_CAST);
-        GroundIndicators::Area const area = GroundIndicators::ShowCone(me, apex, facing, LightOfDawnRadius,
-            LightOfDawnArc, LightOfDawnWarningMs, GroundIndicators::Theme::Holy);
+        GroundIndicators::Area const area = GroundIndicators::ShowPainted(me, ConeArea(apex, facing,
+            LightOfDawnRadius, LightOfDawnArc), PAINT_DAWN, LightOfDawnWarningMs, GroundIndicators::Theme::Holy);
         scheduler.Schedule(Milliseconds(LightOfDawnWarningMs), [this, area](TaskContext)
         {
             Sound(SOUND_LIGHT_OF_DAWN);
-            float const facing = area.origin.GetOrientation();
-            for (float along : { 10.0f, 22.0f, 34.0f })
-                PlayOnGround(AtAngle(area.origin, facing, along), KIT_DIVINE_STORM_HIT);
+            Strike(area, PAINT_DAWN_HIT);
             for (Player* player : PlayersIn(area))
                 Hit(player, SPELL_LIGHT_OF_DAWN, LightOfDawnPct, true);
             EndWindup();
@@ -1722,18 +1779,17 @@ private:
         {
             auto const [outer, inner] = PulpitRings[wave];
             uint32 const lands = PulpitWarningMs + wave * PulpitWaveMs;
-            GroundIndicators::Area const ring = GroundIndicators::ShowRing(me, center, outer, inner, lands,
-                GroundIndicators::Theme::Holy);
-            scheduler.Schedule(Milliseconds(lands), [this, ring, wave](TaskContext)
+            // Painted as two proportions: 0.6 (the first) and 0.8
+            bool const wide = inner / outer < 0.7f;
+            GroundIndicators::Area const ring = GroundIndicators::ShowPainted(me, RingArea(center, outer, inner),
+                wide ? PAINT_PULPIT60 : PAINT_PULPIT80, lands, GroundIndicators::Theme::Holy);
+            scheduler.Schedule(Milliseconds(lands), [this, ring, wave, wide](TaskContext)
             {
-                    if (wave == 0)
-                        Sound(SOUND_WRATH_OF_THE_PULPIT);
-                    float const middle = (ring.radius + ring.inner) / 2.0f;
-                    for (uint32 point = 0; point < 8; ++point)
-                        GroundIndicators::Burst(me, AtAngle(ring.origin, float(point) * float(M_PI) / 4.0f, middle),
-                            GroundIndicators::Theme::Holy);
-                    for (Player* player : PlayersIn(ring))
-                        Hit(player, SPELL_PULPIT, PulpitPct, true);
+                if (wave == 0)
+                    Sound(SOUND_WRATH_OF_THE_PULPIT);
+                Strike(ring, wide ? PAINT_PULPIT60_HIT : PAINT_PULPIT80_HIT);
+                for (Player* player : PlayersIn(ring))
+                    Hit(player, SPELL_PULPIT, PulpitPct, true);
             });
         }
     }
@@ -1746,16 +1802,14 @@ private:
         Sound(SOUND_HOLLOW_ECHO);
         caster->SendPlaySpellVisual(KIT_SHADOW_CRASH_CAST);
         std::vector<GroundIndicators::Area> areas;
-        areas.push_back(GroundIndicators::ShowCircle(me, center, EchoCoreRadius, EchoWarningMs,
-            GroundIndicators::Theme::Shadow));
-        areas.push_back(GroundIndicators::ShowRing(me, center, ArenaReach, EchoOuterInner, EchoWarningMs,
-            GroundIndicators::Theme::Shadow));
-        scheduler.Schedule(Milliseconds(EchoWarningMs), [this, areas, center](TaskContext)
+        areas.push_back(GroundIndicators::ShowPainted(me, CircleArea(center, EchoCoreRadius), PAINT_ECHO_CORE,
+            EchoWarningMs, GroundIndicators::Theme::Shadow));
+        areas.push_back(GroundIndicators::ShowPainted(me, RingArea(center, ArenaReach, EchoOuterInner),
+            PAINT_ECHO_RING, EchoWarningMs, GroundIndicators::Theme::Shadow));
+        scheduler.Schedule(Milliseconds(EchoWarningMs), [this, areas](TaskContext)
         {
-            GroundIndicators::Burst(me, center, GroundIndicators::Theme::Shadow);
-            for (uint32 point = 0; point < 8; ++point)
-                PlayOnGround(AtAngle(center, float(point) * float(M_PI) / 4.0f, areas[1].inner + 8.0f),
-                    KIT_SHADOWFURY_HIT);
+            Strike(areas[0], PAINT_ECHO_CORE_HIT);
+            Strike(areas[1], PAINT_ECHO_RING_HIT);
             for (Player* player : ArenaPlayers())
                 if (std::ranges::any_of(areas, [player](GroundIndicators::Area const& area)
                     { return area.Contains(*player); }))
@@ -1772,7 +1826,6 @@ private:
         float const across = facing + float(M_PI) / 2.0f;
         uint32 const burning = echo ? 1u : 0u;
         Sound(echo ? SOUND_HOLLOW_ECHO : SOUND_CONSECRATED_AISLES);
-        GroundIndicators::Theme const theme = echo ? GroundIndicators::Theme::Shadow : GroundIndicators::Theme::Holy;
         std::vector<GroundIndicators::Area> lanes;
         for (uint32 lane = burning; lane < AisleCount; lane += 2)
         {
@@ -1781,21 +1834,13 @@ private:
                                   center.GetPositionY() + std::sin(across) * offset, center.GetPositionZ());
             Position const start = Ground(Position(middle.GetPositionX() - std::cos(facing) * AisleLength / 2.0f,
                 middle.GetPositionY() - std::sin(facing) * AisleLength / 2.0f, center.GetPositionZ()));
-            lanes.push_back(GroundIndicators::ShowRectangle(me, start, facing, AisleLength, AisleWidth,
-                AisleWarningMs, theme));
+            lanes.push_back(GroundIndicators::ShowPainted(me, LineArea(start, facing, AisleLength, AisleWidth),
+                echo ? PAINT_ECHO_AISLES : PAINT_AISLES, AisleWarningMs));
         }
         scheduler.Schedule(Milliseconds(AisleWarningMs), [this, lanes, echo](TaskContext)
         {
             for (GroundIndicators::Area const& lane : lanes)
-            {
-                float const facing = lane.origin.GetOrientation();
-                for (float along = 25.0f; along < AisleLength - 20.0f; along += 20.0f)
-                {
-                    Position const at = AtAngle(lane.origin, facing, along);
-                    if (at.GetExactDist2d(&me->GetHomePosition()) < ArenaWalkRadius)
-                        PlayOnGround(at, echo ? KIT_SHADOWFURY_HIT : KIT_CONSECRATION_HIT);
-                }
-            }
+                Strike(lane, echo ? PAINT_ECHO_AISLES_HIT : PAINT_AISLES_HIT);
             for (Player* player : ArenaPlayers())
                 if (std::ranges::any_of(lanes, [player](GroundIndicators::Area const& lane)
                     { return lane.Contains(*player); }))
@@ -1931,13 +1976,13 @@ private:
             Position const spot = Ground(marked->GetPosition());
             AddTimedAura(marked, SPELL_SENTENCE_MARK, SentenceMs);
             AddTimedAura(marked, SPELL_FX_MARK, SentenceMs);
-            GroundIndicators::ShowDecal(me, spot, 0.0f, SentenceRadius, SentenceMs,
-                GroundIndicators::SPELL_SIGIL_RADIANT);
+            GroundIndicators::ShowDecal(me, spot, 0.0f, SentenceRadius, SentenceMs, PAINT_SENTENCE);
             GroundIndicators::ShowSoak(Caster(), spot, SentenceRadius, SentenceMs, SentenceSoakersBots);
             scheduler.Schedule(Milliseconds(SentenceMs), [this, spot](TaskContext)
             {
                 Sound(SOUND_EXECUTION_SENTENCE);
                 PlayOnGround(spot, KIT_WRATH_HAMMER_HIT);
+                Scorch(spot, SentenceRadius, PAINT_HOLY_SCORCH);
                 std::vector<Player*> const soakers = PlayersIn(CircleArea(spot, SentenceRadius));
                 Resolved("Execution Sentence", soakers.size() >= 3, Acore::StringFormat("soakers={}", soakers.size()));
                 if (soakers.empty())
@@ -1956,7 +2001,7 @@ private:
         Unit* victim = me->GetVictim();
         float const away = victim ? me->GetAngle(victim) + float(M_PI) : frand(0.0f, 2.0f * float(M_PI));
         Position const spot = AtAngle(me->GetPosition(), away + frand(-0.6f, 0.6f), 11.0f);
-        GroundIndicators::ShowDecal(me, spot, away, VerdictRadius, VerdictMs, GroundIndicators::SPELL_SIGIL_BASTION);
+        GroundIndicators::ShowDecal(me, spot, away, VerdictRadius, VerdictMs, PAINT_VERDICT);
         GroundIndicators::SetOffTankSpot(Caster(), spot, VerdictMs);
         me->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
         scheduler.Schedule(Milliseconds(VerdictMs), [this, spot](TaskContext)
@@ -1964,6 +2009,7 @@ private:
             Sound(SOUND_VERDICT);
             PlayOnGround(spot, KIT_WRATH_HAMMER_HIT);
             GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Holy);
+            Scorch(spot, VerdictRadius * 1.3f, PAINT_HOLY_SCORCH);
             std::vector<Player*> const inside = PlayersIn(CircleArea(spot, VerdictRadius));
             bool const held = std::ranges::any_of(inside, [](Player* player) { return IsGroupTank(player); });
             Resolved("Verdict of the Faithful", held, Acore::StringFormat("inside={}", inside.size()));
@@ -2010,13 +2056,12 @@ private:
                 (float(cone) - 1.0f) * WakeArc * float(M_PI) / 180.0f);
             scheduler.Schedule(Milliseconds(cone * WakeStepMs), [this, apex, facing, cone](TaskContext)
             {
-                GroundIndicators::Area const area = GroundIndicators::ShowCone(me, apex, facing, WakeRadius, WakeArc,
-                    WakeWarningMs, GroundIndicators::Theme::Holy);
+                GroundIndicators::Area const area = GroundIndicators::ShowPainted(me, ConeArea(apex, facing,
+                    WakeRadius, WakeArc), PAINT_WAKE, WakeWarningMs, GroundIndicators::Theme::Holy);
                 scheduler.Schedule(Milliseconds(WakeWarningMs), [this, area, cone](TaskContext)
                 {
                     me->SetFacingTo(area.origin.GetOrientation());
-                    for (float along : { 12.0f, 26.0f })
-                        PlayOnGround(AtAngle(area.origin, area.origin.GetOrientation(), along), KIT_EXORCISM_HIT);
+                    Strike(area, PAINT_WAKE_HIT);
                     for (Player* player : PlayersIn(area))
                         Hit(player, SPELL_WAKE, WakePct, true);
                     if (cone + 1 == WakeCones)
@@ -2141,13 +2186,12 @@ private:
         float const facing = apex.GetAngle(target);
         BeginWindup(facing);
         demon->SendPlaySpellVisual(KIT_CARRION_CAST);
-        GroundIndicators::Area const area = GroundIndicators::ShowCone(me, apex, facing, SwarmRadius, SwarmArc,
-            SwarmWarningMs, GroundIndicators::Theme::Shadow);
+        GroundIndicators::Area const area = GroundIndicators::ShowPainted(me, ConeArea(apex, facing, SwarmRadius,
+            SwarmArc), PAINT_CARRION, SwarmWarningMs, GroundIndicators::Theme::Shadow);
         scheduler.Schedule(Milliseconds(SwarmWarningMs), [this, area](TaskContext)
         {
             Sound(SOUND_CARRION_SWARM);
-            for (float along : { 10.0f, 22.0f, 34.0f })
-                PlayOnGround(AtAngle(area.origin, area.origin.GetOrientation(), along), KIT_CARRION_HIT);
+            Strike(area, PAINT_CARRION_HIT);
             for (Player* player : PlayersIn(area))
                 Hit(player, SPELL_SWARM, SwarmPct, true);
             EndWindup();
@@ -2242,9 +2286,9 @@ private:
     }
 
     // Nightmare Lances: a void lance from where he stands toward each of two marked, fixed where they stood when marked
-    // and drawn in red, a purple beam along it; when it lands it pierces the whole line - step off it. The marked are
-    // struck through whatever they do. (A line following its marked had the marked dodge their own line and swing it
-    // through the group: nine hits in the red a test.)
+    // and painted on the ground, a purple beam along it; when it lands it pierces the whole line - step off it. The
+    // marked are struck through whatever they do. (A line following its marked had the marked dodge their own line and
+    // swing it through the group: nine hits in the red a test.)
     void NightmareLances()
     {
         Creature* demon = Velthazar();
@@ -2255,8 +2299,8 @@ private:
         for (Player* marked : SpreadPick(NonTanks(), LanceMarked))
         {
             float const facing = source.GetAngle(marked);
-            GroundIndicators::Area const line = GroundIndicators::ShowRectangle(me, source, facing, LanceLength,
-                LanceWidth, LanceMs, GroundIndicators::Theme::Shadow);
+            GroundIndicators::Area const line = GroundIndicators::ShowPainted(me, LineArea(source, facing,
+                LanceLength, LanceWidth), PAINT_LANCE, LanceMs);
             Creature* from = FxStalker(Position(source.GetPositionX(), source.GetPositionY(),
                 source.GetPositionZ() + 2.0f), LanceMs + 300, NPC_HOVER_STALKER);
             Position const lineEnd = AtAngle(source, facing, LanceLength);
@@ -2272,13 +2316,7 @@ private:
             ObjectGuid const guid = marked->GetGUID();
             scheduler.Schedule(Milliseconds(LanceMs), [this, line, guid](TaskContext)
             {
-                float const facing = line.origin.GetOrientation();
-                for (float along = 6.0f; along < LanceLength; along += 8.0f)
-                {
-                    Position const at = AtAngle(line.origin, facing, along);
-                    if (at.GetExactDist2d(&me->GetHomePosition()) < ArenaWalkRadius + 2.0f)
-                        PlayOnGround(at, KIT_VOID_BLAST_HIT);
-                }
+                Strike(line, PAINT_LANCE_HIT);
                 Player* marked = ObjectAccessor::GetPlayer(*me, guid);
                 if (marked && marked->IsAlive())
                     Hit(marked, SPELL_LANCES, LanceMarkedPct, false);
@@ -2300,8 +2338,7 @@ private:
                  ++attempt)
                 spot = ArenaSpot(12.0f, 24.0f);
             spots.push_back(spot);
-            GroundIndicators::ShowDecal(me, spot, 0.0f, InfernalRadius, InfernalWarningMs,
-                GroundIndicators::SPELL_SIGIL_VOID);
+            GroundIndicators::ShowDecal(me, spot, 0.0f, InfernalRadius, InfernalWarningMs, PAINT_INFERNAL);
             GroundIndicators::ShowSoak(Caster(), spot, InfernalRadius, InfernalWarningMs, InfernalSoakersBots,
                 GroundIndicators::Theme::Fire);
         }
@@ -2313,6 +2350,7 @@ private:
             {
                 PlayOnGround(spot, KIT_INFERNO_HIT);
                 GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Fire);
+                Scorch(spot, InfernalRadius * 1.2f, PAINT_VOID_SCORCH);
                 std::vector<Player*> const soakers = PlayersIn(CircleArea(spot, InfernalRadius));
                 Resolved("Dread Infernal impact", soakers.size() >= 2, Acore::StringFormat("soakers={}",
                          soakers.size()));
@@ -2345,7 +2383,7 @@ private:
         demon->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         Position const center = Ground(demon->GetPosition());
         uint32 const lasts = AtTrueForm - AtInhale;
-        _inhaleCore = GroundIndicators::ShowCircle(me, center, InhaleBlastRadius, lasts,
+        _inhaleCore = GroundIndicators::ShowPainted(me, CircleArea(center, InhaleBlastRadius), PAINT_INHALE, lasts,
             GroundIndicators::Theme::Shadow);
         for (uint32 at = 1000; at < lasts; at += 1000)
             scheduler.Schedule(Milliseconds(at), [this, center](TaskContext)
@@ -2361,12 +2399,13 @@ private:
             {
                 for (uint32 index = 0; index < 3; ++index)
                 {
-                    GroundIndicators::Area const area = GroundIndicators::ShowCircle(me,
-                        ArenaSpot(InhaleBlastRadius + 2.0f, ArenaWalkRadius), InhaleVoidRadius, InhaleVoidWarningMs,
-                        GroundIndicators::Theme::Shadow);
+                    GroundIndicators::Area const area = GroundIndicators::ShowPainted(me,
+                        CircleArea(ArenaSpot(InhaleBlastRadius + 2.0f, ArenaWalkRadius), InhaleVoidRadius),
+                        PAINT_ECHO_CORE, InhaleVoidWarningMs, GroundIndicators::Theme::Shadow);
                     scheduler.Schedule(Milliseconds(InhaleVoidWarningMs), [this, area](TaskContext)
                     {
                         PlayOnGround(area.origin, KIT_SHADOWFURY_HIT);
+                        Scorch(area.origin, area.radius, PAINT_VOID_SCORCH);
                         for (Player* player : PlayersIn(area))
                             Hit(player, SPELL_INHALE, InhaleVoidPct, true);
                     });
@@ -2395,8 +2434,8 @@ private:
                 demon->AddAura(SPELL_TRUE_FORM, demon);
         }
         HitEveryone(SPELL_TEAR, TrueFormPulsePct);
-        _edgeArea = GroundIndicators::ShowRing(me, Center(), EdgeOuterRadius, EdgeInnerRadius,
-            AtEnrageBlasts[2] + 30000 - Elapsed(), GroundIndicators::Theme::Shadow);
+        _edgeArea = GroundIndicators::ShowPainted(me, RingArea(Center(), EdgeOuterRadius, EdgeInnerRadius),
+            PAINT_EDGE, AtEnrageBlasts[2] + 30000 - Elapsed(), GroundIndicators::Theme::Shadow);
         _edge = true;
         HoldDemon(false);
     }
@@ -2422,7 +2461,7 @@ private:
         _windup = true;
         for (uint32 arm = 0; arm < SpinSwarmArms; ++arm)
             GroundIndicators::ShowSweepingRectangle(me, center, base + float(arm) * 2.0f * float(M_PI) /
-                float(SpinSwarmArms), turn, SpinSwarmLength, SpinSwarmWidth, SpinSwarmMs);
+                float(SpinSwarmArms), turn, SpinSwarmLength, SpinSwarmWidth, SpinSwarmMs, 0, PAINT_SWARM);
         auto lastHit = std::make_shared<std::map<ObjectGuid, uint32>>();
         for (uint32 at = 0; at <= SpinSwarmMs; at += LaserTickMs)
             scheduler.Schedule(Milliseconds(at), [this, at, center, base, turn, lastHit](TaskContext)
@@ -2446,13 +2485,6 @@ private:
                         }
                     }
                 }
-                if (at % 1000 == 0)
-                    for (uint32 arm = 0; arm < SpinSwarmArms; ++arm)
-                    {
-                        float const angle = base + float(arm) * 2.0f * float(M_PI) / float(SpinSwarmArms) +
-                            turn * float(at) / 1000.0f;
-                        PlayOnGround(AtAngle(center, angle, SpinSwarmLength * 0.6f), KIT_CARRION_HIT);
-                    }
             });
         scheduler.Schedule(Milliseconds(SpinSwarmMs + 100), [this](TaskContext) { EndWindup(); });
     }
@@ -2578,17 +2610,13 @@ private:
                 {
                     Position const start = Ground(Position(center.GetPositionX() - std::cos(arm) * CrossLength,
                         center.GetPositionY() - std::sin(arm) * CrossLength, center.GetPositionZ()));
-                    lines.push_back(GroundIndicators::ShowRectangle(me, start, arm, CrossLength * 2.0f, CrossWidth,
-                        CrossWarningMs, GroundIndicators::Theme::Shadow));
+                    lines.push_back(GroundIndicators::ShowPainted(me, LineArea(start, arm, CrossLength * 2.0f,
+                        CrossWidth), PAINT_CROSS, CrossWarningMs));
                 }
-                scheduler.Schedule(Milliseconds(CrossWarningMs), [this, lines, center, facing](TaskContext)
+                scheduler.Schedule(Milliseconds(CrossWarningMs), [this, lines](TaskContext)
                 {
-                    for (uint32 arm = 0; arm < 4; ++arm)
-                    {
-                        float const angle = facing + float(arm) * float(M_PI) / 2.0f;
-                        for (float along = 8.0f; along < ArenaWalkRadius; along += 12.0f)
-                            PlayOnGround(AtAngle(center, angle, along), KIT_VOID_BLAST_HIT);
-                    }
+                    for (GroundIndicators::Area const& line : lines)
+                        Strike(line, PAINT_CROSS_HIT);
                     for (Player* player : ArenaPlayers())
                         if (std::ranges::any_of(lines, [player](GroundIndicators::Area const& line)
                             { return line.Contains(*player); }))

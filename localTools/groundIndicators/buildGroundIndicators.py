@@ -21,6 +21,13 @@ How the client draws them (found by testing in game, see .agents/plans/ground-in
 - A texture's outermost texels must be fully transparent: the client clamps to them past the quad, and anything
   left there streaks outward over the whole painted area. Each texture keeps a clear border around the shape.
 
+A shape of kind "texture" is a painted ability (The Hollow Voice's, localTools/hollowVoice/textures) drawn in place of
+the red: its picture warped onto the very area the ability hits (a line stretched to its ratio, a cone turned to its
+arc, a ring's band moved to its inner proportion, a circle's edge onto the area's), its colours kept as painted
+(uncompressed, mipmaps resized on premultiplied alpha so no dark fringe creeps in), and optionally animated in the
+model: `spin` (ms a turn, the texture turning on the ground) and `pulse` ([low, high, ms]: its alpha breathing, for a
+warning). Both run on global sequences, so they go on whatever the model's own animation does.
+
 A shape of kind "image" is a picture painted on the ground the same way (a boss's sigil: The Hollow Voice's, from
 localTools/hollowVoice/sigils): a circle of radius 1 carrying the picture, its image path relative to the repository,
 softened (brightness, alpha: a projected texture on bright ground reads as a flash otherwise) and cut round, its edge
@@ -29,6 +36,8 @@ faded, so the border stays clear.
 import importlib.util
 import json
 import math
+
+import numpy
 import os
 import shutil
 import struct
@@ -78,6 +87,8 @@ spec.loader.exec_module(blp_writer)
 def shape_bounds(shape):
     """(x0, x1, y0, y1) of the shape: x forward from its owner, y to its left"""
     kind = shape['kind']
+    if kind == 'texture':
+        return shape_bounds(dict(shape, kind=shape['shape']))
     if kind in ('circle', 'ring', 'star', 'image'):
         return -1.0, 1.0, -1.0, 1.0
     if kind == 'rect':
@@ -223,6 +234,144 @@ def build_image_texture(shape):
     return image.transpose(Image.ROTATE_270)
 
 
+# A painted ability's texture: the longest side, and the pixels past the area's edge the painting may glow into
+PAINTED_TEXTURE_SIZE = 512
+PAINTED_LINE_LENGTH = 1024
+
+
+def premultiplied(image):
+    array_ = numpy.asarray(image.convert('RGBA'), dtype=numpy.float64) / 255.0
+    array_[..., :3] *= array_[..., 3:4]
+    return array_
+
+
+def unpremultiplied(array_):
+    out = array_.copy()
+    alpha = out[..., 3:4]
+    out[..., :3] = numpy.where(alpha > 1e-6, out[..., :3] / numpy.maximum(alpha, 1e-6), 0.0)
+    return Image.fromarray(numpy.clip(out * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
+def sample(source, xs, ys):
+    """Bilinear samples of a premultiplied array at pixel coordinates (transparent outside)"""
+    height, width = source.shape[:2]
+    padded = numpy.zeros((height + 2, width + 2, 4))
+    padded[1:-1, 1:-1] = source
+    xs = numpy.clip(xs + 1.0, 0.0, width + 1.0 - 1e-6)
+    ys = numpy.clip(ys + 1.0, 0.0, height + 1.0 - 1e-6)
+    x0 = numpy.floor(xs).astype(int)
+    y0 = numpy.floor(ys).astype(int)
+    x1 = numpy.minimum(x0 + 1, width + 1)
+    y1 = numpy.minimum(y0 + 1, height + 1)
+    fx = (xs - x0)[..., None]
+    fy = (ys - y0)[..., None]
+    top = padded[y0, x0] * (1 - fx) + padded[y0, x1] * fx
+    bottom = padded[y1, x0] * (1 - fx) + padded[y1, x1] * fx
+    return top * (1 - fy) + bottom * fy
+
+
+def measure(source):
+    """The painting's reach: (centre-relative outer radius, inner radius) for a round one, in its own pixels"""
+    alpha = source[..., 3]
+    height, width = alpha.shape
+    yy, xx = numpy.mgrid[0:height, 0:width]
+    radius = numpy.hypot(xx - width / 2.0, yy - height / 2.0) / (width / 2.0)
+    profile = [alpha[(radius >= k / 100) & (radius < (k + 1) / 100)].mean() for k in range(100)]
+    solid = [k for k in range(100) if profile[k] > 0.3]
+    return solid[-1] / 100.0, solid[0] / 100.0
+
+
+def build_painted_texture(shape):
+    """The shape's painting warped onto its area, in the padded quad's frame (u forward along x, v across y)"""
+    source_image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGBA')
+    source = premultiplied(source_image)
+    height, width = source.shape[:2]
+    kind = shape['shape']
+    x0, x1, y0, y1 = padded_bounds(shape)
+    if kind == 'rect':
+        columns = PAINTED_LINE_LENGTH
+        rows = max(MIN_TEXTURE_SIDE, 1 << (int(round(columns * (y1 - y0) / (x1 - x0))) - 1).bit_length())
+    else:
+        columns = rows = PAINTED_TEXTURE_SIZE
+    xs = x0 + (numpy.arange(columns) + 0.5) / columns * (x1 - x0)
+    ys = y0 + (numpy.arange(rows) + 0.5) / rows * (y1 - y0)
+    X, Y = numpy.meshgrid(xs, ys)
+    if kind == 'rect':
+        # The painting fills the line: its width across its length
+        half = 0.5 / shape['ratio']
+        sx = X * width
+        sy = (Y + half) / (2.0 * half) * height
+    elif kind == 'cone':
+        # Apex at the middle of the painting's left edge; its arc turned onto the cone's
+        alpha = source[..., 3]
+        rows_, cols_ = numpy.nonzero(alpha > 0.15)
+        apex_x = cols_.min()
+        reach = numpy.hypot(cols_ - apex_x, rows_ - height / 2.0).max()
+        radius = numpy.hypot(X, Y)
+        angle = numpy.arctan2(Y, X)
+        scale = shape['paintedAngle'] / shape['angle']
+        sx = apex_x + radius * reach * numpy.cos(angle * scale)
+        sy = height / 2.0 + radius * reach * numpy.sin(angle * scale)
+    else:
+        outer, inner = measure(source)
+        radius = numpy.hypot(X, Y)
+        angle = numpy.arctan2(Y, X)
+        if kind == 'ring':
+            # The painted band [inner, outer] moved onto the area's [ring inner, 1]
+            # (inside: the painting's own hole, scaled; past the edge: its glow, at the painting's own scale)
+            target = shape['inner']
+            band = (radius - target) / (1.0 - target)
+            source_radius = numpy.where(radius < target, radius / target * inner,
+                                        numpy.where(radius <= 1.0, inner + band * (outer - inner),
+                                                    outer + (radius - 1.0) * outer))
+        else:
+            source_radius = radius * outer
+        sx = width / 2.0 + source_radius * (width / 2.0) * numpy.cos(angle)
+        sy = height / 2.0 + source_radius * (height / 2.0) * numpy.sin(angle)
+    result = sample(source, sx, sy)
+    result[..., 3] *= shape.get('alpha', 1.0)
+    result[..., :3] *= shape.get('alpha', 1.0)
+    # The outermost texels clear, whatever the painting does there (the client clamps to them past the quad)
+    result[0, :] = result[-1, :] = 0.0
+    result[:, 0] = result[:, -1] = 0.0
+    return result
+
+
+def premultiplied_mips(array_):
+    """Mipmaps averaged on premultiplied colour: a soft edge keeps its colour instead of darkening"""
+    current = array_
+    while True:
+        yield unpremultiplied(current)
+        height, width = current.shape[:2]
+        if max(height, width) == 1:
+            return
+        new_height, new_width = max(1, height // 2), max(1, width // 2)
+        trimmed = current[:new_height * (height // new_height), :new_width * (width // new_width)]
+        current = trimmed.reshape(new_height, height // new_height, new_width, width // new_width, 4).mean(axis=(1, 3))
+
+
+def write_painted_blp(array_, path):
+    """Uncompressed 32-bit BLP2 (the colours exactly as painted), premultiplied mipmaps"""
+    mipmaps = [mip for mip in premultiplied_mips(array_)][:16]
+    offsets = [0] * 16
+    sizes = [0] * 16
+    cursor = 148
+    encoded = []
+    for index, mip in enumerate(mipmaps):
+        red, green, blue, alpha = mip.split()
+        data = Image.merge('RGBA', (blue, green, red, alpha)).tobytes()
+        offsets[index] = cursor
+        sizes[index] = len(data)
+        cursor += len(data)
+        encoded.append(data)
+    height, width = array_.shape[:2]
+    header = struct.pack('<4sIBBBBII16I16I', b'BLP2', 1, 3, 8, 8, 1, width, height, *offsets, *sizes)
+    with open(path, 'wb') as output:
+        output.write(header)
+        for data in encoded:
+            output.write(data)
+
+
 # --- Models ------------------------------------------------------------------------------------------------------
 
 def array(data, offset):
@@ -235,6 +384,71 @@ def track_values(data, track):
     for sequence in range(count):
         values, values_offset = array(data, offset + 8 * sequence)
         yield values, values_offset
+
+
+def append_block(data, payload):
+    """Appends payload 16-byte aligned; returns its offset"""
+    while len(data) % 16:
+        data.append(0)
+    offset = len(data)
+    data += payload
+    return offset
+
+
+def write_global_track(data, track_offset, global_index, sequence_count, timestamps, values, value_format):
+    """Points an M2Track at keys on a global sequence (the same keys for every animation sequence)"""
+    times = append_block(data, struct.pack(f'<{len(timestamps)}I', *timestamps))
+    keys = append_block(data, b''.join(struct.pack(value_format, *value) for value in values))
+    time_arrays = append_block(data, struct.pack('<II', len(timestamps), times) * sequence_count)
+    value_arrays = append_block(data, struct.pack('<II', len(values), keys) * sequence_count)
+    struct.pack_into('<Hh', data, track_offset, 1, global_index)
+    struct.pack_into('<IIII', data, track_offset + 4, sequence_count, time_arrays, sequence_count, value_arrays)
+
+
+def animate(data, shape):
+    """A painted shape's spin (its texture turning) and pulse (its alpha breathing), on global sequences"""
+    spin = shape.get('spin', 0)
+    pulse = shape.get('pulse')
+    if not spin and not pulse:
+        return False
+    sequence_count, _ = array(data, 0x1C)
+    loops = []
+    if spin:
+        loops.append(int(spin))
+    if pulse:
+        loops.append(int(pulse[2]))
+    struct.pack_into('<II', data, 0x14, len(loops), append_block(data, struct.pack(f'<{len(loops)}I', *loops)))
+    if spin:
+        # One texture transform: no translation or scaling, a rotation about the texture's middle, a full turn a spin
+        transform = append_block(data, bytes(60))
+        steps = 8
+        turn = [int(spin * k / steps) for k in range(steps + 1)]
+        quaternions = [(0.0, 0.0, math.sin(math.pi * k / steps), math.cos(math.pi * k / steps))
+                       for k in range(steps + 1)]
+        write_global_track(data, transform + 20, 0, sequence_count, turn, quaternions, '<4f')
+        struct.pack_into('<hh', data, transform, 0, -1)
+        struct.pack_into('<hh', data, transform + 40, 0, -1)
+        struct.pack_into('<II', data, 0x60, 1, transform)
+        _, lookup = array(data, 0x98)
+        struct.pack_into('<h', data, lookup, 0)
+    if pulse:
+        low, high, period = pulse
+        index = 1 if spin else 0
+        _, transparency = array(data, 0x58)
+        write_global_track(data, transparency, index, sequence_count, [0, period // 2, period],
+                           [(int(low * 0x7FFF),), (int(high * 0x7FFF),), (int(low * 0x7FFF),)], '<h')
+    return bool(spin)
+
+
+def animated_skin(skin):
+    """The skin with its batch's texture no longer static (0x10), so the texture transform plays"""
+    data = bytearray(skin)
+    count, batches = struct.unpack_from('<II', data, 0x24)
+    for index in range(count):
+        flags = data[batches + 24 * index]
+        data[batches + 24 * index] = flags & ~0x10
+        struct.pack_into('<H', data, batches + 24 * index + 22, 0)
+    return bytes(data)
 
 
 def build_model(template, shape, texture_path):
@@ -286,6 +500,8 @@ def build_model(template, shape, texture_path):
     # No sparkles: the template's particles are its holy glitter
     struct.pack_into('<II', data, 0x128, 0, 0)
 
+    animate(data, shape)
+
     # Bounds of the quad, for culling
     radius = max(math.hypot(x, y) for x in (x0, x1) for y in (y0, y1))
     struct.pack_into('<6ff', data, 0xA0, x0, y0, 0.0, x1, y1, QUAD_HEIGHT, radius)
@@ -321,13 +537,18 @@ def main():
         # A shape drawn with another's texture (a carried circle: the circle at its own size) ships none of its own
         texture_stem = f"GI_{shape.get('texture', shape['key'])}"
         texture_path = f'{ARCHIVE_ROOT}\\{texture_stem}.blp'
-        if 'texture' not in shape:
-            image = build_image_texture(shape) if shape['kind'] == 'image' else                 build_texture(shape, config['color'], config['alpha'])
+        if shape['kind'] == 'texture':
+            write_painted_blp(build_painted_texture(shape), os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
+        elif 'texture' not in shape:
+            if shape['kind'] == 'image':
+                image = build_image_texture(shape)
+            else:
+                image = build_texture(shape, config['color'], config['alpha'])
             blp_writer.writeRawBlp(image, os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
         with open(os.path.join(OUTPUT_ROOT, f'{stem}.m2'), 'wb') as output:
             output.write(build_model(template, shape, texture_path))
         with open(os.path.join(OUTPUT_ROOT, f'{stem}00.skin'), 'wb') as output:
-            output.write(skin)
+            output.write(animated_skin(skin) if shape.get('spin') else skin)
         print(f"{stem}: {texture_stem}")
 
 
