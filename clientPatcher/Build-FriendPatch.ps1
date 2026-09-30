@@ -282,3 +282,12 @@ Remove-Item -LiteralPath $stagePath -Recurse -Force
 
 Write-Host "Patch created: $archivePath"
 Write-Host "SHA256: $archiveHash"
+
+# Only the newest packages stay in dist: every release is on GitHub, and one package per build grew dist past 35 GB.
+# The newest one numbers the next build (above) and is what Publish-Release.ps1 -skipBuild sends.
+$keepPackages = 3
+Get-ChildItem -LiteralPath $distPath -Filter 'CustomWotLKClientPatch-*.zip' -File |
+    Where-Object { $_.BaseName -match '^CustomWotLKClientPatch-(\d+)\.(\d+)\.(\d+)$' } |
+    Sort-Object { [version]($_.BaseName -replace '^CustomWotLKClientPatch-', '') } -Descending |
+    Select-Object -Skip $keepPackages |
+    Remove-Item -Force
