@@ -2815,7 +2815,10 @@ void CleanupStray(Player* player)
 {
     HomeData const* data = player->CustomData.Get<HomeData>(HomeKey);
     WorldLocation const home = data ? data->home : WorldLocation();
-    bool const hadMarks = data || HasPass(player->CustomData) || (player->GetPhaseMask() & PhaseMask);
+    // A phase mask of every phase (a game master's) is no run's phase: taken for one, it sent a game master entering
+    // any dungeon straight home
+    uint32 const phase = player->GetPhaseMask();
+    bool const hadMarks = data || HasPass(player->CustomData) || (phase != PHASEMASK_ANYWHERE && (phase & PhaseMask));
     if (!hadMarks)
         return;
 
