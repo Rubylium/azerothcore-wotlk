@@ -14,7 +14,10 @@ $ErrorActionPreference = 'Stop'
 # The interface step rewrites the MPQs inside the client folder, which a running WoW holds open. Checking up
 # front turns a failure several minutes in - after the icons, the DBCs and the class data have been rebuilt -
 # into an immediate, obvious one.
-if (-not $skipInterfacePatches -and (Get-Process -Name 'Wow' -ErrorAction SilentlyContinue)) {
+# Only a 3.3.5 client holds the patch archives: the retail game (_retail_, _classic_...) runs as Wow.exe too
+$wotlkRunning = Get-Process -Name 'Wow' -ErrorAction SilentlyContinue |
+    Where-Object { -not $_.Path -or $_.Path -notmatch '\\_(retail|classic|ptr|beta)[a-z_]*_\\' }
+if (-not $skipInterfacePatches -and $wotlkRunning) {
     throw 'World of Warcraft is running and holds the patch archives. Close it, or pass -skipInterfacePatches.'
 }
 $patcherRoot = $PSScriptRoot

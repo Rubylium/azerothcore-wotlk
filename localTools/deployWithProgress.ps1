@@ -746,7 +746,10 @@ $timer.Add_Tick({
             }
 
             $step = $plan[$next]
-            if ($step.NeedsWowClosed -and (Get-Process -Name 'Wow' -ErrorAction SilentlyContinue)) {
+            # Only a 3.3.5 client holds the patch files: the retail game (_retail_, _classic_...) runs as Wow.exe too
+            $wotlk = Get-Process -Name 'Wow' -ErrorAction SilentlyContinue |
+                Where-Object { -not $_.Path -or $_.Path -notmatch '\\_(retail|classic|ptr|beta)[a-z_]*_\\' }
+            if ($step.NeedsWowClosed -and $wotlk) {
                 $step.State = 'blocked'
                 Update-View
                 return
