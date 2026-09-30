@@ -5,6 +5,7 @@
 #include "Group.h"
 #include "Log.h"
 #include "Player.h"
+#include "PowerScaling.h"
 #include "ResourceBoostSystem.h"
 #include "StatGrowthConfig.h"
 #include "StatGrowthSystem.h"
@@ -36,6 +37,16 @@ struct BotEssenceState : public DataMap::Base
 struct BotEssenceTimer : public DataMap::Base
 {
     int32 left = 0;
+};
+
+// SetBotEssenceFloor: the least the bot carries in that instance, in saved points (the diminishing returns apply on
+// top, as for a player's)
+constexpr char FloorKey[] = "StatGrowthBotEssenceFloor";
+struct BotEssenceFloor : public DataMap::Base
+{
+    uint32 instanceId = 0;
+    uint32 statPointsPerStat = 0;
+    uint32 vitality = 0;
 };
 
 struct GroupEssences
@@ -84,6 +95,13 @@ GroupEssences ReadGroupEssences(Player* bot)
         std::numeric_limits<uint32>::max()));
     result.vitality = static_cast<uint32>(std::min<uint64>(vitality / result.players,
         std::numeric_limits<uint32>::max()));
+    if (BotEssenceFloor const* floor = bot->CustomData.Get<BotEssenceFloor>(FloorKey);
+        floor && floor->instanceId && floor->instanceId == bot->GetInstanceId())
+    {
+        uint32 const statCount = static_cast<uint32>(GetClassPermanentStats(bot->getClass()).size());
+        result.statPoints = std::max(result.statPoints, floor->statPointsPerStat * statCount);
+        result.vitality = std::max(result.vitality, floor->vitality);
+    }
     result.resource = static_cast<uint32>(std::min<uint64>(resource / result.players,
         std::numeric_limits<uint32>::max()));
     return result;
@@ -216,6 +234,17 @@ uint32 GetBotEssenceResource(Player* player)
         return 0;
     BotEssenceState const* state = player->CustomData.Get<BotEssenceState>(StateKey);
     return state ? state->resource : 0;
+}
+
+void SetBotEssenceFloor(Player* bot, uint32 instanceId, float itemLevel)
+{
+    if (!IsBot(bot))
+        return;
+    float const keys = Power::ProgressKeys(itemLevel);
+    BotEssenceFloor* floor = bot->CustomData.GetDefault<BotEssenceFloor>(FloorKey);
+    floor->instanceId = instanceId;
+    floor->statPointsPerStat = static_cast<uint32>(Power::EssenceGrowthPerKey * keys);
+    floor->vitality = static_cast<uint32>(Power::EssenceVitalityPerKey * keys);
 }
 
 uint32 GetBotEssenceEffectiveStats(Player* bot)

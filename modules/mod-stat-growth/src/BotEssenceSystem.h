@@ -17,6 +17,10 @@ class Player;
 // character_settings are untouched.
 void UpdateBotEssences(Player* bot, uint32 diff);
 void RefreshBotEssences(Player* bot);
+// In that instance, a bot carries at least the essences a typical player of that item level has gathered
+// (PowerScaling.h: Power::EssenceGrowthPerKey and EssenceVitalityPerKey a key of Power::ProgressKeys), whatever its
+// players carry: content made for a profile (a Défi boss, mod-playerbots RaidFinder.cpp) sizes its bots on it.
+void SetBotEssenceFloor(Player* bot, uint32 instanceId, float itemLevel);
 
 // What the mirror currently adds, 0 for a real player or a bot without one
 uint32 GetBotEssenceVitality(Player* player);

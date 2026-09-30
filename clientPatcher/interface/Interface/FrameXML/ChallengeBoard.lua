@@ -37,6 +37,7 @@ local GOD_ART = "Interface\\ChallengeBoard\\"
 local GOD_FIGURE_BOTTOM = 0.6367
 -- Its gear: the server sends Défi I's item level as the mission's, each tier adds this (ChallengeBoard.cpp)
 local GOD_ITEM_LEVEL_PER_TIER = 10
+local GOD_REQUIRED_ITEM_LEVEL_PER_TIER = 10
 -- The paragon it asks: the server sends Défi I's as the mission's base, each tier adds this (ChallengeTiers.h)
 local GOD_PARAGON_PER_TIER = 50
 -- One attempt at every tier (ChallengeTiers.h BossProfiles): a wipe sends everyone home
@@ -50,14 +51,16 @@ local TIER_GUARANTEED_ITEM = 7
 local SATCHEL_ITEM_CHANCE = { [0] = 35, 45, 50, 60 }
 
 -- A tier asks for 31 more paragon points, and the boss's health grows by what they are measured to be worth (0.65%
--- each, compounded: PowerScaling.h), its damage 11.5% a tier; L'Infini by its own 50 a tier. A key past +10 asks for
--- 8.5 a level (MythicDungeon.h). ChallengeTiers.h holds the server's: change them together.
+-- each, compounded: PowerScaling.h), its damage 11.5% a tier; L'Infini by its own profile (below). A key past +10
+-- asks for 8.5 a level (MythicDungeon.h). ChallengeTiers.h holds the server's: change them together.
 local PARAGON_DPS_PER_POINT = 1.0065
 local function TierParagon(tier) return 31 * (tier - 1) end
-local function TierHealth(tier, paragonPerTier)
-    return PARAGON_DPS_PER_POINT ^ ((paragonPerTier or 31) * (tier - 1))
-end
+local function TierHealth(tier) return PARAGON_DPS_PER_POINT ^ TierParagon(tier) end
 local function TierDamage(tier) return 1.1152 ^ (tier - 1) end
+-- L'Infini's tiers, from its profile (ChallengeTiers.h HealthMultiplier / DamageMultiplier with its BossProfile,
+-- worked out on the power model): health by the profile's power, damage by its health. Change them together.
+local GOD_TIER_HEALTH = { 1.00, 1.43, 2.04, 2.91, 4.14, 5.88, 8.35, 11.85, 16.81, 23.84 }
+local GOD_TIER_DAMAGE = { 1.00, 1.08, 1.15, 1.23, 1.31, 1.39, 1.47, 1.55, 1.63, 1.72 }
 local function KeyParagon(level) return level > 10 and floor((17 * (level - 10) + 1) / 2) or 0 end
 -- Paragon only exists at the level cap: below it the boards say nothing about it
 local PARAGON_BRACKET = 80
@@ -1365,14 +1368,16 @@ local function CreateGodPage()
         kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
 
         tierText:SetText(TierName(tier))
-        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier, GOD_PARAGON_PER_TIER)),
-            Decimal(TierDamage(tier)), GOD_ATTEMPTS,
+        tierInfo:SetText(format(TEXT.tierBoss, Decimal(GOD_TIER_HEALTH[tier] or 1),
+            Decimal(GOD_TIER_DAMAGE[tier] or 1), GOD_ATTEMPTS,
             GOD_ATTEMPTS > 1 and "s" or ""))
         dialGlow:SetAlpha(0.18 + 0.05 * tier)
         SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)
         SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
 
-        itemLevel:SetText(format(TEXT.godItemLevel, mission.requiredItemLevel or 0))
+        -- The tier's profile: 10 item levels more a tier (ChallengeTiers.h BossProfiles)
+        itemLevel:SetText(format(TEXT.godItemLevel,
+            (mission.requiredItemLevel or 0) + GOD_REQUIRED_ITEM_LEVEL_PER_TIER * (tier - TIER_MIN)))
         local wanted = (mission.baseParagon or 0) + GOD_PARAGON_PER_TIER * (tier - TIER_MIN)
         paragonNeed:SetText(format(TEXT.godParagon, wanted, state.paragon or 0))
         if (state.paragon or 0) >= wanted then
