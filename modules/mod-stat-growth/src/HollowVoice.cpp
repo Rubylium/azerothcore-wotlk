@@ -250,7 +250,11 @@ constexpr float RuinAegisRadius = 8.0f;
 constexpr float ArenaReach = 45.0f;
 constexpr float ArenaWalkRadius = 36.0f;        // random spots stay this close to the middle
 constexpr float MusicReach = 120.0f;
-constexpr float ChamberClearRadius = 60.0f;     // the chamber's own occupants this close go (M'uru, its guards)
+constexpr float ChamberClearRadius = 60.0f;
+// What is painted on the chamber's floor is carried at its mid height: a painting shows 2 yards above and below its
+// carrier, and the floor goes from 69.6 (the middle) to 71.2 (the edge). Carried at the ground found under its start,
+// a lane starting past the walls found another floor below and was never seen.
+constexpr float ChamberFloorZ = 70.4f;     // the chamber's own occupants this close go (M'uru, its guards)
 
 // --- Timeline (ms from the pull), on the tracks' beats (measured on their loudness) ---------------------------------
 // The verdict: a group not at 1% by then gets Last Rites, and the track is ended there - the client fades a track
@@ -1492,16 +1496,49 @@ private:
         aura->SetDuration(int32(durationMs));
     }
 
-    // Where a painted area lands: its painting at full strength, a moment
-    void Strike(GroundIndicators::Area const& area, uint32 look)
+    static Position OnFloor(Position const& at)
     {
-        GroundIndicators::ShowDecal(me, area.origin, area.origin.GetOrientation(), area.radius, StrikeMs, look);
+        return Position(at.GetPositionX(), at.GetPositionY(), ChamberFloorZ, at.GetOrientation());
+    }
+
+    // A painted warning (GroundIndicators::ShowPainted), carried at the chamber's floor height, staying StrikeMs past
+    // its warning for Strike
+    GroundIndicators::Area Paint(GroundIndicators::Area area, uint32 look, uint32 durationMs,
+                                 GroundIndicators::Theme theme = GroundIndicators::Theme::None)
+    {
+        area.origin = OnFloor(area.origin);
+        return GroundIndicators::ShowPainted(me, area, look, durationMs, theme, 0, nullptr, StrikeMs);
+    }
+
+    // A picture on the floor (a sigil, a scorch), at the chamber's floor height
+    void Decal(Position const& at, float orientation, float radius, uint32 durationMs, uint32 look)
+    {
+        GroundIndicators::ShowDecal(me, OnFloor(at), orientation, radius, durationMs, look);
+    }
+
+    // Where a painted area lands: its own carrier turns to the full-strength look (hitLook, its warning's twin: the
+    // warning's id + 1) until it goes. A carrier of its own would fade in as the client shows any new unit: the flash
+    // appeared half-way and went.
+    void Strike(GroundIndicators::Area const& area, uint32 hitLook)
+    {
+        uint32 const warning = hitLook - 1;
+        std::list<Creature*> stalkers;
+        me->GetCreatureListWithEntryInGrid(stalkers, NPC_STALKER, 60.0f);
+        for (Creature* stalker : stalkers)
+            // By place, look and size: the Pulpit's rings share a middle, two of them a look
+            if (stalker->HasAura(warning) && stalker->GetExactDist2d(&area.origin) < 0.5f &&
+                std::fabs(stalker->GetObjectScale() - area.radius) < 0.05f)
+            {
+                stalker->RemoveAurasDueToSpell(warning);
+                stalker->AddAura(hitLook, stalker);
+                return;
+            }
     }
 
     // What a landing leaves on the floor a while (a hammer's, a crash's)
     void Scorch(Position const& where, float radius, uint32 look)
     {
-        GroundIndicators::ShowDecal(me, Ground(where), frand(0.0f, 2.0f * float(M_PI)), radius, ScorchMs, look);
+        Decal(where, frand(0.0f, 2.0f * float(M_PI)), radius, ScorchMs, look);
     }
 
     // A look of the ground (shapes.json) on an invisible stalker of its own, radius yards: kept by guid, so it can
@@ -1530,7 +1567,7 @@ private:
                    bool holy, uint32 waiting, uint32 held, bool pillar = true)
     {
         Tower tower;
-        tower.center = Ground(spot);
+        tower.center = OnFloor(spot);
         tower.radius = radius;
         tower.needed = needed;
         tower.tanksOnly = tanksOnly;
@@ -1815,7 +1852,7 @@ private:
         float const facing = apex.GetAngle(target);
         BeginWindup(facing);
         me->SendPlaySpellVisual(KIT_DIVINE_STORM_CAST);
-        GroundIndicators::Area const area = GroundIndicators::ShowPainted(me, ConeArea(apex, facing,
+        GroundIndicators::Area const area = Paint(ConeArea(apex, facing,
             LightOfDawnRadius, LightOfDawnArc), PAINT_DAWN, LightOfDawnWarningMs, GroundIndicators::Theme::Holy);
         scheduler.Schedule(Milliseconds(LightOfDawnWarningMs), [this, area](TaskContext)
         {
@@ -1906,7 +1943,7 @@ private:
             uint32 const lands = PulpitWarningMs + wave * PulpitWaveMs;
             // Painted as two proportions: 0.6 (the first) and 0.8
             bool const wide = inner / outer < 0.7f;
-            GroundIndicators::Area const ring = GroundIndicators::ShowPainted(me, RingArea(center, outer, inner),
+            GroundIndicators::Area const ring = Paint(RingArea(center, outer, inner),
                 wide ? PAINT_PULPIT60 : PAINT_PULPIT80, lands, GroundIndicators::Theme::Holy);
             scheduler.Schedule(Milliseconds(lands), [this, ring, wave, wide](TaskContext)
             {
@@ -1927,9 +1964,9 @@ private:
         Sound(SOUND_HOLLOW_ECHO);
         caster->SendPlaySpellVisual(KIT_SHADOW_CRASH_CAST);
         std::vector<GroundIndicators::Area> areas;
-        areas.push_back(GroundIndicators::ShowPainted(me, CircleArea(center, EchoCoreRadius), PAINT_ECHO_CORE,
+        areas.push_back(Paint(CircleArea(center, EchoCoreRadius), PAINT_ECHO_CORE,
             EchoWarningMs, GroundIndicators::Theme::Shadow));
-        areas.push_back(GroundIndicators::ShowPainted(me, RingArea(center, ArenaReach, EchoOuterInner),
+        areas.push_back(Paint(RingArea(center, ArenaReach, EchoOuterInner),
             PAINT_ECHO_RING, EchoWarningMs, GroundIndicators::Theme::Shadow));
         scheduler.Schedule(Milliseconds(EchoWarningMs), [this, areas](TaskContext)
         {
@@ -1959,7 +1996,7 @@ private:
                                   center.GetPositionY() + std::sin(across) * offset, center.GetPositionZ());
             Position const start = Ground(Position(middle.GetPositionX() - std::cos(facing) * AisleLength / 2.0f,
                 middle.GetPositionY() - std::sin(facing) * AisleLength / 2.0f, center.GetPositionZ()));
-            lanes.push_back(GroundIndicators::ShowPainted(me, LineArea(start, facing, AisleLength, AisleWidth),
+            lanes.push_back(Paint(LineArea(start, facing, AisleLength, AisleWidth),
                 echo ? PAINT_ECHO_AISLES : PAINT_AISLES, AisleWarningMs));
         }
         scheduler.Schedule(Milliseconds(AisleWarningMs), [this, lanes, echo](TaskContext)
@@ -2002,7 +2039,7 @@ private:
         Position const bastion = AtAngle(center, bastionAngle, 12.0f);
         ShowTower(bastion, bastionAngle, TowerRadius, TowerMs, 1, true, true, GroundIndicators::SPELL_SIGIL_BASTION,
             LOOK_SIGIL_BASTION_LIT);
-        GroundIndicators::SetOffTankSpot(Caster(), bastion, TowerMs);
+        GroundIndicators::SetOffTankSpot(Caster(), bastion, TowerMs, true);
 
         scheduler.Schedule(Milliseconds(TowerMs), [this, towers, bastion, sermon](TaskContext)
         {
@@ -2058,7 +2095,7 @@ private:
         me->GetMotionMaster()->MoveIdle();
         me->SetStandState(UNIT_STAND_STATE_KNEEL);
         AddTimedAura(me, SPELL_ABSOLUTION_AURA, AbsolutionMs);
-        GroundIndicators::ShowDecal(me, Ground(me->GetPosition()), me->GetOrientation(), AbsolutionSigilRadius,
+        Decal(Ground(me->GetPosition()), me->GetOrientation(), AbsolutionSigilRadius,
             AbsolutionMs, GroundIndicators::SPELL_SIGIL_AEGIS);
     }
 
@@ -2127,8 +2164,8 @@ private:
         Unit* victim = me->GetVictim();
         float const away = victim ? me->GetAngle(victim) + float(M_PI) : frand(0.0f, 2.0f * float(M_PI));
         Position const spot = AtAngle(me->GetPosition(), away + frand(-0.6f, 0.6f), 11.0f);
-        GroundIndicators::ShowDecal(me, spot, away, VerdictRadius, VerdictMs, PAINT_VERDICT);
-        GroundIndicators::SetOffTankSpot(Caster(), spot, VerdictMs);
+        Decal(spot, away, VerdictRadius, VerdictMs, PAINT_VERDICT);
+        GroundIndicators::SetOffTankSpot(Caster(), spot, VerdictMs, true);
         me->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
         scheduler.Schedule(Milliseconds(VerdictMs), [this, spot](TaskContext)
         {
@@ -2182,7 +2219,7 @@ private:
                 (float(cone) - 1.0f) * WakeArc * float(M_PI) / 180.0f);
             scheduler.Schedule(Milliseconds(cone * WakeStepMs), [this, apex, facing, cone](TaskContext)
             {
-                GroundIndicators::Area const area = GroundIndicators::ShowPainted(me, ConeArea(apex, facing,
+                GroundIndicators::Area const area = Paint(ConeArea(apex, facing,
                     WakeRadius, WakeArc), PAINT_WAKE, WakeWarningMs, GroundIndicators::Theme::Holy);
                 scheduler.Schedule(Milliseconds(WakeWarningMs), [this, area, cone](TaskContext)
                 {
@@ -2315,7 +2352,7 @@ private:
         float const facing = apex.GetAngle(target);
         BeginWindup(facing);
         demon->SendPlaySpellVisual(KIT_CARRION_CAST);
-        GroundIndicators::Area const area = GroundIndicators::ShowPainted(me, ConeArea(apex, facing, SwarmRadius,
+        GroundIndicators::Area const area = Paint(ConeArea(apex, facing, SwarmRadius,
             SwarmArc), PAINT_CARRION, SwarmWarningMs, GroundIndicators::Theme::Shadow);
         scheduler.Schedule(Milliseconds(SwarmWarningMs), [this, area](TaskContext)
         {
@@ -2374,7 +2411,7 @@ private:
                     (AtLastLightEnd - AtLastLight) - step * LastLightShrinkMs : LastLightShrinkMs;
                 for (Position const& pool : _pools)
                 {
-                    GroundIndicators::ShowDecal(me, pool, 0.0f, _poolRadius, lasts,
+                    Decal(pool, 0.0f, _poolRadius, lasts,
                         GroundIndicators::SPELL_SIGIL_AEGIS);
                     GroundIndicators::ShowSoak(Caster(), pool, _poolRadius, lasts, 4, GroundIndicators::Theme::Holy,
                         true);
@@ -2428,7 +2465,7 @@ private:
         for (Player* marked : SpreadPick(NonTanks(), LanceMarked))
         {
             float const facing = source.GetAngle(marked);
-            GroundIndicators::Area const line = GroundIndicators::ShowPainted(me, LineArea(source, facing,
+            GroundIndicators::Area const line = Paint(LineArea(source, facing,
                 LanceLength, LanceWidth), PAINT_LANCE, LanceMs);
             Creature* from = FxStalker(Position(source.GetPositionX(), source.GetPositionY(),
                 source.GetPositionZ() + 2.0f), LanceMs + 300, NPC_HOVER_STALKER);
@@ -2513,7 +2550,7 @@ private:
         demon->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         Position const center = Ground(demon->GetPosition());
         uint32 const lasts = AtTrueForm - AtInhale;
-        _inhaleCore = GroundIndicators::ShowPainted(me, CircleArea(center, InhaleBlastRadius), PAINT_INHALE, lasts,
+        _inhaleCore = Paint(CircleArea(center, InhaleBlastRadius), PAINT_INHALE, lasts,
             GroundIndicators::Theme::Shadow);
         for (uint32 at = 1000; at < lasts; at += 1000)
             scheduler.Schedule(Milliseconds(at), [this, center](TaskContext)
@@ -2535,6 +2572,7 @@ private:
                     scheduler.Schedule(Milliseconds(InhaleVoidWarningMs), [this, area](TaskContext)
                     {
                         PlayOnGround(area.origin, KIT_SHADOWFURY_HIT);
+                        Strike(area, PAINT_ECHO_CORE_HIT);
                         Scorch(area.origin, area.radius, PAINT_VOID_SCORCH);
                         for (Player* player : PlayersIn(area))
                             Hit(player, SPELL_INHALE, InhaleVoidPct, true);
@@ -2564,7 +2602,7 @@ private:
                 demon->AddAura(SPELL_TRUE_FORM, demon);
         }
         HitEveryone(SPELL_TEAR, TrueFormPulsePct);
-        _edgeArea = GroundIndicators::ShowPainted(me, RingArea(Center(), EdgeOuterRadius, EdgeInnerRadius),
+        _edgeArea = Paint(RingArea(Center(), EdgeOuterRadius, EdgeInnerRadius),
             PAINT_EDGE, AtEnrageBlasts[2] + 30000 - Elapsed(), GroundIndicators::Theme::Shadow);
         _edge = true;
         HoldDemon(false);
@@ -2645,7 +2683,7 @@ private:
             if (!light)
                 continue;
             light->AddAura(SPELL_LIGHT_FX, light);
-            GroundIndicators::ShowDecal(me, spot, 0.0f, PrayerLightRadius, lasts,
+            Decal(spot, 0.0f, PrayerLightRadius, lasts,
                 GroundIndicators::SPELL_SIGIL_AEGIS);
             GroundIndicators::ShowSoak(Caster(), spot, PrayerLightRadius, lasts, 1);
             _prisonLights.push_back(light->GetGUID());
@@ -2740,7 +2778,7 @@ private:
                 {
                     Position const start = Ground(Position(center.GetPositionX() - std::cos(arm) * CrossLength,
                         center.GetPositionY() - std::sin(arm) * CrossLength, center.GetPositionZ()));
-                    lines.push_back(GroundIndicators::ShowPainted(me, LineArea(start, arm, CrossLength * 2.0f,
+                    lines.push_back(Paint(LineArea(start, arm, CrossLength * 2.0f,
                         CrossWidth), PAINT_CROSS, CrossWarningMs));
                 }
                 scheduler.Schedule(Milliseconds(CrossWarningMs), [this, lines](TaskContext)
@@ -2763,7 +2801,7 @@ private:
         Creature* demon = Velthazar();
         Unit* tank = demon ? demon->GetVictim() : nullptr;
         Position const spot = Ground(tank ? tank->GetPosition() : AtAngle(Center(), 0.0f, 8.0f));
-        GroundIndicators::ShowDecal(me, spot, 0.0f, RuinAegisRadius, RuinWarningMs,
+        Decal(spot, 0.0f, RuinAegisRadius, RuinWarningMs,
             GroundIndicators::SPELL_SIGIL_AEGIS);
         GroundIndicators::ShowSoak(Caster(), spot, RuinAegisRadius, RuinWarningMs, 10, GroundIndicators::Theme::Holy,
             true);

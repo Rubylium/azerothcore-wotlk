@@ -1048,6 +1048,7 @@ struct Goal
     uint32 wanted = 0;
     uint64 endMs = 0;
     bool tanks = false;                         // a soak the tanks go to as well (nothing to hold meanwhile)
+    bool hold = false;                          // an off-tank spot to stand on until it lands
     std::vector<ObjectGuid> assigned;           // a soak's bots (AssignSoaks): each bot goes to one soak only
 };
 
@@ -1057,8 +1058,9 @@ std::vector<Goal> Goals;
 // A soak is looked at by the players this close to it; a player this far inside its edge stands in it
 constexpr float SoakReach = 50.0f;
 constexpr float SoakInsideMargin = 1.0f;
-// The off-tank goes back to its spot once this far from it
+// The off-tank goes back to its spot once this far from it; to one it must hold, this close
 constexpr float OffTankSlack = 5.0f;
+constexpr float OffTankHoldSlack = 1.5f;
 
 void AddGoal(Goal goal, bool replaceOwnersOfKind)
 {
@@ -1316,10 +1318,14 @@ void WatchSweepingRectangle(Unit* owner, Position const& start, float orientatio
     RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
 }
 
-Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme, uint32 hitDamage)
+Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme, uint32 hitDamage,
+                 ObjectGuid* placed, uint32 lingerMs)
 {
-    if (Place(owner, area.origin, area.origin.GetOrientation(), look, area.radius, durationMs))
+    if (Creature* stalker = Place(owner, area.origin, area.origin.GetOrientation(), look, area.radius,
+        durationMs + lingerMs))
     {
+        if (placed)
+            *placed = stalker->GetGUID();
         Register(owner, nullptr, area, durationMs, hitDamage);
         ShowParticles(owner, area, theme, durationMs);
     }
@@ -1647,7 +1653,7 @@ void ShowDecal(Unit* owner, Position const& center, float orientation, float rad
     Place(owner, center, orientation, spellId, radius, durationMs);
 }
 
-void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs)
+void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return;
@@ -1659,6 +1665,7 @@ void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs)
     goal.owner = owner->GetGUID();
     goal.center = spot;
     goal.endMs = NowMs() + durationMs;
+    goal.hold = hold;
     AddGoal(goal, true);
 }
 
@@ -1677,7 +1684,7 @@ bool FindGoal(Unit* unit, Position& spot, bool tank)
         {
             // Only a tank the owner is not hitting: the one it is stays where it holds it
             if (!tank || !owner->IsInCombat() || owner->GetVictim() == unit ||
-                unit->GetExactDist2d(&goal.center) <= OffTankSlack)
+                unit->GetExactDist2d(&goal.center) <= (goal.hold ? OffTankHoldSlack : OffTankSlack))
                 continue;
             spot = goal.center;
             return true;
@@ -1697,6 +1704,22 @@ bool FindGoal(Unit* unit, Position& spot, bool tank)
     spot.Relocate(soak.center.GetPositionX() + std::cos(angle) * distance,
         soak.center.GetPositionY() + std::sin(angle) * distance, soak.center.GetPositionZ());
     return true;
+}
+
+bool HoldsOffTankSpot(Unit* unit)
+{
+    if (!unit || !unit->IsAlive() || !unit->IsInWorld())
+        return false;
+    for (Goal const& goal : GoalsAround(unit))
+    {
+        if (goal.kind != Goal::Kind::OffTank || !goal.hold ||
+            unit->GetExactDist2d(&goal.center) > OffTankHoldSlack + 1.0f)
+            continue;
+        Unit* owner = ObjectAccessor::GetUnit(*unit, goal.owner);
+        if (owner && owner->IsAlive() && owner->GetVictim() != unit)
+            return true;
+    }
+    return false;
 }
 
 bool HoldsSoak(Unit* unit)

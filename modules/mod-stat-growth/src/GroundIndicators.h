@@ -6,6 +6,7 @@
 
 class Unit;
 class WorldObject;
+class ObjectGuid;
 
 // Red ground indicators: where an enemy ability is about to land, filled in low-alpha red on the ground, following
 // its slopes and floors. Every enemy area ability cast or channelled in a mythic dungeon shows one on its own (see
@@ -110,8 +111,10 @@ namespace GroundIndicators
     // circle painted to the area's own proportions), and registered as any red one: the bots leave it, a hit in it is
     // one in the red. area: its kind, origin (and facing) and size, as the painting was made for (a line's width is its
     // length over the painting's ratio, a ring's inner radius its proportion of the outer).
+    // placed: the stalker carrying it, to change its look where it lands (a new stalker fades in as the client shows
+    // any new unit: a flash made of one appeared half-way and went); lingerMs: how long it stays past the warning
     Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme = Theme::None,
-                     uint32 hitDamage = 0);
+                     uint32 hitDamage = 0, ObjectGuid* placed = nullptr, uint32 lingerMs = 0);
     // A picture painted on the ground at center, radius yards, turned to orientation, for durationMs: a boss's sigil
     // (localTools/groundIndicators/shapes.json, kind image: spells 90734-90737). Nothing to leave: no area, no bot
     // reads it - what it marks is told to them by the area or the soak shown with it.
@@ -134,7 +137,11 @@ namespace GroundIndicators
     // tanks: the tanks are sent too (a soak while the boss holds still); otherwise they stay on it
     void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted,
                   Theme theme = Theme::Holy, bool tanks = false);
-    void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs);
+    // hold: a spot the tank must stand on until it lands (a Bastion tower, a hammer to take): it goes to within
+    // OffTankHoldSlack of it and holds there (HoldsOffTankSpot), instead of following its target about
+    void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold = false);
+    // Whether unit is a tank standing on a spot it must hold (SetOffTankSpot hold)
+    bool HoldsOffTankSpot(Unit* unit);
     // Whether unit should go somewhere for one of those, and where. Always after FindEscape: the red comes first.
     bool FindGoal(Unit* unit, Position& spot, bool tank);
     // Whether unit stands in the soak it was given (bots are shared out between the soaks shown, one each): it holds

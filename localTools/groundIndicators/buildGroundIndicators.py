@@ -296,11 +296,27 @@ def build_painted_texture(shape):
     xs = x0 + (numpy.arange(columns) + 0.5) / columns * (x1 - x0)
     ys = y0 + (numpy.arange(rows) + 0.5) / rows * (y1 - y0)
     X, Y = numpy.meshgrid(xs, ys)
+    fade = None
     if kind == 'rect':
-        # The painting fills the line: its width across its length
         half = 0.5 / shape['ratio']
-        sx = X * width
         sy = (Y + half) / (2.0 * half) * height
+        if shape.get('tile'):
+            # The painting repeated along the line at its own proportions (a copy as long as it is wide times its
+            # aspect), every other copy mirrored so the joins match, its tapered tips cut off (`crop`, a share of its
+            # width); the line's own two ends fade. Stretched to the line's ratio instead, it read drawn out.
+            first, last = shape.get('crop', [0.0, 1.0])
+            tile_width = (last - first) * width
+            tile_length = tile_width / height * (2.0 * half)
+            u = X / tile_length
+            index = numpy.floor(u)
+            fraction = u - index
+            fraction = numpy.where(numpy.mod(index, 2) == 1, 1.0 - fraction, fraction)
+            sx = first * width + fraction * tile_width
+            ends = shape.get('endFade', 0.04)
+            fade = numpy.clip(X / ends, 0.0, 1.0) * numpy.clip((1.0 - X) / ends, 0.0, 1.0)
+        else:
+            # The painting fills the line: its width across its length
+            sx = X * width
     elif kind == 'cone':
         # Apex at the middle of the painting's left edge; its arc turned onto the cone's
         alpha = source[..., 3]
@@ -329,6 +345,8 @@ def build_painted_texture(shape):
         sx = width / 2.0 + source_radius * (width / 2.0) * numpy.cos(angle)
         sy = height / 2.0 + source_radius * (height / 2.0) * numpy.sin(angle)
     result = sample(source, sx, sy)
+    if fade is not None:
+        result *= fade[..., None]
     result[..., 3] *= shape.get('alpha', 1.0)
     result[..., :3] *= shape.get('alpha', 1.0)
     # The outermost texels clear, whatever the painting does there (the client clamps to them past the quad)
