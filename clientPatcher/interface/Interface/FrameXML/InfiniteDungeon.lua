@@ -9,7 +9,7 @@
 --   swift descent says so), each floor cleared with what it gave and its time ("+3 floors" in large after a fast
 --   clear), and the checkpoint reached with its chest
 -- - a toast when the checkpoint chest is opened, and the run's summary when it is over (floors, record, rewards)
--- - Eternia's pin on the world map and the minimap, in every capital and the zone around it
+-- - Eternia's pin on the world map and the minimap, in Stormwind only
 --
 -- Protocol: prefix "Infinite", tab-separated, whispered to oneself (InfiniteDungeonSystem.cpp documents it too).
 --   server  HUD <floor> <checkpoint> <ladder> <step> <paragon> <state> <arena> <level> <players> <best> <clock ms>
@@ -1908,50 +1908,18 @@ end)
 -- -----------------------------------------------------------------------------------------------------------------
 -- Eternia on the maps
 -- -----------------------------------------------------------------------------------------------------------------
--- Her spawns (mod-stat-growth stat_growth_infinite_dungeon.sql), shown as a gold map pin on the world map (her
--- capital, the zone around it, the continent) and on the minimap in her capital and its zone, on the minimap's edge
--- pointing the way when she is out of its reach (ItemForge.lua's smith does the same). Maps are known by their file
--- name (GetMapInfo) and placed with their WorldMapArea.dbc bounds: a map's left and right edges are world Y, its top
--- and bottom world X. Dalaran's own map has no bounds (it is drawn as floors): its keeper shows on Crystalsong
--- Forest and Northrend.
+-- Her spawn in Stormwind (mod-stat-growth stat_growth_infinite_dungeon.sql), for now the only one shown: a gold pin
+-- on Stormwind's own map (no other map, no zone or continent) and on the minimap while in the city, on the minimap's
+-- edge pointing the way when she is out of its reach (ItemForge.lua's smith does the same). Maps are known by their
+-- file name (GetMapInfo) and placed with their WorldMapArea.dbc bounds: a map's left and right edges are world Y, its
+-- top and bottom world X.
 
 local KEEPERS = {
-    { map = 0, x = -8819.98, y = 606.05, maps = { Stormwind = true, Elwynn = true } },
-    { map = 0, x = -4798.60, y = -1104.15, maps = { Ironforge = true, DunMorogh = true } },
-    { map = 1, x = 9940.17, y = 2514.60, maps = { Darnassis = true, Teldrassil = true } },
-    { map = 530, x = -3919.57, y = -11549.66, maps = { TheExodar = true, AzuremystIsle = true } },
-    { map = 1, x = 2072.97, y = -4824.27, maps = { Ogrimmar = true, Durotar = true } },
-    { map = 0, x = 1596.67, y = 231.13, maps = { Undercity = true, Tirisfal = true } },
-    { map = 1, x = -1257.70, y = 24.30, maps = { ThunderBluff = true, Mulgore = true } },
-    { map = 530, x = 9525.23, y = -7216.82, maps = { SilvermoonCity = true, EversongWoods = true } },
-    { map = 571, x = 5614.28, y = 693.16, maps = { CrystalsongForest = true } },
-    { map = 530, x = -2013.00, y = 5365.55, maps = { ShattrathCity = true, TerokkarForest = true } },
+    { map = 0, x = -8819.98, y = 606.05, maps = { Stormwind = true } },
 }
 
 local MAP_BOUNDS = {
     Stormwind = { map = 0, left = 1722.92, right = -14.58, top = -7995.83, bottom = -9154.17, city = true },
-    Ironforge = { map = 0, left = -713.59, right = -1504.22, top = -4569.24, bottom = -5096.85, city = true },
-    Undercity = { map = 0, left = 873.19, right = -86.18, top = 1877.95, bottom = 1237.84, city = true },
-    Darnassis = { map = 1, left = 2938.36, right = 1880.03, top = 10238.32, bottom = 9532.59, city = true },
-    Ogrimmar = { map = 1, left = -3680.60, right = -5083.21, top = 2273.88, bottom = 1338.46, city = true },
-    ThunderBluff = { map = 1, left = 516.67, right = -527.08, top = -850.00, bottom = -1545.83, city = true },
-    TheExodar = { map = 530, left = -11066.37, right = -12123.14, top = -3609.68, bottom = -4314.37, city = true },
-    SilvermoonCity = { map = 530, left = -6400.75, right = -7612.21, top = 10153.71, bottom = 9346.94, city = true },
-    ShattrathCity = { map = 530, left = 6135.26, right = 4829.01, top = -1473.95, bottom = -2344.79, city = true },
-    Elwynn = { map = 0, left = 1535.42, right = -1935.42, top = -7939.58, bottom = -10254.17 },
-    DunMorogh = { map = 0, left = 1802.08, right = -3122.92, top = -3877.08, bottom = -7160.42 },
-    Tirisfal = { map = 0, left = 3033.33, right = -1485.42, top = 3837.50, bottom = 825.00 },
-    Teldrassil = { map = 1, left = 3814.58, right = -1277.08, top = 11831.25, bottom = 8437.50 },
-    Durotar = { map = 1, left = -1962.50, right = -7250.00, top = 1808.33, bottom = -1716.67 },
-    Mulgore = { map = 1, left = 2047.92, right = -3089.58, top = -272.92, bottom = -3697.92 },
-    AzuremystIsle = { map = 530, left = -10500.00, right = -14570.83, top = -2793.75, bottom = -5508.33 },
-    EversongWoods = { map = 530, left = -4487.50, right = -9412.50, top = 11041.67, bottom = 7758.33 },
-    TerokkarForest = { map = 530, left = 7083.33, right = 1683.33, top = -1000.00, bottom = -4600.00 },
-    CrystalsongForest = { map = 571, left = 1443.75, right = -1279.17, top = 6502.08, bottom = 4687.50 },
-    Azeroth = { map = 0, left = 18171.97, right = -22569.21, top = 11176.34, bottom = -15973.34 },
-    Kalimdor = { map = 1, left = 17066.60, right = -19733.21, top = 12799.90, bottom = -11733.30 },
-    Expansion01 = { map = 530, left = 12996.04, right = -4468.04, top = 5821.36, bottom = -5821.36 },
-    Northrend = { map = 571, left = 9217.15, right = -8534.25, top = 10593.38, bottom = -1240.89 },
 }
 
 -- Where a world position falls on a map, 0-1 from its top left; nil when off it

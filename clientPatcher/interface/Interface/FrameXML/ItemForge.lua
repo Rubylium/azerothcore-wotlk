@@ -1225,28 +1225,20 @@ hooksecurefunc(GameTooltip, "SetInventoryItem", function(tooltip, unit, slot)
 end)
 
 -- The Forge on the maps ---------------------------------------------------------------------------------------------
--- An anvil where the master smith stands: on the world map (each capital, the zones around it, both continents), and
--- on the minimap while in those, pointing the way from the minimap's edge when he is out of its reach. Maps are known
+-- An anvil where the master smith stands: for now Stormwind's only, on Stormwind's own map and on the minimap while
+-- in the city (no other map, no zone or continent), pointing the way from the minimap's edge when he is out of its
+-- reach. Maps are known
 -- by their file name (GetMapInfo), and placed with their WorldMapArea.dbc bounds: a map's left and right edges are
 -- world Y, its top and bottom world X. Works with the default map and minimap, and with DragonUI's, which keep the
 -- same frames (WorldMapButton, Minimap).
 
--- The smith's spawns (mod-forge forge_master.sql), and the maps where he is worth pointing at
+-- The smith's spawn shown (mod-forge forge_master.sql), and the maps it shows on
 local SMITHS = {
-    { continent = 0, x = -8418.887, y = 616.072, maps = { Stormwind = true, Elwynn = true } },
-    { continent = 1, x = 2071.138, y = -4822.572, maps = { Ogrimmar = true, Durotar = true } },
-    { continent = 0, x = -4800.548, y = -1105.697, maps = { Ironforge = true, DunMorogh = true } },
+    { continent = 0, x = -8418.887, y = 616.072, maps = { Stormwind = true } },
 }
 
 local MAP_BOUNDS = {
     Stormwind = { continent = 0, left = 1722.92, right = -14.58, top = -7995.83, bottom = -9154.17, city = true },
-    Ogrimmar = { continent = 1, left = -3680.60, right = -5083.21, top = 2273.88, bottom = 1338.46, city = true },
-    Ironforge = { continent = 0, left = -713.59, right = -1504.22, top = -4569.24, bottom = -5096.85, city = true },
-    Elwynn = { continent = 0, left = 1535.42, right = -1935.42, top = -7939.58, bottom = -10254.17 },
-    DunMorogh = { continent = 0, left = 1802.08, right = -3122.92, top = -3877.08, bottom = -7160.42 },
-    Durotar = { continent = 1, left = -1962.50, right = -7250.00, top = 1808.33, bottom = -1716.67 },
-    Azeroth = { continent = 0, left = 18171.97, right = -22569.21, top = 11176.34, bottom = -15973.34 },
-    Kalimdor = { continent = 1, left = 17066.60, right = -19733.21, top = 12799.90, bottom = -11733.30 },
 }
 
 -- Where a world position falls on a map, 0-1 from its top left; nil when off it
