@@ -78,15 +78,18 @@ health nodes, and buffs:
 
 ## Sizing content
 
-1. **Pick the profile** `(I, P)` the content is for, and the group: damage dealers, plus tanks and healers at about a
-   third of a damage dealer each.
+1. **Pick the profile** `(I, P)` the content is for, and the group, counted with `Power::GroupDamageDealers(damage,
+   tanks, healers)`: a tank deals a third of a damage dealer, a healer a tenth (measured in L'Infini: healers dealt
+   0-3k next to 12-13k). Use the raid finder's composition (`GetComposition`): 10 players are 5 damage dealers, 2 tanks
+   and 3 healers, 5.97 damage dealers. Bots come at the profile itself (no margin): one player with bots and a group
+   of players meet the same fight.
 2. **Health (the DPS check).** Use `Power::DpsCheckHealth(I, P, dealers, seconds[, pack])`. It returns the health that
    lasts `seconds` against that group playing well.
    - For "hard", give the fight about 85-90% of the time you allow (enrage, music), so a group loses about a tenth to
      mechanics and movement.
    - For "comfortable", about 70%.
-   - Example: a 10-player boss (6 DPS, 2 tanks, 2 healers, so 7.3 damage dealers) for 350 / 200 with a 5-minute
-     enrage has `DpsCheckHealth(350, 200, 7.3, 300)` = 66M at the limit, about 57M for "hard". Set the creature's
+   - Example: a 10-player boss (5.97 damage dealers) for 350 / 200 with a 5-minute enrage has
+     `DpsCheckHealth(350, 200, 5.97, 300)` = 54M at the limit, about 46M for "hard". Set the creature's
      health modifier so its health lands there.
 3. **Damage.** Hits are a share of `ExpectedPlayerHealth(I, P)`, as the Mythic+ budgets are (`MythicTuning.h`):
    - telegraphed hit 45-70%, small or frequent hit 20-35%, group pulse 8-15%;
@@ -95,8 +98,8 @@ health nodes, and buffs:
 
    Use `MythicTuning::DealReferenceDamage` / `ReferenceHealth` for keys, or `Power::ExpectedPlayerHealth` directly.
 4. **Declare it.** Put the profile in the content's header comment and its README, e.g.
-   "tuned for 350 / 200, 10 players, 5 min". Bots of the content get that profile minus a margin (see the Défi's
-   `BotItemLevelMargin` / `BotParagonMargin`).
+   "tuned for 350 / 200, 10 players, 5 min". Bots of the content get that profile (the Défi's
+   `BotItemLevelMargin` / `BotParagonMargin` are 0).
 5. **Harder versions** step up the profile, not an arbitrary multiplier. The Défi tiers each add paragon; a key adds
    item level and paragon. The health multiplier is the power index ratio of the two profiles.
 
@@ -106,8 +109,8 @@ health nodes, and buffs:
 |---|---|---|
 | Mythic+ key `k` | `GetExpectedItemLevel(k)` (223 + 2.45 ilvl a key, one key behind, capped 370) with `GetRecommendedParagon(k)` = round(8.5 x (k - 10)) past +10. For example +20 = 270 / 85, +30 = 294 / 170, +52 = 348 / 357, +60 = 368 / 425. Creature health grows 1.08 a key to +10, then by the power index ratio over +10's. Damage follows the player health of the profile, plus a pressure of 2.5% a key past +10 (capped at 1.6). | `MythicDungeon.h` |
 | Défi tier `T`, normal missions | The raid as it is at Défi I, plus 31 paragon a tier (Défi X: 279). Health `x ParagonDpsIndex(31 (T-1))` (x1.22 a tier, x6.1 at X). Damage x1.115 a tier (x2.7 at X). | `ChallengeTiers.h` |
-| L'Infini, Défi `T` | 300 / 100 at Défi I, then +10 item level and +50 paragon a tier (Défi III 320 / 200, Défi X 390 / 550). Health x the tier profile's `PowerIndex` over Défi I's (x1.72 at III, x5.63 at X), damage x its `ExpectedPlayerHealth` over Défi I's (x1.15 at III, x1.72 at X), avoidable hits +10% a tier on top. Its base health is the model's DPS check at the Défi I profile (`HealthModifier` 2016: 28.1M, `DpsCheckHealth(300, 100, 7.33, 246.5)`) and its damage reference `ExpectedPlayerHealth(300, 100)` (102k); both were set by play (47.6M, 122k) while its bots were still scaled on the player, and were far above what a profile group has. Bots: the profile minus 9 item levels and 8 paragon, and at least a typical player's essences for their gear (`SetBotEssenceFloor`). | `ChallengeTiers.h` BossProfiles, `InfiniteGod.cpp` |
-| The Hollow Voice | 460 / 650, 10 players, one difficulty (`PowerIndex` 16.1: 103k a second a damage dealer, what the bench measures). Sized on the profile's group (six damage dealers, two tanks, two healers: 750k a second): the Archbishop 72 million (`HealthModifier` 5163, about 110 s of the 2:00 his track gives), Vel'thazar 168 million (12050, about 257 s), Dread Infernals 4 million. Hits are shares of `ExpectedPlayerHealth(460, 650)` (about 221k). Bots at the full profile (margins 0), their health sized to it; bots alone reach about a third of the group's damage (tested headless: `e2e/local/hollowvoice`). It starts from a game master's `.defi start 930100` for now. | `ChallengeTiers.h` BossProfiles, `HollowVoice.cpp` |
+| L'Infini, Défi `T` | 300 / 100 at Défi I, then +10 item level and +50 paragon a tier (Défi III 320 / 200, Défi X 390 / 550). Health x the tier profile's `PowerIndex` over Défi I's (x1.72 at III, x5.63 at X), damage x its `ExpectedPlayerHealth` over Défi I's (x1.15 at III, x1.72 at X), avoidable hits +10% a tier on top. Its base health is the model's hard DPS check at the Défi I profile (`HealthModifier` 1394: 19.4M, `DpsCheckHealth(300, 100, 5.97, 290 * 0.85 * 0.85)`) and its damage reference `ExpectedPlayerHealth(300, 100)` (102k); both were set by play (47.6M, 122k) while its bots were still scaled on the player. Bots: the profile, and at least a typical player's essences for their gear (`SetBotEssenceFloor`). | `ChallengeTiers.h` BossProfiles, `InfiniteGod.cpp` |
+| The Hollow Voice | 460 / 650, 10 players, one difficulty (`PowerIndex` 16.1: 103k a second a damage dealer, what the bench measures). Sized on the profile's group (5.97 damage dealers: 615k a second): the Archbishop 58.6 million (`HealthModifier` 4201, about 110 s of the 2:00 his track gives), Vel'thazar 136.7 million (9804, about 257 s), Dread Infernals 4 million. Hits are shares of `ExpectedPlayerHealth(460, 650)` (about 221k). Bots at the full profile (margins 0), their health sized to it; bots alone reach about a third of the group's damage (tested headless: `e2e/local/hollowvoice`). It starts from a game master's `.defi start 930100` for now. | `ChallengeTiers.h` BossProfiles, `HollowVoice.cpp` |
 | Infinite Dungeon | **Not on the model yet.** It has its own ladder (`gearRatio^2` from item level 200 to 310, 12k-28.8k reference). | `infinite/InfiniteDungeonScaling.h` |
 
 ## Measures, and re-measuring

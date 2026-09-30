@@ -2,12 +2,13 @@
 -- mod-playerbots ChallengeBoard.cpp, 10 players). Every creature is a copy of a stock one of Algalon's fight:
 -- 930000 L'Infini: Algalon the Observer (32871), hostile to all, no longer immune to players, its health set for a
 --        timeline fight of 5 minutes at Défi I, on the power model (PowerScaling.h) at its profile, item level 300
---        and 100 paragon (ChallengeTiers.h BossProfiles): 2 016 x 13 945 (level 83 elite) = 28.1 million, the tier
---        multiplying it - a tight damage check at the 5 minute mark. Power::DpsCheckHealth(300, 100, 7.33, 246.5):
---        a damage dealer of the profile deals 15 550 on one target, six of them and four tanks and healers at a
---        third each, on the god 85% of 4:50. It was 47.6 million, measured in game (2026-09-29) on bots then scaled
---        on the player they came with (20 000-30 000 each); a challenge's bots come at its profile now (291 / 92:
---        14 300 each), and fell far short of it.
+--        and 100 paragon (ChallengeTiers.h BossProfiles): 1 394 x 13 945 (level 83 elite) = 19.4 million, the tier
+--        multiplying it - a hard damage check. Power::DpsCheckHealth(300, 100, GroupDamageDealers(5, 2, 3) = 5.97,
+--        209.5): a damage dealer of the profile deals 15 550 on one target; the raid finder's ten are five damage
+--        dealers, two tanks (a third each) and three healers (a tenth); on the god 85% of 4:50, and done in 85% of
+--        that - a group at the profile, players or one player and its bots (at the profile too), kills it some 40 s
+--        before the end. It was 47.6 million (set by play on bots scaled on their player), then 28.1 (six damage
+--        dealers and the healers at a third, no margin: only a player far above the profile could carry it).
 --        Its melee: a 1.5 s swing at 90 damage
 --        modifier. No gear on its corpse: the challenge board gives its own (ChallengeBoard.cpp GodItemLevel), gold
 --        only.
@@ -46,7 +47,7 @@ UPDATE `tmp_stat_growth_infinite_god` SET
     `flags_extra` = `flags_extra` & ~0x80000000,
     `DamageModifier` = 90,
     `BaseAttackTime` = 1500,
-    `HealthModifier` = 2016,
+    `HealthModifier` = 1394,
     `lootid` = 0,
     `AIName` = '',
     `ScriptName` = 'boss_infinite_god',

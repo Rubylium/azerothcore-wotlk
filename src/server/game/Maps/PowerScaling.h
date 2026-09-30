@@ -161,8 +161,21 @@ inline float ExpectedDps(float itemLevel, float paragonPoints = 0.0f, bool pack 
     return (pack ? ReferencePackDps : ReferenceSingleTargetDps) * PowerIndex(itemLevel, paragonPoints);
 }
 
+// What a tank and a healer deal next to a damage dealer of the same profile. A healer heals: measured 2026-10-01 in
+// L'Infini, a group's healers dealt 0-3 000 next to its damage dealers' 12 000-13 000 (counted a third of one, as a
+// tank, a group was sized for damage it never had).
+constexpr float TankDpsShare = 1.0f / 3.0f;
+constexpr float HealerDpsShare = 0.1f;
+
+// A group, in damage dealers (DpsCheckHealth): a 10-player group (2 tanks, 3 healers, 5 damage dealers, the raid
+// finder's) is worth 5.97
+inline float GroupDamageDealers(float damageDealers, float tanks, float healers)
+{
+    return damageDealers + tanks * TankDpsShare + healers * HealerDpsShare;
+}
+
 // A DPS check: the health a target needs to last `seconds` against `damageDealers` damage dealers of that item level
-// and paragon. A tank or a healer counts for about a third of a damage dealer.
+// and paragon (a group counted with GroupDamageDealers).
 inline float DpsCheckHealth(float itemLevel, float paragonPoints, float damageDealers, float seconds,
                             bool pack = false)
 {

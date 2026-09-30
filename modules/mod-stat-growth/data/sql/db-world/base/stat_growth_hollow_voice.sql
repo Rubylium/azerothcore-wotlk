@@ -1,13 +1,14 @@
 -- The Hollow Voice, the pinnacle of the Défi board, in Sunwell Plateau's M'uru chamber (HollowVoice.cpp; the board
 -- holds it from mod-playerbots ChallengeBoard.cpp, 10 players, item level 460 and 650 paragon, ChallengeTiers.h).
 -- 930100 Archbishop Aldric Dawnmantle: Archbishop Landgren's look (29542, display 26326), a level 83 boss (class 1:
---        13 945 base health a point, as L'Infini). 5 163 x 13 945 = 72 million: the group of the profile (six damage
---        dealers, two tanks and two healers: 7.3 damage dealers at 103 000 a second each, PowerScaling.h) brings him
---        to 1% in about 110 s of the 2:00 his track gives them - a hard check (.agents/docs/systems/power-scaling.md).
+--        13 945 base health a point, as L'Infini). 4 201 x 13 945 = 58.6 million: the group of the profile (the raid
+--        finder's five damage dealers, two tanks and three healers: Power::GroupDamageDealers 5.97 at 103 000 a second
+--        each, PowerScaling.h) brings him to 1% in about 110 s of the 2:00 his track gives them - a hard check
+--        (.agents/docs/systems/power-scaling.md). It was 72 million, on six damage dealers and healers at a third.
 --        (First sized on the compounded paragon rule at 505 million, seven times what the bench measures.) His health
 --        stops at 1%; he is the board's boss (its kill is the win), and stays hidden once the demon is out.
 -- 930101 Vel'thazar, the Hollow Voice: Balnazzar's look (10813, display 10691), the demon inside him, summoned by his
---        script. 12 050 x 13 945 = 168 million, about 257 s of the group's damage outside the intermissions.
+--        script. 9 804 x 13 945 = 136.7 million, about 257 s of the group's damage outside the intermissions.
 -- 930102 Dread Infernal: an Infernal (89), two crashing down in phase 3, an off-tank holding them: 287 x 13 945 =
 --        4 million each, about 11 s of the group for the two.
 -- The Archbishop's static spawn stands where M'uru floats, in every Sunwell (spawn mask 1: its only mode); his script
@@ -40,7 +41,7 @@ UPDATE `tmp_stat_growth_hollow_voice` SET
     `unit_flags` = 0,
     `DamageModifier` = 60,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 5163,
+    `HealthModifier` = 4201,
     `ManaModifier` = 1,
     `RegenHealth` = 0,
     `CreatureImmunitiesId` = -361,
@@ -70,7 +71,7 @@ UPDATE `tmp_stat_growth_hollow_voice` SET
     `unit_flags` = 0,
     `DamageModifier` = 80,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 12050,
+    `HealthModifier` = 9804,
     `ManaModifier` = 1,
     `RegenHealth` = 0,
     `CreatureImmunitiesId` = -361,
