@@ -57,8 +57,12 @@ TEST(MythicProgression, BonusKeysKeepGettingHarderWithoutBetterGear)
     EXPECT_FLOAT_EQ(Mythic::GetExpectedItemLevel(99.0f), 370.0f);
     EXPECT_GT(Mythic::GetLevelScaling(99), Mythic::GetLevelScaling(60));
     EXPECT_GT(Mythic::GetDamageReference(99.0f), Mythic::GetDamageReference(60.0f));
-    EXPECT_EQ(Mythic::GetRecommendedParagon(99), 445u);
-    EXPECT_EQ(Mythic::GetRecommendedParagon(1000), 445u);
+    EXPECT_EQ(Mythic::GetRecommendedParagon(10), 0u);
+    EXPECT_EQ(Mythic::GetRecommendedParagon(11), 9u);
+    EXPECT_EQ(Mythic::GetRecommendedParagon(12), 17u);
+    EXPECT_EQ(Mythic::GetRecommendedParagon(52), 357u);
+    EXPECT_EQ(Mythic::GetRecommendedParagon(99), 757u);
+    EXPECT_EQ(Mythic::GetRecommendedParagon(1000), 757u);
     EXPECT_FLOAT_EQ(Mythic::GetLevelScaling(1000), Mythic::GetLevelScaling(99));
     EXPECT_FLOAT_EQ(Mythic::GetDamageReference(1000.0f), Mythic::GetDamageReference(99.0f));
 }

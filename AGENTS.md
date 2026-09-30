@@ -24,6 +24,7 @@ Read the matching doc(s) BEFORE starting the task:
 - Reviewing a changeset or PR → `.agents/docs/code-review.md`
 - Self-reviewing, or opening or updating a PR → also `.agents/docs/self-review-rules.md`
 - Touching a subsystem that has a doc in `.agents/docs/systems/` → read that doc too
+- Content difficulty (a boss, a key, a tier, a DPS check), item levels, rewards or paragon → `.agents/docs/systems/power-scaling.md` (size content for an item level and a paragon, never by hand)
 - Class tuning, a new class or spec, talent / rotation / bot combat changes → `.agents/docs/systems/combat-bench.md` (measure on the combat bench, not dungeon runs)
 - Importing retail item models (weapons, shoulders) into the 3.3.5 client, or any custom item/display id → `.agents/docs/systems/retail-import.md`
 - Camera flights / intro cinematics (a boss introduction, a scripted camera, the client extension's CameraPath) → `.agents/docs/systems/cinematics.md`

@@ -3,6 +3,7 @@
 #include "Log.h"
 #include "MythicDungeon.h"
 #include "ObjectMgr.h"
+#include "PowerScaling.h"
 #include "ScriptMgr.h"
 #include "Timer.h"
 #include <cmath>
@@ -14,9 +15,6 @@
 // restart. The client draws them with their base item's look through the awesome_wotlk client extension.
 namespace
 {
-// Stats, weapon damage and block grow with the square of the item level ratio, about how WotLK's item budget grows
-// between tiers; armor grows linearly with it, as it does between tiers
-constexpr float StatGrowthExponent = 2.0f;
 // Base items: the top tier, this many item levels below the best
 constexpr uint32 BaseItemLevelSpan = 13;
 
@@ -43,22 +41,27 @@ ItemTemplate MakeVariant(ItemTemplate const& base, uint32 variant)
     // Set bonuses count the set's own item entries
     item.ItemSet = 0;
 
-    float const growth = static_cast<float>(item.ItemLevel) / static_cast<float>(base.ItemLevel);
-    float const statGrowth = std::pow(growth, StatGrowthExponent);
+    // The power model's growth (PowerScaling.h): primary stats, stamina, weapon damage and armour linearly with the
+    // item level, ratings slower
+    float const from = static_cast<float>(base.ItemLevel);
+    float const to = static_cast<float>(item.ItemLevel);
+    float const statGrowth = Power::StatGrowth(from, to);
+    float const ratingGrowth = Power::StatGrowth(from, to, true);
 
     for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
-        item.ItemStat[index].ItemStatValue = Grow(item.ItemStat[index].ItemStatValue, statGrowth);
+        item.ItemStat[index].ItemStatValue = Grow(item.ItemStat[index].ItemStatValue,
+            Power::IsRatingStat(item.ItemStat[index].ItemStatType) ? ratingGrowth : statGrowth);
     for (uint32 index = 0; index < MAX_ITEM_PROTO_DAMAGES; ++index)
     {
         item.Damage[index].DamageMin *= statGrowth;
         item.Damage[index].DamageMax *= statGrowth;
     }
 
-    item.Armor = static_cast<uint32>(Grow(static_cast<int32>(item.Armor), growth));
+    item.Armor = static_cast<uint32>(Grow(static_cast<int32>(item.Armor), statGrowth));
     item.Block = static_cast<uint32>(Grow(static_cast<int32>(item.Block), statGrowth));
     for (int32* resistance : { &item.HolyRes, &item.FireRes, &item.NatureRes, &item.FrostRes, &item.ShadowRes,
                                &item.ArcaneRes })
-        *resistance = Grow(*resistance, growth);
+        *resistance = Grow(*resistance, statGrowth);
     return item;
 }
 

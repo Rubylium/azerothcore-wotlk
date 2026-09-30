@@ -14,6 +14,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "PowerScaling.h"
 #include "PlayerScript.h"
 #include "Random.h"
 #include "ScriptMgr.h"
@@ -65,10 +66,6 @@ constexpr std::string_view Prefix = "Forge";
 
 // The gear the Forge takes: the epics of the endgame, from the heroic dungeons' 200 up
 constexpr uint32 MinItemLevel = 200;
-
-// Stats, weapon damage and block grow with the square of the item level ratio and armor with the ratio itself,
-// as the Mythic+ variants do (mod-stat-growth MythicItemGeneration.cpp)
-constexpr float StatGrowthExponent = 2.0f;
 
 // The blacksmith's price, in gold: GoldAtBaseLevel for the first rank of an item level 200 piece, growing with the
 // square of the item level and RankGrowth times with every rank already forged. Essences boost the gold the game
@@ -235,22 +232,27 @@ ItemTemplate MakeForged(ItemTemplate const& base, uint32 rank)
     item.ItemLevel = base.ItemLevel + Mythic::ForgeItemLevelPerRank * rank;
     // The set is kept: the server counts a set's pieces by set, not by entry
 
-    float const growth = static_cast<float>(item.ItemLevel) / static_cast<float>(base.ItemLevel);
-    float const statGrowth = std::pow(growth, StatGrowthExponent);
+    // The power model's growth (PowerScaling.h): primary stats, stamina, weapon damage and armour linearly with the
+    // item level, ratings slower
+    float const from = static_cast<float>(base.ItemLevel);
+    float const to = static_cast<float>(item.ItemLevel);
+    float const statGrowth = Power::StatGrowth(from, to);
+    float const ratingGrowth = Power::StatGrowth(from, to, true);
 
     for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
-        item.ItemStat[index].ItemStatValue = Grow(item.ItemStat[index].ItemStatValue, statGrowth);
+        item.ItemStat[index].ItemStatValue = Grow(item.ItemStat[index].ItemStatValue,
+            Power::IsRatingStat(item.ItemStat[index].ItemStatType) ? ratingGrowth : statGrowth);
     for (uint32 index = 0; index < MAX_ITEM_PROTO_DAMAGES; ++index)
     {
         item.Damage[index].DamageMin *= statGrowth;
         item.Damage[index].DamageMax *= statGrowth;
     }
 
-    item.Armor = static_cast<uint32>(Grow(static_cast<int32>(item.Armor), growth));
+    item.Armor = static_cast<uint32>(Grow(static_cast<int32>(item.Armor), statGrowth));
     item.Block = static_cast<uint32>(Grow(static_cast<int32>(item.Block), statGrowth));
     for (int32* resistance : { &item.HolyRes, &item.FireRes, &item.NatureRes, &item.FrostRes, &item.ShadowRes,
                                &item.ArcaneRes })
-        *resistance = Grow(*resistance, growth);
+        *resistance = Grow(*resistance, statGrowth);
     return item;
 }
 

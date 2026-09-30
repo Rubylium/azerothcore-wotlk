@@ -432,6 +432,7 @@ public:
         // A bot's catch-up display comes back from the database with its other auras; the bonus itself does not
         ClearBotCatchUp(player);
         SendDungeonProgress(player);
+        SendGeneratedItemRecords(player);
     }
 
     // Entering or leaving an instance: the client swaps between the dungeon tracker and the quest tracker

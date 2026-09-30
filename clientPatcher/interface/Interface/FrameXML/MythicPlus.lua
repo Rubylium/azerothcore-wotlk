@@ -117,9 +117,9 @@ local key, score = 2, 0
 local paragon            -- paragon points spent, from the server (nil until it says)
 
 -- The paragon a key asks for, as the server sizes it (MythicDungeon.h GetRecommendedParagon): nothing up to +10,
--- then 5 points a level. Change them together.
+-- then 8.5 points a level, rounded half up. Change them together.
 local function RecommendedParagon(level)
-    return level > 10 and 5 * (level - 10) or 0
+    return level > 10 and floor((17 * (level - 10) + 1) / 2) or 0
 end
 
 -- "Parangon conseillé : 170  ·  vous : 105", gold when the player has it, a dull ember when not

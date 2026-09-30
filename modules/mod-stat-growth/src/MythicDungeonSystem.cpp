@@ -6,6 +6,7 @@
 #include "PersonalLootSystem.h"
 #include "SmartLootSystem.h"
 
+#include "Bag.h"
 #include "Chat.h"
 #include "Creature.h"
 #include "DatabaseEnv.h"
@@ -902,6 +903,29 @@ void GiveMythicLootItem(Player* player, uint32 itemLevel)
 {
     if (player)
         GiveMythicItem(player, std::min(itemLevel, Mythic::MaxLootItemLevel));
+}
+
+// Every generated item a player carries - worn, in the bags, in the bank - sent again at login: the client keeps an
+// item's record in its cache and never asks again, so a change of their stats (PowerScaling.h) would not reach it
+void SendGeneratedItemRecords(Player* player)
+{
+    if (!player || !player->GetSession())
+        return;
+
+    std::set<uint32> sent;
+    auto send = [player, &sent](Item const* item)
+    {
+        if (item && Mythic::IsGeneratedItem(item->GetEntry()) && sent.insert(item->GetEntry()).second)
+            SendGeneratedItemRecord(player, item->GetEntry());
+    };
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < BANK_SLOT_BAG_END; ++slot)
+    {
+        Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        send(item);
+        if (Bag const* bag = item ? item->ToBag() : nullptr)
+            for (uint32 index = 0; index < bag->GetBagSize(); ++index)
+                send(bag->GetItemByPos(static_cast<uint8>(index)));
+    }
 }
 
 void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)

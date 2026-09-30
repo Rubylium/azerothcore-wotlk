@@ -49,12 +49,16 @@ local TIER_GUARANTEED_ITEM = 7
 -- ChallengeBoard.cpp SatchelExtraItemChance, by raid mode (10, 25, 10 heroic, 25 heroic)
 local SATCHEL_ITEM_CHANCE = { [0] = 35, 45, 50, 60 }
 
--- A tier asks for 15 more paragon points, and the boss grows by what they are worth (1% each, compounded), more on
--- health than on damage. A key past +10 asks for 5 a level (MythicDungeon.h).
-local function TierParagon(tier) return 15 * (tier - 1) end
-local function TierHealth(tier) return 1.01 ^ (1.35 * TierParagon(tier)) end
-local function TierDamage(tier) return 1.01 ^ (0.73 * TierParagon(tier)) end
-local function KeyParagon(level) return level > 10 and 5 * (level - 10) or 0 end
+-- A tier asks for 31 more paragon points, and the boss's health grows by what they are measured to be worth (0.65%
+-- each, compounded: PowerScaling.h), its damage 11.5% a tier; L'Infini by its own 50 a tier. A key past +10 asks for
+-- 8.5 a level (MythicDungeon.h). ChallengeTiers.h holds the server's: change them together.
+local PARAGON_DPS_PER_POINT = 1.0065
+local function TierParagon(tier) return 31 * (tier - 1) end
+local function TierHealth(tier, paragonPerTier)
+    return PARAGON_DPS_PER_POINT ^ ((paragonPerTier or 31) * (tier - 1))
+end
+local function TierDamage(tier) return 1.1152 ^ (tier - 1) end
+local function KeyParagon(level) return level > 10 and floor((17 * (level - 10) + 1) / 2) or 0 end
 -- Paragon only exists at the level cap: below it the boards say nothing about it
 local PARAGON_BRACKET = 80
 local function TierWipes(tier) return tier >= 9 and 1 or tier >= 6 and 2 or 3 end
@@ -1361,7 +1365,8 @@ local function CreateGodPage()
         kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
 
         tierText:SetText(TierName(tier))
-        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier)), Decimal(TierDamage(tier)), GOD_ATTEMPTS,
+        tierInfo:SetText(format(TEXT.tierBoss, Decimal(TierHealth(tier, GOD_PARAGON_PER_TIER)),
+            Decimal(TierDamage(tier)), GOD_ATTEMPTS,
             GOD_ATTEMPTS > 1 and "s" or ""))
         dialGlow:SetAlpha(0.18 + 0.05 * tier)
         SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)

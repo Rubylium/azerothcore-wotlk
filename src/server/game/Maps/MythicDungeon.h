@@ -2,6 +2,7 @@
 #define ACORE_MYTHIC_DUNGEON_H
 
 #include "Define.h"
+#include "PowerScaling.h"
 
 #include <algorithm>
 #include <cmath>
@@ -45,21 +46,37 @@ constexpr uint32 ForgeRanks = 8;
 constexpr uint32 FirstCapVariant = GeneratedItemVariants + ForgeRanks;
 constexpr uint32 CapVariants = 3;
 
-// Up to +10 difficulty grows with gear. Beyond that it also asks for five more paragon points per key.
-// Loot's contribution follows the slower reward curve and stops at +60; paragon and pressure keep growing to +99.
+// Up to +10 difficulty grows with gear. Beyond that it also asks for 8.5 more paragon points per key (ParagonPerTwoLevels
+// every two keys, rounded half up): what a key asks is honest - "clearable but hard" for GetExpectedItemLevel and
+// GetRecommendedParagon, on the measured power model (PowerScaling.h).
+// Loot's contribution follows the reward curve and what that gear is worth (Power::DpsIndex, PowerScaling.h), and
+// stops at +60; paragon and pressure keep growing to +99.
 // Creature health follows damage output; creature damage follows the expected player health below.
 // A player's own paragon never changes the difficulty. Client paragon recommendations use these same constants.
 constexpr int32 GearLevels = 10;
 constexpr float CompoundedGrowth = 1.08f;
-constexpr uint32 ParagonPerLevel = 5;
-constexpr float ParagonPointPower = 1.015f;
-// Approximately 2% power per four item levels, scaled to 147 item levels over 60 keys.
-constexpr float KeyGearGrowth = 1.0122f;
+constexpr uint32 ParagonPerTwoLevels = 17;
+// A player brings gear one key behind the key's reward
+constexpr float GearKeysBehind = 1.0f;
 
 inline uint32 GetRecommendedParagon(int32 level)
 {
     level = std::min(level, static_cast<int32>(MaxKeyLevel));
-    return level > GearLevels ? ParagonPerLevel * static_cast<uint32>(level - GearLevels) : 0;
+    return level > GearLevels ? (ParagonPerTwoLevels * static_cast<uint32>(level - GearLevels) + 1) / 2 : 0;
+}
+
+inline uint32 GetItemLevel(int32 level)
+{
+    return BaseItemLevel + (MaxLootItemLevel - BaseItemLevel) *
+        static_cast<uint32>(std::clamp(level, 0, MaxLootKeyLevel)) / MaxLootKeyLevel;
+}
+
+// Item level of the gear a player brings to a key, one key behind its reward and capped at the loot ceiling.
+inline float GetExpectedItemLevel(float key)
+{
+    float const rewardKey = std::clamp(key - GearKeysBehind, 0.0f, static_cast<float>(MaxLootKeyLevel));
+    return static_cast<float>(BaseItemLevel) + static_cast<float>(MaxLootItemLevel - BaseItemLevel) *
+        rewardKey / static_cast<float>(MaxLootKeyLevel);
 }
 
 inline float GetLevelScaling(int32 level)
@@ -69,16 +86,13 @@ inline float GetLevelScaling(int32 level)
         return 1.0f;
 
     float const gear = std::pow(CompoundedGrowth, static_cast<float>(std::min(level, GearLevels)));
-    float const paragon = std::pow(ParagonPointPower, static_cast<float>(GetRecommendedParagon(level)));
-    float const loot = std::pow(KeyGearGrowth,
-        static_cast<float>(std::max(std::min(level, MaxLootKeyLevel) - GearLevels, 0)));
+    // The key's paragon, at what paragon is measured to be worth (PowerScaling.h)
+    float const paragon = Power::ParagonDpsIndex(static_cast<float>(GetRecommendedParagon(level)));
+    // Past +10: what the key's gear deals over what +10's does, on the measured power curve
+    float const lootKey = static_cast<float>(std::clamp(level, GearLevels, MaxLootKeyLevel));
+    float const loot = Power::DpsIndex(GetExpectedItemLevel(lootKey)) /
+        Power::DpsIndex(GetExpectedItemLevel(static_cast<float>(GearLevels)));
     return gear * paragon * loot;
-}
-
-inline uint32 GetItemLevel(int32 level)
-{
-    return BaseItemLevel + (MaxLootItemLevel - BaseItemLevel) *
-        static_cast<uint32>(std::clamp(level, 0, MaxLootKeyLevel)) / MaxLootKeyLevel;
 }
 
 // GetLevelScaling is the creatures' HEALTH: a character's damage multiplies (gear, paragon, essences all compound),
@@ -89,8 +103,8 @@ inline uint32 GetItemLevel(int32 level)
 // in gear one key under the key's own loot, at its recommended paragon, with a typical player's essences and gear
 // bonuses, calibrated on real characters:
 //  - class base health and stamina at 80 (player_class_stats, averaged), 10 health a point of stamina
-//  - the gear's stamina: a real full set has 2036 at item level 298, and generated and forged items grow their
-//    stats with the square of the item level (MythicItemGeneration.cpp), so the set's does too
+//  - the gear's stamina: Power::GearStamina (PowerScaling.h), a real set's calibrated at 2036 at item level 298
+// (the model itself is Power::ExpectedPlayerHealth)
 //  - personal loot bonuses (fortune capped, a third of the items rolling each): stamina and a maximum health
 //    percentage, both a share of the item level
 //  - essences gathered along the way: permanent stamina and Vitality points (40 health each at 80), per key reached
@@ -100,44 +114,19 @@ inline uint32 GetItemLevel(int32 level)
 // on top (DamagePressurePerKey, up to MaxDamagePressure): the players'
 // own paragon and essences outgrow the model, and a higher key should still ask for more. Tested at +37: at 1% a
 // level (up to +15%) a geared rogue took 20% standing in the fire and the tank next to nothing.
-constexpr float GearKeysBehind = 1.0f;
-constexpr float PlayerBaseHealth = 7300.0f;
-constexpr float PlayerBaseStamina = 110.0f;
-constexpr float HealthPerStamina = 10.0f;
-constexpr float GearStaminaPerSquaredItemLevel = 0.0229f;
-constexpr float AffixStaminaPerItemLevel = 1.87f;
-constexpr float AffixHealthPctPerItemLevel = 0.278f;
-constexpr float EssenceStaminaPerKey = 8.0f;
-constexpr float VitalityHealthPerKey = 25.0f * 40.0f;
-constexpr float ParagonHealthPctPerPoint = 0.04f;
-constexpr float BuffsAndTalents = 1.1f;
 constexpr float DamagePressurePerKey = 0.025f;
 constexpr float MaxDamagePressure = 1.6f;
 // Creature melee in a key hits this much harder again (on top of the pressure): the tanks' armour, presence and
 // Mythic+ resolve took most of it
 constexpr float MeleePressure = 1.5f;
 
-// Item level of the gear a player brings to a key, one key behind its reward and capped at the loot ceiling.
-inline float GetExpectedItemLevel(float key)
-{
-    float const rewardKey = std::clamp(key - GearKeysBehind, 0.0f, static_cast<float>(MaxLootKeyLevel));
-    return static_cast<float>(BaseItemLevel) + static_cast<float>(MaxLootItemLevel - BaseItemLevel) *
-        rewardKey / static_cast<float>(MaxLootKeyLevel);
-}
-
-// Maximum health of a damage dealer ready for that key
+// Maximum health of a damage dealer ready for that key (Power::ExpectedPlayerHealth): the key's gear and paragon,
+// and the progress of having reached it
 inline float GetExpectedPlayerHealth(float key)
 {
     key = std::clamp(key, 0.0f, static_cast<float>(MaxKeyLevel));
-    float const itemLevel = GetExpectedItemLevel(key);
-    float const stamina = PlayerBaseStamina + GearStaminaPerSquaredItemLevel * itemLevel * itemLevel +
-        AffixStaminaPerItemLevel * itemLevel + EssenceStaminaPerKey * key;
-    float const paragon = static_cast<float>(ParagonPerLevel) * std::max(key - static_cast<float>(GearLevels), 0.0f);
-    float health = PlayerBaseHealth + HealthPerStamina * stamina;
-    health *= 1.0f + AffixHealthPctPerItemLevel * itemLevel / 100.0f;
-    health += VitalityHealthPerKey * key;
-    health *= 1.0f + ParagonHealthPctPerPoint * paragon / 100.0f;
-    return health * BuffsAndTalents;
+    float const paragon = static_cast<float>(GetRecommendedParagon(static_cast<int32>(key)));
+    return Power::ExpectedPlayerHealth(GetExpectedItemLevel(key), paragon, key);
 }
 
 inline float GetDamagePressure(float key)

@@ -33,6 +33,9 @@ void GiveMythicLootItem(Player* player, uint32 itemLevel);
 // random among its three whatever the piece or its wearer, what it does and a line of its lore, in the item's five random property
 // enchantment slots (a generated item has no random property). They stay on it for good, forged too.
 void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel);
+// Every generated item the player carries, its record sent to the client again (at login: their stats may have
+// changed since the client cached them)
+void SendGeneratedItemRecords(Player* player);
 
 // The combat bench's dummies (mod-playerbots Script/CombatBench.cpp, which declares it itself): a creature outside any
 // mythic instance brought to what a creature of its template is in a Mythic+ key of that level (0: Mythique 0), in
