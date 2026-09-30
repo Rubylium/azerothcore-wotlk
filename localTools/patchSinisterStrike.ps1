@@ -1004,6 +1004,11 @@ $customSounds = @(
        Directory = 'Sound\Music\Evolutions'
        Files = @('HollowVoice.mp3')
        Volume = 1.0 }
+    # The same from 1:50, for a pull armed with .hollow reveal (a music sent over another fades out a few seconds in)
+    @{ Key = 'HollowVoiceFromReveal'; Id = 30113; Clone = 15877; Name = 'Evolutions_HollowVoiceFromReveal'
+       Directory = 'Sound\Music\Evolutions'
+       Files = @('HollowVoiceFromReveal.mp3')
+       Volume = 1.0 }
     # Its abilities' sounds (retail paladin and dreadlord sounds, the Voidspire's paladin trio for the Archbishop's),
     # at fixed ids the server plays (HollowVoice.cpp SoundId): 30120 on, in this order
     @{ Key = 'HollowVoiceJudgement'; Id = 30120; Clone = 13269; Name = 'Evolutions_HollowVoice_Judgement'

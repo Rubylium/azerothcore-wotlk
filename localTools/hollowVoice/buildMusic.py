@@ -8,6 +8,8 @@ MP3 into modules/mod-stat-growth/client-assets/compiled/music, which patchFiles.
 The fight plays them as one track (HollowVoice.mp3): the Archbishop's up to 2:02.0, in its fade, then Vel'thazar's.
 Two tracks sent one after the other did not play: the first reaching its own end stopped the music the client had just
 been sent, even a second one already playing (tried 2026-09-30). The two alone stay for .hollow music.
+HollowVoiceFromReveal.mp3 is the fight's track from 1:50, for a pull armed with .hollow reveal: a music sent over
+another fades out a few seconds in, so a test starting late needs its own track, sent alone.
 
 Usage: python localTools/hollowVoice/buildMusic.py <archbishop track> <vel'thazar track> [--ffmpeg <ffmpeg.exe>]
 """
@@ -22,6 +24,7 @@ TARGET_LUFS = -12.0
 TRUE_PEAK = -1.0
 RANGE = 11.0
 SWITCH_SECONDS = 122.0      # HollowVoice.cpp AtSecondTrack
+REVEAL_TEST_SECONDS = 110.0 # HollowVoice.cpp RevealTestStartMs
 
 
 def default_ffmpeg():
@@ -71,6 +74,11 @@ def join(ffmpeg):
                     '-ar', '44100', '-ac', '2', '-codec:a', 'libmp3lame', '-b:a', '192k', target],
                    capture_output=True, check=True)
     print(f'{os.path.basename(target)}: the two joined at {SWITCH_SECONDS} s')
+    late = os.path.join(OUTPUT, 'HollowVoiceFromReveal.mp3')
+    subprocess.run([ffmpeg, '-hide_banner', '-nostats', '-y', '-i', target, '-af',
+                    f'atrim={REVEAL_TEST_SECONDS},asetpts=N/SR/TB', '-ar', '44100', '-ac', '2', '-codec:a',
+                    'libmp3lame', '-b:a', '192k', late], capture_output=True, check=True)
+    print(f'{os.path.basename(late)}: from {REVEAL_TEST_SECONDS} s')
 
 
 if __name__ == '__main__':

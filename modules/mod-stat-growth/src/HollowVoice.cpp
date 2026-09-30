@@ -76,6 +76,7 @@ constexpr uint32 AtJudgement = 119700;          // the Archbishop's track fades:
 // played through: the first reaching its own end stopped it (sent at 2:03.45: not heard; at 2:02.0: cut a few seconds
 // in, 2026-09-30).
 constexpr uint32 AtSecondTrack = 122000;
+constexpr uint32 RevealTestStartMs = 110000;    // a pull armed with .hollow reveal starts here, the Archbishop at 1%
 constexpr uint32 TrackEndMarginMs = 500;       // a wipe before it ends the track this long before it
 constexpr uint32 AtReveal = AtSecondTrack + 1500;               // its first hit
 constexpr std::array<uint32, 3> AtEnrageBlasts = { AtSecondTrack + 317090, AtSecondTrack + 317650,
@@ -84,9 +85,11 @@ constexpr std::array<uint32, 3> AtEnrageBlasts = { AtSecondTrack + 317090, AtSec
 constexpr uint32 NPC_ALDRIC = 930100;
 constexpr uint32 NPC_VELTHAZAR = 930101;
 
-// SoundEntries (localTools/patchSinisterStrike.ps1): the fight's track, the two alone (.hollow music, and a clock
-// skipped past the switch), L'Infini's silence to end them, the abilities' sounds
+// SoundEntries (localTools/patchSinisterStrike.ps1): the fight's track, the same from 1:50 (a pull armed with .hollow
+// reveal), the two alone (.hollow music), L'Infini's silence to end them, the abilities' sounds. A music sent over
+// another fades out a few seconds in: the fight sends one track, and a test starting late its own.
 constexpr uint32 MUSIC_FIGHT = 30112;
+constexpr uint32 MUSIC_FIGHT_FROM_REVEAL = 30113;
 constexpr uint32 MUSIC_ALDRIC = 30110;
 constexpr uint32 MUSIC_VELTHAZAR = 30111;
 constexpr uint32 MUSIC_SILENCE = 30101;
@@ -250,11 +253,21 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         DoZoneInCombat(me, ArenaReach);
         _pullMs = getMSTime();
         _phase = Phase::Aldric;
-        Talk(SAY_ALDRIC_AGGRO);
+        uint32 track = MUSIC_FIGHT;
+        if (_revealArmed)
+        {
+            // .hollow reveal: the fight from 1:50, the Archbishop at 1%, its track from there
+            _revealArmed = false;
+            _pullMs -= RevealTestStartMs;
+            me->SetHealth(HoldHealth());
+            track = MUSIC_FIGHT_FROM_REVEAL;
+        }
+        else
+            Talk(SAY_ALDRIC_AGGRO);
         _fightListeners.clear();
         for (Player* player : Listeners())
         {
-            SendMusic(player, MUSIC_FIGHT);
+            SendMusic(player, track);
             _fightListeners.insert(player->GetGUID());
         }
         LOG_INFO("module.hollowvoice", "The Hollow Voice pulled instance={} health={} tier factor={}",
@@ -364,27 +377,23 @@ struct boss_hollow_voice_aldric : public ScriptedAI
                                    GetChallengeDamageFactorOf(me), Reference());
     }
 
-    // Jumps the fight forward (testing): the steps passed over run at once
+    // Jumps the fight forward (testing): the steps passed over run at once. The music cannot follow (a second one
+    // would fade out): it plays on where it was.
     bool Skip(uint32 seconds)
     {
         if (_phase == Phase::None || _phase == Phase::Over)
             return false;
         _pullMs -= seconds * IN_MILLISECONDS;
-        _skipped = true;
         UpdateClock();
         return true;
     }
 
-    // The Archbishop at 1%, the clock just before he falls (testing the reveal)
-    bool SkipToReveal()
+    // The next pull starts at 1:50, the Archbishop at 1%, with its own track from there (testing the reveal)
+    bool ArmReveal()
     {
-        if (_phase != Phase::Aldric)
+        if (_phase != Phase::None)
             return false;
-        me->SetHealth(HoldHealth());
-        uint32 const elapsed = Elapsed();
-        if (elapsed + 1000 < AtJudgement)
-            _pullMs -= AtJudgement - 1000 - elapsed;
-        _skipped = true;
+        _revealArmed = true;
         return true;
     }
 
@@ -495,8 +504,6 @@ private:
         scheduler.CancelAll();
         _summons.DespawnAll();
         _phase = Phase::None;
-        _secondTrack = false;
-        _skipped = false;
         _blasts = 0;
         _nextPulseMs = 0;
         _finishing = false;
@@ -546,28 +553,12 @@ private:
             me->PlayDirectMusic(soundId, player);
     }
 
-    void PlayTrack(uint32 soundId)
-    {
-        for (Player* player : Listeners())
-        {
-            SendMusic(player, soundId);
-            _fightListeners.insert(player->GetGUID());
-        }
-    }
-
     // --- The clock -------------------------------------------------------------------------------------------------
     void UpdateClock()
     {
         uint32 const elapsed = Elapsed();
         if (_phase == Phase::Aldric && elapsed >= AtJudgement)
             Judge();
-        // The fight's track goes on to Vel'thazar's by itself; a clock skipped forward (.hollow skip, reveal) left it
-        // behind, and his is sent on its own
-        if (_phase == Phase::Fallen && _skipped && !_secondTrack && elapsed >= AtSecondTrack)
-        {
-            _secondTrack = true;
-            PlayTrack(MUSIC_VELTHAZAR);
-        }
         if (_phase == Phase::Fallen && elapsed >= AtReveal)
             Reveal();
         if (_phase != Phase::Hollow)
@@ -739,8 +730,7 @@ private:
     uint32 _pullMs = 0;
     bool _defiConfirmed = false;
     bool _lingering = false;
-    bool _secondTrack = false;
-    bool _skipped = false;
+    bool _revealArmed = false;
     bool _finishing = false;
     uint32 _defiWaitMs = 0;
     uint32 _checkTimer = 0;
@@ -806,13 +796,13 @@ public:
         return true;
     }
 
-    // .hollow reveal: the Archbishop at 1% a second before he falls
+    // .hollow reveal, before the pull: the next pull starts at 1:50, the Archbishop at 1%, with its track from there
     static bool HandleReveal(ChatHandler* handler)
     {
         boss_hollow_voice_aldric* aldric = FindAldric(handler->GetPlayer());
-        if (!aldric || !aldric->SkipToReveal())
-            return Fail(handler, "The Archbishop is not fighting within 250 yards.");
-        handler->SendSysMessage(aldric->Describe());
+        if (!aldric || !aldric->ArmReveal())
+            return Fail(handler, "No Archbishop out of combat within 250 yards: .hollow reveal arms the next pull.");
+        handler->SendSysMessage("The next pull starts at 1:50, the Archbishop at 1%.");
         return true;
     }
 
