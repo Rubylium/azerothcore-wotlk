@@ -36,8 +36,8 @@ if (!locale) {
 
 const tocName = 'Interface\\FrameXML\\FrameXML.toc';
 const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua', 'DungeonTrackerNames.lua',
-    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'RaidFinder.lua', 'MythicPlus.lua', 'GroundIndicators.lua',
-    'CustomClasses.lua', 'CustomClassesUI.lua', 'TalentReset.lua',
+    'DungeonTracker.lua', 'DungeonFinderLocks.lua', 'RaidFinder.lua', 'MythicPlus.lua', 'GroupFinder.lua',
+    'GroundIndicators.lua', 'CustomClasses.lua', 'CustomClassesUI.lua', 'TalentReset.lua',
     // The talent tree window: its generated trees and art first (it needs CustomClasses and RetailUI too)
     'TalentTreeData.lua', 'TalentTreeArt.lua', 'TalentTree.lua',
     // ParagonBoard.lua is the generated node table and must load before the frame that draws it

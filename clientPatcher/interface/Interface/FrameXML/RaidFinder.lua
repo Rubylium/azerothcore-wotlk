@@ -285,6 +285,20 @@ local function SelectTab(index)
     if MythicPlusFrame and index == 3 then
         MythicPlusFrame:Show()
     end
+    -- The Group Finder's mode buttons follow (GroupFinder.lua)
+    if GroupFinder_OnModeSelected then
+        GroupFinder_OnModeSelected(index)
+    end
+end
+
+-- The Group Finder's mode buttons (GroupFinder.lua) stand in for the tabs: 1 dungeons, 2 raids, 3 Mythic+
+function GroupFinder_SelectMode(index)
+    PlaySound("igCharacterInfoTab")
+    SelectTab(index)
+end
+
+function GroupFinder_SelectedMode()
+    return selectedTab
 end
 
 dungeonTab:SetScript("OnClick", function()
