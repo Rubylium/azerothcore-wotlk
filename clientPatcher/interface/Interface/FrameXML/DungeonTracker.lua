@@ -4,6 +4,7 @@
 -- its own position), Blizzard's otherwise. The Mythic+ timer (MythicPlus.lua) claims the same place.
 -- Fed by the server (mod-stat-growth DungeonProgressSystem) over the "DungeonProgress" addon channel:
 --   STATE <encounterId>:<0|1> ...   boss list in order, 1 = defeated
+--   STATE n<name>:<0|1>             a boss given by its name (a Défi's one boss, which may have no encounter)
 --   NONE                            not in an instance
 -- Boss names come from DungeonTrackerNames.lua, generated from the client's own DungeonEncounter.dbc.
 
@@ -153,7 +154,8 @@ local function layout(bosses)
 
         skinTexture(entry.icon, boss.done and "ui-questtracker-tracker-check-2x"
             or "ui-questtracker-objective-nub-2x")
-        entry.text:SetText((DungeonTrackerNames and DungeonTrackerNames[boss.id]) or ("Boss " .. boss.id))
+        entry.text:SetText(boss.name or (DungeonTrackerNames and DungeonTrackerNames[boss.id])
+            or ("Boss " .. boss.id))
         if boss.done then
             defeated = defeated + 1
             entry.text:SetTextColor(0.5, 0.5, 0.5)
@@ -193,8 +195,11 @@ local function parseState(message)
     local bosses = {}
     for field in string.gmatch(message, "[^\t]+") do
         local id, done = string.match(field, "^(%d+):([01])$")
+        local name, named = string.match(field, "^n(.+):([01])$")
         if id then
             bosses[#bosses + 1] = { id = tonumber(id), done = done == "1" }
+        elseif name then
+            bosses[#bosses + 1] = { name = name, done = named == "1" }
         end
     end
     return bosses

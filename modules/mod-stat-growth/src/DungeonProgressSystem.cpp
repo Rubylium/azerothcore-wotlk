@@ -21,6 +21,9 @@
 #include <unordered_map>
 #include <vector>
 
+// RaidFinder.cpp (mod-playerbots, same modules library)
+uint32 GetChallengeBossOf(Map const* map);
+
 namespace
 {
 constexpr std::string_view AddonPrefix = "DungeonProgress";
@@ -158,6 +161,30 @@ std::string BuildStatePayload(Map* map, std::vector<DungeonEncounter const*> con
 }
 }
 
+namespace
+{
+// A challenge's instance is there for its one boss: the tracker lists only it, by name (a boss of the board's own
+// has no encounter), as n<name>:<0|1>. Defeated once it lies dead in the instance.
+std::string BuildChallengePayload(Player* player, Map* map, uint32 bossEntry, bool defeated)
+{
+    CreatureTemplate const* boss = sObjectMgr->GetCreatureTemplate(bossEntry);
+    if (!boss)
+        return "NONE";
+
+    std::string name = boss->Name;
+    int const locale = player->GetSession()->GetSessionDbLocaleIndex();
+    if (locale >= 0)
+        if (CreatureLocale const* names = sObjectMgr->GetCreatureLocale(bossEntry))
+            ObjectMgr::GetLocaleString(names->Name, locale, name);
+
+    if (!defeated)
+        for (auto const& [spawnId, creature] : map->GetCreatureBySpawnIdStore())
+            if (creature->GetEntry() == bossEntry && !creature->IsAlive())
+                defeated = true;
+    return "STATE\tn" + name + ':' + (defeated ? '1' : '0');
+}
+}
+
 // Sent when the player enters a map and on login: the boss list of the instance they are in, with the ones
 // already defeated marked, or NONE outside an instance so the client restores the normal quest tracker.
 void SendDungeonProgress(Player* player)
@@ -166,6 +193,12 @@ void SendDungeonProgress(Player* player)
         return;
 
     Map* map = player->GetMap();
+    if (uint32 const boss = GetChallengeBossOf(map))
+    {
+        SendProgressMessage(player, BuildChallengePayload(player, map, boss, false));
+        return;
+    }
+
     DungeonEncounterList const* encounters = GetEncounters(map);
     // An Infinite Dungeon floor is not the dungeon it is fought in: its own panel takes the place
     // (InfiniteDungeon.lua)
@@ -182,6 +215,19 @@ void OnDungeonProgressUnitDeath(Unit* unit)
 {
     Creature* creature = unit ? unit->ToCreature() : nullptr;
     Map* map = creature ? creature->GetMap() : nullptr;
+    if (!map)
+        return;
+    if (uint32 const boss = GetChallengeBossOf(map))
+    {
+        if (creature->GetEntry() == boss)
+            map->DoForAllPlayers([map, boss](Player* player)
+            {
+                if (player && player->GetSession())
+                    SendProgressMessage(player, BuildChallengePayload(player, map, boss, true));
+            });
+        return;
+    }
+
     DungeonEncounterList const* encounters = GetEncounters(map);
     if (!encounters)
         return;
