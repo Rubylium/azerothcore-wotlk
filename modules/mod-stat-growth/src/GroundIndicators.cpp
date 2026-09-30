@@ -97,6 +97,9 @@ constexpr float EscapeReach = 36.0f;
 constexpr uint32 EscapeDirections = 16;
 // A carried circle is taken this far past its own radius from every other player
 constexpr float CarrierClearance = 2.0f;
+// A sweeping line (ShowSweepingRectangle, WatchSweepingRectangle) read this far ahead, in that many steps
+constexpr uint32 SweepLookAheadMs = 1200;
+constexpr uint32 SweepLookAheadSteps = 3;
 // Spreading out: each unit looks for its spot along its own directions and at its own distances (from its guid, so
 // it keeps to them from one check to the next), and a spot someone already stands on costs more. Without it a whole
 // raid in the same red area ran to the very same spot.
@@ -134,6 +137,7 @@ struct ActiveArea
     float sweepSpeed = 0.0f;    // a sweeping rectangle (ShowSweepingRectangle): radians a second, from sweepFromMs
     uint64 sweepFromMs = 0;
     float sweepFrom = 0.0f;     // ... its facing then
+    float keepAway = 0.0f;      // a carried circle: how far its carrier keeps from the others (its hit's reach)
     GroundIndicators::Area area;
     uint64 endMs = 0;
     uint32 hitDamage = 0;       // one hit's expected damage to a player in it, before their defences; 0 unknown
@@ -1051,7 +1055,7 @@ std::vector<Goal> Goals;
 constexpr float SoakReach = 50.0f;
 constexpr float SoakInsideMargin = 1.0f;
 // The off-tank goes back to its spot once this far from it
-constexpr float OffTankSlack = 3.0f;
+constexpr float OffTankSlack = 5.0f;
 
 void AddGoal(Goal goal, bool replaceOwnersOfKind)
 {
@@ -1312,14 +1316,37 @@ void ClearAreasOf(Unit* owner)
             entry.endMs = std::min(entry.endMs, now);
 }
 
-Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage)
+Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage, float keepAway)
 {
     float drawnRadius = radius;
     uint32 const aura = Carry(carrier, radius, durationMs, drawnRadius);
     Area area = MakeArea(Area::Kind::Circle, *carrier, 0.0f, drawnRadius);
     if (aura)
-        Register(owner, carrier, area, durationMs, hitDamage);
+    {
+        uint64 const id = Register(owner, carrier, area, durationMs, hitDamage);
+        if (keepAway > drawnRadius)
+        {
+            std::lock_guard<std::mutex> guard(RegistryLock);
+            for (ActiveArea& entry : Registry)
+                if (entry.id == id)
+                    entry.keepAway = keepAway;
+        }
+    }
     return area;
+}
+
+bool KeepsAway(Unit* unit)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    ObjectGuid const guid = unit->GetGUID();
+    uint64 const now = NowMs();
+    std::lock_guard<std::mutex> guard(RegistryLock);
+    for (ActiveArea const& entry : Registry)
+        if (entry.carrier == guid && entry.owner != guid && entry.endMs > now &&
+            entry.area.kind == Area::Kind::Circle)
+            return true;
+    return false;
 }
 
 Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDamage)
@@ -1401,6 +1428,28 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     if (tank)
         areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
             { return HeldByTank(unit, entry); }), areas.end());
+    // A tank does not run from a cone aimed at a tank (a tank buster: each has its own, and where the tanks stand is
+    // the off-tank's spot's business, FindGoal): running from the other tank's took it through the group
+    if (tank)
+        areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
+            {
+                if (entry.aimedAt.IsEmpty() || entry.area.kind != Area::Kind::Cone)
+                    return false;
+                Player* aimedAt = ObjectAccessor::GetPlayer(*unit, entry.aimedAt);
+                return aimedAt && IsGroupTank(aimedAt);
+            }), areas.end());
+    // A sweeping line is where it will be too: its next SweepLookAheadMs, in steps, so a bot steps out ahead of it
+    // rather than just beside it, where it lands a moment later
+    for (std::size_t index = 0, count = areas.size(); index < count; ++index)
+        if (areas[index].sweepSpeed != 0.0f)
+            for (uint32 step = 1; step <= SweepLookAheadSteps; ++step)
+            {
+                ActiveArea ahead = areas[index];
+                float const seconds = float(SweepLookAheadMs * step / SweepLookAheadSteps) / 1000.0f;
+                ahead.area.origin.SetOrientation(Position::NormalizeOrientation(
+                    ahead.area.origin.GetOrientation() + ahead.sweepSpeed * seconds));
+                areas.push_back(ahead);
+            }
     // A cone aimed at it lands on it wherever it goes: it holds its ground (a tank keeps it pointed away)
     areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
         { return entry.aimedAt == unit->GetGUID(); }), areas.end());
@@ -1416,7 +1465,7 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     if (!tank)
         for (ActiveArea const& entry : areas)
             if (entry.carrier == unit->GetGUID())
-                carried = std::max(carried, entry.area.radius);
+                carried = std::max(carried, std::max(entry.area.radius, entry.keepAway));
 
     Position const here = unit->GetPosition();
     bool const inside = InAnyArea(areas, here, unit->GetGUID(), InsideMargin);

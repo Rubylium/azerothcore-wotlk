@@ -88,7 +88,13 @@ namespace GroundIndicators
                   Theme theme = Theme::None, uint32 hitDamage = 0);
     // A circle that follows carrier wherever it goes: whoever carries it should take it away from the others.
     // Read its position back with CurrentArea when it resolves.
-    Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0);
+    // keepAway: past its drawn radius, how far its carrier keeps from the others (a hit that falls off with
+    // distance past the red); the carrier then holds there until it lands (KeepsAway)
+    Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0,
+                           float keepAway = 0.0f);
+    // Whether unit carries a circle of someone else's: it keeps away from the group and does not come back to fight
+    // in melee until the circle lands (bots: mod-playerbots AvoidGroundIndicatorAction)
+    bool KeepsAway(Unit* unit);
     // Four arms of a star around carrier (CarriedStarArm long, CarriedStarWidth wide): it follows them where they go,
     // its arms pointing a direction of their own (not turning with the carrier). Read it back with CurrentArea when it
     // resolves.

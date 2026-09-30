@@ -88,6 +88,9 @@ constexpr float SweepPct = 60.0f;               // Rayon cosmique, the cone from
 constexpr float FallenStarCarrierPct = 25.0f;   // Étoile déchue: the one marked...
 constexpr float FallenStarMaxPct = 250.0f;      // ... everyone else, next to them (death), fading to nothing at
 constexpr float FallenStarReach = 40.0f;        //     this distance
+constexpr float FallenStarKeepAway = 25.0f;     // where its bot carrier stands from the others (35% of the hit)
+// The off-tank's spot stays put until its tank has gone this far round the god (UpdateOffTankSpot)
+constexpr float OffTankRebaseAngle = float(M_PI) / 3.0f;
 constexpr float CrossWavePct = 70.0f;           // Croix céleste, each wave's lines
 constexpr float OrbLaserPct = 80.0f;            // Lances de l'orbe, each pass of a laser (out, then back)
 constexpr float SpinLaserPct = 90.0f;           // Rayon du Gardien, the laser swept round
@@ -843,6 +846,7 @@ private:
         _finishing = false;
         _nextStandingCheckMs = 0;
         _offTankSide = 0.0f;
+        _offTankBase = 0.0f;
         _fragments.clear();
         _lifted = false;
         me->ClearEmoteState();
@@ -1327,7 +1331,8 @@ private:
         if (players.empty())
             return;
         Player* marked = Acore::Containers::SelectRandomContainerElement(players);
-        GroundIndicators::ShowCarriedCircle(me, marked, FallenStarLethalRadius, FallenStarMs);
+        // Its carrier keeps FallenStarKeepAway from the others: the hit falls off to a third there
+        GroundIndicators::ShowCarriedCircle(me, marked, FallenStarLethalRadius, FallenStarMs, 0, FallenStarKeepAway);
         if (SPELL_FX_MARK)
             if (Aura* aura = me->AddAura(SPELL_FX_MARK, marked))
             {
@@ -2047,9 +2052,15 @@ private:
         if (!victim || !CanMelee())
             return;
 
+        // The spot keeps its angle while the god is turned about by its tank ("tank face"): it only follows the tank
+        // round once the tank has gone OffTankRebaseAngle round the god. The off-tank used to chase every turn.
         float const toVictim = me->GetAngle(victim);
+        if (_offTankSide != 0.0f &&
+            std::fabs(std::remainder(toVictim - _offTankBase, 2.0f * float(M_PI))) > OffTankRebaseAngle)
+            _offTankBase = toVictim;
         if (_offTankSide == 0.0f)
         {
+            _offTankBase = toVictim;
             uint32 left = 0;
             uint32 right = 0;
             for (Player* player : ArenaPlayers())
@@ -2062,7 +2073,7 @@ private:
             _offTankSide = left <= right ? 1.0f : -1.0f;
         }
 
-        float const angle = toVictim + _offTankSide * float(M_PI) / 2.0f;
+        float const angle = _offTankBase + _offTankSide * float(M_PI) / 2.0f;
         float const distance = me->GetCombatReach() + 2.0f;
         GroundIndicators::SetOffTankSpot(me, Ground(Position(me->GetPositionX() + std::cos(angle) * distance,
             me->GetPositionY() + std::sin(angle) * distance, ArenaFloorZ)), 2500);
@@ -2087,6 +2098,7 @@ private:
     uint32 _nextEdgeMs = 0;
     uint32 _lastKillYellMs = 0;
     float _offTankSide = 0.0f;
+    float _offTankBase = 0.0f;                  // the angle of the tank round the god the spot is set from
     Position _liftFrom;
     GroundIndicators::Area _bigBang;
     GroundIndicators::Area _edgeArea;
