@@ -284,7 +284,14 @@ def measure(source):
 def build_painted_texture(shape):
     """The shape's painting warped onto its area, in the padded quad's frame (u forward along x, v across y)"""
     source_image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGBA')
-    source = premultiplied(source_image)
+    if shape.get('blackKey'):
+        # Painted on black: its brightness is its alpha, and on black its colour is already premultiplied by it
+        # (an additive glow's own colour comes back exactly); `gain` brightens a dim one
+        rgb = numpy.asarray(source_image.convert('RGB'), dtype=numpy.float64) / 255.0
+        rgb = numpy.clip(rgb * shape.get('gain', 1.0), 0.0, 1.0)
+        source = numpy.concatenate([rgb, rgb.max(axis=2, keepdims=True)], axis=2)
+    else:
+        source = premultiplied(source_image)
     height, width = source.shape[:2]
     kind = shape['shape']
     x0, x1, y0, y1 = padded_bounds(shape)
@@ -299,19 +306,33 @@ def build_painted_texture(shape):
     fade = None
     if kind == 'rect':
         half = 0.5 / shape['ratio']
-        sy = (Y + half) / (2.0 * half) * height
+        # `band`: the rows the line's width is (a painting glowing in the middle of its height, its glow past the area
+        # then); "auto", where its rows are brighter than a tenth of the brightest
+        top, bottom = 0.0, float(height)
+        band = shape.get('band')
+        if band == 'auto':
+            rows_mean = source[..., 3].mean(axis=1)
+            lit = numpy.nonzero(rows_mean > 0.1 * rows_mean.max())[0]
+            top, bottom = float(lit.min()), float(lit.max() + 1)
+        elif band:
+            top, bottom = band[0] * height, band[1] * height
+        sy = top + (Y + half) / (2.0 * half) * (bottom - top)
         if shape.get('tile'):
             # The painting repeated along the line at its own proportions (a copy as long as it is wide times its
             # aspect), every other copy mirrored so the joins match, its tapered tips cut off (`crop`, a share of its
             # width); the line's own two ends fade. Stretched to the line's ratio instead, it read drawn out.
+            # A seamless painting (`mirror` false) is repeated as it is.
             first, last = shape.get('crop', [0.0, 1.0])
             tile_width = (last - first) * width
-            tile_length = tile_width / height * (2.0 * half)
+            tile_length = tile_width / (bottom - top) * (2.0 * half)
             u = X / tile_length
             index = numpy.floor(u)
             fraction = u - index
-            fraction = numpy.where(numpy.mod(index, 2) == 1, 1.0 - fraction, fraction)
+            if shape.get('mirror', True):
+                fraction = numpy.where(numpy.mod(index, 2) == 1, 1.0 - fraction, fraction)
             sx = first * width + fraction * tile_width
+            # Never past its last column: the sampler fades to clear there, a dark seam at each join
+            sx = numpy.clip(sx, 0.0, width - 1.0)
             ends = shape.get('endFade', 0.04)
             fade = numpy.clip(X / ends, 0.0, 1.0) * numpy.clip((1.0 - X) / ends, 0.0, 1.0)
         else:
