@@ -27,12 +27,13 @@
 
 // The Hollow Voice, the pinnacle of the Défi board: a 10-player fight of the board's own in Sunwell Plateau's M'uru
 // chamber, for item level 460 and 650 paragon (plan: .agents/plans/hollow-voice). Like L'Infini (InfiniteGod.cpp) it
-// runs on a fixed timeline set by its two tracks (patch-Z Sound\Music\Evolutions, SoundEntries 30110 and 30111):
+// runs on a fixed timeline set by its two tracks, played as one (patch-Z Sound\Music\Evolutions\HollowVoice.mp3,
+// SoundEntries 30112; localTools/hollowVoice/buildMusic.py joins them):
 //
-// 0:00 Archbishop Aldric Dawnmantle (HollowVoiceAldric.mp3, 2:03.4). His health stops at 1%. At 1:59.7, as his
+// 0:00 Archbishop Aldric Dawnmantle (his track, up to 2:02.0 in its fade). His health stops at 1%. At 1:59.7, as his
 //      track fades: at 1% he falls; above it, Last Rites - a holy judgement kills the group, and the demon is never
 //      seen.
-// 2:02.0 Vel'thazar's track (HollowVoiceVelthazar.mp3, 5:30) starts; on its first hit (2:03.5) Vel'thazar, the
+// 2:02.0 Vel'thazar's track (5:30) follows; on its first hit (2:03.5) Vel'thazar, the
 //      Hollow Voice, tears out of the Archbishop, who stays hidden. Killing the demon frees and kills the Archbishop:
 //      his kill is the board's win (RaidFinder follows the board's boss, 930100).
 // 7:19.1 / 7:19.7 / 7:20.1 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
@@ -71,9 +72,11 @@ constexpr float ChamberClearRadius = 60.0f;     // the chamber's own occupants t
 
 // --- Timeline (ms from the pull), on the tracks' beats (measured on their loudness) ---------------------------------
 constexpr uint32 AtJudgement = 119700;          // the Archbishop's track fades: he falls at 1%, or Last Rites
-// Vel'thazar's track starts in the fade of his (1:59.7-2:03.4), before it ends by itself: a track reaching its end
-// ended the music the client had just been sent (sent at 2:03.45, the second track never played)
+// Vel'thazar's track follows in the fade of his (1:59.7-2:03.4), in the one file. Sent as a second music, it never
+// played through: the first reaching its own end stopped it (sent at 2:03.45: not heard; at 2:02.0: cut a few seconds
+// in, 2026-09-30).
 constexpr uint32 AtSecondTrack = 122000;
+constexpr uint32 TrackEndMarginMs = 500;       // a wipe before it ends the track this long before it
 constexpr uint32 AtReveal = AtSecondTrack + 1500;               // its first hit
 constexpr std::array<uint32, 3> AtEnrageBlasts = { AtSecondTrack + 317090, AtSecondTrack + 317650,
                                                    AtSecondTrack + 318100 };
@@ -81,7 +84,9 @@ constexpr std::array<uint32, 3> AtEnrageBlasts = { AtSecondTrack + 317090, AtSec
 constexpr uint32 NPC_ALDRIC = 930100;
 constexpr uint32 NPC_VELTHAZAR = 930101;
 
-// SoundEntries (localTools/patchSinisterStrike.ps1): the tracks, L'Infini's silence to end them, the abilities' sounds
+// SoundEntries (localTools/patchSinisterStrike.ps1): the fight's track, the two alone (.hollow music, and a clock
+// skipped past the switch), L'Infini's silence to end them, the abilities' sounds
+constexpr uint32 MUSIC_FIGHT = 30112;
 constexpr uint32 MUSIC_ALDRIC = 30110;
 constexpr uint32 MUSIC_VELTHAZAR = 30111;
 constexpr uint32 MUSIC_SILENCE = 30101;
@@ -249,7 +254,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         _fightListeners.clear();
         for (Player* player : Listeners())
         {
-            SendMusic(player, MUSIC_ALDRIC);
+            SendMusic(player, MUSIC_FIGHT);
             _fightListeners.insert(player->GetGUID());
         }
         LOG_INFO("module.hollowvoice", "The Hollow Voice pulled instance={} health={} tier factor={}",
@@ -365,6 +370,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         if (_phase == Phase::None || _phase == Phase::Over)
             return false;
         _pullMs -= seconds * IN_MILLISECONDS;
+        _skipped = true;
         UpdateClock();
         return true;
     }
@@ -378,6 +384,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         uint32 const elapsed = Elapsed();
         if (elapsed + 1000 < AtJudgement)
             _pullMs -= AtJudgement - 1000 - elapsed;
+        _skipped = true;
         return true;
     }
 
@@ -489,6 +496,7 @@ private:
         _summons.DespawnAll();
         _phase = Phase::None;
         _secondTrack = false;
+        _skipped = false;
         _blasts = 0;
         _nextPulseMs = 0;
         _finishing = false;
@@ -553,7 +561,9 @@ private:
         uint32 const elapsed = Elapsed();
         if (_phase == Phase::Aldric && elapsed >= AtJudgement)
             Judge();
-        if (_phase == Phase::Fallen && !_secondTrack && elapsed >= AtSecondTrack)
+        // The fight's track goes on to Vel'thazar's by itself; a clock skipped forward (.hollow skip, reveal) left it
+        // behind, and his is sent on its own
+        if (_phase == Phase::Fallen && _skipped && !_secondTrack && elapsed >= AtSecondTrack)
         {
             _secondTrack = true;
             PlayTrack(MUSIC_VELTHAZAR);
@@ -654,9 +664,9 @@ private:
             Unit::Kill(source, player);
     }
 
-    // --- Wipes -------------------------------------------------------------------------------------------------------
-    // Every half second: nobody standing is a wipe; bots alone are finished off (RaidFinder already counts the wipe from
-    // the last player down), so the players do not watch their bots fight on
+    // --- Wipes -----------------------------------------------------------------------------------------------------
+    // Every half second: nobody standing is a wipe; bots alone are finished off (RaidFinder already counts the wipe
+    // from the last player down), so the players do not watch their bots fight on
     void UpdateStanding()
     {
         if (_phase == Phase::Over || _finishing)
@@ -704,8 +714,16 @@ private:
             demon->AttackStop();
             demon->SetReactState(REACT_PASSIVE);
         }
-        LOG_INFO("module.hollowvoice", "The Hollow Voice wipe instance={} elapsed={}ms", me->GetInstanceId(),
-                 Elapsed());
+        uint32 const elapsed = Elapsed();
+        LOG_INFO("module.hollowvoice", "The Hollow Voice wipe instance={} elapsed={}ms", me->GetInstanceId(), elapsed);
+        // Before the demon's part of the track: it ends first, so a wipe never lets it be heard (Last Rites, a wipe at
+        // the end of the Archbishop's phase)
+        if (elapsed < AtSecondTrack && elapsed + uint32(WipeLinger.count()) + TrackEndMarginMs > AtSecondTrack)
+        {
+            uint32 const before = AtSecondTrack > elapsed + TrackEndMarginMs ?
+                AtSecondTrack - elapsed - TrackEndMarginMs : 0;
+            me->m_Events.AddEventAtOffset([this]() { EndTrack(MUSIC_SILENCE); }, Milliseconds(before));
+        }
         me->m_Events.AddEventAtOffset([this]()
         {
             EndTrack(MUSIC_SILENCE);
@@ -722,6 +740,7 @@ private:
     bool _defiConfirmed = false;
     bool _lingering = false;
     bool _secondTrack = false;
+    bool _skipped = false;
     bool _finishing = false;
     uint32 _defiWaitMs = 0;
     uint32 _checkTimer = 0;

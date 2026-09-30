@@ -151,8 +151,9 @@ function getPatchFiles(repoRoot) {
             'LInfiniSilence.mp3'),
         archive: 'Sound\\Music\\Evolutions\\LInfiniSilence.mp3',
     });
-    // The Hollow Voice's two tracks (SoundEntries 30110-30111) and its abilities' sounds (30120 on)
-    for (const name of ['HollowVoiceAldric.mp3', 'HollowVoiceVelthazar.mp3']) {
+    // The Hollow Voice's two tracks and the fight's, the two joined (SoundEntries 30110-30112), and its abilities'
+    // sounds (30120 on)
+    for (const name of ['HollowVoiceAldric.mp3', 'HollowVoiceVelthazar.mp3', 'HollowVoice.mp3']) {
         files.push({
             source: path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music', name),
             archive: `Sound\\Music\\Evolutions\\${name}`,

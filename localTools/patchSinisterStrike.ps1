@@ -998,6 +998,12 @@ $customSounds = @(
        Directory = 'Sound\Music\Evolutions'
        Files = @('HollowVoiceVelthazar.mp3')
        Volume = 1.0 }
+    # What the fight sends: the two as one track (localTools/hollowVoice/buildMusic.py), the second from 2:02.0 - a
+    # track reaching its end stopped the one sent after it; the two alone are for .hollow music
+    @{ Key = 'HollowVoiceFight'; Id = 30112; Clone = 15877; Name = 'Evolutions_HollowVoiceFight'
+       Directory = 'Sound\Music\Evolutions'
+       Files = @('HollowVoice.mp3')
+       Volume = 1.0 }
     # Its abilities' sounds (retail paladin and dreadlord sounds, the Voidspire's paladin trio for the Archbishop's),
     # at fixed ids the server plays (HollowVoice.cpp SoundId): 30120 on, in this order
     @{ Key = 'HollowVoiceJudgement'; Id = 30120; Clone = 13269; Name = 'Evolutions_HollowVoice_Judgement'
