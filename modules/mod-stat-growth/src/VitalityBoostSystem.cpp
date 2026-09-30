@@ -4,6 +4,7 @@
 #include "CharacterDatabase.h"
 #include "Creature.h"
 #include "EssenceTierSystem.h"
+#include "EssenceTuning.h"
 #include "Player.h"
 #include "PlayerSettings.h"
 #include "PersonalLootSystem.h"
@@ -45,8 +46,14 @@ void ApplyVitalityBoost(Player* player, float& maxHealth)
     // per level, added after it, so they never multiply gear or other bonuses
     uint32 const affixPercent = GetEquippedPersonalLootBonus(player, PersonalLootAffix::MaximumHealth);
     double const boostedHealth = static_cast<double>(maxHealth) * (100.0 + affixPercent) / 100.0 +
-        GetVitalityHealth(player, GetStoredVitalityBonus(player) + GetBotEssenceVitality(player));
+        GetVitalityHealth(player, GetEffectiveVitalityPoints(GetStoredVitalityBonus(player) +
+            GetBotEssenceVitality(player)));
     maxHealth = static_cast<float>(std::min<double>(boostedHealth, std::numeric_limits<uint32>::max()));
+}
+
+uint32 GetEffectiveVitalityPoints(uint32 points)
+{
+    return EssenceTuning::Diminished(points, EssenceTuning::VitalityCeiling);
 }
 
 uint32 GetVitalityHealth(Player const* player, uint32 points)

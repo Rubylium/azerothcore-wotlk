@@ -3,6 +3,7 @@
 #include "CharacterDatabase.h"
 #include "Creature.h"
 #include "EssenceTierSystem.h"
+#include "EssenceTuning.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerSettings.h"
@@ -171,14 +172,30 @@ void ApplyPermanentStat(Player* player, PermanentStat stat, uint32 amount, bool 
     ApplyStatGrowth(player, stat, amount, apply);
 }
 
+// Each stat's saved points, through the diminishing returns (EssenceTuning::GrowthCeiling)
 void ApplyStoredStatGrowth(Player* player)
 {
     for (uint32 index = 0; index < static_cast<uint32>(PermanentStat::Count); ++index)
     {
-        uint32 const amount = player->GetPlayerSetting(SettingsSource, index).value;
+        uint32 const amount = EssenceTuning::Diminished(player->GetPlayerSetting(SettingsSource, index).value,
+            EssenceTuning::GrowthCeiling);
         if (amount > 0)
             ApplyStatGrowth(player, static_cast<PermanentStat>(index), amount);
     }
+}
+
+uint32 GetStoredStatGrowth(Player* player, PermanentStat stat)
+{
+    return player->GetPlayerSetting(SettingsSource, static_cast<uint32>(stat)).value;
+}
+
+uint32 GetEffectiveStatGrowthTotal(Player* player)
+{
+    uint64 total = 0;
+    for (uint32 index = 0; index < static_cast<uint32>(PermanentStat::Count); ++index)
+        total += EssenceTuning::Diminished(player->GetPlayerSetting(SettingsSource, index).value,
+            EssenceTuning::GrowthCeiling);
+    return static_cast<uint32>(std::min<uint64>(total, std::numeric_limits<uint32>::max()));
 }
 
 std::span<PermanentStat const> GetClassPermanentStats(uint8 classId)
@@ -201,10 +218,16 @@ bool GrantRandomStatGrowth(Player* player, uint32 amount, std::string_view& stat
         return false;
 
     PermanentStat const selectedStat = classStats[urand(0, classStats.size() - 1)];
+    uint32 const before = EssenceTuning::Diminished(GetStoredStatGrowth(player, selectedStat),
+        EssenceTuning::GrowthCeiling);
     if (!SaveStatGrowth(player, selectedStat, amount))
         return false;
 
-    ApplyStatGrowth(player, selectedStat, amount);
+    // What the new points add after the diminishing returns
+    uint32 const after = EssenceTuning::Diminished(GetStoredStatGrowth(player, selectedStat),
+        EssenceTuning::GrowthCeiling);
+    if (after > before)
+        ApplyStatGrowth(player, selectedStat, after - before);
     statName = GetStatName(selectedStat);
     return true;
 }

@@ -84,11 +84,44 @@ inline float ParagonDpsIndex(float paragonPoints)
     return std::pow(ParagonDpsPerPoint, std::max(paragonPoints, 0.0f));
 }
 
-// A character's damage at an item level and a number of paragon points active, over the reference damage dealer's
-// at ReferenceItemLevel with none: THE power index content is sized with
+// Essences (mod-stat-growth EssenceTuning.h): Growth (a stat of the class a point) and Vitality (40 health a point
+// at 80) count with diminishing returns, ceiling * (1 - e^(-points / ceiling)), per stat for Growth. A typical
+// player gathers EssenceGrowthPerKey points of each stat and EssenceVitalityPerKey Vitality a key of progress.
+// At the Growth ceiling its stats add EssenceDpsAtCeiling to its damage.
+constexpr float EssenceGrowthCeiling = 600.0f;
+constexpr float EssenceVitalityCeiling = 1250.0f;
+constexpr float EssenceGrowthPerKey = 8.0f;
+constexpr float EssenceVitalityPerKey = 25.0f;
+constexpr float EssenceDpsAtCeiling = 0.15f;
+
+inline float EssenceDiminished(float points, float ceiling)
+{
+    return ceiling * (1.0f - std::exp(-std::max(points, 0.0f) / ceiling));
+}
+
+// How far a player of an item level has progressed, in Mythic+ keys (their essences and Vitality come with it): the
+// key whose loot is that item level (Mythic::GetItemLevel: 223 at Mythique 0, 2.45 item levels a key), one key on
+constexpr float ProgressBaseItemLevel = 223.0f;
+constexpr float ProgressItemLevelsPerKey = 147.0f / 60.0f;
+
+inline float ProgressKeys(float itemLevel)
+{
+    return std::clamp((itemLevel - ProgressBaseItemLevel) / ProgressItemLevelsPerKey + 1.0f, 0.0f, 99.0f);
+}
+
+// The damage a typical player's essences add at that progress
+inline float EssenceDpsIndex(float progressKeys)
+{
+    return 1.0f + EssenceDpsAtCeiling *
+        EssenceDiminished(EssenceGrowthPerKey * progressKeys, EssenceGrowthCeiling) / EssenceGrowthCeiling;
+}
+
+// A character's damage at an item level and a number of paragon points active, with the essences that item level
+// comes with, over the reference damage dealer's at ReferenceItemLevel with none: THE power index content is sized
+// with
 inline float PowerIndex(float itemLevel, float paragonPoints = 0.0f)
 {
-    return DpsIndex(itemLevel) * ParagonDpsIndex(paragonPoints);
+    return DpsIndex(itemLevel) * ParagonDpsIndex(paragonPoints) * EssenceDpsIndex(ProgressKeys(itemLevel));
 }
 
 // The reference damage dealer's damage per second at ReferenceItemLevel and no paragon, measured on the bench (60 s,
@@ -131,28 +164,17 @@ constexpr float PlayerBaseStamina = 110.0f;
 constexpr float HealthPerStamina = 10.0f;
 constexpr float AffixStaminaPerItemLevel = 1.87f;
 constexpr float AffixHealthPctPerItemLevel = 0.278f;
-constexpr float EssenceStaminaPerKey = 8.0f;
-constexpr float VitalityHealthPerKey = 25.0f * 40.0f;
+constexpr float VitalityHealthPerPoint = 40.0f;
 constexpr float ParagonHealthPctPerPoint = 0.04f;
 constexpr float BuffsAndTalents = 1.1f;
-
-// How far a player of an item level has progressed, in Mythic+ keys (their essences and Vitality come with it): the
-// key whose loot is that item level (Mythic::GetItemLevel: 223 at Mythique 0, 2.45 item levels a key), one key on
-constexpr float ProgressBaseItemLevel = 223.0f;
-constexpr float ProgressItemLevelsPerKey = 147.0f / 60.0f;
-
-inline float ProgressKeys(float itemLevel)
-{
-    return std::clamp((itemLevel - ProgressBaseItemLevel) / ProgressItemLevelsPerKey + 1.0f, 0.0f, 99.0f);
-}
 
 inline float ExpectedPlayerHealth(float itemLevel, float paragonPoints, float progressKeys)
 {
     float const stamina = PlayerBaseStamina + GearStamina(itemLevel) + AffixStaminaPerItemLevel * itemLevel +
-        EssenceStaminaPerKey * progressKeys;
+        EssenceDiminished(EssenceGrowthPerKey * progressKeys, EssenceGrowthCeiling);
     float health = PlayerBaseHealth + HealthPerStamina * stamina;
     health *= 1.0f + AffixHealthPctPerItemLevel * itemLevel / 100.0f;
-    health += VitalityHealthPerKey * progressKeys;
+    health += VitalityHealthPerPoint * EssenceDiminished(EssenceVitalityPerKey * progressKeys, EssenceVitalityCeiling);
     health *= 1.0f + ParagonHealthPctPerPoint * std::max(paragonPoints, 0.0f) / 100.0f;
     return health * BuffsAndTalents;
 }

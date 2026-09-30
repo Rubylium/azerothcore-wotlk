@@ -4,6 +4,7 @@
 #include "Chat.h"
 #include "Creature.h"
 #include "EssenceTierSystem.h"
+#include "EssenceTuning.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerSettings.h"
@@ -82,15 +83,28 @@ void ApplyExperienceBoost(Player* player, uint32& amount)
     if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) || !player || amount == 0)
         return;
 
-    uint64 const bonusPercent = static_cast<uint64>(player->GetPlayerSetting(
-        ExperienceSettingsSource, ExperienceBonusSetting).value) +
-        GetEquippedPersonalLootBonus(player, PersonalLootAffix::ExperienceGain);
+    // Capped: at the level cap the paragon bar takes this experience (EssenceTuning::MaxExperienceBonus)
+    uint64 const bonusPercent = GetEffectiveExperienceBonus(player);
     // Every source (kills, quests, dungeons, exploration) goes through here
     uint64 const pacedAmount = static_cast<uint64>(float(amount) * GetLevelingPaceMultiplier(player->GetLevel()));
     uint64 const boostedAmount = pacedAmount + pacedAmount * bonusPercent / 100;
     // The character's own rate (.xp) last, on everything else
     uint64 const ratedAmount = boostedAmount * GetExperienceRate(player) / 100;
     amount = static_cast<uint32>(std::min<uint64>(ratedAmount, std::numeric_limits<uint32>::max()));
+}
+
+uint32 GetStoredExperienceBonus(Player* player)
+{
+    return player ? player->GetPlayerSetting(ExperienceSettingsSource, ExperienceBonusSetting).value : 0;
+}
+
+uint32 GetEffectiveExperienceBonus(Player* player)
+{
+    if (!player)
+        return 0;
+    return EssenceTuning::CombinedBonus(GetStoredExperienceBonus(player),
+        GetEquippedPersonalLootBonus(player, PersonalLootAffix::ExperienceGain), 0,
+        EssenceTuning::MaxExperienceBonus);
 }
 
 bool GrantExperienceBoost(Player* player, uint32 amount, uint32& totalBonus)

@@ -22,12 +22,26 @@ TEST(EssenceTuning, FinalGrantFitsRemainingRoomAndOldTotalsCannotGrow)
 
 TEST(EssenceTuning, CapsExcludeOnlyTheSaturatedFamilies)
 {
-    EXPECT_FALSE(EssenceTuning::IsFamilyCapped(EssenceFamily::Resource, 499, 100));
-    EXPECT_TRUE(EssenceTuning::IsFamilyCapped(EssenceFamily::Resource, 500, 100));
-    EXPECT_FALSE(EssenceTuning::IsFamilyCapped(EssenceFamily::Fortune, 500, 99));
-    EXPECT_TRUE(EssenceTuning::IsFamilyCapped(EssenceFamily::Fortune, 500, 100));
-    for (EssenceFamily family : { EssenceFamily::Growth, EssenceFamily::Experience, EssenceFamily::Vitality })
-        EXPECT_FALSE(EssenceTuning::IsFamilyCapped(family, 10000, 10000));
+    EXPECT_FALSE(EssenceTuning::IsFamilyCapped(EssenceFamily::Resource, 499, 100, 0));
+    EXPECT_TRUE(EssenceTuning::IsFamilyCapped(EssenceFamily::Resource, 500, 100, 0));
+    EXPECT_FALSE(EssenceTuning::IsFamilyCapped(EssenceFamily::Fortune, 500, 99, 0));
+    EXPECT_TRUE(EssenceTuning::IsFamilyCapped(EssenceFamily::Fortune, 500, 100, 0));
+    EXPECT_FALSE(EssenceTuning::IsFamilyCapped(EssenceFamily::Experience, 0, 0, 199));
+    EXPECT_TRUE(EssenceTuning::IsFamilyCapped(EssenceFamily::Experience, 0, 0, 200));
+    for (EssenceFamily family : { EssenceFamily::Growth, EssenceFamily::Vitality })
+        EXPECT_FALSE(EssenceTuning::IsFamilyCapped(family, 10000, 10000, 10000));
+}
+
+TEST(EssenceTuning, GrowthAndVitalityDiminishTowardsTheirCeiling)
+{
+    EXPECT_EQ(EssenceTuning::Diminished(0, EssenceTuning::GrowthCeiling), 0u);
+    EXPECT_EQ(EssenceTuning::Diminished(10, EssenceTuning::GrowthCeiling), 10u);   // early points count in full
+    EXPECT_NEAR(EssenceTuning::Diminished(1175, EssenceTuning::GrowthCeiling), 515.0, 1.0);
+    EXPECT_NEAR(EssenceTuning::Diminished(3510, EssenceTuning::VitalityCeiling), 1175.0, 1.0);
+    EXPECT_LT(EssenceTuning::Diminished(1000000, EssenceTuning::VitalityCeiling), 1251u);
+    for (uint32 points = 0; points < 5000; points += 50)
+        EXPECT_LE(EssenceTuning::Diminished(points, EssenceTuning::GrowthCeiling),
+            EssenceTuning::Diminished(points + 50, EssenceTuning::GrowthCeiling));
 }
 
 TEST(EssenceTuning, FortuneCannotBypassEconomyLimitsThroughGearOrConfiguration)

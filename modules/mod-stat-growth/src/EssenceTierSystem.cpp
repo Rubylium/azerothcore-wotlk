@@ -2,6 +2,16 @@
 
 #include "Creature.h"
 #include "EssenceTuning.h"
+#include "ExperienceBoostSystem.h"
+#include "BotEssenceSystem.h"
+#include "Chat.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
+#include "StatGrowthSystem.h"
+#include "StringConvert.h"
+#include "VitalityBoostSystem.h"
+#include "WorldPacket.h"
+#include "WorldSession.h"
 #include "FortuneBoostSystem.h"
 #include "LootMgr.h"
 #include "Random.h"
@@ -205,9 +215,10 @@ uint32 ResolveEssenceEntry(Player* player, uint32 itemEntry)
 
     uint32 const resource = GetResourceBonus(player);
     uint32 const fortune = GetFortuneBonus(player);
-    auto const capped = [resource, fortune](EssenceFamily candidate)
+    uint32 const experience = GetEffectiveExperienceBonus(player);
+    auto const capped = [resource, fortune, experience](EssenceFamily candidate)
     {
-        return EssenceTuning::IsFamilyCapped(candidate, resource, fortune);
+        return EssenceTuning::IsFamilyCapped(candidate, resource, fortune, experience);
     };
     if (!capped(family))
         return itemEntry;
@@ -221,4 +232,44 @@ uint32 ResolveEssenceEntry(Player* player, uint32 itemEntry)
             available[count++] = candidate;
     }
     return count ? GetEssenceEntry(available[urand(0, count - 1)], GetEssenceTier(itemEntry)) : itemEntry;
+}
+
+void HandleEssenceAddonMessage(Player* player, uint32 language, std::string const& message)
+{
+    constexpr std::string_view Prefix = "Essences\tQ\t";
+    if (!player || language != LANG_ADDON || !message.starts_with(Prefix))
+        return;
+
+    uint32 const low = Acore::StringTo<uint32>(std::string_view(message).substr(Prefix.size())).value_or(0);
+    Player* target = low ? ObjectAccessor::FindConnectedPlayer(ObjectGuid::Create<HighGuid::Player>(low)) : nullptr;
+    if (!target || !target->IsInWorld())
+        return;
+
+    bool const bot = target->GetSession() && target->GetSession()->IsBot();
+    uint32 growth = GetStoredStatGrowthTotal(target);
+    uint32 growthEffective = GetEffectiveStatGrowthTotal(target);
+    uint32 vitality = GetStoredVitalityPoints(target);
+    uint32 resource = GetResourceBonus(target);
+    if (bot)
+    {
+        uint32 statPoints = 0;
+        uint32 mirroredVitality = 0;
+        uint32 mirroredResource = 0;
+        uint32 players = 0;
+        if (GetBotEssenceSummary(target, statPoints, mirroredVitality, mirroredResource, players))
+        {
+            growth += statPoints;
+            growthEffective += GetBotEssenceEffectiveStats(target);
+            vitality += mirroredVitality;
+            resource = std::max(resource, mirroredResource);
+        }
+    }
+    uint32 const vitalityEffective = GetEffectiveVitalityPoints(vitality);
+
+    std::string const reply = Acore::StringFormat("Essences\tS\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", low, growth,
+        growthEffective, vitality, vitalityEffective, GetVitalityHealth(target, vitalityEffective),
+        GetEffectiveExperienceBonus(target), GetFortuneBonus(target), resource, bot ? 1 : 0);
+    WorldPacket packet;
+    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player, reply);
+    player->SendDirectMessage(&packet);
 }

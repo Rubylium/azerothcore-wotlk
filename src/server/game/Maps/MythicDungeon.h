@@ -46,9 +46,9 @@ constexpr uint32 ForgeRanks = 8;
 constexpr uint32 FirstCapVariant = GeneratedItemVariants + ForgeRanks;
 constexpr uint32 CapVariants = 3;
 
-// Up to +10 difficulty grows with gear. Beyond that it also asks for 8.5 more paragon points per key (ParagonPerTwoLevels
-// every two keys, rounded half up): what a key asks is honest - "clearable but hard" for GetExpectedItemLevel and
-// GetRecommendedParagon, on the measured power model (PowerScaling.h).
+// Up to +10 difficulty grows with gear. Beyond that it also asks for 8.5 more paragon points per key
+// (ParagonPerTwoLevels every two keys, rounded half up): what a key asks is honest - "clearable but hard" for
+// GetExpectedItemLevel and GetRecommendedParagon, on the measured power model (PowerScaling.h).
 // Loot's contribution follows the reward curve and what that gear is worth (Power::DpsIndex, PowerScaling.h), and
 // stops at +60; paragon and pressure keep growing to +99.
 // Creature health follows damage output; creature damage follows the expected player health below.
@@ -86,13 +86,12 @@ inline float GetLevelScaling(int32 level)
         return 1.0f;
 
     float const gear = std::pow(CompoundedGrowth, static_cast<float>(std::min(level, GearLevels)));
-    // The key's paragon, at what paragon is measured to be worth (PowerScaling.h)
-    float const paragon = Power::ParagonDpsIndex(static_cast<float>(GetRecommendedParagon(level)));
-    // Past +10: what the key's gear deals over what +10's does, on the measured power curve
+    // Past +10: the power the key asks for - its gear (to +60), its paragon, the essences that come with them - over
+    // +10's, on the measured power model (PowerScaling.h)
     float const lootKey = static_cast<float>(std::clamp(level, GearLevels, MaxLootKeyLevel));
-    float const loot = Power::DpsIndex(GetExpectedItemLevel(lootKey)) /
-        Power::DpsIndex(GetExpectedItemLevel(static_cast<float>(GearLevels)));
-    return gear * paragon * loot;
+    float const asked = Power::PowerIndex(GetExpectedItemLevel(lootKey),
+        static_cast<float>(GetRecommendedParagon(level)));
+    return gear * asked / Power::PowerIndex(GetExpectedItemLevel(static_cast<float>(GearLevels)), 0.0f);
 }
 
 // GetLevelScaling is the creatures' HEALTH: a character's damage multiplies (gear, paragon, essences all compound),

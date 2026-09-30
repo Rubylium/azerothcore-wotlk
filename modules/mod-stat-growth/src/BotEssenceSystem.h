@@ -22,6 +22,8 @@ void RefreshBotEssences(Player* bot);
 uint32 GetBotEssenceVitality(Player* player);
 uint32 GetBotEssenceResource(Player* player);
 // The mirror as applied (.botcatchup): the stat points spread over the class, Vitality, Resource, players averaged
+// What a bot's mirrored Growth points give, all stats together, after the diminishing returns
+uint32 GetBotEssenceEffectiveStats(Player* bot);
 bool GetBotEssenceSummary(Player* bot, uint32& statPoints, uint32& vitality, uint32& resource, uint32& players);
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "Define.h"
 
+#include <string>
 #include <string_view>
 
 class Creature;
@@ -39,5 +40,10 @@ uint32 GetMythicEssenceReward(uint32 level);
 // Grants that many essences at once, each rolled for its own family and tier, reporting the lot in one line
 // (StatGrowthScripts.cpp). Returns how many were granted.
 uint32 GrantEssenceRewards(Player* player, uint32 count, uint32 tierRolls);
+// A character's essences on its tooltip (FrameXML/Essences.lua), over the "Essences" addon channel whispered to
+// oneself: "Q <guid low>" asks for a player or a bot in the world, answered by
+// "S <guid low> <growth> <growth effective> <vitality> <vitality effective> <vitality health> <experience %>
+//  <fortune %> <resource %> <bot 0|1>" - a bot's are those it mirrors from its players (BotEssenceSystem.h)
+void HandleEssenceAddonMessage(Player* player, uint32 language, std::string const& message);
 
 #endif

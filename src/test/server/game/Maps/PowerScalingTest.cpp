@@ -29,8 +29,18 @@ TEST(PowerScaling, ParagonCompoundsAndPowerIndexCombines)
     EXPECT_FLOAT_EQ(Power::ParagonDpsIndex(0.0f), 1.0f);
     EXPECT_FLOAT_EQ(Power::ParagonDpsIndex(-5.0f), 1.0f);
     EXPECT_NEAR(Power::ParagonDpsIndex(100.0f), std::pow(Power::ParagonDpsPerPoint, 100.0f), 1e-4f);
-    EXPECT_FLOAT_EQ(Power::PowerIndex(370.0f, 100.0f), Power::DpsIndex(370.0f) * Power::ParagonDpsIndex(100.0f));
-    EXPECT_FLOAT_EQ(Power::DpsCheckHealth(284.0f, 0.0f, 3.0f, 60.0f), Power::ReferenceSingleTargetDps * 3.0f * 60.0f);
+    EXPECT_FLOAT_EQ(Power::PowerIndex(370.0f, 100.0f), Power::DpsIndex(370.0f) * Power::ParagonDpsIndex(100.0f) *
+        Power::EssenceDpsIndex(Power::ProgressKeys(370.0f)));
+    EXPECT_FLOAT_EQ(Power::DpsCheckHealth(284.0f, 0.0f, 3.0f, 60.0f),
+        Power::ReferenceSingleTargetDps * Power::PowerIndex(284.0f) * 3.0f * 60.0f);
+}
+
+TEST(PowerScaling, EssencesDiminishAndStayBounded)
+{
+    EXPECT_FLOAT_EQ(Power::EssenceDpsIndex(0.0f), 1.0f);
+    EXPECT_LT(Power::EssenceDpsIndex(99.0f), 1.0f + Power::EssenceDpsAtCeiling);
+    EXPECT_LT(Power::EssenceDiminished(1.0e6f, Power::EssenceVitalityCeiling), Power::EssenceVitalityCeiling + 0.01f);
+    EXPECT_NEAR(Power::EssenceDiminished(10.0f, Power::EssenceGrowthCeiling), 10.0f, 0.1f);
 }
 
 TEST(PowerScaling, GearStaminaIsContinuousAtTheGamesBestItems)

@@ -29,6 +29,9 @@ void ApplyPermanentStat(Player* player, PermanentStat stat, uint32 amount, bool 
 std::span<PermanentStat const> GetClassPermanentStats(uint8 classId);
 // Every point the character's Essences of Growth have given, all stats together
 uint32 GetStoredStatGrowthTotal(Player* player);
+// A stat's saved points, and what all of them give after the diminishing returns (EssenceTuning.h)
+uint32 GetStoredStatGrowth(Player* player, PermanentStat stat);
+uint32 GetEffectiveStatGrowthTotal(Player* player);
 bool GrantRandomStatGrowth(Player* player, uint32 amount, std::string_view& statName);
 void TryAddStatGrowthLoot(Player* player, Creature* killed);
 

@@ -1,6 +1,7 @@
 #include "BotEssenceSystem.h"
 
 #include "DataMap.h"
+#include "EssenceTuning.h"
 #include "Group.h"
 #include "Log.h"
 #include "Player.h"
@@ -118,6 +119,8 @@ void ApplyStats(Player* bot, BotEssenceState* state, uint32 statPoints)
         }
         if (!amount)
             continue;
+        // Through the players' diminishing returns, as their own points are
+        amount = EssenceTuning::Diminished(amount, EssenceTuning::GrowthCeiling);
         state->appliedStats[static_cast<uint32>(stat)] += amount;
         ApplyPermanentStat(bot, stat, amount, true);
     }
@@ -213,6 +216,16 @@ uint32 GetBotEssenceResource(Player* player)
         return 0;
     BotEssenceState const* state = player->CustomData.Get<BotEssenceState>(StateKey);
     return state ? state->resource : 0;
+}
+
+uint32 GetBotEssenceEffectiveStats(Player* bot)
+{
+    BotEssenceState const* state = IsBot(bot) ? bot->CustomData.Get<BotEssenceState>(StateKey) : nullptr;
+    uint32 total = 0;
+    if (state)
+        for (uint32 amount : state->appliedStats)
+            total += amount;
+    return total;
 }
 
 bool GetBotEssenceSummary(Player* bot, uint32& statPoints, uint32& vitality, uint32& resource, uint32& players)

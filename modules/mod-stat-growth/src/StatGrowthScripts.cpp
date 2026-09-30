@@ -135,8 +135,11 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
         }
         case EssenceFamily::Experience:
         {
-            uint32 const amount = GetTieredEssenceBonus(
-                statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ExperienceBonusPerUse), itemEntry);
+            // Only the room left under the cap (EssenceTuning::MaxExperienceBonus); an essence at the cap was already
+            // turned into another family (ResolveEssenceEntry)
+            uint32 const amount = EssenceTuning::GrantAmount(GetEffectiveExperienceBonus(player),
+                GetTieredEssenceBonus(statGrowthConfig.GetConfigValue<uint32>(
+                    StatGrowthConfigKey::ExperienceBonusPerUse), itemEntry), EssenceTuning::MaxExperienceBonus);
             if (!GrantExperienceBoost(player, amount, totalBonus))
             {
                 chat.SendSysMessage("Unable to grant a permanent experience bonus.");
@@ -148,7 +151,8 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
 
             PlayTieredFeedback(player, EssenceVisual::Experience, tier, "WISDOM");
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Experience gained "
-                "permanently increased by +{}%. Total: +{}%.|r", tierName, amount, totalBonus);
+                "permanently increased by +{}%. Total: +{}% (at most +{}%).|r", tierName, amount,
+                GetEffectiveExperienceBonus(player), EssenceTuning::MaxExperienceBonus);
             return true;
         }
         case EssenceFamily::Resource:
@@ -184,9 +188,13 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
                 return true;
 
             PlayTieredFeedback(player, EssenceVisual::Vitality, tier, "VITALITY");
+            // What the points are worth after the diminishing returns (EssenceTuning::VitalityCeiling)
+            uint32 const before = GetEffectiveVitalityPoints(totalBonus - amount);
+            uint32 const after = GetEffectiveVitalityPoints(totalBonus);
             chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Vitality permanently "
-                "increased by +{} ({} maximum health at your level). Total: {} Vitality, +{} maximum health.|r",
-                tierName, amount, GetVitalityHealth(player, amount), totalBonus, GetVitalityHealth(player, totalBonus));
+                "increased by +{} (+{} maximum health at your level). Total: {} Vitality, worth {}: +{} maximum "
+                "health.|r", tierName, amount, GetVitalityHealth(player, after - before), totalBonus, after,
+                GetVitalityHealth(player, after));
             return true;
         }
         case EssenceFamily::Fortune:
@@ -475,6 +483,7 @@ public:
     void OnPlayerBeforeSendChatMessage(Player* player, uint32&, uint32& language, std::string& message) override
     {
         HandlePersonalLootAddonMessage(player, language, message);
+        HandleEssenceAddonMessage(player, language, message);
         HandleQuickTravelAddonMessage(player, language, message);
         HandleInstanceTravelAddonMessage(player, language, message);
         HandleTalentResetAddonMessage(player, language, message);
