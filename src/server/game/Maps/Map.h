@@ -21,6 +21,7 @@
 #include "Cell.h"
 #include "DBCStructure.h"
 #include "DataMap.h"
+#include "MythicDungeon.h"
 #include "Define.h"
 #include "DynamicTree.h"
 #include "EventProcessor.h"
@@ -526,7 +527,7 @@ public:
 
     // Mythic dungeons (see MythicDungeon.h): the mythic level this instance is played at, -1 for a normal one. Set
     // when the instance is created, before its creatures load, so they are scaled from the start.
-    void SetMythicLevel(int32 level) { _mythicLevel = level; }
+    void SetMythicLevel(int32 level) { _mythicLevel = std::clamp(level, -1, int32(Mythic::MaxKeyLevel)); }
     [[nodiscard]] int32 GetMythicLevel() const { return _mythicLevel; }
     [[nodiscard]] bool IsMythic() const { return _mythicLevel >= 0; }
 

@@ -31,14 +31,18 @@ constexpr uint32 StepFloors = 5;
 constexpr float LevellingFloorGrowth = 0.05f;
 constexpr uint32 LevellingFloorCap = 15;
 
-// At the level cap the difficulty climbs once every StepFloors floors: 5% a step (compounded) for the first
-// GearingGearSteps steps, a matter of gear, then a matter of paragon: each step asks for ParagonPerStep more points,
-// and the monsters grow by what those points and the step's better loot are worth - the Mythic+ curve
-// (MythicDungeon.h), gentler: 5% instead of 8% a step, 3 paragon a step instead of 5. A character's own paragon never
-// raises the difficulty.
-constexpr float GearingStepGrowth = 1.05f;
-constexpr uint32 GearingGearSteps = 10;
-constexpr uint32 ParagonPerStep = 3;
+// Entry gearing for a fresh level 80. Neither health nor damage assumes paragon or accumulated essences.
+// Gear and difficulty reach their ceiling together at floor 100; deeper floors retain bonus rewards.
+constexpr uint32 GearingBaseItemLevel = 200;
+constexpr uint32 GearingCapFloor = 100;
+constexpr float GearingEntryHealthFactor = 0.65f;
+constexpr float GearingEntryReferenceHealth = 12000.0f;
+
+inline float GetGearingProgress(uint32 floor)
+{
+    return static_cast<float>(std::clamp<uint32>(floor, 1, GearingCapFloor) - 1) /
+        static_cast<float>(GearingCapFloor - 1);
+}
 
 inline uint32 GetStep(uint32 floor)
 {
@@ -85,10 +89,16 @@ inline uint32 GetCheckpointReached(uint32 floor, uint32 floorsDown)
     return 0;
 }
 
-inline uint32 GetRecommendedParagon(Ladder ladder, uint32 floor)
+inline uint32 GetRecommendedParagon(Ladder /*ladder*/, uint32 /*floor*/)
 {
-    uint32 const step = GetStep(floor);
-    return ladder == Ladder::Gearing && step > GearingGearSteps ? ParagonPerStep * (step - GearingGearSteps) : 0;
+    return 0;
+}
+
+inline uint32 GetItemLevel(uint32 floor)
+{
+    uint32 const progress = std::clamp<uint32>(floor, 1, GearingCapFloor) - 1;
+    return GearingBaseItemLevel + (Mythic::MaxInfiniteItemLevel - GearingBaseItemLevel) * progress /
+        (GearingCapFloor - 1);
 }
 
 inline float GetFloorScaling(Ladder ladder, uint32 floor)
@@ -96,56 +106,23 @@ inline float GetFloorScaling(Ladder ladder, uint32 floor)
     if (ladder == Ladder::Levelling)
         return 1.0f + LevellingFloorGrowth * static_cast<float>(std::min(floor > 0 ? floor - 1 : 0, LevellingFloorCap));
 
-    uint32 const step = GetStep(floor);
-    float const gear = std::pow(GearingStepGrowth, static_cast<float>(std::min(step, GearingGearSteps)));
-    float const paragon = std::pow(Mythic::ParagonPointPower,
-        static_cast<float>(GetRecommendedParagon(ladder, floor)));
-    float const loot = std::pow(Mythic::KeyGearGrowth,
-        static_cast<float>(step > GearingGearSteps ? step - GearingGearSteps : 0));
-    return gear * paragon * loot;
+    // Generated gear's offensive stats grow quadratically with item level. Start below the levelling health budget.
+    float const gearRatio = 1.0f + GetGearingProgress(floor) *
+        static_cast<float>(Mythic::MaxInfiniteItemLevel - GearingBaseItemLevel) / GearingBaseItemLevel;
+    return GearingEntryHealthFactor * gearRatio * gearRatio;
 }
 
-// The gearing ladder's loot follows the Mythic+ key of the same difficulty, ItemLevelKeysBelow keys under it: a step
-// of the gear part (the first GearingGearSteps) stands for a key level (+0 to +10), and past it a step asks
-// ParagonPerStep paragon where a key asks Mythic::ParagonPerLevel, so it stands for that share of a key. At any
-// recommended paragon the Infinite Dungeon drops 8 item levels under the key that recommends it: Mythic+ stays the
-// better gear for the harder content. Above the game's best items it is a generated variant (MythicDungeon.h).
-constexpr uint32 ItemLevelKeysBelow = 2;
-
-inline uint32 GetItemLevel(uint32 floor)
-{
-    uint32 const step = GetStep(floor);
-    uint32 const gearSteps = std::min(step, GearingGearSteps);
-    uint32 const paragonSteps = step - gearSteps;
-    uint32 const itemLevel = Mythic::BaseItemLevel + Mythic::ItemLevelPerKeyLevel * gearSteps +
-        Mythic::ItemLevelPerKeyLevel * ParagonPerStep * paragonSteps / Mythic::ParagonPerLevel;
-    return itemLevel - Mythic::ItemLevelPerKeyLevel * ItemLevelKeysBelow;
-}
-
-// The gearing ladder's hits are measured on the Mythic+ yardstick, the health a player ready for the key of the same
-// difficulty has (Mythic::GetDamageReference: a model of a real character's health at that key's gear and paragon,
-// 66 000 at +10), ItemLevelKeysBelow keys under it as its loot. A step of the gear part stands for a key level, one
-// past it for ParagonPerStep / ParagonPerLevel of one. The ordinary level-80 player the levelling ladder measures on
-// (GetReferenceHealthFactor) has about a quarter of what a character deep in the ladder carries, and its hits grazed
-// them. It used to grow with the creatures' health (Mythic::GetLevelScaling), which outruns any player's health:
-// deep floors one-shot.
-// A floor creature's melee swing at the level cap, as a share of that health (a tank taking it; lighter untanked)
+// A fresh level-80 damage dealer has roughly 12k health. Scale only the gear contribution, without Mythic+'s
+// personal affixes, essences, paragon or pressure. Role multipliers and healing hearts still apply.
 constexpr float TrashMeleeShare = 0.025f;
 constexpr float EliteMeleeShare = 0.05f;
 constexpr float BossMeleeShare = 0.08f;
 
-inline float GetKeyEquivalent(uint32 floor)
-{
-    uint32 const step = GetStep(floor);
-    float const key = static_cast<float>(std::min(step, GearingGearSteps)) +
-        static_cast<float>(step > GearingGearSteps ? step - GearingGearSteps : 0) * ParagonPerStep /
-        static_cast<float>(Mythic::ParagonPerLevel);
-    return std::max(0.0f, key - static_cast<float>(ItemLevelKeysBelow));
-}
-
 inline float GetGearingReferenceHealth(uint32 floor)
 {
-    return Mythic::GetDamageReference(GetKeyEquivalent(floor));
+    float const gearRatio = 1.0f + GetGearingProgress(floor) *
+        static_cast<float>(Mythic::MaxInfiniteItemLevel - GearingBaseItemLevel) / GearingBaseItemLevel;
+    return GearingEntryReferenceHealth * gearRatio * gearRatio;
 }
 
 // Roles: the monsters' health follows the damage the run can deal (a damage dealer in full, a tank for about 60%, a

@@ -80,11 +80,17 @@ public:
                 bases.push_back(&itemTemplate);
 
         for (ItemTemplate const* base : bases)
+        {
             for (uint32 variant = 0; variant < Mythic::GeneratedItemVariants; ++variant)
                 sObjectMgr->AddGeneratedItemTemplate(MakeVariant(*base, variant), base->ItemId);
+            for (uint32 variant = Mythic::FirstCapVariant;
+                variant < Mythic::FirstCapVariant + Mythic::CapVariants; ++variant)
+                sObjectMgr->AddGeneratedItemTemplate(MakeVariant(*base, variant), base->ItemId);
+        }
 
         LOG_INFO("server.loading", ">> Generated {} Mythic+ items ({} bases, item level {} to {}) in {} ms",
-            bases.size() * Mythic::GeneratedItemVariants, bases.size(), Mythic::GetGeneratedItemLevel(0),
+            bases.size() * (Mythic::GeneratedItemVariants + Mythic::CapVariants), bases.size(),
+            Mythic::GetGeneratedItemLevel(0),
             Mythic::GetGeneratedItemLevel(Mythic::GeneratedItemVariants - 1), GetMSTimeDiffToNow(startTime));
     }
 };

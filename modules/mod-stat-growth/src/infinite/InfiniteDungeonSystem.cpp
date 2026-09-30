@@ -732,8 +732,7 @@ void ComputeFactors(Run& run)
     run.healthFactor = std::max(weight, HealerWeight) * floorScaling;
     run.damageFactor = damage * floorScaling;
     run.referenceHealth = ReferenceHealthAt(run.level);
-    // The gearing ladder hits on the Mythic+ yardstick (GetGearingReferenceHealth), which carries the floor's growth
-    // itself: the roles' share of it, the melee from it too (ApplyScaling)
+    // The gearing ladder uses a fresh level-80 baseline, with gear growth already included in its reference.
     if (run.ladder == Ladder::Gearing)
     {
         run.damageFactor = damage;
@@ -1480,8 +1479,8 @@ void RewardFloor(Run const& run, Player* player, Member& member)
     uint32 const experience = member.floorExperience;
     member.floorExperience = 0;
 
-    uint32 const gold = FloorGoldPerLevelSquared * level * level *
-        (run.variant == FloorVariant::Treasure ? TreasureGoldFactor : 1);
+    uint32 const gold = player->CalculateMoneyReward(FloorGoldPerLevelSquared * level * level *
+        (run.variant == FloorVariant::Treasure ? TreasureGoldFactor : 1));
     player->ModifyMoney(static_cast<int32>(gold));
     ChatHandler(player->GetSession()).PSendSysMessage(
         IsFrench(player) ? "|cffffd24dÉtage {} franchi :|r {}." : "|cffffd24dFloor {} cleared:|r {}.", run.floor,

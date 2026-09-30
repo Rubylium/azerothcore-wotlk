@@ -3,6 +3,7 @@
 #include "Chat.h"
 #include "DatabaseEnv.h"
 #include "Creature.h"
+#include "EssenceTuning.h"
 #include "FortuneBoostSystem.h"
 #include "GameObject.h"
 #include "GameTime.h"
@@ -205,20 +206,28 @@ float GetQualityMultiplier(uint32 quality)
 
 float GetFortuneBonusChance(uint32 fortuneBonus)
 {
-    return static_cast<float>(fortuneBonus) *
-        statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusChancePerPoint);
+    return EssenceTuning::AffixChanceBonus(fortuneBonus,
+        statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusChancePerPoint));
 }
 
 float GetFortuneValueMultiplier(uint32 fortuneBonus)
 {
-    float const increase = std::min(static_cast<float>(fortuneBonus) *
-            statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusValuePerPoint),
+    float const increase = EssenceTuning::AffixValueBonus(fortuneBonus,
+        statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusValuePerPoint),
         statGrowthConfig.GetConfigValue<float>(StatGrowthConfigKey::FortuneMaxGearBonusValueIncrease));
     return 1.0f + increase / 100.0f;
 }
 
 uint32 RollAffixValue(ItemTemplate const* itemTemplate, PersonalLootAffix affix, float fortuneMultiplier)
 {
+    // Fortune cannot amplify its own rolls. Its economy budget is independent of other percentage affixes.
+    if (affix == PersonalLootAffix::Fortune)
+    {
+        float const value = itemTemplate->ItemLevel * EssenceTuning::FortuneItemScale *
+            GetQualityMultiplier(itemTemplate->Quality) * frand(0.85f, 1.15f);
+        return std::clamp<uint32>(std::lround(value), 1, EssenceTuning::MaxItemFortune);
+    }
+
     StatGrowthConfigKey scaleKey = StatGrowthConfigKey::PersonalLootAffixScale;
     if (affix == PersonalLootAffix::Leech)
         scaleKey = StatGrowthConfigKey::PersonalLootLeechScale;
@@ -243,7 +252,9 @@ std::string BuildAffixText(PersonalLootRoll const& roll)
             text += ';';
         text += GetAffixName(affix.type);
         text += '=';
-        text += std::to_string(affix.value);
+        uint32 const value = affix.type == PersonalLootAffix::Fortune ?
+            EssenceTuning::ItemFortune(affix.value) : affix.value;
+        text += std::to_string(value);
         text += IsPercentageAffix(affix.type) ? '%' : '+';
     }
     return text;
@@ -264,7 +275,8 @@ bool IsEligibleEquipment(Item const* item)
 
 void ApplyAffix(Player* player, PersonalLootAffixRoll const& affix, bool apply)
 {
-    uint32 const amount = affix.value;
+    uint32 const amount = affix.type == PersonalLootAffix::Fortune ?
+        EssenceTuning::ItemFortune(affix.value) : affix.value;
     switch (affix.type)
     {
         case PersonalLootAffix::Strength:
@@ -757,9 +769,10 @@ uint32 GetEquippedPersonalLootBonus(Player const* player, PersonalLootAffix affi
         return 0;
 
     auto const playerBonuses = equippedCustomBonuses.find(player->GetGUID().GetCounter());
-    return playerBonuses == equippedCustomBonuses.end()
+    uint32 const bonus = playerBonuses == equippedCustomBonuses.end()
         ? 0
         : playerBonuses->second[GetCustomBonusIndex(affix)];
+    return affix == PersonalLootAffix::Fortune ? std::min(bonus, EssenceTuning::MaxGearFortune) : bonus;
 }
 
 // Leech heals the player for a percentage of the effective damage they deal

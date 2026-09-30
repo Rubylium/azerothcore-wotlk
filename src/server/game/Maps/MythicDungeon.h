@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 
 // Mythic dungeons: a dungeon played at level 80, a step above a WotLK heroic, with its own loot. The level of a
 // run (0 for Mythique 0, the key level for Mythic+) lives on the group (Group::GetMythicLevel) and is handed to the
@@ -25,55 +26,59 @@ constexpr float DamageMultiplier = 1.4f;
 // Item level of the loot a Mythique 0 boss gives, a clear tier above WotLK heroics (200): a mythic pull hits
 // for 1.4x a heroic's and has 1.6x its health before the key even counts, and 213 did not pay for that
 constexpr uint32 BaseItemLevel = 223;
-// Mythic+ loot rises with the key, without end
+// Reward progression is independent of the generated templates' four-level spacing.
+constexpr uint32 MaxLootItemLevel = 370;
+constexpr uint32 MaxRaidItemLevel = 460;
+constexpr uint32 MaxInfiniteItemLevel = 310;
+constexpr int32 MaxLootKeyLevel = 60;
+constexpr uint32 MaxKeyLevel = 99;
 constexpr uint32 ItemLevelPerKeyLevel = 4;
 
-// The best items of the game. Above them Mythic+ loot is generated at startup (mod-stat-growth
-// MythicItemGeneration.cpp) from those items: variant v is item level MaxItemLevel + 1 + ItemLevelPerKeyLevel * v,
-// which a key of +16 and up asks for. The variant is read from the item level wanted, never from the key, so the
-// baseline above can move without touching this. Its entry names its base item, which is how the client extension
-// (awesome_wotlk GeneratedItems.cpp) draws it with that item's look: entry = GeneratedItemBase * (v + 1) + base
-// entry. Real entries stay below GeneratedItemBase. Both sides must agree on these numbers.
+// Stock items stop at 284. Higher rewards use generated copies of those templates (MythicItemGeneration.cpp).
+// Existing entry blocks and the client extension's decoding stay stable: base + block * GeneratedItemBase.
+// Legacy variants and Forge blocks never change: existing items retain their levels and stats.
+// Three new blocks after the Forge provide exact progression caps without rewriting existing templates.
 constexpr uint32 MaxItemLevel = 284;
 constexpr uint32 GeneratedItemBase = 0x10000;
 constexpr uint32 GeneratedItemVariants = 128;
+constexpr uint32 ForgeRanks = 8;
+constexpr uint32 FirstCapVariant = GeneratedItemVariants + ForgeRanks;
+constexpr uint32 CapVariants = 3;
 
-// Mythic+ (key level 2 and up) on top of Mythique 0. Up to +10 a key is a matter of gear: health and damage grow 8%
-// a level, compounded. Past +10 it is a matter of paragon: every level asks for ParagonPerLevel more points spent on
-// the board (+20 asks for 50, +30 for 100), and the creatures grow by what those points are worth to a character -
-// about 1.5% of its power each, compounded (ParagonPointPower) - and by the key's better loot (KeyGearGrowth a level:
-// 4 item levels, about 2% of a character's power). At 1% and 1% a +30 at 160 points was overrun: the board and the
-// gear are worth more than that, so the high keys grow faster (+20 x1.4, +30 x2 on the old numbers).
-// That is the creatures' health; their damage follows a player's health instead (GetDamageScaling below).
-// So a character at the recommended paragon meets every key the way it met +10 - the key never looks at a
-// character's own paragon, so every point gained still makes the same key easier - and the player reads the ladder as
-// "this key wants that much paragon". The client shows the same numbers (MythicPlus.lua, ChallengeBoard.lua).
-// Keys have no ceiling; the creature code clamps health to 32 bits.
+// Up to +10 difficulty grows with gear. Beyond that it also asks for five more paragon points per key.
+// Loot's contribution follows the slower reward curve and stops at +60; paragon and pressure keep growing to +99.
+// Creature health follows damage output; creature damage follows the expected player health below.
+// A player's own paragon never changes the difficulty. Client paragon recommendations use these same constants.
 constexpr int32 GearLevels = 10;
 constexpr float CompoundedGrowth = 1.08f;
 constexpr uint32 ParagonPerLevel = 5;
 constexpr float ParagonPointPower = 1.015f;
-constexpr float KeyGearGrowth = 1.02f;
+// Approximately 2% power per four item levels, scaled to 147 item levels over 60 keys.
+constexpr float KeyGearGrowth = 1.0122f;
 
 inline uint32 GetRecommendedParagon(int32 level)
 {
+    level = std::min(level, static_cast<int32>(MaxKeyLevel));
     return level > GearLevels ? ParagonPerLevel * static_cast<uint32>(level - GearLevels) : 0;
 }
 
 inline float GetLevelScaling(int32 level)
 {
+    level = std::min(level, static_cast<int32>(MaxKeyLevel));
     if (level <= 0)
         return 1.0f;
 
     float const gear = std::pow(CompoundedGrowth, static_cast<float>(std::min(level, GearLevels)));
     float const paragon = std::pow(ParagonPointPower, static_cast<float>(GetRecommendedParagon(level)));
-    float const loot = std::pow(KeyGearGrowth, static_cast<float>(std::max(level - GearLevels, 0)));
+    float const loot = std::pow(KeyGearGrowth,
+        static_cast<float>(std::max(std::min(level, MaxLootKeyLevel) - GearLevels, 0)));
     return gear * paragon * loot;
 }
 
 inline uint32 GetItemLevel(int32 level)
 {
-    return BaseItemLevel + ItemLevelPerKeyLevel * static_cast<uint32>(std::max(level, 0));
+    return BaseItemLevel + (MaxLootItemLevel - BaseItemLevel) *
+        static_cast<uint32>(std::clamp(level, 0, MaxLootKeyLevel)) / MaxLootKeyLevel;
 }
 
 // GetLevelScaling is the creatures' HEALTH: a character's damage multiplies (gear, paragon, essences all compound),
@@ -91,8 +96,8 @@ inline uint32 GetItemLevel(int32 level)
 //  - essences gathered along the way: permanent stamina and Vitality points (40 health each at 80), per key reached
 //  - the board's maximum health nodes, a damage dealer's path taking a few
 //  - group buffs and talents, about a tenth
-// The model at Mythique 0 matches the yardstick the dungeons were first tuned on (41 700), so Mythique 0 does not
-// change. Past +10 a key hits harder each level on top (DamagePressurePerKey, up to MaxDamagePressure): the players'
+// The model at Mythique 0 is close to the original 41 700 health yardstick. Past +10 a key hits harder each level
+// on top (DamagePressurePerKey, up to MaxDamagePressure): the players'
 // own paragon and essences outgrow the model, and a higher key should still ask for more. Tested at +37: at 1% a
 // level (up to +15%) a geared rogue took 20% standing in the fire and the tank next to nothing.
 constexpr float GearKeysBehind = 1.0f;
@@ -112,17 +117,18 @@ constexpr float MaxDamagePressure = 1.6f;
 // Mythic+ resolve took most of it
 constexpr float MeleePressure = 1.5f;
 
-// Item level of the gear a player brings to a key (fractional keys for the Infinite Dungeon's equivalents)
+// Item level of the gear a player brings to a key, one key behind its reward and capped at the loot ceiling.
 inline float GetExpectedItemLevel(float key)
 {
-    return static_cast<float>(BaseItemLevel) + static_cast<float>(ItemLevelPerKeyLevel) *
-        (std::max(key, 0.0f) - GearKeysBehind);
+    float const rewardKey = std::clamp(key - GearKeysBehind, 0.0f, static_cast<float>(MaxLootKeyLevel));
+    return static_cast<float>(BaseItemLevel) + static_cast<float>(MaxLootItemLevel - BaseItemLevel) *
+        rewardKey / static_cast<float>(MaxLootKeyLevel);
 }
 
 // Maximum health of a damage dealer ready for that key
 inline float GetExpectedPlayerHealth(float key)
 {
-    key = std::max(key, 0.0f);
+    key = std::clamp(key, 0.0f, static_cast<float>(MaxKeyLevel));
     float const itemLevel = GetExpectedItemLevel(key);
     float const stamina = PlayerBaseStamina + GearStaminaPerSquaredItemLevel * itemLevel * itemLevel +
         AffixStaminaPerItemLevel * itemLevel + EssenceStaminaPerKey * key;
@@ -164,28 +170,41 @@ inline uint32 GetGeneratedItemEntry(uint32 baseEntry, uint32 variant)
 
 inline uint32 GetGeneratedItemLevel(uint32 variant)
 {
-    return MaxItemLevel + 1 + ItemLevelPerKeyLevel * variant;
+    switch (variant)
+    {
+        case FirstCapVariant: return MaxInfiniteItemLevel;
+        case FirstCapVariant + 1: return MaxLootItemLevel;
+        case FirstCapVariant + 2: return MaxRaidItemLevel;
+        default: return MaxItemLevel + 1 + ItemLevelPerKeyLevel * variant;
+    }
 }
 
-// The variant of an item level above MaxItemLevel; the highest one past the last variant
+// Best generated reward at or below the requested level, capped for new drops; legacy templates remain intact.
 inline uint32 GetGeneratedVariant(uint32 itemLevel)
 {
+    itemLevel = std::min(itemLevel, MaxRaidItemLevel);
     uint32 const above = itemLevel > MaxItemLevel ? itemLevel - MaxItemLevel - 1 : 0;
-    return std::min(above / ItemLevelPerKeyLevel, GeneratedItemVariants - 1);
+    uint32 variant = std::min(above / ItemLevelPerKeyLevel, GeneratedItemVariants - 1);
+    for (uint32 capVariant = FirstCapVariant; capVariant < FirstCapVariant + CapVariants; ++capVariant)
+        if (GetGeneratedItemLevel(capVariant) <= itemLevel &&
+            GetGeneratedItemLevel(capVariant) > GetGeneratedItemLevel(variant))
+            variant = capVariant;
+    return variant;
 }
 
 // A Mythic+ variant (not an item of the Forge below)
 inline bool IsMythicGeneratedItem(uint32 entry)
 {
-    return entry >= GeneratedItemBase && entry / GeneratedItemBase <= GeneratedItemVariants;
+    uint32 const block = entry / GeneratedItemBase;
+    return block > 0 && (block <= GeneratedItemVariants ||
+        (block > FirstCapVariant && block <= FirstCapVariant + CapVariants));
 }
 
-// The Forge (mod-forge): a high-end item brought to the blacksmith comes back ForgeItemLevelPerRank item levels
+// The Forge (mod-forge): a high-end item brought to the blacksmith comes back up to ForgeItemLevelPerRank item levels
 // higher, up to ForgeRanks times. Each rank of a real item is generated at startup too, right after the Mythic+
-// variants: entry = GeneratedItemBase * (GeneratedItemVariants + rank) + base entry. A Mythic+ variant needs no
-// entries of its own: forged, it becomes the next variant, as many item levels higher. The client extension draws
-// GeneratedItemBase * (GeneratedItemVariants + ForgeRanks + 1) - 1 entries; it must agree.
-constexpr uint32 ForgeRanks = 8;
+// variants: entry = GeneratedItemBase * (GeneratedItemVariants + rank) + base entry. Generated loot instead selects
+// its next template by item level, respecting the source's ceiling. The client extension draws
+// GeneratedItemBase * (GeneratedItemVariants + ForgeRanks + CapVariants + 1) - 1 entries; it must agree.
 constexpr uint32 ForgeItemLevelPerRank = ItemLevelPerKeyLevel;
 
 inline uint32 GetForgeItemEntry(uint32 baseEntry, uint32 rank)

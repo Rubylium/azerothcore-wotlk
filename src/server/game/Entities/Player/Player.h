@@ -1633,6 +1633,8 @@ public:
 
     [[nodiscard]] uint32 GetMoney() const { return GetUInt32Value(PLAYER_FIELD_COINAGE); }
     bool ModifyMoney(int32 amount, bool sendError = true);
+    // Apply earned-gold bonuses once, before ModifyMoney. Never use for transfers, vendor sales or refunds.
+    uint32 CalculateMoneyReward(uint32 amount);
     [[nodiscard]] bool HasEnoughMoney(uint32 amount) const { return (GetMoney() >= amount); }
     [[nodiscard]] bool HasEnoughMoney(int32 amount) const
     {

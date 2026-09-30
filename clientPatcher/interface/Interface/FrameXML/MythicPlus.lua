@@ -58,13 +58,14 @@ local TEXT = french and {
     overTimeTitle = "Mythique +%d terminé hors délai",
     upgrade = "Clé améliorée de %d |4niveau:niveaux; : +%d",
     depleted = "Clé épuisée : +%d",
+    capped = "Clé au maximum : +%d",
     record = "Nouveau record !",
     time = "Temps : %s / %s",
     scoreLine = "Score Mythique+ : %s",
     abandoned = "La clé a été abandonnée.",
     waitingPlayers = "En attente des joueurs...",
     tabTip = "Votre clé fixe le niveau du donjon. Terminez-le dans le temps imparti pour l'améliorer ; "
-        .. "le butin et les essences tombent sur le dernier boss.",
+        .. "clés limitées à +99, butin limité au niveau 370 dès +60. Au-delà : récompenses bonus.",
 } or {
     title = "Mythic+",
     key = "Mythic Keystone",
@@ -101,13 +102,14 @@ local TEXT = french and {
     overTimeTitle = "Mythic +%d completed over time",
     upgrade = "Keystone upgraded by %d |4level:levels;: +%d",
     depleted = "Keystone depleted: +%d",
+    capped = "Keystone at maximum: +%d",
     record = "New record!",
     time = "Time: %s / %s",
     scoreLine = "Mythic+ Rating: %s",
     abandoned = "The keystone was abandoned.",
     waitingPlayers = "Waiting for the players...",
     tabTip = "Your keystone sets the dungeon's level. Complete it in time to upgrade it; loot and essences drop "
-        .. "from the last boss.",
+        .. "from the last boss. Keys cap at +99; gear caps at item level 370 at +60. Higher keys give bonus rewards.",
 }
 
 local key, score = 2, 0
@@ -999,7 +1001,9 @@ local function ShowResult(timed, level, dungeon, elapsed, limit, upgrade, newKey
     if timed and upgrade > 0 then
         local kr, kg, kb = LevelColor(newKey)
         tinsert(lines, (format(TEXT.upgrade, upgrade, newKey):gsub("%+%d+$", Colored("+" .. newKey, kr, kg, kb))))
-    elseif not timed then
+    elseif timed then
+        tinsert(lines, Colored(format(TEXT.capped, newKey), 1, 0.82, 0))
+    else
         tinsert(lines, Colored(format(TEXT.depleted, newKey), 1, 0.3, 0.3))
     end
     if record then

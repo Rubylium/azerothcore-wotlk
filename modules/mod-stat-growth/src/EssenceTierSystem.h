@@ -30,6 +30,8 @@ std::string_view GetEssenceTierName(EssenceTier tier);
 uint32 GetTieredEssenceBonus(uint32 baseAmount, uint32 itemEntry);
 bool IsEssenceItem(uint32 itemEntry);
 bool TryGetEssenceFamily(uint32 itemEntry, EssenceFamily& family);
+// Resolve at consumption, after the recipient is known. Capped families become an uncapped family of the same tier.
+uint32 ResolveEssenceEntry(Player* player, uint32 itemEntry);
 // A random essence of any family; its tier is the best of that many tier rolls
 uint32 RollEssenceEntry(uint32 tierRolls);
 // How many essences a Mythic+ clear of that key level pays

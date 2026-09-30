@@ -4,6 +4,7 @@
 #include "CharacterDatabase.h"
 #include "Creature.h"
 #include "EssenceTierSystem.h"
+#include "EssenceTuning.h"
 #include "Player.h"
 #include "PlayerSettings.h"
 #include "PersonalLootSystem.h"
@@ -31,16 +32,16 @@ uint32 GetStoredResourceBonus(Player* player)
 
 uint32 GetOwnResourceBonus(Player* player)
 {
-    uint64 const bonus = static_cast<uint64>(GetStoredResourceBonus(player)) +
-        GetEquippedPersonalLootBonus(player, PersonalLootAffix::ResourceRegeneration);
-    return static_cast<uint32>(std::min<uint64>(bonus, std::numeric_limits<uint32>::max()));
+    return EssenceTuning::CombinedBonus(GetStoredResourceBonus(player),
+        GetEquippedPersonalLootBonus(player, PersonalLootAffix::ResourceRegeneration), 0,
+        EssenceTuning::MaxResourceBonus);
 }
 
 // A bot adds the average essences of its group's real players on its map (BotEssenceSystem.cpp)
-uint32 GetResourceBonus(Player* player)
+uint32 GetEffectiveResourceBonus(Player* player)
 {
-    uint64 const bonus = static_cast<uint64>(GetOwnResourceBonus(player)) + GetBotEssenceResource(player);
-    return static_cast<uint32>(std::min<uint64>(bonus, std::numeric_limits<uint32>::max()));
+    return EssenceTuning::CombinedBonus(GetOwnResourceBonus(player), 0, GetBotEssenceResource(player),
+        EssenceTuning::MaxResourceBonus);
 }
 
 bool IsActivePrimaryResource(Player const* player, Powers power)
@@ -51,7 +52,12 @@ bool IsActivePrimaryResource(Player const* player, Powers power)
 
 uint32 GetStoredResourcePoints(Player* player)
 {
-    return GetStoredResourceBonus(player);
+    return std::min(GetStoredResourceBonus(player), EssenceTuning::MaxResourceBonus);
+}
+
+uint32 GetResourceBonus(Player* player)
+{
+    return player ? GetEffectiveResourceBonus(player) : 0;
 }
 
 void ApplyResourceRegenerationBoost(Player* player, Powers power, float& amount)
@@ -78,7 +84,8 @@ void ApplyResourceGenerationBoost(Player* player, Powers power, int32& amount)
 bool GrantResourceBoost(Player* player, uint32 amount, uint32& totalBonus)
 {
     uint32 const currentBonus = GetStoredResourceBonus(player);
-    if (amount > std::numeric_limits<uint32>::max() - currentBonus)
+    amount = EssenceTuning::GrantAmount(GetResourceBonus(player), amount, EssenceTuning::MaxResourceBonus);
+    if (!amount)
         return false;
 
     totalBonus = currentBonus + amount;

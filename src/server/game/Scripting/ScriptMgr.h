@@ -332,6 +332,7 @@ public: /* PlayerScript */
     bool OnPlayerCanLearnTalent(Player* player, TalentEntry const* talent, uint32 rank);
     void OnPlayerAfterSpecSlotChanged(Player* player, uint8 newSlot);
     void OnPlayerMoneyChanged(Player* player, int32& amount);
+    void OnPlayerMoneyReward(Player* player, uint32& amount);
     void OnPlayerBeforeLootMoney(Player* player, Loot* loot);
     void OnPlayerBeforeSendLoot(Player* player, ObjectGuid lootGuid, Loot* loot);
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit* victim, uint8 xpSource);

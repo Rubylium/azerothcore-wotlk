@@ -485,6 +485,9 @@ local function RefreshList()
         local name, quality, icon = ItemInfo(item.entry)
         row.key = key
         row.icon:SetTexture(icon)
+        if EvolutionsItemFrames then
+            EvolutionsItemFrames.bindServerSlot(row, item.bag, item.slot, row.icon)
+        end
         row.name:SetText(name or "…")
         row.name:SetTextColor(QualityColor(quality))
         row.detail:SetText(format("%s %d · %s", TEXT.itemLevel, item.itemLevel,
@@ -523,6 +526,9 @@ function RefreshAnvil(animate)
 
     local name, quality, icon = ItemInfo(item.entry)
     anvil.icon:SetTexture(icon)
+    if EvolutionsItemFrames then
+        EvolutionsItemFrames.bindServerSlot(anvil.icon:GetParent(), item.bag, item.slot, anvil.icon)
+    end
     anvil.name:SetText(name or "…")
     anvil.name:SetTextColor(QualityColor(quality))
     SetTrack(anvil.track, item.rank, state.maxRank)

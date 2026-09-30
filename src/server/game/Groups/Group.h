@@ -20,6 +20,7 @@
 
 #include "DBCEnums.h"
 #include "DataMap.h"
+#include "MythicDungeon.h"
 #include "GroupRefMgr.h"
 #include "LootMgr.h"
 #include "QueryResult.h"
@@ -338,7 +339,7 @@ public:
     bool IsRaidFinder() const { return _raidFinder; }
 
     // Mythic dungeons (see MythicDungeon.h): the mythic level the group plays at, handed to the instance it creates
-    void SetMythicLevel(int32 level) { _mythicLevel = level; }
+    void SetMythicLevel(int32 level) { _mythicLevel = std::clamp(level, -1, int32(Mythic::MaxKeyLevel)); }
     int32 GetMythicLevel() const { return _mythicLevel; }
 
     // Difficulty Change

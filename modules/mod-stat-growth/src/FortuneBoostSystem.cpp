@@ -3,6 +3,7 @@
 #include "CharacterDatabase.h"
 #include "Creature.h"
 #include "EssenceTierSystem.h"
+#include "EssenceTuning.h"
 #include "LootMgr.h"
 #include "Player.h"
 #include "PlayerSettings.h"
@@ -11,7 +12,6 @@
 #include "SharedDefines.h"
 #include "StatGrowthConfig.h"
 #include <algorithm>
-#include <limits>
 
 namespace
 {
@@ -36,25 +36,26 @@ uint32 GetFortuneBonus(Player* player)
     if (!player || !statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled))
         return 0;
 
-    uint64 const bonus = static_cast<uint64>(GetStoredFortuneBonus(player)) +
-        GetEquippedPersonalLootBonus(player, PersonalLootAffix::Fortune);
-    return static_cast<uint32>(std::min<uint64>(bonus, std::numeric_limits<uint32>::max()));
+    return EssenceTuning::CombinedBonus(GetStoredFortuneBonus(player),
+        GetEquippedPersonalLootBonus(player, PersonalLootAffix::Fortune), 0, EssenceTuning::MaxFortuneBonus);
 }
 
-void ApplyFortuneGoldBoost(Player* player, int32& amount)
+void ApplyFortuneGoldBoost(Player* player, uint32& amount)
 {
-    if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) || !player || amount <= 0)
+    if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) || !player || !amount)
         return;
 
     uint32 const bonusPercent = GetFortuneBonus(player);
-    int64 const boostedAmount = static_cast<int64>(amount) + static_cast<int64>(amount) * bonusPercent / 100;
-    amount = static_cast<int32>(std::min<int64>(boostedAmount, std::numeric_limits<int32>::max()));
+    uint64 const boostedAmount = static_cast<uint64>(amount) + static_cast<uint64>(amount) * bonusPercent / 100;
+    amount = static_cast<uint32>(std::min<uint64>(boostedAmount, MAX_MONEY_AMOUNT));
 }
 
 bool GrantFortuneBoost(Player* player, uint32 amount, uint32& totalBonus)
 {
     uint32 const currentBonus = GetStoredFortuneBonus(player);
-    if (amount > std::numeric_limits<uint32>::max() - currentBonus)
+    amount = EssenceTuning::GrantAmount(std::max(currentBonus, GetFortuneBonus(player)), amount,
+        EssenceTuning::MaxFortuneBonus);
+    if (!amount)
         return false;
 
     totalBonus = currentBonus + amount;

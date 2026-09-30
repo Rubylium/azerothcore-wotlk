@@ -1380,7 +1380,12 @@ local function CreateGodPage()
         gold:SetText(Money(goldAmount))
         paragon:SetText(paragonAmount > 0 and format(TEXT.paragon, paragonAmount) or "")
         essences:SetText(essenceAmount > 0 and format(TEXT.essences, essenceAmount) or "")
-        gear:SetText(format(TEXT.godGear, (mission.itemLevel or 0) + GOD_ITEM_LEVEL_PER_TIER * (shownTier - TIER_MIN)))
+        local rewardLevel = min(460, (mission.itemLevel or 0) + GOD_ITEM_LEVEL_PER_TIER * (shownTier - TIER_MIN))
+        -- Generated templates have four-level spacing, with exact endpoints at 370 and 460.
+        if rewardLevel > 370 and rewardLevel < 460 then
+            rewardLevel = 285 + 4 * floor((rewardLevel - 285) / 4)
+        end
+        gear:SetText(format(TEXT.godGear, rewardLevel))
 
         local done = mission.state == STATE_CLAIMED
         scene.figure:SetDesaturated(done)

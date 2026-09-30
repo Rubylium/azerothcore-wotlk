@@ -127,6 +127,11 @@ void ScriptMgr::OnPlayerMoneyChanged(Player* player, int32& amount)
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_MONEY_CHANGED, script->OnPlayerMoneyChanged(player, amount));
 }
 
+void ScriptMgr::OnPlayerMoneyReward(Player* player, uint32& amount)
+{
+    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_MONEY_REWARD, script->OnPlayerMoneyReward(player, amount));
+}
+
 void ScriptMgr::OnPlayerBeforeLootMoney(Player* player, Loot* loot)
 {
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_BEFORE_LOOT_MONEY, script->OnPlayerBeforeLootMoney(player, loot));

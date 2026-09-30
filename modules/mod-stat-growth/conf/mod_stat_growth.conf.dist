@@ -21,7 +21,8 @@ GearBonus.RareChance = 45.0
 GearBonus.EpicChance = 70.0
 GearBonus.LegendaryChance = 100.0
 
-# Bonus scaling per item level. PercentScale is used by XP, resource, vitality and fortune.
+# Bonus scaling per item level. PercentScale is used by XP, resource and vitality.
+# Fortune uses its own budget: 1-2% per item, at most 20% from all equipped gear.
 GearBonus.AttributeScale = 0.10
 GearBonus.PercentScale = 0.015
 
@@ -64,7 +65,8 @@ StatGrowth.ExperienceItemEntry = 39163
 # Independent chance for an eligible corpse to contain an Essence of Resource.
 StatGrowth.ResourceDropChance = 10.0
 
-# Permanent, stacking primary-resource regeneration percentage granted per essence.
+# Permanent primary-resource regeneration percentage per essence. Effective bonus (essences, gear, bots) caps at 500%.
+# Capped Resource essences grant another uncapped essence family of the same tier when consumed.
 StatGrowth.ResourceBonusPerUse = 1
 
 # Uses a native client Item.dbc entry so the inventory icon works without a client patch.
@@ -119,11 +121,17 @@ StatGrowth.MythicEssenceBonusPerKeyLevel = 10.0
 # (trade, mail, older stacks) are still used by right-clicking them.
 
 # Extra gear bonus roll chance, per Fortune percent, added to the GearBonus quality chance.
-Fortune.GearBonusChancePerPoint = 0.5
+Fortune.GearBonusChancePerPoint = 0.1
 
 # Extra gear bonus value percent per Fortune percent, capped by MaxGearBonusValueIncrease.
-Fortune.GearBonusValuePerPoint = 0.5
-Fortune.MaxGearBonusValueIncrease = 100.0
+Fortune.GearBonusValuePerPoint = 0.1
+Fortune.MaxGearBonusValueIncrease = 10.0
+
+# Hard economy limits apply even with larger configuration values:
+# Fortune from essences and equipment caps at 100% (earned gold at most x2).
+# Fortune adds at most 10 percentage points of affix chance and 10% affix strength; it cannot boost its own rolls.
+# Trades, mail, auctions, vendor sales and refunds receive no Fortune multiplier.
+# Capped Fortune essences become an uncapped essence family of the same tier; stored points/items are not migrated.
 
 ###############################################################################
 # PARAGON BOARD

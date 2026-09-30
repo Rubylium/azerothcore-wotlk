@@ -53,7 +53,7 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // Loads after the CompactRaidFrame addon has run: it wraps that addon's UnitGetTotalAbsorbs
     'PestifereShield.lua',
     // Tags Mythic+ loot in its tooltip; needs GameTooltip, so it loads at the end of FrameXML
-    'MythicItemTag.lua'];
+    'MythicItemTag.lua', 'ItemFrames.lua', 'ItemFramesInfinite.lua', 'ItemFramesAdapters.lua'];
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);

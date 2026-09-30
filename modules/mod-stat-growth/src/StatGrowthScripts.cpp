@@ -8,6 +8,7 @@
 #include "DungeonProgressSystem.h"
 #include "EssenceFeedback.h"
 #include "EssenceTierSystem.h"
+#include "EssenceTuning.h"
 #include "ExperienceBoostSystem.h"
 #include "FortuneBoostSystem.h"
 #include "GladiatorStanceSystem.h"
@@ -99,10 +100,17 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
         !TryGetEssenceFamily(itemEntry, family))
         return false;
 
+    uint32 const resolvedEntry = ResolveEssenceEntry(player, itemEntry);
+    bool const converted = resolvedEntry != itemEntry;
+    itemEntry = resolvedEntry;
+    if (!TryGetEssenceFamily(itemEntry, family))
+        return false;
     EssenceTier const tier = GetEssenceTier(itemEntry);
     std::string_view const tierName = GetEssenceTierName(tier);
     ChatHandler chat(player->GetSession());
     uint32 totalBonus = 0;
+    if (converted && !quiet)
+        chat.SendSysMessage("That essence is capped; it grants another essence family of the same tier instead.");
 
     switch (family)
     {
@@ -145,8 +153,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
         }
         case EssenceFamily::Resource:
         {
-            uint32 const amount = GetTieredEssenceBonus(
-                statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ResourceBonusPerUse), itemEntry);
+            uint32 const amount = EssenceTuning::GrantAmount(GetResourceBonus(player), GetTieredEssenceBonus(
+                statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ResourceBonusPerUse), itemEntry),
+                EssenceTuning::MaxResourceBonus);
             if (!GrantResourceBoost(player, amount, totalBonus))
             {
                 chat.SendSysMessage("Unable to grant a permanent resource bonus.");
@@ -182,8 +191,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
         }
         case EssenceFamily::Fortune:
         {
-            uint32 const amount = GetTieredEssenceBonus(
-                statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::FortuneBonusPerUse), itemEntry);
+            uint32 const amount = EssenceTuning::GrantAmount(GetFortuneBonus(player), GetTieredEssenceBonus(
+                statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::FortuneBonusPerUse), itemEntry),
+                EssenceTuning::MaxFortuneBonus);
             if (!GrantFortuneBoost(player, amount, totalBonus))
             {
                 chat.SendSysMessage("Unable to grant a permanent fortune bonus.");
@@ -194,8 +204,9 @@ bool ConsumeEssence(Player* player, uint32 itemEntry, bool quiet = false)
                 return true;
 
             PlayTieredFeedback(player, EssenceVisual::Fortune, tier, "FORTUNE");
-            chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Gold gains and gear bonuses "
-                "(chance and strength) permanently increased by +{}%. Total: +{}%.|r", tierName, amount, totalBonus);
+            chat.PSendSysMessage("|cffa335eeThe {} essence binds to your soul.|r |cff00ff00Fortune permanently "
+                "increased by +{}%. Permanent total: +{}% (earned gold bonus caps at +100%).|r",
+                tierName, amount, totalBonus);
             return true;
         }
     }
@@ -395,7 +406,7 @@ public:
         PLAYERHOOK_ON_BEFORE_REGENERATE_POWER,
         PLAYERHOOK_ON_BEFORE_MODIFY_POWER,
         PLAYERHOOK_ON_AFTER_UPDATE_MAX_HEALTH,
-        PLAYERHOOK_ON_MONEY_CHANGED,
+        PLAYERHOOK_ON_MONEY_REWARD,
         PLAYERHOOK_ON_LOOT_ITEM,
         PLAYERHOOK_ON_GROUP_ROLL_REWARD_ITEM,
         PLAYERHOOK_ON_EQUIP,
@@ -522,7 +533,7 @@ public:
         NoteMaxHealthRise(player, value);
     }
 
-    void OnPlayerMoneyChanged(Player* player, int32& amount) override
+    void OnPlayerMoneyReward(Player* player, uint32& amount) override
     {
         ApplyFortuneGoldBoost(player, amount);
     }

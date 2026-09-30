@@ -108,13 +108,13 @@ void StatGrowthConfig::BuildConfigCache()
     SetConfigValue<float>(StatGrowthConfigKey::ParagonRaidHeroicChance, "Paragon.RaidHeroicBossChance", 40.0f,
         Reloadable::Yes, [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusChancePerPoint,
-        "Fortune.GearBonusChancePerPoint", 0.5f, Reloadable::Yes,
+        "Fortune.GearBonusChancePerPoint", 0.1f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneGearBonusValuePerPoint,
-        "Fortune.GearBonusValuePerPoint", 0.5f, Reloadable::Yes,
+        "Fortune.GearBonusValuePerPoint", 0.1f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 100.0f; }, "0 through 100");
     SetConfigValue<float>(StatGrowthConfigKey::FortuneMaxGearBonusValueIncrease,
-        "Fortune.MaxGearBonusValueIncrease", 100.0f, Reloadable::Yes,
+        "Fortune.MaxGearBonusValueIncrease", 10.0f, Reloadable::Yes,
         [](float value) { return value >= 0.0f && value <= 1000.0f; }, "0 through 1000");
     SetConfigValue<bool>(StatGrowthConfigKey::BotEssencesEnabled, "BotEssences.Enabled", true);
     SetConfigValue<bool>(StatGrowthConfigKey::BotCatchUpEnabled, "BotCatchUp.Enabled", true);

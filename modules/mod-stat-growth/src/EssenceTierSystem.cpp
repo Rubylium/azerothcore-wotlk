@@ -1,8 +1,11 @@
 #include "EssenceTierSystem.h"
 
 #include "Creature.h"
+#include "EssenceTuning.h"
+#include "FortuneBoostSystem.h"
 #include "LootMgr.h"
 #include "Random.h"
+#include "ResourceBoostSystem.h"
 #include "StatGrowthConfig.h"
 
 #include <algorithm>
@@ -192,4 +195,30 @@ bool TryGetEssenceFamily(uint32 itemEntry, EssenceFamily& family)
     }
 
     return false;
+}
+
+uint32 ResolveEssenceEntry(Player* player, uint32 itemEntry)
+{
+    EssenceFamily family;
+    if (!player || !TryGetEssenceFamily(itemEntry, family))
+        return itemEntry;
+
+    uint32 const resource = GetResourceBonus(player);
+    uint32 const fortune = GetFortuneBonus(player);
+    auto const capped = [resource, fortune](EssenceFamily candidate)
+    {
+        return EssenceTuning::IsFamilyCapped(candidate, resource, fortune);
+    };
+    if (!capped(family))
+        return itemEntry;
+
+    std::array<EssenceFamily, EssenceItems.size()> available;
+    uint32 count = 0;
+    for (uint32 index = 0; index < EssenceItems.size(); ++index)
+    {
+        EssenceFamily const candidate = static_cast<EssenceFamily>(index);
+        if (!capped(candidate))
+            available[count++] = candidate;
+    }
+    return count ? GetEssenceEntry(available[urand(0, count - 1)], GetEssenceTier(itemEntry)) : itemEntry;
 }

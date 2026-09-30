@@ -6,7 +6,8 @@
 class Creature;
 class Player;
 
-void ApplyFortuneGoldBoost(Player* player, int32& amount);
+// Earned money only; transfers, refunds and vendor transactions must not call this.
+void ApplyFortuneGoldBoost(Player* player, uint32& amount);
 uint32 GetFortuneBonus(Player* player);
 bool GrantFortuneBoost(Player* player, uint32 amount, uint32& totalBonus);
 void TryAddFortuneBoostLoot(Player* player, Creature* killed);

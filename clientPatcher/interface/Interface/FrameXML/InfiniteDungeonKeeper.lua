@@ -59,8 +59,8 @@ local TEXT = UI.french and {
     title = "Eternia",
     heading = "Donjon infini",
     subtitle = "Eternia, gardienne du Donjon infini",
-    intro = "Des étages sans fin : quelques ennemis, un gardien, puis un portail vers le bas. Franchissez un étage "
-        .. "vite et le portail vous fait descendre de deux ou trois étages.",
+    intro = "Des étages sans fin, seul ou à deux. Au niveau 80 : équipement de niveau 200 à 310 à l'étage 100, "
+        .. "sans parangon requis. Les victoires rapides font sauter des étages.",
     ladderLevelling = "ÉCHELLE DE MONTÉE EN NIVEAU",
     ladderGearing = "ÉCHELLE D'ÉQUIPEMENT (NIVEAU 80)",
     checkpoint = "Point de passage : étage %d",
@@ -126,8 +126,8 @@ local TEXT = UI.french and {
     title = "Eternia",
     heading = "Infinite Dungeon",
     subtitle = "Eternia, keeper of the Infinite Dungeon",
-    intro = "Floors without end: a few foes, a guardian, then a portal further down. Clear a floor quickly and the "
-        .. "portal takes you two or three floors down.",
+    intro = "Endless floors for one or two players. At level 80: gear from item level 200 to 310 at floor 100, "
+        .. "with no paragon needed. Fast clears skip floors.",
     ladderLevelling = "LEVELLING LADDER",
     ladderGearing = "GEARING LADDER (LEVEL 80)",
     checkpoint = "Checkpoint: floor %d",

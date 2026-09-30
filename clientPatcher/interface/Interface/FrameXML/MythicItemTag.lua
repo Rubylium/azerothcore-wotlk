@@ -34,7 +34,8 @@ local function TagOf(link)
     end
 
     local block = floor(id / GENERATED_ITEM_BASE)
-    if block <= MYTHIC_VARIANTS then
+    if block <= MYTHIC_VARIANTS or (block > MYTHIC_VARIANTS + FORGE_RANKS
+        and block <= MYTHIC_VARIANTS + FORGE_RANKS + 3) then
         return TAG, TAG_R, TAG_G, TAG_B
     elseif block <= MYTHIC_VARIANTS + FORGE_RANKS then
         return format(FORGE_TAG, block - MYTHIC_VARIANTS, FORGE_RANKS), 1, 0.62, 0.25

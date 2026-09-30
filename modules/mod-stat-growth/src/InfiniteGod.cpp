@@ -76,16 +76,9 @@ uint8 GetChallengeTierOf(Map const* map);
 namespace
 {
 // --- Tuning ---------------------------------------------------------------------------------------------------------
-// The super high-end boss: Défi I is tuned on a group in item level 300 gear with the paragon that goes with it
-// (mod-playerbots ChallengeTiers::BossProfiles, shown on the board's card). In the key curves of MythicDungeon.h that
-// is the gear of a key of 20.25 (one key under its loot, 219 + 4 x key), whose recommended paragon is 51 (5 x 10.25).
-// Damage is a share of that key's reference health (Mythic::GetDamageReference(20.25): a damage dealer's 97 300
-// health times the key's pressure 1.26, about 122 300); a tank has about 1.45 of a damage dealer's health. Every tier
-// above multiplies the god's damage (ChallengeTierUnitScript: x1.12 a tier, x2.7 at Défi X) and health (x1.22 a tier,
-// x6.1 at Défi X) and asks for 15 paragon more (66 at Défi II, 186 at Défi X), the players' own health growing slower
-// than its damage. Its health: HealthModifier in stat_growth_infinite_god.sql (47.6 million at Défi I, a tight damage
-// check for damage dealers at 20 000-30 000 on one target).
-constexpr float ReferenceKey = 20.25f;
+// Keep the raid's established damage budget independent of changes to the Mythic+ reward curve.
+// Entry requirements and tier paragon recommendations live in ChallengeTiers::BossProfiles.
+constexpr float ReferenceHealth = 122284.61f;
 
 constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on each tank a cone is aimed at
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
@@ -139,9 +132,9 @@ constexpr uint32 SweepWarningMs = 2500;
 constexpr uint32 FallenStarMs = 5500;
 constexpr float FallenStarLethalRadius = 10.0f; // drawn red around the marked one: where it kills
 // Croix céleste (phase 1): crosses through the god's feet one after the other, each turned 45 degrees from the last
-constexpr uint32 CrossWaves = 5;
-constexpr uint32 CrossWaveMs = 1200;            // a wave lands, the next is already drawn
-constexpr uint32 CrossWarningMs = 1300;
+constexpr uint32 CrossWaves = 4;
+constexpr uint32 CrossWaveMs = 2300;            // the next wave drawn just before the last one lands
+constexpr uint32 CrossWarningMs = 2500;         // time to read it and step out
 constexpr float CrossLength = 42.0f;            // each arm, from the middle
 constexpr float CrossWidth = 6.0f;
 // Lances de l'orbe (phase 2): an orb over the god, then four lasers from it out across the platform and back
@@ -555,7 +548,7 @@ uint32 SpellOf(NamedSpell const& spell)
 
 float Reference()
 {
-    return Mythic::GetDamageReference(ReferenceKey);
+    return ReferenceHealth;
 }
 
 struct boss_infinite_god : public ScriptedAI

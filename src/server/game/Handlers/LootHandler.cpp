@@ -231,6 +231,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                         continue;
                 }
 
+                finalGold = (*i)->CalculateMoneyReward(finalGold);
                 (*i)->ModifyMoney(finalGold);
                 (*i)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, finalGold);
 
@@ -258,6 +259,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
 
             if (award)
             {
+                finalGold = player->CalculateMoneyReward(finalGold);
                 player->ModifyMoney(finalGold);
                 player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, finalGold);
 

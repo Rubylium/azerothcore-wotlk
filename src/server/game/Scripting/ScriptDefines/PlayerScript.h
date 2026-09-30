@@ -225,6 +225,7 @@ enum PlayerHook
     PLAYERHOOK_ON_BEFORE_GET_LEVEL_FOR_XP_GAIN,
     PLAYERHOOK_ON_LFG_ROLES,
     PLAYERHOOK_ON_ENUM_GUILD_ID,
+    PLAYERHOOK_ON_MONEY_REWARD,
     PLAYERHOOK_END
 };
 
@@ -289,6 +290,9 @@ public:
 
     // Called when a player's money is modified (before the modification is done)
     virtual void OnPlayerMoneyChanged(Player* /*player*/, int32& /*amount*/) { }
+
+    // Earned loot, quest and activity gold only, before crediting it. Excludes transfers, sales and refunds.
+    virtual void OnPlayerMoneyReward(Player* /*player*/, uint32& /*amount*/) { }
 
     // Called before looted money is added to a player
     virtual void OnPlayerBeforeLootMoney(Player* /*player*/, Loot* /*loot*/) {}

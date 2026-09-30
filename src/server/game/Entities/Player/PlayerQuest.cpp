@@ -791,6 +791,8 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
 
     if (moneyRew)
     {
+        if (moneyRew > 0)
+            moneyRew = static_cast<int32>(CalculateMoneyReward(static_cast<uint32>(moneyRew)));
         ModifyMoney(moneyRew);
 
         if (moneyRew > 0)

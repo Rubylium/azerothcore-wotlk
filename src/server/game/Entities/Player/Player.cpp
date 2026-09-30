@@ -11794,6 +11794,13 @@ void Player::InitPrimaryProfessions()
     SetFreePrimaryProfessions(sWorld->getIntConfig(CONFIG_MAX_PRIMARY_TRADE_SKILL));
 }
 
+uint32 Player::CalculateMoneyReward(uint32 amount)
+{
+    if (amount)
+        sScriptMgr->OnPlayerMoneyReward(this, amount);
+    return std::min<uint32>(amount, MAX_MONEY_AMOUNT);
+}
+
 bool Player::ModifyMoney(int32 amount, bool sendError /*= true*/)
 {
     if (!amount)

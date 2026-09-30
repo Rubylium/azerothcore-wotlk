@@ -77,10 +77,23 @@ never exceed the player's level, so trivial creatures cannot be farmed for curre
 
 ## Fortune
 
-Fortune never changes item counts. Each Fortune percent gives every equipment drop a chance to be replaced by a
-class-appropriate item one quality higher (poor and common become uncommon, up to epic), and makes gear bonuses more
-likely and stronger when the item is looted. Gold gains are still increased by the Fortune percentage. All rates
-are configurable under `Fortune.*`.
+Fortune never changes item counts. Its total effective bonus caps at 100%, including equipment: earned gold can
+at most double. Only loot, quest and activity rewards receive this multiplier; trades, mail, auctions, vendor
+sales and refunds do not. Forge costs are unchanged.
+
+Fortune adds at most 10 percentage points to gear-affix chance and 10% to affix strength. New Fortune affixes
+roll 1-2%, without scaling from the player's own Fortune; equipped Fortune contributes at most 20% in total.
+Existing saved Fortune affixes are migrated down to 2%; resource affixes above 500% are capped at 500%.
+The migration covers all item GUIDs, including gear in bags, banks, mail and auctions; other affixes are preserved.
+`Fortune.*` configuration can lower these benefits but cannot exceed the hard limits in `EssenceTuning.h`.
+
+Resource regeneration and rage/runic-power generation bonuses cap at 500%, including gear and mirrored bot
+essences. Resource and Fortune essences consumed while capped grant a randomly selected uncapped family of
+the same tier instead. Resolution happens per recipient, including shared corpse loot, old inventory items,
+and each essence in a dungeon reward batch. The final grant approaching a cap is limited to the remaining room.
+The character-database migration also caps saved Resource essence at 500% and Fortune essence at 100%.
+Back up `character_settings` and `mod_personal_loot_roll` and stop worldserver before applying it, then restart
+to refresh the in-memory values. The migration is idempotent; unspent essence items and existing gold stay intact.
 
 ## Combat rogue rework ("Crimson Duelist")
 
@@ -115,6 +128,11 @@ the client never supplies coordinates.
 
 ## Infinite Dungeon (Donjon infini)
 
+Endgame rewards: Infinite Dungeon caps at ilvl 310 on floor 100; Mythic+ at ilvl 370 on key +60, with keys
+limited to +99; L'Infini reaches ilvl 460 at tier X. The Forge caps non-raid upgrades at 370 and L'Infini
+upgrades at 460. Existing items retain their templates and stats; exact-cap rewards use new generated blocks
+after the existing Forge range, requiring the matching `awesome_wotlk` client extension.
+
 An endless ladder of short floors for one or two real players, from level 15 (design:
 `.agents/plans/infinite-dungeon/infinite-dungeon.DESIGN.md`). Code in `src/infinite/`, the core side in
 `src/server/game/Maps/InfiniteDungeon.h`, the client panel, banner and map pins in
@@ -129,7 +147,8 @@ An endless ladder of short floors for one or two real players, from level 15 (de
   abilities drawn by the ground indicators. The players arrive in a ring where nothing can attack them; stepping out
   starts the floor. The boss down, a portal leads down; every tenth floor is a checkpoint with a chest.
 - **Two ladders**: below the level cap floors add 5% up to +75%; at the cap a second ladder starts at floor 1 and
-  climbs in steps of five floors on a gentler Mythic+ curve with a recommended paragon. Numbers in
+  provides entry gear from item level 200 to 310 at floor 100, without requiring paragon. Health and damage
+  use a fresh level-80 baseline and stop growing at floor 100. Numbers in
   `InfiniteDungeonScaling.h`; the monsters' health follows the roles of the run (a tank counts 60%, a healer 40%),
   their damage whether a tank is there.
 - **Rewards**: experience (25 same-level kills' base experience a floor, about a dungeon's hour), gold, a 10% essence

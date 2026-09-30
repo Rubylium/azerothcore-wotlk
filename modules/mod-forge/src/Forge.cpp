@@ -7,6 +7,7 @@
 #include "CreatureScript.h"
 #include "GlobalScript.h"
 #include "Item.h"
+#include "InfiniteGodLoot.h"
 #include "Log.h"
 #include "MythicAppearance.h"
 #include "MythicDungeon.h"
@@ -274,13 +275,18 @@ uint32 EntryAbove(ForgeState const* state, Item const* item, uint32 ranks)
     uint32 next = 0;
     if (Mythic::IsMythicGeneratedItem(entry))
     {
-        uint32 const variant = entry / Mythic::GeneratedItemBase - 1 + ranks;
-        if (variant < Mythic::GeneratedItemVariants)
-            next = Mythic::GetGeneratedItemEntry(Mythic::GetBaseItemEntry(entry), variant);
+        uint32 const cap = InfiniteGodLoot::IsReward(item) ? Mythic::MaxRaidItemLevel : Mythic::MaxLootItemLevel;
+        uint32 const itemLevel = std::min(cap,
+            item->GetTemplate()->ItemLevel + Mythic::ForgeItemLevelPerRank * ranks);
+        uint32 const variant = Mythic::GetGeneratedVariant(itemLevel);
+        next = Mythic::GetGeneratedItemEntry(Mythic::GetBaseItemEntry(entry), variant);
     }
     else
         next = Mythic::GetForgeItemEntry(Mythic::GetBaseItemEntry(entry), rank);
-    return next && sObjectMgr->GetItemTemplate(next) ? next : 0;
+    ItemTemplate const* nextTemplate = next ? sObjectMgr->GetItemTemplate(next) : nullptr;
+    uint32 const cap = InfiniteGodLoot::IsReward(item) ? Mythic::MaxRaidItemLevel : Mythic::MaxLootItemLevel;
+    return nextTemplate && nextTemplate->ItemLevel > item->GetTemplate()->ItemLevel &&
+        nextTemplate->ItemLevel <= cap ? next : 0;
 }
 
 // Whether the Forge takes an item at all: gear, and a real item the generator made ranks for or a Mythic+ variant
@@ -486,7 +492,8 @@ void HandleForge(Player* player, uint8 bag, uint8 slot, uint32 entry)
     // A masterwork: the smith strikes true, and the piece takes two ranks for the price of one
     uint32 const standingBefore = StandingOf(state->spent);
     uint32 const masterworkEntry = EntryAbove(state, item, 2);
-    bool const masterwork = masterworkEntry && roll_chance_i(int32(Standings[standingBefore].masterwork));
+    bool const masterwork = masterworkEntry && masterworkEntry != nextEntry &&
+        roll_chance_i(int32(Standings[standingBefore].masterwork));
     ItemTemplate const* next = sObjectMgr->GetItemTemplate(masterwork ? masterworkEntry : nextEntry);
     uint32 const newRank = rank + (masterwork ? 2 : 1);
 

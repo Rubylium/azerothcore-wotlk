@@ -1,4 +1,5 @@
 #include "MythicDungeonSystem.h"
+#include "InfiniteGodLoot.h"
 
 #include "EssenceTierSystem.h"
 #include "InfiniteDungeonSystem.h"
@@ -438,19 +439,11 @@ void ScaleCreature(CreatureTemplate const* cinfo, Creature* creature, MythicCrea
 // bonus, one in each random property slot, the tooltip's five lines - the bonus's name (its equip spell,
 // localTools/infiniteBoss/Spells.ps1), what it does and a line of its lore. Which bonus is drawn for every piece,
 // whatever its slot or its wearer's role: a tank can find the damage one, a healer the armour one.
-enum InfiniteGodEnchants : uint32
-{
-    ENCHANT_INFINI_AEGIS        = 3890,     // Égide des astres: less damage taken
-    ENCHANT_INFINI_SHARD        = 3895,     // Éclat d'étoile filante: arcane damage
-    ENCHANT_INFINI_SPARK        = 3900,     // Étincelle d'éternité: haste
-};
-constexpr uint32 InfiniteGodEnchantLines = 5;
-
 void TouchByInfiniteGod(Item* item)
 {
-    constexpr std::array<uint32, 3> Bonuses = { ENCHANT_INFINI_AEGIS, ENCHANT_INFINI_SHARD, ENCHANT_INFINI_SPARK };
-    uint32 const first = Bonuses[urand(0, uint32(Bonuses.size() - 1))];
-    for (uint32 line = 0; line < InfiniteGodEnchantLines; ++line)
+    auto const& bonuses = InfiniteGodLoot::BonusEnchants;
+    uint32 const first = bonuses[urand(0, uint32(bonuses.size() - 1))];
+    for (uint32 line = 0; line < InfiniteGodLoot::EnchantLines; ++line)
         item->SetEnchantment(EnchantmentSlot(PROP_ENCHANTMENT_SLOT_0 + line), first + line, 0, 0);
 }
 
@@ -908,13 +901,13 @@ float GetMythicSpellFactor(Unit const* caster, SpellInfo const* spellInfo)
 void GiveMythicLootItem(Player* player, uint32 itemLevel)
 {
     if (player)
-        GiveMythicItem(player, itemLevel);
+        GiveMythicItem(player, std::min(itemLevel, Mythic::MaxLootItemLevel));
 }
 
 void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)
 {
     if (player)
-        GiveMythicItem(player, itemLevel, TouchByInfiniteGod);
+        GiveMythicItem(player, std::min(itemLevel, Mythic::MaxRaidItemLevel), TouchByInfiniteGod);
 }
 
 bool IsMythicLootless(Creature const* creature)
