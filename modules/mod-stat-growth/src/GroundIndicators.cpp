@@ -22,6 +22,7 @@
 #include "TemporarySummon.h"
 #include <algorithm>
 #include <array>
+#include <set>
 #include <atomic>
 #include <cmath>
 #include <mutex>
@@ -1046,6 +1047,8 @@ struct Goal
     float radius = 0.0f;
     uint32 wanted = 0;
     uint64 endMs = 0;
+    bool tanks = false;                         // a soak the tanks go to as well (nothing to hold meanwhile)
+    std::vector<ObjectGuid> assigned;           // a soak's bots (AssignSoaks): each bot goes to one soak only
 };
 
 std::mutex GoalLock;
@@ -1067,6 +1070,91 @@ void AddGoal(Goal goal, bool replaceOwnersOfKind)
                 (replaceOwnersOfKind && entry.owner == goal.owner && entry.kind == goal.kind);
         }), Goals.end());
     Goals.push_back(goal);
+}
+
+// The bots of an instance shared out between the soaks shown there, under GoalLock. Each bot goes to one soak, the
+// nearest free one first, and keeps it until it lands: deciding alone, a bot nearest to two towers counted for both
+// and walked to one, and the other was left short. Real players standing in a soak count for it; they are never sent.
+// A soak without `tanks` takes neither the tanks nor whoever its owner is hitting.
+void AssignSoaks(Unit* unit)
+{
+    uint64 const now = NowMs();
+    std::vector<Goal*> soaks;
+    for (Goal& goal : Goals)
+        if (goal.kind == Goal::Kind::Soak && goal.endMs > now && goal.mapId == unit->GetMapId() &&
+            goal.instanceId == unit->GetInstanceId())
+            soaks.push_back(&goal);
+    if (soaks.empty())
+        return;
+
+    std::vector<Player*> bots;
+    std::vector<Player*> players;
+    for (auto const& ref : unit->GetMap()->GetPlayers())
+    {
+        Player* player = ref.GetSource();
+        if (!player || !player->IsAlive() || player->IsGameMaster() || !player->IsInWorld())
+            continue;
+        (player->GetSession() && player->GetSession()->IsBot() ? bots : players).push_back(player);
+    }
+    auto isBot = [&bots](ObjectGuid guid)
+    {
+        return std::ranges::any_of(bots, [guid](Player* bot) { return bot->GetGUID() == guid; });
+    };
+
+    std::set<ObjectGuid> taken;
+    for (Goal* soak : soaks)
+    {
+        std::erase_if(soak->assigned, [&isBot, &taken](ObjectGuid guid)
+            { return !isBot(guid) || taken.contains(guid); });
+        taken.insert(soak->assigned.begin(), soak->assigned.end());
+    }
+
+    for (Goal* soak : soaks)
+    {
+        Unit* owner = ObjectAccessor::GetUnit(*unit, soak->owner);
+        Unit* victim = owner ? owner->GetVictim() : nullptr;
+        float const inside = std::max(soak->radius - SoakInsideMargin, 0.5f);
+        uint32 helping = 0;
+        for (Player* player : players)
+            if (player->GetExactDist2d(&soak->center) <= inside)
+                ++helping;
+        std::vector<std::pair<float, Player*>> candidates;
+        for (Player* bot : bots)
+        {
+            if (taken.contains(bot->GetGUID()) || bot->GetExactDist2d(&soak->center) > SoakReach)
+                continue;
+            if (!soak->tanks && (bot == victim || IsGroupTank(bot)))
+                continue;
+            candidates.emplace_back(bot->GetExactDist2d(&soak->center), bot);
+        }
+        std::sort(candidates.begin(), candidates.end(), [](auto const& left, auto const& right)
+            { return left.first < right.first; });
+        for (auto const& [distance, bot] : candidates)
+        {
+            if (soak->assigned.size() + helping >= soak->wanted)
+                break;
+            soak->assigned.push_back(bot->GetGUID());
+            taken.insert(bot->GetGUID());
+        }
+    }
+}
+
+// The soak unit is sent to, if any (a copy, taken under GoalLock)
+bool AssignedSoak(Unit* unit, Goal& found)
+{
+    if (!unit->IsPlayer() || !unit->FindMap())
+        return false;
+    std::lock_guard<std::mutex> guard(GoalLock);
+    AssignSoaks(unit);
+    uint64 const now = NowMs();
+    for (Goal const& goal : Goals)
+        if (goal.kind == Goal::Kind::Soak && goal.endMs > now && goal.instanceId == unit->GetInstanceId() &&
+            goal.mapId == unit->GetMapId() && std::ranges::find(goal.assigned, unit->GetGUID()) != goal.assigned.end())
+        {
+            found = goal;
+            return true;
+        }
+    return false;
 }
 
 std::vector<Goal> GoalsAround(Unit* unit)
@@ -1524,7 +1612,8 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     return found;
 }
 
-void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted, Theme theme)
+void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted, Theme theme,
+              bool tanks)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return;
@@ -1538,6 +1627,7 @@ void ShowSoak(Unit* owner, Position const& center, float radius, uint32 duration
     goal.radius = radius;
     goal.wanted = wanted;
     goal.endMs = NowMs() + durationMs;
+    goal.tanks = tanks;
     AddGoal(goal, false);
     ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), theme, durationMs);
 }
@@ -1582,49 +1672,29 @@ bool FindGoal(Unit* unit, Position& spot, bool tank)
             spot = goal.center;
             return true;
         }
-
-        // A soak: the players nearest to it go, until `wanted` stand in it. The owner's target (its tank) and
-        // tanks stay on the boss; a player already in it stays there.
-        if (tank || owner->GetVictim() == unit)
-            continue;
-        float const inside = std::max(goal.radius - SoakInsideMargin, 0.5f);
-        if (unit->GetExactDist2d(&goal.center) <= inside)
-            continue;
-
-        uint32 standing = 0;
-        std::vector<std::pair<float, ObjectGuid>> candidates;
-        for (auto const& ref : unit->GetMap()->GetPlayers())
-        {
-            Player* player = ref.GetSource();
-            if (!player || !player->IsAlive() || player->IsGameMaster() || player == owner->GetVictim())
-                continue;
-            float const distance = player->GetExactDist2d(&goal.center);
-            if (distance <= inside)
-                ++standing;
-            else if (distance <= SoakReach)
-                candidates.emplace_back(distance, player->GetGUID());
-        }
-        if (standing >= goal.wanted)
-            continue;
-
-        std::sort(candidates.begin(), candidates.end(), [](auto const& left, auto const& right)
-            { return left.first < right.first; });
-        uint32 const missing = goal.wanted - standing;
-        bool chosen = false;
-        for (std::size_t index = 0; index < candidates.size() && index < missing; ++index)
-            if (candidates[index].second == unit->GetGUID())
-                chosen = true;
-        if (!chosen)
-            continue;
-
-        // Each to a spot of its own inside it, not all onto its very middle
-        float const angle = UnitSpread(unit, 3) * 2.0f * float(M_PI);
-        float const distance = inside * 0.5f * UnitSpread(unit, 4);
-        spot.Relocate(goal.center.GetPositionX() + std::cos(angle) * distance,
-            goal.center.GetPositionY() + std::sin(angle) * distance, goal.center.GetPositionZ());
-        return true;
     }
-    return false;
+
+    // A soak: the one this bot is given (AssignSoaks); inside it already, nothing to walk to (HoldsSoak keeps it)
+    Goal soak;
+    if (!AssignedSoak(unit, soak))
+        return false;
+    float const inside = std::max(soak.radius - SoakInsideMargin, 0.5f);
+    if (unit->GetExactDist2d(&soak.center) <= inside)
+        return false;
+    // Each to a spot of its own inside it, not all onto its very middle
+    float const angle = UnitSpread(unit, 3) * 2.0f * float(M_PI);
+    float const distance = inside * 0.5f * UnitSpread(unit, 4);
+    spot.Relocate(soak.center.GetPositionX() + std::cos(angle) * distance,
+        soak.center.GetPositionY() + std::sin(angle) * distance, soak.center.GetPositionZ());
+    return true;
+}
+
+bool HoldsSoak(Unit* unit)
+{
+    Goal soak;
+    if (!unit || !unit->IsAlive() || !AssignedSoak(unit, soak))
+        return false;
+    return unit->GetExactDist2d(&soak.center) <= std::max(soak.radius - SoakInsideMargin, 0.5f);
 }
 }
 

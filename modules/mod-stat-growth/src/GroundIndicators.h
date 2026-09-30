@@ -124,11 +124,15 @@ namespace GroundIndicators
     //   tanks aside, until that many stand in it.
     // - The off-tank's spot: where a tank that is not owner's current target should stand (a boss aiming a cleave at
     //   each tank: the two apart, their cones away from the group). Set again as the boss moves.
+    // tanks: the tanks are sent too (a soak while the boss holds still); otherwise they stay on it
     void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted,
-                  Theme theme = Theme::Holy);
+                  Theme theme = Theme::Holy, bool tanks = false);
     void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs);
     // Whether unit should go somewhere for one of those, and where. Always after FindEscape: the red comes first.
     bool FindGoal(Unit* unit, Position& spot, bool tank);
+    // Whether unit stands in the soak it was given (bots are shared out between the soaks shown, one each): it holds
+    // there until it lands rather than walking back to its fight
+    bool HoldsSoak(Unit* unit);
 
     // Whether unit stands in an area it should leave: in one of the red areas around it, or carrying one next to
     // another player. If so, escape is the nearest spot where it would not. An area whose hit is known and would
