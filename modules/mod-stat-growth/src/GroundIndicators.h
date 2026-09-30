@@ -116,6 +116,24 @@ namespace GroundIndicators
     // any new unit: a flash made of one appeared half-way and went); lingerMs: how long it stays past the warning
     Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme = Theme::None,
                      uint32 hitDamage = 0, ObjectGuid* placed = nullptr, uint32 lingerMs = 0);
+    // A painted line in pieces (shapes.json `segment`): `count` models from firstSpell, each `ratio` times as long as
+    // the line is wide, chained along it, each on a carrier of its own at its middle. One long model's carrier stood
+    // at the line's end, often past a wall: the client hides a unit it cannot see from the camera, and the whole line
+    // went with it, depending on the view.
+    struct PaintedLine
+    {
+        uint32 firstSpell = 0;
+        uint32 count = 4;
+        float ratio = 2.0f;
+    };
+    // A rectangle area drawn as a painted line (ShowPainted otherwise). clipCenter / clipRadius: only its part within
+    // that circle is drawn (a chamber: pieces past its walls would be hidden anyway); the area itself is registered
+    // whole. lingerMs: how long the pieces stay past the warning (RepaintLine).
+    Area ShowPaintedLine(Unit* owner, Area const& area, PaintedLine const& look, uint32 durationMs,
+                         Theme theme = Theme::None, uint32 hitDamage = 0, uint32 lingerMs = 0,
+                         Position const* clipCenter = nullptr, float clipRadius = 0.0f);
+    // The pieces of a line shown with look `from` turned to look `to` (a warning's to its hit, where it lands)
+    void RepaintLine(Unit* owner, Area const& area, PaintedLine const& from, PaintedLine const& to);
     // A picture painted on the ground at center, radius yards, turned to orientation, for durationMs: a boss's sigil
     // (localTools/groundIndicators/shapes.json, kind image: spells 90734-90737). Nothing to leave: no area, no bot
     // reads it - what it marks is told to them by the area or the soak shown with it.

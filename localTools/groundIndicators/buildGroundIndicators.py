@@ -93,6 +93,8 @@ def shape_bounds(shape):
         return -1.0, 1.0, -1.0, 1.0
     if kind == 'rect':
         half = 0.5 / shape['ratio']
+        if shape.get('segment'):
+            return -0.5, 0.5, -half, half
         return 0.0, 1.0, -half, half
     if kind == 'cone':
         half = math.radians(shape['angle']) / 2
@@ -237,6 +239,8 @@ def build_image_texture(shape):
 # A painted ability's texture: the longest side, and the pixels past the area's edge the painting may glow into
 PAINTED_TEXTURE_SIZE = 512
 PAINTED_LINE_LENGTH = 1024
+# A line's piece (`segment`): its texture's columns along it, rows across
+PAINTED_SEGMENT_SIZE = (512, 256)
 
 
 def premultiplied(image):
@@ -295,7 +299,9 @@ def build_painted_texture(shape):
     height, width = source.shape[:2]
     kind = shape['shape']
     x0, x1, y0, y1 = padded_bounds(shape)
-    if kind == 'rect':
+    if kind == 'rect' and shape.get('segment'):
+        columns, rows = PAINTED_SEGMENT_SIZE
+    elif kind == 'rect':
         columns = PAINTED_LINE_LENGTH
         rows = max(MIN_TEXTURE_SIDE, 1 << (int(round(columns * (y1 - y0) / (x1 - x0))) - 1).bit_length())
     else:
@@ -317,7 +323,17 @@ def build_painted_texture(shape):
         elif band:
             top, bottom = band[0] * height, band[1] * height
         sy = top + (Y + half) / (2.0 * half) * (bottom - top)
-        if shape.get('tile'):
+        if shape.get('segment'):
+            # One of `count` pieces of a line drawn in a chain (GroundIndicators::ShowPaintedLine), each on its own
+            # carrier at its middle: a long line on one carrier at its end vanished whenever that end was out of sight
+            # (past a wall). Piece `index` paints that share of the tile, so the chain runs on seamless: each piece
+            # ends exactly where the next begins, its padding along the line clear (cross-faded over it instead, two
+            # pieces blended over each other left a darker band at every join).
+            index, count = shape['segment']
+            fraction = numpy.mod((X + 0.5 + index) / count, 1.0)
+            sx = numpy.clip(fraction * width, 0.0, width - 1.0)
+            fade = ((X >= -0.5) & (X < 0.5)).astype(numpy.float64)
+        elif shape.get('tile'):
             # The painting repeated along the line at its own proportions (a copy as long as it is wide times its
             # aspect), every other copy mirrored so the joins match, its tapered tips cut off (`crop`, a share of its
             # width); the line's own two ends fade. Stretched to the line's ratio instead, it read drawn out.

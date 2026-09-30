@@ -1335,6 +1335,87 @@ Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, 
     return area;
 }
 
+Area ShowPaintedLine(Unit* owner, Area const& area, PaintedLine const& look, uint32 durationMs, Theme theme,
+                     uint32 hitDamage, uint32 lingerMs, Position const* clipCenter, float clipRadius)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0 || look.count == 0)
+        return area;
+
+    float const facing = area.origin.GetOrientation();
+    float const dx = std::cos(facing);
+    float const dy = std::sin(facing);
+    // The part of the line drawn: [from, to] along it, within the clip circle
+    float from = 0.0f;
+    float to = area.radius;
+    bool clippedFrom = false;
+    bool clippedTo = false;
+    if (clipCenter)
+    {
+        float const ox = area.origin.GetPositionX() - clipCenter->GetPositionX();
+        float const oy = area.origin.GetPositionY() - clipCenter->GetPositionY();
+        float const b = ox * dx + oy * dy;
+        float const disc = b * b - (ox * ox + oy * oy - clipRadius * clipRadius);
+        if (disc > 0.0f)
+        {
+            float const root = std::sqrt(disc);
+            clippedFrom = -b - root > from;
+            clippedTo = -b + root < to;
+            from = std::max(from, -b - root);
+            to = std::min(to, -b + root);
+        }
+        else
+            to = from;
+    }
+
+    if (to > from)
+    {
+        // Whole pieces: they run past a clipped end (into a wall), never past one of the line's own
+        float const piece = area.width * look.ratio;
+        uint32 const pieces = uint32(std::ceil((to - from) / piece - 0.01f));
+        float const over = float(pieces) * piece - (to - from);
+        float start = from - over / 2.0f;
+        if (clippedFrom != clippedTo)
+            start = clippedTo ? from : to - float(pieces) * piece;
+        for (uint32 index = 0; index < pieces; ++index)
+        {
+            float const along = start + (float(index) + 0.5f) * piece;
+            Position const at(area.origin.GetPositionX() + dx * along, area.origin.GetPositionY() + dy * along,
+                              area.origin.GetPositionZ());
+            Place(owner, at, facing, look.firstSpell + index % look.count, piece, durationMs + lingerMs);
+        }
+    }
+    Register(owner, nullptr, area, durationMs, hitDamage);
+    ShowParticles(owner, area, theme, durationMs);
+    return area;
+}
+
+void RepaintLine(Unit* owner, Area const& area, PaintedLine const& from, PaintedLine const& to)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    float const facing = area.origin.GetOrientation();
+    std::list<Creature*> stalkers;
+    owner->GetCreatureListWithEntryInGrid(stalkers, NPC_GROUND_INDICATOR, area.radius + 60.0f);
+    for (Creature* stalker : stalkers)
+    {
+        // On this line: on its axis, facing its way (two lines of a cross share their middle)
+        float const along = (stalker->GetPositionX() - area.origin.GetPositionX()) * std::cos(facing) +
+                            (stalker->GetPositionY() - area.origin.GetPositionY()) * std::sin(facing);
+        float const aside = (stalker->GetPositionY() - area.origin.GetPositionY()) * std::cos(facing) -
+                            (stalker->GetPositionX() - area.origin.GetPositionX()) * std::sin(facing);
+        if (std::fabs(aside) > 0.3f || along < -area.width * from.ratio || along > area.radius + area.width * from.ratio ||
+            std::fabs(Position::NormalizeOrientation(stalker->GetOrientation() - facing + float(M_PI)) - float(M_PI)) > 0.02f)
+            continue;
+        for (uint32 index = 0; index < from.count; ++index)
+            if (stalker->HasAura(from.firstSpell + index))
+            {
+                stalker->RemoveAurasDueToSpell(from.firstSpell + index);
+                stalker->AddAura(to.firstSpell + index, stalker);
+                break;
+            }
+    }
+}
+
 Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs)
 {
     Area current = area;

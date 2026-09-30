@@ -250,11 +250,14 @@ constexpr float RuinAegisRadius = 8.0f;
 constexpr float ArenaReach = 45.0f;
 constexpr float ArenaWalkRadius = 36.0f;        // random spots stay this close to the middle
 constexpr float MusicReach = 120.0f;
-constexpr float ChamberClearRadius = 60.0f;
+constexpr float ChamberClearRadius = 60.0f;     // the chamber's own occupants this close go (M'uru, its guards)
 // What is painted on the chamber's floor is carried at its mid height: a painting shows 2 yards above and below its
 // carrier, and the floor goes from 69.6 (the middle) to 71.2 (the edge). Carried at the ground found under its start,
 // a lane starting past the walls found another floor below and was never seen.
-constexpr float ChamberFloorZ = 70.4f;     // the chamber's own occupants this close go (M'uru, its guards)
+constexpr float ChamberFloorZ = 70.4f;
+// A painted line is drawn this far from the middle only (GroundIndicators::ShowPaintedLine): past the walls a piece's
+// carrier is hidden from inside
+constexpr float ChamberDrawRadius = 38.0f;
 
 // --- Timeline (ms from the pull), on the tracks' beats (measured on their loudness) ---------------------------------
 // The verdict: a group not at 1% by then gets Last Rites, and the track is ended there - the client fades a track
@@ -379,7 +382,7 @@ constexpr uint32 SPELL_TRUE_FORM = 94041;
 // lands (StrikeMs). The rings and round ones turn slowly.
 enum Paint : uint32
 {
-    PAINT_AISLES = 90769, PAINT_AISLES_HIT,
+    PAINT_RETIRED_AISLES = 90769, PAINT_RETIRED_AISLES_HIT,     // the lines: drawn in pieces now (LINE_*)
     PAINT_PULPIT60, PAINT_PULPIT60_HIT,
     PAINT_PULPIT80, PAINT_PULPIT80_HIT,
     PAINT_DAWN, PAINT_DAWN_HIT,
@@ -387,18 +390,28 @@ enum Paint : uint32
     PAINT_VERDICT,
     PAINT_SENTENCE,
     PAINT_HOLY_SCORCH,
-    PAINT_ECHO_AISLES, PAINT_ECHO_AISLES_HIT,
+    PAINT_RETIRED_ECHO_AISLES, PAINT_RETIRED_ECHO_AISLES_HIT,
     PAINT_ECHO_RING, PAINT_ECHO_RING_HIT,
     PAINT_ECHO_CORE, PAINT_ECHO_CORE_HIT,
     PAINT_CARRION, PAINT_CARRION_HIT,
-    PAINT_LANCE, PAINT_LANCE_HIT,
-    PAINT_CROSS, PAINT_CROSS_HIT,
+    PAINT_RETIRED_LANCE, PAINT_RETIRED_LANCE_HIT,
+    PAINT_RETIRED_CROSS, PAINT_RETIRED_CROSS_HIT,
     PAINT_SWARM,
     PAINT_EDGE,
     PAINT_INHALE,
     PAINT_INFERNAL,
     PAINT_VOID_SCORCH,
 };
+
+// The painted lines, in pieces (shapes.json HV_*Seg*: four of each look, 94050-94081)
+constexpr GroundIndicators::PaintedLine LINE_AISLES { 94050, 4, 2.0f };
+constexpr GroundIndicators::PaintedLine LINE_AISLES_HIT { 94054, 4, 2.0f };
+constexpr GroundIndicators::PaintedLine LINE_ECHO_AISLES { 94058, 4, 2.0f };
+constexpr GroundIndicators::PaintedLine LINE_ECHO_AISLES_HIT { 94062, 4, 2.0f };
+constexpr GroundIndicators::PaintedLine LINE_LANCE { 94066, 4, 2.5f };
+constexpr GroundIndicators::PaintedLine LINE_LANCE_HIT { 94070, 4, 2.5f };
+constexpr GroundIndicators::PaintedLine LINE_CROSS { 94074, 4, 2.4f };
+constexpr GroundIndicators::PaintedLine LINE_CROSS_HIT { 94078, 4, 2.4f };
 // A tower's looks (shapes.json): the sigils lit once held, the gems round its rim (empty, lit), one a soaker
 constexpr uint32 LOOK_SIGIL_RADIANT_LIT = 90673;
 constexpr uint32 LOOK_SIGIL_VOID_LIT = 90674;
@@ -1519,6 +1532,16 @@ private:
     // Where a painted area lands: its own carrier turns to the full-strength look (hitLook, its warning's twin: the
     // warning's id + 1) until it goes. A carrier of its own would fade in as the client shows any new unit: the flash
     // appeared half-way and went.
+    // A painted line's warning (GroundIndicators::ShowPaintedLine), drawn within the chamber, at its floor height
+    GroundIndicators::Area PaintLine(GroundIndicators::Area area, GroundIndicators::PaintedLine const& look,
+                                     uint32 durationMs)
+    {
+        area.origin = OnFloor(area.origin);
+        Position const center = Center();
+        return GroundIndicators::ShowPaintedLine(me, area, look, durationMs, GroundIndicators::Theme::None, 0, StrikeMs,
+            &center, ChamberDrawRadius);
+    }
+
     void Strike(GroundIndicators::Area const& area, uint32 hitLook)
     {
         uint32 const warning = hitLook - 1;
@@ -2008,13 +2031,14 @@ private:
                                   center.GetPositionY() + std::sin(across) * offset, center.GetPositionZ());
             Position const start = Ground(Position(middle.GetPositionX() - std::cos(facing) * AisleLength / 2.0f,
                 middle.GetPositionY() - std::sin(facing) * AisleLength / 2.0f, center.GetPositionZ()));
-            lanes.push_back(Paint(LineArea(start, facing, AisleLength, AisleWidth),
-                echo ? PAINT_ECHO_AISLES : PAINT_AISLES, AisleWarningMs));
+            lanes.push_back(PaintLine(LineArea(start, facing, AisleLength, AisleWidth),
+                echo ? LINE_ECHO_AISLES : LINE_AISLES, AisleWarningMs));
         }
         scheduler.Schedule(Milliseconds(AisleWarningMs), [this, lanes, echo](TaskContext)
         {
             for (GroundIndicators::Area const& lane : lanes)
-                Strike(lane, echo ? PAINT_ECHO_AISLES_HIT : PAINT_AISLES_HIT);
+                GroundIndicators::RepaintLine(me, lane, echo ? LINE_ECHO_AISLES : LINE_AISLES,
+                    echo ? LINE_ECHO_AISLES_HIT : LINE_AISLES_HIT);
             for (Player* player : ArenaPlayers())
                 if (std::ranges::any_of(lanes, [player](GroundIndicators::Area const& lane)
                     { return lane.Contains(*player); }))
@@ -2482,8 +2506,8 @@ private:
         for (Player* marked : SpreadPick(NonTanks(), LanceMarked))
         {
             float const facing = source.GetAngle(marked);
-            GroundIndicators::Area const line = Paint(LineArea(source, facing,
-                LanceLength, LanceWidth), PAINT_LANCE, LanceMs);
+            GroundIndicators::Area const line = PaintLine(LineArea(source, facing,
+                LanceLength, LanceWidth), LINE_LANCE, LanceMs);
             Creature* from = FxStalker(Position(source.GetPositionX(), source.GetPositionY(),
                 source.GetPositionZ() + 2.0f), LanceMs + 300, NPC_HOVER_STALKER);
             Position const lineEnd = AtAngle(source, facing, LanceLength);
@@ -2499,7 +2523,7 @@ private:
             ObjectGuid const guid = marked->GetGUID();
             scheduler.Schedule(Milliseconds(LanceMs), [this, line, guid](TaskContext)
             {
-                Strike(line, PAINT_LANCE_HIT);
+                GroundIndicators::RepaintLine(me, line, LINE_LANCE, LINE_LANCE_HIT);
                 Player* marked = ObjectAccessor::GetPlayer(*me, guid);
                 if (marked && marked->IsAlive())
                     Hit(marked, SPELL_LANCES, LanceMarkedPct, false);
@@ -2795,13 +2819,13 @@ private:
                 {
                     Position const start = Ground(Position(center.GetPositionX() - std::cos(arm) * CrossLength,
                         center.GetPositionY() - std::sin(arm) * CrossLength, center.GetPositionZ()));
-                    lines.push_back(Paint(LineArea(start, arm, CrossLength * 2.0f,
-                        CrossWidth), PAINT_CROSS, CrossWarningMs));
+                    lines.push_back(PaintLine(LineArea(start, arm, CrossLength * 2.0f,
+                        CrossWidth), LINE_CROSS, CrossWarningMs));
                 }
                 scheduler.Schedule(Milliseconds(CrossWarningMs), [this, lines](TaskContext)
                 {
                     for (GroundIndicators::Area const& line : lines)
-                        Strike(line, PAINT_CROSS_HIT);
+                        GroundIndicators::RepaintLine(me, line, LINE_CROSS, LINE_CROSS_HIT);
                     for (Player* player : ArenaPlayers())
                         if (std::ranges::any_of(lines, [player](GroundIndicators::Area const& line)
                             { return line.Contains(*player); }))
