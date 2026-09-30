@@ -5,7 +5,8 @@ L'Infini's shipped tracks (-12 LUFS, true peak -1 dB: loud enough at the client'
 ffmpeg's loudnorm in two passes so the dynamics stay (linear gain when the peak allows), and written as 44.1 kHz stereo
 MP3 into modules/mod-stat-growth/client-assets/compiled/music, which patchFiles.js ships.
 
-The fight plays them as one track (HollowVoice.mp3): the Archbishop's up to 2:02.0, in its fade, then Vel'thazar's.
+The fight plays them as one track (HollowVoice.mp3): the Archbishop's up to 2:00.0, the end of its fade, then
+Vel'thazar's.
 Two tracks sent one after the other did not play: the first reaching its own end stopped the music the client had just
 been sent, even a second one already playing (tried 2026-09-30). The two alone stay for .hollow music.
 HollowVoiceFromReveal.mp3 is the fight's track from 1:50, for a pull armed with .hollow reveal: a music sent over
@@ -23,7 +24,7 @@ OUTPUT = os.path.join(REPO, 'modules', 'mod-stat-growth', 'client-assets', 'comp
 TARGET_LUFS = -12.0
 TRUE_PEAK = -1.0
 RANGE = 11.0
-SWITCH_SECONDS = 122.0      # HollowVoice.cpp AtSecondTrack
+SWITCH_SECONDS = 120.0      # HollowVoice.cpp AtSecondTrack
 REVEAL_TEST_SECONDS = 110.0 # HollowVoice.cpp RevealTestStartMs
 
 

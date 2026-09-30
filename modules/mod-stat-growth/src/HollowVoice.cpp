@@ -41,7 +41,7 @@
 // runs on a fixed timeline set by its two tracks, played as one (patch-Z Sound\Music\Evolutions\HollowVoice.mp3,
 // SoundEntries 30112; localTools/hollowVoice/buildMusic.py joins them):
 //
-// 0:00 Archbishop Aldric Dawnmantle (his track, up to 2:02.0 in its fade). His health stops at 1%.
+// 0:00 Archbishop Aldric Dawnmantle (his track, up to 2:00.0 at the end of its fade). His health stops at 1%.
 //      0:00-0:43 Judgement on his tank (Condemned: holy damage taken), Light of Dawn (a cone), Consecrated Aisles
 //      (every other lane burns), Blessed Hammers (three hammers spiralling out), Wrath of the Pulpit (rings of holy
 //      fire from his feet), Holy Radiance on everyone.
@@ -51,9 +51,9 @@
 //      1:09.6 the second build: Execution Sentence (a sentence shared by those standing with the marked), and at 1:25.5
 //      Verdict of the Faithful - a giant hammer a tank must take.
 //      1:36 Seraphim: his wings, everything faster, Wake of Ashes (cones of light sweeping in front of him).
-//      1:59.7 as his track fades: at 1% he falls; above it, Last Rites - a holy judgement kills the group, and the
-//      demon is never seen.
-// 2:02.0 Vel'thazar's track (5:30) follows; on its first hit (2:03.5) Vel'thazar, the Hollow Voice, tears out of the
+//      1:57.5 the verdict: not at 1%, Last Rites - a holy judgement kills the group on his track's last bars, and the
+//      demon is never seen nor heard; at 1%, he falls as his track fades (1:59.7).
+// 2:00.0 Vel'thazar's track (5:30) follows; on its first hit (2:01.5) Vel'thazar, the Hollow Voice, tears out of the
 //      Archbishop, who stays hidden. Killing the demon frees and kills the Archbishop: his kill is the board's win
 //      (RaidFinder follows the board's boss, 930100).
 //      2:03-3:03 Vampiric Brand on his tank (he feeds on a tank marked three times), Carrion Swarm (a cone), Hollow
@@ -71,7 +71,7 @@
 //      5:12.4 the loudest climax: Hollow Sermon (void towers, a Bastion tower), crosses of void, the swarms.
 //      6:15 the dark section: Voice of Ruin on the three stabs (6:27, 6:44, 6:59) - near death for everyone, halved
 //      under Aldric's last Aegis, held by a tank.
-// 7:19.1 / 7:19.7 / 7:20.1 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
+// 7:17.1 / 7:17.7 / 7:18.1 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
 //      everyone's health, then a pulse every second that kills whatever protects them.
 //
 // Every avoidable hit is drawn first (GroundIndicators, the red; a sigil of the user's under a soak) and resolved on
@@ -253,11 +253,15 @@ constexpr float MusicReach = 120.0f;
 constexpr float ChamberClearRadius = 60.0f;     // the chamber's own occupants this close go (M'uru, its guards)
 
 // --- Timeline (ms from the pull), on the tracks' beats (measured on their loudness) ---------------------------------
-constexpr uint32 AtJudgement = 119700;          // the Archbishop's track fades: he falls at 1%, or Last Rites
-// Vel'thazar's track follows in the fade of his (1:59.7-2:03.4), in the one file. Sent as a second music, it never
-// played through: the first reaching its own end stopped it (sent at 2:03.45: not heard; at 2:02.0: cut a few seconds
-// in, 2026-09-30).
-constexpr uint32 AtSecondTrack = 122000;
+// The verdict: a group not at 1% by then gets Last Rites, and the track is ended there - the client fades a track
+// out over a few seconds, and the demon's part (AtSecondTrack) must not be heard in that fade. At 1%, he falls on
+// the fade (AtFall).
+constexpr uint32 AtLastRites = 117500;
+constexpr uint32 AtFall = 119700;               // the Archbishop's track fades out
+// Vel'thazar's track follows at the end of his fade (1:59.7-2:00.0), in the one file. Sent as a second music, it
+// never played through: the first reaching its own end stopped it (sent at 2:03.45: not heard; at 2:02.0: cut a few
+// seconds in, 2026-09-30). At 2:00.0 rather than 2:02.0 (as asked): no gap of silence between the two.
+constexpr uint32 AtSecondTrack = 120000;
 constexpr uint32 RevealTestStartMs = 110000;    // a pull armed with .hollow reveal starts here, the Archbishop at 1%
 // A wipe before the demon's part ends the track at least this long before it: the client fades a track out over a
 // few seconds, and the demon's part must not be heard in that fade (it would spoil him)
@@ -462,7 +466,7 @@ enum VelthazarTexts : uint8
 enum class Phase : uint8
 {
     None,
-    Aldric,                                     // 0:00-1:59.7
+    Aldric,                                     // 0:00-1:59.7 (the verdict at 1:57.5)
     Fallen,                                     // at 1%, his track fading: the demon is about to show
     Hollow,                                     // Vel'thazar
     Over,                                       // a kill or a wipe
@@ -574,12 +578,12 @@ std::vector<Step> BuildTimeline()
     once(Ability::Verdict, AtVerdict - VerdictMs);
     // The final climax: his wings
     once(Ability::Seraphim, AtSeraphim);
-    every(Ability::Radiance, AtSeraphim + 1000, 7000, AtJudgement - 1000);
+    every(Ability::Radiance, AtSeraphim + 1000, 7000, AtLastRites - 1000);
     once(Ability::Wake, 98000);
     once(Ability::Sentence, 101000);
     once(Ability::Wake, 108000);
 
-    // --- Vel'thazar: the reveal (2:03.5) to Last Light
+    // --- Vel'thazar: the reveal (2:01.5) to Last Light
     uint32 const start = AtReveal + 1000;
     every(Ability::HollowPulse, AtReveal + 6500, 12000, AtLastLight - 2000);
     every(Ability::Brand, AtReveal + 4500, 10000, AtLastLight);
@@ -1709,7 +1713,9 @@ private:
     void UpdateClock(bool skipping)
     {
         uint32 const elapsed = Elapsed();
-        if (_phase == Phase::Aldric && elapsed >= AtJudgement)
+        if (_phase == Phase::Aldric && elapsed >= AtLastRites && me->GetHealth() > HoldHealth())
+            LastRites();
+        if (_phase == Phase::Aldric && elapsed >= AtFall)
             Judge();
         if (_phase == Phase::Fallen && elapsed >= AtReveal)
             Reveal();
@@ -2191,8 +2197,9 @@ private:
         }
     }
 
-    // --- The judgement at 1:59.7, the reveal -----------------------------------------------------------------------
-    // 1:59.7, his track fading: at 1% he falls, the demon about to show; above it the group was too slow
+    // --- The verdict and the fall, the reveal -----------------------------------------------------------------------
+    // 1:59.7, his track fading: at 1% he falls, the demon about to show (above it the verdict, 1:57.5, has already
+    // ended it: this is a safeguard)
     void Judge()
     {
         if (me->GetHealth() > HoldHealth())
@@ -2225,7 +2232,7 @@ private:
         _phase = Phase::Over;
         scheduler.CancelAll();
         Talk(SAY_ALDRIC_LAST_RITES);
-        // The track ends now, its fade over well before the demon's part (2:02): the group never hears him
+        // The track ends now, 2.5 s before the demon's part (2:00): its fade is over, the group never hears him
         EndTrack(MUSIC_SILENCE);
         me->PlayDirectSound(SOUND_LAST_RITES);
         me->SendPlaySpellVisual(KIT_HOLY_NOVA_CAST);
@@ -2241,7 +2248,7 @@ private:
         Wipe();
     }
 
-    // 2:03.5, the second track's first hit: Vel'thazar tears out of the Archbishop, who is no longer seen
+    // 2:01.5, the second track's first hit: Vel'thazar tears out of the Archbishop, who is no longer seen
     void Reveal()
     {
         _phase = Phase::Hollow;
@@ -2783,7 +2790,7 @@ private:
         });
     }
 
-    // 7:19.1 / 7:19.7 / 7:20.1: three blasts of three times everyone's health (an immunity still holds)...
+    // 7:17.1 / 7:17.7 / 7:18.1: three blasts of three times everyone's health (an immunity still holds)...
     void EnrageBlast(uint32 index)
     {
         Creature* demon = Velthazar();
