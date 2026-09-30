@@ -486,7 +486,8 @@ local function VisibleRows()
 end
 
 function LayoutPanel()
-    local top = mode == "mythic" and -165 or -150
+    -- The raids a row lower than the stock list, clear of the top of the list's ground
+    local top = mode == "mythic" and -165 or -166
     for index, row in ipairs(rows) do
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", LFDQueueFrame, "TOPLEFT", 25, top - (index - 1) * ROW_HEIGHT)

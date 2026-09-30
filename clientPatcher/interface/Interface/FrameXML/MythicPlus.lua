@@ -268,11 +268,11 @@ headerBackground:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", 0, -HEADER_HEIGHT)
 local slot = CreateFrame("Frame", nil, frame)
 slot:SetWidth(72)
 slot:SetHeight(72)
-slot:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -6)
+slot:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -6)
 
 -- Retail's small rune circle behind the keystone, turning slowly: the emblem of the tab
 local slotCircle = slot:CreateTexture(nil, "BACKGROUND")
-SetAtlas(slotCircle, "ChallengeMode-Runes-Small", 104)
+SetAtlas(slotCircle, "ChallengeMode-Runes-Small", 82)
 slotCircle:SetPoint("CENTER")
 slotCircle:SetBlendMode("ADD")
 slotCircle:SetAlpha(0.35)
