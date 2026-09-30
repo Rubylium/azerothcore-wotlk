@@ -1847,9 +1847,21 @@ private:
         std::vector<Player*> const players = NonTanks();
         if (players.empty() || _kneeling)
             return;
-        Player* target = Acore::Containers::SelectRandomContainerElement(players);
         Position const apex = Ground(me->GetPosition());
-        float const facing = apex.GetAngle(target);
+        // Aimed at no tower on show (a Choir's, a Sentence's): 23 yards wide at 20, it covered one whole and its
+        // soakers had to leave it. Nobody clear of them: not cast.
+        std::vector<Player*> targets = players;
+        Acore::Containers::RandomShuffle(targets);
+        uint32 const now = getMSTime();
+        auto const clear = std::ranges::find_if(targets, [this, &apex, now](Player* player)
+        {
+            GroundIndicators::Area const cone = ConeArea(apex, apex.GetAngle(player), LightOfDawnRadius, LightOfDawnArc);
+            return std::ranges::none_of(_towers, [&cone, now](Tower const& tower)
+                { return getMSTimeDiff(now, tower.endsAt) < 0x80000000u && cone.Contains(tower.center, tower.radius); });
+        });
+        if (clear == targets.end())
+            return;
+        float const facing = apex.GetAngle(*clear);
         BeginWindup(facing);
         me->SendPlaySpellVisual(KIT_DIVINE_STORM_CAST);
         GroundIndicators::Area const area = Paint(ConeArea(apex, facing,
@@ -2166,6 +2178,8 @@ private:
         Position const spot = AtAngle(me->GetPosition(), away + frand(-0.6f, 0.6f), 11.0f);
         Decal(spot, away, VerdictRadius, VerdictMs, PAINT_VERDICT);
         GroundIndicators::SetOffTankSpot(Caster(), spot, VerdictMs, true);
+        // The others leave it: they followed the tank in and were crushed
+        GroundIndicators::WatchArea(me, CircleArea(spot, VerdictRadius), VerdictMs, 0, true);
         me->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
         scheduler.Schedule(Milliseconds(VerdictMs), [this, spot](TaskContext)
         {
@@ -2217,6 +2231,9 @@ private:
         {
             float const facing = Position::NormalizeOrientation(toward + turn *
                 (float(cone) - 1.0f) * WakeArc * float(M_PI) / 180.0f);
+            // The bots know all three from the first: stepping out of one, they walked into the next
+            GroundIndicators::WatchArea(me, ConeArea(OnFloor(apex), facing, WakeRadius, WakeArc),
+                cone * WakeStepMs + WakeWarningMs);
             scheduler.Schedule(Milliseconds(cone * WakeStepMs), [this, apex, facing, cone](TaskContext)
             {
                 GroundIndicators::Area const area = Paint(ConeArea(apex, facing,

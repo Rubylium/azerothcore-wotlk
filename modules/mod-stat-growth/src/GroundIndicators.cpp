@@ -107,6 +107,8 @@ constexpr uint32 SweepLookAheadSteps = 3;
 constexpr float EscapeDistanceSpread = 2.5f;
 constexpr float CrowdRadius = 3.0f;
 constexpr float CrowdCost = 4.0f;
+// An escape out of the soak a bot was given costs this much more than one within it (FindEscape)
+constexpr float OutOfSoakCost = 30.0f;
 
 constexpr char const* IndicatorDataKey = "GroundIndicators";
 
@@ -139,6 +141,7 @@ struct ActiveArea
     uint64 sweepFromMs = 0;
     float sweepFrom = 0.0f;     // ... its facing then
     float keepAway = 0.0f;      // a carried circle: how far its carrier keeps from the others (its hit's reach)
+    bool tanksTake = false;     // a hit a tank must take (WatchArea): the tanks do not leave it, the others do
     GroundIndicators::Area area;
     uint64 endMs = 0;
     uint32 hitDamage = 0;       // one hit's expected damage to a player in it, before their defences; 0 unknown
@@ -1471,10 +1474,17 @@ Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDa
     return area;
 }
 
-void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage)
+void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage, bool tanksTake)
 {
-    if (owner && owner->IsInWorld() && durationMs)
-        Register(owner, nullptr, area, durationMs, hitDamage);
+    if (!owner || !owner->IsInWorld() || !durationMs)
+        return;
+    uint64 const id = Register(owner, nullptr, area, durationMs, hitDamage);
+    if (!tanksTake)
+        return;
+    std::lock_guard<std::mutex> guard(RegistryLock);
+    for (ActiveArea& entry : Registry)
+        if (entry.id == id)
+            entry.tanksTake = true;
 }
 
 Area CurrentArea(Unit* carrier, Area const& area)
@@ -1531,7 +1541,7 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     std::vector<ActiveArea> areas = AreasAround(unit);
     if (tank)
         areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
-            { return HeldByTank(unit, entry); }), areas.end());
+            { return entry.tanksTake || HeldByTank(unit, entry); }), areas.end());
     // A tank does not run from a cone aimed at a tank (a tank buster: each has its own, and where the tanks stand is
     // the off-tank's spot's business, FindGoal): running from the other tank's took it through the group
     if (tank)
@@ -1578,6 +1588,11 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
         return false;
 
     Unit* victim = unit->GetVictim();
+    // A bot given a soak dodges within it (a hammer rolling through a Sentence): stepping out of it, the soak fell
+    // short. Out only when nothing in it is safe.
+    Goal soak;
+    bool const soaking = AssignedSoak(unit, soak);
+    float const soakInside = std::max(soak.radius - SoakInsideMargin, 0.5f);
     float const angleOffset = UnitSpread(unit, 1) * 2.0f * float(M_PI) / EscapeDirections;
     float const distanceOffset = UnitSpread(unit, 2) * EscapeDistanceSpread;
     bool found = false;
@@ -1607,6 +1622,8 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
             if (victim)
                 cost += std::max(0.0f, spot.GetExactDist2d(victim) - here.GetExactDist2d(victim)) * 0.5f;
             cost += CrowdCost * PlayersNear(unit, spot, CrowdRadius);
+            if (soaking && spot.GetExactDist2d(&soak.center) > soakInside)
+                cost += OutOfSoakCost;
             if (!found || cost < best.cost)
             {
                 if (!found)
@@ -1619,7 +1636,8 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
 
         // The nearest ring with a way out, and the one after it (an empty spot a step further beats a crowded one),
         // are enough: any further only costs more
-        if (found && ring >= foundRing + EscapeStep)
+        if (found && ring >= foundRing + EscapeStep &&
+            (!soaking || best.spot.GetExactDist2d(&soak.center) <= soakInside || ring > 2.0f * soak.radius))
             break;
     }
 

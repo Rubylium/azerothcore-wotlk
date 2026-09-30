@@ -104,7 +104,8 @@ namespace GroundIndicators
     constexpr float CarriedStarWidth = 3.0f;
     Area ShowCarriedStar(Unit* owner, Unit* carrier, uint32 durationMs, uint32 hitDamage = 0);
     // An area the bots keep out of, drawn by nothing here: its own visual says where it is (a black hole's pool)
-    void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage = 0);
+    // tanksTake: a hit a tank must take (a hammer marked for it): the tanks stay in it, only the others leave
+    void WatchArea(Unit* owner, Area const& area, uint32 durationMs, uint32 hitDamage = 0, bool tanksTake = false);
     // Where a carried area is now (it moves with its carrier; a star turns with them too)
     Area CurrentArea(Unit* carrier, Area const& area);
     // An area drawn as a painted ability in place of the red (shapes.json kind texture: a line, a cone, a ring or a
