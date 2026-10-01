@@ -51,6 +51,12 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 - **Cloned DBC spells keep their clone's scaling**: a Death Knight spell cloned from Cone of Cold scales with spell
   power the class does not have (flat damage). Scale it in the class module (`ModifySpellDamageTaken`) or from attack
   power, not only in `localTools/<class>/Spells.ps1`.
+- **Bench a tank on its own** (`tank`, `tankpack` layouts). With a tank bot in the run, the damage dealers' threat
+  strategy zeroes their actions once their threat nears the tank's: a Fury warrior measured 7.9k on pack12 next to a
+  Protection bot and 20.5k alone.
+- **A bot action typed `ActionThreatType::Aoe` is dropped by the same threat strategy** near a tank: give a damage
+  dealer's area spells the single-target type, as the stock Whirlwind and Cleave have (the retail Warrior's
+  Thunderous Roar and Warbreaker were never cast before that).
 - **`OnSpellPrepare` fires after an instant spell has already been cast** (`Spell::prepare` casts, then calls the
   hook): anything that must act before targets or damage (`SetSpellValue(SPELLVALUE_MAX_TARGETS, ...)`, marking the
   cast) goes in `OnSpellCheckCast` (runs after the spell scripts load, before target selection).
@@ -63,6 +69,6 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 ## Where each class is tuned
 
 Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter`,
-`mod-priest` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
+`mod-priest`, `mod-warrior` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
 `localTools/<class>/Spells.ps1`, talent trees and presets in `localTools/<class>/talentTree.json`. Name the bench
 in the commit when a change was tuned on it.

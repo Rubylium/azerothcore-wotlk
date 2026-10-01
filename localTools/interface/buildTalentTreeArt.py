@@ -100,7 +100,10 @@ BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw',
                'hunter-survival': 'talents-background-hunter-survival',
                'priest-discipline': 'talents-background-priest-discipline',
                'priest-holy': 'talents-background-priest-holy',
-               'priest-shadow': 'talents-background-priest-shadow'}
+               'priest-shadow': 'talents-background-priest-shadow',
+               'warrior-arms': 'talents-background-warrior-arms',
+               'warrior-fury': 'talents-background-warrior-fury',
+               'warrior-protection': 'talents-background-warrior-protection'}
 # The specialization page's figures: the right of each spec's painting, from this fraction of its width
 SPEC_ART_LEFT = 0.62
 SPEC_ART_WIDTH = 400

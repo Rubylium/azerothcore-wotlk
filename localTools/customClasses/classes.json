@@ -93,6 +93,13 @@
       "token": "PRIEST",
       "family": 6,
       "talentTree": "localTools/priest/talentTree.json"
+    },
+    {
+      "_comment": "The Warrior keeps rage and its stances, but no ability asks for one (localTools/warrior/StockSpells.ps1, modules/mod-warrior).",
+      "id": 1,
+      "token": "WARRIOR",
+      "family": 4,
+      "talentTree": "localTools/warrior/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {
