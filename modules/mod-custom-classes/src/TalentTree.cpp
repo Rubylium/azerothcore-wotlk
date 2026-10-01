@@ -137,6 +137,7 @@ struct Tree
     uint8 firstLevel = 10;
     uint8 levelStep = 2;
     std::array<TreeGate, 2> gates{};
+    uint8 role = 0;                 // a spec tree's way of fighting (GetTalentSpecRole)
 };
 
 struct TreeNode
@@ -1140,7 +1141,7 @@ void LoadTrees()
 
     QueryResult trees = WorldDatabase.Query(
         "SELECT `ClassId`, `TreeId`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, "
-        "`Signature`, `Kind`, `SpecSpells`, `BotOrder` FROM `custom_talent_tree` ORDER BY `ClassId`, `TreeId`");
+        "`Signature`, `Kind`, `SpecSpells`, `BotOrder`, `Role` FROM `custom_talent_tree` ORDER BY `ClassId`, `TreeId`");
     if (!trees)
     {
         LOG_INFO("server.loading", ">> No talent trees (localTools/talentTree/buildTalentTree.py writes them)");
@@ -1159,6 +1160,7 @@ void LoadTrees()
         tree.gates[1] = { field[6].Get<uint8>(), field[7].Get<uint8>() };
         data.signature = field[8].Get<uint32>();
         tree.spec = field[9].Get<uint8>() == 1;
+        tree.role = field[12].Get<uint8>();
         for (std::string_view token : Acore::Tokenize(field[10].Get<std::string_view>(), ',', false))
             if (Optional<uint32> spellId = Acore::StringTo<uint32>(token))
                 tree.specSpells.push_back(*spellId);
@@ -1392,6 +1394,19 @@ public:
         CharacterDatabase.Execute("DELETE FROM character_talent_loadout WHERE guid = {}", guid.GetCounter());
     }
 };
+}
+
+// A player's specialization's way of fighting, from its spec tree: 1 melee damage, 2 caster damage, 3 healer, 4 tank;
+// 0 for a class without trees. The stock checks (Player::HasHealSpec, HasCasterSpec) read the WotLK talent tabs, which
+// a class on the trees no longer has: a Holy priest or an Elemental shaman was neither there.
+uint8 GetTalentSpecRole(Player* player)
+{
+    ClassTrees const* data = player ? GetTrees(player->getClass()) : nullptr;
+    TalentTreeState* state = GetState(player);
+    if (!data || !state)
+        return 0;
+    Tree const* tree = FindTree(*data, Specialization(*data, state->specializations[ActiveSlot(player)]));
+    return tree && tree->spec ? tree->role : 0;
 }
 
 // For the classes' own scripts and the bots (TalentTree.h): a player's specialization, its spec tree id; 0 for a

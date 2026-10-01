@@ -758,6 +758,7 @@
       "firstLevel": 11,
       "levelStep": 2,
       "role": "damage",
+      "caster": true,
       "specSpells": [
         95430,
         95580

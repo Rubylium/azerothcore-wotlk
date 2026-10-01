@@ -359,9 +359,9 @@ $spells = @(
     # procs and Maelstrom's spenders carry the specialization; tuned on the combat bench), Earth Shock 150% more (it
     # spends Maelstrom, mod-shaman); Maelstrom, Lava Surge (mod-shaman)
     @{ Id = 95580; Clone = 2983; Name = 'Élémentaire'; IconPath = 'Interface\Icons\Spell_Nature_Lightning'; FallbackIconSpell = 403; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
-       Description = "Éclair, Chaîne d'éclairs, Explosion de lave, Glace furieuse et Horion de givre vous rendent du Maelström, qu'Horion de terre, Séisme et Explosion élémentaire consomment. Les dégâts périodiques d'Horion de flammes peuvent rendre votre prochaine Explosion de lave instantanée. Horion de terre inflige 150% de dégâts en plus, et Éclair, Chaîne d'éclairs, Explosion de lave et Horion de givre 15% de plus."
+       Description = "Éclair, Chaîne d'éclairs, Explosion de lave, Glace furieuse et Horion de givre vous rendent du Maelström, qu'Horion de terre, Séisme et Explosion élémentaire consomment. Les dégâts périodiques d'Horion de flammes peuvent rendre votre prochaine Explosion de lave instantanée. Horion de terre inflige 150% de dégâts en plus, et Éclair, Chaîne d'éclairs, Explosion de lave et Horion de givre 5% de moins."
        Effects = @(
-           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 15; Misc = $SPELLMOD_DAMAGE },
+           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -5; Misc = $SPELLMOD_DAMAGE },
            @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 150; Misc = $SPELLMOD_DAMAGE })
        Fields = @{ 122 = ($maskBolts -bor $maskFrostShock); 123 = $maskLavaBurst; 124 = 0
                    125 = $maskEarthShock; 126 = 0; 127 = 0; 208 = 11 } },

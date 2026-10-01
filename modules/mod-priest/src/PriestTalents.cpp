@@ -178,7 +178,10 @@ constexpr uint32 FlagMindSearTick = 0x80000;        // word 1
 
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Discipline: each ally with Atonement is healed for this share of the Priest's damage
-LiveTuning::Knob const AtonementShare("priest.atonement_share", 0.35f);
+// Discipline heals through its damage: halved with the healers' (HealerDamageFactor), the share doubled to heal as much
+LiveTuning::Knob const AtonementShare("priest.atonement_share", 0.7f);
+// A healing specialization's damage (Discipline, Holy): a healer, not a fourth damage dealer
+LiveTuning::Knob const HealerDamageFactor("priest.healer_damage_factor", 0.5f);
 LiveTuning::KnobInt const AtonementMs("priest.atonement_ms", 15000);
 // of AtonementMs, without Radiance rémanente
 LiveTuning::Knob const RadianceAtonementShare("priest.radiance_atonement_share", 0.6f);
@@ -1366,6 +1369,8 @@ public:
                 factor *= ShadowWordDeathExecute;
         }
 
+        if (IsDiscipline(player) || IsHoly(player))
+            factor *= HealerDamageFactor;
         if (factor != 1.0f)
             damage = int32(float(damage) * factor);
     }
@@ -1394,6 +1399,8 @@ public:
             factor *= DevouringPlagueTickFactor;
         if (player->HasAura(SPELL_DARK_ASCENSION))
             factor *= DarkAscensionPeriodicFactor;
+        if (IsDiscipline(player) || IsHoly(player))
+            factor *= HealerDamageFactor;
         damage = uint32(float(damage) * factor);
 
         if (!pain && !purge)

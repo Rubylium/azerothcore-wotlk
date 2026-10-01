@@ -42,6 +42,9 @@
 #include <unordered_set>
 #include <vector>
 
+// mod-custom-classes TalentTree.cpp: a specialization's way of fighting, for a class on the talent trees (0 otherwise)
+uint8 GetTalentSpecRole(Player* player);
+
 namespace
 {
 constexpr std::string_view Prefix = "Paragon";
@@ -1615,12 +1618,26 @@ bool HasGroupRole(Player* player, uint8 role)
     return false;
 }
 
+constexpr uint8 SpecRoleMelee = 1;
+constexpr uint8 SpecRoleCaster = 2;
+constexpr uint8 SpecRoleHealer = 3;
+constexpr uint8 SpecRoleTank = 4;
+
+bool IsHealer(Player* player)
+{
+    uint8 const role = GetTalentSpecRole(player);
+    return role ? role == SpecRoleHealer : player->HasHealSpec();
+}
+
 // Whether a character fights with its weapons - a melee or a hunter, not a caster or a healer spec - whatever its
 // hits' damage class: the melee branches answer to all of such a character's damage, its spells too (a rogue's
 // poisons, an enhancement shaman's imbues and shocks, a paladin's judgements). They answered to weapon hits alone, and
 // at 650 points an enhancement shaman did half of what a fire mage did, a rogue two fifths.
 bool FightsWithWeapons(Player* player)
 {
+    // A class on the talent trees says it from its specialization (mod-custom-classes GetTalentSpecRole)
+    if (uint8 const role = GetTalentSpecRole(player))
+        return role == SpecRoleMelee || role == SpecRoleTank;
     uint8 const classId = player->getClass();
     switch (classId == 10 ? uint8(CLASS_WARRIOR) : sObjectMgr->GetClassFormulaTemplate(classId))
     {
@@ -1642,6 +1659,18 @@ BotRole RoleOf(Player* bot, BotRole previous)
 {
     if (IsGroupTank(bot) || bot->HasTankSpec())
         return BotRole::Tank;
+    // A class on the talent trees: its specialization's way of fighting (the stock checks do not see its specs)
+    switch (GetTalentSpecRole(bot))
+    {
+        case SpecRoleTank:
+            return BotRole::Tank;
+        case SpecRoleHealer:
+            return BotRole::Healer;
+        case SpecRoleCaster:
+            return BotRole::Caster;
+        default:
+            break;
+    }
     // A feral druid tanks in bear form and leaves it between pulls: with no role set, the tank keeps its board
     if (previous == BotRole::Tank && bot->getClass() == CLASS_DRUID &&
         bot->GetSpec() == TALENT_TREE_DRUID_FERAL_COMBAT &&
@@ -2971,7 +3000,9 @@ void OnParagonSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spell
     Player* player = caster ? caster->ToPlayer() : nullptr;
     if (!player || !victim || !spellInfo || !damage || caster == victim || DealingProcDamage)
         return;
-    if (KindOf(spellInfo) != HitKind::Spell)
+    // A healer's damage is not doubled by the caster side's echoes and arcs: it walks those branches for the
+    // spell power and the casts, and a Holy priest at 650 points dealt 70% of a fire mage's damage, half of it echoes
+    if (KindOf(spellInfo) != HitKind::Spell || IsHealer(player))
         return;
 
     ParagonState* state = GetState(player);
