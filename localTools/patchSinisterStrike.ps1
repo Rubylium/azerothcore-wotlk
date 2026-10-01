@@ -1345,6 +1345,48 @@ function Assert-Wdbc([byte[]]$data, [string]$name) {
     }
 }
 
+# The loops that run over every record or every locale, compiled: a PowerShell function call costs tens of microseconds,
+# and these ran hundreds of thousands of times (a quarter of the client build)
+Add-Type -TypeDefinition @'
+public static class DbcFast
+{
+    // Every localized string group of every record: the locales left empty take the English text
+    public static void FillLocales(byte[] records, int count, int recordSize, int[] groups)
+    {
+        for (int index = 0; index < count; ++index)
+        {
+            int offset = index * recordSize;
+            foreach (int group in groups)
+            {
+                uint english = System.BitConverter.ToUInt32(records, offset + group * 4);
+                if (english == 0)
+                    continue;
+                for (int locale = 1; locale < 16; ++locale)
+                {
+                    int at = offset + (group + locale) * 4;
+                    if (System.BitConverter.ToUInt32(records, at) == 0)
+                        System.BitConverter.GetBytes(english).CopyTo(records, at);
+                }
+            }
+        }
+    }
+
+    // Fields `first` to `last` of a record set to zero
+    public static void Clear(byte[] buffer, int baseOffset, int first, int last)
+    {
+        System.Array.Clear(buffer, baseOffset + first * 4, (last - first + 1) * 4);
+    }
+
+    // One string in all 16 locales of a group, from `firstField`
+    public static void SetLocalized(byte[] buffer, int baseOffset, int firstField, uint value)
+    {
+        byte[] bytes = System.BitConverter.GetBytes(value);
+        for (int locale = 0; locale < 16; ++locale)
+            bytes.CopyTo(buffer, baseOffset + (firstField + locale) * 4);
+    }
+}
+'@
+
 function Set-Field([byte[]]$record, [int]$field, [uint32]$value) {
     [BitConverter]::GetBytes($value).CopyTo($record, $field * 4)
 }
@@ -1366,14 +1408,12 @@ function Add-DbcString([Collections.Generic.List[byte]]$strings, [string]$value)
 }
 
 function Write-LocalizedString([byte[]]$buffer, [int]$base, [int]$firstField, [uint32]$stringOffset) {
-    for ($locale = 0; $locale -lt 16; ++$locale) {
-        Write-Field $buffer $base ($firstField + $locale) $stringOffset
-    }
+    [DbcFast]::SetLocalized($buffer, $base, $firstField, $stringOffset)
 }
 
 # Replaces all three effects. Value = final amount (base points + 1 die); BasePoints = raw base points (no die).
 function Write-Effects([byte[]]$buffer, [int]$base, $effects) {
-    for ($field = 71; $field -le 130; ++$field) { Write-Field $buffer $base $field 0 }
+    [DbcFast]::Clear($buffer, $base, 71, 130)
     foreach ($effect in $effects) {
         $index = [int]$effect.Index
         Write-Field $buffer $base (71 + $index) $(if ($null -ne $effect.Effect) { $effect.Effect } else { 6 })
@@ -1809,21 +1849,20 @@ $cloneRecords = @{}
 $iconIdsBySpell = @{}
 $fallbackIconSpells = [Collections.Generic.HashSet[int]]::new()
 foreach ($custom in $customSpells) { if ($custom.FallbackIconSpell) { [void]$fallbackIconSpells.Add([int]$custom.FallbackIconSpell) } }
+# The custom spells by the stock spell they copy: looked up once per record (scanning every custom spell for every one
+# of the ~50,000 records was 110 million comparisons, two minutes of every client build)
+$customSpellsByClone = @{}
+foreach ($custom in $customSpells) {
+    $cloneId = [int]$custom.Clone
+    if (-not $customSpellsByClone.ContainsKey($cloneId)) { $customSpellsByClone[$cloneId] = [Collections.Generic.List[object]]::new() }
+    $customSpellsByClone[$cloneId].Add($custom)
+}
 
+# Name, rank, description and aura text: an empty locale reads the English one
+[DbcFast]::FillLocales($records, $recordCount, $recordSize, [int[]]@(136, 153, 170, 187))
 for ($index = 0; $index -lt $recordCount; ++$index) {
     $offset = $index * $recordSize
     $spellId = [BitConverter]::ToUInt32($records, $offset)
-    foreach ($localeGroup in @(136, 153, 170, 187)) {
-        $englishOffset = [BitConverter]::ToUInt32($records, $offset + $localeGroup * 4)
-        if ($englishOffset -ne 0) {
-            for ($locale = 1; $locale -lt 16; ++$locale) {
-                $localeOffset = $offset + ($localeGroup + $locale) * 4
-                if ([BitConverter]::ToUInt32($records, $localeOffset) -eq 0) {
-                    [BitConverter]::GetBytes($englishOffset).CopyTo($records, $localeOffset)
-                }
-            }
-        }
-    }
     if ($fallbackIconSpells.Contains([int]$spellId)) {
         $iconIdsBySpell[[int]$spellId] = Read-Field $records $offset $F_SpellIconID
     }
@@ -1890,14 +1929,14 @@ for ($index = 0; $index -lt $recordCount; ++$index) {
 
         # Passive, permanent, self-only talent aura without any of the WotLK behaviour
         Write-Field $records $offset $F_Attributes 0x140
-        for ($field = 5; $field -le 36; ++$field) { Write-Field $records $offset $field 0 }
+        [DbcFast]::Clear($records, $offset, 5, 36)
         Write-Field $records $offset 28 1
         Write-Field $records $offset 37 0
         Write-Field $records $offset $F_DurationIndex 21
-        for ($field = 41; $field -le 45; ++$field) { Write-Field $records $offset $field 0 }
+        [DbcFast]::Clear($records, $offset, 41, 45)
         Write-Field $records $offset 46 1
         Write-Field $records $offset $F_StackAmount 0
-        for ($field = 50; $field -le 67; ++$field) { Write-Field $records $offset $field 0 }
+        [DbcFast]::Clear($records, $offset, 50, 67)
         Write-Field $records $offset $F_EquippedItemClass -1
         Write-Field $records $offset 69 0
         Write-Field $records $offset 70 0
@@ -1915,7 +1954,7 @@ for ($index = 0; $index -lt $recordCount; ++$index) {
         # No spell visual: a permanent passive would otherwise show the old cooldown glow all the time
         Write-Field $records $offset $F_SpellVisual 0
         Write-Field $records $offset ($F_SpellVisual + 1) 0
-        for ($field = 205; $field -le 214; ++$field) { Write-Field $records $offset $field 0 }
+        [DbcFast]::Clear($records, $offset, 205, 214)
         Write-Field $records $offset $F_SpellIconID (Resolve-IconId $talent (Read-Field $records $offset $F_SpellIconID))
 
         $arguments = [object[]]@(
@@ -1927,8 +1966,9 @@ for ($index = 0; $index -lt $recordCount; ++$index) {
         Write-LocalizedString $records $offset $F_AuraDescription 0
         [void]$foundTalentRanks.Add($spellId)
     }
-    foreach ($custom in $customSpells) {
-        if ($spellId -eq $custom.Clone) {
+    $copies = $customSpellsByClone[[int]$spellId]
+    if ($copies) {
+        foreach ($custom in $copies) {
             $clone = [byte[]]::new($recordSize)
             [Array]::Copy($records, $offset, $clone, 0, $recordSize)
             $cloneRecords[[int]$custom.Id] = $clone
@@ -1970,7 +2010,7 @@ foreach ($custom in $customSpells) {
         Set-Field $record 68 ([uint32]::MaxValue)
         Set-Field $record 69 0
         Set-Field $record 70 0
-        for ($field = 71; $field -le 130; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 71, 130)
         Set-Field $record 71 6
         Set-Field $record 86 1
         Set-Field $record 95 4
@@ -1986,7 +2026,7 @@ foreach ($custom in $customSpells) {
         Set-Field $record 68 ([uint32]::MaxValue)
         Set-Field $record 69 0
         Set-Field $record 70 0
-        for ($field = 71; $field -le 130; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 71, 130)
         Set-Field $record 71 6
         Set-Field $record 80 0
         Set-Field $record 86 6
@@ -2005,7 +2045,7 @@ foreach ($custom in $customSpells) {
         Set-Field $record 68 ([uint32]::MaxValue)
         Set-Field $record 69 0
         Set-Field $record 70 0
-        for ($field = 71; $field -le 130; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 71, 130)
         Set-Field $record 71 3
         Set-Field $record 86 1
     }
@@ -2027,7 +2067,7 @@ foreach ($custom in $customSpells) {
         Set-Field $record 115 0
         Set-Field $record 118 0
         Set-Field $record 121 0
-        for ($field = 128; $field -le 130; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 128, 130)
         Set-Field $record 213 2
         Set-Field $record 225 1
     }
@@ -2037,20 +2077,20 @@ foreach ($custom in $customSpells) {
         # the damage done bonus from applying to weapon attacks.
         Set-Field $record 1 0
         Set-Field $record 4 0x10
-        for ($field = 5; $field -le 11; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 5, 11)
         Set-Field $record 12 131072
-        for ($field = 13; $field -le 27; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 13, 27)
         Set-Field $record 28 1
-        for ($field = 31; $field -le 36; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 31, 36)
         Set-Field $record 40 21
         Set-Field $record 41 1
         Set-Field $record 46 1
         Set-Field $record 49 0
-        for ($field = 50; $field -le 67; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 50, 67)
         Set-Field $record 68 ([uint32]::MaxValue)
         Set-Field $record 69 0
         Set-Field $record 70 0
-        for ($field = 71; $field -le 130; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 71, 130)
         Set-Field $record 71 6
         Set-Field $record 72 6
         Set-Field $record 74 1
@@ -2068,7 +2108,7 @@ foreach ($custom in $customSpells) {
         Set-Field $record 205 133
         Set-Field $record 206 1500
         Set-Field $record 208 4
-        for ($field = 209; $field -le 214; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 209, 214)
         Set-Field $record 225 1
     }
     if ($custom.CantCancel) {
@@ -2083,17 +2123,17 @@ foreach ($custom in $customSpells) {
         # PASSIVE | HIDDEN_CLIENTSIDE | HIDE_IN_COMBAT_LOG: without HIDDEN_CLIENTSIDE every learned rank shows up
         # in the spellbook's General tab as a "Passive" entry
         Set-Field $record 4 0x1c0
-        for ($field = 5; $field -le 27; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 5, 27)
         Set-Field $record 28 1
-        for ($field = 29; $field -le 39; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 29, 39)
         Set-Field $record 40 21
-        for ($field = 41; $field -le 45; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 41, 45)
         Set-Field $record 46 1
-        for ($field = 47; $field -le 70; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 47, 70)
         Set-Field $record 68 ([uint32]::MaxValue)
-        for ($field = 71; $field -le 132; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 71, 132)
         Set-Field $record 134 0
-        for ($field = 204; $field -le 233; ++$field) { Set-Field $record $field 0 }
+        [DbcFast]::Clear($record, 0, 204, 233)
         Set-Field $record 225 1
     }
     if ($custom.Effects) {
@@ -2150,7 +2190,7 @@ foreach ($custom in $customSpells) {
         # Only modifiers name other spells, in their own Fields: a mask inherited from the clone is cleared
         $setsMask = $custom.Fields -and @($custom.Fields.Keys | Where-Object { [int]$_ -ge 122 -and [int]$_ -le 130 }).Count
         if (-not $custom.TalentAura -and -not $setsMask) {
-            for ($field = 122; $field -le 130; ++$field) { Set-Field $record $field 0 }
+            [DbcFast]::Clear($record, 0, 122, 130)
         }
     }
     if ($visualIdsBySpell.ContainsKey([int]$custom.Id)) {
@@ -2162,12 +2202,10 @@ foreach ($custom in $customSpells) {
     $nameOffset = Add-DbcString $strings $custom.Name
     $descriptionOffset = Add-DbcString $strings $custom.Description
     $auraDescriptionOffset = if ($custom.AuraDescription) { Add-DbcString $strings $custom.AuraDescription } else { [uint32]0 }
-    for ($locale = 0; $locale -lt 16; ++$locale) {
-        Set-Field $record (136 + $locale) $nameOffset
-        Set-Field $record (153 + $locale) 0
-        Set-Field $record (170 + $locale) $descriptionOffset
-        Set-Field $record (187 + $locale) $auraDescriptionOffset
-    }
+    [DbcFast]::SetLocalized($record, 0, 136, $nameOffset)
+    [DbcFast]::SetLocalized($record, 0, 153, 0)
+    [DbcFast]::SetLocalized($record, 0, 170, $descriptionOffset)
+    [DbcFast]::SetLocalized($record, 0, 187, $auraDescriptionOffset)
     $customRecordBytes.AddRange($record)
 }
 

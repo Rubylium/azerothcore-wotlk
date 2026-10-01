@@ -18,6 +18,7 @@ brightest, 195 degrees) and deep blue (the darkest, 220). Greys and whites are l
 white and take their colour from the model, so the two together read as one blue.
 """
 import colorsys
+import hashlib
 import importlib.util
 import json
 import ntpath
@@ -37,6 +38,12 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 OUTPUT_ROOT = os.path.join(REPO_ROOT, 'modules', 'mod-oathblade', 'client-assets', 'compiled', 'spells')
 ARCHIVE_ROOT = 'Spells\\Oathblade'
 EXTRACTOR = os.path.join(REPO_ROOT, 'localTools', 'mpq-builder', 'extractClientFiles.js')
+# What the last build made from which inputs: the same effect list and the same code make the same files, so they are
+# kept as they are (a rebuild took 40 s of every client build, for models that never change)
+STAMP_PATH = os.path.join(REPO_ROOT, 'localTools', 'oathblade', '.cache', 'blue-effects.json')
+CODE = [os.path.abspath(__file__), os.path.join(os.path.dirname(os.path.abspath(__file__)), 'm2.py'),
+        os.path.join(REPO_ROOT, 'localTools', 'interface', 'spike', 'blp.py'),
+        os.path.join(REPO_ROOT, 'localTools', 'interface', 'buildParagonArt.py')]
 
 # Below this saturation a value is a grey or a white, and stays one
 MIN_SATURATION = 0.12
@@ -114,10 +121,40 @@ def write_output(name, data):
     return target
 
 
+def fingerprint(effects):
+    digest = hashlib.sha256(json.dumps(sorted((effect['id'], effect['path']) for effect in effects)).encode())
+    for path in CODE:
+        with open(path, 'rb') as code:
+            digest.update(code.read())
+    return digest.hexdigest()
+
+
+def output_files():
+    return sorted(os.path.relpath(os.path.join(folder, name), OUTPUT_ROOT)
+                  for folder, _, names in os.walk(OUTPUT_ROOT) for name in names)
+
+
+def reuse(stamp, mapping_path):
+    """the last build's mapping, when its files are all still there and nothing else is"""
+    if not os.path.exists(STAMP_PATH):
+        return False
+    with open(STAMP_PATH, encoding='utf-8') as source:
+        last = json.load(source)
+    if last.get('fingerprint') != stamp or last.get('files') != output_files():
+        return False
+    with open(mapping_path, 'w', encoding='utf-8') as output:
+        json.dump(last['mapping'], output, indent=2)
+    print(f"Oathblade blue effects: {len(last['mapping'])} models, unchanged")
+    return True
+
+
 def main(effects_path, mapping_path):
     with open(effects_path, encoding='utf-8-sig') as source:
         effects = json.load(source)
-    # Rebuilt whole every time, so an effect no kit uses any more is not shipped
+    stamp = fingerprint(effects)
+    if reuse(stamp, mapping_path):
+        return
+    # Rebuilt whole, so an effect no kit uses any more is not shipped
     shutil.rmtree(OUTPUT_ROOT, ignore_errors=True)
     stems = {effect['id']: ntpath.splitext(archive_path(effect['path']))[0] for effect in effects}
 
@@ -178,6 +215,9 @@ def main(effects_path, mapping_path):
 
     with open(mapping_path, 'w', encoding='utf-8') as output:
         json.dump(mapping, output, indent=2)
+    os.makedirs(os.path.dirname(STAMP_PATH), exist_ok=True)
+    with open(STAMP_PATH, 'w', encoding='utf-8') as output:
+        json.dump({'fingerprint': stamp, 'mapping': mapping, 'files': output_files()}, output, indent=1)
     print(f'Oathblade blue effects: {len(mapping)} models, {len(texture_names)} textures')
 
 

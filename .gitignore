@@ -190,3 +190,5 @@ localTools/interface/cache/
 /localTools/retailImport/RetailImport/obj/
 # The deploy window's Discord webhook (localTools/deployDiscord.ps1): a secret
 /localTools/deploy.local.json
+# buildBlueEffects.py: what its last build made from which inputs
+/localTools/oathblade/.cache/
