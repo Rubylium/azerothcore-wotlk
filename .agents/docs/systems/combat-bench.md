@@ -62,6 +62,9 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 - **`OnSpellPrepare` fires after an instant spell has already been cast** (`Spell::prepare` casts, then calls the
   hook): anything that must act before targets or damage (`SetSpellValue(SPELLVALUE_MAX_TARGETS, ...)`, marking the
   cast) goes in `OnSpellCheckCast` (runs after the spell scripts load, before target selection).
+- **A summoned guardian's travelling spell never lands**: a hit a module has a guardian cast (`CastCustomSpell` from
+  the creature) with a missile speed was cast (`SPELL_CAST_OK`) but never hit - the Warlock's Wild Imps' bolts and the
+  Darkglare's beam showed nothing in the per-spell table. Give such hits speed 0 (the visual still plays).
 - Stock target caps live in the spell data (`MaxAffectedTargets`, effect `ChainTarget`); override them in
   `SpellInfoCorrections.cpp` or per cast in `OnSpellCheckCast`, and pair an uncap with a falloff past 5 targets
   (`sqrt(5 / n)`, as Hunter's Multi-Shot / Beast Cleave).
@@ -71,6 +74,6 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 ## Where each class is tuned
 
 Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter`,
-`mod-priest`, `mod-warrior`, `mod-shaman` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
+`mod-priest`, `mod-warrior`, `mod-shaman`, `mod-warlock` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
 `localTools/<class>/Spells.ps1`, talent trees and presets in `localTools/<class>/talentTree.json`. Name the bench
 in the commit when a change was tuned on it.

@@ -190,8 +190,8 @@ BotCatchUp.TargetShare = 0.75
 BotCatchUp.MaxMultiplier = 0
 
 # Class ids, comma separated, whose bots never get it: their AI was reworked
-# (1 Warrior, 2 Paladin, 3 Hunter, 4 rogue, 5 Priest, 6 Death Knight, 7 Shaman, 8 mage, 10 Oathblade).
-BotCatchUp.ExcludedClasses = "1,2,3,4,5,6,7,8,10"
+# (1 Warrior, 2 Paladin, 3 Hunter, 4 rogue, 5 Priest, 6 Death Knight, 7 Shaman, 8 mage, 9 Warlock, 10 Oathblade).
+BotCatchUp.ExcludedClasses = "1,2,3,4,5,6,7,8,9,10"
 
 ###############################################################################
 # MYTHIC+ GEAR LOOKS

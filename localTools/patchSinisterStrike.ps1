@@ -883,6 +883,10 @@ $customSpells += & ([ScriptBlock]::Create($warriorSpellSource))
 # The Shaman on its retail-style talent trees (localTools/shaman/talentTree.json): abilities, auras and talent ranks
 $shamanSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\shaman\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($shamanSpellSource))
+# The Warlock on its retail-style talent trees (localTools/warlock/talentTree.json): abilities, auras, hits and talent
+# ranks
+$warlockSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\warlock\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($warlockSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
@@ -905,13 +909,16 @@ $mageFreeReagents = @(17020, 17031, 17032, 17056)
 # texts. The Hunter's Focus costs, Kill Command, Aimed Shot and Raptor Strike (localTools/hunter/StockSpells.ps1); the
 # Priest's snappier casts and Devouring Plague on Insanity (localTools/priest/StockSpells.ps1); the Warrior's abilities
 # in any stance, Overpower, Revenge and Execute as retail plays them (localTools/warrior/StockSpells.ps1); the Shaman's
-# shocks without a shared cooldown and Chain Lightning without one (localTools/shaman/StockSpells.ps1).
+# shocks without a shared cooldown and Chain Lightning without one (localTools/shaman/StockSpells.ps1); the Warlock's
+# summons and spells without a Soul Shard item, Chaos Bolt and Shadowburn on Soul Shards (localTools/warlock/StockSpells.ps1).
 $hunterStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hunter\StockSpells.ps1') -Raw -Encoding UTF8
 $priestStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\priest\StockSpells.ps1') -Raw -Encoding UTF8
 $warriorStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\warrior\StockSpells.ps1') -Raw -Encoding UTF8
 $shamanStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\shaman\StockSpells.ps1') -Raw -Encoding UTF8
+$warlockStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\warlock\StockSpells.ps1') -Raw -Encoding UTF8
 $stockSpellEdits = @(& ([ScriptBlock]::Create($hunterStockSource))) + @(& ([ScriptBlock]::Create($priestStockSource))) +
-    @(& ([ScriptBlock]::Create($warriorStockSource))) + @(& ([ScriptBlock]::Create($shamanStockSource)))
+    @(& ([ScriptBlock]::Create($warriorStockSource))) + @(& ([ScriptBlock]::Create($shamanStockSource))) +
+    @(& ([ScriptBlock]::Create($warlockStockSource)))
 $stockEditsById = @{}
 $stockEditsByName = @{}
 $stockEditFamilies = [Collections.Generic.HashSet[int]]::new()
@@ -2425,7 +2432,7 @@ Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisua
 Write-Host "Oathblade: $($blueEffectIds.Count) blue effect models of its own, used by its $($oathbladeKits.Count) kits."
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
-Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1, localTools\priest\StockSpells.ps1, localTools\warrior\StockSpells.ps1, localTools\shaman\StockSpells.ps1)."
+Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1, localTools\priest\StockSpells.ps1, localTools\warrior\StockSpells.ps1, localTools\shaman\StockSpells.ps1, localTools\warlock\StockSpells.ps1)."
 Write-Host "Swapped the range of $stockRangeRemapCount stock spells (no ranged dead zone, localTools\hunter\StockSpells.ps1)."
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
 Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."

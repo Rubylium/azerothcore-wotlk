@@ -107,6 +107,13 @@
       "token": "SHAMAN",
       "family": 11,
       "talentTree": "localTools/shaman/talentTree.json"
+    },
+    {
+      "_comment": "The Warlock keeps mana and its demons; Soul Shards are an aura of stacks every specialization fills and spends (modules/mod-warlock).",
+      "id": 9,
+      "token": "WARLOCK",
+      "family": 5,
+      "talentTree": "localTools/warlock/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {
