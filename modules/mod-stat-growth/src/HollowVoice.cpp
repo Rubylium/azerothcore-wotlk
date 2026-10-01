@@ -108,10 +108,11 @@ constexpr uint32 DefiGraceMs = 8000;            // players are waited for this l
 
 // The Archbishop's
 // The healers' work between mechanics (Litany): when nothing has been asked of the group for LitanyQuietMs and nothing
-// is coming for LitanyLeadMs, a raid-wide hit in LitanyPulses pulses - the fight alternates the damage dealers' moments
+// is coming within LitanyLeadMs, a raid-wide hit in LitanyPulses pulses - the fight alternates the damage dealers' moments
 // (mechanics) and the healers' (the quiet ones). Its spells: Litany of Penance (the Archbishop), Hollow Lament.
-constexpr uint32 LitanyQuietMs = 6000;
-constexpr uint32 LitanyLeadMs = 4000;
+// The Archbishop's part asks something every 7 s or so: the gaps players feel are 6-9 s, with room for the 3 s it takes
+constexpr uint32 LitanyQuietMs = 3000;
+constexpr uint32 LitanyLeadMs = 3000;
 constexpr uint32 LitanyPulses = 3;
 constexpr uint32 LitanyPulseMs = 1300;
 constexpr uint32 LitanyCooldownMs = 9000;
@@ -776,6 +777,8 @@ char const* AbilityLabel(uint32 spellId)
         case 94033: return "Hollow Sermon";
         case 94034: return "Voice of Ruin";
         case 94036: return "Hollow Pulse";
+        case 94042: return "Litany of Penance";
+        case 94043: return "Hollow Lament";
         case 94037: return "Silence";
         case 94038: return "Crosses of void";
         case 94039: return "Tearing out";
