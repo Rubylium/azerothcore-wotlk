@@ -1,7 +1,7 @@
 -- The Hollow Voice, the pinnacle of the Défi board, in Sunwell Plateau's M'uru chamber (HollowVoice.cpp; the board
 -- holds it from mod-playerbots ChallengeBoard.cpp, 10 players, item level 460 and 650 paragon, ChallengeTiers.h).
 -- 930100 Archbishop Aldric Dawnmantle: Archbishop Landgren's look (29542, display 26326), a level 83 boss (class 1:
---        13 945 base health a point, as L'Infini). 4 621 x 13 945 = 64.4 million (the model's 58.6 + 10%: with the
+--        13 945 base health a point, as L'Infini). 4 713 x 13 945 = 65.7 million (the model's 58.6 + 12%: with the
 --        melee's paragon fixed, the bots took him too fast): the group of the profile (the raid
 --        finder's five damage dealers, two tanks and three healers: Power::GroupDamageDealers 5.97 at 103 000 a second
 --        each, PowerScaling.h) brings him to 1% in about 110 s of the 2:00 his track gives them - a hard check
@@ -43,7 +43,7 @@ UPDATE `tmp_stat_growth_hollow_voice` SET
     `unit_flags` = 0,
     `DamageModifier` = 60,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 4621,
+    `HealthModifier` = 4713,
     `ManaModifier` = 1,
     `RegenHealth` = 0,
     `CreatureImmunitiesId` = -361,

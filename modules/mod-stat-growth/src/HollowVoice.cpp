@@ -1762,6 +1762,32 @@ private:
         }
     }
 
+    // A scorch's carrier, put down with the warning, its look not on yet (LandScorch puts it on where it lands): a carrier
+    // made when it lands showed late, growing into its size as the client shows any new unit scaled
+    ObjectGuid PrepareScorch(Position const& where, float radius, uint32 landsInMs)
+    {
+        Creature* stalker = Look(OnFloor(where), frand(0.0f, 2.0f * float(M_PI)), radius, landsInMs + ScorchMs, 0);
+        return stalker ? stalker->GetGUID() : ObjectGuid::Empty;
+    }
+
+    // The scorch on at once where it lands, fading out before it goes (its look's fading twin, +6000:
+    // GroundIndicators.cpp FadeLookOf)
+    void LandScorch(ObjectGuid guid, uint32 look)
+    {
+        Creature* stalker = guid ? me->GetMap()->GetCreature(guid) : nullptr;
+        if (!stalker)
+            return;
+        stalker->AddAura(look, stalker);
+        scheduler.Schedule(Milliseconds(ScorchMs - 300), [this, guid, look](TaskContext)
+        {
+            if (Creature* carrier = me->GetMap()->GetCreature(guid))
+            {
+                carrier->RemoveAurasDueToSpell(look);
+                carrier->AddAura(look + 6000, carrier);
+            }
+        });
+    }
+
     // What a landing leaves on the floor a while (a hammer's, a crash's)
     void Scorch(Position const& where, float radius, uint32 look)
     {
@@ -2550,12 +2576,13 @@ private:
             AddTimedAura(marked, SPELL_FX_MARK, SentenceMs);
             ShowTower(spot, 0.0f, SentenceRadius, SentenceMs, 3, false, true, PAINT_SENTENCE, PAINT_SENTENCE);
             GroundIndicators::ShowSoak(Caster(), spot, SentenceRadius, SentenceMs, SentenceSoakersBots);
-            scheduler.Schedule(Milliseconds(SentenceMs), [this, spot](TaskContext)
+            ObjectGuid const scorch = PrepareScorch(spot, SentenceRadius, SentenceMs);
+            scheduler.Schedule(Milliseconds(SentenceMs), [this, spot, scorch](TaskContext)
             {
                 Sound(SOUND_EXECUTION_SENTENCE);
                 Impact(true);
                 PlayOnGround(spot, KIT_WRATH_HAMMER_HIT);
-                Scorch(spot, SentenceRadius, PAINT_HOLY_SCORCH);
+                LandScorch(scorch, PAINT_HOLY_SCORCH);
                 std::vector<Player*> const soakers = PlayersIn(CircleArea(spot, SentenceRadius));
                 Resolved("Execution Sentence", soakers.size() >= 3, Acore::StringFormat("soakers={}", soakers.size()));
                 if (soakers.empty())
@@ -2579,13 +2606,14 @@ private:
         // The others leave it: they followed the tank in and were crushed
         GroundIndicators::WatchArea(me, CircleArea(spot, VerdictRadius), VerdictMs, 0, true);
         me->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
-        scheduler.Schedule(Milliseconds(VerdictMs), [this, spot](TaskContext)
+        ObjectGuid const scorch = PrepareScorch(spot, VerdictRadius * 1.3f, VerdictMs);
+        scheduler.Schedule(Milliseconds(VerdictMs), [this, spot, scorch](TaskContext)
         {
             Sound(SOUND_VERDICT);
             Impact(true);
             PlayOnGround(spot, KIT_WRATH_HAMMER_HIT);
             GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Holy);
-            Scorch(spot, VerdictRadius * 1.3f, PAINT_HOLY_SCORCH);
+            LandScorch(scorch, PAINT_HOLY_SCORCH);
             std::vector<Player*> const inside = PlayersIn(CircleArea(spot, VerdictRadius));
             bool const held = std::ranges::any_of(inside, [](Player* player) { return IsGroupTank(player); });
             Resolved("Verdict of the Faithful", held, Acore::StringFormat("inside={}", inside.size()));
@@ -2930,6 +2958,7 @@ private:
     void DreadInfernals()
     {
         std::vector<Position> spots;
+        std::vector<ObjectGuid> scorches;
         for (uint32 index = 0; index < InfernalCount; ++index)
         {
             Position spot = ArenaSpot(12.0f, 24.0f);
@@ -2941,17 +2970,19 @@ private:
                 false);
             GroundIndicators::ShowSoak(Caster(), spot, InfernalRadius, InfernalWarningMs, InfernalSoakersBots,
                 GroundIndicators::Theme::Fire);
+            scorches.push_back(PrepareScorch(spot, InfernalRadius * 1.2f, InfernalWarningMs));
         }
         Caster()->SendPlaySpellVisual(KIT_SHADOW_CRASH_CAST);
-        scheduler.Schedule(Milliseconds(InfernalWarningMs), [this, spots](TaskContext)
+        scheduler.Schedule(Milliseconds(InfernalWarningMs), [this, spots, scorches](TaskContext)
         {
             uint32 failed = 0;
             Impact(true);
-            for (Position const& spot : spots)
+            for (std::size_t index = 0; index < spots.size(); ++index)
             {
+                Position const& spot = spots[index];
                 PlayOnGround(spot, KIT_INFERNO_HIT);
                 GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Fire);
-                Scorch(spot, InfernalRadius * 1.2f, PAINT_VOID_SCORCH);
+                LandScorch(scorches[index], PAINT_VOID_SCORCH);
                 std::vector<Player*> const soakers = PlayersIn(CircleArea(spot, InfernalRadius));
                 Resolved("Dread Infernal impact", soakers.size() >= 2, Acore::StringFormat("soakers={}",
                          soakers.size()));
@@ -3003,11 +3034,12 @@ private:
                     GroundIndicators::Area const area = GroundIndicators::ShowPainted(me,
                         CircleArea(ArenaSpot(InhaleBlastRadius + 2.0f, ArenaWalkRadius), InhaleVoidRadius),
                         PAINT_ECHO_CORE, InhaleVoidWarningMs, GroundIndicators::Theme::Shadow);
-                    scheduler.Schedule(Milliseconds(InhaleVoidWarningMs), [this, area](TaskContext)
+                    ObjectGuid const scorch = PrepareScorch(area.origin, area.radius, InhaleVoidWarningMs);
+                    scheduler.Schedule(Milliseconds(InhaleVoidWarningMs), [this, area, scorch](TaskContext)
                     {
                         PlayOnGround(area.origin, KIT_SHADOWFURY_HIT);
                         Strike(area, PAINT_ECHO_CORE_HIT);
-                        Scorch(area.origin, area.radius, PAINT_VOID_SCORCH);
+                        LandScorch(scorch, PAINT_VOID_SCORCH);
                         for (Player* player : PlayersIn(area))
                             Hit(player, SPELL_INHALE, InhaleVoidPct, true);
                     });

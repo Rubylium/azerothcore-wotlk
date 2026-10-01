@@ -58,6 +58,30 @@ def normalise(ffmpeg, source, target):
     print(f"{os.path.basename(target)}: {stats['input_i']} LUFS -> {TARGET_LUFS}")
 
 
+def loudness(ffmpeg, source):
+    result = subprocess.run([ffmpeg, '-hide_banner', '-nostats', '-i', source, '-af', 'ebur128', '-f', 'null', '-'],
+                            capture_output=True, text=True, check=True)
+    return float(result.stderr[result.stderr.rindex('I:'):].split()[1])
+
+
+def level(ffmpeg, source, target):
+    """Exactly TARGET_LUFS: loudnorm's linear mode stops short where a track's peaks would pass TRUE_PEAK (the two
+    landed at -9.9 and -10.4, the demon's under the Archbishop's), so a measured gain and a true-peak limiter instead,
+    measured again until it lands (the ability sounds' way, buildSounds.py)"""
+    limit = 10 ** (TRUE_PEAK / 20.0)
+    gain = TARGET_LUFS - loudness(ffmpeg, source)
+    for _ in range(4):
+        subprocess.run([ffmpeg, '-hide_banner', '-nostats', '-y', '-i', source, '-af',
+                        f'volume={gain:.2f}dB,alimiter=limit={limit:.3f}:attack=2:release=60:level=false',
+                        '-ar', '44100', '-ac', '2', '-codec:a', 'libmp3lame', '-b:a', '192k', target],
+                       capture_output=True, check=True)
+        reached = loudness(ffmpeg, target)
+        if abs(reached - TARGET_LUFS) < 0.15:
+            break
+        gain += TARGET_LUFS - reached
+    print(f'{os.path.basename(target)}: {reached:.1f} LUFS')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('archbishop', nargs='?')
@@ -73,7 +97,7 @@ def main():
             shipped = os.path.join(OUTPUT, name)
             source = shipped + '.source.mp3'
             os.replace(shipped, source)
-            normalise(args.ffmpeg, source, shipped)
+            level(args.ffmpeg, source, shipped)
             os.remove(source)
     if args.join_only or args.renormalise:
         join(args.ffmpeg)
