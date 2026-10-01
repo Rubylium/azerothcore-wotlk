@@ -1,4 +1,7 @@
 #include "AllSpellScript.h"
+#include "CellImpl.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -15,11 +18,13 @@
 
 #include <algorithm>
 #include <array>
+#include <list>
 
 // The Barbarian (class 14): what its spell data (localTools/barbarian/Spells.ps1) cannot carry. Its abilities taught by
 // level, its proficiencies, Carnage (a bleed of up to 10 stacks most strikes add to), the Brutalité enrage on auto
-// attacks, and the talents its trees mark as dummies (localTools/barbarian/talentTree.json): a talent is its rank
-// spell's aura on the Barbarian, learned by mod-custom-classes' TalentTree.cpp.
+// attacks, the axes the Chasseur de têtes throws on its own, the Ascendance's Tankard and Défi, and the talents its
+// trees mark as dummies (localTools/barbarian/talentTree.json): a talent is its rank spell's aura on the Barbarian,
+// learned by mod-custom-classes' TalentTree.cpp.
 //
 // Enrage is the dispel type of the enrage auras (Spell.dbc field 2 = 9): the core then raises AURA_STATE_ENRAGE, which
 // Fracas, Déchaînement and Outrage ask for (field 20), so the client greys them too.
@@ -48,7 +53,30 @@ enum Spells : uint32
     SPELL_STORM_OF_STEEL = 97127,
     SPELL_IMPALE = 97129,
     SPELL_STORM_OF_STEEL_HIT = 97130,
+    // Chasseur de têtes
+    SPELL_THROW_WEAPON = 97160,
+    SPELL_HEADHUNTERS_SPEAR = 97161,
+    SPELL_BERSERKER_AXE = 97162,
+    SPELL_BERSERKER_AXE_MARK = 97163,
+    SPELL_MAIMING_SPEAR = 97164,
+    SPELL_THROWN_AXE = 97165,
+    SPELL_GUTSPILLER = 97166,
+    SPELL_AXE_TWIRLING = 97167,
+    SPELL_AXE_TWIRLING_HIT = 97168,
+    SPELL_AXE_VOLLEY = 97169,
+    SPELL_JAVELIN = 97172,
+    // Ascendance
+    SPELL_ANCESTRAL_STRIKE = 97200,
+    SPELL_KEG_SMASH = 97201,
+    SPELL_KEG_SMASH_FROST = 97202,
+    SPELL_DEFIANCE = 97207,
+    SPELL_TANKARD = 97211,
+    SPELL_ANCESTRAL_COMBAT = 97212,
+    SPELL_ANCESTRAL_COMBAT_HIT = 97213,
+    SPELL_UNDYING_THANE_HEAL = 97214,
     SPELL_SPEC_BRUTALITY = 97290,
+    SPELL_SPEC_HEADHUNTER = 97291,
+    SPELL_SPEC_ANCESTRY = 97292,
     // Talent ranks the C++ reads (localTools/barbarian/talentTree.json)
     TALENT_BORN_IN_BLOOD_1 = 97314,
     TALENT_BORN_IN_BLOOD_2 = 97315,
@@ -62,6 +90,20 @@ enum Spells : uint32
     TALENT_PROTECTIVE_RAGE_2 = 97402,
     TALENT_BLOODLETTING_1 = 97407,
     TALENT_BLOODLETTING_2 = 97408,
+    TALENT_INSTINCTIVE_THROW = 97420,
+    TALENT_BARBED_POINTS_1 = 97434,
+    TALENT_BARBED_POINTS_2 = 97435,
+    TALENT_TORTURE = 97448,
+    TALENT_HEAD_COLLECTOR = 97456,
+    TALENT_SPILLED_GUTS_1 = 97457,
+    TALENT_SPILLED_GUTS_2 = 97458,
+    TALENT_SAVAGE_INSTINCT_1 = 97459,
+    TALENT_SAVAGE_INSTINCT_2 = 97460,
+    TALENT_RETURNING_AXE_1 = 97465,
+    TALENT_RETURNING_AXE_2 = 97466,
+    TALENT_FULL_TANKARD = 97494,
+    TALENT_ANCESTORS_BREW = 97514,
+    TALENT_UNDYING_THANE = 97531,
 };
 
 // The abilities every Barbarian holds, by level (the others come from its talent trees and specialization)
@@ -93,6 +135,16 @@ LiveTuning::Knob const DecapitatePerEnergy("barbarian.decapitate_per_energy", 0.
 LiveTuning::Knob const ImpaleLowHealthFactor("barbarian.impale_low_health_factor", 1.625f);
 // Intercept's rush runs at SPEED_CHARGE (42 yd/s); the blow lands this long after the Barbarian arrives
 LiveTuning::KnobUInt const WhirlingAdvanceLandMs("barbarian.whirling_advance_land_ms", 100);
+// Chasseur de têtes: an axe thrown on its own every so often (1.5 s with Lancer instinctif)
+LiveTuning::KnobUInt const AutoThrowMs("barbarian.auto_throw_ms", 2000);
+LiveTuning::KnobUInt const InstinctiveAutoThrowMs("barbarian.instinctive_auto_throw_ms", 1500);
+LiveTuning::Knob const TortureFactor("barbarian.torture_factor", 1.15f);
+// Ascendance: the Tankard fills one charge every so often in combat; each charge emptied by Coup de fût
+LiveTuning::KnobUInt const TankardFillMs("barbarian.tankard_fill_ms", 3000);
+LiveTuning::Knob const TankardFrostPerCharge("barbarian.tankard_frost_per_charge", 0.15f);
+LiveTuning::KnobInt const AncestralCombatChance("barbarian.ancestral_combat_chance", 30);
+// Défi: 30% from its aura, up to this much more of what is left as health runs out (30% -> 60% at none)
+LiveTuning::Knob const DefianceMissingHealthFactor("barbarian.defiance_missing_health", 0.43f);
 
 constexpr char const* StateKey = "BarbarianState";
 
@@ -101,6 +153,9 @@ struct BarbarianState : public DataMap::Base
     // The energy a Décapitation burns on top of its cost: measured as it hits (the hit comes before the cast hook,
     // after the cost was paid), then spent by the cast hook
     uint32 decapitateExtra = 0;
+    uint32 autoThrowMs = 0;         // since the Chasseur de têtes' last thrown axe
+    uint32 tankardMs = 0;           // since the Tankard last filled
+    uint8 kegCharges = 0;           // the Tankard charges the last Coup de fût emptied
 };
 
 Player* Barbarian(Unit* unit)
@@ -132,6 +187,77 @@ uint8 RankOfFive(Unit const* unit, uint32 first)
 bool IsEnraged(Unit const* unit)
 {
     return unit->HasAuraState(AURA_STATE_ENRAGE);
+}
+
+// The Chasseur de têtes' throws: what Danse des haches spreads, Torture and Instinct sauvage strengthen
+bool IsThrow(uint32 spellId)
+{
+    switch (spellId)
+    {
+        case SPELL_THROW_WEAPON:
+        case SPELL_HEADHUNTERS_SPEAR:
+        case SPELL_BERSERKER_AXE:
+        case SPELL_MAIMING_SPEAR:
+        case SPELL_THROWN_AXE:
+        case SPELL_AXE_TWIRLING_HIT:
+        case SPELL_AXE_VOLLEY:
+        case SPELL_JAVELIN:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// The enemies within `radius` of `center` the Barbarian may strike, nearest first, `center` itself left out
+std::list<Unit*> NearbyEnemies(Player* player, Unit* center, float radius, std::size_t limit)
+{
+    std::list<Unit*> enemies;
+    Acore::AnyUnfriendlyUnitInObjectRangeCheck check(center, player, radius);
+    Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(center, enemies, check);
+    Cell::VisitObjects(center, searcher, radius);
+    enemies.remove_if([player, center](Unit* unit)
+        { return unit == center || !unit->IsAlive() || !player->IsValidAttackTarget(unit); });
+    enemies.sort([center](Unit const* left, Unit const* right)
+        { return center->GetDistance(left) < center->GetDistance(right); });
+    while (enemies.size() > limit)
+        enemies.pop_back();
+    return enemies;
+}
+
+uint8 TankardCapacity(Player const* player)
+{
+    return player->HasAura(TALENT_FULL_TANKARD) ? 7 : 5;
+}
+
+uint8 TankardCharges(Player const* player)
+{
+    Aura const* aura = player->GetAura(SPELL_TANKARD);
+    return aura ? aura->GetStackAmount() : 0;
+}
+
+void FillTankard(Player* player)
+{
+    uint8 const charges = TankardCharges(player);
+    if (charges >= TankardCapacity(player))
+        return;
+    Aura* aura = player->GetAura(SPELL_TANKARD);
+    if (!aura)
+        aura = player->AddAura(SPELL_TANKARD, player);
+    if (aura)
+        aura->SetStackAmount(charges + 1);
+}
+
+// An aura of the Barbarian's on a unit, one more stack up to `max`, its duration refreshed
+void AddStack(Player* player, Unit* target, uint32 spellId, uint8 max)
+{
+    if (Aura* aura = target->GetAura(spellId, player->GetGUID()))
+    {
+        if (aura->GetStackAmount() < max)
+            aura->ModStackAmount(1);
+        aura->RefreshDuration();
+        return;
+    }
+    player->AddAura(spellId, target);
 }
 
 // Carnage on the target: `stacks` more, up to the cap, its duration refreshed
@@ -193,6 +319,24 @@ void ScheduleAdvanceLanding(Player* player, Unit* target)
     }, Milliseconds(travelMs + WhirlingAdvanceLandMs));
 }
 
+// The Chasseur de têtes: an axe at its target every 2 s (1.5 s with Lancer instinctif), from up to 30 yd, while it is
+// not casting
+void AutoThrow(Player* player, BarbarianState* state, uint32 diff)
+{
+    state->autoThrowMs += diff;
+    uint32 const interval = player->HasAura(TALENT_INSTINCTIVE_THROW) ? InstinctiveAutoThrowMs : AutoThrowMs;
+    if (state->autoThrowMs < interval)
+        return;
+    Unit* target = player->GetSelectedUnit();
+    if (!target || !player->IsValidAttackTarget(target))
+        target = player->GetVictim();
+    if (!target || !target->IsAlive() || !player->IsValidAttackTarget(target) || player->IsNonMeleeSpellCast(false) ||
+        player->GetDistance(target) > 30.0f || !player->IsWithinLOSInMap(target))
+        return;
+    state->autoThrowMs = 0;
+    player->CastSpell(target, SPELL_THROWN_AXE, true);
+}
+
 class BarbarianSpellScript : public AllSpellScript
 {
 public:
@@ -222,6 +366,26 @@ public:
                             barbarian->RemoveSpellCooldown(SPELL_SMASH, true);
                     }, Milliseconds(1));
                 break;
+            case SPELL_HEADHUNTERS_SPEAR:
+                // Pointes barbelées
+                if (uint8 const rank = Rank(player, TALENT_BARBED_POINTS_1, TALENT_BARBED_POINTS_2))
+                    player->ModifyPower(POWER_ENERGY, 5 * rank);
+                break;
+            case SPELL_KEG_SMASH:
+            {
+                // The Tankard emptied into the frost of the blow, each charge mending the Barbarian (Bière des
+                // ancêtres: twice as much)
+                BarbarianState* state = GetState(player);
+                state->kegCharges = TankardCharges(player);
+                player->RemoveAurasDueToSpell(SPELL_TANKARD);
+                if (state->kegCharges)
+                    player->ModifyHealth(int32(player->CountPctFromMaxHealth(
+                        state->kegCharges * (player->HasAura(TALENT_ANCESTORS_BREW) ? 2 : 1))));
+                if (Unit* target = spell->m_targets.GetUnitTarget())
+                    if (target->IsAlive())
+                        player->CastSpell(target, SPELL_KEG_SMASH_FROST, true);
+                break;
+            }
             case SPELL_DECAPITATE:
             {
                 // The energy the blow burned (none when it missed)
@@ -242,7 +406,8 @@ public:
     BarbarianUnitScript() : UnitScript("BarbarianUnitScript", true, {
         UNITHOOK_MODIFY_MELEE_DAMAGE,
         UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,
-        UNITHOOK_ON_SPELL_DAMAGE_DONE
+        UNITHOOK_ON_SPELL_DAMAGE_DONE,
+        UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK
     }) { }
 
     // Auto attacks: Brutalité's enrage, and Ruée empalante's impaling blow
@@ -252,6 +417,7 @@ public:
         if (!player || !target || !damage)
             return;
         ConsumeImpalingRush(player, target);
+        AncestralCombat(player, target);
         if (player->HasAura(SPELL_SPEC_BRUTALITY) &&
             roll_chance_i(BloodthirstyRageChance + RankOfFive(player, TALENT_UNBRIDLED_WRATH_1)))
             player->CastSpell(player, SPELL_BLOODTHIRSTY_RAGE, true);
@@ -272,6 +438,20 @@ public:
         }
         else if (spellInfo->Id == SPELL_IMPALE && target->GetHealthPct() < 35.0f)
             damage = int32(float(damage) * ImpaleLowHealthFactor);
+        else if (spellInfo->Id == SPELL_KEG_SMASH_FROST)
+            damage = int32(float(damage) * (1.0f + TankardFrostPerCharge * float(GetState(player)->kegCharges)));
+        if (IsThrow(spellInfo->Id))
+        {
+            float factor = 1.0f;
+            // Torture: on a bleeding enemy
+            if (player->HasAura(TALENT_TORTURE) && target->HasAuraWithMechanic(1ULL << MECHANIC_BLEED))
+                factor *= TortureFactor;
+            // Instinct sauvage: while enraged
+            if (uint8 const rank = Rank(player, TALENT_SAVAGE_INSTINCT_1, TALENT_SAVAGE_INSTINCT_2))
+                if (IsEnraged(player))
+                    factor *= 1.0f + 0.05f * float(rank);
+            damage = int32(float(damage) * factor);
+        }
     }
 
     // What a strike leaves on each enemy it hit: Carnage, and the heals that ride on it
@@ -306,15 +486,46 @@ public:
                 if (victim->GetHealthPct() < 35.0f)
                     AddCarnage(player, victim, 5);
                 break;
+            case SPELL_BERSERKER_AXE:
+                AddStack(player, victim, SPELL_BERSERKER_AXE_MARK, 5);
+                break;
+            case SPELL_ANCESTRAL_STRIKE:
+                AddCarnage(player, victim, 1);
+                break;
             default:
                 break;
         }
+        if (IsThrow(spellInfo->Id))
+        {
+            // Danse des haches: two more enemies near the target, by a throw of its own (never a dance's own)
+            if (player->HasAura(SPELL_AXE_TWIRLING) && spellInfo->Id != SPELL_AXE_TWIRLING_HIT)
+                for (Unit* enemy : NearbyEnemies(player, victim, 8.0f, 2))
+                    player->CastSpell(enemy, SPELL_AXE_TWIRLING_HIT, true);
+            // Retour de hache: the spear back in hand
+            if (uint8 const rank = Rank(player, TALENT_RETURNING_AXE_1, TALENT_RETURNING_AXE_2))
+                if (spellInfo->Id != SPELL_HEADHUNTERS_SPEAR && roll_chance_i(5 * rank))
+                    player->RemoveSpellCooldown(SPELL_HEADHUNTERS_SPEAR, true);
+        }
+        if (spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE && spellInfo->Id != SPELL_ANCESTRAL_COMBAT_HIT)
+            AncestralCombat(player, victim);
         if (spellInfo->SpellFamilyName == SPELL_FAMILY_BARBARIAN && spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE)
             ConsumeImpalingRush(player, victim);
     }
 
-    // The Barbarian hit (every unit script hears this one): Rage protectrice while enraged, and Né dans le sang as it
-    // falls under 35%
+    // Étripeur's ticks: Tripes répandues
+    void ModifyPeriodicDamageAurasTick(Unit* /*target*/, Unit* attacker, uint32& damage,
+                                       SpellInfo const* spellInfo) override
+    {
+        Player* player = Barbarian(attacker);
+        if (!player || !spellInfo || !damage || spellInfo->Id != SPELL_GUTSPILLER)
+            return;
+        if (uint8 const rank = Rank(player, TALENT_SPILLED_GUTS_1, TALENT_SPILLED_GUTS_2))
+            if (roll_chance_i(15 * rank))
+                player->ModifyPower(POWER_ENERGY, 5);
+    }
+
+    // The Barbarian hit (every unit script hears this one): Rage protectrice while enraged, Défi, Thane immortel, and
+    // Né dans le sang as it falls under 35%
     uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, DamageEffectType /*type*/) override
     {
         Player* player = Barbarian(victim);
@@ -323,6 +534,21 @@ public:
         if (uint8 const rank = Rank(player, TALENT_PROTECTIVE_RAGE_1, TALENT_PROTECTIVE_RAGE_2))
             if (IsEnraged(player))
                 damage = uint32(CalculatePct(damage, 100 - 3 * rank));
+        // Défi: its aura's 30%, and more of what is left as health runs out
+        if (player->HasAura(SPELL_DEFIANCE))
+        {
+            float const missing = 1.0f - player->GetHealthPct() / 100.0f;
+            damage = uint32(float(damage) * (1.0f - DefianceMissingHealthFactor * missing));
+        }
+        // Thane immortel: the killing blow leaves the Barbarian standing, once every 3 min
+        if (damage >= player->GetHealth() && player->HasAura(TALENT_UNDYING_THANE) &&
+            !player->HasSpellCooldown(TALENT_UNDYING_THANE))
+        {
+            player->AddSpellCooldown(TALENT_UNDYING_THANE, 0, 180000);
+            damage = uint32(player->GetHealth() - 1);
+            player->CastSpell(player, SPELL_UNDYING_THANE_HEAL, true);
+            return damage;
+        }
         if (uint8 const rank = Rank(player, TALENT_BORN_IN_BLOOD_1, TALENT_BORN_IN_BLOOD_2))
         {
             uint64 const threshold = player->CountPctFromMaxHealth(35);
@@ -339,6 +565,15 @@ public:
     }
 
 private:
+    // Combat ancestral: a blow now and then strikes again in frost and fills the Tankard
+    static void AncestralCombat(Player* player, Unit* target)
+    {
+        if (!player->HasAura(SPELL_ANCESTRAL_COMBAT) || !target->IsAlive() || !roll_chance_i(AncestralCombatChance))
+            return;
+        player->CastSpell(target, SPELL_ANCESTRAL_COMBAT_HIT, true);
+        FillTankard(player);
+    }
+
     // Ruée empalante: the next blow after it impales its target
     static void ConsumeImpalingRush(Player* player, Unit* target)
     {
@@ -353,8 +588,39 @@ class BarbarianPlayerScript : public PlayerScript
 {
 public:
     BarbarianPlayerScript() : PlayerScript("BarbarianPlayerScript", {
-        PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LEVEL_CHANGED
+        PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LEVEL_CHANGED, PLAYERHOOK_ON_UPDATE, PLAYERHOOK_ON_CREATURE_KILL
     }) { }
+
+    void OnPlayerUpdate(Player* player, uint32 diff) override
+    {
+        if (!Barbarian(player))
+            return;
+        BarbarianState* state = GetState(player);
+        if (!player->IsAlive() || !player->IsInCombat())
+        {
+            state->autoThrowMs = 0;
+            state->tankardMs = 0;
+            return;
+        }
+        if (player->HasAura(SPELL_SPEC_HEADHUNTER))
+            AutoThrow(player, state, diff);
+        if (player->HasAura(SPELL_SPEC_ANCESTRY))
+        {
+            state->tankardMs += diff;
+            if (state->tankardMs >= TankardFillMs)
+            {
+                state->tankardMs = 0;
+                FillTankard(player);
+            }
+        }
+    }
+
+    // Collectionneur de têtes
+    void OnPlayerCreatureKill(Player* killer, Creature* /*killed*/) override
+    {
+        if (Barbarian(killer) && killer->HasAura(TALENT_HEAD_COLLECTOR))
+            killer->ModifyPower(POWER_ENERGY, 30);
+    }
 
     void OnPlayerLogin(Player* player) override
     {

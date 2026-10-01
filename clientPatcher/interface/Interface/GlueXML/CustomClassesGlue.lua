@@ -39,9 +39,10 @@ local CLASS_INFORMATION = {
     },
     BARBARIAN = {
         Name = "Barbare",
-        Description = "Un guerrier du Nord qui puise sa force dans la rage : enragé, il fracasse ses ennemis à la"
-            .. " hache, les couvre de Carnage et achève les blessés.",
-        Roles = "Dégâts de mêlée.",
+        Description = "Un guerrier du Nord qui puise sa force dans la rage : il fracasse ses ennemis à la hache,"
+            .. " les abat de loin à coups de haches lancées, ou tient la ligne derrière son bouclier, porté par ses"
+            .. " ancêtres et le givre du Nord.",
+        Roles = "Dégâts de mêlée, dégâts à distance ou tank.",
     },
 }
 
