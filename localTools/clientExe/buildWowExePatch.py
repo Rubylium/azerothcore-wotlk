@@ -4,12 +4,15 @@ Wow.exe is patched in one place only, clientPatcher/template/Patch-WowExe.ps1, w
 player's machine. Each entry below is a byte range with its stock and its patched bytes: the script refuses to
 touch a Wow.exe whose ranges are neither, keeps the original, and does nothing when everything is applied.
 
-Two sources feed it:
-  - awesome_wotlk (https://github.com/Rubylium/awesome_wotlk): the loader that makes Wow.exe load
-    AwesomeWotlkLib.dll (MSDF font rendering, bug fixes, extra Lua API). Its bytes are read from the fork's own
-    src/AwesomeWotlkPatch/Patch.h, so the fork stays the single source of truth for them.
-  - the custom classes (localTools/customClasses/classes.json): the Dungeon Finder role of each class, which
-    Wow.exe reads from a table of its own (see WOW_EXE_ROLE_TABLE_VA).
+Its one source is awesome_wotlk (https://github.com/Rubylium/awesome_wotlk): the loader that makes Wow.exe load
+AwesomeWotlkLib.dll (MSDF font rendering, bug fixes, extra Lua API, the engine changes the custom classes need). Its
+bytes are read from the fork's own src/AwesomeWotlkPatch/Patch.h, so the fork stays the single source of truth for
+them.
+
+The custom classes' Dungeon Finder roles used to be bytes written into Wow.exe's own role table (VA 0xA394AF), which
+only had room up to class id 12. The DLL now keeps that table (CustomClassRoles.cpp, fed from classes.json by
+localTools/customClasses/writeDllClassRoles.py), so nothing of it is patched here any more. An exe patched by an
+older version keeps those bytes; the DLL's table no longer reads them.
 
 Stock bytes are read from a reference Wow.exe that has never been patched.
 
@@ -19,28 +22,16 @@ import argparse
 import json
 import os
 import re
-import sys
 
 import pefile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(REPO, 'localTools', 'customClasses'))
-from buildCustomClasses import DEFINITIONS, LFG_ROLE_LEADER, role_mask  # noqa: E402
 
 OUTPUT = os.path.join(REPO, 'clientPatcher', 'template', 'WowExePatch.json')
 DEFAULT_STOCK_EXE = r'C:\Users\alexi\Documents\GitHub\CleanWOTLK\Wow.exe.before-custom-classes'
 DEFAULT_AWESOME_WOTLK = r'C:\Users\alexi\Documents\GitHub\awesome_wotlk'
 BUILD = 12340
 
-# Wow.exe takes a class's Dungeon Finder roles from a static table, one byte per class id (bit 1 leader, 2 tank,
-# 4 healer, 8 damage). Every role decision reads it: the buttons GetAvailableRoles enables, the filter
-# SetLFGRoles applies before storing, and the check before JoinLFG sends. A class without a byte there can take
-# no role at all, whatever the interface shows. The table covers ids 0-11. Slot 10 is an unused zero, and id 12
-# lands on the alignment padding before the next (dword) table, so both can be written; ids 13-15 would
-# overwrite that next table.
-WOW_EXE_ROLE_TABLE_VA = 0xA394AF
-WOW_EXE_ROLE_TABLE_SIZE = 16
-WOW_EXE_PATCHABLE_ROLE_SLOTS = (10, 12)
 
 
 class StockExe:
@@ -99,20 +90,6 @@ def read_awesome_wotlk_patches(repo):
     return patches
 
 
-def role_table_patch(exe):
-    definitions = json.load(open(DEFINITIONS, encoding='utf8'))['classes']
-    table = bytearray(exe.read(WOW_EXE_ROLE_TABLE_VA, WOW_EXE_ROLE_TABLE_SIZE))
-    names = []
-    for definition in definitions:
-        # The stock table has safe storage only for ids 10 and 12. Higher custom class ids are still fully
-        # playable; they simply stay out of the stock Dungeon Finder until its table access is relocated.
-        if definition['id'] not in WOW_EXE_PATCHABLE_ROLE_SLOTS:
-            continue
-        table[definition['id']] = LFG_ROLE_LEADER | role_mask(definition)
-        names.append(f"{definition['name']} ({definition['id']})")
-    return patch(exe, 'Dungeon Finder roles: ' + ', '.join(names), WOW_EXE_ROLE_TABLE_VA, bytes(table))
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--stock-exe', default=DEFAULT_STOCK_EXE)
@@ -122,7 +99,6 @@ def main():
     exe = StockExe(args.stock_exe)
     patches = [patch(exe, f'awesome_wotlk loader: {label}', virtual_address, patched)
                for virtual_address, label, patched in read_awesome_wotlk_patches(args.awesome_wotlk)]
-    patches.append(role_table_patch(exe))
 
     # Two ranges writing the same bytes would each see the other's work as a foreign modification
     ranges = sorted((p['offset'], p['offset'] + len(p['patched']) // 2, p['name']) for p in patches)

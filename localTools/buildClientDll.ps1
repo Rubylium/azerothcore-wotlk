@@ -13,6 +13,10 @@ foreach ($requiredPath in @($awesomeWotlkPath, $vcvarsPath)) {
     }
 }
 
+# The custom classes' Dungeon Finder roles, from classes.json (CustomClassRoles.generated.h)
+& python (Join-Path $PSScriptRoot 'customClasses\writeDllClassRoles.py') --awesome-wotlk $awesomeWotlkPath
+if ($LASTEXITCODE -ne 0) { throw 'Writing the class roles for the DLL failed.' }
+
 Write-Host 'Building AwesomeWotlkLib (x86)...'
 Push-Location $awesomeWotlkPath
 try {

@@ -589,7 +589,8 @@ def sql_value(text):
 LFG_ROLE_LEADER = 1
 LFG_ROLE_BITS = {'tank': 2, 'healer': 4, 'damage': 8}
 
-# Wow.exe's own role table is patched by localTools/clientExe/buildWowExePatch.py, from role_mask below
+# The client's role table is the DLL's (awesome_wotlk CustomClassRoles.cpp), fed from role_mask below by
+# localTools/customClasses/writeDllClassRoles.py
 
 
 def role_mask(definition):
