@@ -65,8 +65,10 @@ bool CanQuickTravel(Player* player, bool reportError, bool checkCasting = true)
         error = "You cannot use Quick Travel while in combat.";
     else if (player->IsInFlight() || player->IsBeingTeleported())
         error = "You are already travelling.";
-    else if (player->GetMap()->Instanceable())
-        error = "Quick Travel cannot be used inside an instance or battleground.";
+    // Dungeons and raids allowed (out of combat, above): a group can leave for town and come back; not a battleground
+    // or an arena, to leave a match
+    else if (player->GetMap()->IsBattlegroundOrArena())
+        error = "Quick Travel cannot be used inside a battleground or an arena.";
     else if (checkCasting && player->IsNonMeleeSpellCast(false))
         error = "You are already casting another spell.";
 
