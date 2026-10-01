@@ -26,9 +26,9 @@ TRUE_PEAK = -1.0
 RANGE = 11.0
 SWITCH_SECONDS = 120.0      # the Archbishop's track ends (its fade done)
 GAP_SECONDS = 5.0           # HollowVoice.cpp TransitionMs: Vel'thazar's starts at AtSecondTrack = SWITCH + GAP
-# Vel'thazar's track from its first hit: its 1.5 s lead-in rose like a fade-in after the silence (HollowVoice.cpp
-# SecondTrackTrimMs: the demon tears out on the hit, at AtSecondTrack)
-VELTHAZAR_TRIM_SECONDS = 1.5
+# Vel'thazar's track whole: its first 1.5 s are drum hits, heard as the demon tears out (cut once as a fade-in: the
+# user wants them; HollowVoice.cpp SecondTrackTrimMs)
+VELTHAZAR_TRIM_SECONDS = 0.0
 REVEAL_TEST_SECONDS = 110.0 # HollowVoice.cpp RevealTestStartMs
 
 

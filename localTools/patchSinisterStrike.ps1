@@ -1525,6 +1525,19 @@ function Get-StringDbcOutput($dbc) {
 
 # --- SoundEntries.dbc / SpellVisualKit.dbc / SpellVisual.dbc: custom sound and visuals ---
 $soundDbc = Read-StringDbc $soundBackupPath 'SoundEntries.dbc' 30
+# The game's combat noise turned down, so a boss's sounds (ours, added below at full volume) carry over ten players'
+# spells: the Hollow Voice's were at full volume and full scale already, and still lost under the raid's. Spells (1),
+# weapon impacts and swings (4, 6), the characters' and creatures' combat sounds (10) and siege attacks (53) play at
+# CombatSoundVolume of their own volume; music, ambience, voices and the interface are left as they are. A player
+# turns the effects up a little and the bosses stand out twice as much.
+$CombatSoundVolume = 0.45
+$combatSoundTypes = @(1, 4, 6, 10, 53)
+foreach ($id in @($soundDbc.Offsets.Keys)) {
+    $base = $soundDbc.Offsets[$id]
+    if ($combatSoundTypes -notcontains [int](Read-Field $soundDbc.Data $base 1)) { continue }
+    $volume = [BitConverter]::ToSingle($soundDbc.Data, $base + 24 * 4)
+    Write-Field $soundDbc.Data $base 24 ([BitConverter]::ToUInt32([BitConverter]::GetBytes([single]($volume * $CombatSoundVolume)), 0))
+}
 $soundIdsByKey = @{}
 foreach ($sound in $customSounds) {
     $soundIdsByKey[$sound.Key] = Add-SoundEntry $soundDbc $sound

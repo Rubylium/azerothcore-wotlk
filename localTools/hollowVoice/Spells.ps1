@@ -145,6 +145,12 @@ $spells = @(
     @{ Id = 94042; Clone = 48078; Name = 'Litanie de pénitence'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Frappe tout le groupe, par vagues.'
        Fields = @{ 225 = $holy } },
+    # The spinning swarms' bite: each hit a charge for a few seconds, each charge making the next hit hurt more
+    # (HollowVoice.cpp SpinSwarmStackPct) - one crossing is nothing, a second soon after is a lot, a third kills
+    @{ Id = 94044; Clone = 2983; Name = 'Morsures de la nuée'; FallbackIconSpell = 61290; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 10; Spellbook = $false
+       Description = 'Chaque morsure des nuées tourbillonnantes en ajoute une charge.'
+       AuraDescription = 'Les nuées tourbillonnantes vous infligent 50% de dégâts en plus par charge.'
+       Fields = @{ 4 = $debuff; 40 = 21 } },
     @{ Id = 94043; Clone = 46161; Name = 'Lamentation creuse'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Frappe tout le groupe, par vagues.'
        Fields = @{ 225 = $shadow } }

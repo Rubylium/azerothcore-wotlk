@@ -54,25 +54,25 @@
 //      1:57.5 the verdict: not at 1%, Last Rites - a holy judgement kills the group on his track's last bars, and the
 //      demon is never seen nor heard; at 1%, he falls as his track fades (1:59.7).
 // 1:59.7-2:05.0 the break: silence, the fallen Archbishop's warning (2:01.7).
-// 2:05.0 Vel'thazar's track (5:30) follows from its first hit, and Vel'thazar, the Hollow Voice, tears out of the
+// 2:05.0 Vel'thazar's track (5:30) follows, its opening drums as Vel'thazar, the Hollow Voice, tears out of the
 //      Archbishop, who stays hidden. Killing the demon frees and kills the Archbishop: his kill is the board's win
 //      (RaidFinder follows the board's boss, 930100).
-//      2:06.5-3:06.5 Vampiric Brand on his tank (he feeds on a tank marked three times), Carrion Swarm (a cone),
+//      2:08.0-3:08.0 Vampiric Brand on his tank (he feeds on a tank marked three times), Carrion Swarm (a cone),
 //      Hollow Echo (the Archbishop's aisles and rings come back inverted), and on the 0:47 hit Whisper of Doubt
 //      (three carried circles).
-//      3:06.5 Last Light: the void pulses, three shrinking pools of the Archbishop's light are the only shelter.
-//      3:21.1 Nightmare Lances (a void lance to each of two marked), and on the 1:43.5 hit two Dread Infernals crash
+//      3:08.0 Last Light: the void pulses, three shrinking pools of the Archbishop's light are the only shelter.
+//      3:22.6 Nightmare Lances (a void lance to each of two marked), and on the 1:43.5 hit two Dread Infernals crash
 //      (each impact shared) and fight on.
-//      4:04.5 Inhale of the Void: he draws everyone in while void falls; on the drop (4:11.3) all near him are struck.
-//      4:11.3 his true form: bigger, the chamber's edge devoured for the rest of the fight; three swarms spin round
+//      4:06.0 Inhale of the Void: he draws everyone in while void falls; on the drop (4:12.8) all near him are struck.
+//      4:12.8 his true form: bigger, the chamber's edge devoured for the rest of the fight; three swarms spin round
 //      him.
-//      4:44.5 Aldric's Last Prayer: the Archbishop fights from inside - the demon is imprisoned, four lights of his
+//      4:46.0 Aldric's Last Prayer: the Archbishop fights from inside - the demon is imprisoned, four lights of his
 //      stand in the chamber: carried into the demon, each cracks the prison and blesses its carrier. Not broken by
 //      the climax: a void blast on everyone for each light left.
-//      5:15.9 the loudest climax: Hollow Sermon (void towers, a Bastion tower), crosses of void, the swarms.
-//      6:18.5 the dark section: Voice of Ruin on the three stabs (6:30.5, 6:47.5, 7:02.5) - near death for everyone,
+//      5:17.4 the loudest climax: Hollow Sermon (void towers, a Bastion tower), crosses of void, the swarms.
+//      6:20.0 the dark section: Voice of Ruin on the three stabs (6:32.0, 6:49.0, 7:04.0) - near death for everyone,
 //      halved under Aldric's last Aegis, held by a tank.
-// 7:20.6 / 7:21.2 / 7:21.6 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
+// 7:22.1 / 7:22.7 / 7:23.1 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
 //      everyone's health, then a pulse every second that kills whatever protects them.
 //
 // Every avoidable hit is drawn first (GroundIndicators, the red; a sigil of the user's under a soak) and resolved on
@@ -108,7 +108,8 @@ constexpr uint32 DefiGraceMs = 8000;            // players are waited for this l
 
 // The Archbishop's
 // The healers' work between mechanics (Litany): when nothing has been asked of the group for LitanyQuietMs and nothing
-// is coming within LitanyLeadMs, a raid-wide hit in LitanyPulses pulses - the fight alternates the damage dealers' moments
+// is coming within LitanyLeadMs, a raid-wide hit in LitanyPulses pulses - the fight alternates the damage dealers'
+// moments
 // (mechanics) and the healers' (the quiet ones). Its spells: Litany of Penance (the Archbishop), Hollow Lament.
 // The Archbishop's part asks something every 7 s or so: the gaps players feel are 6-9 s, with room for the 3 s it takes
 constexpr uint32 LitanyQuietMs = 3000;
@@ -197,6 +198,19 @@ constexpr float AisleWidth = 8.0f;
 constexpr uint32 AisleCount = 10;
 constexpr float AisleLength = 90.0f;
 constexpr uint32 AisleWarningMs = 3500;
+// Nef sacrée (the Archbishop): a grid of his aisles, small safe squares between them; each wave lands as the next one,
+// shifted half a square, is already burning in - the squares move every wave
+constexpr float NaveSpacing = 14.0f;            // between the lines' middles: 6-yard squares left between 8-yard lines
+constexpr uint32 NaveFirstWarningMs = 3000;
+constexpr uint32 NaveWarningMs = 2500;
+// Trame du néant (the demon): his void lines in three directions over each other, little left between them
+constexpr float WeaveSpacing = 17.0f;
+constexpr uint32 WeaveWarningMs = 3000;
+constexpr uint32 WeaveSecondMs = 2600;          // the second weave, turned, comes this long after the first
+// Salve de lances (the demon): lances from him one after another, at the players
+constexpr uint32 BarrageLances = 5;
+constexpr uint32 BarrageStepMs = 900;
+constexpr uint32 BarrageWarningMs = 2000;
 constexpr float TowerRadius = 4.5f;
 constexpr uint32 TowerMs = 7000;
 constexpr uint32 AbsolutionMs = 9000;
@@ -243,6 +257,11 @@ constexpr float SpinSwarmWidth = 7.0f;
 constexpr float SpinSwarmTurn = 0.4f;           // radians a second
 constexpr float SpinSwarmCore = 5.0f;           // under his model: the swarms pour out past it
 constexpr uint32 SpinSwarmHitEveryMs = 1500;
+// Each hit leaves a charge for SpinSwarmStackMs (94044), each charge SpinSwarmStackPct more on the next: one crossing
+// is fine (60%), a second soon after is not (90%), a third kills (120%)
+constexpr uint32 SpinSwarmStackMs = 6000;
+constexpr float SpinSwarmStackPct = 50.0f;
+constexpr uint32 SPELL_SWARM_BITES = 94044;
 constexpr uint32 LaserTickMs = 100;
 constexpr uint32 PrayerLights = 4;
 constexpr float PrayerLightDistance = 24.0f;
@@ -286,10 +305,10 @@ constexpr uint32 RevealTestStartMs = 110000;    // a pull armed with .hollow rev
 // A wipe before the demon's part ends the track at least this long before it: the client fades a track out over a
 // few seconds, and the demon's part must not be heard in that fade (it would spoil him)
 constexpr uint32 TrackEndMarginMs = 5000;
-// The second track is shipped from its first hit (buildMusic.py VELTHAZAR_TRIM_SECONDS: its lead-in rose like a fade-in
-// after the silence): the demon tears out on it, at its start
-constexpr uint32 SecondTrackTrimMs = 1500;
-constexpr uint32 AtReveal = AtSecondTrack;                      // its first hit
+// The second track is shipped whole (buildMusic.py VELTHAZAR_TRIM_SECONDS): the demon tears out as it starts, on its
+// opening drums
+constexpr uint32 SecondTrackTrimMs = 0;
+constexpr uint32 AtReveal = AtSecondTrack;                      // its opening drums
 // The second track's sections, from the start of the track as composed
 constexpr uint32 T2(uint32 ms) { return AtSecondTrack + ms - SecondTrackTrimMs; }
 constexpr uint32 AtAbsolution = 60700;
@@ -492,7 +511,8 @@ enum Kits : uint32
     KIT_SHADOW_CRASH_CAST   = 12583,
     KIT_INFERNO_HIT         = 117,
     KIT_THOUSAND_SOULS      = 9552,
-    // Not Darkness (8717): its world effect, a darkness all round, never ends once played - it hid the rest of the fight
+    // Not Darkness (8717): its world effect, a darkness all round, never ends once played - it hid the rest of the
+    // fight
     KIT_SHADOWFLAME_CAST    = 10386,
     KIT_VOID_BLAST_HIT      = 6706,
     KIT_FEAR_HIT            = 498,
@@ -541,6 +561,8 @@ enum class Ability : uint8
     Verdict,
     Seraphim,
     Wake,
+    Nave,
+    NaveSingle,
     // Vel'thazar's
     HollowPulse,
     Brand,
@@ -562,6 +584,8 @@ enum class Ability : uint8
     Sermon,
     VoidCross,
     Ruin,
+    EchoWeave,
+    LanceBarrage,
 };
 
 // The steady background (a tank's hit, a regular pulse), not a mechanic asking something of the group: the quiet
@@ -632,8 +656,11 @@ std::vector<Step> BuildTimeline()
         once(Ability::LightOfDawn, at);
     for (uint32 at : { 11600u, 36000u, 70000u, 110000u })
         once(Ability::Aisles, at);               // on the break (0:11.6), a swell (0:36), the build (1:09.6)
-    for (uint32 at : { 19000u, 77000u, 106000u })
+    for (uint32 at : { 24000u, 77000u, 106000u })
         once(Ability::Hammers, at);
+    // Nef sacrée in the two quiet stretches: three waves after the first aisles, one before the Choir
+    once(Ability::Nave, 15500);
+    once(Ability::NaveSingle, 39800);
     for (uint32 at : { 29000u, 91000u, 114000u })
         once(Ability::Pulpit, at);
     for (uint32 at : { 22000u, 34000u, 89000u })
@@ -662,6 +689,8 @@ std::vector<Step> BuildTimeline()
         once(Ability::Swarm, at);
     once(Ability::EchoAisles, start + 14500);
     once(Ability::EchoPulpit, start + 31500);
+    once(Ability::LanceBarrage, AtReveal + 27000);
+    once(Ability::EchoWeave, AtReveal + 40500);
     once(Ability::Whisper, AtWhisper);
     // Last Light: the shelters
     once(Ability::LastLightStart, AtLastLight);
@@ -676,6 +705,8 @@ std::vector<Step> BuildTimeline()
     once(Ability::Lances, AtLastLightEnd + 10500);
     once(Ability::Lances, AtLastLightEnd + 33500);
     once(Ability::EchoPulpit, AtLastLightEnd + 15500);
+    once(Ability::EchoWeave, AtLastLightEnd + 24500);
+    once(Ability::LanceBarrage, AtLastLightEnd + 40000);
     once(Ability::Infernals, AtInfernals - InfernalWarningMs);
     // Inhale of the Void in the near silence, the true form on the drop
     once(Ability::InhaleStart, AtInhale);
@@ -687,6 +718,8 @@ std::vector<Step> BuildTimeline()
     once(Ability::EchoAisles, AtTrueForm + 17000);
     once(Ability::Lances, AtTrueForm + 23000);
     once(Ability::SpinSwarm, AtTrueForm + 24500);
+    once(Ability::EchoWeave, AtTrueForm + 12000);
+    once(Ability::LanceBarrage, AtTrueForm + 31000);
     // Aldric's Last Prayer, in the quiet verse
     once(Ability::LastPrayerStart, AtLastPrayer);
     every(Ability::LastPrayerPulse, AtLastPrayer + 3000, 3000, AtLastPrayerEnd);
@@ -702,6 +735,10 @@ std::vector<Step> BuildTimeline()
     once(Ability::Lances, AtLastPrayerEnd + 42600);
     once(Ability::SpinSwarm, AtLastPrayerEnd + 48600);
     once(Ability::VoidCross, AtLastPrayerEnd + 55600);
+    once(Ability::LanceBarrage, AtLastPrayerEnd + 9000);
+    once(Ability::EchoWeave, AtLastPrayerEnd + 25000);
+    once(Ability::EchoWeave, AtLastPrayerEnd + 37000);
+    once(Ability::LanceBarrage, AtLastPrayerEnd + 52000);
     // The dark section: Voice of Ruin on the three stabs, the Aegis shown before each
     every(Ability::HollowPulse, AtRuinSection + 4000, 10000, AtEnrageBlasts[0] - 3000);
     every(Ability::Brand, AtRuinSection + 2000, 9000, AtEnrageBlasts[0] - 2000);
@@ -711,6 +748,8 @@ std::vector<Step> BuildTimeline()
     once(Ability::EchoPulpit, AtRuins[1] + 4000);
     once(Ability::Swarm, AtRuins[2] + 5000);
     once(Ability::Lances, AtRuins[2] + 9000);
+    once(Ability::EchoWeave, AtRuins[0] + 8000);
+    once(Ability::LanceBarrage, AtRuins[1] + 8000);
 
     std::stable_sort(steps.begin(), steps.end(), [](Step const& left, Step const& right)
     {
@@ -1245,7 +1284,9 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         static std::map<std::string, Ability> const names = {
             { "radiance", Ability::Radiance }, { "judgement", Ability::Judgement },
             { "dawn", Ability::LightOfDawn }, { "hammers", Ability::Hammers }, { "pulpit", Ability::Pulpit },
-            { "aisles", Ability::Aisles }, { "choir", Ability::Choir }, { "absolution", Ability::AbsolutionStart },
+            { "aisles", Ability::Aisles }, { "nave", Ability::Nave }, { "weave", Ability::EchoWeave },
+            { "barrage", Ability::LanceBarrage }, { "choir", Ability::Choir },
+            { "absolution", Ability::AbsolutionStart },
             { "sentence", Ability::Sentence }, { "verdict", Ability::Verdict }, { "seraphim", Ability::Seraphim },
             { "wake", Ability::Wake }, { "pulse", Ability::HollowPulse }, { "brand", Ability::Brand },
             { "swarm", Ability::Swarm }, { "echoaisles", Ability::EchoAisles }, { "echopulpit", Ability::EchoPulpit },
@@ -1441,7 +1482,8 @@ private:
     {
         for (auto const& ref : me->GetMap()->GetPlayers())
             if (Player* player = ref.GetSource())
-                for (uint32 spell : { SPELL_CONDEMNED, SPELL_BRAND_STACKS, SPELL_SENTENCE_MARK, SPELL_CARRY_LIGHT })
+                for (uint32 spell : { SPELL_CONDEMNED, SPELL_BRAND_STACKS, SPELL_SENTENCE_MARK, SPELL_CARRY_LIGHT,
+                    SPELL_SWARM_BITES })
                     player->RemoveAurasDueToSpell(spell);
     }
 
@@ -2055,6 +2097,10 @@ private:
             case Ability::LastPrayerEnd:    EndLastPrayer(); break;
             case Ability::Sermon:           Towers(true); break;
             case Ability::VoidCross:        VoidCrosses(); break;
+            case Ability::Nave:             Nave(3); break;
+            case Ability::NaveSingle:       Nave(1); break;
+            case Ability::EchoWeave:        EchoWeave(); break;
+            case Ability::LanceBarrage:     LanceBarrage(); break;
             case Ability::Ruin:             VoiceOfRuin(); break;
         }
     }
@@ -2097,9 +2143,12 @@ private:
         uint32 const now = getMSTime();
         auto const clear = std::ranges::find_if(targets, [this, &apex, now](Player* player)
         {
-            GroundIndicators::Area const cone = ConeArea(apex, apex.GetAngle(player), LightOfDawnRadius, LightOfDawnArc);
+            GroundIndicators::Area const cone = ConeArea(apex, apex.GetAngle(player), LightOfDawnRadius,
+                LightOfDawnArc);
             return std::ranges::none_of(_towers, [&cone, now](Tower const& tower)
-                { return getMSTimeDiff(now, tower.endsAt) < 0x80000000u && cone.Contains(tower.center, tower.radius); });
+                {
+                    return getMSTimeDiff(now, tower.endsAt) < 0x80000000u && cone.Contains(tower.center, tower.radius);
+                });
         });
         if (clear == targets.end())
             return;
@@ -2265,6 +2314,104 @@ private:
                     { return lane.Contains(*player); }))
                     Hit(player, echo ? SPELL_ECHO : SPELL_AISLES, echo ? EchoPct : AislePct, true);
         });
+    }
+
+    // Lines across the chamber in each of the directions given, `spacing` apart from middle to middle, shifted by
+    // `shift` of a spacing: painted for `warningMs`, then they land on whoever stands in one
+    void LineGrid(std::vector<float> const& directions, float spacing, float shift, uint32 warningMs, bool echo)
+    {
+        Position const center = Center();
+        std::vector<GroundIndicators::Area> lanes;
+        float const reach = ChamberDrawRadius + spacing;
+        for (float const facing : directions)
+        {
+            float const across = facing + float(M_PI) / 2.0f;
+            for (float offset = -reach + shift * spacing; offset <= reach; offset += spacing)
+            {
+                Position const middle(center.GetPositionX() + std::cos(across) * offset,
+                                      center.GetPositionY() + std::sin(across) * offset, center.GetPositionZ());
+                Position const start(middle.GetPositionX() - std::cos(facing) * AisleLength / 2.0f,
+                    middle.GetPositionY() - std::sin(facing) * AisleLength / 2.0f, center.GetPositionZ());
+                lanes.push_back(PaintLine(LineArea(start, facing, AisleLength, AisleWidth),
+                    echo ? LINE_ECHO_AISLES : LINE_AISLES, warningMs));
+            }
+        }
+        scheduler.Schedule(Milliseconds(warningMs), [this, lanes, echo](TaskContext)
+        {
+            for (GroundIndicators::Area const& lane : lanes)
+                StrikeLine(lane, echo ? LINE_ECHO_AISLES : LINE_AISLES, echo ? LINE_ECHO_AISLES_HIT : LINE_AISLES_HIT);
+            for (Player* player : ArenaPlayers())
+                if (std::ranges::any_of(lanes, [player](GroundIndicators::Area const& lane)
+                    { return lane.Contains(*player); }))
+                    Hit(player, echo ? SPELL_ECHO : SPELL_AISLES, echo ? EchoPct : AislePct, true);
+        });
+    }
+
+    // Nef sacrée: his aisles both ways, a grid of small safe squares; wave after wave, each shifted half a square,
+    // the next burning in as the last lands
+    void Nave(uint32 waves)
+    {
+        float const facing = frand(0.0f, float(M_PI) / 2.0f);
+        Sound(SOUND_CONSECRATED_AISLES);
+        me->SendPlaySpellVisual(KIT_HYMN_CAST);
+        LineGrid({ facing, facing + float(M_PI) / 2.0f }, NaveSpacing, 0.0f, NaveFirstWarningMs, false);
+        for (uint32 wave = 1; wave < waves; ++wave)
+        {
+            uint32 const at = NaveFirstWarningMs + (wave - 1) * NaveWarningMs;
+            scheduler.Schedule(Milliseconds(at), [this, facing, wave](TaskContext)
+            {
+                if (_phase != Phase::Aldric)
+                    return;
+                LineGrid({ facing, facing + float(M_PI) / 2.0f }, NaveSpacing, (wave % 2) ? 0.5f : 0.0f,
+                    NaveWarningMs, false);
+            });
+        }
+    }
+
+    // Trame du néant: his void lines three ways over each other, then again, turned, as they land
+    void EchoWeave()
+    {
+        float const facing = frand(0.0f, float(M_PI));
+        float const third = float(M_PI) / 3.0f;
+        Sound(SOUND_HOLLOW_ECHO);
+        if (Creature* demon = Velthazar())
+            demon->SendPlaySpellVisual(KIT_SHADOWFLAME_CAST);
+        LineGrid({ facing, facing + third, facing + 2.0f * third }, WeaveSpacing, frand(0.0f, 1.0f), WeaveWarningMs,
+            true);
+        scheduler.Schedule(Milliseconds(WeaveSecondMs), [this, facing, third](TaskContext)
+        {
+            if (_phase != Phase::Hollow)
+                return;
+            float const turned = facing + third / 2.0f;
+            LineGrid({ turned, turned + third, turned + 2.0f * third }, WeaveSpacing, frand(0.0f, 1.0f),
+                WeaveWarningMs, true);
+        });
+    }
+
+    // Salve de lances: lances from him, one after another, each at a player where they stand
+    void LanceBarrage()
+    {
+        Sound(SOUND_NIGHTMARE_LANCES);
+        for (uint32 lance = 0; lance < BarrageLances; ++lance)
+            scheduler.Schedule(Milliseconds(lance * BarrageStepMs), [this](TaskContext)
+            {
+                Creature* demon = Velthazar();
+                std::vector<Player*> const players = ArenaPlayers();
+                if (!demon || players.empty() || _phase != Phase::Hollow)
+                    return;
+                Position const source = Ground(demon->GetPosition());
+                Player* target = Acore::Containers::SelectRandomContainerElement(players);
+                float const facing = source.GetAngle(target);
+                demon->SendPlaySpellVisual(KIT_SHADOWFLAME_CAST);
+                GroundIndicators::Area const line = PaintLine(LineArea(source, facing, LanceLength, LanceWidth),
+                    LINE_LANCE, BarrageWarningMs);
+                scheduler.Schedule(Milliseconds(BarrageWarningMs), [this, line](TaskContext)
+                {
+                    StrikeLine(line, LINE_LANCE, LINE_LANCE_HIT);
+                    for (Player* player : PlayersIn(line))
+                        Hit(player, SPELL_LANCES, LancePct, true);
+                });
+            });
     }
 
     // Choir of the Faithful (the Archbishop) and the Hollow Sermon (the demon): towers for two players each, their
@@ -2914,7 +3061,8 @@ private:
         _windup = true;
         for (uint32 arm = 0; arm < SpinSwarmArms; ++arm)
             GroundIndicators::ShowSweepingRectangle(me, center, base + float(arm) * 2.0f * float(M_PI) /
-                float(SpinSwarmArms), turn, SpinSwarmLength, SpinSwarmWidth, SpinSwarmMs, 0, PAINT_SWARM, SWARM_CURTAIN);
+                float(SpinSwarmArms), turn, SpinSwarmLength, SpinSwarmWidth, SpinSwarmMs, 0, PAINT_SWARM,
+                SWARM_CURTAIN);
         auto lastHit = std::make_shared<std::map<ObjectGuid, uint32>>();
         for (uint32 at = 0; at <= SpinSwarmMs; at += LaserTickMs)
             scheduler.Schedule(Milliseconds(at), [this, at, center, base, turn, lastHit](TaskContext)
@@ -2933,7 +3081,22 @@ private:
                         {
                             (*lastHit)[player->GetGUID()] = at;
                             player->SendPlaySpellVisual(KIT_CARRION_HIT);
-                            Hit(player, SPELL_SPIN_SWARM, SpinSwarmPct, true);
+                            Aura* bites = player->GetAura(SPELL_SWARM_BITES);
+                            uint32 const stacks = bites ? bites->GetStackAmount() : 0;
+                            Hit(player, SPELL_SPIN_SWARM, SpinSwarmPct * (1.0f + SpinSwarmStackPct / 100.0f *
+                                float(stacks)), true);
+                            if (player->IsAlive() && sSpellMgr->GetSpellInfo(SPELL_SWARM_BITES))
+                            {
+                                if (bites)
+                                    bites->ModStackAmount(1);
+                                else
+                                    bites = me->AddAura(SPELL_SWARM_BITES, player);
+                                if (bites)
+                                {
+                                    bites->SetMaxDuration(int32(SpinSwarmStackMs));
+                                    bites->SetDuration(int32(SpinSwarmStackMs));
+                                }
+                            }
                             break;
                         }
                     }
