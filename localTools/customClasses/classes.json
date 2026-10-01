@@ -100,6 +100,13 @@
       "token": "WARRIOR",
       "family": 4,
       "talentTree": "localTools/warrior/talentTree.json"
+    },
+    {
+      "_comment": "The Shaman keeps mana and its totems; Elemental's Maelstrom and Enhancement's Maelstrom Weapon are auras of stacks (modules/mod-shaman).",
+      "id": 7,
+      "token": "SHAMAN",
+      "family": 11,
+      "talentTree": "localTools/shaman/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {

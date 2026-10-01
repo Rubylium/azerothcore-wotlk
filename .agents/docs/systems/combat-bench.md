@@ -19,6 +19,8 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 - A GM client (`e2e/tools/bench`, AzerothGhost) logs in, brings the bots (`.bench bot <class> [spec] [ilvl]
   [single|aoe|auto]`, one per `;`), runs every layout, prints the reports, then a per-spell table from the telemetry
   (casts, hits, **hits per cast**, per hit, share). Full log in `var/combatBench/`.
+- Healers: `-pulse <percent>` turns on the group damage pulse (`.bench pulse`) for the run; bench one healer at a
+  time beside damage dealers (several healers share the damage to heal, and the quickest takes it all).
 - Up to 4 bots per run (the GM fills the 5th group slot). Spec words are the playerbots premade names: `bm`/`mm`/
   `surv`, `fire`/`arcane`/`frost`, `sub`/`assa`/`combat`, `ret`/`prot`/`holy`, `frost`/`unholy`/`blood`...
   A bot line in the report without its `spec / preset` label was not taken as asked (a different bot, preset not
@@ -69,6 +71,6 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 ## Where each class is tuned
 
 Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter`,
-`mod-priest`, `mod-warrior` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
+`mod-priest`, `mod-warrior`, `mod-shaman` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
 `localTools/<class>/Spells.ps1`, talent trees and presets in `localTools/<class>/talentTree.json`. Name the bench
 in the commit when a change was tuned on it.
