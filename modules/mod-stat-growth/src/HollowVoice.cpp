@@ -859,6 +859,9 @@ void MeleeFloor(Unit* attacker, Unit* victim, uint32& damage, DamageEffectType t
 // the fight's did it (it counts its own). Defined after the Archbishop's AI.
 void NoteKill(Creature* killer, Unit* victim);
 
+// Damage on the demon, counted by the Archbishop's script for its report (defined after it)
+void NoteHollowDamage(Creature* demon, Unit* attacker, uint32 damage);
+
 struct boss_hollow_voice_velthazar : public ScriptedAI
 {
     boss_hollow_voice_velthazar(Creature* creature) : ScriptedAI(creature) { }
@@ -881,10 +884,11 @@ struct boss_hollow_voice_velthazar : public ScriptedAI
     }
 
     // Imprisoned by Aldric's Last Prayer, nothing reaches him
-    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
     {
         if (_imprisoned)
             damage = 0;
+        NoteHollowDamage(me, attacker, damage);
     }
 
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType type, SpellSchoolMask /*mask*/) override
@@ -1062,8 +1066,10 @@ struct boss_hollow_voice_aldric : public ScriptedAI
     }
 
     // His health stops at 1%; fallen or hidden, nothing reaches him. Kneeling in prayer, his aegis takes it first.
-    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
     {
+        if (_phase == Phase::Aldric)
+            NoteDamage(attacker, damage);
         if (_phase == Phase::Fallen || _phase == Phase::Hollow)
         {
             damage = 0;
@@ -1147,7 +1153,44 @@ struct boss_hollow_voice_aldric : public ScriptedAI
             text += Acore::StringFormat("\n  {}: hits {}, in the red {}, deaths {}{}", ability, stats.hits, stats.red,
                 stats.deaths, stats.resolved ? Acore::StringFormat(", held {}/{}", stats.resolved - stats.failed,
                 stats.resolved) : std::string());
+        // Each player's damage on the bosses (pets counted for their owner), and how much of the fight they spent in
+        // melee reach of the boss fighting - a melee whose damage is low for its spec: its time in reach tells why
+        uint64 best = 0;
+        for (auto const& [guid, dealt] : _dealt)
+            best = std::max(best, dealt.damage);
+        float const seconds = std::max(Elapsed() / 1000.0f, 1.0f);
+        for (auto const& [guid, dealt] : _dealt)
+            text += Acore::StringFormat("\n  dps {}: {:.0f} ({:.0f}% of the best), in melee reach {:.0f}% of the time",
+                dealt.name, float(dealt.damage) / seconds, best ? 100.0f * float(dealt.damage) / float(best) : 0.0f,
+                dealt.samples ? 100.0f * float(dealt.inReach) / float(dealt.samples) : 0.0f);
         return text;
+    }
+
+    void NoteDamage(Unit* attacker, uint32 damage)
+    {
+        Unit* owner = attacker ? attacker->GetCharmerOrOwnerOrSelf() : nullptr;
+        if (Player* player = owner ? owner->ToPlayer() : nullptr)
+        {
+            Dealt& dealt = _dealt[player->GetGUID()];
+            dealt.name = player->GetName();
+            dealt.damage += damage;
+        }
+    }
+
+    // Each second the boss can be hit: who stands in melee reach of it (its combat reach and theirs, plus a step)
+    void SampleReach()
+    {
+        Unit* boss = _phase == Phase::Aldric ? me : (_phase == Phase::Hollow ? Velthazar() : nullptr);
+        if (!boss || !boss->IsAlive() || !boss->IsVisible())
+            return;
+        for (Player* player : ArenaPlayers())
+        {
+            Dealt& dealt = _dealt[player->GetGUID()];
+            dealt.name = player->GetName();
+            ++dealt.samples;
+            if (player->IsWithinMeleeRange(boss, 2.0f))
+                ++dealt.inReach;
+        }
     }
 
     void LogReport() const
@@ -1382,6 +1425,8 @@ private:
         _condemned.clear();
         _brand.clear();
         _lastImpact = 0;
+        _dealt.clear();
+        _nextReachSample = 0;
         _lastMechanic = 0;
         _nextLitany = 0;
         _ongoing = false;
@@ -1900,6 +1945,11 @@ private:
         }
         if (!skipping)
             UpdateLitany(elapsed);
+        if (elapsed >= _nextReachSample)
+        {
+            _nextReachSample = elapsed + 1000;
+            SampleReach();
+        }
         if (_phase != Phase::Hollow)
             return;
         while (_blasts < AtEnrageBlasts.size() && elapsed >= AtEnrageBlasts[_blasts])
@@ -3188,6 +3238,15 @@ private:
     bool _finishing = false;
     bool _kneeling = false;                     // Prayer of Absolution
     uint32 _lastImpact = 0;                     // Impact's spacing
+    struct Dealt
+    {
+        std::string name;
+        uint64 damage = 0;
+        uint32 samples = 0;
+        uint32 inReach = 0;
+    };
+    std::map<ObjectGuid, Dealt> _dealt;         // the report's damage and melee reach (NoteDamage, SampleReach)
+    uint32 _nextReachSample = 0;
     uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
     uint32 _nextLitany = 0;                     // ... the earliest the next may fall...
     bool _ongoing = false;                      // ... and a mechanic running on (none falls meanwhile)
@@ -3247,6 +3306,15 @@ void NoteKill(Creature* killer, Unit* victim)
             aldric = summon->GetSummonerCreatureBase();
     if (auto* ai = aldric ? dynamic_cast<boss_hollow_voice_aldric*>(aldric->AI()) : nullptr)
         ai->MeleeDeath(victim);
+}
+
+void NoteHollowDamage(Creature* demon, Unit* attacker, uint32 damage)
+{
+    TempSummon* summon = demon ? demon->ToTempSummon() : nullptr;
+    Unit* summoner = summon ? summon->GetSummonerUnit() : nullptr;
+    if (auto* ai = summoner && summoner->IsCreature() ?
+        dynamic_cast<boss_hollow_voice_aldric*>(summoner->ToCreature()->AI()) : nullptr)
+        ai->NoteDamage(attacker, damage);
 }
 
 boss_hollow_voice_aldric* FindAldric(Player* player)
