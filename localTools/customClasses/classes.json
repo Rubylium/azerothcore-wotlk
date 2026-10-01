@@ -289,6 +289,50 @@
         "talents": []
       }],
       "startSpells": [6603, 9078, 9077, 8737, 750, 201, 674, 3127, 90800]
+    },
+    {
+      "id": 14,
+      "token": "BARBARIAN",
+      "name": "Barbare",
+      "comment": "Enraged axe fighter from the north: melee, thrown axes or an ancestral shield (Ascension's Barbarian)",
+      "templateClass": 4,
+      "startClass": 1,
+      "extraSkills": [413, 44, 172, 54, 160, 229, 55, 433],
+      "classSkill": { "id": 909, "name": "Barbare", "icon": "Ability_Warrior_Rampage" },
+      "inheritSpells": false,
+      "powerType": 3,
+      "spellFamily": 20,
+      "roles": ["damage", "tank"],
+      "races": [1, 2, 3, 4, 5, 6, 7, 8, 11],
+      "startLevel": 1,
+      "startOutfit": [12282],
+      "iconCell": [1, 3],
+      "classIcon": "localTools/interface/assets/classes/barbarian.png",
+      "color": [0.86, 0.38, 0.17],
+      "talentTree": "localTools/barbarian/talentTree.json",
+      "talentTabs": [{
+        "id": 910,
+        "name": "Brutalité",
+        "background": "WarriorFury",
+        "icon": "Ability_Warrior_Rampage",
+        "tabPage": 0,
+        "talents": []
+      }, {
+        "id": 911,
+        "name": "Chasseur de têtes",
+        "background": "WarriorArms",
+        "icon": "INV_ThrowingAxe_03",
+        "tabPage": 1,
+        "talents": []
+      }, {
+        "id": 912,
+        "name": "Ascendance",
+        "background": "WarriorProtection",
+        "icon": "Achievement_Dungeon_UtgardeKeep_Normal",
+        "tabPage": 2,
+        "talents": []
+      }],
+      "startSpells": [6603, 9078, 9077, 8737, 196, 197, 198, 199, 200, 201, 202, 2567, 9116, 674, 3127, 107, 97100]
     }
   ]
 }

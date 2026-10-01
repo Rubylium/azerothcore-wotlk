@@ -15,6 +15,9 @@ function getPatchFiles(repoRoot) {
     const files = [
         'Spell.dbc', 'SkillLineAbility.dbc', 'SpellIcon.dbc', 'SpellVisual.dbc', 'SpellVisualKit.dbc', 'SoundEntries.dbc',
         'SpellVisualEffectName.dbc',
+        // The kits' extra models and the missiles' motions of the visuals imported from the Ascension client
+        // (localTools/ascensionImport)
+        'SpellVisualKitModelAttach.dbc', 'SpellMissileMotion.dbc',
         // The paragon glyphs' icons and the retail import test items (localTools/patchSinisterStrike.ps1)
         'Item.dbc',
         // The looks imported from the retail client (localTools/retailImport)
@@ -115,6 +118,30 @@ function getPatchFiles(repoRoot) {
     };
     if (fs.existsSync(retailItemRoot)) {
         addRetailItems(retailItemRoot);
+    }
+
+    // A module's client files stored at their archive path: client-assets/files (its own: icons...) and
+    // client-assets/imported/files (the effect models, textures and sounds of the visuals imported from the Ascension
+    // client, localTools/ascensionImport/importVisuals.py)
+    const modulesRoot = path.join(repoRoot, 'modules');
+    const archiveFolders = fs.readdirSync(modulesRoot).sort().flatMap((module) => [
+        path.join(modulesRoot, module, 'client-assets', 'files'),
+        path.join(modulesRoot, module, 'client-assets', 'imported', 'files')]);
+    for (const importedRoot of archiveFolders) {
+        if (!fs.existsSync(importedRoot)) {
+            continue;
+        }
+        const addImported = (directory) => {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+                const source = path.join(directory, entry.name);
+                if (entry.isDirectory()) {
+                    addImported(source);
+                    continue;
+                }
+                files.push({ source, archive: path.relative(importedRoot, source).split(path.sep).join('\\') });
+            }
+        };
+        addImported(importedRoot);
     }
 
     // L'Infini, Algalon recoloured (localTools/infiniteBoss/buildInfiniModel.py), stored at its archive path:

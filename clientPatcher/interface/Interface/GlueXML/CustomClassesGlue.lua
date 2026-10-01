@@ -37,6 +37,12 @@ local CLASS_INFORMATION = {
             .. " brèves séquences de coups fulgurants.",
         Roles = "Dégâts de mêlée.",
     },
+    BARBARIAN = {
+        Name = "Barbare",
+        Description = "Un guerrier du Nord qui puise sa force dans la rage : enragé, il fracasse ses ennemis à la"
+            .. " hache, les couvre de Carnage et achève les blessés.",
+        Roles = "Dégâts de mêlée.",
+    },
 }
 
 local function iconCoords(cell)

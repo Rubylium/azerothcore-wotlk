@@ -38,6 +38,13 @@ $clientSoundPath = Join-Path $clientDbcRoot 'SoundEntries.dbc'
 $serverEffectNamePath = Join-Path $serverDbcRoot 'SpellVisualEffectName.dbc'
 $effectNameBackupPath = Join-Path $serverDbcRoot 'SpellVisualEffectName.before-oathblade.dbc'
 $clientEffectNamePath = Join-Path $clientDbcRoot 'SpellVisualEffectName.dbc'
+# Only the visuals imported from the Ascension client add to these two (localToolsscensionImport)
+$serverAttachPath = Join-Path $serverDbcRoot 'SpellVisualKitModelAttach.dbc'
+$attachBackupPath = Join-Path $serverDbcRoot 'SpellVisualKitModelAttach.before-ascension-import.dbc'
+$clientAttachPath = Join-Path $clientDbcRoot 'SpellVisualKitModelAttach.dbc'
+$serverMotionPath = Join-Path $serverDbcRoot 'SpellMissileMotion.dbc'
+$motionBackupPath = Join-Path $serverDbcRoot 'SpellMissileMotion.before-ascension-import.dbc'
+$clientMotionPath = Join-Path $clientDbcRoot 'SpellMissileMotion.dbc'
 
 # Spell.dbc field indexes used below (3.3.5a, 234 fields)
 $F_Attributes = 4; $F_AttributesEx = 5; $F_CasterAuraState = 20; $F_ProcFlags = 34; $F_ProcChance = 35
@@ -890,6 +897,10 @@ $customSpells += & ([ScriptBlock]::Create($warlockSpellSource))
 # The Druid on its retail-style talent trees (localTools/druid/talentTree.json): abilities, auras, hits and talent ranks
 $druidSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\druid\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($druidSpellSource))
+# The Barbarian (class 14, modules/mod-barbarian): its abilities, auras and talent ranks, its looks imported from the
+# Ascension client (localTools/barbarian/ascensionVisuals.json)
+$barbarianSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\barbarian\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($barbarianSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
@@ -1400,6 +1411,12 @@ if (-not (Test-Path -LiteralPath $soundBackupPath)) {
 if (-not (Test-Path -LiteralPath $effectNameBackupPath)) {
     Copy-Item -LiteralPath $serverEffectNamePath -Destination $effectNameBackupPath
 }
+if (-not (Test-Path -LiteralPath $attachBackupPath)) {
+    Copy-Item -LiteralPath $serverAttachPath -Destination $attachBackupPath
+}
+if (-not (Test-Path -LiteralPath $motionBackupPath)) {
+    Copy-Item -LiteralPath $serverMotionPath -Destination $motionBackupPath
+}
 
 # Table DBC without strings: records by id, and appends new records built from copies of existing ones
 function Read-Dbc([string]$path, [string]$name, [int]$fields) {
@@ -1669,6 +1686,42 @@ foreach ($custom in $customSpells) {
     }
     else {
         Add-DbcRecordCopy $visualDbc $custom.Visual.Clone $slotFields
+    }
+}
+
+# --- Spell visuals imported from the Ascension client (localTools\ascensionImport\importVisuals.py) ---
+#
+# Each modules\<module>\client-assets\imported\visuals.json holds whole rows, already numbered (from the import's
+# idBase) and pointing at one another, so they are appended as they are: a spell names its look by the id the import
+# gave it (Spell.dbc field 131). The files they play ship from that folder's files\ (patchFiles.js). The sounds take
+# the same combat volume as the game's own (CombatSoundVolume above).
+$attachDbc = Read-Dbc $attachBackupPath 'SpellVisualKitModelAttach.dbc' 10
+$motionDbc = Read-StringDbc $motionBackupPath 'SpellMissileMotion.dbc' 5
+$importedTables = [ordered]@{
+    SoundEntries = $soundDbc; SpellVisualEffectName = $effectNameDbc; SpellMissileMotion = $motionDbc
+    SpellVisualKit = $visualKitDbc; SpellVisualKitModelAttach = $attachDbc; SpellVisual = $visualDbc
+}
+foreach ($importFile in @(Get-ChildItem -Path (Join-Path $repoRoot 'modules\*\client-assets\imported\visuals.json'))) {
+    $import = Get-Content -LiteralPath $importFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($table in $importedTables.Keys) {
+        $dbc = $importedTables[$table]
+        foreach ($row in @($import.tables.$table)) {
+            if (-not $row) { continue }
+            if ($dbc.Offsets.ContainsKey([int]$row.id)) { throw "$table already has a row $($row.id) ($($importFile.FullName))." }
+            $record = [byte[]]::new($dbc.RecordSize)
+            for ($field = 0; $field -lt $row.fields.Count; ++$field) {
+                Set-Field $record $field ([uint32]$row.fields[$field])
+            }
+            foreach ($property in $row.strings.PSObject.Properties) {
+                Set-Field $record ([int]$property.Name) (Add-DbcString $dbc.Strings $property.Value)
+            }
+            if ($table -eq 'SoundEntries' -and $combatSoundTypes -contains [int64]$row.fields[1]) {
+                $volume = [BitConverter]::ToSingle([BitConverter]::GetBytes([uint32]$row.fields[24]), 0)
+                Set-Field $record 24 (Get-FloatBits ($volume * $CombatSoundVolume))
+            }
+            $dbc.Offsets[[int]$row.id] = -1
+            $dbc.NewRecords.AddRange($record)
+        }
     }
 }
 
@@ -2222,6 +2275,12 @@ $soundOutput = Get-StringDbcOutput $soundDbc
 $effectNameOutput = Get-StringDbcOutput $effectNameDbc
 [IO.File]::WriteAllBytes($serverEffectNamePath, $effectNameOutput)
 [IO.File]::WriteAllBytes($clientEffectNamePath, $effectNameOutput)
+$attachOutput = Get-DbcOutput $attachDbc
+[IO.File]::WriteAllBytes($serverAttachPath, $attachOutput)
+[IO.File]::WriteAllBytes($clientAttachPath, $attachOutput)
+$motionOutput = Get-StringDbcOutput $motionDbc
+[IO.File]::WriteAllBytes($serverMotionPath, $motionOutput)
+[IO.File]::WriteAllBytes($clientMotionPath, $motionOutput)
 
 # --- Paragon glyph icons (Item.dbc) --------------------------------------------------------------------------
 #

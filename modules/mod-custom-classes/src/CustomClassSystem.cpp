@@ -60,6 +60,9 @@ public:
         // progression is that of a knight, not a leather-wearing Rogue.
         if (ownClass == 10 && context == CLASS_CONTEXT_EQUIP_ARMOR_CLASS)
             return playerClass == ownClass || playerClass == CLASS_PALADIN;
+        // The Barbarian too borrows the Rogue's formulas, and wears mail as a hunter does
+        if (ownClass == 14 && context == CLASS_CONTEXT_EQUIP_ARMOR_CLASS)
+            return playerClass == ownClass || playerClass == CLASS_HUNTER;
 
         // A class trainer teaches the template's spells, so only a class that starts from that kit uses one
         bool const usesTemplate = context == CLASS_CONTEXT_CLASS_TRAINER
