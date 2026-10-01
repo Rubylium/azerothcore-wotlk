@@ -2,12 +2,14 @@
 #include "Config.h"
 #include "DBCStores.h"
 #include "DatabaseEnv.h"
+#include "GameTime.h"
 #include "Log.h"
 #include "Map.h"
 #include "Player.h"
 #include "PlayerScript.h"
 #include "Random.h"
 #include "ScriptMgr.h"
+#include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "StringConvert.h"
 #include "StringFormat.h"
@@ -156,6 +158,12 @@ struct ClassTrees
 constexpr uint16 SpecializationNode = 0;
 
 std::unordered_map<uint8, ClassTrees> Classes;
+
+// The classes that have trees, by id: what a player update asks first, so the others pay nothing
+std::array<bool, 32> ClassHasTrees{};
+
+// How often a character on the trees is checked for a stale WotLK talent aura (DropStaleTalentAuras)
+constexpr uint32 StaleTalentCheckMs = 3000;
 
 // A character's builds, one per talent spec slot (dual specialization). Kept on the player, so it dies with them.
 struct Loadout
@@ -385,6 +393,21 @@ void Reconcile(Player* player, ClassTrees const& data, std::string const& build,
         }
 }
 
+// The trees reuse WotLK talent ranks as nodes (Deep Wounds, Flurry, Ignite...). Reconcile takes a rank off with the
+// spell, but its passive aura could outlive it until the next login: a bot moved from Arms to Fury kept Deep Wounds'.
+// A passive WotLK talent aura of the character's own whose spell it no longer knows goes. Every class on the trees,
+// a few times a minute, each character at its own moment (no state kept): an aura list is short.
+void DropStaleTalentAuras(Player* player)
+{
+    std::vector<uint32> stale;
+    for (auto const& [spellId, aura] : player->GetOwnedAuras())
+        if (aura->IsPassive() && aura->GetCasterGUID() == player->GetGUID() && GetTalentSpellPos(spellId) &&
+            !player->HasSpell(spellId))
+            stale.push_back(spellId);
+    for (uint32 spellId : stale)
+        player->RemoveOwnedAura(spellId);
+}
+
 TalentTreeState* GetState(Player* player)
 {
     return player ? player->CustomData.Get<TalentTreeState>(StateKey) : nullptr;
@@ -399,6 +422,7 @@ void ReconcileActive(Player* player, ClassTrees const& data, TalentTreeState* st
 {
     uint8 const slot = ActiveSlot(player);
     Reconcile(player, data, state->builds[slot], Specialization(data, state->specializations[slot]));
+    DropStaleTalentAuras(player);
 }
 
 void Send(Player* player, std::string const& body)
@@ -1068,6 +1092,7 @@ void HandleMessage(Player* player, uint32 language, std::string const& message)
 void LoadTrees()
 {
     Classes.clear();
+    ClassHasTrees.fill(false);
 
     QueryResult trees = WorldDatabase.Query(
         "SELECT `ClassId`, `TreeId`, `FirstLevel`, `LevelStep`, `Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, "
@@ -1109,6 +1134,11 @@ void LoadTrees()
             data.specTrees.push_back(tree.id);
         data.trees.push_back(tree);
     } while (trees->NextRow());
+
+    ClassHasTrees.fill(false);
+    for (auto const& [classId, data] : Classes)
+        if (classId < ClassHasTrees.size())
+            ClassHasTrees[classId] = true;
 
     // The recommended builds on their own: a database the generated SQL has not reached yet keeps its trees
     if (QueryResult presets = WorldDatabase.Query(
@@ -1215,8 +1245,22 @@ public:
         PLAYERHOOK_ON_AFTER_SPEC_SLOT_CHANGED,
         PLAYERHOOK_ON_MAP_CHANGED,
         PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE,
-        PLAYERHOOK_ON_DELETE
+        PLAYERHOOK_ON_DELETE,
+        PLAYERHOOK_ON_UPDATE
     }) { }
+
+    // A stale WotLK talent aura dropped every StaleTalentCheckMs, each character at a moment of its own (its guid
+    // shifts the period), without a timer to keep: a class without trees stops at the first test
+    void OnPlayerUpdate(Player* player, uint32 diff) override
+    {
+        uint8 const classId = player->getClass();
+        if (classId >= ClassHasTrees.size() || !ClassHasTrees[classId] || !player->IsInWorld())
+            return;
+        uint64 const now = uint64(GameTime::GetGameTimeMS().count()) + player->GetGUID().GetCounter() * 97;
+        if (now / StaleTalentCheckMs == (now - std::min<uint64>(diff, now)) / StaleTalentCheckMs)
+            return;
+        DropStaleTalentAuras(player);
+    }
 
     // A class with trees spends its points there; the WotLK talent window never has any to give it
     void OnPlayerCalculateTalentsPoints(Player const* player, uint32& talentPointsForLevel) override

@@ -1,6 +1,5 @@
 #include "AllSpellScript.h"
 #include "CellImpl.h"
-#include "DBCStores.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -21,7 +20,6 @@
 #include <cmath>
 #include <limits>
 #include <list>
-#include <vector>
 
 // The Warrior's talents and abilities on the retail-style trees (localTools/warrior/talentTree.json) that spell data
 // cannot carry. A talent is its rank spell's aura on the Warrior (learned by mod-custom-classes' TalentTree.cpp), read
@@ -201,7 +199,6 @@ constexpr uint8 AreaMaxTargets = 12;
 constexpr uint32 AreaCountMs = 300;
 
 constexpr uint32 HoldCheckMs = 250;
-constexpr uint32 StaleTalentCheckMs = 2000;
 
 enum ChargeKind : uint8
 {
@@ -251,7 +248,6 @@ struct WarriorState : public DataMap::Base
     uint32 revengeProcMs = 0;
     bool defending = false;
     uint32 rageSpent = 0;           // Tacticien, in tenths
-    uint32 staleCheckMs = 0;
     bool shortenThunderClap = false;
     uint32 holdTimer = 0;
     // The enemies an area spell reaches, counted a few times a second
@@ -1114,27 +1110,9 @@ public:
         state->holdTimer = 0;
         UpdateRevengeProc(player, state, now);
         UpdateSecondWind(player, state, now);
-        DropStaleTalentAuras(player, state, now);
     }
 
 private:
-    // The trees reuse WotLK talent ranks (Deep Wounds, Flurry...). A specialization change takes them off, but a rank's
-    // passive aura could outlive it until the next login (a bot taken from Arms to Fury kept Deep Wounds): a WotLK
-    // talent aura the Warrior no longer knows the spell of goes
-    static void DropStaleTalentAuras(Player* player, WarriorState* state, uint32 now)
-    {
-        if (now < state->staleCheckMs + StaleTalentCheckMs)
-            return;
-        state->staleCheckMs = now;
-        std::vector<uint32> stale;
-        for (auto const& [spellId, aura] : player->GetOwnedAuras())
-            if (aura->IsPassive() && aura->GetCasterGUID() == player->GetGUID() && GetTalentSpellPos(spellId) &&
-                !player->HasSpell(spellId))
-                stale.push_back(spellId);
-        for (uint32 spellId : stale)
-            player->RemoveOwnedAura(spellId);
-    }
-
     // The Ravager's blades on every enemy near its spot, a blow a second, 5 rage each
     static void UpdateRavager(Player* player, WarriorState* state, uint32 now)
     {

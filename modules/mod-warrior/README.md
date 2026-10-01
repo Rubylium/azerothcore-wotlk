@@ -45,7 +45,8 @@ Charges (shown as the stacks of an aura, like the Hunter's and the Priest's): Ov
 Rage incontrôlée, Fury), Shield Block (2, Protection).
 
 The trees reuse WotLK talent ranks (Deep Wounds, Flurry, Sword and Board...). A WotLK talent aura the Warrior no longer
-knows the spell of is dropped every 2 s: a bot moved from Arms to Fury kept Deep Wounds' aura until its next login.
+knows the spell of is dropped by mod-custom-classes (TalentTree.cpp, every class on the trees): a bot moved from Arms to
+Fury kept Deep Wounds' aura until its next login.
 
 ## Rage
 
