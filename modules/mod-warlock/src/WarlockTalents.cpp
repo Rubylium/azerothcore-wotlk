@@ -6,6 +6,7 @@
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "LiveTuning.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
@@ -234,115 +235,119 @@ constexpr std::array<float, 6> DemonHealthShares = { 0.15f, 0.35f, 0.5f, 0.4f, 0
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Soul Shards
 constexpr uint8 ShardMax = 5;
-constexpr uint8 ShardRest = 3;                      // out of combat they come back to this
-constexpr uint32 ShardRestDelayMs = 5000;
-constexpr uint32 ShardRestStepMs = 2000;
-constexpr int32 AgonyShardChance = 22;              // a Curse of Agony tick, at one curse; / sqrt(curses ticking)
-constexpr int32 WritheChancePerRank = 5;            // Agonie tourmentée
-constexpr int32 SoulConduitPerRank = 5;
-constexpr int32 CrescendoChance = 25;
-constexpr uint32 ImmolateFragments = 2;             // tenths of a shard: an Immolate tick
-constexpr uint32 IncinerateFragments = 2;           // an Incinerate hit, +1 on a critical strike
-constexpr uint32 ConflagrationFragments = 5;
-constexpr uint32 InfernalFragments = 1;             // an infernal's Immolation
+LiveTuning::KnobInt const ShardRest("warlock.shard_rest", 3);  // out of combat they come back to this
+LiveTuning::KnobUInt const ShardRestDelayMs("warlock.shard_rest_delay_ms", 5000);
+LiveTuning::KnobUInt const ShardRestStepMs("warlock.shard_rest_step_ms", 2000);
+// a Curse of Agony tick, at one curse; / sqrt(curses ticking)
+LiveTuning::KnobInt const AgonyShardChance("warlock.agony_shard_chance", 22);
+LiveTuning::KnobInt const WritheChancePerRank("warlock.writhe_chance_per_rank", 5);  // Agonie tourmentée
+LiveTuning::KnobInt const SoulConduitPerRank("warlock.soul_conduit_per_rank", 5);
+LiveTuning::KnobInt const CrescendoChance("warlock.crescendo_chance", 25);
+LiveTuning::KnobUInt const ImmolateFragments("warlock.immolate_fragments", 2);  // tenths of a shard: an Immolate tick
+// an Incinerate hit, +1 on a critical strike
+LiveTuning::KnobUInt const IncinerateFragments("warlock.incinerate_fragments", 2);
+LiveTuning::KnobUInt const ConflagrationFragments("warlock.conflagration_fragments", 5);
+LiveTuning::KnobUInt const InfernalFragments("warlock.infernal_fragments", 1);       // an infernal's Immolation
 // Affliction
-constexpr float MaleficRange = 40.0f;
-constexpr uint8 SoulRotSpread = 3;
-constexpr float SpreadRange = 10.0f;
-constexpr uint32 PhantomPeriodMs = 2000;
-constexpr float PhantomRadius = 8.0f;
-constexpr float PhantomLeech = 0.15f;
-constexpr float VileTaintRadius = 8.0f;
-constexpr uint32 DarkglareMs = 20000;
-constexpr int32 DarkglareExtendMs = 8000;
-constexpr int32 MalevolentGazeExtendMs = 4000;
-constexpr float DarkglareRange = 40.0f;
-constexpr float EyeBeamPower = 0.3f;               // share of spell power a beam, before the damage over time effects
-constexpr float EyeBeamPerDot = 0.25f;
-constexpr int32 HarvestChancePerRank = 5;
-constexpr float DreadTouchPerRank = 0.075f;
-constexpr float DoomBlossomRadius = 8.0f;
+LiveTuning::Knob const MaleficRange("warlock.malefic_range", 40.0f);
+LiveTuning::KnobInt const SoulRotSpread("warlock.soul_rot_spread", 3);
+LiveTuning::Knob const SpreadRange("warlock.spread_range", 10.0f);
+LiveTuning::KnobUInt const PhantomPeriodMs("warlock.phantom_period_ms", 2000);
+LiveTuning::Knob const PhantomRadius("warlock.phantom_radius", 8.0f);
+LiveTuning::Knob const PhantomLeech("warlock.phantom_leech", 0.15f);
+LiveTuning::Knob const VileTaintRadius("warlock.vile_taint_radius", 8.0f);
+LiveTuning::KnobUInt const DarkglareMs("warlock.darkglare_ms", 20000);
+LiveTuning::KnobInt const DarkglareExtendMs("warlock.darkglare_extend_ms", 8000);
+LiveTuning::KnobInt const MalevolentGazeExtendMs("warlock.malevolent_gaze_extend_ms", 4000);
+LiveTuning::Knob const DarkglareRange("warlock.darkglare_range", 40.0f);
+// share of spell power a beam, before the damage over time effects
+LiveTuning::Knob const EyeBeamPower("warlock.eye_beam_power", 0.3f);
+LiveTuning::Knob const EyeBeamPerDot("warlock.eye_beam_per_dot", 0.25f);
+LiveTuning::KnobInt const HarvestChancePerRank("warlock.harvest_chance_per_rank", 5);
+LiveTuning::Knob const DreadTouchPerRank("warlock.dread_touch_per_rank", 0.075f);
+LiveTuning::Knob const DoomBlossomRadius("warlock.doom_blossom_radius", 8.0f);
 // Demonology
-constexpr uint8 GuldanMaxShards = 3;
-constexpr float GuldanRadius = 8.0f;
-constexpr uint32 WildImpMs = 15000;
-constexpr uint32 ImpHordeMsPerRank = 2000;
-constexpr uint32 FireboltPeriodMs = 2000;
-constexpr float FireboltPower = 0.05f;
-constexpr float FelFirePerRank = 0.1f;
-constexpr int32 ImpCoreChance = 15;
-constexpr uint8 CoreMax = 4;
-constexpr int32 DemonicCallingPerRank = 10;
-constexpr uint32 DreadstalkerMs = 12000;
-constexpr float DreadbitePower = 0.9f;
-constexpr float DreadlashRadius = 8.0f;
-constexpr float StalkerSwingPower = 0.3f;          // a 2 s swing
-constexpr float ImplosionRadius = 8.0f;
-constexpr uint8 PowerSiphonImps = 2;
-constexpr uint32 BombersMs = 6000;
-constexpr uint32 BombersPeriodMs = 1000;
-constexpr float BombersRadius = 8.0f;
-constexpr uint32 FelstormMs = 5000;
-constexpr uint32 FelstormPeriodMs = 1000;
-constexpr float FelstormRadius = 8.0f;
-constexpr float FelstormPower = 0.35f;
-constexpr uint32 GrimoireFelguardMs = 17000;
-constexpr uint32 LegionStrikePeriodMs = 3000;
-constexpr float LegionStrikePower = 0.75f;
-constexpr float GrimoireSwingPower = 0.35f;
-constexpr uint32 TyrantMs = 15000;
-constexpr uint32 TyrantExtendMs = 15000;
-constexpr uint32 TyrantPeriodMs = 2000;
-constexpr float TyrantPower = 0.4f;
-constexpr float TyrantEmpowerment = 1.15f;
-constexpr float ReignPerRank = 0.05f;
-constexpr uint8 SoulboundTyrantShards = 3;
-constexpr uint32 InnerDemonsMs = 12000;
-constexpr float SacrificedSoulsPerRank = 0.02f;
-constexpr float WrathfulMinionPerRank = 0.05f;
-constexpr float FelRagePerRank = 0.1f;
-constexpr float DoomRadius = 8.0f;
-constexpr float DemonRange = 40.0f;
+LiveTuning::KnobInt const GuldanMaxShards("warlock.guldan_max_shards", 3);
+LiveTuning::Knob const GuldanRadius("warlock.guldan_radius", 8.0f);
+LiveTuning::KnobUInt const WildImpMs("warlock.wild_imp_ms", 15000);
+LiveTuning::KnobUInt const ImpHordeMsPerRank("warlock.imp_horde_ms_per_rank", 2000);
+LiveTuning::KnobUInt const FireboltPeriodMs("warlock.firebolt_period_ms", 2000);
+LiveTuning::Knob const FireboltPower("warlock.firebolt_power", 0.05f);
+LiveTuning::Knob const FelFirePerRank("warlock.fel_fire_per_rank", 0.1f);
+LiveTuning::KnobInt const ImpCoreChance("warlock.imp_core_chance", 15);
+LiveTuning::KnobInt const CoreMax("warlock.core_max", 4);
+LiveTuning::KnobInt const DemonicCallingPerRank("warlock.demonic_calling_per_rank", 10);
+LiveTuning::KnobUInt const DreadstalkerMs("warlock.dreadstalker_ms", 12000);
+LiveTuning::Knob const DreadbitePower("warlock.dreadbite_power", 0.9f);
+LiveTuning::Knob const DreadlashRadius("warlock.dreadlash_radius", 8.0f);
+LiveTuning::Knob const StalkerSwingPower("warlock.stalker_swing_power", 0.3f);  // a 2 s swing
+LiveTuning::Knob const ImplosionRadius("warlock.implosion_radius", 8.0f);
+LiveTuning::KnobInt const PowerSiphonImps("warlock.power_siphon_imps", 2);
+LiveTuning::KnobUInt const BombersMs("warlock.bombers_ms", 6000);
+LiveTuning::KnobUInt const BombersPeriodMs("warlock.bombers_period_ms", 1000);
+LiveTuning::Knob const BombersRadius("warlock.bombers_radius", 8.0f);
+LiveTuning::KnobUInt const FelstormMs("warlock.felstorm_ms", 5000);
+LiveTuning::KnobUInt const FelstormPeriodMs("warlock.felstorm_period_ms", 1000);
+LiveTuning::Knob const FelstormRadius("warlock.felstorm_radius", 8.0f);
+LiveTuning::Knob const FelstormPower("warlock.felstorm_power", 0.35f);
+LiveTuning::KnobUInt const GrimoireFelguardMs("warlock.grimoire_felguard_ms", 17000);
+LiveTuning::KnobUInt const LegionStrikePeriodMs("warlock.legion_strike_period_ms", 3000);
+LiveTuning::Knob const LegionStrikePower("warlock.legion_strike_power", 0.75f);
+LiveTuning::Knob const GrimoireSwingPower("warlock.grimoire_swing_power", 0.35f);
+LiveTuning::KnobUInt const TyrantMs("warlock.tyrant_ms", 15000);
+LiveTuning::KnobUInt const TyrantExtendMs("warlock.tyrant_extend_ms", 15000);
+LiveTuning::KnobUInt const TyrantPeriodMs("warlock.tyrant_period_ms", 2000);
+LiveTuning::Knob const TyrantPower("warlock.tyrant_power", 0.4f);
+LiveTuning::Knob const TyrantEmpowerment("warlock.tyrant_empowerment", 1.15f);
+LiveTuning::Knob const ReignPerRank("warlock.reign_per_rank", 0.05f);
+LiveTuning::KnobInt const SoulboundTyrantShards("warlock.soulbound_tyrant_shards", 3);
+LiveTuning::KnobUInt const InnerDemonsMs("warlock.inner_demons_ms", 12000);
+LiveTuning::Knob const SacrificedSoulsPerRank("warlock.sacrificed_souls_per_rank", 0.02f);
+LiveTuning::Knob const WrathfulMinionPerRank("warlock.wrathful_minion_per_rank", 0.05f);
+LiveTuning::Knob const FelRagePerRank("warlock.fel_rage_per_rank", 0.1f);
+LiveTuning::Knob const DoomRadius("warlock.doom_radius", 8.0f);
+LiveTuning::Knob const DemonRange("warlock.demon_range", 40.0f);
 // Destruction
-constexpr uint32 ConflagrationCharges = 2;
-constexpr float HavocRange = 40.0f;
-constexpr uint32 RainOfFireMs = 8000;
-constexpr uint32 RainOfFirePeriodMs = 1000;
-constexpr float RainOfFireRadius = 8.0f;
-constexpr float InfernoFactor = 1.2f;
-constexpr int32 InfernoFragmentChance = 20;
-constexpr int32 RainOfChaosChance = 15;
-constexpr uint32 DemonfirePeriodMs = 250;
-constexpr float DemonfireRange = 40.0f;
-constexpr float CataclysmRadius = 8.0f;
-constexpr uint32 InfernalMs = 30000;
-constexpr uint32 LordOfFlamesMs = 10000;
-constexpr float LordOfFlamesFactor = 1.5f;
-constexpr uint32 SummonedInfernalMs = 8000;        // Avatar de destruction, Pluie de chaos
-constexpr float InfernalRadius = 8.0f;
-constexpr uint32 InfernalPeriodMs = 1500;
-constexpr float InfernalImmolationPower = 0.24f;
-constexpr float InfernalSwingPower = 0.4f;
-constexpr float RoaringBlazeFactor = 1.25f;
-constexpr float EradicationPerRank = 0.05f;
-constexpr int32 ChaosConflagrationPerRank = 25;
-constexpr int32 ShadowburnExecuteCrit = 50;
-constexpr uint32 ShadowburnRefundMs = 5000;
-constexpr uint32 InternalCombustionMs = 5000;
+LiveTuning::KnobUInt const ConflagrationCharges("warlock.conflagration_charges", 2);
+LiveTuning::Knob const HavocRange("warlock.havoc_range", 40.0f);
+LiveTuning::KnobUInt const RainOfFireMs("warlock.rain_of_fire_ms", 8000);
+LiveTuning::KnobUInt const RainOfFirePeriodMs("warlock.rain_of_fire_period_ms", 1000);
+LiveTuning::Knob const RainOfFireRadius("warlock.rain_of_fire_radius", 8.0f);
+LiveTuning::Knob const InfernoFactor("warlock.inferno_factor", 1.2f);
+LiveTuning::KnobInt const InfernoFragmentChance("warlock.inferno_fragment_chance", 20);
+LiveTuning::KnobInt const RainOfChaosChance("warlock.rain_of_chaos_chance", 15);
+LiveTuning::KnobUInt const DemonfirePeriodMs("warlock.demonfire_period_ms", 250);
+LiveTuning::Knob const DemonfireRange("warlock.demonfire_range", 40.0f);
+LiveTuning::Knob const CataclysmRadius("warlock.cataclysm_radius", 8.0f);
+LiveTuning::KnobUInt const InfernalMs("warlock.infernal_ms", 30000);
+LiveTuning::KnobUInt const LordOfFlamesMs("warlock.lord_of_flames_ms", 10000);
+LiveTuning::Knob const LordOfFlamesFactor("warlock.lord_of_flames_factor", 1.5f);
+// Avatar de destruction, Pluie de chaos
+LiveTuning::KnobUInt const SummonedInfernalMs("warlock.summoned_infernal_ms", 8000);
+LiveTuning::Knob const InfernalRadius("warlock.infernal_radius", 8.0f);
+LiveTuning::KnobUInt const InfernalPeriodMs("warlock.infernal_period_ms", 1500);
+LiveTuning::Knob const InfernalImmolationPower("warlock.infernal_immolation_power", 0.24f);
+LiveTuning::Knob const InfernalSwingPower("warlock.infernal_swing_power", 0.4f);
+LiveTuning::Knob const RoaringBlazeFactor("warlock.roaring_blaze_factor", 1.25f);
+LiveTuning::Knob const EradicationPerRank("warlock.eradication_per_rank", 0.05f);
+LiveTuning::KnobInt const ChaosConflagrationPerRank("warlock.chaos_conflagration_per_rank", 25);
+LiveTuning::KnobInt const ShadowburnExecuteCrit("warlock.shadowburn_execute_crit", 50);
+LiveTuning::KnobUInt const ShadowburnRefundMs("warlock.shadowburn_refund_ms", 5000);
+LiveTuning::KnobUInt const InternalCombustionMs("warlock.internal_combustion_ms", 5000);
 // Class tree
-constexpr float DarkPactSacrifice = 0.2f;
-constexpr float DarkPactShield = 2.0f;
-constexpr float DesperatePactPerRank = 0.25f;
-constexpr int32 BurningRushLossPct = 4;
-constexpr int32 BurningRushFloorPct = 10;
-constexpr float SoulLeechShare = 0.03f;
-constexpr float SoulLeechCap = 0.10f;
-constexpr int32 SacrificeChance = 35;
-constexpr uint32 SacrificeCooldownMs = 1500;
+LiveTuning::Knob const DarkPactSacrifice("warlock.dark_pact_sacrifice", 0.2f);
+LiveTuning::Knob const DarkPactShield("warlock.dark_pact_shield", 2.0f);
+LiveTuning::Knob const DesperatePactPerRank("warlock.desperate_pact_per_rank", 0.25f);
+LiveTuning::KnobInt const BurningRushLossPct("warlock.burning_rush_loss_pct", 4);
+LiveTuning::KnobInt const BurningRushFloorPct("warlock.burning_rush_floor_pct", 10);
+LiveTuning::Knob const SoulLeechShare("warlock.soul_leech_share", 0.03f);
+LiveTuning::Knob const SoulLeechCap("warlock.soul_leech_cap", 0.10f);
+LiveTuning::KnobInt const SacrificeChance("warlock.sacrifice_chance", 35);
+LiveTuning::KnobUInt const SacrificeCooldownMs("warlock.sacrifice_cooldown_ms", 1500);
 // Packs (the combat bench, Fire mage as the reference): each area hit whole up to AreaFullTargets enemies and
 // sqrt(AreaFullTargets / enemies) of it past them, as the Shaman's 8 yd areas
-constexpr uint8 AreaFullTargets = 8;
-constexpr uint8 AreaMaxTargets = 20;
+LiveTuning::KnobInt const AreaFullTargets("warlock.area_full_targets", 8);
+LiveTuning::KnobInt const AreaMaxTargets("warlock.area_max_targets", 20);
 constexpr uint32 HoldCheckMs = 1000;
 
 struct Charges
@@ -1044,7 +1049,7 @@ public:
         uint8 guldanShards = 0;
         if (id == SPELL_HAND_OF_GULDAN)
         {
-            guldanShards = std::min(Shards(player), GuldanMaxShards);
+            guldanShards = std::min(Shards(player), uint8(GuldanMaxShards));
             SpendShards(player, state, guldanShards);
         }
         else if (uint8 const cost = ShardCost(player, id, firstRank))

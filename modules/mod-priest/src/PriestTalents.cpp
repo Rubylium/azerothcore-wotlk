@@ -4,6 +4,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerScript.h"
@@ -177,81 +178,84 @@ constexpr uint32 FlagMindSearTick = 0x80000;        // word 1
 
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Discipline: each ally with Atonement is healed for this share of the Priest's damage
-constexpr float AtonementShare = 0.35f;
-constexpr int32 AtonementMs = 15000;
-constexpr float RadianceAtonementShare = 0.6f;      // of AtonementMs, without Radiance rémanente
-constexpr uint8 RadianceExtraTargets = 4;
-constexpr float AtonementRange = 60.0f;
+LiveTuning::Knob const AtonementShare("priest.atonement_share", 0.35f);
+LiveTuning::KnobInt const AtonementMs("priest.atonement_ms", 15000);
+// of AtonementMs, without Radiance rémanente
+LiveTuning::Knob const RadianceAtonementShare("priest.radiance_atonement_share", 0.6f);
+LiveTuning::KnobInt const RadianceExtraTargets("priest.radiance_extra_targets", 4);
+LiveTuning::Knob const AtonementRange("priest.atonement_range", 60.0f);
 constexpr uint32 AtonementFlushMs = 250;            // the damage of this long is healed at once
-constexpr float SinsPerAlly = 0.03f;                // Péchés du grand nombre
-constexpr float SinsMax = 0.15f;
-constexpr float SchismFactor = 1.15f;
-constexpr float MaliciousSchismFactor = 1.25f;
-constexpr int32 SchismMs = 9000;
-constexpr float DarkSideFactor = 1.5f;              // Pouvoir du côté obscur
-constexpr float PenitentShadowsFactor = 1.3f;       // Ombres pénitentes
-constexpr int32 EvangelismMs = 6000;
-constexpr float SurgingLightPct = 15.0f;            // Déferlante de lumière, of the ally's health
+LiveTuning::Knob const SinsPerAlly("priest.sins_per_ally", 0.03f);                     // Péchés du grand nombre
+LiveTuning::Knob const SinsMax("priest.sins_max", 0.15f);
+LiveTuning::Knob const SchismFactor("priest.schism_factor", 1.15f);
+LiveTuning::Knob const MaliciousSchismFactor("priest.malicious_schism_factor", 1.25f);
+LiveTuning::KnobInt const SchismMs("priest.schism_ms", 9000);
+LiveTuning::Knob const DarkSideFactor("priest.dark_side_factor", 1.5f);                // Pouvoir du côté obscur
+LiveTuning::Knob const PenitentShadowsFactor("priest.penitent_shadows_factor", 1.3f);  // Ombres pénitentes
+LiveTuning::KnobInt const EvangelismMs("priest.evangelism_ms", 6000);
+// Déferlante de lumière, of the ally's health
+LiveTuning::Knob const SurgingLightPct("priest.surging_light_pct", 15.0f);
 // Holy: Echo of Light's share of each heal (plus 5% a rank of Écho renforcé), over its 3 ticks
-constexpr float EchoShare = 0.2f;
-constexpr uint8 EchoTicks = 3;
-constexpr int32 EchoTickMs = 2000;
-constexpr int32 SerenityPerHealMs = 6000;           // Flash Heal, Heal, Greater Heal
-constexpr int32 SanctifyPerPrayerMs = 6000;         // Prayer of Healing
-constexpr int32 SanctifyPerRenewMs = 2000;
-constexpr int32 ChastisePerSmiteMs = 4000;
-constexpr float ApotheosisRate = 4.0f;
-constexpr uint8 SanctifyExtraTargets = 5;
-constexpr uint8 CosmicRippleTargets = 5;
-constexpr float RenewedFaithFactor = 1.1f;
-constexpr float GuidingLightFactor = 1.5f;
-constexpr float PowerWordLifePct = 35.0f;
+LiveTuning::Knob const EchoShare("priest.echo_share", 0.2f);
+LiveTuning::KnobInt const EchoTicks("priest.echo_ticks", 3);
+LiveTuning::KnobInt const EchoTickMs("priest.echo_tick_ms", 2000);
+LiveTuning::KnobInt const SerenityPerHealMs("priest.serenity_per_heal_ms", 6000);      // Flash Heal, Heal, Greater Heal
+LiveTuning::KnobInt const SanctifyPerPrayerMs("priest.sanctify_per_prayer_ms", 6000);  // Prayer of Healing
+LiveTuning::KnobInt const SanctifyPerRenewMs("priest.sanctify_per_renew_ms", 2000);
+LiveTuning::KnobInt const ChastisePerSmiteMs("priest.chastise_per_smite_ms", 4000);
+LiveTuning::Knob const ApotheosisRate("priest.apotheosis_rate", 4.0f);
+LiveTuning::KnobInt const SanctifyExtraTargets("priest.sanctify_extra_targets", 5);
+LiveTuning::KnobInt const CosmicRippleTargets("priest.cosmic_ripple_targets", 5);
+LiveTuning::Knob const RenewedFaithFactor("priest.renewed_faith_factor", 1.1f);
+LiveTuning::Knob const GuidingLightFactor("priest.guiding_light_factor", 1.5f);
+LiveTuning::Knob const PowerWordLifePct("priest.power_word_life_pct", 35.0f);
 // Shadow: Insanity
 constexpr uint8 InsanityMax = 100;
-constexpr uint8 DevouringPlagueCost = 50;
-constexpr uint8 MasterOfShadowsCost = 35;
-constexpr uint8 InsanityMindBlast = 8;
-constexpr uint8 InsanityVampiricTouch = 5;
-constexpr uint8 InsanityShadowWordPain = 4;
-constexpr uint8 InsanityShadowWordDeath = 5;
-constexpr uint8 InsanityMindFlayTick = 3;
-constexpr uint8 InsanityMindSearTick = 1;           // each enemy, 3 a tick at most
-constexpr uint8 InsanityVoidBolt = 12;
-constexpr uint8 InsanityVoidTorrentTick = 8;
-constexpr uint8 InsanityShadowCrash = 6;
-constexpr uint8 InsanityDarkAscension = 30;
-constexpr uint8 InsanityFiendHit = 2;
-constexpr uint8 InsanityDeathAndMadness = 10;
-constexpr uint32 InsanityFadeMs = 10000;
+LiveTuning::KnobInt const DevouringPlagueCost("priest.devouring_plague_cost", 50);
+LiveTuning::KnobInt const MasterOfShadowsCost("priest.master_of_shadows_cost", 35);
+LiveTuning::KnobInt const InsanityMindBlast("priest.insanity_mind_blast", 8);
+LiveTuning::KnobInt const InsanityVampiricTouch("priest.insanity_vampiric_touch", 5);
+LiveTuning::KnobInt const InsanityShadowWordPain("priest.insanity_shadow_word_pain", 4);
+LiveTuning::KnobInt const InsanityShadowWordDeath("priest.insanity_shadow_word_death", 5);
+LiveTuning::KnobInt const InsanityMindFlayTick("priest.insanity_mind_flay_tick", 3);
+LiveTuning::KnobInt const InsanityMindSearTick("priest.insanity_mind_sear_tick", 1);  // each enemy, 3 a tick at most
+LiveTuning::KnobInt const InsanityVoidBolt("priest.insanity_void_bolt", 12);
+LiveTuning::KnobInt const InsanityVoidTorrentTick("priest.insanity_void_torrent_tick", 8);
+LiveTuning::KnobInt const InsanityShadowCrash("priest.insanity_shadow_crash", 6);
+LiveTuning::KnobInt const InsanityDarkAscension("priest.insanity_dark_ascension", 30);
+LiveTuning::KnobInt const InsanityFiendHit("priest.insanity_fiend_hit", 2);
+LiveTuning::KnobInt const InsanityDeathAndMadness("priest.insanity_death_and_madness", 10);
+LiveTuning::KnobUInt const InsanityFadeMs("priest.insanity_fade_ms", 10000);
 // Shadow: damage the module works out, shares of the Priest's shadow spell power
-constexpr float ApparitionPower = 0.3f;
-constexpr float AuspiciousFactor = 1.15f;
-constexpr float EruptionSplashPower = 1.0f;
-constexpr float DevouringPlagueTickFactor = 1.5f;   // the stock ranks' 4 ticks in 6 s
-constexpr float DarkAscensionPeriodicFactor = 1.25f;
-constexpr float MindFlayInsanityFactor = 1.5f;
-constexpr float ShadowWordDeathExecute = 2.5f;
-constexpr float ExecutePct = 20.0f;
-constexpr int32 VoidBoltExtendMs = 3000;
-constexpr uint8 ShadowCrashTargets = 5;
-constexpr uint8 WhisperingShadowsTargets = 9;
+LiveTuning::Knob const ApparitionPower("priest.apparition_power", 0.3f);
+LiveTuning::Knob const AuspiciousFactor("priest.auspicious_factor", 1.15f);
+LiveTuning::Knob const EruptionSplashPower("priest.eruption_splash_power", 1.0f);
+// the stock ranks' 4 ticks in 6 s
+LiveTuning::Knob const DevouringPlagueTickFactor("priest.devouring_plague_tick_factor", 1.5f);
+LiveTuning::Knob const DarkAscensionPeriodicFactor("priest.dark_ascension_periodic_factor", 1.25f);
+LiveTuning::Knob const MindFlayInsanityFactor("priest.mind_flay_insanity_factor", 1.5f);
+LiveTuning::Knob const ShadowWordDeathExecute("priest.shadow_word_death_execute", 2.5f);
+LiveTuning::Knob const ExecutePct("priest.execute_pct", 20.0f);
+LiveTuning::KnobInt const VoidBoltExtendMs("priest.void_bolt_extend_ms", 3000);
+LiveTuning::KnobInt const ShadowCrashTargets("priest.shadow_crash_targets", 5);
+LiveTuning::KnobInt const WhisperingShadowsTargets("priest.whispering_shadows_targets", 9);
 // Packs (the combat bench, Fire mage as the reference): the splashes reach AreaMaxTargets, each hit whole up to
 // AreaFullTargets enemies and sqrt(AreaFullTargets / enemies) of it past them - Mind Sear too, which has no cap
-constexpr uint8 AreaFullTargets = 5;
-constexpr uint8 AreaMaxTargets = 12;
-constexpr float DotRange = 40.0f;                   // the enemies the apparitions and Psychic Link reach
-constexpr float EruptionRange = 10.0f;
-constexpr float MindSearRadius = 10.0f;
+LiveTuning::KnobInt const AreaFullTargets("priest.area_full_targets", 5);
+LiveTuning::KnobInt const AreaMaxTargets("priest.area_max_targets", 12);
+LiveTuning::Knob const DotRange("priest.dot_range", 40.0f);  // the enemies the apparitions and Psychic Link reach
+LiveTuning::Knob const EruptionRange("priest.eruption_range", 10.0f);
+LiveTuning::Knob const MindSearRadius("priest.mind_sear_radius", 10.0f);
 // Class tree: Divine Star's lane, Halo's ring
-constexpr float StarLength = 24.0f;
-constexpr float StarWidth = 4.0f;
-constexpr float HaloRange = 30.0f;
-constexpr uint8 StarHealTargets = 6;
+LiveTuning::Knob const StarLength("priest.star_length", 24.0f);
+LiveTuning::Knob const StarWidth("priest.star_width", 4.0f);
+LiveTuning::Knob const HaloRange("priest.halo_range", 30.0f);
+LiveTuning::KnobInt const StarHealTargets("priest.star_heal_targets", 6);
 constexpr float HealRange = 40.0f;
 
 constexpr uint32 HoldCheckMs = 250;
 constexpr uint32 BoostWindowMs = 3000;
-constexpr uint8 LightweaverMax = 2;
+LiveTuning::KnobInt const LightweaverMax("priest.lightweaver_max", 2);
 
 enum ChargeKind : uint8
 {
@@ -731,7 +735,7 @@ float DisciplineFactor(Player* player, PriestState* state, Unit* target)
 {
     float factor = 1.0f;
     if (player->HasAura(TALENT_SINS_OF_THE_MANY) && state->atonedCount)
-        factor *= 1.0f + std::min(SinsMax, SinsPerAlly * float(state->atonedCount));
+        factor *= 1.0f + std::min(SinsMax.Get(), SinsPerAlly * float(state->atonedCount));
     if (target->HasAura(SPELL_SCHISM_MARK, player->GetGUID()))
         factor *= player->HasAura(TALENT_MALICIOUS_SCHISM) ? MaliciousSchismFactor : SchismFactor;
     return factor;

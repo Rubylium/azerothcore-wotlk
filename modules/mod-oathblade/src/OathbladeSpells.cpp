@@ -1,6 +1,7 @@
 #include "Oathblade.h"
 
 #include "Item.h"
+#include "LiveTuning.h"
 #include "Player.h"
 #include "PlayerScript.h"
 #include "Random.h"
@@ -70,7 +71,7 @@ void RestoreEquipmentTraining(Player* player)
 }
 
 // The global cooldown while Flawless Form is up, against the 900 ms the spell data carries
-constexpr uint32 FLAWLESS_FORM_GCD = 650;
+LiveTuning::KnobUInt const FLAWLESS_FORM_GCD("oathblade.flawless_form_gcd", 650);
 
 bool IsFinisher(uint32 spellId)
 {

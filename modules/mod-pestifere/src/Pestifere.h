@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "Define.h"
+#include "LiveTuning.h"
 #include "Unit.h"
 
 #include <array>
@@ -271,7 +272,7 @@ void RecalculatePlagues(Unit* unit, Aura const* skip = nullptr);
 // The self plagues have no duration in the spell data: in combat they last as long as they are carried.
 // Out of combat they run down this long, visibly on the buff, so a chain-puller can still arrive sick at the
 // next pack; entering combat stops the countdown again.
-constexpr int32 PLAGUE_OUT_OF_COMBAT_DECAY = 20 * IN_MILLISECONDS;
+inline LiveTuning::KnobInt const PLAGUE_OUT_OF_COMBAT_DECAY("pestifere.plague_out_of_combat_decay", 20000);
 
 // Starts (expiring) or stops the out-of-combat countdown on one carried plague
 void SetPlagueExpiring(Aura* plague, bool expiring);

@@ -5,6 +5,7 @@
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Pet.h"
 #include "Player.h"
@@ -192,47 +193,48 @@ enum Spells : uint32
 // which makes it a controllable guardian - the owner's pet slot - and sent the Hunter's own pet away.
 constexpr uint32 NpcWildBeast = 93240;
 constexpr uint32 WildBeastSummonProperties = 61;
-constexpr uint32 WildBeastMs = 8000;
+LiveTuning::KnobUInt const WildBeastMs("hunter.wild_beast_ms", 8000);
 
 // --- Tuning (README.md): shares of the Hunter's ranged attack power ------------------------------------------------
-constexpr float KillCommandPower = 1.25f;       // the pet's Kill Command hit
-constexpr float BeastHitPower = 0.35f;          // a wild beast's melee swing (2 s)
-constexpr float StompPower = 0.35f;             // Piétinement, each enemy
-constexpr float BrutalCompanionShare = 1.5f;    // of a Kill Command hit
-constexpr float BloodshedTickPower = 0.18f;     // each 2 s of Effusion de sang
-constexpr float WildfireSplashPower = 0.8f;     // Bombe de feu sauvage on each other enemy
-constexpr float FlankingPetPower = 1.0f;        // the pet's half of Frappe de flanc
-constexpr float SpearheadTickPower = 0.2f;      // each 2 s of Fer de lance
-constexpr float TermsPower = 0.6f;              // Termes de l'engagement's hit
-constexpr float WailingSplashShare = 0.4f;
-constexpr float TrickShotsShare = 0.55f;
-constexpr float WindArrowShare = 0.2f;
-constexpr float KillCleaveShare = 0.8f;
+LiveTuning::Knob const KillCommandPower("hunter.kill_command_power", 1.25f);         // the pet's Kill Command hit
+LiveTuning::Knob const BeastHitPower("hunter.beast_hit_power", 0.35f);               // a wild beast's melee swing (2 s)
+LiveTuning::Knob const StompPower("hunter.stomp_power", 0.35f);                      // Piétinement, each enemy
+LiveTuning::Knob const BrutalCompanionShare("hunter.brutal_companion_share", 1.5f);  // of a Kill Command hit
+LiveTuning::Knob const BloodshedTickPower("hunter.bloodshed_tick_power", 0.18f);     // each 2 s of Effusion de sang
+// Bombe de feu sauvage on each other enemy
+LiveTuning::Knob const WildfireSplashPower("hunter.wildfire_splash_power", 0.8f);
+LiveTuning::Knob const FlankingPetPower("hunter.flanking_pet_power", 1.0f);  // the pet's half of Frappe de flanc
+LiveTuning::Knob const SpearheadTickPower("hunter.spearhead_tick_power", 0.2f);      // each 2 s of Fer de lance
+LiveTuning::Knob const TermsPower("hunter.terms_power", 0.6f);                       // Termes de l'engagement's hit
+LiveTuning::Knob const WailingSplashShare("hunter.wailing_splash_share", 0.4f);
+LiveTuning::Knob const TrickShotsShare("hunter.trick_shots_share", 0.55f);
+LiveTuning::Knob const WindArrowShare("hunter.wind_arrow_share", 0.2f);
+LiveTuning::Knob const KillCleaveShare("hunter.kill_cleave_share", 0.8f);
 // Packs (the combat bench, Fire mage as the reference): Multi-Shot reaches MultiShotMaxTargets (its chain, in
 // SpellInfoCorrections.cpp), each hit MultiShotHitFactor of its own and, past AreaFullTargets enemies,
 // sqrt(AreaFullTargets / enemies) of that - Beast Cleave too. Its old 3 and Beast Cleave's 6 left the Hunter's
 // damage flat from five enemies on.
-constexpr uint8 MultiShotMaxTargets = 12;
-constexpr float MultiShotHitFactor = 0.85f;
-constexpr uint8 AreaFullTargets = 5;
-constexpr uint8 BeastCleaveMaxTargets = 11;     // besides the pet's own target
-constexpr uint8 TrickShotsMaxTargets = 7;       // besides the one hit
-constexpr float WildfireRange = 10.0f;
-constexpr uint8 WildfireMaxTargets = 11;        // besides the one hit
-constexpr float WildfireBurnFactor = 1.5f;      // its burn, on every enemy of the pack
-constexpr float ButcheryFactor = 1.4f;
+LiveTuning::KnobInt const MultiShotMaxTargets("hunter.multi_shot_max_targets", 12);
+LiveTuning::Knob const MultiShotHitFactor("hunter.multi_shot_hit_factor", 0.85f);
+LiveTuning::KnobInt const AreaFullTargets("hunter.area_full_targets", 5);
+LiveTuning::KnobInt const BeastCleaveMaxTargets("hunter.beast_cleave_max_targets", 11);  // besides the pet's own target
+LiveTuning::KnobInt const TrickShotsMaxTargets("hunter.trick_shots_max_targets", 7);     // besides the one hit
+LiveTuning::Knob const WildfireRange("hunter.wildfire_range", 10.0f);
+LiveTuning::KnobInt const WildfireMaxTargets("hunter.wildfire_max_targets", 11);         // besides the one hit
+LiveTuning::Knob const WildfireBurnFactor("hunter.wildfire_burn_factor", 1.5f);  // its burn, on every enemy of the pack
+LiveTuning::Knob const ButcheryFactor("hunter.butchery_factor", 1.4f);
 
 constexpr uint32 HoldCheckMs = 250;
 constexpr uint32 BoostWindowMs = 3000;
-constexpr uint8 FrenzyMax = 3;
-constexpr uint8 TipOfTheSpearMax = 3;
-constexpr uint8 MongooseFuryMax = 5;
-constexpr uint8 ChakramHits = 7;
-constexpr uint32 StampedePulseMs = 1000;
-constexpr uint32 CallOfTheWildPulseMs = 4000;
-constexpr int32 BestialWrathPerBarbedMs = 12000;
-constexpr int32 BeastCleaveMs = 4000;
-constexpr float CleaveRange = 8.0f;
+LiveTuning::KnobInt const FrenzyMax("hunter.frenzy_max", 3);
+LiveTuning::KnobInt const TipOfTheSpearMax("hunter.tip_of_the_spear_max", 3);
+LiveTuning::KnobInt const MongooseFuryMax("hunter.mongoose_fury_max", 5);
+LiveTuning::KnobInt const ChakramHits("hunter.chakram_hits", 7);
+LiveTuning::KnobUInt const StampedePulseMs("hunter.stampede_pulse_ms", 1000);
+LiveTuning::KnobUInt const CallOfTheWildPulseMs("hunter.call_of_the_wild_pulse_ms", 4000);
+LiveTuning::KnobInt const BestialWrathPerBarbedMs("hunter.bestial_wrath_per_barbed_ms", 12000);
+LiveTuning::KnobInt const BeastCleaveMs("hunter.beast_cleave_ms", 4000);
+LiveTuning::Knob const CleaveRange("hunter.cleave_range", 8.0f);
 
 enum ChargeKind : uint8
 {

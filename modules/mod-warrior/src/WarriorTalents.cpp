@@ -3,6 +3,7 @@
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "LiveTuning.h"
 #include "Player.h"
 #include "PlayerScript.h"
 #include "Random.h"
@@ -140,62 +141,64 @@ enum Spells : uint32
 
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Rage a builder gives (in rage points)
-constexpr int32 RageBloodthirst = 8;
-constexpr int32 RageRagingBlow = 12;
-constexpr int32 RageOnslaught = 15;
-constexpr int32 RageSkullsplitter = 20;
-constexpr int32 RageShieldSlam = 15;
-constexpr int32 RageThunderClap = 5;
-constexpr int32 RageRavagerTick = 5;
-constexpr int32 RageChampionsSpear = 10;
-constexpr int32 RageShieldCharge = 20;
-constexpr int32 RageRecklessAbandon = 50;
+LiveTuning::KnobInt const RageBloodthirst("warrior.rage_bloodthirst", 8);
+LiveTuning::KnobInt const RageRagingBlow("warrior.rage_raging_blow", 12);
+LiveTuning::KnobInt const RageOnslaught("warrior.rage_onslaught", 15);
+LiveTuning::KnobInt const RageSkullsplitter("warrior.rage_skullsplitter", 20);
+LiveTuning::KnobInt const RageShieldSlam("warrior.rage_shield_slam", 15);
+LiveTuning::KnobInt const RageThunderClap("warrior.rage_thunder_clap", 5);
+LiveTuning::KnobInt const RageRavagerTick("warrior.rage_ravager_tick", 5);
+LiveTuning::KnobInt const RageChampionsSpear("warrior.rage_champions_spear", 10);
+LiveTuning::KnobInt const RageShieldCharge("warrior.rage_shield_charge", 20);
+LiveTuning::KnobInt const RageRecklessAbandon("warrior.rage_reckless_abandon", 50);
 // Execute: below this share of health, or with Sudden Death's proc
-constexpr float ExecutePct = 20.0f;
-constexpr float MassacrePct = 35.0f;
+LiveTuning::Knob const ExecutePct("warrior.execute_pct", 20.0f);
+LiveTuning::Knob const MassacrePct("warrior.massacre_pct", 35.0f);
 // Arms
-constexpr float ColossusFactor = 1.2f;              // Frappe du colosse and Briseguerre's mark
-constexpr float ExecutionersPrecisionPerStack = 0.25f;
-constexpr uint8 MartialProwessMax = 2;
-constexpr uint8 ExecutionersPrecisionMax = 2;
-constexpr int32 BattlelordChance = 25;
-constexpr int32 InForTheKillHaste = 10;
-constexpr int32 InForTheKillLowHaste = 25;
-constexpr int32 BonegrinderBonusMs = 9000;          // Broyeur impitoyable: past the whirl's own duration
-constexpr uint32 UnhingedPeriodMs = 2000;
+LiveTuning::Knob const ColossusFactor("warrior.colossus_factor", 1.2f);  // Frappe du colosse and Briseguerre's mark
+LiveTuning::Knob const ExecutionersPrecisionPerStack("warrior.executioners_precision_per_stack", 0.25f);
+LiveTuning::KnobInt const MartialProwessMax("warrior.martial_prowess_max", 2);
+LiveTuning::KnobInt const ExecutionersPrecisionMax("warrior.executioners_precision_max", 2);
+LiveTuning::KnobInt const BattlelordChance("warrior.battlelord_chance", 25);
+LiveTuning::KnobInt const InForTheKillHaste("warrior.in_for_the_kill_haste", 10);
+LiveTuning::KnobInt const InForTheKillLowHaste("warrior.in_for_the_kill_low_haste", 25);
+// Broyeur impitoyable: past the whirl's own duration
+LiveTuning::KnobInt const BonegrinderBonusMs("warrior.bonegrinder_bonus_ms", 9000);
+LiveTuning::KnobUInt const UnhingedPeriodMs("warrior.unhinged_period_ms", 2000);
 // Fury
-constexpr int32 BloodthirstEnrageChance = 30;
-constexpr int32 EnrageMs = 4000;
-constexpr uint8 MeatCleaverStacks = 2;
-constexpr uint8 KeenCleaverStacks = 2;
-constexpr uint8 MeatCleaverTargets = 4;
-constexpr float MeatCleaverShare = 0.9f;
-constexpr float MeatCleaverRange = 8.0f;
-constexpr int32 BerserkersTormentMs = 8000;
+LiveTuning::KnobInt const BloodthirstEnrageChance("warrior.bloodthirst_enrage_chance", 30);
+LiveTuning::KnobInt const EnrageMs("warrior.enrage_ms", 4000);
+LiveTuning::KnobInt const MeatCleaverStacks("warrior.meat_cleaver_stacks", 2);
+LiveTuning::KnobInt const KeenCleaverStacks("warrior.keen_cleaver_stacks", 2);
+LiveTuning::KnobInt const MeatCleaverTargets("warrior.meat_cleaver_targets", 4);
+LiveTuning::Knob const MeatCleaverShare("warrior.meat_cleaver_share", 0.9f);
+LiveTuning::Knob const MeatCleaverRange("warrior.meat_cleaver_range", 8.0f);
+LiveTuning::KnobInt const BerserkersTormentMs("warrior.berserkers_torment_ms", 8000);
 // Protection
-constexpr float IgnorePainAttackPower = 2.0f;       // the absorb, a share of attack power
-constexpr int32 IgnorePainCapPct = 30;              // of maximum health
-constexpr uint32 IgnorePainHitPct = 50;             // of each hit it takes, until spent
-constexpr int32 HeavyRepercussionsMs = 1000;
-constexpr uint32 RevengeProcCooldownMs = 3000;
-constexpr int32 ImmovableObjectMs = 10000;
-constexpr float UnstoppableForceFactor = 1.5f;
-constexpr int32 UnstoppableForceCooldownMs = 3000;
-constexpr float ShieldChargeRange = 8.0f;
-constexpr uint8 ShieldChargeTargets = 5;
+// the absorb, a share of attack power
+LiveTuning::Knob const IgnorePainAttackPower("warrior.ignore_pain_attack_power", 2.0f);
+LiveTuning::KnobInt const IgnorePainCapPct("warrior.ignore_pain_cap_pct", 30);           // of maximum health
+LiveTuning::KnobUInt const IgnorePainHitPct("warrior.ignore_pain_hit_pct", 50);  // of each hit it takes, until spent
+LiveTuning::KnobInt const HeavyRepercussionsMs("warrior.heavy_repercussions_ms", 1000);
+LiveTuning::KnobUInt const RevengeProcCooldownMs("warrior.revenge_proc_cooldown_ms", 3000);
+LiveTuning::KnobInt const ImmovableObjectMs("warrior.immovable_object_ms", 10000);
+LiveTuning::Knob const UnstoppableForceFactor("warrior.unstoppable_force_factor", 1.5f);
+LiveTuning::KnobInt const UnstoppableForceCooldownMs("warrior.unstoppable_force_cooldown_ms", 3000);
+LiveTuning::Knob const ShieldChargeRange("warrior.shield_charge_range", 8.0f);
+LiveTuning::KnobInt const ShieldChargeTargets("warrior.shield_charge_targets", 5);
 // Class tree
-constexpr float SecondWindPct = 35.0f;
-constexpr uint32 SecondWindPeriodMs = 1000;
+LiveTuning::Knob const SecondWindPct("warrior.second_wind_pct", 35.0f);
+LiveTuning::KnobUInt const SecondWindPeriodMs("warrior.second_wind_period_ms", 1000);
 constexpr float LeapSpeed = 28.0f;                  // yards a second (Spell::CalculateJumpSpeeds for a player)
 // The Ravager: a blow every second for 7 s within 8 yd of its spot
-constexpr uint32 RavagerMs = 7000;
-constexpr uint32 RavagerPeriodMs = 1000;
-constexpr float RavagerRadius = 8.0f;
+LiveTuning::KnobUInt const RavagerMs("warrior.ravager_ms", 7000);
+LiveTuning::KnobUInt const RavagerPeriodMs("warrior.ravager_period_ms", 1000);
+LiveTuning::Knob const RavagerRadius("warrior.ravager_radius", 8.0f);
 // Packs (the combat bench, Fire mage as the reference): the area spells reach AreaMaxTargets, each hit whole up to
 // AreaFullTargets enemies and sqrt(AreaFullTargets / enemies) of it past them. Twelve rather than the casters' five:
 // the Warrior's areas are 8 yd around it, so a big pack is already only partly in reach
-constexpr uint8 AreaFullTargets = 12;
-constexpr uint8 AreaMaxTargets = 12;
+LiveTuning::KnobInt const AreaFullTargets("warrior.area_full_targets", 12);
+LiveTuning::KnobInt const AreaMaxTargets("warrior.area_max_targets", 12);
 constexpr uint32 AreaCountMs = 300;
 
 constexpr uint32 HoldCheckMs = 250;
@@ -1059,7 +1062,7 @@ class spell_warr_ignore_pain_absorb : public AuraScript
 
     void Absorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
     {
-        absorbAmount = std::min(absorbAmount, CalculatePct(dmgInfo.GetDamage(), IgnorePainHitPct));
+        absorbAmount = std::min(absorbAmount, CalculatePct(dmgInfo.GetDamage(), IgnorePainHitPct.Get()));
     }
 
     void Register() override

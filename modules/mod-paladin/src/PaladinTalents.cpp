@@ -3,6 +3,7 @@
 #include "DynamicObject.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerScript.h"
@@ -140,14 +141,14 @@ enum Spells : uint32
 constexpr std::array<uint32, 8> ConsecrationRanks = { 26573, 20116, 20922, 20923, 20924, 27173, 48818, 48819 };
 
 constexpr uint8 HolyPowerMax = 5;
-constexpr uint8 FinisherCost = 3;
-constexpr uint32 HolyPowerFadeMs = 10000;
+LiveTuning::KnobInt const FinisherCost("paladin.finisher_cost", 3);
+LiveTuning::KnobUInt const HolyPowerFadeMs("paladin.holy_power_fade_ms", 10000);
 constexpr uint32 GroundCheckMs = 250;
-constexpr uint8 GlimmerMax = 8;
-constexpr uint8 BulwarkMax = 5;
-constexpr uint8 CrusadeMax = 10;
-constexpr int32 RighteousArmorStepMs = 4500;
-constexpr int32 RighteousArmorMaxMs = 13500;
+LiveTuning::KnobInt const GlimmerMax("paladin.glimmer_max", 8);
+LiveTuning::KnobInt const BulwarkMax("paladin.bulwark_max", 5);
+LiveTuning::KnobInt const CrusadeMax("paladin.crusade_max", 10);
+LiveTuning::KnobInt const RighteousArmorStepMs("paladin.righteous_armor_step_ms", 4500);
+LiveTuning::KnobInt const RighteousArmorMaxMs("paladin.righteous_armor_max_ms", 13500);
 constexpr float HealRange = 40.0f;
 
 // A character's state for its talents. Kept on the player, so it dies with the session.
@@ -461,7 +462,7 @@ void SpendFinisher(Player* player, uint32 spellId)
     else
     {
         uint8 const power = HolyPower(player);
-        spent = std::min(power, FinisherCost);
+        spent = std::min(power, uint8(FinisherCost));
         ShowStacks(player, SPELL_HOLY_POWER, power - spent);
     }
 
@@ -513,7 +514,7 @@ void ShieldOfTheRighteous(Player* player)
 {
     if (Aura* armor = player->GetAura(SPELL_RIGHTEOUS_ARMOR))
     {
-        int32 const duration = std::min(armor->GetDuration() + RighteousArmorStepMs, RighteousArmorMaxMs);
+        int32 const duration = std::min(armor->GetDuration() + RighteousArmorStepMs, RighteousArmorMaxMs.Get());
         armor->SetMaxDuration(std::max(armor->GetMaxDuration(), duration));
         armor->SetDuration(duration);
     }

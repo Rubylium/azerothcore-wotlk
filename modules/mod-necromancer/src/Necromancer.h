@@ -2,6 +2,7 @@
 #define MOD_NECROMANCER_H
 
 #include "Common.h"
+#include "LiveTuning.h"
 #include "ObjectGuid.h"
 
 #include <initializer_list>
@@ -52,25 +53,25 @@ enum Creatures : uint32
 // Rather than rewrite each coefficient and lose the shape they encode - which spell is worth more than which -
 // they keep their values and this single number sets the class's place. Raise it to raise the whole class
 // evenly; nothing else has to move.
-constexpr float DAMAGE_SCALE = 1.5f;
+inline LiveTuning::Knob const DAMAGE_SCALE("necromancer.damage_scale", 1.5f);
 
 // Necrotic Rot: the plague the army carries. Every minion that lands a hit stacks it on what it hit, so a
 // pack rots without the Necromancer spending a single global on it - which is the whole point of an army.
 // The cap matches the spell's own StackAmount, so ModStackAmount clamps it for us.
 constexpr uint8 NECROTIC_ROT_MAX_STACKS = 5;
 // A brand planted by Morbid Explosion rather than cast by hand: shorter, and it never gets Eternal Seal.
-constexpr uint32 SPREAD_BRAND_DURATION = 12000;
+inline LiveTuning::KnobUInt const SPREAD_BRAND_DURATION("necromancer.spread_brand_duration", 12000);
 
 // Levée des morts takes this many Âmes: the squad is the one thing Âmes buy
-constexpr uint8 RAISE_DEAD_SOULS = 10;
+inline LiveTuning::KnobInt const RAISE_DEAD_SOULS("necromancer.raise_dead_souls", 10);
 // Décomposition: an ordinary minion loses this share of its health every second (about 25 seconds alone), the
 // abomination half of it. Drain d'âme, Ordre de mort and leech are what keep an army standing.
-constexpr uint32 DECAY_PERCENT = 4;
-constexpr uint32 ABOMINATION_DECAY_PERCENT = 2;
+inline LiveTuning::KnobUInt const DECAY_PERCENT("necromancer.decay_percent", 4);
+inline LiveTuning::KnobUInt const ABOMINATION_DECAY_PERCENT("necromancer.abomination_decay_percent", 2);
 // Drain d'âme heals every minion by this share of its health per pulse
-constexpr uint32 DRAIN_HEAL_PERCENT = 6;
+inline LiveTuning::KnobUInt const DRAIN_HEAL_PERCENT("necromancer.drain_heal_percent", 6);
 // Minions leech this share of what they deal to the target the Nécromancien marked
-constexpr uint32 BRAND_LEECH_PERCENT = 10;
+inline LiveTuning::KnobUInt const BRAND_LEECH_PERCENT("necromancer.brand_leech_percent", 10);
 
 enum class MinionKind : uint8 { Skeleton, Archer, Mage, Abomination };
 struct TalentRank { uint32 spellId; int32 value; };

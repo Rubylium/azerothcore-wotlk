@@ -5,6 +5,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Item.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerScript.h"
@@ -110,57 +111,59 @@ constexpr uint32 FLAG1_ENVENOM = 0x00000008;
 constexpr uint32 FLAG1_SHADOWSTEP = 0x00000200;
 constexpr uint32 FLAG1_CLOAK_OF_SHADOWS = 0x00010000;
 
-constexpr uint32 MarkedForDeathMs = 60000;
-constexpr uint8 AlacrityMaxStacks = 5;
+LiveTuning::KnobUInt const MarkedForDeathMs("rogue.marked_for_death_ms", 60000);
+LiveTuning::KnobInt const AlacrityMaxStacks("rogue.alacrity_max_stacks", 5);
 constexpr uint32 PoisonRefreshMs = 5 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 PoisonDurationMs = HOUR * IN_MILLISECONDS;
-constexpr uint8 ShurikenMaxPoints = 5;
+LiveTuning::KnobInt const ShurikenMaxPoints("rogue.shuriken_max_points", 5);
 
 // The specs' area kits (Assassinat: bleeds and poisons everywhere; Finesse: Shuriken Storm, Black Powder, Secret
 // Technique). Amounts are shares of the rogue's attack power per combo point spent, so they grow with the character.
-constexpr float AreaRadius = 10.0f;
-constexpr float CrimsonTempestHitPerPoint = 0.06f;      // the slash on every enemy
-constexpr float CrimsonTempestBleedPerPoint = 0.3f;     // the whole bleed, over 2 s per point
+LiveTuning::Knob const AreaRadius("rogue.area_radius", 10.0f);
+// the slash on every enemy
+LiveTuning::Knob const CrimsonTempestHitPerPoint("rogue.crimson_tempest_hit_per_point", 0.06f);
+// the whole bleed, over 2 s per point
+LiveTuning::Knob const CrimsonTempestBleedPerPoint("rogue.crimson_tempest_bleed_per_point", 0.3f);
 // Assassinat lives on its bleeds: Rupture and Garrote deal this much more (WotLK's values were made for a tenth of
 // the attack power a character reaches here)
-constexpr int32 AssassinationBleedBonusPct = 150;
+LiveTuning::KnobInt const AssassinationBleedBonusPct("rogue.assassination_bleed_bonus_pct", 150);
 // Assassinat's energy (retail's Venomous Wounds, built in): a bleed ticking on a poisoned enemy gives this much, at
 // most once per BleedEnergyGapMs whatever the number of dots up
-constexpr uint32 AssassinationBleedEnergy = 3;
-constexpr uint32 BleedEnergyGapMs = 500;
-constexpr uint32 CrimsonTempestTickMs = 2000;
+LiveTuning::KnobUInt const AssassinationBleedEnergy("rogue.assassination_bleed_energy", 3);
+LiveTuning::KnobUInt const BleedEnergyGapMs("rogue.bleed_energy_gap_ms", 500);
+LiveTuning::KnobUInt const CrimsonTempestTickMs("rogue.crimson_tempest_tick_ms", 2000);
 // Finesse's pack finisher. Alone, a little under Eviscerate; on a pack, it hits harder the more enemies it reaches (up
 // to three), harder still in Shadow Dance, and gives energy back for every enemy beyond the first.
 // On a pack the loop is a Shuriken Storm (five combo points) then a Black Powder: the builder carries a real share
 // of the damage (ShurikenStormPerEnemy), so the pack's damage is not all in the finisher
-constexpr float BlackPowderPerPoint = 0.075f;
-constexpr uint32 BlackPowderFlatPerPoint = 200;
-constexpr int32 BlackPowderPerExtraEnemyPct = 25;
-constexpr uint32 BlackPowderMaxExtraEnemies = 2;
-constexpr int32 BlackPowderDancePct = 25;
-constexpr uint32 BlackPowderEnergyPerExtraEnemy = 6;
-constexpr uint32 BlackPowderMaxEnergy = 18;
+LiveTuning::Knob const BlackPowderPerPoint("rogue.black_powder_per_point", 0.075f);
+LiveTuning::KnobUInt const BlackPowderFlatPerPoint("rogue.black_powder_flat_per_point", 200);
+LiveTuning::KnobInt const BlackPowderPerExtraEnemyPct("rogue.black_powder_per_extra_enemy_pct", 25);
+LiveTuning::KnobUInt const BlackPowderMaxExtraEnemies("rogue.black_powder_max_extra_enemies", 2);
+LiveTuning::KnobInt const BlackPowderDancePct("rogue.black_powder_dance_pct", 25);
+LiveTuning::KnobUInt const BlackPowderEnergyPerExtraEnemy("rogue.black_powder_energy_per_extra_enemy", 6);
+LiveTuning::KnobUInt const BlackPowderMaxEnergy("rogue.black_powder_max_energy", 18);
 // Shuriken Storm's hit on every enemy, a share of the attack power in place of the weapon damage it was cloned with
 // (Fan of Knives' without a dagger bonus: a few hundred, next to the finisher's thousands). About two thirds of a Black
 // Powder's hit on each enemy of a pack (the bench: physical, armour takes a share); on one or two enemies it keeps
 // ShurikenStormFewEnemiesPct of it, under Backstab, not a single-target builder
-constexpr float ShurikenStormPerEnemy = 1.8f;
-constexpr uint32 ShurikenStormFullEnemies = 3;
-constexpr int32 ShurikenStormFewEnemiesPct = 40;
-constexpr float SecretTechniquePerPoint = 0.10f;        // each of its three strikes
-constexpr uint32 SecretTechniqueFlatPerPoint = 150;
-constexpr uint32 SecretTechniqueStrikes = 3;
+LiveTuning::Knob const ShurikenStormPerEnemy("rogue.shuriken_storm_per_enemy", 1.8f);
+LiveTuning::KnobUInt const ShurikenStormFullEnemies("rogue.shuriken_storm_full_enemies", 3);
+LiveTuning::KnobInt const ShurikenStormFewEnemiesPct("rogue.shuriken_storm_few_enemies_pct", 40);
+LiveTuning::Knob const SecretTechniquePerPoint("rogue.secret_technique_per_point", 0.10f);  // each of its three strikes
+LiveTuning::KnobUInt const SecretTechniqueFlatPerPoint("rogue.secret_technique_flat_per_point", 150);
+LiveTuning::KnobUInt const SecretTechniqueStrikes("rogue.secret_technique_strikes", 3);
 // Finesse's own damage (its passive, Danseur des ombres): Eviscerate and the dagger builders
-constexpr int32 SubtletyEviscerateBonusPct = 120;
-constexpr int32 SubtletyBuilderBonusPct = 50;
+LiveTuning::KnobInt const SubtletyEviscerateBonusPct("rogue.subtlety_eviscerate_bonus_pct", 120);
+LiveTuning::KnobInt const SubtletyBuilderBonusPct("rogue.subtlety_builder_bonus_pct", 50);
 // Danse de la mort lengthens a Shadow Dance up to this long in all: with the builders' combo points on a critical
 // strike, an uncapped Dance never ended
-constexpr int32 DeathDanceMaxMs = 16000;
+LiveTuning::KnobInt const DeathDanceMaxMs("rogue.death_dance_max_ms", 16000);
 // Envenom carries the target's bleeds to this many enemies around it that do not have them
-constexpr uint32 SpreadTargets = 4;
+LiveTuning::KnobUInt const SpreadTargets("rogue.spread_targets", 4);
 // Virulence: 2% damage per affliction of the rogue on its enemies (the aura's own amount), up to this many
-constexpr uint8 VirulenceMaxStacks = 15;
-constexpr float VirulenceRange = 40.0f;
+LiveTuning::KnobInt const VirulenceMaxStacks("rogue.virulence_max_stacks", 15);
+LiveTuning::Knob const VirulenceRange("rogue.virulence_range", 40.0f);
 constexpr uint32 VirulenceUpdateMs = 1000;
 
 // A character's state for its talents. Kept on the player, so it dies with the session.
@@ -347,7 +350,7 @@ void BlackPowder(Player* player, uint8 comboPoints)
         return;
 
     uint32 const extra = uint32(enemies.size() - 1);
-    float multiplier = 1.0f + std::min(extra, BlackPowderMaxExtraEnemies) * BlackPowderPerExtraEnemyPct / 100.0f;
+    float multiplier = 1.0f + std::min(extra, BlackPowderMaxExtraEnemies.Get()) * BlackPowderPerExtraEnemyPct / 100.0f;
     if (player->HasAura(SPELL_SHADOW_DANCE))
         multiplier *= 1.0f + BlackPowderDancePct / 100.0f;
     uint32 const damage = uint32(PerPoint(player, BlackPowderPerPoint, BlackPowderFlatPerPoint, comboPoints) *
@@ -361,7 +364,7 @@ void BlackPowder(Player* player, uint8 comboPoints)
             player->AddAura(SPELL_NIGHT_TERRORS, enemy);
     }
 
-    if (uint32 const energy = std::min(extra * BlackPowderEnergyPerExtraEnemy, BlackPowderMaxEnergy))
+    if (uint32 const energy = std::min(extra * BlackPowderEnergyPerExtraEnemy, BlackPowderMaxEnergy.Get()))
         Energize(player, SPELL_BLACK_POWDER, energy);
 }
 

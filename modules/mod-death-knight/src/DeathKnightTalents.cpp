@@ -5,6 +5,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Item.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Pet.h"
 #include "Player.h"
@@ -121,40 +122,47 @@ constexpr uint32 FLAG1_FROST_STRIKE = 0x00000004;
 constexpr uint32 FLAG1_OBLITERATE = 0x00020000;
 constexpr uint32 FLAG2_FROSTSCYTHE = 0x00008000;
 
-constexpr uint8 BloodBoilCharges = 2;
-constexpr int32 BloodBoilRechargeMs = 7500;
-constexpr uint8 BoneShieldMax = 10;
-constexpr uint32 BoneShieldBreakMs = 2000;
-constexpr uint32 DamageWindowMs = 5000;
+LiveTuning::KnobInt const BloodBoilCharges("deathknight.blood_boil_charges", 2);
+LiveTuning::KnobInt const BloodBoilRechargeMs("deathknight.blood_boil_recharge_ms", 7500);
+LiveTuning::KnobInt const BoneShieldMax("deathknight.bone_shield_max", 10);
+LiveTuning::KnobUInt const BoneShieldBreakMs("deathknight.bone_shield_break_ms", 2000);
+LiveTuning::KnobUInt const DamageWindowMs("deathknight.damage_window_ms", 5000);
 constexpr uint32 DefiledCheckMs = 250;
-constexpr uint32 BreathTickMs = 1000;
-constexpr int32 BreathCost = 150;              // 15 runic power, in the tenths the power is kept in
-constexpr uint8 WoundsMax = 6;
-constexpr int32 WoundRunicPower = 30;
-constexpr uint32 RimeWindowMs = 1000;
+LiveTuning::KnobUInt const BreathTickMs("deathknight.breath_tick_ms", 1000);
+// 15 runic power, in the tenths the power is kept in
+LiveTuning::KnobInt const BreathCost("deathknight.breath_cost", 150);
+LiveTuning::KnobInt const WoundsMax("deathknight.wounds_max", 6);
+LiveTuning::KnobInt const WoundRunicPower("deathknight.wound_runic_power", 30);
+LiveTuning::KnobUInt const RimeWindowMs("deathknight.rime_window_ms", 1000);
 // Pack damage (the combat bench, Fire mage as the reference). Frost's area kit is cloned from Cone of Cold and Blood
 // Boil and scales with the spell power a Death Knight does not have: its hits are raised; Death and Decay a little
 // less for Frost, more for Unholy, which also has Epidemic (on a pack only) and Wandering Plague
 // Retuned 2026-09-29 on the bench's packs of 3 to 12: Frost 59-84% of Fire's, Unholy 210% on three enemies (its
 // minions) but 63% on twelve. Big pulls (twenty) are what the area kit is weighed on.
-constexpr float FrostAreaFactor = 3.2f;     // Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
-constexpr float FrostDeathAndDecayFactor = 2.2f;
-constexpr float FrostStrikeFactor = 1.4f;   // Obliterate, Frost Strike, Howling Blast
-constexpr float UnholyDeathAndDecayFactor = 2.6f;
-constexpr float UnholyWanderingPlagueFactor = 2.5f;
-constexpr float EpidemicPackFactor = 4.0f;
+// Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
+LiveTuning::Knob const FrostAreaFactor("deathknight.frost_area_factor", 3.2f);
+LiveTuning::Knob const FrostDeathAndDecayFactor("deathknight.frost_death_and_decay_factor", 2.2f);
+// Obliterate, Frost Strike, Howling Blast
+LiveTuning::Knob const FrostStrikeFactor("deathknight.frost_strike_factor", 1.4f);
+LiveTuning::Knob const UnholyDeathAndDecayFactor("deathknight.unholy_death_and_decay_factor", 2.6f);
+LiveTuning::Knob const UnholyWanderingPlagueFactor("deathknight.unholy_wandering_plague_factor", 2.5f);
+LiveTuning::Knob const EpidemicPackFactor("deathknight.epidemic_pack_factor", 4.0f);
 // Unholy (the combat bench, 2026-09-28: 56-79% of Fire's everywhere): its strikes and Death Coil hit harder, Apocalypse
 // much harder, and its minions (the ghoul, Dark Transformation's cleave, the gargoyle, the Army of the Dead), stock
 // WotLK creatures that did about a hundred a swing at this gear, carry a real share
-constexpr float UnholyStrikeFactor = 1.3f;      // Scourge Strike, Festering Strike, the wounds' bursts, Death Coil
-constexpr float ApocalypseFactor = 3.0f;
-constexpr float EpidemicFactor = 1.5f;          // on one enemy too; EpidemicPackFactor on top on a pack
-constexpr float UnholyMinionFactor = 3.0f;      // the ghoul and the Army of the Dead
-constexpr float GargoyleFactor = 1.5f;          // a third of a boss's damage at x4: a cooldown, not the spec
+// Scourge Strike, Festering Strike, the wounds' bursts, Death Coil
+LiveTuning::Knob const UnholyStrikeFactor("deathknight.unholy_strike_factor", 1.3f);
+LiveTuning::Knob const ApocalypseFactor("deathknight.apocalypse_factor", 3.0f);
+// on one enemy too; EpidemicPackFactor on top on a pack
+LiveTuning::Knob const EpidemicFactor("deathknight.epidemic_factor", 1.5f);
+// the ghoul and the Army of the Dead
+LiveTuning::Knob const UnholyMinionFactor("deathknight.unholy_minion_factor", 3.0f);
+// a third of a boss's damage at x4: a cooldown, not the spec
+LiveTuning::Knob const GargoyleFactor("deathknight.gargoyle_factor", 1.5f);
 constexpr uint32 NPC_EBON_GARGOYLE = 27829;
 constexpr uint32 SPELL_SCOURGE_STRIKE_SHADOW = 70890;
 constexpr uint32 SPELL_DEATH_COIL_DAMAGE = 47632;
-constexpr uint32 EpidemicPackEnemies = 3;
+LiveTuning::KnobUInt const EpidemicPackEnemies("deathknight.epidemic_pack_enemies", 3);
 constexpr uint32 SPELL_DEATH_AND_DECAY_DAMAGE = 52212;
 constexpr uint32 SPELL_WANDERING_PLAGUE = 50526;
 

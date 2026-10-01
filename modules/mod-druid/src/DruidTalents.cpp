@@ -5,6 +5,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerScript.h"
@@ -155,88 +156,94 @@ constexpr uint32 FlagRejuvenation = 0x10;
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Balance: Astral Power
 constexpr int32 AstralPowerMax = 100;
-constexpr int32 AstralWrath = 8;
-constexpr int32 AstralStarfire = 10;
-constexpr int32 AstralMoonfire = 2;
-constexpr int32 AstralSunfire = 2;
-constexpr int32 AstralStellarFlare = 8;
-constexpr int32 AstralShootingStar = 3;
-constexpr int32 AstralFuryOfElune = 5;               // each strike
-constexpr int32 AstralCommunion = 60;
-constexpr int32 AstralForestPerRank = 10;           // Âme de la forêt, entering an Eclipse
-constexpr int32 StarsurgeCost = 40;
-constexpr int32 StarfallCost = 50;
-constexpr uint32 AstralFadeMs = 15000;
-constexpr uint32 NaturesBalancePeriodMs = 1000;
+LiveTuning::KnobInt const AstralWrath("druid.astral_wrath", 8);
+LiveTuning::KnobInt const AstralStarfire("druid.astral_starfire", 10);
+LiveTuning::KnobInt const AstralMoonfire("druid.astral_moonfire", 2);
+LiveTuning::KnobInt const AstralSunfire("druid.astral_sunfire", 2);
+LiveTuning::KnobInt const AstralStellarFlare("druid.astral_stellar_flare", 8);
+LiveTuning::KnobInt const AstralShootingStar("druid.astral_shooting_star", 3);
+LiveTuning::KnobInt const AstralFuryOfElune("druid.astral_fury_of_elune", 5);       // each strike
+LiveTuning::KnobInt const AstralCommunion("druid.astral_communion", 60);
+// Âme de la forêt, entering an Eclipse
+LiveTuning::KnobInt const AstralForestPerRank("druid.astral_forest_per_rank", 10);
+LiveTuning::KnobInt const StarsurgeCost("druid.starsurge_cost", 40);
+LiveTuning::KnobInt const StarfallCost("druid.starfall_cost", 50);
+LiveTuning::KnobUInt const AstralFadeMs("druid.astral_fade_ms", 15000);
+LiveTuning::KnobUInt const NaturesBalancePeriodMs("druid.natures_balance_period_ms", 1000);
 // Balance: Eclipse, the splash, the procs
-constexpr uint8 EclipseCasts = 2;
-constexpr float StarfireSplashShare = 0.2f;
-constexpr float StarfireLunarSplashShare = 0.4f;
-constexpr float StarfireSplashRange = 8.0f;
-constexpr int32 ShootingStarChance = 10;            // each tick of Moonfire or Sunfire
-constexpr uint8 OrbitBreakerStars = 15;
-constexpr float FullMoonSplashShare = 0.5f;
-constexpr int32 StarweaverStarfallChance = 25;      // a Starsurge: the next Starfall free
-constexpr int32 StarweaverStarsurgeChance = 35;     // a Starfall: the next Starsurge free
-constexpr float TwinMoonsFactor = 1.1f;
-constexpr float TwinMoonsRange = 15.0f;
-constexpr float SunfireSpreadRange = 8.0f;
-constexpr uint8 SunfireSpreadTargets = 8;
+LiveTuning::KnobInt const EclipseCasts("druid.eclipse_casts", 2);
+LiveTuning::Knob const StarfireSplashShare("druid.starfire_splash_share", 0.2f);
+LiveTuning::Knob const StarfireLunarSplashShare("druid.starfire_lunar_splash_share", 0.4f);
+LiveTuning::Knob const StarfireSplashRange("druid.starfire_splash_range", 8.0f);
+LiveTuning::KnobInt const ShootingStarChance("druid.shooting_star_chance", 10);  // each tick of Moonfire or Sunfire
+LiveTuning::KnobInt const OrbitBreakerStars("druid.orbit_breaker_stars", 15);
+LiveTuning::Knob const FullMoonSplashShare("druid.full_moon_splash_share", 0.5f);
+// a Starsurge: the next Starfall free
+LiveTuning::KnobInt const StarweaverStarfallChance("druid.starweaver_starfall_chance", 25);
+// a Starfall: the next Starsurge free
+LiveTuning::KnobInt const StarweaverStarsurgeChance("druid.starweaver_starsurge_chance", 35);
+LiveTuning::Knob const TwinMoonsFactor("druid.twin_moons_factor", 1.1f);
+LiveTuning::Knob const TwinMoonsRange("druid.twin_moons_range", 15.0f);
+LiveTuning::Knob const SunfireSpreadRange("druid.sunfire_spread_range", 8.0f);
+LiveTuning::KnobInt const SunfireSpreadTargets("druid.sunfire_spread_targets", 8);
 // Starfall and Fury of Elune: a strike a second
-constexpr uint32 StarfallMs = 8000;
-constexpr uint32 StarfallPeriodMs = 1000;
-constexpr float StarfallRadius = 30.0f;
-constexpr float StarfallPackRadius = 12.0f;         // around the Druid's target, even out of combat
-constexpr uint32 FuryOfEluneMs = 8000;
-constexpr uint32 FuryOfElunePeriodMs = 1000;
-constexpr float FuryOfEluneRadius = 8.0f;
+LiveTuning::KnobUInt const StarfallMs("druid.starfall_ms", 8000);
+LiveTuning::KnobUInt const StarfallPeriodMs("druid.starfall_period_ms", 1000);
+LiveTuning::Knob const StarfallRadius("druid.starfall_radius", 30.0f);
+// around the Druid's target, even out of combat
+LiveTuning::Knob const StarfallPackRadius("druid.starfall_pack_radius", 12.0f);
+LiveTuning::KnobUInt const FuryOfEluneMs("druid.fury_of_elune_ms", 8000);
+LiveTuning::KnobUInt const FuryOfElunePeriodMs("druid.fury_of_elune_period_ms", 1000);
+LiveTuning::Knob const FuryOfEluneRadius("druid.fury_of_elune_radius", 8.0f);
 // Feral (cat)
-constexpr int32 TigersFuryEnergy = 50;
-constexpr uint32 BloodtalonsWindowMs = 4000;
-constexpr uint8 BloodtalonsTechniques = 3;
-constexpr float BloodtalonsFactor = 1.3f;
-constexpr uint32 BloodtalonsRipMs = 30000;
-constexpr int32 PredatorySwiftnessChance = 20;      // a combo point
-constexpr int32 FeralForestEnergy = 5;              // a combo point
-constexpr float PrimalWrathRange = 8.0f;
-constexpr float PrimalWrathHitPerCombo = 0.05f;     // of attack power, each enemy
-constexpr float PrimalWrathBleedShare = 1.0f;       // of a Rip's tick of the same combo points
-constexpr float FeralFrenzyBleed = 0.06f;           // of attack power, each tick
+LiveTuning::KnobInt const TigersFuryEnergy("druid.tigers_fury_energy", 50);
+LiveTuning::KnobUInt const BloodtalonsWindowMs("druid.bloodtalons_window_ms", 4000);
+LiveTuning::KnobInt const BloodtalonsTechniques("druid.bloodtalons_techniques", 3);
+LiveTuning::Knob const BloodtalonsFactor("druid.bloodtalons_factor", 1.3f);
+LiveTuning::KnobUInt const BloodtalonsRipMs("druid.bloodtalons_rip_ms", 30000);
+LiveTuning::KnobInt const PredatorySwiftnessChance("druid.predatory_swiftness_chance", 20);  // a combo point
+LiveTuning::KnobInt const FeralForestEnergy("druid.feral_forest_energy", 5);                 // a combo point
+LiveTuning::Knob const PrimalWrathRange("druid.primal_wrath_range", 8.0f);
+// of attack power, each enemy
+LiveTuning::Knob const PrimalWrathHitPerCombo("druid.primal_wrath_hit_per_combo", 0.05f);
+// of a Rip's tick of the same combo points
+LiveTuning::Knob const PrimalWrathBleedShare("druid.primal_wrath_bleed_share", 1.0f);
+LiveTuning::Knob const FeralFrenzyBleed("druid.feral_frenzy_bleed", 0.06f);  // of attack power, each tick
 // Feral (bear)
-constexpr int32 LayeredManeChance = 15;             // a rank
-constexpr int32 GoreChance = 15;
-constexpr int32 GoreRage = 40;                      // tenths
-constexpr int32 GalacticGuardianChance = 5;
-constexpr int32 GalacticGuardianRage = 80;          // tenths
+LiveTuning::KnobInt const LayeredManeChance("druid.layered_mane_chance", 15);        // a rank
+LiveTuning::KnobInt const GoreChance("druid.gore_chance", 15);
+LiveTuning::KnobInt const GoreRage("druid.gore_rage", 40);                           // tenths
+LiveTuning::KnobInt const GalacticGuardianChance("druid.galactic_guardian_chance", 5);
+LiveTuning::KnobInt const GalacticGuardianRage("druid.galactic_guardian_rage", 80);  // tenths
 // The forms' own share of the damage (the combat bench)
-constexpr float CatDamageFactor = 0.8f;
+LiveTuning::Knob const CatDamageFactor("druid.cat_damage_factor", 0.8f);
 // The cat's pack techniques (Swipe, Thrash, Primal Wrath), on top: the melee reaches fewer of a pack than a caster
-constexpr float CatAreaFactor = 1.3f;
-constexpr float BearDamageFactor = 2.0f;
+LiveTuning::Knob const CatAreaFactor("druid.cat_area_factor", 1.3f);
+LiveTuning::Knob const BearDamageFactor("druid.bear_damage_factor", 2.0f);
 // The bear's thick hide: what it takes, a share (the reworked Paladin's and Warrior's tanks as the reference)
-constexpr float BearDamageTaken = 0.5f;
+LiveTuning::Knob const BearDamageTaken("druid.bear_damage_taken", 0.5f);
 // Restoration
-constexpr uint32 EfflorescenceMs = 30000;
-constexpr uint32 EfflorescencePeriodMs = 2000;
-constexpr float EfflorescenceRadius = 10.0f;
-constexpr uint8 EfflorescenceTargets = 3;
-constexpr uint32 FlourishMs = 8000;
-constexpr float FlourishRange = 60.0f;
-constexpr float AbundancePerRejuvenation = 0.06f;
-constexpr uint8 AbundanceMax = 5;
+LiveTuning::KnobUInt const EfflorescenceMs("druid.efflorescence_ms", 30000);
+LiveTuning::KnobUInt const EfflorescencePeriodMs("druid.efflorescence_period_ms", 2000);
+LiveTuning::Knob const EfflorescenceRadius("druid.efflorescence_radius", 10.0f);
+LiveTuning::KnobInt const EfflorescenceTargets("druid.efflorescence_targets", 3);
+LiveTuning::KnobUInt const FlourishMs("druid.flourish_ms", 8000);
+LiveTuning::Knob const FlourishRange("druid.flourish_range", 60.0f);
+LiveTuning::Knob const AbundancePerRejuvenation("druid.abundance_per_rejuvenation", 0.06f);
+LiveTuning::KnobInt const AbundanceMax("druid.abundance_max", 5);
 constexpr uint32 AbundanceCountMs = 500;
-constexpr float RestorationForestFactor = 2.5f;
-constexpr float CultivationFactor = 1.4f;
-constexpr float CultivationHealthPct = 60.0f;
+LiveTuning::Knob const RestorationForestFactor("druid.restoration_forest_factor", 2.5f);
+LiveTuning::Knob const CultivationFactor("druid.cultivation_factor", 1.4f);
+LiveTuning::Knob const CultivationHealthPct("druid.cultivation_health_pct", 60.0f);
 // Class tree
-constexpr uint32 VortexMs = 10000;
-constexpr uint32 VortexPeriodMs = 1000;
-constexpr float VortexRadius = 8.0f;
+LiveTuning::KnobUInt const VortexMs("druid.vortex_ms", 10000);
+LiveTuning::KnobUInt const VortexPeriodMs("druid.vortex_period_ms", 1000);
+LiveTuning::Knob const VortexRadius("druid.vortex_radius", 8.0f);
 constexpr float HealRange = 40.0f;
 // Packs (the combat bench, Fire mage as the reference): each area hit whole up to AreaFullTargets enemies and
 // sqrt(AreaFullTargets / enemies) of it past them, as the Shaman's and the Warlock's
-constexpr uint8 AreaFullTargets = 8;
-constexpr uint8 AreaMaxTargets = 20;
+LiveTuning::KnobInt const AreaFullTargets("druid.area_full_targets", 8);
+LiveTuning::KnobInt const AreaMaxTargets("druid.area_max_targets", 20);
 constexpr uint32 AreaCountMs = 300;
 constexpr uint32 HoldCheckMs = 1000;
 
@@ -1205,7 +1212,7 @@ private:
             if (member->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_DRUID, FlagRejuvenation, 0, 0,
                     player->GetGUID()))
                 ++count;
-        state->abundanceCount = std::min(count, AbundanceMax);
+        state->abundanceCount = std::min(count, uint8(AbundanceMax));
         return state->abundanceCount;
     }
 

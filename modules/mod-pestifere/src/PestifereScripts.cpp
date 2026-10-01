@@ -34,6 +34,7 @@
 #include "Pestifere.h"
 
 #include "Chat.h"
+#include "LiveTuning.h"
 #include "WorldSession.h"
 
 #include "Item.h"
@@ -66,18 +67,21 @@ namespace
 // Contagion (90201): its radius is the spell's own (see PestifereContagionSpellScript), so talents apply to it
 // Threat added per enemy, per plague actually spread onto it. Contagion is the class's main threat tool.
 // The flat amount is the floor at low level; the attack power share is what keeps up at 80.
-constexpr float CONTAGION_THREAT_PER_PLAGUE = 90.0f;
-constexpr float CONTAGION_THREAT_AP_PER_PLAGUE = 0.15f;
+LiveTuning::Knob const CONTAGION_THREAT_PER_PLAGUE("pestifere.contagion_threat_per_plague", 90.0f);
+LiveTuning::Knob const CONTAGION_THREAT_AP_PER_PLAGUE("pestifere.contagion_threat_ap_per_plague", 0.15f);
 
 // Bonus threat of the tank's strikes, as a share of attack power, only while it carries Carapace nécrosée (which then
 // multiplies it like all its threat). A flat bonus sized for level 10 is nothing at 80, where bot damage dealers
 // out-damage the tank: this scales with the tank's gear instead.
-constexpr float FRAPPE_THREAT_AP = 0.6f;         // Frappe putride, the strike pressed the most
-constexpr float MORSURE_THREAT_AP = 1.0f;        // Morsure fétide, the single-target threat button
-constexpr float RIPOSTE_THREAT_AP = 0.8f;        // Riposte purulente
-constexpr float DETONATION_THREAT_AP = 0.4f;     // Détonation, per enemy that explodes
-constexpr float VOMISSURE_THREAT_AP = 0.4f;      // Vomissure, per enemy in the cone
-constexpr float CHARNIER_THREAT_AP = 0.8f;       // Charnier ambulant, per enemy
+// Frappe putride, the strike pressed the most
+LiveTuning::Knob const FRAPPE_THREAT_AP("pestifere.frappe_threat_ap", 0.6f);
+// Morsure fétide, the single-target threat button
+LiveTuning::Knob const MORSURE_THREAT_AP("pestifere.morsure_threat_ap", 1.0f);
+LiveTuning::Knob const RIPOSTE_THREAT_AP("pestifere.riposte_threat_ap", 0.8f);        // Riposte purulente
+// Détonation, per enemy that explodes
+LiveTuning::Knob const DETONATION_THREAT_AP("pestifere.detonation_threat_ap", 0.4f);
+LiveTuning::Knob const VOMISSURE_THREAT_AP("pestifere.vomissure_threat_ap", 0.4f);  // Vomissure, per enemy in the cone
+LiveTuning::Knob const CHARNIER_THREAT_AP("pestifere.charnier_threat_ap", 0.8f);      // Charnier ambulant, per enemy
 
 // Détonation (90202): damage = base + (stacks * perStack) * (1 + bonus * plaguesConsumed) + what Sépulcre held
 // Base and per-stack damage are shares of attack power, so the button keeps up while levelling.
@@ -86,36 +90,39 @@ constexpr float CHARNIER_THREAT_AP = 0.8f;       // Charnier ambulant, per enemy
 // damage and everything else was rounding: the per-stack term and the plague bonus multiply, so a ripe target
 // carrying all three plagues was worth (0.15 + 6*0.12) * 2.5 = 2.2 attack power on a button with no cooldown.
 // The payoff still leads the meter, at about a third of it, and the rest of the kit was raised to meet it.
-constexpr float DETONATION_BASE_AP_COEFF = 0.13f;
-constexpr float DETONATION_STACK_AP_COEFF = 0.065f;
+LiveTuning::Knob const DETONATION_BASE_AP_COEFF("pestifere.detonation_base_ap_coeff", 0.13f);
+LiveTuning::Knob const DETONATION_STACK_AP_COEFF("pestifere.detonation_stack_ap_coeff", 0.065f);
 // +32% per plague consumed on that enemy: a fully infected, fully rotten target is worth several fresh ones
-constexpr float DETONATION_PLAGUE_BONUS = 0.32f;
+LiveTuning::Knob const DETONATION_PLAGUE_BONUS("pestifere.detonation_plague_bonus", 0.32f);
 // Self-heal per enemy detonated, as a percentage of the caster's maximum health
-constexpr float DETONATION_HEAL_PCT_PER_TARGET = 2.0f;
+LiveTuning::Knob const DETONATION_HEAL_PCT_PER_TARGET("pestifere.detonation_heal_pct_per_target", 2.0f);
 // Rage refunded per enemy detonated at the Pourriture cap - big booms fund the next build-up
-constexpr uint32 DETONATION_RIPE_RAGE_REFUND = 5;
+LiveTuning::KnobUInt const DETONATION_RIPE_RAGE_REFUND("pestifere.detonation_ripe_rage_refund", 5);
 // Détonation en chaîne: how far outside the blast a jump reaches, from an enemy that exploded
-constexpr float DETONATION_CHAIN_RADIUS = 8.0f;
+LiveTuning::Knob const DETONATION_CHAIN_RADIUS("pestifere.detonation_chain_radius", 8.0f);
 
 // Charnier ambulant (90256): threat added to every enemy it reaches, on top of Contagion-style spreading
-constexpr float CHARNIER_THREAT_PER_ENEMY = 350.0f;
+LiveTuning::Knob const CHARNIER_THREAT_PER_ENEMY("pestifere.charnier_threat_per_enemy", 350.0f);
 
 // Purge cathartique (90265): % of maximum health healed per plague purged
-constexpr uint32 PURGE_HEAL_PCT_PER_PLAGUE = 12;
+LiveTuning::KnobUInt const PURGE_HEAL_PCT_PER_PLAGUE("pestifere.purge_heal_pct_per_plague", 12);
 
 // Sépulcre (90268): % of each hit held back and dealt later by the stored plague
-constexpr uint32 SEPULCRE_HELD_PCT = 50;
+LiveTuning::KnobUInt const SEPULCRE_HELD_PCT("pestifere.sepulcre_held_pct", 50);
 // What an enemy handed Sépulcre's plague owes at most, x attack power. The carrier's debt is what the mobs dealt, which
 // grows with the key, and every enemy Contagion reaches got a full copy of it: on a high Mythic+ pull that was the
 // whole pull's damage dealt again to each mob. Capped, it scales with the Pestiféré instead.
-constexpr float SEPULCRE_ENEMY_AP_CAP = 1.0f;
+LiveTuning::Knob const SEPULCRE_ENEMY_AP_CAP("pestifere.sepulcre_enemy_ap_cap", 1.0f);
 
 // Pourriture (90205) and the enemy Peste virulente (90222): their 3 sec ticks deal a share of the target's maximum
 // health, per stack for Pourriture, so they scale with whatever they rot. On a huge health pool (a boss) a tick is
 // held to a share of the Pestiféré's attack power instead.
-constexpr float POURRITURE_TICK_HEALTH_PCT = 1.0f;      // % of maximum health per stack per tick
-constexpr float PESTE_ENEMY_TICK_HEALTH_PCT = 1.3f;     // % of maximum health per tick
-constexpr float PLAGUE_TICK_AP_CAP = 0.15f;             // most a tick (a stack of Pourriture) deals, x attack power
+// % of maximum health per stack per tick
+LiveTuning::Knob const POURRITURE_TICK_HEALTH_PCT("pestifere.pourriture_tick_health_pct", 1.0f);
+// % of maximum health per tick
+LiveTuning::Knob const PESTE_ENEMY_TICK_HEALTH_PCT("pestifere.peste_enemy_tick_health_pct", 1.3f);
+// most a tick (a stack of Pourriture) deals, x attack power
+LiveTuning::Knob const PLAGUE_TICK_AP_CAP("pestifere.plague_tick_ap_cap", 0.15f);
 
 // Area damage is split past this many enemies: the plague reaches a whole pull, and every enemy taking a full
 // share of it made a wing worth several bosses. Past the fourth, each takes sqrt(AOE_FULL_TARGETS / count) of it.
@@ -123,50 +130,57 @@ constexpr std::size_t AOE_FULL_TARGETS = 4;
 
 // Flaque de bile (90223): damage of each 2 sec tick, as a share of attack power. Raised with the rest of the
 // area kit to cover the ground Détonation gave up.
-constexpr float FLAQUE_TICK_AP_COEFF = 0.14f;
+LiveTuning::Knob const FLAQUE_TICK_AP_COEFF("pestifere.flaque_tick_ap_coeff", 0.14f);
 
 // Morsure fétide (90224): % more damage per Pourriture stack on the target. This is the single-target payoff
 // and it was 2% of a dungeon's damage; with the weapon share and cooldown in the spell data it is now worth
 // pressing on a boss, where Détonation only ever has one target to eat.
-constexpr int32 MORSURE_DAMAGE_PER_STACK = 18;
+LiveTuning::KnobInt const MORSURE_DAMAGE_PER_STACK("pestifere.morsure_damage_per_stack", 18);
 
 // Riposte purulente (90225): nearby enemies it rots besides its target, and how far it reaches
-constexpr uint32 RIPOSTE_EXTRA_TARGETS = 2;
-constexpr float RIPOSTE_RADIUS = 8.0f;
+LiveTuning::KnobUInt const RIPOSTE_EXTRA_TARGETS("pestifere.riposte_extra_targets", 2);
+LiveTuning::Knob const RIPOSTE_RADIUS("pestifere.riposte_radius", 8.0f);
 // Riposte fétide: % more Riposte purulente damage per talent point
-constexpr int32 RIPOSTE_FETIDE_DAMAGE_PER_POINT = 10;
+LiveTuning::KnobInt const RIPOSTE_FETIDE_DAMAGE_PER_POINT("pestifere.riposte_fetide_damage_per_point", 10);
 
 // Carapace suintante (90226): % of maximum health absorbed, and more per plague carried
-constexpr uint32 SUINTANTE_ABSORB_PCT_BASE = 4;
-constexpr uint32 SUINTANTE_ABSORB_PCT_STEP = 3;
+LiveTuning::KnobUInt const SUINTANTE_ABSORB_PCT_BASE("pestifere.suintante_absorb_pct_base", 4);
+LiveTuning::KnobUInt const SUINTANTE_ABSORB_PCT_STEP("pestifere.suintante_absorb_pct_step", 3);
 
 // Pandémie (90229): extra enemies each Frappe putride strikes, within this reach of the caster
-constexpr uint32 PANDEMIE_EXTRA_TARGETS = 3;
-constexpr float PANDEMIE_RADIUS = 5.0f;
+LiveTuning::KnobUInt const PANDEMIE_EXTRA_TARGETS("pestifere.pandemie_extra_targets", 3);
+LiveTuning::Knob const PANDEMIE_RADIUS("pestifere.pandemie_radius", 5.0f);
 
 // Vomissure (90284): damage to each enemy in the cone as a share of attack power, and the Pourriture it sows
-constexpr float VOMISSURE_AP_COEFF = 1.8f;
-constexpr uint8 VOMISSURE_ROT_STACKS = 2;
+LiveTuning::Knob const VOMISSURE_AP_COEFF("pestifere.vomissure_ap_coeff", 1.8f);
+LiveTuning::KnobInt const VOMISSURE_ROT_STACKS("pestifere.vomissure_rot_stacks", 2);
 
 // Charognard: how far the rot of a dying enemy can jump
-constexpr float CHAROGNARD_RADIUS = 10.0f;
+LiveTuning::Knob const CHAROGNARD_RADIUS("pestifere.charognard_radius", 10.0f);
 
 // Carapace nécrosée (90211): mitigation plague
-constexpr int32 CARAPACE_DAMAGE_REDUCTION_BASE = 4;     // % damage taken reduction at Virulence 1
-constexpr int32 CARAPACE_DAMAGE_REDUCTION_STEP = 3;     // extra % per further plague carried
-constexpr int32 CARAPACE_ARMOR_BASE = 10;               // % armor at Virulence 1
-constexpr int32 CARAPACE_ARMOR_STEP = 10;               // extra % per further plague carried
+// % damage taken reduction at Virulence 1
+LiveTuning::KnobInt const CARAPACE_DAMAGE_REDUCTION_BASE("pestifere.carapace_damage_reduction_base", 4);
+// extra % per further plague carried
+LiveTuning::KnobInt const CARAPACE_DAMAGE_REDUCTION_STEP("pestifere.carapace_damage_reduction_step", 3);
+LiveTuning::KnobInt const CARAPACE_ARMOR_BASE("pestifere.carapace_armor_base", 10);  // % armor at Virulence 1
+// extra % per further plague carried
+LiveTuning::KnobInt const CARAPACE_ARMOR_STEP("pestifere.carapace_armor_step", 10);
 
 // Chair putride (90213): healing plague
-constexpr float CHAIR_HEAL_PCT_BASE = 0.6f;             // % of maximum health healed per tick at Virulence 1
-constexpr float CHAIR_HEAL_PCT_STEP = 0.4f;             // extra % per further plague carried
-constexpr uint32 CHAIR_HEALING_TAKEN_PENALTY = 20;      // % less healing received from others
-constexpr uint32 CHAIR_ENEMY_HEALING_PENALTY = 20;      // % less healing received by an enemy carrying it
+// % of maximum health healed per tick at Virulence 1
+LiveTuning::Knob const CHAIR_HEAL_PCT_BASE("pestifere.chair_heal_pct_base", 0.6f);
+// extra % per further plague carried
+LiveTuning::Knob const CHAIR_HEAL_PCT_STEP("pestifere.chair_heal_pct_step", 0.4f);
+// % less healing received from others
+LiveTuning::KnobUInt const CHAIR_HEALING_TAKEN_PENALTY("pestifere.chair_healing_taken_penalty", 20);
+// % less healing received by an enemy carrying it
+LiveTuning::KnobUInt const CHAIR_ENEMY_HEALING_PENALTY("pestifere.chair_enemy_healing_penalty", 20);
 
 // Excroissance (90230): healing a Pestiféré cannot use is not thrown away, it sets under the skin as an absorb.
 // Capped as a share of maximum health, so a quiet stretch at full health cannot bank an second health bar.
-constexpr uint32 EXCROISSANCE_CAP_PCT = 75;
-constexpr uint32 EXCROISSANCE_SELF_HEAL_PCT = 20;
+LiveTuning::KnobUInt const EXCROISSANCE_CAP_PCT("pestifere.excroissance_cap_pct", 75);
+LiveTuning::KnobUInt const EXCROISSANCE_SELF_HEAL_PCT("pestifere.excroissance_self_heal_pct", 20);
 
 // 3.3.5 has no absorb API. A raid frame cannot ask how big a shield is, so the one the client patch ships
 // is told instead: every time the growth changes size the number goes out on the addon channel, and
@@ -181,11 +195,16 @@ struct ShieldEcho : public DataMap::Base
 
 
 // Peste virulente (90215): damage plague
-constexpr int32 PESTE_DAMAGE_DONE_BASE = 6;             // % damage done at Virulence 1
-constexpr int32 PESTE_DAMAGE_DONE_STEP = 4;             // extra % per further plague carried
-constexpr float PESTE_SELF_DAMAGE_PCT = 0.5f;           // % of maximum health per tick, before escalation
-constexpr float PESTE_ESCALATION_STEP = 0.25f;          // +25% of that tick per tick spent as the only plague
-constexpr uint32 PESTE_ESCALATION_MAX = 12;             // escalation cap, so it converges instead of exploding
+// % damage done at Virulence 1
+LiveTuning::KnobInt const PESTE_DAMAGE_DONE_BASE("pestifere.peste_damage_done_base", 6);
+// extra % per further plague carried
+LiveTuning::KnobInt const PESTE_DAMAGE_DONE_STEP("pestifere.peste_damage_done_step", 4);
+// % of maximum health per tick, before escalation
+LiveTuning::Knob const PESTE_SELF_DAMAGE_PCT("pestifere.peste_self_damage_pct", 0.5f);
+// +25% of that tick per tick spent as the only plague
+LiveTuning::Knob const PESTE_ESCALATION_STEP("pestifere.peste_escalation_step", 0.25f);
+// escalation cap, so it converges instead of exploding
+LiveTuning::KnobUInt const PESTE_ESCALATION_MAX("pestifere.peste_escalation_max", 12);
 
 // -----------------------------------------------------------------------------------------------------------------
 // Helpers
@@ -990,7 +1009,7 @@ class PestifereContagionSpellScript : public SpellScript
                 continue;
 
             caster->SetInCombatWith(enemy);
-            float const perPlague = std::max(CONTAGION_THREAT_PER_PLAGUE,
+            float const perPlague = std::max(CONTAGION_THREAT_PER_PLAGUE.Get(),
                 caster->GetTotalAttackPowerValue(BASE_ATTACK) * CONTAGION_THREAT_AP_PER_PLAGUE);
             enemy->AddThreat(caster, perPlague * float(spread.applied), SPELL_SCHOOL_MASK_NORMAL, spellInfo);
         }
@@ -1032,7 +1051,7 @@ class PestifereCharnierAmbulantSpellScript : public SpellScript
         AddRot(caster, enemy, POURRITURE_MAX_STACKS);
 
         caster->SetInCombatWith(enemy);
-        enemy->AddThreat(caster, std::max(CHARNIER_THREAT_PER_ENEMY,
+        enemy->AddThreat(caster, std::max(CHARNIER_THREAT_PER_ENEMY.Get(),
             caster->GetTotalAttackPowerValue(BASE_ATTACK) * CHARNIER_THREAT_AP), SPELL_SCHOOL_MASK_NORMAL,
             GetSpellInfo());
     }
@@ -1242,7 +1261,7 @@ class PestifereSepulcreAuraScript : public AuraScript
         if (source && source->Id == SPELL_SEPULCRE_STORED)
             return;
 
-        absorbAmount = CalculatePct(damageInfo.GetDamage(), SEPULCRE_HELD_PCT);
+        absorbAmount = CalculatePct(damageInfo.GetDamage(), SEPULCRE_HELD_PCT.Get());
     }
 
     void StoreAbsorbed(AuraEffect* /*aurEff*/, DamageInfo& /*damageInfo*/, uint32& absorbAmount)
@@ -1424,7 +1443,7 @@ class PestiferePesteVirulenteAuraScript : public AuraScript
     void HandlePeriodic(AuraEffect const* /*aurEff*/)
     {
         if (GetVirulence(GetUnitOwner()) == 1)
-            _escalation = std::min(_escalation + 1, PESTE_ESCALATION_MAX);
+            _escalation = std::min(_escalation + 1, PESTE_ESCALATION_MAX.Get());
         else
             _escalation = 0;
 
@@ -1605,12 +1624,12 @@ public:
         uint32 const health = pestifere->GetHealth();
         uint32 const missing = maxHealth > health ? maxHealth - health : 0;
         uint32 const overhealing = heal > missing ? heal - missing : 0;
-        uint32 const selfHealingShare = target == healer ? CalculatePct(heal, EXCROISSANCE_SELF_HEAL_PCT) : 0;
+        uint32 const selfHealingShare = target == healer ? CalculatePct(heal, EXCROISSANCE_SELF_HEAL_PCT.Get()) : 0;
         uint32 const storedHealing = overhealing + selfHealingShare;
         if (!storedHealing)
             return;
 
-        uint32 const cap = CalculatePct(maxHealth, EXCROISSANCE_CAP_PCT);
+        uint32 const cap = CalculatePct(maxHealth, EXCROISSANCE_CAP_PCT.Get());
         ObjectGuid const guid = pestifere->GetGUID();
         Aura* growth = pestifere->GetAura(SPELL_EXCROISSANCE, guid);
         AuraEffect* shell = growth ? growth->GetEffect(EFFECT_0) : nullptr;

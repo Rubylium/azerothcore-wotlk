@@ -4,6 +4,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Optional.h"
 #include "Player.h"
@@ -161,83 +162,87 @@ constexpr uint32 FlagFlametongue = 0x200000;
 // Elemental: Maelstrom
 constexpr int32 MaelstromMax = 100;
 constexpr int32 MaelstromSwollen = 150;            // Maelström gonflé
-constexpr int32 MaelstromLightningBolt = 8;
-constexpr int32 MaelstromChainTarget = 4;          // each enemy Chain Lightning hits
-constexpr int32 MaelstromLavaBurst = 10;
-constexpr int32 MaelstromIcefury = 25;
-constexpr int32 MaelstromFrostShock = 8;           // an Icefury-empowered Frost Shock
-constexpr int32 MaelstromOverload = 3;
-constexpr int32 EarthShockCost = 60;
-constexpr int32 EarthquakeCost = 60;
-constexpr int32 ElementalBlastCost = 90;
-constexpr uint32 MaelstromFadeMs = 15000;
+LiveTuning::KnobInt const MaelstromLightningBolt("shaman.maelstrom_lightning_bolt", 8);
+LiveTuning::KnobInt const MaelstromChainTarget("shaman.maelstrom_chain_target", 4);  // each enemy Chain Lightning hits
+LiveTuning::KnobInt const MaelstromLavaBurst("shaman.maelstrom_lava_burst", 10);
+LiveTuning::KnobInt const MaelstromIcefury("shaman.maelstrom_icefury", 25);
+LiveTuning::KnobInt const MaelstromFrostShock("shaman.maelstrom_frost_shock", 8);    // an Icefury-empowered Frost Shock
+LiveTuning::KnobInt const MaelstromOverload("shaman.maelstrom_overload", 3);
+LiveTuning::KnobInt const EarthShockCost("shaman.earth_shock_cost", 60);
+LiveTuning::KnobInt const EarthquakeCost("shaman.earthquake_cost", 60);
+LiveTuning::KnobInt const ElementalBlastCost("shaman.elemental_blast_cost", 90);
+LiveTuning::KnobUInt const MaelstromFadeMs("shaman.maelstrom_fade_ms", 15000);
 // Elemental: the procs
-constexpr int32 LavaSurgeChance = 15;               // a Flame Shock tick, +5% a rank of Déferlante amplifiée
-constexpr float MasterOfElementsFactor = 1.2f;
-constexpr float StormkeeperFactor = 2.5f;
-constexpr uint8 StormkeeperStacks = 2;
-constexpr uint8 EternalStormStacks = 3;
-constexpr uint8 IcefuryStacks = 4;
-constexpr float IcefuryFactor = 2.0f;
-constexpr float EchoesOfSunderingFactor = 2.0f;
+// a Flame Shock tick, +5% a rank of Déferlante amplifiée
+LiveTuning::KnobInt const LavaSurgeChance("shaman.lava_surge_chance", 15);
+LiveTuning::Knob const MasterOfElementsFactor("shaman.master_of_elements_factor", 1.2f);
+LiveTuning::Knob const StormkeeperFactor("shaman.stormkeeper_factor", 2.5f);
+LiveTuning::KnobInt const StormkeeperStacks("shaman.stormkeeper_stacks", 2);
+LiveTuning::KnobInt const EternalStormStacks("shaman.eternal_storm_stacks", 3);
+LiveTuning::KnobInt const IcefuryStacks("shaman.icefury_stacks", 4);
+LiveTuning::Knob const IcefuryFactor("shaman.icefury_factor", 2.0f);
+LiveTuning::Knob const EchoesOfSunderingFactor("shaman.echoes_of_sundering_factor", 2.0f);
 // Earthquake: a shake a second for 6 s within 8 yd of its spot
-constexpr uint32 EarthquakeMs = 6000;
-constexpr uint32 EarthquakePeriodMs = 1000;
-constexpr float EarthquakeRadius = 8.0f;
-constexpr float AscendanceLavaRange = 40.0f;
+LiveTuning::KnobUInt const EarthquakeMs("shaman.earthquake_ms", 6000);
+LiveTuning::KnobUInt const EarthquakePeriodMs("shaman.earthquake_period_ms", 1000);
+LiveTuning::Knob const EarthquakeRadius("shaman.earthquake_radius", 8.0f);
+LiveTuning::Knob const AscendanceLavaRange("shaman.ascendance_lava_range", 40.0f);
 // Enhancement: Maelstrom Weapon
-constexpr uint8 MaelstromWeaponMax = 5;
-constexpr uint8 MaelstromWeaponRaging = 10;        // Maelström déchaîné
-constexpr uint8 MaelstromWeaponSpent = 5;          // a cast spends at most this many
-constexpr int32 MaelstromWeaponCastPct = 20;       // cast time taken off a stack
-constexpr float MaelstromWeaponPerStack = 0.12f;   // damage or healing a stack spent adds
-constexpr int32 MaelstromWeaponChance = 20;        // an auto attack
-constexpr int32 UnrulyWindsChance = 35;
-constexpr uint32 FeralSpiritMs = 45000;
-constexpr uint32 FeralSpiritPeriodMs = 3000;
+LiveTuning::KnobInt const MaelstromWeaponMax("shaman.maelstrom_weapon_max", 5);
+LiveTuning::KnobInt const MaelstromWeaponRaging("shaman.maelstrom_weapon_raging", 10);       // Maelström déchaîné
+LiveTuning::KnobInt const MaelstromWeaponSpent("shaman.maelstrom_weapon_spent", 5);  // a cast spends at most this many
+// cast time taken off a stack
+LiveTuning::KnobInt const MaelstromWeaponCastPct("shaman.maelstrom_weapon_cast_pct", 20);
+// damage or healing a stack spent adds
+LiveTuning::Knob const MaelstromWeaponPerStack("shaman.maelstrom_weapon_per_stack", 0.12f);
+LiveTuning::KnobInt const MaelstromWeaponChance("shaman.maelstrom_weapon_chance", 20);       // an auto attack
+LiveTuning::KnobInt const UnrulyWindsChance("shaman.unruly_winds_chance", 35);
+LiveTuning::KnobUInt const FeralSpiritMs("shaman.feral_spirit_ms", 45000);
+LiveTuning::KnobUInt const FeralSpiritPeriodMs("shaman.feral_spirit_period_ms", 3000);
 // Enhancement: the rest
-constexpr int32 HotHandChance = 5;                 // a rank
-constexpr float CrashLightningShare = 0.8f;
-constexpr uint8 CrashLightningTargets = 6;
-constexpr float CrashLightningRange = 8.0f;
+LiveTuning::KnobInt const HotHandChance("shaman.hot_hand_chance", 5);  // a rank
+LiveTuning::Knob const CrashLightningShare("shaman.crash_lightning_share", 0.8f);
+LiveTuning::KnobInt const CrashLightningTargets("shaman.crash_lightning_targets", 6);
+LiveTuning::Knob const CrashLightningRange("shaman.crash_lightning_range", 8.0f);
 constexpr uint32 CrashCountMs = 300;
-constexpr float IceStrikeFactor = 2.0f;
-constexpr int32 StormflurryChance = 15;            // a rank
-constexpr uint8 MoltenAssaultTargets = 4;
-constexpr float MoltenAssaultRange = 10.0f;
-constexpr float AscendanceWindsRange = 8.0f;
+LiveTuning::Knob const IceStrikeFactor("shaman.ice_strike_factor", 2.0f);
+LiveTuning::KnobInt const StormflurryChance("shaman.stormflurry_chance", 15);  // a rank
+LiveTuning::KnobInt const MoltenAssaultTargets("shaman.molten_assault_targets", 4);
+LiveTuning::Knob const MoltenAssaultRange("shaman.molten_assault_range", 10.0f);
+LiveTuning::Knob const AscendanceWindsRange("shaman.ascendance_winds_range", 8.0f);
 // Restoration
-constexpr float UnleashLifeFactor = 1.35f;
-constexpr float DelugePerRank = 0.1f;
-constexpr uint32 HealingRainMs = 10000;
-constexpr uint32 HealingRainPeriodMs = 2000;
-constexpr float HealingRainRadius = 10.0f;
-constexpr uint8 HealingRainTargets = 6;
-constexpr uint32 CloudburstMs = 15000;
-constexpr float CloudburstShare = 0.3f;
-constexpr uint8 CloudburstTargets = 6;
-constexpr uint32 SpiritLinkMs = 6000;
-constexpr uint32 SpiritLinkPeriodMs = 1000;
-constexpr float SpiritLinkRadius = 12.0f;
-constexpr uint32 HealingTideMs = 10000;
-constexpr uint32 HealingTidePeriodMs = 2000;
-constexpr float HealingTideRadius = 40.0f;
-constexpr uint8 WellspringTargets = 6;
-constexpr float WellspringRadius = 30.0f;
-constexpr float EarthenWallRadius = 20.0f;
-constexpr float EarthenWallSpellPower = 2.0f;      // the absorb, a share of spell power
-constexpr float AscendanceHealShare = 0.5f;
-constexpr uint8 AscendanceHealTargets = 5;
+LiveTuning::Knob const UnleashLifeFactor("shaman.unleash_life_factor", 1.35f);
+LiveTuning::Knob const DelugePerRank("shaman.deluge_per_rank", 0.1f);
+LiveTuning::KnobUInt const HealingRainMs("shaman.healing_rain_ms", 10000);
+LiveTuning::KnobUInt const HealingRainPeriodMs("shaman.healing_rain_period_ms", 2000);
+LiveTuning::Knob const HealingRainRadius("shaman.healing_rain_radius", 10.0f);
+LiveTuning::KnobInt const HealingRainTargets("shaman.healing_rain_targets", 6);
+LiveTuning::KnobUInt const CloudburstMs("shaman.cloudburst_ms", 15000);
+LiveTuning::Knob const CloudburstShare("shaman.cloudburst_share", 0.3f);
+LiveTuning::KnobInt const CloudburstTargets("shaman.cloudburst_targets", 6);
+LiveTuning::KnobUInt const SpiritLinkMs("shaman.spirit_link_ms", 6000);
+LiveTuning::KnobUInt const SpiritLinkPeriodMs("shaman.spirit_link_period_ms", 1000);
+LiveTuning::Knob const SpiritLinkRadius("shaman.spirit_link_radius", 12.0f);
+LiveTuning::KnobUInt const HealingTideMs("shaman.healing_tide_ms", 10000);
+LiveTuning::KnobUInt const HealingTidePeriodMs("shaman.healing_tide_period_ms", 2000);
+LiveTuning::Knob const HealingTideRadius("shaman.healing_tide_radius", 40.0f);
+LiveTuning::KnobInt const WellspringTargets("shaman.wellspring_targets", 6);
+LiveTuning::Knob const WellspringRadius("shaman.wellspring_radius", 30.0f);
+LiveTuning::Knob const EarthenWallRadius("shaman.earthen_wall_radius", 20.0f);
+// the absorb, a share of spell power
+LiveTuning::Knob const EarthenWallSpellPower("shaman.earthen_wall_spell_power", 2.0f);
+LiveTuning::Knob const AscendanceHealShare("shaman.ascendance_heal_share", 0.5f);
+LiveTuning::KnobInt const AscendanceHealTargets("shaman.ascendance_heal_targets", 5);
 // Class tree
-constexpr uint32 CapacitorDelayMs = 2000;
-constexpr float AncestralGuidanceShare = 0.25f;
-constexpr uint8 AncestralGuidanceTargets = 3;
+LiveTuning::KnobUInt const CapacitorDelayMs("shaman.capacitor_delay_ms", 2000);
+LiveTuning::Knob const AncestralGuidanceShare("shaman.ancestral_guidance_share", 0.25f);
+LiveTuning::KnobInt const AncestralGuidanceTargets("shaman.ancestral_guidance_targets", 3);
 constexpr float HealRange = 40.0f;
 // Packs (the combat bench, Fire mage as the reference): each area hit whole up to AreaFullTargets enemies and
 // sqrt(AreaFullTargets / enemies) of it past them. Eight rather than the casters' five: Earthquake and the melee areas
 // are 8 yd across, so a big pack is already only partly in reach
-constexpr uint8 AreaFullTargets = 8;
-constexpr uint8 AreaMaxTargets = 20;
+LiveTuning::KnobInt const AreaFullTargets("shaman.area_full_targets", 8);
+LiveTuning::KnobInt const AreaMaxTargets("shaman.area_max_targets", 20);
 constexpr uint32 AreaCountMs = 300;
 // A delayed hit keeps its share for this long after its cast at most
 constexpr uint32 PendingBoostMs = 4000;
@@ -604,7 +609,7 @@ void SetWeaponStacks(Player* player, uint8 stacks)
     stacks = std::min(stacks, cap);
     // The cast time a cast takes off: 20% a stack, of the 5 a cast spends at most
     ShowStacks(player, SPELL_MAELSTROM_WEAPON, stacks,
-        -MaelstromWeaponCastPct * int32(std::min(stacks, MaelstromWeaponSpent)));
+        -MaelstromWeaponCastPct * int32(std::min(stacks, uint8(MaelstromWeaponSpent))));
 }
 
 void AddWeaponStacks(Player* player, uint8 stacks)
@@ -732,7 +737,7 @@ float SpentBoost(Player* player, uint32 id, uint32 firstRank)
 {
     float factor = 1.0f;
     if (IsBolt(firstRank) || IsWaveHeal(firstRank))
-        if (uint8 const stacks = std::min(WeaponStacks(player), MaelstromWeaponSpent))
+        if (uint8 const stacks = std::min(WeaponStacks(player), uint8(MaelstromWeaponSpent)))
             factor *= 1.0f + MaelstromWeaponPerStack * float(stacks);
     if (IsBolt(firstRank) && player->HasAura(SPELL_STORMKEEPER_BUFF))
         factor *= StormkeeperFactor;
@@ -782,7 +787,7 @@ void SpendProcs(Player* player, uint32 firstRank)
     if (IsBolt(firstRank) || IsWaveHeal(firstRank))
         if (uint8 const stacks = WeaponStacks(player))
         {
-            uint8 const spent = std::min(stacks, MaelstromWeaponSpent);
+            uint8 const spent = std::min(stacks, uint8(MaelstromWeaponSpent));
             SetWeaponStacks(player, stacks - spent);
             // Héritage de la sorcière du givre
             if (spent >= MaelstromWeaponSpent && player->HasAura(TALENT_FROST_WITCH))

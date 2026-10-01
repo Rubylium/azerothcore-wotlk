@@ -29,6 +29,7 @@
 
 #include "GameTime.h"
 #include "Group.h"
+#include "LiveTuning.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerScript.h"
@@ -56,72 +57,72 @@ namespace
 // -----------------------------------------------------------------------------------------------------------------
 
 // Healing per point of damage traded, before talents
-constexpr float TRANSFUSION_HEAL_RATIO = 1.0f;
+LiveTuning::Knob const TRANSFUSION_HEAL_RATIO("pestifere.transfusion_heal_ratio", 1.0f);
 // Healing threat per point restored, as for any heal
-constexpr float HEALING_THREAT = 0.5f;
+LiveTuning::Knob const HEALING_THREAT("pestifere.healing_threat", 0.5f);
 // Saignée's trade reaches this many injured allies, Pestilence salvatrice's this many (and doubles the healing)
 constexpr std::size_t SAIGNEE_TARGETS = 3;
 constexpr std::size_t PESTILENCE_TARGETS = 5;
-constexpr float PESTILENCE_HEAL_MULTIPLIER = 2.0f;
+LiveTuning::Knob const PESTILENCE_HEAL_MULTIPLIER("pestifere.pestilence_heal_multiplier", 2.0f);
 // Réserve de sang holds at most this share of the healer's maximum health
-constexpr uint32 RESERVE_MAX_HEALTH_PCT = 20;
+LiveTuning::KnobUInt const RESERVE_MAX_HEALTH_PCT("pestifere.reserve_max_health_pct", 20);
 // Symbiote copies this share of Transfusion healing without Symbiose parfaite
-constexpr int32 SYMBIOTE_BASE_PCT = 25;
+LiveTuning::KnobInt const SYMBIOTE_BASE_PCT("pestifere.symbiote_base_pct", 25);
 // How far from the healer the Symbiote's bearer still gets its share
-constexpr float SYMBIOTE_RANGE = 100.0f;
+LiveTuning::Knob const SYMBIOTE_RANGE("pestifere.symbiote_range", 100.0f);
 
 // Sangsue (90302): each 2 sec drain as a share of attack power, and the healing per point drained
-constexpr float SANGSUE_TICK_AP_COEFF = 0.10f;
-constexpr float SANGSUE_HEAL_RATIO = 1.5f;
+LiveTuning::Knob const SANGSUE_TICK_AP_COEFF("pestifere.sangsue_tick_ap_coeff", 0.10f);
+LiveTuning::Knob const SANGSUE_HEAL_RATIO("pestifere.sangsue_heal_ratio", 1.5f);
 // Sangsue prolifère: how far the leech can jump from the enemy that died
-constexpr float SANGSUE_JUMP_RADIUS = 10.0f;
+LiveTuning::Knob const SANGSUE_JUMP_RADIUS("pestifere.sangsue_jump_radius", 10.0f);
 
 // Absorption morbide (90304): % of maximum health healed per effect drawn out
-constexpr uint32 ABSORPTION_HEAL_PCT_PER_EFFECT = 5;
+LiveTuning::KnobUInt const ABSORPTION_HEAL_PCT_PER_EFFECT("pestifere.absorption_heal_pct_per_effect", 5);
 
 // Don de sang (90305): % of the caster's maximum health paid, % of the ally's restored
-constexpr uint32 DON_DE_SANG_COST_PCT = 8;
-constexpr uint32 DON_DE_SANG_HEAL_PCT = 25;
+LiveTuning::KnobUInt const DON_DE_SANG_COST_PCT("pestifere.don_de_sang_cost_pct", 8);
+LiveTuning::KnobUInt const DON_DE_SANG_HEAL_PCT("pestifere.don_de_sang_heal_pct", 25);
 
 // Triage: an ally under this health percentage is healed more
-constexpr int32 TRIAGE_HEALTH_PCT = 35;
+LiveTuning::KnobInt const TRIAGE_HEALTH_PCT("pestifere.triage_health_pct", 35);
 
 // Transfusion's procs, rolled on every melee hit while someone is injured. They heal on top of the trade (and
 // before it, so the trade only buys what they left missing).
 // Spores (90312): % chance, and each 2 sec tick of the 10 sec heal over time as a share of attack power
-constexpr int32 SPORES_CHANCE = 25;
-constexpr float SPORES_TICK_AP_COEFF = 0.12f;
+LiveTuning::KnobInt const SPORES_CHANCE("pestifere.spores_chance", 25);
+LiveTuning::Knob const SPORES_TICK_AP_COEFF("pestifere.spores_tick_ap_coeff", 0.12f);
 // Pustule éclatante (90313): % chance, the heal on the most injured ally as a share of attack power, and the share
 // of it that splashes on the group members around that ally
-constexpr int32 PUSTULE_CHANCE = 10;
-constexpr float PUSTULE_AP_COEFF = 0.8f;
-constexpr uint32 PUSTULE_SPLASH_PCT = 40;
-constexpr float PUSTULE_SPLASH_RADIUS = 10.0f;
+LiveTuning::KnobInt const PUSTULE_CHANCE("pestifere.pustule_chance", 10);
+LiveTuning::Knob const PUSTULE_AP_COEFF("pestifere.pustule_ap_coeff", 0.8f);
+LiveTuning::KnobUInt const PUSTULE_SPLASH_PCT("pestifere.pustule_splash_pct", 40);
+LiveTuning::Knob const PUSTULE_SPLASH_RADIUS("pestifere.pustule_splash_radius", 10.0f);
 // Essaim (90314): % chance, each heal as a share of attack power, and the bounces after the first ally
-constexpr int32 ESSAIM_CHANCE = 10;
-constexpr float ESSAIM_AP_COEFF = 0.3f;
-constexpr uint32 ESSAIM_BOUNCES = 2;
+LiveTuning::KnobInt const ESSAIM_CHANCE("pestifere.essaim_chance", 10);
+LiveTuning::Knob const ESSAIM_AP_COEFF("pestifere.essaim_ap_coeff", 0.3f);
+LiveTuning::KnobUInt const ESSAIM_BOUNCES("pestifere.essaim_bounces", 2);
 constexpr Milliseconds ESSAIM_BOUNCE_DELAY = 400ms;
 
 // Brume pestilentielle (90315): reach, and % of maximum health each 2 sec tick of its 12 sec heal over time restores
-constexpr float BRUME_RANGE = 30.0f;
-constexpr float BRUME_TICK_HEALTH_PCT = 2.0f;
+LiveTuning::Knob const BRUME_RANGE("pestifere.brume_range", 30.0f);
+LiveTuning::Knob const BRUME_TICK_HEALTH_PCT("pestifere.brume_tick_health_pct", 2.0f);
 
 // Burst healing (pestifere-healer.DESIGN.md section 6): the answers to a tank buster and to a short AoE pulse.
 // Caillot (90317): this share of all the healer's healing forms an absorb on the Symbiote's bearer, up to this share
 // of the bearer's maximum health
-constexpr uint32 CAILLOT_HEALING_SHARE_PCT = 20;
-constexpr uint32 CAILLOT_MAX_HEALTH_PCT = 15;
+LiveTuning::KnobUInt const CAILLOT_HEALING_SHARE_PCT("pestifere.caillot_healing_share_pct", 20);
+LiveTuning::KnobUInt const CAILLOT_MAX_HEALTH_PCT("pestifere.caillot_max_health_pct", 15);
 // Hémostase (90318): an ally under this health percentage makes the healer's next hits heal this many times as much,
 // that many hits, at most once in that long
-constexpr int32 EMERGENCY_HEALTH_PCT = 35;
-constexpr float HEMOSTASE_HEAL_MULTIPLIER = 3.0f;
-constexpr uint8 HEMOSTASE_CHARGES = 3;
-constexpr uint32 HEMOSTASE_COOLDOWN_MS = 20 * IN_MILLISECONDS;
+LiveTuning::KnobInt const EMERGENCY_HEALTH_PCT("pestifere.emergency_health_pct", 35);
+LiveTuning::Knob const HEMOSTASE_HEAL_MULTIPLIER("pestifere.hemostase_heal_multiplier", 3.0f);
+LiveTuning::KnobInt const HEMOSTASE_CHARGES("pestifere.hemostase_charges", 3);
+LiveTuning::KnobUInt const HEMOSTASE_COOLDOWN_MS("pestifere.hemostase_cooldown_ms", 20000);
 // Brume pestilentielle: % of maximum health healed at once, before its heal over time
-constexpr uint32 BRUME_INSTANT_HEALTH_PCT = 10;
+LiveTuning::KnobUInt const BRUME_INSTANT_HEALTH_PCT("pestifere.brume_instant_health_pct", 10);
 // Don de sang: % of maximum health restored to an ally under EMERGENCY_HEALTH_PCT (DON_DE_SANG_HEAL_PCT otherwise)
-constexpr uint32 DON_DE_SANG_EMERGENCY_HEAL_PCT = 40;
+LiveTuning::KnobUInt const DON_DE_SANG_EMERGENCY_HEAL_PCT("pestifere.don_de_sang_emergency_heal_pct", 40);
 
 // No cap on how many injured allies a lookup returns (a raid is 40)
 constexpr std::size_t ANY_NUMBER_OF_ALLIES = 40;
@@ -206,7 +207,7 @@ Unit* GetSymbioteBearer(Player* healer)
 void FeedCaillot(Player* healer, uint32 healing)
 {
     Unit* bearer = GetSymbioteBearer(healer);
-    uint32 const add = CalculatePct(healing, CAILLOT_HEALING_SHARE_PCT);
+    uint32 const add = CalculatePct(healing, CAILLOT_HEALING_SHARE_PCT.Get());
     if (!bearer || !add)
         return;
 
@@ -217,7 +218,7 @@ void FeedCaillot(Player* healer, uint32 healing)
     if (!absorb)
         return;
 
-    int32 const cap = int32(CalculatePct(bearer->GetMaxHealth(), CAILLOT_MAX_HEALTH_PCT));
+    int32 const cap = int32(CalculatePct(bearer->GetMaxHealth(), CAILLOT_MAX_HEALTH_PCT.Get()));
     int32 const amount = std::min<int32>(cap, absorb->GetAmount() + int32(add));
     if (amount != absorb->GetAmount())
         absorb->ChangeAmount(amount);
@@ -327,7 +328,7 @@ void ProcPustule(Player* healer)
     target->SendPlaySpellVisual(KIT_PUSTULE);
 
     // Pustules multiples: +25% splash per point
-    uint32 splash = CalculatePct(healing, PUSTULE_SPLASH_PCT);
+    uint32 splash = CalculatePct(healing, PUSTULE_SPLASH_PCT.Get());
     splash += CalculatePct(splash, 25 * GetTalentValue(healer, TALENT_PUSTULES_MULTIPLES) / 4);
     for (Unit* ally : GetGroupMembersInRange(healer, HEAL_RANGE))
     {
@@ -481,7 +482,7 @@ private:
         if (!share)
             return;
 
-        uint32 const cap = CalculatePct(healer->GetMaxHealth(), RESERVE_MAX_HEALTH_PCT);
+        uint32 const cap = CalculatePct(healer->GetMaxHealth(), RESERVE_MAX_HEALTH_PCT.Get());
         data->reserve = std::min(cap, data->reserve + CalculatePct(damage, share));
         if (data->reserve && !healer->HasAura(SPELL_RESERVE_DE_SANG))
             healer->AddAura(SPELL_RESERVE_DE_SANG, healer);
@@ -663,7 +664,7 @@ class PestifereDonDeSangSpellScript : public SpellScript
             return;
 
         // Donneur universel: the gift costs less, or nothing. It never kills the giver.
-        uint32 cost = CalculatePct(healer->GetMaxHealth(), DON_DE_SANG_COST_PCT);
+        uint32 cost = CalculatePct(healer->GetMaxHealth(), DON_DE_SANG_COST_PCT.Get());
         cost -= CalculatePct(cost, std::min(100, GetTalentValue(healer, TALENT_DONNEUR_UNIVERSEL)));
         cost = std::min(cost, healer->GetHealth() - 1);
         if (cost)
@@ -689,8 +690,8 @@ class PestifereDonDeSangSpellScript : public SpellScript
 // -----------------------------------------------------------------------------------------------------------------
 
 // Weapon damage it deals, and how much of that the most injured ally gets back
-constexpr float JET_DE_SANG_WEAPON_SCALE = 1.2f;
-constexpr uint32 JET_DE_SANG_HEAL_PCT = 150;
+LiveTuning::Knob const JET_DE_SANG_WEAPON_SCALE("pestifere.jet_de_sang_weapon_scale", 1.2f);
+LiveTuning::KnobUInt const JET_DE_SANG_HEAL_PCT("pestifere.jet_de_sang_heal_pct", 150);
 
 class PestifereJetDeSangSpellScript : public SpellScript
 {
@@ -712,7 +713,7 @@ class PestifereJetDeSangSpellScript : public SpellScript
             return;
 
         // Veines ouvertes
-        uint32 heal = CalculatePct(uint32(GetHitDamage()), JET_DE_SANG_HEAL_PCT);
+        uint32 heal = CalculatePct(uint32(GetHitDamage()), JET_DE_SANG_HEAL_PCT.Get());
         heal += CalculatePct(heal, GetTalentValue(healer, TALENT_VEINES_OUVERTES));
         // Sang projeté: the second most injured gets its share too
         int32 const splash = GetTalentValue(healer, TALENT_SANG_PROJETE);
@@ -742,7 +743,7 @@ class PestifereJetDeSangSpellScript : public SpellScript
 // 90297 Poussée de sang - the healer's burst: an instant heal, then three hits that heal three times as much
 // -----------------------------------------------------------------------------------------------------------------
 
-constexpr uint32 POUSSEE_DE_SANG_HEAL_PCT = 20;
+LiveTuning::KnobUInt const POUSSEE_DE_SANG_HEAL_PCT("pestifere.poussee_de_sang_heal_pct", 20);
 
 class PestiferePousseeDeSangSpellScript : public SpellScript
 {
@@ -758,7 +759,8 @@ class PestiferePousseeDeSangSpellScript : public SpellScript
         if (!allies.empty())
         {
             Unit* ally = allies.front();
-            HealAlly(healer, ally, CalculatePct(ally->GetMaxHealth(), POUSSEE_DE_SANG_HEAL_PCT), GetSpellInfo()->Id);
+            HealAlly(healer, ally, CalculatePct(ally->GetMaxHealth(), POUSSEE_DE_SANG_HEAL_PCT.Get()),
+                GetSpellInfo()->Id);
             ally->SendPlaySpellVisual(KIT_DON_DE_SANG);
         }
 
@@ -902,7 +904,7 @@ class PestifereBrumeSpellScript : public SpellScript
         // A burst at once for the pulse that just hit, then the heal over time
         for (Unit* ally : GetGroupMembersInRange(healer, BRUME_RANGE))
         {
-            HealAlly(healer, ally, CalculatePct(ally->GetMaxHealth(), BRUME_INSTANT_HEALTH_PCT),
+            HealAlly(healer, ally, CalculatePct(ally->GetMaxHealth(), BRUME_INSTANT_HEALTH_PCT.Get()),
                 SPELL_BRUME_PESTILENTIELLE);
             if (healer->AddAura(SPELL_BRUME_HOT, ally))
                 ally->SendPlaySpellVisual(KIT_BRUME);

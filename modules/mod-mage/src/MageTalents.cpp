@@ -6,6 +6,7 @@
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "LiveTuning.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
 #include "Pet.h"
@@ -135,21 +136,21 @@ constexpr uint32 FLAG0_FROST_WARD = 0x00000100;
 constexpr uint32 FLAG1_ICE_BARRIER = 0x00000001;
 constexpr uint32 FLAG1_ARCANE_BARRAGE = 0x00008000;
 
-constexpr uint8 MaxCharges = 2;
-constexpr uint32 FlowStepMs = 1000;
-constexpr uint8 FlowMaxStacks = 5;
-constexpr uint32 SuspendedTimeMs = 45000;
-constexpr uint32 FlameMasterMs = 2000;
+LiveTuning::KnobInt const MaxCharges("mage.max_charges", 2);
+LiveTuning::KnobUInt const FlowStepMs("mage.flow_step_ms", 1000);
+LiveTuning::KnobInt const FlowMaxStacks("mage.flow_max_stacks", 5);
+LiveTuning::KnobUInt const SuspendedTimeMs("mage.suspended_time_ms", 45000);
+LiveTuning::KnobUInt const FlameMasterMs("mage.flame_master_ms", 2000);
 constexpr uint32 MeteorDelayMs = 3000;
-constexpr uint32 CometCount = 7;
+LiveTuning::KnobUInt const CometCount("mage.comet_count", 7);
 constexpr uint32 CometFirstMs = 600;
 constexpr uint32 CometStepMs = 200;
 constexpr float CometSpread = 5.0f;
-constexpr uint8 SunKingStacks = 8;
-constexpr uint32 SunKingCombustionMs = 6000;
-constexpr uint8 HarmonyMaxStacks = 10;
-constexpr uint8 BoneChillingMaxStacks = 10;
-constexpr uint8 IciclesMaxStacks = 5;
+LiveTuning::KnobInt const SunKingStacks("mage.sun_king_stacks", 8);
+LiveTuning::KnobUInt const SunKingCombustionMs("mage.sun_king_combustion_ms", 6000);
+LiveTuning::KnobInt const HarmonyMaxStacks("mage.harmony_max_stacks", 10);
+LiveTuning::KnobInt const BoneChillingMaxStacks("mage.bone_chilling_max_stacks", 10);
+LiveTuning::KnobInt const IciclesMaxStacks("mage.icicles_max_stacks", 5);
 constexpr uint32 PureClarityMs = 3500;   // the 2.5 s channel of Arcane Missiles and its last missile's flight
 
 // A spell's charges (Blink, Fire Blast): how many are left, and the recharge of the next one
