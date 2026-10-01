@@ -207,10 +207,12 @@ constexpr uint32 NaveWarningMs = 2500;
 constexpr float WeaveSpacing = 17.0f;
 constexpr uint32 WeaveWarningMs = 3000;
 constexpr uint32 WeaveSecondMs = 2600;          // the second weave, turned, comes this long after the first
-// Salve de lances (the demon): lances from him one after another, at the players
-constexpr uint32 BarrageLances = 5;
-constexpr uint32 BarrageStepMs = 900;
-constexpr uint32 BarrageWarningMs = 2000;
+// Salve de lances (the demon): volleys of lances from him, several at once, each at a player (one by one, they were
+// easy to dodge and the same sound over and over)
+constexpr uint32 BarrageVolleys = 2;
+constexpr uint32 BarrageLances = 4;             // a volley
+constexpr uint32 BarrageVolleyMs = 2600;        // the next volley, as the last lands
+constexpr uint32 BarrageWarningMs = 2200;
 constexpr float TowerRadius = 4.5f;
 constexpr uint32 TowerMs = 7000;
 constexpr uint32 AbsolutionMs = 9000;
@@ -2418,28 +2420,38 @@ private:
         });
     }
 
-    // Salve de lances: lances from him, one after another, each at a player where they stand
+    // Salve de lances: volleys of lances from him, each at a different player where they stand (spread round him for
+    // the rest when fewer are there), the next volley burning in as the last lands
     void LanceBarrage()
     {
-        Sound(SOUND_NIGHTMARE_LANCES);
-        for (uint32 lance = 0; lance < BarrageLances; ++lance)
-            scheduler.Schedule(Milliseconds(lance * BarrageStepMs), [this](TaskContext)
+        for (uint32 volley = 0; volley < BarrageVolleys; ++volley)
+            scheduler.Schedule(Milliseconds(volley * BarrageVolleyMs), [this](TaskContext)
             {
                 Creature* demon = Velthazar();
-                std::vector<Player*> const players = ArenaPlayers();
-                if (!demon || players.empty() || _phase != Phase::Hollow)
+                if (!demon || _phase != Phase::Hollow)
                     return;
                 Position const source = Ground(demon->GetPosition());
-                Player* target = Acore::Containers::SelectRandomContainerElement(players);
-                float const facing = source.GetAngle(target);
-                demon->SendPlaySpellVisual(KIT_SHADOWFLAME_CAST);
-                GroundIndicators::Area const line = PaintLine(LineArea(source, facing, LanceLength, LanceWidth),
-                    LINE_LANCE, BarrageWarningMs);
-                scheduler.Schedule(Milliseconds(BarrageWarningMs), [this, line](TaskContext)
+                std::vector<Player*> players = ArenaPlayers();
+                Acore::Containers::RandomShuffle(players);
+                float const base = frand(0.0f, 2.0f * float(M_PI));
+                std::vector<GroundIndicators::Area> lines;
+                for (uint32 lance = 0; lance < BarrageLances; ++lance)
                 {
-                    StrikeLine(line, LINE_LANCE, LINE_LANCE_HIT);
-                    for (Player* player : PlayersIn(line))
-                        Hit(player, SPELL_LANCES, LancePct, true);
+                    float const facing = lance < players.size() ? source.GetAngle(players[lance]) :
+                        base + 2.0f * float(M_PI) * float(lance) / float(BarrageLances);
+                    lines.push_back(PaintLine(LineArea(source, facing, LanceLength, LanceWidth), LINE_LANCE,
+                        BarrageWarningMs));
+                }
+                Sound(SOUND_NIGHTMARE_LANCES);
+                demon->SendPlaySpellVisual(KIT_SHADOWFLAME_CAST);
+                scheduler.Schedule(Milliseconds(BarrageWarningMs), [this, lines](TaskContext)
+                {
+                    for (GroundIndicators::Area const& line : lines)
+                        StrikeLine(line, LINE_LANCE, LINE_LANCE_HIT);
+                    for (Player* player : ArenaPlayers())
+                        if (std::ranges::any_of(lines, [player](GroundIndicators::Area const& line)
+                            { return line.Contains(*player); }))
+                            Hit(player, SPELL_LANCES, LancePct, true);
                 });
             });
     }
