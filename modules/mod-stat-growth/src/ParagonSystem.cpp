@@ -1615,6 +1615,29 @@ bool HasGroupRole(Player* player, uint8 role)
     return false;
 }
 
+// Whether a character fights with its weapons - a melee or a hunter, not a caster or a healer spec - whatever its
+// hits' damage class: the melee branches answer to all of such a character's damage, its spells too (a rogue's
+// poisons, an enhancement shaman's imbues and shocks, a paladin's judgements). They answered to weapon hits alone, and
+// at 650 points an enhancement shaman did half of what a fire mage did, a rogue two fifths.
+bool FightsWithWeapons(Player* player)
+{
+    uint8 const classId = player->getClass();
+    switch (classId == 10 ? uint8(CLASS_WARRIOR) : sObjectMgr->GetClassFormulaTemplate(classId))
+    {
+        case CLASS_MAGE:
+        case CLASS_PRIEST:
+        case CLASS_WARLOCK:
+            return false;
+        case CLASS_DRUID:
+        case CLASS_SHAMAN:
+            return !player->HasCasterSpec() && !player->HasHealSpec();
+        case CLASS_PALADIN:
+            return !player->HasHealSpec();
+        default:
+            return true;
+    }
+}
+
 BotRole RoleOf(Player* bot, BotRole previous)
 {
     if (IsGroupTank(bot) || bot->HasTankSpec())
@@ -2830,8 +2853,11 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 
     // A weapon's hit sets off the melee branches, a spell's the caster branches; anything else only what answers to
     // anything
-    HitKind const kind = source.set && source.attacker == attacker && source.victim == victim
+    HitKind kind = source.set && source.attacker == attacker && source.victim == victim
         ? KindOf(source.spell) : HitKind::Other;
+    // A weapon fighter's spells answer to its own side (FightsWithWeapons)
+    if (kind == HitKind::Spell && FightsWithWeapons(player))
+        kind = HitKind::Weapon;
     // A periodic tick is not a hit of its own: it keeps the always-on bonuses, but sets off nothing that strikes again
     bool const periodic = source.set && source.periodic;
     state->lastHitTarget = victim->GetGUID();

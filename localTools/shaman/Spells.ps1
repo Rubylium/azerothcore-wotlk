@@ -377,6 +377,15 @@ $spells = @(
            @{ Index = 2; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 100; Misc = $SPELLMOD_DAMAGE })
        Fields = @{ 122 = 0; 123 = $maskStormstrike; 124 = ($maskLavaLash -bor $flagCrashLightning -bor $flagIceStrike -bor $flagSundering)
                    125 = ($maskBolts -bor $maskHeals); 126 = 0; 127 = 0; 128 = 0x2; 129 = 0; 130 = 0; 208 = 11 } },
+    # Amélioration's spells scale with its attack power (as retail's): half of it as spell power and healing power
+    # (auras 237, 238). Its lightning, shocks and imbues are spells, and at 650 paragon - whose power an agility
+    # fighter takes as agility and attack power - it did half of what a fire mage did. Esprit vif (Mental Quickness)
+    # adds its 10-30% on top.
+    @{ Id = 95583; Clone = 2983; Name = 'Puissance de la tempête'; IconPath = 'Interface\Icons\Spell_Nature_MentalQuickness'; FallbackIconSpell = 30812; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+       Description = "50% de votre puissance d'attaque s'ajoute à votre puissance des sorts et à vos soins."
+       Effects = @(
+           @{ Index = 0; Effect = 6; Aura = 237; TargetA = 1; Value = 50; Misc = 127 },
+           @{ Index = 1; Effect = 6; Aura = 238; TargetA = 1; Value = 50 }) },
     # Restauration: healing done 15% more (aura 136), Chain Heal (word 0) and Riptide (word 2) 10% more again
     @{ Id = 95582; Clone = 2983; Name = 'Restauration'; IconPath = 'Interface\Icons\Spell_Nature_MagicImmunity'; FallbackIconSpell = 61301; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = "Vos soins augmentent de 15%, et Salve de guérison et Remous de 10% de plus. Remous peut avoir des charges, et vos totems de soins sauvent le groupe des pires moments."

@@ -4284,7 +4284,7 @@ TalentTreeData = {
         },
     },
     [7] = {
-        signature = 25712876,
+        signature = 25999625,
         trees = {
             { id = 1, kind = "class", name = "Chaman", firstLevel = 10, levelStep = 2, gates = { { row = 4, cost = 8 }, { row = 7, cost = 20 } },
               nodes = {

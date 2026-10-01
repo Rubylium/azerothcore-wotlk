@@ -995,6 +995,11 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     // Xinef: its rare to modify damage in hooks, however training dummy's sets damage to 0
     uint32 rage_damage = damage + ((cleanDamage != nullptr) ? cleanDamage->absorbed_damage : 0);
 
+    // Hook for OnDamage Event. Before the creatures' own say: the scripts here scale the hit (class talents, the paragon
+    // board), and a creature that caps what it takes (a boss whose health stops at 1%, a shield, a training dummy that
+    // never dies) must cap the hit as it lands - scaled after, it went through every cap.
+    sScriptMgr->OnDamage(attacker, victim, damage);
+
     //if (attacker)
     {
         if (victim->IsAIEnabled)
@@ -1003,9 +1008,6 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         if (attacker && attacker->IsAIEnabled)
             attacker->GetAI()->DamageDealt(victim, damage, damagetype, damageSchoolMask);
     }
-
-    // Hook for OnDamage Event
-    sScriptMgr->OnDamage(attacker, victim, damage);
 
     // Signal to pets that their owner was attacked - except when DOT.
     if (attacker != victim && damagetype != DOT)

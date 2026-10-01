@@ -34,6 +34,10 @@ bots brought again (the session), and no server build, restart or client release
     done, `python localTools/tuning/bakeTuning.py` writes every knob override into its declaration as the new default
     and drops it from the database (`--dry-run` first); spell multipliers it only lists. Then build and commit - the
     code stays the one place a number lives.
+- `.bench paragon <points|auto>` sets the bench bots' paragon whatever the dummies' scaling: a raid's or a Défi's
+  profile (the Hollow Voice: `bots 'mage fire 460 single'`, `.bench paragon 650`, `run -layouts boss -key raid`).
+  Measured that way (2026-10-01), melee specs had a fraction of the mage's damage at 650 points (Enhancement 50%,
+  Combat 41%) while beating it at low paragon: compare classes at the content's own profile, not only at +10.
 - A server restart ends the session (`bench.ps1 start` again). Its log: `var/combatBench/session/session.log`.
 - Short runs (`-seconds 30`, `single,pack5`) to find the direction, then 60 s and the full layouts, repeated, to
   settle it (variance below).

@@ -104,16 +104,16 @@ BRANCHES = [
     (60, ATTACK_POWER, 2.0, "Puissance",
      ("ParagonNode_Power", "ParagonNode_PowerMajor", "ParagonNode_PowerMajor"),
      [
-         special(E_SURGE, "Curée", "ParagonNode_Quarry", value=120, duration=15000),
+         special(E_FURY, "Curée", "ParagonNode_Quarry", value=8, chance=10.0, duration=10000),
      ],
-     special(E_SURGE, "Élan du parangon", "ParagonNode_Momentum", value=350, duration=20000)),
+     special(E_FURY, "Élan du parangon", "ParagonNode_Momentum", value=20, chance=15.0, duration=12000)),
 
     (120, AGILITY, 1.0, "Agilité",
      ("ParagonNode_Agility", "ParagonNode_AgilityMajor", "ParagonNode_AgilityMajor"),
      [
-         special(E_RETALIATE, "Riposte", "ParagonNode_Riposte", value=25, chance=10.0),
+         special(E_DOUBLE, "Riposte", "ParagonNode_Riposte", value=100, chance=10.0),
      ],
-     special(E_RETALIATE, "Représailles du parangon", "ParagonNode_Reprisal", value=60, chance=20.0)),
+     special(E_DOUBLE, "Représailles du parangon", "ParagonNode_Reprisal", value=100, chance=20.0)),
 
     # The armour branch. Minor nodes here are armour rather than stamina, so walking it actually makes you
     # harder to kill instead of just larger.
@@ -389,13 +389,13 @@ OUTER_SPECIALS = {
          outer(E_DOUBLE, "Apothéose : Titan", "INV_Sword_48", value=100, chance=12.0)),
     ],
     "Puissance": [
-        ([outer(E_SURGE, "Curée sanglante", "Ability_Rogue_MurderSpree", value=600, duration=20000),
+        ([outer(E_FURY, "Curée sanglante", "Ability_Rogue_MurderSpree", value=15, chance=12.0, duration=10000),
           outer(E_LEECH, "Soif de sang", "Spell_Shadow_LifeDrain02", value=3),
-          outer(E_EXPLODE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=5, value2=6, chance=25.0),
+          outer(E_DAMAGE, "Carcasse explosive", "Spell_Fire_SelfDestruct", value=4),
           outer(E_DAMAGE, "Élan meurtrier", "Ability_Warrior_Warcry", value=4)],
          outer(E_KILL_STREAK, "Carnage", "Spell_Deathknight_BloodBoil", value=2, value2=8, chance=50.0,
                duration=15000)),
-        ([outer(E_SURGE, "Frénésie du massacre", "Spell_Shadow_UnholyFrenzy", value=1500, duration=20000),
+        ([outer(E_FURY, "Frénésie du massacre", "Spell_Shadow_UnholyFrenzy", value=25, chance=15.0, duration=12000),
           outer(E_LEECH, "Festin", "Spell_Shadow_SoulLeech_3", value=6),
           outer(E_KILL_STREAK, "Réaction en chaîne", "Spell_Fire_Incinerate", value=1, value2=10, chance=50.0,
                 duration=15000),
@@ -404,16 +404,16 @@ OUTER_SPECIALS = {
                cooldown=1000)),
     ],
     "Agilité": [
-        ([outer(E_RETALIATE, "Contre-attaque", "Ability_Warrior_Revenge", value=50, chance=20.0),
-          outer(E_DOUBLE, "Lames agiles", "Ability_Rogue_SliceDice", value=100, chance=4.0),
+        ([outer(E_DAMAGE, "Contre-attaque", "Ability_Warrior_Revenge", value=6),
+          outer(E_DOUBLE, "Lames agiles", "Ability_Rogue_SliceDice", value=100, chance=15.0),
           outer(E_REDUCTION, "Esquive parfaite", "Ability_Rogue_Feint", value=4),
-          outer(E_DAMAGE, "Précision mortelle", "Ability_Rogue_Feint", value=4)],
-         outer(E_RETALIATE, "Épines", "Spell_Nature_Thorns", value=100, chance=35.0)),
-        ([outer(E_RETALIATE, "Vengeance", "Ability_Warrior_Revenge", value=100, chance=30.0),
-          outer(E_DOUBLE, "Tourbillon de lames", "Ability_Rogue_MurderSpree", value=100, chance=5.0),
-          outer(E_REDUCTION, "Insaisissable", "Spell_Arcane_PrismaticCloak", value=6),
+          outer(E_DAMAGE, "Précision mortelle", "Ability_Rogue_Feint", value=6)],
+         outer(E_DOUBLE, "Épines", "Spell_Nature_Thorns", value=100, chance=25.0)),
+        ([outer(E_EXECUTE, "Vengeance", "Ability_Warrior_Revenge", value=30, value2=35),
+          outer(E_DOUBLE, "Tourbillon de lames", "Ability_Rogue_MurderSpree", value=100, chance=18.0),
+          outer(E_DAMAGE, "Insaisissable", "Spell_Arcane_PrismaticCloak", value=10),
           outer(E_LEECH, "Saignée", "Spell_Shadow_LifeDrain02", value=4)],
-         outer(E_RETALIATE, "Apothéose : Miroir", "Spell_Holy_AshesToAshes", value=200, chance=50.0)),
+         outer(E_DOUBLE, "Apothéose : Miroir", "Spell_Holy_AshesToAshes", value=100, chance=35.0)),
     ],
     "Carapace": [
         ([outer(E_THREAT, "Présence imposante", "Ability_Warrior_DefensiveStance", value=25),
