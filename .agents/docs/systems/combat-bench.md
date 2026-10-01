@@ -65,6 +65,11 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 - **A summoned guardian's travelling spell never lands**: a hit a module has a guardian cast (`CastCustomSpell` from
   the creature) with a missile speed was cast (`SPELL_CAST_OK`) but never hit - the Warlock's Wild Imps' bolts and the
   Darkglare's beam showed nothing in the per-spell table. Give such hits speed 0 (the visual still plays).
+- **A bot class name used twice crashes the world server**: the Druid's `CastFlourishAction` beside the Oathblade's
+  (both in mod-playerbots, different translation units) broke the one-definition rule; the linker kept one class's
+  inline code for both and a bot's action read garbage (`getName` crash in `Engine::DoNextAction`). Grep the whole
+  `src/` for a new bot class name before adding it, or prefix it with the class.
+- The Druid's bench words: `balance`, `cat` (Combat farouche's cat builds), `bear` (its tank build), `resto`.
 - Stock target caps live in the spell data (`MaxAffectedTargets`, effect `ChainTarget`); override them in
   `SpellInfoCorrections.cpp` or per cast in `OnSpellCheckCast`, and pair an uncap with a falloff past 5 targets
   (`sqrt(5 / n)`, as Hunter's Multi-Shot / Beast Cleave).
@@ -74,6 +79,6 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 ## Where each class is tuned
 
 Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter`,
-`mod-priest`, `mod-warrior`, `mod-shaman`, `mod-warlock` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
+`mod-priest`, `mod-warrior`, `mod-shaman`, `mod-warlock`, `mod-druid` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
 `localTools/<class>/Spells.ps1`, talent trees and presets in `localTools/<class>/talentTree.json`. Name the bench
 in the commit when a change was tuned on it.

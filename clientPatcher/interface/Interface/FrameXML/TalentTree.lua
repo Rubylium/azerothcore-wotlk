@@ -107,7 +107,7 @@ local TEXT = french and {
     loadoutOtherSpec = "Appliquer « %s » ? Votre spécialisation deviendra %s.",
     loadoutDelete = "Supprimer la configuration « %s » ?",
     recommended = "Recommandés",
-    presetKinds = { single = "Recommandé : monocible", aoe = "Recommandé : multicible" },
+    presetKinds = { single = "Recommandé : monocible", aoe = "Recommandé : multicible", tank = "Recommandé : tank" },
     presetHint = "Configuration recommandée : modifiez-la à votre goût, puis Enregistrer pour la garder.",
     errors = {
         [1] = "Ces talents n'ont pas pu être lus : réessayez.",
@@ -175,7 +175,7 @@ local TEXT = french and {
     loadoutOtherSpec = "Apply \"%s\"? Your specialization will become %s.",
     loadoutDelete = "Delete the loadout \"%s\"?",
     recommended = "Recommended",
-    presetKinds = { single = "Recommended: single target", aoe = "Recommended: AoE" },
+    presetKinds = { single = "Recommended: single target", aoe = "Recommended: AoE", tank = "Recommended: tank" },
     presetHint = "Recommended build: tweak it to your liking, then Save to keep it.",
     errors = {
         [1] = "Those talents could not be read: try again.",

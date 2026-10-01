@@ -90,7 +90,8 @@ def check(definition, spells):
                 assert 1 <= option <= len(by_id[node_id]['options']), f"{tree['name']}: bot build option {pick}"
 
 
-PRESET_KINDS = ('single', 'aoe')
+# A spec tree that holds a tank and a damage dealer (the Druid's Combat farouche) adds a tank build to its two
+PRESET_KINDS = ('single', 'aoe', 'tank')
 MAX_LEVEL = 80
 
 
@@ -158,7 +159,8 @@ def preset_build(definition, preset):
 
 def preset_pairs(definition, tree, kind):
     """A spec tree's preset of a kind for the server, "node:value" pairs in build order (its class tree nodes
-    included): what a bot takes when that build suits the content (the "aoe" one in a dungeon). Empty without one."""
+    included): what a bot takes when that build suits the content (the "aoe" one in a dungeon, the "tank" one for a
+    bot on the tank build). Empty without one."""
     if tree['kind'] != 'spec':
         return ''
     preset = next((preset for preset in definition.get('presets', [])
@@ -242,6 +244,7 @@ def build_sql(definitions):
         "    `BotOrder` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'the order a bot takes its nodes in (node or node:option)',",
         "    `SingleBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: single-target preset',",
         "    `AoeBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: AoE preset (bots, dungeons)',",
+        "    `TankBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: tank preset (with a damage dealer)',",
         "    `Name` VARCHAR(64) NOT NULL DEFAULT '',",
         '    PRIMARY KEY (`ClassId`, `TreeId`)',
         ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;',
@@ -268,7 +271,7 @@ def build_sql(definitions):
         lines.append(f'DELETE FROM `custom_talent_tree` WHERE `ClassId` = {class_id};')
         lines.append('INSERT INTO `custom_talent_tree` (`ClassId`, `TreeId`, `Kind`, `FirstLevel`, `LevelStep`, '
                      '`Gate1Row`, `Gate1Cost`, `Gate2Row`, `Gate2Cost`, `Signature`, `SpecSpells`, `BotOrder`, '
-                     '`SingleBuild`, `AoeBuild`, `Name`) VALUES')
+                     '`SingleBuild`, `AoeBuild`, `TankBuild`, `Name`) VALUES')
         rows = []
         for tree in definition['trees']:
             gates = (tree.get('gates', []) + [{'row': 0, 'cost': 0}] * 2)[:2]
@@ -278,6 +281,7 @@ def build_sql(definitions):
                         f"'{','.join(str(spell) for spell in tree.get('specSpells', []))}', "
                         f"'{','.join(str(pick) for pick in tree.get('botBuild', []))}', "
                         f"'{preset_pairs(definition, tree, 'single')}', '{preset_pairs(definition, tree, 'aoe')}', "
+                        f"'{preset_pairs(definition, tree, 'tank')}', "
                         f"{sql_string(tree['name'])})")
         lines.append(',\n'.join(rows) + ';')
         lines.append('')

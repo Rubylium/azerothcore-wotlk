@@ -27,6 +27,7 @@
 !/modules/mod-warrior
 !/modules/mod-shaman
 !/modules/mod-warlock
+!/modules/mod-druid
 !/modules/mod-forge
 /build*/
 # TACTTool's download cache of the game files, left at the root by the extractors

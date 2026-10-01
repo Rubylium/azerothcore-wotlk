@@ -52,7 +52,10 @@
 // carries the class's recommended builds (SingleBuild, AoeBuild: its class and spec nodes): in a five-man dungeon,
 // where the fights are packs, a bot takes its specialization's AoE build instead, and goes back to its bot order as
 // it leaves (a tree without a bot order uses its single-target build there). They are placed as a player applying
-// the build would place them, so what the level does not allow yet simply waits.
+// the build would place them, so what the level does not allow yet simply waits. A spec tree that holds a tank and a
+// damage dealer (the Druid's Combat farouche: a cat and a bear) also carries a tank build (TankBuild): a bot whose
+// build holds a node of it that neither other build holds (the guardian's path) is a tank, and keeps that build
+// wherever it goes; the bots' factory and the combat bench put a bot on it (SetTalentBuildPreset, preset 3).
 //
 // Addon whispers, prefix "TalentTree":
 //   client -> server  OPEN                    the state, please
@@ -129,6 +132,8 @@ struct Tree
     std::vector<BotPick> botOrder;
     std::vector<PresetPick> singleBuild;    // a spec tree's recommended builds, its class tree nodes included
     std::vector<PresetPick> aoeBuild;
+    std::vector<PresetPick> tankBuild;      // a spec tree holding a tank and a damage dealer (the Druid's Combat
+                                            // farouche): the tank's
     uint8 firstLevel = 10;
     uint8 levelStep = 2;
     std::array<TreeGate, 2> gates{};
@@ -664,7 +669,8 @@ enum class BuildPreset : uint8
 {
     Auto    = 0,
     Single  = 1,
-    Aoe     = 2
+    Aoe     = 2,
+    Tank    = 3     // placed, never kept as forced: the build itself says the bot is a tank (IsOnTankBuild)
 };
 
 constexpr char const* PresetKey = "TalentTreeBuildPreset";
@@ -694,11 +700,36 @@ std::string PresetDigits(ClassTrees const& data, std::vector<PresetPick> const& 
     return digits;
 }
 
-// A bot's build: in a dungeon its specialization's AoE build; elsewhere its trees' bot orders taken in turn (or,
-// for a spec tree without one, its single-target build), each node ranked as far as it goes, until the level's
-// points run out. Only the class tree and the chosen specialization's tree are filled. Returns whether the build
-// changed (it is then saved; the caller makes the spells follow).
-bool FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state)
+// Whether a build is on its specialization's tank build: it holds a node of it, at the tank build's value, that
+// neither the single-target nor the AoE build holds at that value (the Druid's guardian's path)
+bool IsOnTankBuild(ClassTrees const& data, Tree const& specTree, std::string const& build)
+{
+    if (specTree.tankBuild.empty())
+        return false;
+    auto const valueIn = [](std::vector<PresetPick> const& preset, uint16 node)
+    {
+        auto const pick = std::find_if(preset.begin(), preset.end(),
+            [node](PresetPick const& candidate) { return candidate.node == node; });
+        return pick == preset.end() ? uint8(0) : pick->value;
+    };
+    for (PresetPick const& pick : specTree.tankBuild)
+    {
+        if (valueIn(specTree.singleBuild, pick.node) == pick.value ||
+            valueIn(specTree.aoeBuild, pick.node) == pick.value)
+            continue;
+        auto const position = data.positions.find(pick.node);
+        if (position != data.positions.end() && Value(build, position->second) == pick.value)
+            return true;
+    }
+    return false;
+}
+
+// A bot's build: on a tank build (`tank`, or a build that already holds it) its specialization's tank build; in a
+// dungeon its AoE build; elsewhere its trees' bot orders taken in turn (or, for a spec tree without one, its
+// single-target build), each node ranked as far as it goes, until the level's points run out. Only the class tree
+// and the chosen specialization's tree are filled. Returns whether the build changed (it is then saved; the caller
+// makes the spells follow).
+bool FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state, bool tank = false)
 {
     uint8 const slot = ActiveSlot(player);
     uint8 const specialization = Specialization(data, state->specializations[slot]);
@@ -709,7 +740,10 @@ bool FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state
     if (specTree && specTree->spec)
     {
         BuildPreset const forced = GetForcedPreset(player);
-        if (forced == BuildPreset::Aoe && !specTree->aoeBuild.empty())
+        if (!specTree->tankBuild.empty() && (tank ||
+                (forced == BuildPreset::Auto && IsOnTankBuild(data, *specTree, state->builds[slot]))))
+            preset = &specTree->tankBuild;
+        else if (forced == BuildPreset::Aoe && !specTree->aoeBuild.empty())
             preset = &specTree->aoeBuild;
         else if (forced == BuildPreset::Single && !specTree->singleBuild.empty())
             preset = &specTree->singleBuild;
@@ -793,6 +827,16 @@ int8 DominantStockTab(Player* player)
     }
     auto const most = std::max_element(points.begin(), points.end());
     return *most ? int8(most - points.begin()) : -1;
+}
+
+// The WotLK talent that made a bot a tank where one spec tree now holds a tank and a damage dealer: the Druid's Thick
+// Hide at its last rank (the bots' own test of a bear). Read before the WotLK talents are wiped: such a bot moved to
+// the trees takes the tank build.
+constexpr uint32 DruidThickHide = 16931;
+
+bool WasStockTank(Player* player)
+{
+    return player->getClass() == CLASS_DRUID && player->HasTalent(DruidThickHide, player->GetActiveSpec());
 }
 
 // A bot that never chose a specialization takes one: the WotLK tab it played, else a draw weighted by the bots'
@@ -1142,7 +1186,7 @@ void LoadTrees()
 
     // The recommended builds on their own: a database the generated SQL has not reached yet keeps its trees
     if (QueryResult presets = WorldDatabase.Query(
-            "SELECT `ClassId`, `TreeId`, `SingleBuild`, `AoeBuild` FROM `custom_talent_tree`"))
+            "SELECT `ClassId`, `TreeId`, `SingleBuild`, `AoeBuild`, `TankBuild` FROM `custom_talent_tree`"))
         do
         {
             Field* field = presets->Fetch();
@@ -1154,7 +1198,8 @@ void LoadTrees()
             if (tree == data->second.trees.end())
                 continue;
 
-            for (auto [column, preset] : { std::make_pair(2, &tree->singleBuild), std::make_pair(3, &tree->aoeBuild) })
+            for (auto [column, preset] : { std::make_pair(2, &tree->singleBuild), std::make_pair(3, &tree->aoeBuild),
+                     std::make_pair(4, &tree->tankBuild) })
                 for (std::string_view token : Acore::Tokenize(field[column].Get<std::string_view>(), ',', false))
                 {
                     std::vector<std::string_view> const parts = Acore::Tokenize(token, ':', false);
@@ -1276,12 +1321,13 @@ public:
             return;
 
         int8 const stockTab = DominantStockTab(player);
+        bool const stockTank = WasStockTank(player);
         WipeStockTalents(player);
         LoadForPlayer(player, *data);
         if (IsBot(player))
         {
             ChooseBotSpecialization(player, *data, GetState(player), stockTab);
-            FillBotBuild(player, *data, GetState(player));
+            FillBotBuild(player, *data, GetState(player), stockTank);
         }
         else
             KeepStockSpecialization(player, *data, GetState(player), stockTab);
@@ -1402,10 +1448,11 @@ void SetTalentSpecializationIndex(Player* player, uint8 index)
         SetTalentSpecialization(player, data->specTrees[index]);
 }
 
-// The combat bench (mod-playerbots Script/CombatBench.cpp): a bot of a class on the trees takes the specialization of
-// that index (-1 keeps its own) and its recommended build - 1 the single-target one, 2 the AoE one, 0 back to what it
-// takes by itself (the AoE build in a dungeon) - and keeps it wherever it goes. Returns false for a class without
-// trees, or a player who is not a bot.
+// The combat bench (mod-playerbots Script/CombatBench.cpp) and the bots' factory: a bot of a class on the trees takes
+// the specialization of that index (-1 keeps its own) and its recommended build - 1 the single-target one, 2 the AoE
+// one, 0 back to what it takes by itself (the AoE build in a dungeon), 3 the tank one of a tree that has one - and
+// keeps it wherever it goes (the tank one through the build itself: back to 0, a tank stays a tank; 1 or 2 makes it
+// a damage dealer again). Returns false for a class without trees, or a player who is not a bot.
 bool SetTalentBuildPreset(Player* player, int8 index, uint8 preset)
 {
     ClassTrees const* data = player ? GetTrees(player->getClass()) : nullptr;
@@ -1413,7 +1460,8 @@ bool SetTalentBuildPreset(Player* player, int8 index, uint8 preset)
     if (!data || !state || !IsBot(player))
         return false;
 
-    if (preset == uint8(BuildPreset::Auto))
+    bool const tank = preset == uint8(BuildPreset::Tank);
+    if (preset == uint8(BuildPreset::Auto) || tank)
         player->CustomData.Erase(PresetKey);
     else
         player->CustomData.GetDefault<ForcedPreset>(PresetKey)->preset =
@@ -1422,7 +1470,7 @@ bool SetTalentBuildPreset(Player* player, int8 index, uint8 preset)
     uint8 const slot = ActiveSlot(player);
     if (index >= 0 && std::size_t(index) < data->specTrees.size())
         state->specializations[slot] = data->specTrees[index];
-    FillBotBuild(player, *data, state);
+    FillBotBuild(player, *data, state, tank);
     SaveBuild(player, *data, state, slot);
     ReconcileActive(player, *data, state);
     return true;

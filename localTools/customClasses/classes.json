@@ -114,6 +114,13 @@
       "token": "WARLOCK",
       "family": 5,
       "talentTree": "localTools/warlock/talentTree.json"
+    },
+    {
+      "_comment": "The Druid keeps mana, its forms, energy and combo points, and rage; Balance's Astral Power is an aura of stacks, and one tree holds the cat and the bear (modules/mod-druid).",
+      "id": 11,
+      "token": "DRUID",
+      "family": 7,
+      "talentTree": "localTools/druid/talentTree.json"
     }
   ],
   "stockPreviewOutfits": {
