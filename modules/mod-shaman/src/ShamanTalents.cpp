@@ -194,7 +194,7 @@ LiveTuning::KnobInt const MaelstromWeaponSpent("shaman.maelstrom_weapon_spent", 
 // cast time taken off a stack
 LiveTuning::KnobInt const MaelstromWeaponCastPct("shaman.maelstrom_weapon_cast_pct", 20);
 // damage or healing a stack spent adds
-LiveTuning::Knob const MaelstromWeaponPerStack("shaman.maelstrom_weapon_per_stack", 0.12f);
+LiveTuning::Knob const MaelstromWeaponPerStack("shaman.maelstrom_weapon_per_stack", 0.15f);
 LiveTuning::KnobInt const MaelstromWeaponChance("shaman.maelstrom_weapon_chance", 20);       // an auto attack
 LiveTuning::KnobInt const UnrulyWindsChance("shaman.unruly_winds_chance", 35);
 LiveTuning::KnobUInt const FeralSpiritMs("shaman.feral_spirit_ms", 45000);

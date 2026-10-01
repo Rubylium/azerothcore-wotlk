@@ -359,9 +359,9 @@ $spells = @(
     # procs and Maelstrom's spenders carry the specialization; tuned on the combat bench), Earth Shock 150% more (it
     # spends Maelstrom, mod-shaman); Maelstrom, Lava Surge (mod-shaman)
     @{ Id = 95580; Clone = 2983; Name = 'Élémentaire'; IconPath = 'Interface\Icons\Spell_Nature_Lightning'; FallbackIconSpell = 403; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
-       Description = "Éclair, Chaîne d'éclairs, Explosion de lave, Glace furieuse et Horion de givre vous rendent du Maelström, qu'Horion de terre, Séisme et Explosion élémentaire consomment. Les dégâts périodiques d'Horion de flammes peuvent rendre votre prochaine Explosion de lave instantanée. Horion de terre inflige 150% de dégâts en plus, et Éclair, Chaîne d'éclairs, Explosion de lave et Horion de givre 15% de moins."
+       Description = "Éclair, Chaîne d'éclairs, Explosion de lave, Glace furieuse et Horion de givre vous rendent du Maelström, qu'Horion de terre, Séisme et Explosion élémentaire consomment. Les dégâts périodiques d'Horion de flammes peuvent rendre votre prochaine Explosion de lave instantanée. Horion de terre inflige 150% de dégâts en plus, et Éclair, Chaîne d'éclairs, Explosion de lave et Horion de givre 15% de plus."
        Effects = @(
-           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -15; Misc = $SPELLMOD_DAMAGE },
+           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 15; Misc = $SPELLMOD_DAMAGE },
            @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 150; Misc = $SPELLMOD_DAMAGE })
        Fields = @{ 122 = ($maskBolts -bor $maskFrostShock); 123 = $maskLavaBurst; 124 = 0
                    125 = $maskEarthShock; 126 = 0; 127 = 0; 208 = 11 } },
@@ -370,9 +370,9 @@ $spells = @(
     # Chain Lightning (word 0 0x2, its pack spender) deals 100% more; Lightning Bolt, Chain Lightning and the heals cost half
     # as much mana; Maelstrom Weapon (mod-shaman)
     @{ Id = 95581; Clone = 2983; Name = 'Amélioration'; IconPath = 'Interface\Icons\Spell_Nature_LightningShield'; FallbackIconSpell = 17364; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
-       Description = "Vos coups en mêlée chargent l'Arme du Maelström, qui rend plus rapides et plus puissants vos Éclairs, Chaînes d'éclairs et sorts de soins. Frappe-tempête, Fouet de lave, Foudre écrasante, Frappe de glace et Fracture infligent 20% de dégâts en moins, Chaîne d'éclairs inflige 100% de dégâts en plus, et Éclair, Chaîne d'éclairs et vos soins coûtent 50% de mana en moins."
+       Description = "Vos coups en mêlée chargent l'Arme du Maelström, qui rend plus rapides et plus puissants vos Éclairs, Chaînes d'éclairs et sorts de soins. Frappe-tempête, Fouet de lave, Foudre écrasante, Frappe de glace et Fracture infligent 5% de dégâts en plus, Chaîne d'éclairs inflige 100% de dégâts en plus, et Éclair, Chaîne d'éclairs et vos soins coûtent 50% de mana en moins."
        Effects = @(
-           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -20; Misc = $SPELLMOD_DAMAGE },
+           @{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 5; Misc = $SPELLMOD_DAMAGE },
            @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -50; Misc = $SPELLMOD_COST },
            @{ Index = 2; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 100; Misc = $SPELLMOD_DAMAGE })
        Fields = @{ 122 = 0; 123 = $maskStormstrike; 124 = ($maskLavaLash -bor $flagCrashLightning -bor $flagIceStrike -bor $flagSundering)

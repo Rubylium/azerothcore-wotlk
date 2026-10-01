@@ -12,7 +12,7 @@ none, Flame Shock keeps its own 6 s; Chain Lightning has no cooldown either and 
 ## The specializations
 
 - **Élémentaire** (spec passive 95580: Earth Shock +150%; Lightning Bolt, Chain Lightning, Lava Burst and Frost
-  Shock -15%, the procs and the spenders carry the specialization) fights with Maelstrom (Maelström, 95400): an aura of up to 100 stacks (150 with Maelström gonflé), the resource
+  Shock +15%, the procs and the spenders carry the specialization) fights with Maelstrom (Maelström, 95400): an aura of up to 100 stacks (150 with Maelström gonflé), the resource
   shown the way the other reworks show theirs. Lightning Bolt 8, each enemy Chain Lightning hits 4, Lava Burst 10,
   Icefury 25, each Icefury-empowered Frost Shock 8, each Lightning Overload 3. Earth Shock (60, no mana), Earthquake
   (Séisme, 60: a shake every second for 6 s within 8 yd of the chosen spot) and Elemental Blast (90, a 2 s bolt and 6%
@@ -25,7 +25,7 @@ none, Flame Shock keeps its own 6 s; Chain Lightning has no cooldown either and 
   15 s, and a Lava Burst at every enemy with the Shaman's Flame Shock), Totem of Wrath, the primordial Fire Elemental
   (2 min 30 s). Maelstrom fades 15 s after combat.
 - **Amélioration** (95581: Chain Lightning +100%; Stormstrike, Lava Lash, Crash Lightning, Ice Strike and Sundering
-  -20%; Lightning Bolt, Chain Lightning and the heals half the mana; Dual Wield, Stormstrike and Lava Lash come with the specialization)
+  +5%; Lightning Bolt, Chain Lightning and the heals half the mana; Dual Wield, Stormstrike and Lava Lash come with the specialization)
   charges Maelstrom Weapon (Arme du Maelström, 95402): 20% of the auto attacks (35% with Vents indomptés, every one
   during Doom Winds), each Stormstrike, Lava Lash and Ice Strike with Assaut élémentaire (2 with Maelström primordial)
   and the Feral Spirit wolves every 3 s; up to 5 stacks, 10 with Maelström déchaîné. A Lightning Bolt, Chain Lightning
@@ -80,6 +80,12 @@ rounds each, the Fire Mage in the same runs, no tank bot; the shaman words are `
 | single (single-target build) | 5.35k | 5.0k (94%) | 6.2k (115%) |
 | pack of 5 (AoE build) | 14.9k | 14.6k (98%) | 13.8k (93%) |
 | pack of 12 (AoE build) | 30.5k | 20.8k (68%) | 17.9k (59%) |
+
+On a raid boss (`-layouts boss -key raid`, ICC 10 Défi I) the passives above were first -15% and -20%: Elemental did
+5.0k and Enhancement 5.1k next to the Fire Mage's 6.2k (80%, 82%), and in the Hollow Voice the user found Enhancement
+very low. Tuned live on the bench session (`.tune spell` on the bolts, Lava Burst, Frost Shock and the strikes) to
++15% / +5%, and Maelstrom Weapon 15% a stack (was 12%): Elemental about 92-100% of the mage on the raid boss,
+Enhancement about 95%. The dungeon-key numbers above predate this pass (both sit higher now).
 
 Restoration, alone with a Fire Mage and a Fury Warrior under a 15% group pulse (`-pulse 15`, single layout, 60 s):
 about 4.6k healing a second at 26% overheal, next to 5.2k for the Holy Priest and 3.7k for the Holy Paladin in the same
