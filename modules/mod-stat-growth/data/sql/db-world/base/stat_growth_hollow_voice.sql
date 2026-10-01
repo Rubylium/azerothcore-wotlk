@@ -17,6 +17,7 @@
 -- hides him and removes him from any instance that is not a challenge's, and clears the chamber of its own occupants.
 
 DELETE FROM `creature` WHERE `guid` = 9000401;
+DELETE FROM `creature_equip_template` WHERE `CreatureID` = 930100;
 DELETE FROM `creature_text_locale` WHERE `CreatureID` IN (930100, 930101);
 DELETE FROM `creature_text` WHERE `CreatureID` IN (930100, 930101);
 DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 930100 AND 930102;
@@ -167,11 +168,15 @@ INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Te
 
 -- Where M'uru floats, on the chamber's floor (69.6 in its middle, 71.2 at its edge, 39 yards round: measured with
 -- .hollow floor), facing the way in, in Sunwell's only mode (spawn mask 1)
+-- The Archbishop wields the Hammer of the Naaru (28800), his golden warhammer of the Light
+INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`) VALUES
+    (930100, 1, 28800, 0, 0, 0);
+
 INSERT INTO `creature`
     (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
      `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`,
      `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`,
      `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`)
 VALUES
-    (9000401, 930100, 580, 0, 0, 1, 1, 0, 1816.25, 625.484, 69.65, 5.62435, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
+    (9000401, 930100, 580, 0, 0, 1, 1, 1, 1816.25, 625.484, 69.65, 5.62435, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
      NULL, 0, 'The Hollow Voice - M''uru''s chamber (Défi board only)');
