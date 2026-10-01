@@ -140,7 +140,14 @@ $spells = @(
     # His true form: an NPC Shadowform's look (16592) without its damage changes
     @{ Id = 94041; Clone = 16592; Name = 'Forme véritable'; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'La forme véritable de Vel''thazar.'; AuraDescription = 'La forme véritable de Vel''thazar.'
-       Fields = @{ 40 = 21; 131 = 3619 } }
+       Fields = @{ 40 = 21; 131 = 3619 } },
+    # The healers' work in the quiet moments between mechanics: a raid-wide hit in pulses (HollowVoice.cpp Litany)
+    @{ Id = 94042; Clone = 48078; Name = 'Litanie de pénitence'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Frappe tout le groupe, par vagues.'
+       Fields = @{ 225 = $holy } },
+    @{ Id = 94043; Clone = 46161; Name = 'Lamentation creuse'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Frappe tout le groupe, par vagues.'
+       Fields = @{ 225 = $shadow } }
 )
 
 return $spells

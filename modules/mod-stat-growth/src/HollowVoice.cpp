@@ -54,25 +54,25 @@
 //      1:57.5 the verdict: not at 1%, Last Rites - a holy judgement kills the group on his track's last bars, and the
 //      demon is never seen nor heard; at 1%, he falls as his track fades (1:59.7).
 // 1:59.7-2:05.0 the break: silence, the fallen Archbishop's warning (2:01.7).
-// 2:05.0 Vel'thazar's track (5:30) follows; on its first hit (2:06.5) Vel'thazar, the Hollow Voice, tears out of the
+// 2:05.0 Vel'thazar's track (5:30) follows from its first hit, and Vel'thazar, the Hollow Voice, tears out of the
 //      Archbishop, who stays hidden. Killing the demon frees and kills the Archbishop: his kill is the board's win
 //      (RaidFinder follows the board's boss, 930100).
-//      2:08-3:08 Vampiric Brand on his tank (he feeds on a tank marked three times), Carrion Swarm (a cone), Hollow
-//      Echo (the Archbishop's aisles and rings come back inverted), and on the 0:47 hit Whisper of Doubt (three
-//      carried circles).
-//      3:08 Last Light: the void pulses, three shrinking pools of the Archbishop's light are the only shelter.
-//      3:22.6 Nightmare Lances (a void lance to each of two marked), and on the 1:43.5 hit two Dread Infernals crash
+//      2:06.5-3:06.5 Vampiric Brand on his tank (he feeds on a tank marked three times), Carrion Swarm (a cone),
+//      Hollow Echo (the Archbishop's aisles and rings come back inverted), and on the 0:47 hit Whisper of Doubt
+//      (three carried circles).
+//      3:06.5 Last Light: the void pulses, three shrinking pools of the Archbishop's light are the only shelter.
+//      3:21.1 Nightmare Lances (a void lance to each of two marked), and on the 1:43.5 hit two Dread Infernals crash
 //      (each impact shared) and fight on.
-//      4:06 Inhale of the Void: he draws everyone in while void falls; on the drop (4:12.8) all near him are struck.
-//      4:12.8 his true form: bigger, the chamber's edge devoured for the rest of the fight; three swarms spin round
+//      4:04.5 Inhale of the Void: he draws everyone in while void falls; on the drop (4:11.3) all near him are struck.
+//      4:11.3 his true form: bigger, the chamber's edge devoured for the rest of the fight; three swarms spin round
 //      him.
-//      4:46 Aldric's Last Prayer: the Archbishop fights from inside - the demon is imprisoned, four lights of his
+//      4:44.5 Aldric's Last Prayer: the Archbishop fights from inside - the demon is imprisoned, four lights of his
 //      stand in the chamber: carried into the demon, each cracks the prison and blesses its carrier. Not broken by
 //      the climax: a void blast on everyone for each light left.
-//      5:17.4 the loudest climax: Hollow Sermon (void towers, a Bastion tower), crosses of void, the swarms.
-//      6:20 the dark section: Voice of Ruin on the three stabs (6:32, 6:49, 7:04) - near death for everyone, halved
-//      under Aldric's last Aegis, held by a tank.
-// 7:22.1 / 7:22.7 / 7:23.1 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
+//      5:15.9 the loudest climax: Hollow Sermon (void towers, a Bastion tower), crosses of void, the swarms.
+//      6:18.5 the dark section: Voice of Ruin on the three stabs (6:30.5, 6:47.5, 7:02.5) - near death for everyone,
+//      halved under Aldric's last Aegis, held by a tank.
+// 7:20.6 / 7:21.2 / 7:21.6 (the track's BAM BAM BAM, 5:17.1-5:18.1): the hard enrage, three blasts of three times
 //      everyone's health, then a pulse every second that kills whatever protects them.
 //
 // Every avoidable hit is drawn first (GroundIndicators, the red; a sigil of the user's under a soak) and resolved on
@@ -107,6 +107,15 @@ constexpr Seconds WipeRespawnDelay = 5s;
 constexpr uint32 DefiGraceMs = 8000;            // players are waited for this long before a non-challenge's goes
 
 // The Archbishop's
+// The healers' work between mechanics (Litany): when nothing has been asked of the group for LitanyQuietMs and nothing
+// is coming for LitanyLeadMs, a raid-wide hit in LitanyPulses pulses - the fight alternates the damage dealers' moments
+// (mechanics) and the healers' (the quiet ones). Its spells: Litany of Penance (the Archbishop), Hollow Lament.
+constexpr uint32 LitanyQuietMs = 6000;
+constexpr uint32 LitanyLeadMs = 4000;
+constexpr uint32 LitanyPulses = 3;
+constexpr uint32 LitanyPulseMs = 1300;
+constexpr uint32 LitanyCooldownMs = 9000;
+constexpr float LitanyPct = 7.0f;               // each pulse, on everyone
 constexpr float RadiancePct = 8.0f;             // Holy Radiance on everyone...
 constexpr float RadianceSeraphimPct = 12.0f;    // ... with his wings
 constexpr float JudgementPct = 60.0f;           // on his tank, before Condemned
@@ -276,9 +285,12 @@ constexpr uint32 RevealTestStartMs = 110000;    // a pull armed with .hollow rev
 // A wipe before the demon's part ends the track at least this long before it: the client fades a track out over a
 // few seconds, and the demon's part must not be heard in that fade (it would spoil him)
 constexpr uint32 TrackEndMarginMs = 5000;
-constexpr uint32 AtReveal = AtSecondTrack + 1500;               // its first hit
-// The second track's sections, from its start
-constexpr uint32 T2(uint32 ms) { return AtSecondTrack + ms; }
+// The second track is shipped from its first hit (buildMusic.py VELTHAZAR_TRIM_SECONDS: its lead-in rose like a fade-in
+// after the silence): the demon tears out on it, at its start
+constexpr uint32 SecondTrackTrimMs = 1500;
+constexpr uint32 AtReveal = AtSecondTrack;                      // its first hit
+// The second track's sections, from the start of the track as composed
+constexpr uint32 T2(uint32 ms) { return AtSecondTrack + ms - SecondTrackTrimMs; }
 constexpr uint32 AtAbsolution = 60700;
 constexpr uint32 AtAbsolutionEnd = AtAbsolution + AbsolutionMs;
 constexpr uint32 AtVerdict = 85500;             // the hammer lands on the hit
@@ -371,6 +383,8 @@ constexpr NamedSpell SPELL_EDGE = { 94029, STOCK_SHADOW };
 constexpr NamedSpell SPELL_SERMON = { 94033, STOCK_SHADOW };
 constexpr NamedSpell SPELL_RUIN = { 94034, STOCK_SHADOW };
 constexpr NamedSpell SPELL_HOLLOW_PULSE = { 94036, STOCK_SHADOW };
+constexpr NamedSpell SPELL_LITANY = { 94042, STOCK_HOLY };
+constexpr NamedSpell SPELL_LAMENT = { 94043, STOCK_SHADOW };
 constexpr NamedSpell SPELL_SILENCE = { 94037, STOCK_SHADOW };
 constexpr NamedSpell SPELL_VOID_CROSS = { 94038, STOCK_SHADOW };
 constexpr NamedSpell SPELL_TEAR = { 94039, STOCK_SHADOW };
@@ -426,6 +440,12 @@ constexpr GroundIndicators::PaintedLine LINE_CROSS { 94074, 4, 2.4f, true, 94124
 constexpr GroundIndicators::PaintedLine LINE_CROSS_HIT { 94078, 4, 2.4f, true, 94128 };
 // The spinning swarms' light, standing up along each arm as it turns (HV_SwarmCurtain, 36 yards)
 constexpr uint32 SWARM_CURTAIN = 94132;
+// A cone's edges standing up from the floor (HV_*Edge, 40 yards: every cone of the fight's reach), low and breathing
+// for the warning, tall where it lands (ConeEdges, StrikeEdges)
+constexpr uint32 EDGE_HOLY = 94133;
+constexpr uint32 EDGE_HOLY_HIT = 94134;
+constexpr uint32 EDGE_CARRION = 94135;
+constexpr uint32 EDGE_CARRION_HIT = 94136;
 // A tower's looks (shapes.json): the sigils lit once held, the gems round its rim (empty, lit), one a soaker
 constexpr uint32 LOOK_SIGIL_RADIANT_LIT = 90673;
 constexpr uint32 LOOK_SIGIL_VOID_LIT = 90674;
@@ -471,7 +491,7 @@ enum Kits : uint32
     KIT_SHADOW_CRASH_CAST   = 12583,
     KIT_INFERNO_HIT         = 117,
     KIT_THOUSAND_SOULS      = 9552,
-    KIT_DARKNESS            = 8717,
+    // Not Darkness (8717): its world effect, a darkness all round, never ends once played - it hid the rest of the fight
     KIT_SHADOWFLAME_CAST    = 10386,
     KIT_VOID_BLAST_HIT      = 6706,
     KIT_FEAR_HIT            = 498,
@@ -542,6 +562,24 @@ enum class Ability : uint8
     VoidCross,
     Ruin,
 };
+
+// The steady background (a tank's hit, a regular pulse), not a mechanic asking something of the group: the quiet
+// between mechanics is when the Litany falls
+bool IsBackgroundStep(Ability ability)
+{
+    switch (ability)
+    {
+        case Ability::Radiance:
+        case Ability::Judgement:
+        case Ability::HollowPulse:
+        case Ability::Brand:
+        case Ability::LastLightPulse:
+        case Ability::LastPrayerPulse:
+            return true;
+        default:
+            return false;
+    }
+}
 
 // Steps that change the fight's state: a skip (.hollow skip) still runs them. Not the Prayer of Absolution: run over
 // in a skip it started and ended at once, and he healed 8%.
@@ -615,7 +653,7 @@ std::vector<Step> BuildTimeline()
     once(Ability::Sentence, 101000);
     once(Ability::Wake, 108000);
 
-    // --- Vel'thazar: the reveal (2:06.5) to Last Light
+    // --- Vel'thazar: the reveal (2:05.0) to Last Light
     uint32 const start = AtReveal + 1000;
     every(Ability::HollowPulse, AtReveal + 6500, 12000, AtLastLight - 2000);
     every(Ability::Brand, AtReveal + 4500, 10000, AtLastLight);
@@ -1340,6 +1378,10 @@ private:
         _towers.clear();
         _condemned.clear();
         _brand.clear();
+        _lastImpact = 0;
+        _lastMechanic = 0;
+        _nextLitany = 0;
+        _ongoing = false;
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->SetStandState(UNIT_STAND_STATE_STAND);
         me->SetControlled(false, UNIT_STATE_ROOT);
@@ -1595,6 +1637,37 @@ private:
             }
     }
 
+    // A cone's two edges, their light standing up from the floor (EDGE_*: built to the cones' 40 yards, never scaled),
+    // from its apex on the ground, for its warning and its landing (StrikeEdges)
+    void ConeEdges(GroundIndicators::Area const& cone, uint32 look, uint32 durationMs)
+    {
+        Position const apex = Ground(cone.origin);
+        for (float const side : { -0.5f, 0.5f })
+            GroundIndicators::ShowDecal(me, apex, Position::NormalizeOrientation(cone.origin.GetOrientation() +
+                side * cone.arc), 1.0f, durationMs + StrikeMs, look);
+    }
+
+    // Where the cone lands: its edges' warning turned to their hit. One carrier an edge: two cones side by side (Wake
+    // of Ashes) share one, and either of the two turning looks the same.
+    void StrikeEdges(GroundIndicators::Area const& cone, uint32 from, uint32 to)
+    {
+        std::list<Creature*> stalkers;
+        me->GetCreatureListWithEntryInGrid(stalkers, NPC_STALKER, 60.0f);
+        for (float const side : { -0.5f, 0.5f })
+        {
+            float const facing = Position::NormalizeOrientation(cone.origin.GetOrientation() + side * cone.arc);
+            for (Creature* stalker : stalkers)
+                if (stalker->HasAura(from) && stalker->GetExactDist2d(&cone.origin) < 0.5f &&
+                    std::fabs(Position::NormalizeOrientation(stalker->GetOrientation() - facing + float(M_PI)) -
+                    float(M_PI)) < 0.02f)
+                {
+                    stalker->RemoveAurasDueToSpell(from);
+                    stalker->AddAura(to, stalker);
+                    break;
+                }
+        }
+    }
+
     // What a landing leaves on the floor a while (a hammer's, a crash's)
     void Scorch(Position const& where, float radius, uint32 look)
     {
@@ -1822,6 +1895,8 @@ private:
             if (!skipping || IsStageStep(what))
                 Execute(what);
         }
+        if (!skipping)
+            UpdateLitany(elapsed);
         if (_phase != Phase::Hollow)
             return;
         while (_blasts < AtEnrageBlasts.size() && elapsed >= AtEnrageBlasts[_blasts])
@@ -1833,8 +1908,62 @@ private:
         }
     }
 
+    // The quiet between mechanics: the Litany (see LitanyQuietMs), never inside a mechanic that runs on (a prayer, a
+    // pulse of Last Light, the Inhale) nor in the break
+    void UpdateLitany(uint32 elapsed)
+    {
+        if ((_phase != Phase::Aldric && _phase != Phase::Hollow) || _ongoing || _kneeling || elapsed < _nextLitany ||
+            elapsed < _lastMechanic + LitanyQuietMs || _blasts > 0)
+            return;
+        bool const demon = _phase == Phase::Hollow;
+        for (std::size_t index = _next; index < _timeline.size(); ++index)
+        {
+            Ability const what = _timeline[index].what;
+            if (IsBackgroundStep(what) || IsVelthazarStep(what) != demon)
+                continue;
+            if (_timeline[index].at < elapsed + LitanyLeadMs)
+                return;
+            break;
+        }
+        _nextLitany = elapsed + LitanyCooldownMs;
+        Litany(demon);
+    }
+
+    void Litany(bool demon)
+    {
+        Unit* caster = Caster();
+        caster->SendPlaySpellVisual(demon ? KIT_SHADOWFLAME_CAST : KIT_HOLY_NOVA_CAST);
+        for (uint32 pulse = 0; pulse < LitanyPulses; ++pulse)
+            scheduler.Schedule(Milliseconds(400 + pulse * LitanyPulseMs), [this, demon](TaskContext)
+            {
+                if (_phase != (demon ? Phase::Hollow : Phase::Aldric))
+                    return;
+                Caster()->SendPlaySpellVisual(demon ? KIT_SHADOW_NOVA_CAST : KIT_HOLY_NOVA_CAST);
+                HitEveryone(demon ? SPELL_LAMENT : SPELL_LITANY, LitanyPct);
+            });
+    }
+
     void Execute(Ability what)
     {
+        if (!IsBackgroundStep(what))
+            _lastMechanic = Elapsed();
+        switch (what)
+        {
+            case Ability::AbsolutionStart:
+            case Ability::LastLightStart:
+            case Ability::InhaleStart:
+            case Ability::LastPrayerStart:
+                _ongoing = true;
+                break;
+            case Ability::AbsolutionEnd:
+            case Ability::LastLightEnd:
+            case Ability::TrueForm:
+            case Ability::LastPrayerEnd:
+                _ongoing = false;
+                break;
+            default:
+                break;
+        }
         // Each boss's own: the Archbishop's wait for him standing, the demon's for the demon
         bool const demonStep = IsVelthazarStep(what);
         if (demonStep != (_phase == Phase::Hollow) || (!demonStep && _phase != Phase::Aldric))
@@ -1926,10 +2055,12 @@ private:
         me->SendPlaySpellVisual(KIT_DIVINE_STORM_CAST);
         GroundIndicators::Area const area = Paint(ConeArea(apex, facing,
             LightOfDawnRadius, LightOfDawnArc), PAINT_DAWN, LightOfDawnWarningMs, GroundIndicators::Theme::Holy);
+        ConeEdges(area, EDGE_HOLY, LightOfDawnWarningMs);
         scheduler.Schedule(Milliseconds(LightOfDawnWarningMs), [this, area](TaskContext)
         {
             Sound(SOUND_LIGHT_OF_DAWN);
             Strike(area, PAINT_DAWN_HIT);
+            StrikeEdges(area, EDGE_HOLY, EDGE_HOLY_HIT);
             for (Player* player : PlayersIn(area))
                 Hit(player, SPELL_LIGHT_OF_DAWN, LightOfDawnPct, true);
             EndWindup();
@@ -2094,7 +2225,7 @@ private:
         uint32 const count = 3;
         float const base = frand(0.0f, 2.0f * float(M_PI));
         Sound(sermon ? SOUND_HOLLOW_ECHO : SOUND_CHOIR);
-        caster->SendPlaySpellVisual(sermon ? KIT_DARKNESS : KIT_HYMN_CAST);
+        caster->SendPlaySpellVisual(sermon ? KIT_SHADOW_NOVA_CAST : KIT_HYMN_CAST);
         std::vector<Position> towers;
         for (uint32 index = 0; index < count; ++index)
         {
@@ -2302,10 +2433,12 @@ private:
             {
                 GroundIndicators::Area const area = Paint(ConeArea(apex, facing,
                     WakeRadius, WakeArc), PAINT_WAKE, WakeWarningMs, GroundIndicators::Theme::Holy);
+                ConeEdges(area, EDGE_HOLY, WakeWarningMs);
                 scheduler.Schedule(Milliseconds(WakeWarningMs), [this, area, cone](TaskContext)
                 {
                     me->SetFacingTo(area.origin.GetOrientation());
                     Strike(area, PAINT_WAKE_HIT);
+                    StrikeEdges(area, EDGE_HOLY, EDGE_HOLY_HIT);
                     for (Player* player : PlayersIn(area))
                         Hit(player, SPELL_WAKE, WakePct, true);
                     if (cone + 1 == WakeCones)
@@ -2345,7 +2478,7 @@ private:
         scheduler.Schedule(Milliseconds(AtWarning - AtFall), [this](TaskContext)
         {
             Talk(SAY_ALDRIC_WARNING);
-            me->SendPlaySpellVisual(KIT_DARKNESS);
+            me->SendPlaySpellVisual(KIT_SHADOWFLAME_CAST);
         });
         scheduler.Schedule(Milliseconds(AtSecondTrack - 800 - AtFall), [this](TaskContext)
         {
@@ -2376,7 +2509,7 @@ private:
         Wipe();
     }
 
-    // 2:06.5, the second track's first hit: Vel'thazar tears out of the Archbishop, who is no longer seen
+    // 2:05.0, the second track's first hit: Vel'thazar tears out of the Archbishop, who is no longer seen
     void Reveal()
     {
         _phase = Phase::Hollow;
@@ -2445,10 +2578,12 @@ private:
         demon->SendPlaySpellVisual(KIT_CARRION_CAST);
         GroundIndicators::Area const area = Paint(ConeArea(apex, facing, SwarmRadius,
             SwarmArc), PAINT_CARRION, SwarmWarningMs, GroundIndicators::Theme::Shadow);
+        ConeEdges(area, EDGE_CARRION, SwarmWarningMs);
         scheduler.Schedule(Milliseconds(SwarmWarningMs), [this, area](TaskContext)
         {
             Sound(SOUND_CARRION_SWARM);
             Strike(area, PAINT_CARRION_HIT);
+            StrikeEdges(area, EDGE_CARRION, EDGE_CARRION_HIT);
             for (Player* player : PlayersIn(area))
                 Hit(player, SPELL_SWARM, SwarmPct, true);
             EndWindup();
@@ -2485,9 +2620,12 @@ private:
         Sound(SOUND_VOICE_OF_RUIN);
         if (Creature* demon = Velthazar())
         {
-            demon->SendPlaySpellVisual(KIT_DARKNESS);
+            demon->SendPlaySpellVisual(KIT_SHADOW_NOVA_CAST);
             demon->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         }
+        // The dark over the chamber while the void pulses, and only then
+        GroundIndicators::ShowParticles(me, CircleArea(Center(), ArenaWalkRadius), GroundIndicators::Theme::Shadow,
+            AtLastLightEnd - AtLastLight);
         _pools.clear();
         float const base = frand(0.0f, 2.0f * float(M_PI));
         for (uint32 pool = 0; pool < LastLightPools; ++pool)
@@ -3047,6 +3185,9 @@ private:
     bool _finishing = false;
     bool _kneeling = false;                     // Prayer of Absolution
     uint32 _lastImpact = 0;                     // Impact's spacing
+    uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
+    uint32 _nextLitany = 0;                     // ... the earliest the next may fall...
+    bool _ongoing = false;                      // ... and a mechanic running on (none falls meanwhile)
     bool _seraphim = false;
     bool _windup = false;
     bool _trueForm = false;

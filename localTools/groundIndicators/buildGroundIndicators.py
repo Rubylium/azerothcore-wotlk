@@ -598,8 +598,8 @@ def build_model(template, shape, texture_path, fade=False):
 
 
 # A shape of kind "curtain" is a line's light standing up from the floor (3D, unlike the projected paintings): two
-# planes crossed along the line (an X across it, each leaning `lean` of its height off the vertical, so it reads from
-# above as from the side), `height` yards tall, `length` yards long (built to size: its carrier is never scaled; a
+# planes crossed along the line (an X across it, each meeting the floor `spread` yards off the line's middle and leaning
+# across it, so it covers the line's width and reads from above as from the side), `height` yards tall, `length` yards long (built to size: its carrier is never scaled; a
 # piece of a line drawn in pieces is centred on its carrier, a whole one starts at it). Its texture is its painting's
 # whole tile, bright at the floor and fading up (the painted band's middle at the floor, its edge at the top), added to
 # what is behind it, flowing along the line every `scroll` ms. A piece (`segment` [index, count]) shows its share of
@@ -631,7 +631,9 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     data = bytearray(template)
     length = float(shape['length'])
     height = float(shape['height'])
-    lean = height * shape.get('lean', 0.35)
+    # How far off the line's middle each plane meets the floor: `spread` yards (most of the line's width: a narrow X
+    # read as a seam down the middle), or `lean` of its height
+    lean = shape.get('spread', height * shape.get('lean', 0.35))
     x0, x1 = (-length / 2.0, length / 2.0) if shape.get('segment') else (0.0, length)
     index, count = shape.get('segment', [0, 1])
     u0 = index / count

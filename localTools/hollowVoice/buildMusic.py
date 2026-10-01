@@ -21,11 +21,14 @@ import subprocess
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUTPUT = os.path.join(REPO, 'modules', 'mod-stat-growth', 'client-assets', 'compiled', 'music')
-TARGET_LUFS = -12.0
+TARGET_LUFS = -9.0          # was L'Infini's -12: under the fight's sounds (-7, impacts -5) the music was lost
 TRUE_PEAK = -1.0
 RANGE = 11.0
 SWITCH_SECONDS = 120.0      # the Archbishop's track ends (its fade done)
 GAP_SECONDS = 5.0           # HollowVoice.cpp TransitionMs: Vel'thazar's starts at AtSecondTrack = SWITCH + GAP
+# Vel'thazar's track from its first hit: its 1.5 s lead-in rose like a fade-in after the silence (HollowVoice.cpp
+# SecondTrackTrimMs: the demon tears out on the hit, at AtSecondTrack)
+VELTHAZAR_TRIM_SECONDS = 1.5
 REVEAL_TEST_SECONDS = 110.0 # HollowVoice.cpp RevealTestStartMs
 
 
@@ -61,9 +64,18 @@ def main():
     parser.add_argument('velthazar', nargs='?')
     parser.add_argument('--ffmpeg', default=default_ffmpeg())
     parser.add_argument('--join-only', action='store_true', help='join the normalised tracks already in the output')
+    parser.add_argument('--renormalise', action='store_true',
+                        help='normalise the tracks already in the output again (to TARGET_LUFS), then join')
     args = parser.parse_args()
     os.makedirs(OUTPUT, exist_ok=True)
-    if args.join_only:
+    if args.renormalise:
+        for name in ('HollowVoiceAldric.mp3', 'HollowVoiceVelthazar.mp3'):
+            shipped = os.path.join(OUTPUT, name)
+            source = shipped + '.source.mp3'
+            os.replace(shipped, source)
+            normalise(args.ffmpeg, source, shipped)
+            os.remove(source)
+    if args.join_only or args.renormalise:
         join(args.ffmpeg)
         return
     normalise(args.ffmpeg, args.archbishop, os.path.join(OUTPUT, 'HollowVoiceAldric.mp3'))
@@ -76,7 +88,7 @@ def join(ffmpeg):
     velthazar = os.path.join(OUTPUT, 'HollowVoiceVelthazar.mp3')
     target = os.path.join(OUTPUT, 'HollowVoice.mp3')
     graph = (f'[0]atrim=0:{SWITCH_SECONDS},asetpts=N/SR/TB[a];[1]atrim=0:{GAP_SECONDS},asetpts=N/SR/TB[g];'
-             f'[2]asetpts=N/SR/TB[v];[a][g][v]concat=n=3:v=0:a=1')
+             f'[2]atrim=start={VELTHAZAR_TRIM_SECONDS},asetpts=N/SR/TB[v];[a][g][v]concat=n=3:v=0:a=1')
     silence = ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100']
     subprocess.run([ffmpeg, '-hide_banner', '-nostats', '-y', '-i', aldric, *silence, '-i', velthazar,
                     '-filter_complex', graph,
