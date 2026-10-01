@@ -5,11 +5,13 @@
 #
 #   .\localTools\combatBench\runBench.ps1 -bots 'mage fire aoe;rogue sub aoe'
 #   .\localTools\combatBench\runBench.ps1 -bots 'hunter bm aoe;hunter mm aoe' -layouts 'pack5,pack12' -key 15
+#   .\localTools\combatBench\runBench.ps1 -bots 'shaman resto;priest holy' -layouts 'tankpack' -pulse 12
 param(
     [Parameter(Mandatory = $true)][string]$bots,          # ";"-separated `.bench bot` arguments
     [string]$layouts = 'single,pack5,pack8,pack12',
     [string]$key = '10',
     [int]$seconds = 45,
+    [int]$pulse = 0,                                       # a group damage pulse for healer tests (% of reference health)
     [switch]$noSpells                                      # skip the per-spell tables
 )
 
@@ -77,6 +79,7 @@ $env:BENCH_BOTS = $bots
 $env:BENCH_LAYOUTS = $layouts
 $env:BENCH_KEY = $key
 $env:BENCH_SECS = "$seconds"
+$env:BENCH_PULSE = if ($pulse -gt 0) { "$pulse" } else { '' }
 
 # --- Run ------------------------------------------------------------------------------------------------------------
 $outputDirectory = Join-Path $repositoryRoot 'var\combatBench'

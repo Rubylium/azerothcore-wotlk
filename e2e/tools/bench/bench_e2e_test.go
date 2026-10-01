@@ -123,6 +123,11 @@ func TestTool_CombatBench(t *testing.T) {
 		}
 	}
 	time.Sleep(10 * time.Second)
+	// A group damage pulse for healer tests (`.bench pulse`): BENCH_PULSE, a share of the key's reference health
+	if pulse := os.Getenv("BENCH_PULSE"); pulse != "" {
+		bot.GM(t, ".bench pulse "+pulse)
+		time.Sleep(time.Second)
+	}
 	bot.GM(t, ".bench list")
 	time.Sleep(2 * time.Second)
 	for _, line := range log.since(setup) {
