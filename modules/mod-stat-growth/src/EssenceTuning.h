@@ -13,8 +13,8 @@ namespace EssenceTuning
 constexpr uint32 MaxResourceBonus = 500;
 constexpr uint32 MaxFortuneBonus = 100;
 // Experience feeds the paragon bar at the level cap (AddParagonExperience): past this, paragon would come too easily.
-// Essences and the gear's experience affix together. 2000%: 200% held the bar back for good.
-constexpr uint32 MaxExperienceBonus = 2000;
+// Essences and the gear's experience affix together. 3000%: 200% held the bar back for good.
+constexpr uint32 MaxExperienceBonus = 3000;
 
 // Diminishing returns on the uncapped families (.agents/docs/systems/power-scaling.md): a character's saved points
 // count as ceiling * (1 - e^(-points / ceiling)) - the first few hundred almost in full, then less and less, never
