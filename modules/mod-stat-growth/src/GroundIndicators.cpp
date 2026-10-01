@@ -528,7 +528,22 @@ std::vector<EmitterSpot> EmitterSpots(Unit* owner, GroundIndicators::Area const&
     return spots;
 }
 
-// The stalker that shows spellId at a size of scale yards; it goes away by itself after durationMs
+// A look's fading twin (its alpha falling to nothing in FadeMs from when it is put on: buildGroundIndicators.py
+// fade_spell, patchSinisterStrike.ps1 keep the same rule), 0 for none
+constexpr uint32 FadeMs = 300;
+
+uint32 FadeLookOf(uint32 look)
+{
+    if (look >= 90600 && look < 90900)
+        return look + 6000;
+    if (look >= 94000 && look < 94200)
+        return look + 200;
+    return 0;
+}
+
+// The stalker that shows spellId at a size of scale yards; it goes away by itself after durationMs, its look turned
+// to its fading twin FadeMs before (gone at once, a painting popped off the floor). A look changed meanwhile (a warning
+// to its hit) fades the same way.
 Creature* Place(Unit* owner, Position const& position, float orientation, uint32 spellId, float scale,
                 uint32 durationMs)
 {
@@ -540,8 +555,26 @@ Creature* Place(Unit* owner, Position const& position, float orientation, uint32
     if (!stalker)
         return nullptr;
 
-    stalker->SetObjectScale(scale);
+    // A model built to its size (a line's piece) is never scaled: a unit's scale set after it shows grows into
+    // place on the client, and the pieces of a line grew from their middles, the line cut up until they had
+    if (scale != 1.0f)
+        stalker->SetObjectScale(scale);
     stalker->AddAura(spellId, stalker);
+    if (durationMs > FadeMs * 2)
+        stalker->m_Events.AddEventAtOffset([stalker]()
+        {
+            uint32 look = 0;
+            for (auto const& [auraId, application] : stalker->GetAppliedAuras())
+                if (FadeLookOf(auraId))
+                {
+                    look = auraId;
+                    break;
+                }
+            if (!look)
+                return;
+            stalker->RemoveAurasDueToSpell(look);
+            stalker->AddAura(FadeLookOf(look), stalker);
+        }, Milliseconds(durationMs - FadeMs));
     return stalker;
 }
 
@@ -1296,7 +1329,7 @@ void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32
 }
 
 Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
-                           float width, uint32 durationMs, uint32 hitDamage, uint32 look)
+                           float width, uint32 durationMs, uint32 hitDamage, uint32 look, uint32 curtain)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
@@ -1307,6 +1340,11 @@ Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation
     {
         stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond));
         RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
+        // Its curtain at its own size (a scaled carrier would scale its height too), turning the same way
+        if (curtain)
+            if (Creature* light = Place(owner, OnGround(owner, start.GetPositionX(), start.GetPositionY(),
+                start.GetPositionZ()), orientation, curtain, 1.0f, durationMs))
+                light->AIM_Initialize(new SweepAI(light, orientation, radiansPerSecond));
     }
     return area;
 }
@@ -1381,7 +1419,12 @@ Area ShowPaintedLine(Unit* owner, Area const& area, PaintedLine const& look, uin
             float const along = start + (float(index) + 0.5f) * piece;
             Position const at(area.origin.GetPositionX() + dx * along, area.origin.GetPositionY() + dy * along,
                               area.origin.GetPositionZ());
-            Place(owner, at, facing, look.firstSpell + index % look.count, piece, durationMs + lingerMs);
+            Place(owner, at, facing, look.firstSpell + index % look.count, look.builtToSize ? 1.0f : piece,
+                  durationMs + lingerMs);
+            // Its light standing up from the floor, on a carrier of its own (never scaled: built to the piece)
+            if (look.curtain)
+                Place(owner, OnGround(owner, at.GetPositionX(), at.GetPositionY(), at.GetPositionZ()), facing,
+                      look.curtain + index % look.count, 1.0f, durationMs + lingerMs);
         }
     }
     Register(owner, nullptr, area, durationMs, hitDamage);
@@ -1407,12 +1450,20 @@ void RepaintLine(Unit* owner, Area const& area, PaintedLine const& from, Painted
             std::fabs(Position::NormalizeOrientation(stalker->GetOrientation() - facing + float(M_PI)) - float(M_PI)) > 0.02f)
             continue;
         for (uint32 index = 0; index < from.count; ++index)
+        {
             if (stalker->HasAura(from.firstSpell + index))
             {
                 stalker->RemoveAurasDueToSpell(from.firstSpell + index);
                 stalker->AddAura(to.firstSpell + index, stalker);
                 break;
             }
+            if (from.curtain && to.curtain && stalker->HasAura(from.curtain + index))
+            {
+                stalker->RemoveAurasDueToSpell(from.curtain + index);
+                stalker->AddAura(to.curtain + index, stalker);
+                break;
+            }
+        }
     }
 }
 

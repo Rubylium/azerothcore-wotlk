@@ -495,6 +495,35 @@ def animate(data, shape):
     return bool(spin)
 
 
+# A shape's fading twin (GI_<key>Fade): the same look, its alpha falling to nothing FADE_MS after it is put on.
+# GroundIndicators.cpp turns a painting's carrier to it FADE_MS before the carrier goes: gone at once, a painting
+# popped off the floor. Its spell: fade_spell (GroundIndicators.cpp FadeLookOf, patchSinisterStrike.ps1 keep the rule).
+FADE_MS = 300
+
+
+def fade_spell(spell):
+    if 90600 <= spell < 90900:
+        return spell + 6000
+    if 94000 <= spell < 94200:
+        return spell + 200
+    raise SystemExit(f'spell {spell}: no fading twin range for it (fade_spell)')
+
+
+def fade_alpha(data):
+    """Every sequence's colour alpha opaque when the model is put on, clear from FADE_MS: the twin starts its
+    animation over when its aura is applied"""
+    sequence_count, _ = array(data, 0x1C)
+    count, colors = array(data, 0x48)
+    for index in range(count):
+        track = colors + 40 * index + 20
+        times = append_block(data, struct.pack('<2I', 0, FADE_MS))
+        keys = append_block(data, struct.pack('<2h', 0x7FFF, 0))
+        time_arrays = append_block(data, struct.pack('<II', 2, times) * sequence_count)
+        value_arrays = append_block(data, struct.pack('<II', 2, keys) * sequence_count)
+        struct.pack_into('<Hh', data, track, 1, -1)
+        struct.pack_into('<IIII', data, track + 4, sequence_count, time_arrays, sequence_count, value_arrays)
+
+
 def animated_skin(skin):
     """The skin with its batch's texture no longer static (0x10), so the texture transform plays"""
     data = bytearray(skin)
@@ -506,7 +535,7 @@ def animated_skin(skin):
     return bytes(data)
 
 
-def build_model(template, shape, texture_path):
+def build_model(template, shape, texture_path, fade=False):
     data = bytearray(template)
     # A carried circle is drawn at its own size: its owner (a player) cannot be scaled
     scale = shape.get('scale', 1.0)
@@ -556,6 +585,8 @@ def build_model(template, shape, texture_path):
     struct.pack_into('<II', data, 0x128, 0, 0)
 
     animate(data, shape)
+    if fade:
+        fade_alpha(data)
 
     # Bounds of the quad, for culling
     radius = max(math.hypot(x, y) for x in (x0, x1) for y in (y0, y1))
@@ -564,6 +595,137 @@ def build_model(template, shape, texture_path):
     for index in range(sequences_count):
         struct.pack_into('<6ff', data, sequences + 64 * index + 32, x0, y0, 0.0, x1, y1, QUAD_HEIGHT, radius)
     return bytes(data)
+
+
+# A shape of kind "curtain" is a line's light standing up from the floor (3D, unlike the projected paintings): two
+# planes crossed along the line (an X across it, each leaning `lean` of its height off the vertical, so it reads from
+# above as from the side), `height` yards tall, `length` yards long (built to size: its carrier is never scaled; a
+# piece of a line drawn in pieces is centred on its carrier, a whole one starts at it). Its texture is its painting's
+# whole tile, bright at the floor and fading up (the painted band's middle at the floor, its edge at the top), added to
+# what is behind it, flowing along the line every `scroll` ms. A piece (`segment` [index, count]) shows its share of
+# the tile, so the pieces of a line, flowing on the same clock, run on seamless; `tiles` repeats the tile along a
+# whole one.
+CURTAIN_TEXTURE = (512, 128)
+
+
+def build_curtain_texture(shape):
+    source_image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGB')
+    rgb = numpy.clip(numpy.asarray(source_image, dtype=numpy.float64) / 255.0 * shape.get('gain', 1.0), 0.0, 1.0)
+    source = numpy.concatenate([rgb, rgb.max(axis=2, keepdims=True)], axis=2)
+    height, width = source.shape[:2]
+    rows_mean = source[..., 3].mean(axis=1)
+    lit = numpy.nonzero(rows_mean > 0.1 * rows_mean.max())[0]
+    top, middle = float(lit.min()), (float(lit.min()) + float(lit.max())) / 2.0
+    columns, rows = CURTAIN_TEXTURE
+    xs = (numpy.arange(columns) + 0.5) / columns * (width - 1.0)
+    v = (numpy.arange(rows) + 0.5) / rows             # 0 at the top of the curtain, 1 at the floor
+    ys = top + v * (middle - top)
+    X, Y = numpy.meshgrid(xs, ys)
+    result = sample(source, X, Y)
+    # Fading up: full at the floor, nothing at the top
+    result *= (v ** 1.5)[:, None, None]
+    return result
+
+
+def build_curtain_model(template, skin, shape, texture_path, fade=False):
+    data = bytearray(template)
+    length = float(shape['length'])
+    height = float(shape['height'])
+    lean = height * shape.get('lean', 0.35)
+    x0, x1 = (-length / 2.0, length / 2.0) if shape.get('segment') else (0.0, length)
+    index, count = shape.get('segment', [0, 1])
+    u0 = index / count
+    u1 = u0 + shape.get('tiles', 1.0) / count
+
+    # Two planes, an X across the line: from one side at the floor to the other at the top, and back
+    corners = []
+    for side in (-1.0, 1.0):
+        corners += [(x0, side * lean, 0.0, u0, 1.0), (x1, side * lean, 0.0, u1, 1.0),
+                    (x0, -side * lean, height, u0, 0.0), (x1, -side * lean, height, u1, 0.0)]
+    _, template_vertices = array(data, 0x3C)
+    vertex = bytes(data[template_vertices:template_vertices + 48])
+    block = bytearray()
+    for x, y, z, u, v in corners:
+        record = bytearray(vertex)
+        struct.pack_into('<3f', record, 0, x, y, z)
+        struct.pack_into('<2f', record, 32, u, v)
+        block += record
+    struct.pack_into('<II', data, 0x3C, len(corners), append_block(data, bytes(block)))
+
+    # The texture, wrapping along the line (it flows), and drawn as the template's: added, both sides, unlit
+    _, lookup = array(data, 0x80)
+    texture_index = struct.unpack_from('<h', data, lookup)[0]
+    _, textures = array(data, 0x50)
+    name = texture_path.encode('ascii') + b'\0'
+    name_offset = append_block(data, name)
+    struct.pack_into('<I', data, textures + 16 * texture_index + 4, 1)
+    struct.pack_into('<II', data, textures + 16 * texture_index + 8, len(name), name_offset)
+
+    colors_count, colors = array(data, 0x48)
+    for color in range(colors_count):
+        for values, offset in track_values(data, colors + 40 * color):
+            for key in range(values):
+                struct.pack_into('<3f', data, offset + 12 * key, 1.0, 1.0, 1.0)
+        for values, offset in track_values(data, colors + 40 * color + 20):
+            for key in range(values):
+                struct.pack_into('<h', data, offset + 2 * key, 0x7FFF)
+    transparency_count, transparency = array(data, 0x58)
+    for item in range(transparency_count):
+        for values, offset in track_values(data, transparency + 20 * item):
+            for key in range(values):
+                struct.pack_into('<h', data, offset + 2 * key, 0x7FFF)
+    struct.pack_into('<II', data, 0x128, 0, 0)
+
+    # Flowing (a texture transform's translation along u) and breathing (a warning's pulse), on global sequences
+    sequence_count, _ = array(data, 0x1C)
+    scroll = int(shape.get('scroll', 0))
+    pulse = shape.get('pulse')
+    loops = ([scroll] if scroll else []) + ([int(pulse[2])] if pulse else [])
+    if loops:
+        struct.pack_into('<II', data, 0x14, len(loops), append_block(data, struct.pack(f'<{len(loops)}I', *loops)))
+    if scroll:
+        transform = append_block(data, bytes(60))
+        write_global_track(data, transform, 0, sequence_count, [0, scroll], [(0.0, 0.0, 0.0), (-1.0, 0.0, 0.0)],
+                           '<3f')
+        struct.pack_into('<hh', data, transform + 20, 0, -1)
+        struct.pack_into('<hh', data, transform + 40, 0, -1)
+        struct.pack_into('<II', data, 0x60, 1, transform)
+        _, uv_lookup = array(data, 0x98)
+        struct.pack_into('<h', data, uv_lookup, 0)
+    if pulse:
+        low, high, period = pulse
+        write_global_track(data, transparency, 1 if scroll else 0, sequence_count, [0, period // 2, period],
+                           [(int(low * 0x7FFF),), (int(high * 0x7FFF),), (int(low * 0x7FFF),)], '<h')
+    if fade:
+        fade_alpha(data)
+
+    radius = math.sqrt(max(abs(x0), abs(x1)) ** 2 + lean ** 2 + height ** 2)
+    struct.pack_into('<6ff', data, 0xA0, x0, -lean, 0.0, x1, lean, height, radius)
+    sequences_count, sequences = array(data, 0x1C)
+    for sequence in range(sequences_count):
+        struct.pack_into('<6ff', data, sequences + 64 * sequence + 32, x0, -lean, 0.0, x1, lean, height, radius)
+
+    # Its skin: the eight corners, two quads; a plain batch (not projected on the floor), its texture flowing
+    model_skin = bytearray(skin)
+    triangles = [0, 1, 2, 3, 2, 1, 4, 5, 6, 7, 6, 5]
+    struct.pack_into('<II', model_skin, 0x04, 8, append_block(model_skin, struct.pack('<8H', *range(8))))
+    struct.pack_into('<II', model_skin, 0x0C, len(triangles),
+                     append_block(model_skin, struct.pack(f'<{len(triangles)}H', *triangles)))
+    struct.pack_into('<II', model_skin, 0x14, 8, append_block(model_skin, bytes(4 * 8)))
+    _, submeshes = struct.unpack_from('<II', model_skin, 0x1C)
+    struct.pack_into('<H', model_skin, submeshes + 6, 8)
+    struct.pack_into('<H', model_skin, submeshes + 10, len(triangles))
+    centre = ((x0 + x1) / 2.0, 0.0, height / 2.0)
+    struct.pack_into('<3f', model_skin, submeshes + 20, *centre)
+    struct.pack_into('<3f', model_skin, submeshes + 32, *centre)
+    struct.pack_into('<f', model_skin, submeshes + 44, radius)
+    _, batches = struct.unpack_from('<II', model_skin, 0x24)
+    flags = model_skin[batches] & ~0x04
+    if scroll:
+        flags &= ~0x10
+        struct.pack_into('<H', model_skin, batches + 22, 0)
+    model_skin[batches] = flags
+    return bytes(data), bytes(model_skin)
 
 
 def extract_template(directory):
@@ -592,6 +754,19 @@ def main():
         # A shape drawn with another's texture (a carried circle: the circle at its own size) ships none of its own
         texture_stem = f"GI_{shape.get('texture', shape['key'])}"
         texture_path = f'{ARCHIVE_ROOT}\\{texture_stem}.blp'
+        if shape['kind'] == 'curtain':
+            # The pieces of a line share their tile's texture (`texture`: the shape that ships it)
+            if 'texture' not in shape:
+                write_painted_blp(build_curtain_texture(shape), os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
+            fade_spell(shape['spell'])
+            for suffix, fade in (('', False), ('Fade', True)):
+                model, model_skin = build_curtain_model(template, skin, shape, texture_path, fade)
+                with open(os.path.join(OUTPUT_ROOT, f'{stem}{suffix}.m2'), 'wb') as output:
+                    output.write(model)
+                with open(os.path.join(OUTPUT_ROOT, f'{stem}{suffix}00.skin'), 'wb') as output:
+                    output.write(model_skin)
+            print(f"{stem}: curtain, {texture_stem}")
+            continue
         if shape['kind'] == 'texture':
             write_painted_blp(build_painted_texture(shape), os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
         elif 'texture' not in shape:
@@ -600,10 +775,18 @@ def main():
             else:
                 image = build_texture(shape, config['color'], config['alpha'])
             blp_writer.writeRawBlp(image, os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
+        shape_skin = animated_skin(skin) if shape.get('spin') else skin
         with open(os.path.join(OUTPUT_ROOT, f'{stem}.m2'), 'wb') as output:
             output.write(build_model(template, shape, texture_path))
         with open(os.path.join(OUTPUT_ROOT, f'{stem}00.skin'), 'wb') as output:
-            output.write(animated_skin(skin) if shape.get('spin') else skin)
+            output.write(shape_skin)
+        # Its fading twin, on the same texture (a carried circle goes with its aura: none)
+        if not shape.get('carried'):
+            fade_spell(shape['spell'])
+            with open(os.path.join(OUTPUT_ROOT, f'{stem}Fade.m2'), 'wb') as output:
+                output.write(build_model(template, shape, texture_path, fade=True))
+            with open(os.path.join(OUTPUT_ROOT, f'{stem}Fade00.skin'), 'wb') as output:
+                output.write(shape_skin)
         print(f"{stem}: {texture_stem}")
 
 

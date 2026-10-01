@@ -72,8 +72,11 @@ namespace GroundIndicators
     // A line from start that turns radiansPerSecond (negative: the other way) while it is drawn: a laser swept round.
     // No particles. Where it points after some time: CurrentSweep.
     // look: a painted line (shapes.json kind texture) drawn in place of the red, at width as given
+    // curtain: its light standing up from the floor (shapes.json kind curtain, built to the line's length), turning
+    // with it on a carrier of its own
     Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
-                               float length, float width, uint32 durationMs, uint32 hitDamage = 0, uint32 look = 0);
+                               float length, float width, uint32 durationMs, uint32 hitDamage = 0, uint32 look = 0,
+                               uint32 curtain = 0);
     Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
     // The same line for the bots only, nothing drawn: a sweep shown by its own visual (a beam)
     void WatchSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
@@ -125,6 +128,9 @@ namespace GroundIndicators
         uint32 firstSpell = 0;
         uint32 count = 4;
         float ratio = 2.0f;
+        bool builtToSize = false;   // its models are built at the piece's length (shapes.json scale): never scaled
+        uint32 curtain = 0;         // the first of its pieces' curtains (shapes.json kind curtain: its light standing
+                                    // up from the floor, 3D), `count` of them; 0 for none
     };
     // A rectangle area drawn as a painted line (ShowPainted otherwise). clipCenter / clipRadius: only its part within
     // that circle is drawn (a chamber: pieces past its walls would be hidden anyway); the area itself is registered

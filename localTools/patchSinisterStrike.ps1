@@ -1117,6 +1117,24 @@ $customSounds = @(
        Directory = 'Sound\Spells\Custom\HollowVoice'
        Files = @('HV_HardEnrage.ogg')
        Volume = 1.0; MinDistance = 100; Cutoff = 200 }
+    # Where a mechanic lands (HollowVoice.cpp Impact): the boss's big hit, heard over the raid - holy and void, a heavy
+    # one of each for the biggest
+    @{ Key = 'HollowVoiceImpactHoly'; Id = 30139; Clone = 13269; Name = 'Evolutions_HollowVoice_ImpactHoly'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_ImpactHoly.ogg')
+       Volume = 1.0; MinDistance = 100; Cutoff = 200 }
+    @{ Key = 'HollowVoiceImpactHolyHeavy'; Id = 30140; Clone = 13269; Name = 'Evolutions_HollowVoice_ImpactHolyHeavy'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_ImpactHolyHeavy.ogg')
+       Volume = 1.0; MinDistance = 100; Cutoff = 200 }
+    @{ Key = 'HollowVoiceImpactVoid'; Id = 30141; Clone = 13269; Name = 'Evolutions_HollowVoice_ImpactVoid'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_ImpactVoid.ogg')
+       Volume = 1.0; MinDistance = 100; Cutoff = 200 }
+    @{ Key = 'HollowVoiceImpactVoidHeavy'; Id = 30142; Clone = 13269; Name = 'Evolutions_HollowVoice_ImpactVoidHeavy'
+       Directory = 'Sound\Spells\Custom\HollowVoice'
+       Files = @('HV_ImpactVoidHeavy.ogg')
+       Volume = 1.0; MinDistance = 100; Cutoff = 200 }
 )
 
 # A kit's CharProc parameters are floats; the kit fields are written as raw 32-bit values
@@ -1572,25 +1590,38 @@ foreach ($entry in (Get-Content -LiteralPath $effectMappingPath -Raw | ConvertFr
 # size (modules/mod-stat-growth/src/GroundIndicators.cpp). The effect record copies the stock ground ring's (5240:
 # scale 1), the kit the one that ring's aura plays (12338) with nothing else in it.
 $indicatorConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\groundIndicators\shapes.json') -Raw | ConvertFrom-Json
+# A painting's fading twin (GI_<key>Fade, its alpha falling to nothing in 0.3 s): the server turns a carrier to it just
+# before the carrier goes (GroundIndicators.cpp FadeLookOf, buildGroundIndicators.py fade_spell: the same rule)
+function Get-IndicatorFadeSpell([int]$spell) {
+    if ($spell -ge 90600 -and $spell -lt 90900) { return $spell + 6000 }
+    if ($spell -ge 94000 -and $spell -lt 94200) { return $spell + 200 }
+    throw "Indicator spell $spell has no fading twin range."
+}
 foreach ($shape in $indicatorConfig.shapes) {
-    $record = [byte[]]::new($effectNameDbc.RecordSize)
-    [Array]::Copy($effectNameDbc.Data, $effectNameDbc.Offsets[5240], $record, 0, $effectNameDbc.RecordSize)
-    $effectNameDbc.MaxId = $effectNameDbc.MaxId + 1
-    Set-Field $record 0 ([uint32]$effectNameDbc.MaxId)
-    Set-Field $record 1 (Add-DbcString $effectNameDbc.Strings "Evolutions Indicator $($shape.key)")
-    Set-Field $record 2 (Add-DbcString $effectNameDbc.Strings "Spells\Evolutions\GI_$($shape.key).mdx")
-    $effectNameDbc.NewRecords.AddRange($record)
+    $looks = @(@{ Key = $shape.key; Spell = [int]$shape.spell })
+    if (-not $shape.carried) {
+        $looks += @{ Key = "$($shape.key)Fade"; Spell = (Get-IndicatorFadeSpell ([int]$shape.spell)) }
+    }
+    foreach ($look in $looks) {
+        $record = [byte[]]::new($effectNameDbc.RecordSize)
+        [Array]::Copy($effectNameDbc.Data, $effectNameDbc.Offsets[5240], $record, 0, $effectNameDbc.RecordSize)
+        $effectNameDbc.MaxId = $effectNameDbc.MaxId + 1
+        Set-Field $record 0 ([uint32]$effectNameDbc.MaxId)
+        Set-Field $record 1 (Add-DbcString $effectNameDbc.Strings "Evolutions Indicator $($look.Key)")
+        Set-Field $record 2 (Add-DbcString $effectNameDbc.Strings "Spells\Evolutions\GI_$($look.Key).mdx")
+        $effectNameDbc.NewRecords.AddRange($record)
 
-    $kitFields = @{ 15 = 0; 16 = 0 }
-    foreach ($field in $EffectFields) { $kitFields[$field] = 0 }
-    $kitFields[5] = [uint32]$effectNameDbc.MaxId
-    $customVisualKits += @{ Key = "GI_$($shape.key)"; Clone = 12338; Fields = $kitFields }
-    # A carried circle is an aura on the player carrying it: its buff tells them what to do
-    $description = if ($shape.carried) { 'Vous portez une zone de danger : éloignez-vous des autres joueurs.' }
-        else { 'Ne restez pas dans la zone rouge.' }
-    $customSpells += @{ Id = [int]$shape.spell; Clone = 62898; Name = 'Zone de danger'; Cost = 0; Cooldown = 0; Level = 0
-        Spellbook = $false; Description = $description; AuraDescription = $description
-        Visual = @{ Clone = 13273; State = "GI_$($shape.key)" } }
+        $kitFields = @{ 15 = 0; 16 = 0 }
+        foreach ($field in $EffectFields) { $kitFields[$field] = 0 }
+        $kitFields[5] = [uint32]$effectNameDbc.MaxId
+        $customVisualKits += @{ Key = "GI_$($look.Key)"; Clone = 12338; Fields = $kitFields }
+        # A carried circle is an aura on the player carrying it: its buff tells them what to do
+        $description = if ($shape.carried) { 'Vous portez une zone de danger : éloignez-vous des autres joueurs.' }
+            else { 'Ne restez pas dans la zone rouge.' }
+        $customSpells += @{ Id = $look.Spell; Clone = 62898; Name = 'Zone de danger'; Cost = 0; Cooldown = 0; Level = 0
+            Spellbook = $false; Description = $description; AuraDescription = $description
+            Visual = @{ Clone = 13273; State = "GI_$($look.Key)" } }
+    }
 }
 
 $kitIdsByKey = @{}
