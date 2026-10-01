@@ -103,8 +103,12 @@ $plan = @(foreach ($name in $catalog.Keys) {
             NeedsWowClosed = [bool]$entry.NeedsWowClosed; Expected = [double]$expected
             State = 'waiting'; Reached = 0; Fraction = 0.0; Detail = ''; File = ''
             Log = Join-Path $logRoot "$name.log"; Started = $null; Elapsed = $null; Summary = ''; Ui = $null
+            Version = ''
         }
     })
+
+# The players' Discord channel follows the run (deployDiscord.ps1; nothing is sent without its local webhook file)
+. (Join-Path $PSScriptRoot 'deployDiscord.ps1')
 
 # --- The window: the challenge board's palette, gold and parchment on dark ----------------------------------------
 $windowXaml = @'
@@ -677,6 +681,7 @@ function Stop-Run($failedStep) {
     foreach ($rest in $plan) { if ($rest.State -in 'waiting', 'blocked') { $rest.State = 'skipped' } }
     $script:finishedAt = Get-Date
     $ui.Shimmer.Visibility = 'Collapsed'
+    Send-DeployDiscord $plan $title -final -failedStep $(if ($failedStep) { $failedStep } else { 'cancelled' })
 }
 
 $window = [System.Windows.Markup.XamlReader]::Parse($windowXaml)
@@ -723,6 +728,11 @@ $timer.Add_Tick({
                     if ($script:process.ExitCode -eq 0) {
                         $step.State = 'done'
                         Save-History $step
+                        if ($step.Name -eq 'publish') {
+                            $published = Select-String -LiteralPath $step.Log -Pattern '/tag/(v[0-9.]+)' |
+                                Select-Object -Last 1
+                            if ($published) { $step.Version = $published.Matches[0].Groups[1].Value }
+                        }
                     }
                     else {
                         $step.State = 'failed'
@@ -741,6 +751,7 @@ $timer.Add_Tick({
             if ($next -ge $plan.Count) {
                 $script:finishedAt = Get-Date
                 $ui.Shimmer.Visibility = 'Collapsed'
+                Send-DeployDiscord $plan $title -final
                 Update-View
                 return
             }
@@ -756,6 +767,7 @@ $timer.Add_Tick({
             }
             $script:current = $next
             Start-Step $step
+            Send-DeployDiscord $plan $title
             Update-View
         }
         catch {

@@ -188,3 +188,5 @@ localTools/interface/cache/
 /localTools/retailImport/.deps/
 /localTools/retailImport/RetailImport/bin/
 /localTools/retailImport/RetailImport/obj/
+# The deploy window's Discord webhook (localTools/deployDiscord.ps1): a secret
+/localTools/deploy.local.json
