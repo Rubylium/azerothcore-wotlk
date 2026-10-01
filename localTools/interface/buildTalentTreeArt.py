@@ -109,7 +109,11 @@ BACKGROUNDS = {'rogue-outlaw': 'talents-background-rogue-outlaw',
                'shaman-restoration': 'talents-background-shaman-restoration',
                'warlock-affliction': 'talents-background-warlock-affliction',
                'warlock-demonology': 'talents-background-warlock-demonology',
-               'warlock-destruction': 'talents-background-warlock-destruction'}
+               'warlock-destruction': 'talents-background-warlock-destruction',
+               'druid-balance': 'talents-background-druid-balance',
+               'druid-feral': 'talents-background-druid-feral',
+               'druid-guardian': 'talents-background-druid-guardian',
+               'druid-restoration': 'talents-background-druid-restoration'}
 # The specialization page's figures: the right of each spec's painting, from this fraction of its width
 SPEC_ART_LEFT = 0.62
 SPEC_ART_WIDTH = 400
