@@ -8,6 +8,8 @@
 -- it is done a reward waits here, on top of the key's own.
 -- The L'Infini tab is the board's god alone (mod-stat-growth InfiniteGod.cpp), the highest raid fight there is: on
 -- every level-80 board, with a tier ladder of its own (only a win against it opens its next tier).
+-- The Hollow Voice tab is the board's pinnacle (mod-stat-growth HollowVoice.cpp), built like L'Infini's page: on every
+-- level-80 board, one difficulty (Défi I only), and signing up asks for an equipped item level (VOICE_*).
 
 local PREFIX = "Challenge"
 local SOUND = "Sound\\Interface\\MythicPlus\\"
@@ -42,6 +44,12 @@ local GOD_REQUIRED_ITEM_LEVEL_PER_TIER = 10
 local GOD_PARAGON_PER_TIER = 50
 -- One attempt at every tier (ChallengeTiers.h BossProfiles): a wipe sends everyone home
 local GOD_ATTEMPTS = 1
+-- The Hollow Voice: its page's art (ChallengeVoice-*, the same script), one difficulty and one attempt
+-- (ChallengeTiers.h BossProfiles). The server sends the equipped item level signing up asks for (the mission's) and
+-- the player's own (the board's), both Player::GetAverageItemLevelForDF, the Dungeon Finder's measure.
+local VOICE_BOSS = 930100
+local VOICE_FIGURE_BOTTOM = 0.6367
+local VOICE_ATTEMPTS = 1
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -188,6 +196,33 @@ local TEXT = french and {
     godTierTitle = "Paliers de L'Infini",
     godTierHelp = "Ses paliers s'ouvrent à part des missions : seule une victoire contre lui ouvre le suivant.",
     godTierNext = "Vainquez L'Infini en Défi %s pour ouvrir le palier suivant.",
+    tabVoice = "La Voix creuse",
+    headingVoice = "Le pinacle",
+    introVoice = "Au Plateau du Puits de soleil, dans la salle où flottait M'uru, un archevêque prêche encore à une "
+        .. "nef déserte.",
+    voiceName = "La Voix creuse",
+    voiceEpithet = "L'archevêque Aldric Mantaube et Vel'thazar",
+    voicePlace = "Plateau du Puits de soleil",
+    voiceQuote = "« La Lumière vous a jugés. Je ne suis que sa main. »",
+    voiceSignature = "— L'archevêque Aldric Mantaube",
+    voiceLore = "Aldric Mantaube vint au Puits de soleil quand la Lumière y renaquit, pour veiller sur elle. Une voix "
+        .. "l'y attendait, douce comme une prière ; il la crut divine et la laissa parler par sa bouche. Ce n'était "
+        .. "pas la Lumière, mais Vel'thazar, un seigneur de l'effroi tapi dans sa foi, qui se repaît de chaque âme "
+        .. "jugée en son nom. Faites taire l'archevêque, et la Voix creuse se lèvera de ce qu'il en reste.",
+    voiceTier = "Défi unique",
+    voiceProfile = "Taillé pour : niv. d'objet %d · parangon %d · %d tentative%s",
+    voiceTierTitle = "Une seule difficulté",
+    voiceTierHelp = "La Voix creuse n'a pas de paliers : un seul combat, taillé pour un groupe de %d joueurs au niveau "
+        .. "d'objet %d avec %d points de parangon. Une défaite renvoie tout le monde au tableau.",
+    voiceItemLevel = "Niv. d'objet équipé %d+ · vous %d",
+    voiceItemLevelUnknown = "Niveau d'objet équipé %d+",
+    voiceLocked = "Niveau d'objet équipé insuffisant : %d requis, vous %d.",
+    voiceLockHelp = "Pour s'inscrire, chaque joueur du groupe doit porter un niveau d'objet moyen d'au moins %d (celui "
+        .. "de la recherche de donjons).",
+    voiceFace = "Affronter la Voix creuse",
+    voiceOnce = "Une victoire par tableau : elle revient avec les nouvelles missions.",
+    voiceAbsent = "La Voix creuse attend les aventuriers de niveau 80.",
+    satchelVoice = "De l'or : la Voix creuse ne laisse aucun butin.",
     failed = {
         [1] = "Défi échoué : trop de tentatives.",
         [2] = "Défi échoué : le temps est écoulé.",
@@ -209,6 +244,8 @@ local TEXT = french and {
         [13] = "Un membre du groupe n'a pas le niveau requis.",
         [14] = "Ce palier n'est pas encore ouvert.",
         [15] = "Les défis de donjon s'ouvrent au niveau 80.",
+        [16] = "Ce défi exige un niveau d'objet équipé de %d (le vôtre : %d).",
+        [17] = "%s n'a pas le niveau d'objet équipé requis (%d).",
     },
 } or {
     title = "Challenge Board",
@@ -313,6 +350,33 @@ local TEXT = french and {
     godTierTitle = "L'Infini's tiers",
     godTierHelp = "Its tiers open apart from the missions': only a win against it opens the next.",
     godTierNext = "Defeat L'Infini at tier %s to open the next one.",
+    tabVoice = "The Hollow Voice",
+    headingVoice = "The Pinnacle",
+    introVoice = "On the Sunwell Plateau, in the hall where M'uru once floated, an archbishop still preaches to an "
+        .. "empty nave.",
+    voiceName = "The Hollow Voice",
+    voiceEpithet = "Archbishop Aldric Dawnmantle and Vel'thazar",
+    voicePlace = "Sunwell Plateau",
+    voiceQuote = "\"The Light has judged you. I am only its hand.\"",
+    voiceSignature = "— Archbishop Aldric Dawnmantle",
+    voiceLore = "Aldric Dawnmantle came to the Sunwell when the Light was reborn there, to watch over it. A voice was "
+        .. "waiting for him, soft as a prayer; he took it for the divine and let it speak through his mouth. It was "
+        .. "not the Light, but Vel'thazar, a dreadlord hidden in his faith, who feeds on every soul judged in its "
+        .. "name. Silence the archbishop, and the Hollow Voice will rise from what is left of him.",
+    voiceTier = "One difficulty",
+    voiceProfile = "Made for: item level %d · paragon %d · %d attempt%s",
+    voiceTierTitle = "A single difficulty",
+    voiceTierHelp = "The Hollow Voice has no tiers: one fight, made for a group of %d players at item level %d with %d "
+        .. "paragon points. A defeat sends everyone back to the board.",
+    voiceItemLevel = "Equipped item level %d+ · yours %d",
+    voiceItemLevelUnknown = "Equipped item level %d+",
+    voiceLocked = "Equipped item level too low: %d required, yours %d.",
+    voiceLockHelp = "To sign up, every player of the group must wear an average item level of at least %d (the Dungeon "
+        .. "Finder's).",
+    voiceFace = "Face the Hollow Voice",
+    voiceOnce = "One win per board: it returns with the new missions.",
+    voiceAbsent = "The Hollow Voice awaits adventurers of level 80.",
+    satchelVoice = "Gold: the Hollow Voice leaves no spoils.",
     failed = {
         [1] = "Challenge failed: too many attempts.",
         [2] = "Challenge failed: time ran out.",
@@ -334,6 +398,8 @@ local TEXT = french and {
         [13] = "A group member is below the required level.",
         [14] = "That tier is not open yet.",
         [15] = "Dungeon challenges open at level 80.",
+        [16] = "This challenge asks for an equipped item level of %d (yours: %d).",
+        [17] = "%s is below the required equipped item level (%d).",
     },
 }
 
@@ -351,14 +417,15 @@ local state = {
     godOpenTier = TIER_MIN,     -- the same two for the god, on its own ladder
     godTier = nil,
     currentTier = 0,            -- the tier of the challenge they are in
-    page = "raids",             -- the tab shown: "raids", "dungeons" or "god"
+    page = "raids",             -- the tab shown: "raids", "dungeons", "god" or "voice"
+    itemLevel = nil,            -- the player's equipped item level, as the server measures it for a sign-up
     key = 2,                    -- the player's Mythic+ key level
     contract = 0,               -- the dungeon challenge they took up (Dungeon Finder entry), 0 for none
     dungeons = {},
 }
 
 local frame, cards, rewardRows, emptyText, timerText, timerFill, errorText, quitButton, roleButtons
-local dial, keyStrip, dungeonCards, tabs, godPage
+local dial, keyStrip, dungeonCards, tabs, godPage, voicePage
 local banner
 local incoming = { missions = {}, rewards = {}, dungeons = {} }
 
@@ -381,6 +448,7 @@ local BACKGROUND_FALLBACK = "Interface\\LFGFrame\\UI-LFG-BACKGROUND-GENERICDUNGE
 -- (L'Infini, mod-stat-growth InfiniteGod.cpp: Ulduar's Celestial Planetarium)
 local PLACE_BY_BOSS = {
     [930000] = GetLocale() == "frFR" and "Ulduar - Planétarium céleste" or "Ulduar - Celestial Planetarium",
+    [VOICE_BOSS] = TEXT.voicePlace,
 }
 
 local function DungeonTexture(dungeonId, kind)
@@ -455,6 +523,15 @@ local function IsGod(mission)
     return mission and mission.boss == GOD_BOSS
 end
 
+local function IsVoice(mission)
+    return mission and mission.boss == VOICE_BOSS
+end
+
+-- A boss with a page of its own rather than a card
+local function HasOwnPage(mission)
+    return IsGod(mission) or IsVoice(mission)
+end
+
 -- The god's tier dial: the tier picked, never above the highest open
 local function GodTier()
     state.godTier = min(state.godTier or state.godOpenTier, state.godOpenTier)
@@ -469,6 +546,8 @@ local function CardTier(mission)
         return state.currentTier
     elseif IsGod(mission) then
         return GodTier()
+    elseif IsVoice(mission) then
+        return TIER_MIN
     end
     return state.tier or state.openTier
 end
@@ -479,6 +558,20 @@ local function GodMission()
             return mission
         end
     end
+end
+
+local function VoiceMission()
+    for _, mission in ipairs(state.missions) do
+        if IsVoice(mission) then
+            return mission
+        end
+    end
+end
+
+-- Whether the player wears the equipped item level a mission asks to sign up (unknown: the server decides)
+local function MeetsItemLevel(mission)
+    local wanted = mission and mission.signUpItemLevel or 0
+    return wanted == 0 or not state.itemLevel or state.itemLevel >= wanted
 end
 
 -- Tweens: every animation of the board and the banner, driven by one clock ---------------------------------------
@@ -563,8 +656,15 @@ end
 
 -- Messages under the cards ------------------------------------------------------------------------------------------
 
-local function ShowError(code)
-    local text = TEXT.errors[tonumber(code)] or TEXT.errors[10]
+local function ShowError(code, value, detail)
+    code = tonumber(code)
+    local text = TEXT.errors[code] or TEXT.errors[10]
+    -- The equipped item level a sign-up asks for: the player's own (16), or a party member's (17)
+    if code == 16 then
+        text = format(text, tonumber(value) or 0, tonumber(detail) or 0)
+    elseif code == 17 then
+        text = format(text, detail or "?", tonumber(value) or 0)
+    end
     PlaySound("igQuestFailed")
     UIErrorsFrame:AddMessage(text, 1, 0.1, 0.1, 1)
     if errorText then
@@ -583,6 +683,9 @@ local function CardTooltipSatchel(owner)
     local mission = owner:GetParent().mission
     if mission and mission.kind == KIND_DUNGEON then
         GameTooltip:AddLine(TEXT.satchelDungeon, 1, 0.82, 0.3, true)
+    elseif IsVoice(mission) then
+        -- Its bosses have no loot table: the satchel holds the gold alone
+        GameTooltip:AddLine(TEXT.satchelVoice, 1, 0.82, 0.3, true)
     elseif mission then
         local tier = CardTier(mission)
         local chance = min(100, (SATCHEL_ITEM_CHANCE[mission.difficulty] or 35) + TierExtraItemChance(tier))
@@ -925,6 +1028,9 @@ local function AnimateCardsIn()
     if state.page == "god" then
         godPage.Enter(true)
         return
+    elseif state.page == "voice" then
+        voicePage.Enter(true)
+        return
     end
     for index, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission then
@@ -945,10 +1051,11 @@ local function Refresh(animate)
 
     local dungeonsPage = state.page == "dungeons"
     local godShown = state.page == "god"
-    -- The god has its page: the raid cards are the drawn missions
+    local voiceShown = state.page == "voice"
+    -- The god and the Hollow Voice have their pages: the raid cards are the drawn missions
     local raidMissions = {}
     for _, mission in ipairs(state.missions) do
-        if not IsGod(mission) then
+        if not HasOwnPage(mission) then
             tinsert(raidMissions, mission)
         end
     end
@@ -982,17 +1089,29 @@ local function Refresh(animate)
     if keyStrip:IsShown() then
         keyStrip.Refresh()
     end
-    local god = GodMission()
+    -- A page's scene in place of the board's parchment and header, or the board back
+    local god, voice = GodMission(), VoiceMission()
     godPage.SetScene(godShown)
+    voicePage.SetScene(voiceShown)
+    for _, region in ipairs(frame.boardArt) do
+        SetShown(region, not (godShown or voiceShown))
+    end
     SetShown(godPage, godShown and god ~= nil)
     if godPage:IsShown() then
         godPage.Refresh(god)
+    end
+    SetShown(voicePage, voiceShown and voice ~= nil)
+    if voicePage:IsShown() then
+        voicePage.Refresh(voice)
     end
 
     if godShown and not god then
         emptyText:SetText(state.bracket < 80 and TEXT.godLocked or TEXT.empty)
         emptyText:Show()
-    elseif godShown then
+    elseif voiceShown and not voice then
+        emptyText:SetText(state.bracket < 80 and TEXT.voiceAbsent or TEXT.empty)
+        emptyText:Show()
+    elseif godShown or voiceShown then
         emptyText:Hide()
     elseif dungeonsPage and shownDungeons == 0 then
         emptyText:SetText(state.bracket < 80 and TEXT.dungeonsLocked or TEXT.empty)
@@ -1041,18 +1160,37 @@ local function Refresh(animate)
     end
 end
 
--- L'Infini's page: one scene filling the window. The board's parchment and header give way to the Celestial
--- Planetarium, the god standing on its left and melting into it (its edges faded in its texture), its name at its
--- feet; down the right, the page's title, its tier dial, its words and its story, then what it asks and pays and the
--- way in. The footer (roles, rewards waiting) stays, drawn over the scene (buildChallengeGodArt.py for the art).
--- Opening it and taking it up have sounds of their own, short effects, never music.
+-- The board's own pages, L'Infini's and the Hollow Voice's: one scene filling the window. The board's parchment and
+-- header give way to the boss's place (the Celestial Planetarium, the Sunwell's chamber), the boss standing on its left
+-- and melting into it (its edges faded in its texture), its name at its feet; down the right, the page's title, its
+-- tier dial (L'Infini) or its one difficulty (the Hollow Voice), its words and its story, then what it asks and pays
+-- and the way in. The footer (roles, rewards waiting) stays, drawn over the scene (buildChallengeGodArt.py for the
+-- art). Opening it and taking it up have sounds of their own, short effects, never music.
 
--- The window's inside (ChallengeBoard ground: 2 in from the sides, under the 21 of the title bar) and the god in it
+-- The window's inside (ChallengeBoard ground: 2 in from the sides, under the 21 of the title bar) and the boss in it
 local GOD_SCENE_LEFT, GOD_SCENE_TOP = 2, 21
 local GOD_FIGURE_WIDTH = 444
 local GOD_COLUMN_LEFT, GOD_COLUMN_RIGHT = 424, 26
--- Ulduar's cosmic chest opening, for stepping in
+-- Ulduar's cosmic chest opening, for stepping in; Sunwell's gate opening for the Hollow Voice's
 local GOD_OPEN_SOUND = "Sound\\Doodad\\UL_Chest_Cosmic_Open.wav"
+local VOICE_OPEN_SOUND = "Sound\\Doodad\\SunwellRaid_Gate_02Open.wav"
+-- What sets the two pages apart. The god: its tier ladder and its gear, its name the server's. The Hollow Voice: one
+-- difficulty, no gear of its own, a sign-up locked under an equipped item level, its name the page's (the server's is
+-- the Archbishop's, the boss the challenge follows).
+local PAGE_SPECS = {
+    god = {
+        boss = GOD_BOSS, art = "ChallengeGod", figureBottom = GOD_FIGURE_BOTTOM, sound = GOD_OPEN_SOUND,
+        nameSize = 46, heading = TEXT.headingGod, intro = TEXT.introGod, epithet = TEXT.godEpithet,
+        quote = TEXT.godQuote, signature = TEXT.godSignature, lore = TEXT.godLore, face = TEXT.godFace,
+        once = TEXT.godOnce, tiers = true,
+    },
+    voice = {
+        boss = VOICE_BOSS, art = "ChallengeVoice", figureBottom = VOICE_FIGURE_BOTTOM, sound = VOICE_OPEN_SOUND,
+        name = TEXT.voiceName, nameSize = 40, heading = TEXT.headingVoice, intro = TEXT.introVoice,
+        epithet = TEXT.voiceEpithet, quote = TEXT.voiceQuote, signature = TEXT.voiceSignature, lore = TEXT.voiceLore,
+        face = TEXT.voiceFace, once = TEXT.voiceOnce, tiers = false,
+    },
+}
 
 -- A line of text with the board's shadow, so it reads on the painting
 local function GodText(parent, font, size, r, g, b)
@@ -1066,9 +1204,9 @@ end
 
 -- The scene itself: textures of the window in place of its ground and parchment (hidden with them), under everything
 -- the window draws on top (the footer's labels and buttons, its border). One draw layer each: the client ignores a
--- texture's sublevel, so the backdrop, the god and the shade take BACKGROUND, BORDER and ARTWORK (the window's own
+-- texture's sublevel, so the backdrop, the boss and the shade take BACKGROUND, BORDER and ARTWORK (the window's own
 -- ARTWORK, the header's divider, is hidden with the header).
-local function CreateGodScene()
+local function CreateGodScene(spec)
     local scene = {}
     local function Layer(layer)
         local texture = frame:CreateTexture(nil, layer)
@@ -1079,13 +1217,13 @@ local function CreateGodScene()
 
     local backdrop = Layer("BACKGROUND")
     scene.backdrop = backdrop
-    backdrop:SetTexture(GOD_ART .. "ChallengeGod-Backdrop")
+    backdrop:SetTexture(GOD_ART .. spec.art .. "-Backdrop")
     backdrop:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
     backdrop:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
 
     local figure = Layer("BORDER")
-    figure:SetTexture(GOD_ART .. "ChallengeGod-Figure")
-    figure:SetTexCoord(0, 1, 0, GOD_FIGURE_BOTTOM)
+    figure:SetTexture(GOD_ART .. spec.art .. "-Figure")
+    figure:SetTexCoord(0, 1, 0, spec.figureBottom)
     figure:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
     figure:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOD_SCENE_LEFT, GOD_SCENE_LEFT)
     figure:SetWidth(GOD_FIGURE_WIDTH)
@@ -1121,57 +1259,63 @@ local function CreateGodScene()
     return scene
 end
 
-local function CreateGodPage()
-    local scene = CreateGodScene()
+local function CreateGodPage(spec)
+    local scene = CreateGodScene(spec)
+    local boss = spec.boss
 
-    godPage = CreateFrame("Frame", nil, frame)
-    godPage:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
-    godPage:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
-    godPage:Hide()
-    godPage.scene = scene
+    local page = CreateFrame("Frame", nil, frame)
+    page:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP)
+    page:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -GOD_SCENE_LEFT, GOD_SCENE_LEFT)
+    page:Hide()
+    page.scene = scene
 
-    -- At the god's feet: its name
-    local kind = GodText(godPage, FRIZ, 11, 1, 0.82, 0.3)
-    kind:SetPoint("TOPLEFT", godPage, "TOPLEFT", 22, -18)
+    -- The tier the page shows and takes up: the god's dial, the Hollow Voice's one difficulty
+    local function PageTier()
+        return spec.tiers and GodTier() or TIER_MIN
+    end
 
-    local name = GodText(godPage, MORPHEUS, 46, 1, 0.9, 0.7)
-    name:SetPoint("BOTTOMLEFT", godPage, "BOTTOMLEFT", 30, 128)
+    -- At the boss's feet: its name
+    local kind = GodText(page, FRIZ, 11, 1, 0.82, 0.3)
+    kind:SetPoint("TOPLEFT", page, "TOPLEFT", 22, -18)
 
-    local epithet = GodText(godPage, FRIZ, 12, 1, 0.82, 0.3)
+    local name = GodText(page, MORPHEUS, spec.nameSize, 1, 0.9, 0.7)
+    name:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 30, 128)
+
+    local epithet = GodText(page, FRIZ, 12, 1, 0.82, 0.3)
     epithet:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 4, -2)
-    epithet:SetText(TEXT.godEpithet)
+    epithet:SetText(spec.epithet)
 
-    local place = GodText(godPage, FRIZ, 11, 0.78, 0.74, 0.66)
+    local place = GodText(page, FRIZ, 11, 0.78, 0.74, 0.66)
     place:SetPoint("TOPLEFT", epithet, "BOTTOMLEFT", 0, -3)
 
-    local check = godPage:CreateTexture(nil, "OVERLAY", nil, 3)
+    local check = page:CreateTexture(nil, "OVERLAY", nil, 3)
     SetAtlas(check, "ui-questtracker-tracker-check-2x")
     check:SetSize(72, 72)
     check:SetPoint("CENTER", scene.figure, "CENTER", 0, 40)
     check:Hide()
 
-    local stamp = godPage:CreateFontString(nil, "OVERLAY")
+    local stamp = page:CreateFontString(nil, "OVERLAY")
     stamp:SetFont(MORPHEUS, 30, "OUTLINE")
     stamp:SetTextColor(1, 0.82, 0.2)
     stamp:SetPoint("CENTER", scene.figure, "CENTER", 0, 40)
     stamp:SetAlpha(0)
 
     -- Down the right: title, dial, words, story, then what it asks and pays
-    local column = CreateFrame("Frame", nil, godPage)
-    column:SetPoint("TOPLEFT", godPage, "TOPLEFT", GOD_COLUMN_LEFT, 0)
-    column:SetPoint("BOTTOMRIGHT", godPage, "BOTTOMRIGHT", -GOD_COLUMN_RIGHT, 0)
+    local column = CreateFrame("Frame", nil, page)
+    column:SetPoint("TOPLEFT", page, "TOPLEFT", GOD_COLUMN_LEFT, 0)
+    column:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -GOD_COLUMN_RIGHT, 0)
     local columnWidth = WIDTH - 2 * GOD_SCENE_LEFT - GOD_COLUMN_LEFT - GOD_COLUMN_RIGHT
 
     local title = GodText(column, MORPHEUS, 30, 1, 0.86, 0.55)
     title:SetPoint("TOP", column, "TOP", 0, -20)
-    title:SetText(TEXT.headingGod)
+    title:SetText(spec.heading)
 
     local subtitle = GodText(column, FRIZ, 11, 0.85, 0.8, 0.7)
     subtitle:SetPoint("TOP", title, "BOTTOM", 0, -6)
     subtitle:SetWidth(columnWidth - 10)
     subtitle:SetJustifyH("CENTER")
     subtitle:SetSpacing(2)
-    subtitle:SetText(TEXT.introGod)
+    subtitle:SetText(spec.intro)
 
     local function Divider(y)
         local divider = column:CreateTexture(nil, "ARTWORK")
@@ -1182,7 +1326,7 @@ local function CreateGodPage()
     end
     Divider(-96)
 
-    -- Its tier dial (its own ladder)
+    -- Its tier dial (its own ladder), or its one difficulty and the profile it is made for
     local dialY = -128
     local dialGlow = column:CreateTexture(nil, "BACKGROUND")
     SetAtlas(dialGlow, "ChallengeMode-SoftYellowGlow")
@@ -1201,8 +1345,16 @@ local function CreateGodPage()
     dialArea:SetSize(170, 52)
     dialArea:EnableMouse(true)
     dialArea:SetScript("OnEnter", function(self)
-        local tier = GodTier()
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        if not spec.tiers then
+            local mission = page.rewards.mission
+            GameTooltip:AddLine(TEXT.voiceTierTitle, 1, 0.82, 0.3)
+            GameTooltip:AddLine(format(TEXT.voiceTierHelp, mission and mission.players or 10,
+                mission and mission.requiredItemLevel or 0, mission and mission.baseParagon or 0), 1, 0.9, 0.7, true)
+            GameTooltip:Show()
+            return
+        end
+        local tier = GodTier()
         GameTooltip:AddLine(TEXT.godTierTitle, 1, 0.82, 0.3)
         GameTooltip:AddLine(TEXT.godTierHelp, 1, 0.9, 0.7, true)
         GameTooltip:AddLine(" ")
@@ -1222,10 +1374,10 @@ local function CreateGodPage()
     local function Arrow(direction)
         local button = CreateFrame("Button", nil, column)
         button:SetSize(30, 30)
-        local page = direction < 0 and "Prev" or "Next"
-        button:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Up")
-        button:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Down")
-        button:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. page .. "Page-Disabled")
+        local arrow = direction < 0 and "Prev" or "Next"
+        button:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. arrow .. "Page-Up")
+        button:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. arrow .. "Page-Down")
+        button:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-" .. arrow .. "Page-Disabled")
         button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
         button:SetPoint("CENTER", column, "TOP", direction * 100, dialY)
         button:SetScript("OnClick", function()
@@ -1238,13 +1390,16 @@ local function CreateGodPage()
             Refresh(false)
             Tween(0.3, 0, function(p)
                 tierText:SetFont(MORPHEUS, 26 + 8 * (1 - OutCubic(p)))
-                godPage.rewards:SetAlpha(0.3 + 0.7 * p)
+                page.rewards:SetAlpha(0.3 + 0.7 * p)
             end)
         end)
         return button
     end
-    local previousTier = Arrow(-1)
-    local nextTier = Arrow(1)
+    local previousTier, nextTier
+    if spec.tiers then
+        previousTier = Arrow(-1)
+        nextTier = Arrow(1)
+    end
 
     -- Its words, then its story
     local quote = GodText(column, FRIZ, 13, 1, 0.86, 0.55)
@@ -1252,11 +1407,11 @@ local function CreateGodPage()
     quote:SetWidth(columnWidth - 10)
     quote:SetJustifyH("CENTER")
     quote:SetSpacing(3)
-    quote:SetText(TEXT.godQuote)
+    quote:SetText(spec.quote)
 
     local signature = GodText(column, FRIZ, 11, 0.75, 0.62, 0.4)
     signature:SetPoint("TOPRIGHT", quote, "BOTTOMRIGHT", -6, -5)
-    signature:SetText(TEXT.godSignature)
+    signature:SetText(spec.signature)
 
     local lore = GodText(column, FRIZ, 12, 0.86, 0.83, 0.76)
     -- A width and a height of its own: anchored at both sides only, the client keeps it to one line
@@ -1266,7 +1421,7 @@ local function CreateGodPage()
     lore:SetJustifyH("LEFT")
     lore:SetJustifyV("TOP")
     lore:SetSpacing(3)
-    lore:SetText(TEXT.godLore)
+    lore:SetText(spec.lore)
 
     Divider(-392)
 
@@ -1283,7 +1438,7 @@ local function CreateGodPage()
     rewards:SetPoint("TOPLEFT", column, "TOP", 10, -396)
     rewards:SetPoint("TOPRIGHT", column, "TOPRIGHT", 0, -396)
     rewards:SetHeight(56)
-    godPage.rewards = rewards
+    page.rewards = rewards
     local rewardLabel = GodText(rewards, FRIZ, 11, 1, 0.82, 0.3)
     rewardLabel:SetPoint("TOPLEFT", 0, -12)
     rewardLabel:SetText(TEXT.rewards)
@@ -1293,25 +1448,30 @@ local function CreateGodPage()
     paragon:SetPoint("TOPLEFT", gold, "BOTTOMLEFT", 0, -3)
     local essences = GodText(rewards, FRIZ, 11, 0.45, 0.9, 0.55)
     essences:SetPoint("LEFT", paragon, "RIGHT", 8, 0)
-    -- The gear's line, across the column under what it asks and pays: too long for the rewards' half
+    -- The gear's line, across the column under what it asks and pays: too long for the rewards' half. The Hollow
+    -- Voice has no gear of its own: the line says why its way in is locked, when it is.
     local gear = GodText(column, FRIZ, 11, 0.78, 0.55, 1)
     gear:SetPoint("TOP", column, "TOP", 0, -462)
-    -- What the gear carries on top of its item level (MythicDungeonSystem.cpp TouchByInfiniteGod), on hover
-    local gearHover = CreateFrame("Frame", nil, column)
-    gearHover:SetAllPoints(gear)
-    gearHover:EnableMouse(true)
-    gearHover:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(TEXT.godGearTitle, 0.78, 0.55, 1)
-        GameTooltip:AddLine(TEXT.godGearHelp, 1, 0.9, 0.7, true)
-        for _, bonus in ipairs(TEXT.godGearBonuses) do
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(bonus[1], 1, 0.82, 0.3)
-            GameTooltip:AddLine(bonus[2], 0.85, 0.8, 0.7, true)
-        end
-        GameTooltip:Show()
-    end)
-    gearHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    if spec.tiers then
+        -- What the gear carries on top of its item level (MythicDungeonSystem.cpp TouchByInfiniteGod), on hover
+        local gearHover = CreateFrame("Frame", nil, column)
+        gearHover:SetAllPoints(gear)
+        gearHover:EnableMouse(true)
+        gearHover:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(TEXT.godGearTitle, 0.78, 0.55, 1)
+            GameTooltip:AddLine(TEXT.godGearHelp, 1, 0.9, 0.7, true)
+            for _, bonus in ipairs(TEXT.godGearBonuses) do
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(bonus[1], 1, 0.82, 0.3)
+                GameTooltip:AddLine(bonus[2], 0.85, 0.8, 0.7, true)
+            end
+            GameTooltip:Show()
+        end)
+        gearHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    else
+        gear:SetTextColor(0.85, 0.53, 0.37)
+    end
 
     local satchel = CreateFrame("Button", nil, rewards)
     satchel:SetSize(30, 30)
@@ -1352,9 +1512,17 @@ local function CreateGodPage()
     local button = CreateFrame("Button", nil, column, "UIPanelButtonTemplate")
     button:SetSize(250, 28)
     button:SetPoint("CENTER", column, "TOP", 0, -497)
+    -- A disabled button still shows its tooltip: locked, it says what the sign-up asks for
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine(TEXT.godOnce, 1, 0.9, 0.7, true)
+        local mission = rewards.mission
+        if mission and mission.state == STATE_OPEN and not MeetsItemLevel(mission) then
+            GameTooltip:AddLine(format(TEXT.voiceLocked, mission.signUpItemLevel, state.itemLevel or 0),
+                0.85, 0.53, 0.37, true)
+            GameTooltip:AddLine(format(TEXT.voiceLockHelp, mission.signUpItemLevel), 1, 0.9, 0.7, true)
+        else
+            GameTooltip:AddLine(spec.once, 1, 0.9, 0.7, true)
+        end
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1362,35 +1530,58 @@ local function CreateGodPage()
     status:SetPoint("CENTER", column, "TOP", 0, -497)
 
     local pulse = 0
-    godPage:SetScript("OnUpdate", function(_, elapsed)
+    page:SetScript("OnUpdate", function(_, elapsed)
         pulse = pulse + elapsed
         if glow:IsShown() then
             glow:SetAlpha(0.35 + 0.35 * (0.5 + 0.5 * math.sin(pulse * 3)))
         end
     end)
 
-    godPage.Refresh = function(mission)
+    page.Refresh = function(mission)
         rewards.mission = mission
-        local tier = GodTier()
+        local tier = PageTier()
         local shownTier = CardTier(mission)
         local open = mission.state == STATE_OPEN
 
-        name:SetText(mission.name)
-        place:SetText(format(TEXT.players, mission.players, PLACE_BY_BOSS[GOD_BOSS]))
+        name:SetText(spec.name or mission.name)
+        place:SetText(format(TEXT.players, mission.players, PLACE_BY_BOSS[boss]))
         kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
 
-        tierText:SetText(TierName(tier))
-        tierInfo:SetText(format(TEXT.tierBoss, Decimal(GOD_TIER_HEALTH[tier] or 1),
-            Decimal(GOD_TIER_DAMAGE[tier] or 1), GOD_ATTEMPTS,
-            GOD_ATTEMPTS > 1 and "s" or ""))
-        dialGlow:SetAlpha(0.18 + 0.05 * tier)
-        SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)
-        SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
+        if spec.tiers then
+            tierText:SetText(TierName(tier))
+            tierInfo:SetText(format(TEXT.tierBoss, Decimal(GOD_TIER_HEALTH[tier] or 1),
+                Decimal(GOD_TIER_DAMAGE[tier] or 1), GOD_ATTEMPTS,
+                GOD_ATTEMPTS > 1 and "s" or ""))
+            dialGlow:SetAlpha(0.18 + 0.05 * tier)
+            SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)
+            SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
+        else
+            -- One difficulty: the profile it is made for (ChallengeTiers.h BossProfiles)
+            tierText:SetText(TEXT.voiceTier)
+            tierInfo:SetText(format(TEXT.voiceProfile, mission.requiredItemLevel or 0, mission.baseParagon or 0,
+                VOICE_ATTEMPTS, VOICE_ATTEMPTS > 1 and "s" or ""))
+            dialGlow:SetAlpha(0.4)
+        end
 
-        -- The tier's profile: 10 item levels more a tier (ChallengeTiers.h BossProfiles)
-        itemLevel:SetText(format(TEXT.godItemLevel,
-            (mission.requiredItemLevel or 0) + GOD_REQUIRED_ITEM_LEVEL_PER_TIER * (tier - TIER_MIN)))
-        local wanted = (mission.baseParagon or 0) + GOD_PARAGON_PER_TIER * (tier - TIER_MIN)
+        local wanted
+        if spec.tiers then
+            -- The tier's profile: 10 item levels more a tier (ChallengeTiers.h BossProfiles)
+            itemLevel:SetText(format(TEXT.godItemLevel,
+                (mission.requiredItemLevel or 0) + GOD_REQUIRED_ITEM_LEVEL_PER_TIER * (tier - TIER_MIN)))
+            wanted = (mission.baseParagon or 0) + GOD_PARAGON_PER_TIER * (tier - TIER_MIN)
+        else
+            -- The equipped item level signing up asks for, beside the player's: gold when they wear it, a dull
+            -- ember when not (the server refuses the sign-up below it)
+            local signUp = mission.signUpItemLevel or 0
+            itemLevel:SetText(state.itemLevel and format(TEXT.voiceItemLevel, signUp, state.itemLevel) or
+                format(TEXT.voiceItemLevelUnknown, signUp))
+            if MeetsItemLevel(mission) then
+                itemLevel:SetTextColor(1, 0.86, 0.55)
+            else
+                itemLevel:SetTextColor(0.85, 0.53, 0.37)
+            end
+            wanted = mission.baseParagon or 0
+        end
         paragonNeed:SetText(format(TEXT.godParagon, wanted, state.paragon or 0))
         if (state.paragon or 0) >= wanted then
             paragonNeed:SetTextColor(1, 0.86, 0.55)
@@ -1402,12 +1593,17 @@ local function CreateGodPage()
         gold:SetText(Money(goldAmount))
         paragon:SetText(paragonAmount > 0 and format(TEXT.paragon, paragonAmount) or "")
         essences:SetText(essenceAmount > 0 and format(TEXT.essences, essenceAmount) or "")
-        local rewardLevel = min(460, (mission.itemLevel or 0) + GOD_ITEM_LEVEL_PER_TIER * (shownTier - TIER_MIN))
-        -- Generated templates have four-level spacing, with exact endpoints at 370 and 460.
-        if rewardLevel > 370 and rewardLevel < 460 then
-            rewardLevel = 285 + 4 * floor((rewardLevel - 285) / 4)
+        local locked = open and not MeetsItemLevel(mission)
+        if spec.tiers then
+            local rewardLevel = min(460, (mission.itemLevel or 0) + GOD_ITEM_LEVEL_PER_TIER * (shownTier - TIER_MIN))
+            -- Generated templates have four-level spacing, with exact endpoints at 370 and 460.
+            if rewardLevel > 370 and rewardLevel < 460 then
+                rewardLevel = 285 + 4 * floor((rewardLevel - 285) / 4)
+            end
+            gear:SetText(format(TEXT.godGear, rewardLevel))
+        else
+            gear:SetText(locked and format(TEXT.voiceLocked, mission.signUpItemLevel, state.itemLevel or 0) or "")
         end
-        gear:SetText(format(TEXT.godGear, rewardLevel))
 
         local done = mission.state == STATE_CLAIMED
         scene.figure:SetDesaturated(done)
@@ -1418,23 +1614,23 @@ local function CreateGodPage()
         status:SetText("")
         if open then
             button:Show()
-            button:SetText(TEXT.godFace)
-            SetEnabled(button, state.challenge == 0)
+            button:SetText(spec.face)
+            SetEnabled(button, state.challenge == 0 and not locked)
             button:SetScript("OnClick", function()
                 local roles = RolesMask()
                 if roles == 0 then
                     return ShowError(8)
                 end
                 PlaySound("igMainMenuOptionCheckBoxOn")
-                state.starting = GOD_BOSS
-                Send("START\t" .. GOD_BOSS .. "\t" .. roles .. "\t" .. GodTier())
+                state.starting = boss
+                Send("START\t" .. boss .. "\t" .. roles .. "\t" .. PageTier())
             end)
         elseif mission.state == STATE_WON then
             button:Show()
             button:SetText(TEXT.claim)
             SetEnabled(button, true)
             button:SetScript("OnClick", function()
-                Send("CLAIM\t" .. state.rotation .. "\t" .. GOD_BOSS)
+                Send("CLAIM\t" .. state.rotation .. "\t" .. boss)
             end)
         else
             button:Hide()
@@ -1447,20 +1643,17 @@ local function CreateGodPage()
         end
     end
 
-    -- The scene in place of the board's parchment and header, or the board back
-    godPage.SetScene = function(shown)
+    -- The scene shown or hidden (Refresh puts the board's parchment and header back when no page's is shown)
+    page.SetScene = function(shown)
         for _, texture in ipairs(scene) do
             SetShown(texture, shown)
         end
-        for _, region in ipairs(frame.boardArt) do
-            SetShown(region, not shown)
-        end
     end
 
-    -- Stepping in: the scene fades up, the god rising out of the dark
-    godPage.Enter = function(withSound)
+    -- Stepping in: the scene fades up, the boss rising out of the dark
+    page.Enter = function(withSound)
         if withSound then
-            PlaySoundFile(GOD_OPEN_SOUND)
+            PlaySoundFile(spec.sound)
         end
         -- Only the two paintings fade: a texture's SetAlpha turns a gradient's colour white (the shade's)
         Tween(0.7, 0, function(p)
@@ -1470,12 +1663,12 @@ local function CreateGodPage()
             scene.figure:SetPoint("TOPLEFT", frame, "TOPLEFT", GOD_SCENE_LEFT, -GOD_SCENE_TOP + 16 * (1 - eased))
             scene.figure:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", GOD_SCENE_LEFT, GOD_SCENE_LEFT - 16 * (1 - eased))
         end)
-        godPage:SetAlpha(0)
-        Tween(0.5, 0.25, function(p) godPage:SetAlpha(p) end)
+        page:SetAlpha(0)
+        Tween(0.5, 0.25, function(p) page:SetAlpha(p) end)
     end
 
     -- A tier of the god just opened: the dial moves to it and its name bursts
-    godPage.Opened = function(tier)
+    page.Opened = function(tier)
         state.godTier = tier
         PlaySoundFile(SOUND .. "NewRecord.ogg")
         UIErrorsFrame:AddMessage(format(TEXT.tierOpened, TIER_ROMAN[tier]), 1, 0.86, 0.55, 1)
@@ -1485,8 +1678,8 @@ local function CreateGodPage()
         end)
     end
 
-    -- Taken up: a Mythic+ start's weight rather than a quest's, a dim gold swell over the god, the stamp
-    godPage.Accepted = function()
+    -- Taken up: a Mythic+ start's weight rather than a quest's, a dim gold swell over the boss, the stamp
+    page.Accepted = function()
         PlaySoundFile(SOUND .. "ChallengeStart.ogg")
         PlaySoundFile(SOUND .. "DomeOpen.ogg")
         stamp:SetText(TEXT.accepted)
@@ -1499,7 +1692,7 @@ local function CreateGodPage()
         Tween(2.2, 1.2, function(p) scene.swell:SetAlpha(0.45 * (1 - p)) end)
     end
 
-    godPage.Claimed = function(goldAmount, paragonAmount, essenceAmount)
+    page.Claimed = function(goldAmount, paragonAmount, essenceAmount)
         popText:SetText("+" .. Money(goldAmount) .. (paragonAmount > 0 and
             ("\n|cffa335ee" .. format(TEXT.paragon, paragonAmount) .. "|r") or "") .. ((essenceAmount or 0) > 0 and
             ("\n|cff4dff73" .. format(TEXT.essences, essenceAmount) .. "|r") or ""))
@@ -1513,6 +1706,7 @@ local function CreateGodPage()
             popText:SetPoint("BOTTOM", satchel, "TOP", 0, 6 + 40 * OutCubic(p))
         end)
     end
+    return page
 end
 
 -- The window --------------------------------------------------------------------------------------------------------
@@ -1637,7 +1831,7 @@ local function CreateBoard()
     divider:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -100)
     divider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -100)
 
-    -- What L'Infini's scene takes the place of (CreateGodPage)
+    -- What L'Infini's and the Hollow Voice's scenes take the place of (CreateGodPage)
     frame.boardArt = { ground, parchment, heading, intro, timerIcon, timerIconBorder, timerLabel, timerText, timerBar,
         divider }
 
@@ -1836,7 +2030,8 @@ local function CreateBoard()
         dungeonCards[index] = card
     end
 
-    CreateGodPage()
+    godPage = CreateGodPage(PAGE_SPECS.god)
+    voicePage = CreateGodPage(PAGE_SPECS.voice)
 
     emptyText = frame:CreateFontString(nil, "OVERLAY")
     emptyText:SetFont(FRIZ, 16)
@@ -1921,12 +2116,14 @@ local function CreateBoard()
         rewardRows[index] = row
     end
 
-    -- The tabs under the window, as on the character sheet: the raid missions, the dungeon challenges, the god
+    -- The tabs under the window, as on the character sheet: the raid missions, the dungeon challenges, the god, the
+    -- Hollow Voice
     tabs = {}
-    local pages = { "raids", "dungeons", "god" }
-    local headings = { raids = TEXT.heading, dungeons = TEXT.headingDungeons, god = TEXT.headingGod }
-    local intros = { raids = TEXT.intro, dungeons = TEXT.introDungeons, god = TEXT.introGod }
-    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons, TEXT.tabGod }) do
+    local pages = { "raids", "dungeons", "god", "voice" }
+    local headings = { raids = TEXT.heading, dungeons = TEXT.headingDungeons, god = TEXT.headingGod,
+        voice = TEXT.headingVoice }
+    local intros = { raids = TEXT.intro, dungeons = TEXT.introDungeons, god = TEXT.introGod, voice = TEXT.introVoice }
+    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons, TEXT.tabGod, TEXT.tabVoice }) do
         local tab = CreateFrame("Button", "ChallengeBoardFrameTab" .. index, frame, "CharacterFrameTabButtonTemplate")
         tab:SetID(index)
         tab:SetText(label)
@@ -1950,7 +2147,7 @@ local function CreateBoard()
         end)
         tabs[index] = tab
     end
-    PanelTemplates_SetNumTabs(frame, 3)
+    PanelTemplates_SetNumTabs(frame, #pages)
     PanelTemplates_SetTab(frame, 1)
 
     -- The clock ticks, the waiting rewards breathe, and a new board is asked for when the time runs out
@@ -1962,6 +2159,12 @@ local function CreateBoard()
         timerFill:SetWidth(max(1, timerFill.full * max(0, left) / ROTATION_SECONDS))
         if left <= 0 and not state.asked then
             state.asked = true
+            Send("OPEN")
+        end
+        -- Gear changed with the board open: the board again, with the item level the server measures now (a set
+        -- swapped is many changes, asked for once)
+        if state.gearChanged and GetTime() - state.gearChanged > 0.5 then
+            state.gearChanged = nil
             Send("OPEN")
         end
 
@@ -2022,6 +2225,8 @@ local function AnimateClaim(boss, gold, paragon, essences)
     end
     if boss == GOD_BOSS and state.page == "god" and godPage:IsShown() then
         return godPage.Claimed(gold, paragon, essences)
+    elseif boss == VOICE_BOSS and state.page == "voice" and voicePage:IsShown() then
+        return voicePage.Claimed(gold, paragon, essences)
     end
 
     for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
@@ -2043,9 +2248,11 @@ local function AnimateClaim(boss, gold, paragon, essences)
 end
 
 local function AnimateAccepted(boss)
-    -- The god's page has a sound of its own
+    -- The god's page and the Hollow Voice's have a sound of their own
     if boss == GOD_BOSS and frame and frame:IsShown() and state.page == "god" and godPage:IsShown() then
         return godPage.Accepted()
+    elseif boss == VOICE_BOSS and frame and frame:IsShown() and state.page == "voice" and voicePage:IsShown() then
+        return voicePage.Accepted()
     end
     PlaySound("WriteQuest")
     if not frame or not frame:IsShown() then
@@ -2304,6 +2511,7 @@ local function Handle(message)
         incoming.contract = tonumber(h) or 0
         incoming.paragon = tonumber(i)
         incoming.godOpenTier = tonumber(j) or TIER_MIN
+        incoming.itemLevel = tonumber(k)
         incoming.dungeons = {}
         incoming.missions = {}
         incoming.rewards = {}
@@ -2323,6 +2531,7 @@ local function Handle(message)
             wonAt = tonumber((select(13, strsplit("\t", message)))) or 0,
             requiredItemLevel = tonumber((select(14, strsplit("\t", message)))) or 0,
             baseParagon = tonumber((select(15, strsplit("\t", message)))) or 0,
+            signUpItemLevel = tonumber((select(16, strsplit("\t", message)))) or 0,
         })
     elseif kind == "D" then
         tinsert(incoming.dungeons, {
@@ -2363,6 +2572,7 @@ local function Handle(message)
         state.currentTier = incoming.currentTier or 0
         state.key = incoming.key or 2
         state.paragon = incoming.paragon
+        state.itemLevel = incoming.itemLevel
         state.dungeons = incoming.dungeons or {}
         -- The answer to this player's own DUNGEON: the card gets its stamp
         local previousContract = state.contract
@@ -2415,7 +2625,7 @@ local function Handle(message)
         AnimateClaim(tonumber(b) or 0, tonumber(c) or 0, tonumber(d) or 0, tonumber(e) or 0)
     elseif kind == "X" then
         state.starting = nil
-        ShowError(a)
+        ShowError(a, b, c)
     end
 end
 
@@ -2442,7 +2652,14 @@ end)
 
 local listener = CreateFrame("Frame")
 listener:RegisterEvent("CHAT_MSG_ADDON")
-listener:SetScript("OnEvent", function(_, _, prefix, message, _, sender)
+listener:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
+    if event == "PLAYER_EQUIPMENT_CHANGED" then
+        if frame and frame:IsShown() then
+            state.gearChanged = GetTime()
+        end
+        return
+    end
     if sender ~= UnitName("player") then
         return
     end

@@ -3548,8 +3548,8 @@ boss_hollow_voice_aldric* FindAldric(Player* player)
 using namespace Acore::ChatCommands;
 
 // .hollow info | skip <seconds> | reveal | pull | cast <ability> | music <aldric|velthazar|stop> | floor: for game
-// masters trying the fight. The fight itself starts from the board: .defi start 930100 (hidden from the boards until
-// it is revealed).
+// masters trying the fight. The fight itself starts from the board: its own page (an equipped item level of 450 to sign
+// up), or a game master's .defi start 930100.
 class HollowVoiceCommandScript final : public CommandScript
 {
 public:

@@ -1,34 +1,45 @@
-"""Compiles the art of L'Infini's page on the challenge board (ChallengeBoard.lua, the L'Infini tab) into the BLP2
-files the 3.3.5 client loads. The page is one scene filling the window: the Celestial Planetarium, the god standing
-on its left and melting into it. Both pictures are paintings (localTools/interface/assets/challengeGod), shipped
-uncompressed (the Paragon sky's writer): DXT would band their dark gradients.
+"""Compiles the art of the challenge board's own pages (ChallengeBoard.lua: the L'Infini tab and the Hollow Voice's)
+into the BLP2 files the 3.3.5 client loads. Each page is one scene filling the window: its place, its boss standing on
+its left and melting into it. Both pictures are paintings (localTools/interface/assets/<page>), shipped uncompressed
+(the Paragon sky's writer): DXT would band their dark gradients.
 
-- ChallengeGod-Backdrop   the Planetarium, mirrored so its calm side lies under the text, cut to the window's inside
-                          (GOD_SCENE_* in ChallengeBoard.lua) and stretched into a 1024x1024 texture (the client
-                          stretches it back)
-- ChallengeGod-Figure     the god: the painting's top at the proportions the page shows it (GOD_FIGURE_*), its edges
-                          faded out in the alpha (a texture cannot be masked in the client), in the top of a 512x1024
-                          texture
+- Challenge<Page>-Backdrop  the place, mirrored so its calm side lies under the text, cut to the window's inside
+                            (GOD_SCENE_* in ChallengeBoard.lua) and stretched into a 1024x1024 texture (the client
+                            stretches it back)
+- Challenge<Page>-Figure    the boss: the painting's top at the proportions the page shows it (GOD_FIGURE_*), its edges
+                            faded out in the alpha (a texture cannot be masked in the client), in the top of a 512x1024
+                            texture
 
-Usage: python localTools/interface/buildChallengeGodArt.py
+L'Infini: the Celestial Planetarium and the god (assets/challengeGod).
+The Hollow Voice: the Sunwell chamber, its lit stair under the figure once mirrored and its dark hall under the text,
+and the Archbishop with the demon behind him (assets/hollowVoice). The demon fills the painting's right side, so it
+fades in less from the right than the god does: its purple runs into the chamber's.
+
+Usage: python localTools/interface/buildChallengeGodArt.py [god|voice ...]   (all of them by default)
 """
 import importlib.util
 import os
+import sys
 
 import numpy
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-SOURCE = os.path.join(HERE, "assets", "challengeGod")
+ASSETS = os.path.join(HERE, "assets")
 OUT = os.path.join(REPO, "clientPatcher", "interface", "Interface", "ChallengeBoard")
 
-# ChallengeBoard.lua: the window's inside, and the god's part of it (width / height)
+# ChallengeBoard.lua: the window's inside, and the boss's part of it (width / height)
 SCENE_ASPECT = 836 / 565
 FIGURE_ASPECT = 444 / 565
-# How far in from each edge the god fades out, in shares of its width / height
-FADE_RIGHT, FADE_BOTTOM, FADE_LEFT, FADE_TOP = 0.42, 0.3, 0.06, 0.06
-STALE = ("ChallengeGod-Portrait",)
+
+# Each page's art: its source folder, the textures' name, and how far in from each edge its figure fades out, in
+# shares of its width / height (right, bottom, left, top)
+PAGES = {
+    "god": {"source": "challengeGod", "name": "ChallengeGod", "fade": (0.42, 0.3, 0.06, 0.06),
+            "stale": ("ChallengeGod-Portrait",)},
+    "voice": {"source": "hollowVoice", "name": "ChallengeVoice", "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
+}
 
 
 def load_blp_writer():
@@ -44,18 +55,19 @@ def smoothstep(values):
     return values * values * (3.0 - 2.0 * values)
 
 
-def figure():
-    painting = Image.open(os.path.join(SOURCE, "portrait.png")).convert("RGBA")
+def figure(source, fade):
+    fade_right, fade_bottom, fade_left, fade_top = fade
+    painting = Image.open(os.path.join(source, "portrait.png")).convert("RGBA")
     height = round(painting.width / FIGURE_ASPECT)
     crop = painting.crop((0, 0, painting.width, height))
     scaled = crop.resize((512, round(512 / FIGURE_ASPECT)), Image.Resampling.LANCZOS)
 
-    rgba = numpy.asarray(scaled, dtype=numpy.float32)
+    rgba = numpy.asarray(scaled, dtype=numpy.float32).copy()
     rows, columns = rgba.shape[:2]
     x = (numpy.arange(columns, dtype=numpy.float32) + 0.5) / columns
     y = (numpy.arange(rows, dtype=numpy.float32) + 0.5) / rows
-    across = smoothstep((1.0 - x) / FADE_RIGHT) * smoothstep(x / FADE_LEFT)
-    down = smoothstep((1.0 - y) / FADE_BOTTOM) * smoothstep(y / FADE_TOP)
+    across = smoothstep((1.0 - x) / fade_right) * smoothstep(x / fade_left)
+    down = smoothstep((1.0 - y) / fade_bottom) * smoothstep(y / fade_top)
     rgba[..., 3] *= down[:, None] * across[None, :]
 
     texture = Image.new("RGBA", (512, 1024), (0, 0, 0, 0))
@@ -64,8 +76,8 @@ def figure():
     return texture
 
 
-def backdrop():
-    painting = Image.open(os.path.join(SOURCE, "backdrop.png")).convert("RGBA")
+def backdrop(source):
+    painting = Image.open(os.path.join(source, "backdrop.png")).convert("RGBA")
     painting = painting.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
     width = min(painting.width, round(painting.height * SCENE_ASPECT))
     left = (painting.width - width) // 2
@@ -73,18 +85,30 @@ def backdrop():
     return crop.resize((1024, 1024), Image.Resampling.LANCZOS)
 
 
-def main():
-    write = load_blp_writer()
-    os.makedirs(OUT, exist_ok=True)
-    for name in STALE:
+def build(page, write):
+    config = PAGES[page]
+    source = os.path.join(ASSETS, config["source"])
+    for name in config["stale"]:
         for extension in (".png", ".blp"):
             path = os.path.join(OUT, name + extension)
             if os.path.exists(path):
                 os.remove(path)
-    for name, image in (("ChallengeGod-Figure", figure()), ("ChallengeGod-Backdrop", backdrop())):
+    for kind, image in (("Figure", figure(source, config["fade"])), ("Backdrop", backdrop(source))):
+        name = f"{config['name']}-{kind}"
         image.save(os.path.join(OUT, name + ".png"))
         write(image, os.path.join(OUT, name + ".blp"))
         print("wrote", name)
+
+
+def main():
+    pages = sys.argv[1:] or list(PAGES)
+    unknown = [page for page in pages if page not in PAGES]
+    if unknown:
+        sys.exit(f"unknown page(s) {', '.join(unknown)}: {', '.join(PAGES)}")
+    write = load_blp_writer()
+    os.makedirs(OUT, exist_ok=True)
+    for page in pages:
+        build(page, write)
 
 
 if __name__ == "__main__":
