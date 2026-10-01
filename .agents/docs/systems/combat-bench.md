@@ -2,11 +2,43 @@
 
 The in-game test ground (`.bench`, GM Island) measures damage, healing and damage taken on dummies scaled exactly
 like Mythic+ creatures. **Use it for any class tuning, new class or spec, talent / rotation change, or bot AI combat
-change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game usage and every command:
-`modules/mod-playerbots/COMBAT_BENCH.md`. Code: `modules/mod-playerbots/src/Script/CombatBench.cpp`, measuring in
-`src/server/game/Telemetry/CombatTelemetry.cpp` (`Bench*`).
+change** instead of dungeon runs: a full comparison takes ~6 minutes, a tuning step under a minute (the session and
+live tuning below). In-game usage and every command: `modules/mod-playerbots/COMBAT_BENCH.md`. Code:
+`modules/mod-playerbots/src/Script/CombatBench.cpp`, measuring in `src/server/game/Telemetry/CombatTelemetry.cpp`
+(`Bench*`).
 
-## Running it headless
+## Tuning loop (fast): a bench session and live tuning
+
+**Use this for any tuning pass.** A loop of change → run → read costs only the runs: no driver build, no login, no
+bots brought again (the session), and no server build, restart or client release (live tuning).
+
+```powershell
+.\localTools\combatBench\bench.ps1 start                                    # log the session in (once, ~5 s)
+.\localTools\combatBench\bench.ps1 bots 'mage fire aoe;warrior arms aoe'     # the bots (replaces them, ~20 s)
+.\localTools\combatBench\bench.ps1 bots 'shaman resto;mage fire' -pulse 12   # a healer test
+.\localTools\combatBench\bench.ps1 run -layouts single,pack5 -seconds 30     # reports + per-spell tables
+.\localTools\combatBench\bench.ps1 run -tune '.tune spell 47486 1.15','.tune set warrior.colossus_factor 1.25'
+.\localTools\combatBench\bench.ps1 cmd '.tune list warrior'                  # any chat command, its replies
+.\localTools\combatBench\bench.ps1 stop
+```
+
+- **Live tuning** (`src/server/game/Tuning/LiveTuning.h`, `.tune`, game masters and the console):
+  - `.tune spell <id> <x>` scales one spell's damage and healing at once - direct, over time, a pet's or a totem's,
+    whatever the number comes from (spell data, coefficients, scripts). `1` drops it. The quick way to find the
+    right factor for a spell; then put it in the spell's data or script (a multiplier does not change the tooltip)
+    and reset it.
+  - `.tune set <key> <value>` changes a knob: a balance number of a class module, declared
+    `LiveTuning::Knob const Name("class.name", value)` (`KnobInt` / `KnobUInt` for integers) where a `constexpr`
+    used to be. `.tune list <filter>` shows the knobs and their code values, `.tune reset <key>|all`.
+  - Overrides are kept in the world database (`live_tuning`, `live_tuning_spell`) across restarts. When a pass is
+    done, `python localTools/tuning/bakeTuning.py` writes every knob override into its declaration as the new default
+    and drops it from the database (`--dry-run` first); spell multipliers it only lists. Then build and commit - the
+    code stays the one place a number lives.
+- A server restart ends the session (`bench.ps1 start` again). Its log: `var/combatBench/session/session.log`.
+- Short runs (`-seconds 30`, `single,pack5`) to find the direction, then 60 s and the full layouts, repeated, to
+  settle it (variance below).
+
+## Running it headless (one run)
 
 ```powershell
 # default layouts: single,pack5,pack8,pack12 at +10, 45 s each
@@ -73,12 +105,14 @@ change** instead of dungeon runs: a full comparison takes ~6 minutes. In-game us
 - Stock target caps live in the spell data (`MaxAffectedTargets`, effect `ChainTarget`); override them in
   `SpellInfoCorrections.cpp` or per cast in `OnSpellCheckCast`, and pair an uncap with a falloff past 5 targets
   (`sqrt(5 / n)`, as Hunter's Multi-Shot / Beast Cleave).
-- Tuning in C++ constants needs a server build + restart only; a `Spells.ps1` tooltip or data change also needs a
-  client release (`-steps client,publish`, WoW closed).
+- A class module's knobs and spell multipliers tune live (`.tune`, above); a new knob or any other C++ change needs a
+  server build + restart; a `Spells.ps1` tooltip or data change also needs a client release (`-steps client,publish`,
+  WoW closed) - try its factor with `.tune spell` first.
 
 ## Where each class is tuned
 
 Per-class modules: `modules/mod-mage`, `mod-rogue`, `mod-paladin`, `mod-death-knight`, `mod-hunter`,
-`mod-priest`, `mod-warrior`, `mod-shaman`, `mod-warlock`, `mod-druid` (constants at the top of their sources), shared talent-tree code in `mod-custom-classes`; spell data in
+`mod-priest`, `mod-warrior`, `mod-shaman`, `mod-warlock`, `mod-druid` (knobs and constants at the top of their
+sources), shared talent-tree code in `mod-custom-classes`; spell data in
 `localTools/<class>/Spells.ps1`, talent trees and presets in `localTools/<class>/talentTree.json`. Name the bench
 in the commit when a change was tuned on it.

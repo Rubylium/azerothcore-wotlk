@@ -114,6 +114,12 @@ void WorldDatabaseConnection::DoPrepareStatements()
     PrepareStatement(WORLD_SEL_REQ_XP, "SELECT Experience FROM player_xp_for_level WHERE Level = ?", CONNECTION_SYNCH);
     PrepareStatement(WORLD_UPD_VERSION, "UPDATE version SET core_version = ?, core_revision = ?", CONNECTION_ASYNC);
     PrepareStatement(WORLD_DEL_SPAWNGROUP_MEMBER, "DELETE FROM spawn_group WHERE spawnType = ? AND spawnId = ?", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_SEL_LIVE_TUNING, "SELECT `Key`, `Value` FROM live_tuning", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_REP_LIVE_TUNING, "REPLACE INTO live_tuning (`Key`, `Value`) VALUES (?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_DEL_LIVE_TUNING, "DELETE FROM live_tuning WHERE `Key` = ?", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_SEL_LIVE_TUNING_SPELL, "SELECT `SpellId`, `Multiplier` FROM live_tuning_spell", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_REP_LIVE_TUNING_SPELL, "REPLACE INTO live_tuning_spell (`SpellId`, `Multiplier`) VALUES (?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(WORLD_DEL_LIVE_TUNING_SPELL, "DELETE FROM live_tuning_spell WHERE `SpellId` = ?", CONNECTION_ASYNC);
 }
 
 WorldDatabaseConnection::WorldDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)
