@@ -728,10 +728,12 @@ $timer.Add_Tick({
                     if ($script:process.ExitCode -eq 0) {
                         $step.State = 'done'
                         Save-History $step
-                        if ($step.Name -eq 'publish') {
-                            $published = Select-String -LiteralPath $step.Log -Pattern '/tag/(v[0-9.]+)' |
+                        # The version a client build or a release produced, for the Discord status
+                        $versionPattern = @{ client = 'Client build ready: ([0-9.]+)'; publish = '/tag/(v[0-9.]+)' }
+                        if ($versionPattern.ContainsKey($step.Name)) {
+                            $found = Select-String -LiteralPath $step.Log -Pattern $versionPattern[$step.Name] |
                                 Select-Object -Last 1
-                            if ($published) { $step.Version = $published.Matches[0].Groups[1].Value }
+                            if ($found) { $step.Version = $found.Matches[0].Groups[1].Value }
                         }
                     }
                     else {

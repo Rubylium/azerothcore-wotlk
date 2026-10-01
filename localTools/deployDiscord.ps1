@@ -1,68 +1,80 @@
-# The deploy window's notices on the players' Discord channel (dot-sourced by deployWithProgress.ps1): one message per
-# run, edited as it goes, so the players see an update being built, the server restarting and a new client released.
+﻿# The deploy window's status on the players' Discord channel (dot-sourced by deployWithProgress.ps1): one message per
+# run, edited as it goes, showing development activity only - the pipeline's stages, their state and time, the build's
+# revision and how much code moved since the last deploy. Never what changed: this is not a patch note.
 #
 # The webhook is a secret: it lives in localTools/deploy.local.json (gitignored), { "discordWebhook": "<url>" }. Without
 # that file nothing is sent. Discord being unreachable never stops a deploy: every call is tried once, briefly.
 #
-# The message lists the run's steps as the players would name them, and what changed since the last deploy that reached
-# them (a restart or a release): the subjects of the commits since then, remembered in
-# %LOCALAPPDATA%\Evolutions\discord-state.json.
+# The last deploy that reached the players (a restart or a release) is remembered in
+# %LOCALAPPDATA%\Evolutions\discord-state.json, so the change counts start from it.
 
-$deployDiscord = @{ Url = $null; MessageId = $null; StatePath = Join-Path $env:LOCALAPPDATA 'Evolutions\discord-state.json' }
+$deployDiscord = @{ Url = $null; MessageId = $null; Started = Get-Date
+    StatePath = Join-Path $env:LOCALAPPDATA 'Evolutions\discord-state.json' }
 $deployDiscordConfig = Join-Path $PSScriptRoot 'deploy.local.json'
 if (Test-Path -LiteralPath $deployDiscordConfig) {
     try { $deployDiscord.Url = (Get-Content -LiteralPath $deployDiscordConfig -Raw | ConvertFrom-Json).discordWebhook }
     catch { }
 }
 
-# How each step reads for the players
-$deployDiscordLabels = @{
-    server = 'Compilation du serveur'; dll = 'Extension du client'; client = 'Construction du patch client'
-    restart = 'Redémarrage du serveur'; publish = 'Publication de la nouvelle version'
+# Each stage as the pipeline names it: its target, and what it does
+$deployDiscordStages = [ordered]@{
+    server = @('worldserver', 'compile'); dll = @('client-ext', 'build'); client = @('client-patch', 'package')
+    restart = @('realm', 'restart'); publish = @('release', 'publish')
 }
 
-function Get-DeployDiscordChanges {
+function Get-DeployDiscordRevision {
     $last = $null
     if (Test-Path -LiteralPath $deployDiscord.StatePath) {
         try { $last = (Get-Content -LiteralPath $deployDiscord.StatePath -Raw | ConvertFrom-Json).lastCommit } catch { }
     }
-    $range = if ($last) { "$last..HEAD" } else { 'HEAD~5..HEAD' }
-    $subjects = @(& git -C $repoRoot log --no-merges --format=%s $range 2>$null | Select-Object -First 8)
-    foreach ($subject in $subjects) {
-        # "feat(barbarian): the Barbare..." reads as "barbarian : the Barbare..."
-        $text = $subject -replace '^\w+\(([^)]+)\)!?:\s*', '$1 : ' -replace '^\w+!?:\s*', ''
-        if ($text.Length -gt 140) { $text = $text.Substring(0, 137) + '...' }
-        "• $text"
+    $revision = @{ Head = (& git -C $repoRoot rev-parse --short=7 HEAD 2>$null)
+        Branch = (& git -C $repoRoot rev-parse --abbrev-ref HEAD 2>$null); Changes = '' }
+    if ($last) {
+        $commits = & git -C $repoRoot rev-list --count "$last..HEAD" 2>$null
+        $stat = (& git -C $repoRoot diff --shortstat $last HEAD 2>$null) -join ''
+        $files = if ($stat -match '(\d+) files? changed') { $Matches[1] } else { '0' }
+        $added = if ($stat -match '(\d+) insertions?') { $Matches[1] } else { '0' }
+        $removed = if ($stat -match '(\d+) deletions?') { $Matches[1] } else { '0' }
+        $commitWord = if ([int]$commits -eq 1) { 'commit' } else { 'commits' }
+        $fileWord = if ([int]$files -eq 1) { 'fichier' } else { 'fichiers' }
+        $revision.Changes = "$commits $commitWord · $files $fileWord · +$added / -$removed"
     }
+    return $revision
+}
+
+function Format-DeployDiscordTime([TimeSpan]$span) {
+    return '{0:00}:{1:00}' -f [int][Math]::Floor($span.TotalMinutes), $span.Seconds
 }
 
 function Send-DeployDiscord([object[]]$plan, [string]$heading, [switch]$final, $failedStep) {
     if (-not $deployDiscord.Url) { return }
     try {
-        $lines = foreach ($step in $plan) {
-            $icon = switch ($step.State) {
-                'done' { ':white_check_mark:' } 'running' { ':hourglass_flowing_sand:' } 'failed' { ':x:' }
-                'blocked' { ':pause_button:' } 'skipped' { ':heavy_minus_sign:' } default { ':white_small_square:' }
+        $rows = foreach ($step in $plan) {
+            $stage = $deployDiscordStages[$step.Name]
+            $mark = switch ($step.State) {
+                'done' { 'ok' } 'running' { '...' } 'failed' { 'FAIL' } 'blocked' { 'wait' } 'skipped' { '-' }
+                default { '' }
             }
-            $time = if ($step.Elapsed) { ' — {0:mm\:ss}' -f $step.Elapsed } else { '' }
-            $label = $deployDiscordLabels[$step.Name]
-            if ($step.Name -eq 'restart' -and $step.State -eq 'running') { $label += ' (le jeu revient dans une minute)' }
-            if ($step.Name -eq 'publish' -and $step.State -eq 'done' -and $step.Version) {
-                $label += " : **$($step.Version)**, disponible dans le lanceur"
-            }
-            "$icon $label$time"
+            $detail = $stage[1]
+            if ($step.Name -eq 'client' -and $step.Version) { $detail = "v$($step.Version)" }
+            if ($step.Name -eq 'publish' -and $step.Version) { $detail = $step.Version }
+            $time = if ($step.Elapsed) { Format-DeployDiscordTime $step.Elapsed } else { '' }
+            '{0,-13}{1,-11}{2,-6}{3}' -f $stage[0], $detail, $mark, $time
         }
-        $color = 15105570                      # in progress: amber
-        $title = ":hammer_and_wrench: $heading en cours"
-        if ($final -and $failedStep) { $color = 15158332; $title = ":x: $heading interrompue" }
-        elseif ($final) { $color = 3066993; $title = ":white_check_mark: $heading terminée" }
-        $embed = @{ title = $title; description = ($lines -join "`n"); color = $color
-            timestamp = (Get-Date).ToUniversalTime().ToString('o') }
-        $changes = @(Get-DeployDiscordChanges)
-        if ($changes.Count) {
-            $value = $changes -join "`n"
-            if ($value.Length -gt 1024) { $value = $value.Substring(0, 1021) + '...' }
-            $embed.fields = @(@{ name = 'Au programme'; value = $value })
+        $state = 'en cours'; $color = 5793266
+        if ($final -and $failedStep) { $state = 'échec'; $color = 15548997 }
+        elseif ($final) { $state = 'réussi'; $color = 5763719 }
+        $revision = Get-DeployDiscordRevision
+        $fields = @(
+            @{ name = 'Révision'; value = "``$($revision.Branch)@$($revision.Head)``"; inline = $true },
+            @{ name = 'Durée'; value = "``$(Format-DeployDiscordTime ((Get-Date) - $deployDiscord.Started))``"; inline = $true })
+        if ($revision.Changes) { $fields += @{ name = 'Depuis le dernier déploiement'; value = "``$($revision.Changes)``" } }
+        $embed = @{
+            title = "Pipeline de déploiement · $state"
+            description = "``````text`n$($rows -join "`n")`n``````"
+            color = $color; fields = $fields
+            footer = @{ text = 'Evolutions · build & deploy' }
+            timestamp = (Get-Date).ToUniversalTime().ToString('o')
         }
         $body = [Text.Encoding]::UTF8.GetBytes((@{ embeds = @($embed) } | ConvertTo-Json -Depth 6))
         if ($deployDiscord.MessageId) {
@@ -74,7 +86,7 @@ function Send-DeployDiscord([object[]]$plan, [string]$heading, [switch]$final, $
                 -ContentType 'application/json; charset=utf-8' -TimeoutSec 5
             $deployDiscord.MessageId = $message.id
         }
-        # A deploy that reached the players: what it listed is now theirs
+        # A deploy that reached the players: the change counts start again from here
         $reached = @($plan | Where-Object { $_.Name -in 'restart', 'publish' -and $_.State -eq 'done' })
         if ($final -and $reached.Count) {
             $head = & git -C $repoRoot rev-parse HEAD 2>$null
