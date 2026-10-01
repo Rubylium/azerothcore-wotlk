@@ -45,7 +45,7 @@ import subprocess
 import sys
 import tempfile
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
@@ -295,6 +295,12 @@ def build_painted_texture(shape):
         rgb = numpy.clip(rgb * shape.get('gain', 1.0), 0.0, 1.0)
         source = numpy.concatenate([rgb, rgb.max(axis=2, keepdims=True)], axis=2)
     else:
+        if shape.get('upscale'):
+            # A big area from a small painting: a sharpened Lanczos upscale first, rather than the bilinear
+            # sampling's blur at several texels a pixel
+            factor = int(shape['upscale'])
+            source_image = source_image.resize((source_image.width * factor, source_image.height * factor),
+                                               Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=2, percent=80))
         source = premultiplied(source_image)
     height, width = source.shape[:2]
     kind = shape['shape']
@@ -305,7 +311,8 @@ def build_painted_texture(shape):
         columns = PAINTED_LINE_LENGTH
         rows = max(MIN_TEXTURE_SIDE, 1 << (int(round(columns * (y1 - y0) / (x1 - x0))) - 1).bit_length())
     else:
-        columns = rows = PAINTED_TEXTURE_SIZE
+        # `size`: a big area's own texture size (the devoured edge, 100 yards across: 512 texels blurred it)
+        columns = rows = shape.get('size', PAINTED_TEXTURE_SIZE)
     xs = x0 + (numpy.arange(columns) + 0.5) / columns * (x1 - x0)
     ys = y0 + (numpy.arange(rows) + 0.5) / rows * (y1 - y0)
     X, Y = numpy.meshgrid(xs, ys)

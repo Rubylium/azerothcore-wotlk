@@ -466,6 +466,10 @@ constexpr uint32 EDGE_HOLY = 94133;
 constexpr uint32 EDGE_HOLY_HIT = 94134;
 constexpr uint32 EDGE_CARRION = 94135;
 constexpr uint32 EDGE_CARRION_HIT = 94136;
+// The devoured edge's wall: twelve pieces of void standing round its inner border (HV_EdgeWall*, four of the tile,
+// 16 yards each: the twelve chords of a 30-yard circle), flowing, for the rest of the fight
+constexpr uint32 EDGE_WALL = 94137;
+constexpr uint32 EdgeWallPieces = 12;
 // A tower's looks (shapes.json): the sigils lit once held, the gems round its rim (empty, lit), one a soaker
 constexpr uint32 LOOK_SIGIL_RADIANT_LIT = 90673;
 constexpr uint32 LOOK_SIGIL_VOID_LIT = 90674;
@@ -3034,8 +3038,17 @@ private:
         }
         HitEveryone(SPELL_TEAR, TrueFormPulsePct);
         // Painted only: its shadow particles, pulsing all round the chamber until the end, hid the whole fight
-        _edgeArea = Paint(RingArea(Center(), EdgeOuterRadius, EdgeInnerRadius),
-            PAINT_EDGE, AtEnrageBlasts[2] + 30000 - Elapsed());
+        uint32 const edgeLasts = AtEnrageBlasts[2] + 30000 - Elapsed();
+        _edgeArea = Paint(RingArea(Center(), EdgeOuterRadius, EdgeInnerRadius), PAINT_EDGE, edgeLasts);
+        Position const center = Center();
+        for (uint32 piece = 0; piece < EdgeWallPieces; ++piece)
+        {
+            float const angle = 2.0f * float(M_PI) * (float(piece) + 0.5f) / float(EdgeWallPieces);
+            Position const at = Ground(AtAngle(center, angle, EdgeInnerRadius * std::cos(float(M_PI) /
+                float(EdgeWallPieces))));
+            GroundIndicators::ShowDecal(me, at, Position::NormalizeOrientation(angle + float(M_PI) / 2.0f), 1.0f,
+                edgeLasts, EDGE_WALL + piece % 4);
+        }
         _edge = true;
         HoldDemon(false);
     }
