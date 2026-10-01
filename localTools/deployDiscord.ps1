@@ -36,7 +36,7 @@ function Get-DeployDiscordRevision {
         $added = if ($stat -match '(\d+) insertions?') { $Matches[1] } else { '0' }
         $removed = if ($stat -match '(\d+) deletions?') { $Matches[1] } else { '0' }
         $commitWord = if ([int]$commits -eq 1) { 'commit' } else { 'commits' }
-        $fileWord = if ([int]$files -eq 1) { 'fichier' } else { 'fichiers' }
+        $fileWord = if ([int]$files -eq 1) { 'file' } else { 'files' }
         $revision.Changes = "$commits $commitWord · $files $fileWord · +$added / -$removed"
     }
     return $revision
@@ -61,16 +61,16 @@ function Send-DeployDiscord([object[]]$plan, [string]$heading, [switch]$final, $
             $time = if ($step.Elapsed) { Format-DeployDiscordTime $step.Elapsed } else { '' }
             '{0,-13}{1,-11}{2,-6}{3}' -f $stage[0], $detail, $mark, $time
         }
-        $state = 'en cours'; $color = 5793266
-        if ($final -and $failedStep) { $state = 'échec'; $color = 15548997 }
-        elseif ($final) { $state = 'réussi'; $color = 5763719 }
+        $state = 'running'; $color = 5793266
+        if ($final -and $failedStep) { $state = 'failed'; $color = 15548997 }
+        elseif ($final) { $state = 'succeeded'; $color = 5763719 }
         $revision = Get-DeployDiscordRevision
         $fields = @(
-            @{ name = 'Révision'; value = "``$($revision.Branch)@$($revision.Head)``"; inline = $true },
-            @{ name = 'Durée'; value = "``$(Format-DeployDiscordTime ((Get-Date) - $deployDiscord.Started))``"; inline = $true })
-        if ($revision.Changes) { $fields += @{ name = 'Depuis le dernier déploiement'; value = "``$($revision.Changes)``" } }
+            @{ name = 'Revision'; value = "``$($revision.Branch)@$($revision.Head)``"; inline = $true },
+            @{ name = 'Duration'; value = "``$(Format-DeployDiscordTime ((Get-Date) - $deployDiscord.Started))``"; inline = $true })
+        if ($revision.Changes) { $fields += @{ name = 'Since last deploy'; value = "``$($revision.Changes)``" } }
         $embed = @{
-            title = "Pipeline de déploiement · $state"
+            title = "Deploy pipeline · $state"
             description = "``````text`n$($rows -join "`n")`n``````"
             color = $color; fields = $fields
             footer = @{ text = 'Evolutions · build & deploy' }
