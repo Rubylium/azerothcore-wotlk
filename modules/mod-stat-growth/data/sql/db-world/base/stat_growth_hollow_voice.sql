@@ -8,7 +8,8 @@
 --        (First sized on the compounded paragon rule at 505 million, seven times what the bench measures.) His health
 --        stops at 1%; he is the board's boss (its kill is the win), and stays hidden once the demon is out.
 -- 930101 Vel'thazar, the Hollow Voice: Balnazzar's look (10813, display 10691), the demon inside him, summoned by his
---        script. 9 804 x 13 945 = 136.7 million, about 257 s of the group's damage outside the intermissions.
+--        script. 10 539 x 13 945 = 147.0 million, about 276 s of the group's damage outside the intermissions (7.5%
+--        over the model's 136.7: played undergeared, he still fell too easily).
 -- 930102 Dread Infernal: an Infernal (89), two crashing down in phase 3, an off-tank holding them: 287 x 13 945 =
 --        4 million each, about 11 s of the group for the two.
 -- The Archbishop's static spawn stands where M'uru floats, in every Sunwell (spawn mask 1: its only mode); his script
@@ -71,7 +72,7 @@ UPDATE `tmp_stat_growth_hollow_voice` SET
     `unit_flags` = 0,
     `DamageModifier` = 80,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 9804,
+    `HealthModifier` = 10539,
     `ManaModifier` = 1,
     `RegenHealth` = 0,
     `CreatureImmunitiesId` = -361,
@@ -134,8 +135,8 @@ INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `Ver
     (930101, 'frFR', 'Vel''thazar', 'La Voix creuse', NULL),
     (930102, 'frFR', 'Infernal de l''effroi', NULL, NULL);
 
--- Type 14: yell, lore only (no line announcing a mechanic). TextRange 3: the whole map. The Archbishop never hints at
--- the demon: his last line is a man's.
+-- Type 14: yell, lore only (no line announcing a mechanic). TextRange 3: the whole map. The Archbishop never names the
+-- demon: his warning, fallen, in the silence before it tears out, is a frightened man's.
 INSERT INTO `creature_text`
     (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`,
      `BroadcastTextId`, `TextRange`, `comment`)
@@ -145,6 +146,7 @@ VALUES
     (930100, 2, 0, 'Enough... it is... finished...', 14, 0, 100, 0, 0, 0, 0, 3, 'Aldric - falls'),
     (930100, 3, 0, 'Your souls are commended to the Light. Last Rites.', 14, 0, 100, 0, 0, 0, 0, 3, 'Aldric - too slow'),
     (930100, 4, 0, 'Free... at last...', 14, 0, 100, 0, 0, 0, 0, 3, 'Aldric - released'),
+    (930100, 5, 0, 'The voice... it was never the Light. It wakes... Run!', 14, 0, 100, 0, 0, 0, 0, 3, 'Aldric - warning, before the demon'),
     (930101, 0, 0, 'Finished? The sermon has only begun.', 14, 0, 100, 0, 0, 0, 0, 3, 'Vel''thazar - reveal'),
     (930101, 1, 0, 'Another voice for my choir.', 14, 0, 100, 0, 0, 0, 0, 3, 'Vel''thazar - kill'),
     (930101, 2, 0, 'Silence.', 14, 0, 100, 0, 0, 0, 0, 3, 'Vel''thazar - hard enrage'),
@@ -156,6 +158,7 @@ INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Te
     (930100, 2, 0, 'frFR', 'Assez... c''est... terminé...'),
     (930100, 3, 0, 'frFR', 'Vos âmes sont confiées à la Lumière. Derniers sacrements.'),
     (930100, 4, 0, 'frFR', 'Libre... enfin...'),
+    (930100, 5, 0, 'frFR', 'Cette voix... ce n''était pas la Lumière. Elle s''éveille... Fuyez !'),
     (930101, 0, 0, 'frFR', 'Terminé ? Le sermon ne fait que commencer.'),
     (930101, 1, 0, 'frFR', 'Une voix de plus pour mon chœur.'),
     (930101, 2, 0, 'frFR', 'Silence.'),

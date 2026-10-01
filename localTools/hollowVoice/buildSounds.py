@@ -17,6 +17,9 @@ OUTPUT = os.path.join(REPO, 'modules', 'mod-stat-growth', 'client-assets', 'comp
 TARGET_LUFS = -7.0
 # The long, looped one (Execution Sentence's mark, 10 s under the marked) stays quieter, at its own level
 QUIETER = {'HV_ExecutionSentence.ogg': -11.0}
+# The impacts (HV_Impact*: where a mechanic lands - Light's Hammer, Templar's Verdict, the void's large impacts and
+# explosion, the heavy ones layered with a second hit) louder still: the boss's big hit must be heard over the raid
+IMPACT_LUFS = -5.0
 TRUE_PEAK = -1.0
 
 
@@ -53,7 +56,8 @@ def main():
         target = os.path.join(OUTPUT, os.path.basename(source))
         # A measured gain, then again for what the limiter took back (loudnorm's single pass adapts over a short
         # sound and left some quieter than they came)
-        wanted = QUIETER.get(os.path.basename(source), TARGET_LUFS)
+        name = os.path.basename(source)
+        wanted = QUIETER.get(name, IMPACT_LUFS if name.startswith('HV_Impact') else TARGET_LUFS)
         gain = wanted - loudness(tool, source)
         for _ in range(3):
             render(tool, source, target, gain)
