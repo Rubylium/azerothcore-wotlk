@@ -392,8 +392,20 @@ void InstanceScript::SetSummoner(Creature* creature)
                 summoner->AI()->JustSummoned(creature);
 }
 
+namespace
+{
+InstanceScript::SkipRequiredBossesHook skipRequiredBossesHook = nullptr;
+}
+
+void InstanceScript::SetSkipRequiredBossesHook(SkipRequiredBossesHook hook)
+{
+    skipRequiredBossesHook = hook;
+}
+
 bool InstanceScript::_SkipCheckRequiredBosses(Player const* player /*= nullptr*/) const
 {
+    if (skipRequiredBossesHook && skipRequiredBossesHook(instance))
+        return true;
     return player && player->GetSession()->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_INSTANCE_REQUIRED_BOSSES);
 }
 

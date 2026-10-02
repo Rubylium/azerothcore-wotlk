@@ -55,6 +55,13 @@ local VOICE_ATTEMPTS = 1
 local TIER_MIN, TIER_MAX = 1, 10
 local TIER_ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
 local TIER_GUARANTEED_ITEM = 7
+-- A raid mission's satchel piece above Défi I: an epic fitted to the player, the drops' item level and this more a
+-- tier (ChallengeTiers.h ItemLevelPerTier)
+local TIER_ITEM_LEVEL = 5
+
+local function TierItemLevel(itemLevel, tier)
+    return itemLevel + TIER_ITEM_LEVEL * (tier - TIER_MIN)
+end
 -- ChallengeBoard.cpp SatchelExtraItemChance, by raid mode (10, 25, 10 heroic, 25 heroic)
 local SATCHEL_ITEM_CHANCE = { [0] = 35, 45, 50, 60 }
 
@@ -103,6 +110,7 @@ local TEXT = french and {
     heroic = "Héroïque",
     heroicTag = "HÉROÏQUE",
     itemLevel = "Butin de niveau d'objet %d",
+    tierItemLevel = "Butin %d · pièce du défi : niveau d'objet %d",
     required = "Requis : niv. d'objet %d+ · parangon %d",
     paragon = "+%d Parangon",
     essences = "+%d essences",
@@ -164,6 +172,7 @@ local TEXT = french and {
     keyParagonNone = "Jusqu'à +10, aucun parangon requis : la clé se joue à l'équipement.",
     satchelChance = "Butin du boss : %d%% de chances.",
     satchelSure = "Un butin du boss assuré, un second à %d%%.",
+    satchelTierGear = "Au-dessus du défi I, ce butin est une épique faite pour vous, de niveau d'objet %d.",
     tabGod = "L'Infini",
     headingGod = "Le défi ultime",
     introGod = "Au cœur d'Ulduar, là où les Titans gravèrent la carte des cieux, une présence veille depuis l'aube "
@@ -259,6 +268,7 @@ local TEXT = french and {
     heroic = "Heroic",
     heroicTag = "HEROIC",
     itemLevel = "Drops item level %d",
+    tierItemLevel = "Drops %d · challenge piece: item level %d",
     required = "Requires item level %d+ · paragon %d",
     paragon = "+%d Paragon",
     essences = "+%d essences",
@@ -320,6 +330,7 @@ local TEXT = french and {
     keyParagonNone = "Up to +10 no paragon is needed: the key is a matter of gear.",
     satchelChance = "Boss drop: %d%% chance.",
     satchelSure = "One boss drop for sure, a second at %d%%.",
+    satchelTierGear = "Above Défi I, that drop is an epic made for you, item level %d.",
     tabGod = "L'Infini",
     headingGod = "The Ultimate Challenge",
     introGod = "At the heart of Ulduar, where the Titans carved the map of the heavens, a presence has kept watch "
@@ -691,6 +702,10 @@ local function CardTooltipSatchel(owner)
         local chance = min(100, (SATCHEL_ITEM_CHANCE[mission.difficulty] or 35) + TierExtraItemChance(tier))
         GameTooltip:AddLine(tier >= TIER_GUARANTEED_ITEM and format(TEXT.satchelSure, chance) or
             format(TEXT.satchelChance, chance), 1, 0.82, 0.3, true)
+        if tier > TIER_MIN and (mission.itemLevel or 0) > 0 and not IsGod(mission) then
+            GameTooltip:AddLine(format(TEXT.satchelTierGear, TierItemLevel(mission.itemLevel, tier)),
+                0.75, 0.45, 1, true)
+        end
     end
     GameTooltip:Show()
 end
@@ -918,7 +933,9 @@ local function FillCard(card, mission)
         card.itemLevel:SetText(format(TEXT.required, mission.requiredItemLevel,
             (mission.baseParagon or 0) + TierParagon(tier)))
     else
-        card.itemLevel:SetText(mission.itemLevel > 0 and format(TEXT.itemLevel, mission.itemLevel) or "")
+        card.itemLevel:SetText(mission.itemLevel <= 0 and "" or tier > TIER_MIN and
+            format(TEXT.tierItemLevel, mission.itemLevel, TierItemLevel(mission.itemLevel, tier)) or
+            format(TEXT.itemLevel, mission.itemLevel))
     end
     local gold, paragon, essences = MissionReward(mission, tier)
     card.gold:SetText(Money(gold))

@@ -266,6 +266,11 @@ public:
 
     bool _SkipCheckRequiredBosses(Player const* player = nullptr) const;
 
+    // Instances whose bosses are fought without the ones before them (the challenge board's single-boss challenges,
+    // mod-playerbots RaidFinder.cpp): asked by _SkipCheckRequiredBosses of every instance, true to skip
+    using SkipRequiredBossesHook = bool (*)(Map const* instance);
+    static void SetSkipRequiredBossesHook(SkipRequiredBossesHook hook);
+
     void SetCompletedEncountersMask(uint32 newMask, bool save);
 
     // Returns completed encounters mask for packets
