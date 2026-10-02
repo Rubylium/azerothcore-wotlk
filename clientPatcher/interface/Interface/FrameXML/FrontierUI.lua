@@ -2,7 +2,7 @@
 -- are ranked in four tiers; this shows the tier on entering a zone (a banner) and puts the zone's content on the
 -- world map and the minimap. The server whispers on the "Frontier" addon prefix:
 --   ZONE <tier 0-4> <zone id> <loot item level>   entering a tier zone (tier 0: leaving one)
---   PINS <zone id> <kind>:<x>:<y>,...             the zone's content in world coordinates (E a roaming elite, R a rift)
+--   PINS <zone id> <kind>:<x>:<y>,...             the zone's content in world coordinates (E a roaming elite, R a rift, T a chest)
 --   RIFT <stage> <wave> <waves> <alive> <total> <seconds left>
 --                                                 a rift near the player: stage 1 waiting, 2 waves, 3 guardian, 4
 --                                                 closed, 5 collapsed; the tracker hides when it stops hearing of it
@@ -27,6 +27,8 @@ local TEXT = french and {
     eliteTitle = "Élite rôdeur",
     eliteHint = "Un défi pour un joueur seul, qui grandit avec le groupe. Éclats de givre, et une chance "
         .. "d'équipement du palier.",
+    chestTitle = "Coffre du Front",
+    chestHint = "Fouillez-le pour des éclats de givre : chacun le sien, une minute après la première ouverture.",
     riftTitle = "Faille arcanique",
     riftHint = "Approchez-vous pour l'ouvrir : trois vagues, puis son gardien. Elle grandit avec le groupe.",
     riftWaiting = "Approchez-vous pour l'ouvrir",
@@ -53,6 +55,8 @@ local TEXT = french and {
     content = "Roaming elites",
     eliteTitle = "Roaming elite",
     eliteHint = "A challenge for one player that grows with the group. Frost shards, and a chance of the tier's gear.",
+    chestTitle = "Frontier chest",
+    chestHint = "Search it for Frost Shards: one each, for a minute after it is first opened.",
     riftTitle = "Arcane rift",
     riftHint = "Come near to open it: three waves, then its guardian. It grows with the group.",
     riftWaiting = "Come near to open it",
@@ -257,6 +261,7 @@ local PIN_LOOKS = {
     E = { texture = "Interface\\Frontier\\PinElite", sizes = { 20, 16 } },
     R = { texture = "Interface\\Frontier\\PinRift", sizes = { 22, 18 } },
     C = { texture = "Interface\\Frontier\\PinColossus", sizes = { 30, 24 } },
+    T = { texture = "Interface\\Frontier\\PinChest", sizes = { 20, 16 } },
 }
 
 local function PinSize(kind, onMinimap)
@@ -279,9 +284,11 @@ local function ShowPinTooltip(tooltip, owner, entry)
             UI.AMBER[1], UI.AMBER[2], UI.AMBER[3])
         tooltip:AddLine(TEXT.colossusHint, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3], true)
     else
-        local rift = entry and entry.kind == "R"
-        tooltip:AddLine(rift and TEXT.riftTitle or TEXT.eliteTitle, UI.HEADING[1], UI.HEADING[2], UI.HEADING[3])
-        tooltip:AddLine(rift and TEXT.riftHint or TEXT.eliteHint, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3], true)
+        local kind = entry and entry.kind
+        local title = kind == "R" and TEXT.riftTitle or kind == "T" and TEXT.chestTitle or TEXT.eliteTitle
+        local hint = kind == "R" and TEXT.riftHint or kind == "T" and TEXT.chestHint or TEXT.eliteHint
+        tooltip:AddLine(title, UI.HEADING[1], UI.HEADING[2], UI.HEADING[3])
+        tooltip:AddLine(hint, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3], true)
     end
     tooltip:Show()
 end
@@ -561,3 +568,6 @@ end)
 
 -- For testing by hand: FrontierUI_Receive("ZONE\t2\t65\t213")
 FrontierUI_Receive = Receive
+
+-- For the quartermaster's window (FrontierQuartermaster.lua): the tier zones and their names, the tier numerals
+FrontierUIShared = { ZONES = ZONES, NUMERALS = NUMERALS }

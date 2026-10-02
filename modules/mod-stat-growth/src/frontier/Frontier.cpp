@@ -1,3 +1,5 @@
+#include "Frontier.h"
+
 #include "EssenceTierSystem.h"
 #include "GroundIndicators.h"
 #include "MythicDungeonSystem.h"
@@ -70,7 +72,7 @@ constexpr uint32 FrontierPhaseMask = 0x4000;
 constexpr uint32 SPELL_PHASE = 97600;
 constexpr uint32 SPELL_DEVASTATING_BLOW = 97601;
 constexpr uint32 SPELL_DEVASTATING_BLOW_STOCK = 59706;     // until the server's Spell.dbc has 97601
-constexpr uint32 ITEM_FROST_SHARD = 37711;
+constexpr uint32 ITEM_FROST_SHARD = Frontier::ITEM_FROST_SHARD;
 constexpr std::string_view AddonPrefix = "Frontier";
 
 struct Tier
@@ -80,15 +82,16 @@ struct Tier
     uint32 lootItemLevel;       // the gear it drops
     uint32 eliteShards;         // Éclats de givre a roaming elite gives...
     uint32 riftShards;          // ... a closed rift
-    uint32 colossusShards;      // ... and the tier's Colosse
+    uint32 colossusShards;      // ... the tier's Colosse
+    uint32 chestShards;         // ... and a chest
 };
 
 // Tiers I-IV (index 0-3)
-constexpr std::array<Tier, 4> Tiers = { {
-    { 187.0f, 0.0f, 200, 2, 6, 15 },
-    { 200.0f, 0.0f, 213, 3, 8, 20 },
-    { 213.0f, 0.0f, 219, 4, 10, 25 },
-    { 223.0f, 0.0f, 226, 5, 12, 30 },
+constexpr std::array<Tier, Frontier::TierCount> Tiers = { {
+    { 187.0f, 0.0f, 200, 2, 6, 15, 3 },
+    { 200.0f, 0.0f, 213, 3, 8, 20, 4 },
+    { 213.0f, 0.0f, 219, 4, 10, 25, 5 },
+    { 223.0f, 0.0f, 226, 5, 12, 30, 6 },
 } };
 
 struct Zone
@@ -171,6 +174,19 @@ constexpr float RiftEssenceChance = 30.0f;
 constexpr uint32 SPELL_CRYSTAL_SHARD = 97602;
 constexpr uint32 SPELL_ARCANE_NOVA = 97603;
 constexpr uint32 SPELL_ARCANE_STOCK = 59706;
+
+// --- The chests (Coffres) ----------------------------------------------------------------------------------------
+// A few a zone while a tier player is in it, at its spawn spots. Whoever opens one gets its shards, once a character;
+// it goes a minute after its first opening (a group around it has the time to open it too), and moves after a while
+// unopened.
+constexpr uint32 GO_CHEST = 940100;
+constexpr uint32 ChestsPerZone = 2;
+constexpr uint32 ChestRespawnMs = 3 * 60 * 1000;
+constexpr uint32 ChestStayMs = 15 * 60 * 1000;
+constexpr uint32 ChestLingerMs = 60 * 1000;
+constexpr float ChestSpawnClearance = 50.0f;
+constexpr float ChestGearChance = 8.0f;
+constexpr float ChestEssenceChance = 25.0f;
 
 // --- The Colosses (world bosses) ---------------------------------------------------------------------------------
 // One at a time, the four in turn (tier I's, then II's, III's and IV's), at a spot of one of their tier's two zones.
@@ -390,6 +406,15 @@ void RewardPlayers(std::set<Player*> const& players, Tier const& tier, uint32 sh
 }
 
 // --- The zones' state ----------------------------------------------------------------------------------------------
+struct ChestState
+{
+    ObjectGuid guid;
+    uint32 ageMs = 0;
+    uint32 openedMs = 0;                // since its first opening
+    bool opened = false;
+    std::set<ObjectGuid> openers;       // the characters who opened it: once each
+};
+
 struct ZoneState
 {
     std::vector<Position> spots;        // its hostile and wild creatures' spawn points: valid ground, built once
@@ -401,6 +426,8 @@ struct ZoneState
     uint8 nextEntry = 0;
     ObjectGuid rift;
     uint32 riftInMs = RiftFirstMs;
+    std::vector<ChestState> chests;
+    std::vector<uint32> chestRespawns;  // a chest gone, the time left before another takes its place
 };
 
 std::array<ZoneState, Zones.size()> States;
@@ -495,7 +522,107 @@ std::string Pins(Map* map, ZoneState const& state)
             add('E', elite);
     if (Creature* rift = map->GetCreature(state.rift))
         add('R', rift);
+    for (ChestState const& chest : state.chests)
+        if (GameObject* go = map->GetGameObject(chest.guid))
+            pins += Acore::StringFormat("{}T:{:.0f}:{:.0f}", pins.empty() ? "" : ",", go->GetPositionX(),
+                go->GetPositionY());
     return pins;
+}
+
+// A chest at one of the zone's spawn spots, away from the towns and the players, on dry ground in the zone
+GameObject* SpawnChest(Map* map, Zone const& zone, ZoneState& state, std::vector<Player*> const& players)
+{
+    if (!state.spotsBuilt)
+        BuildSpots(zone, state);
+    if (state.spots.empty())
+        return nullptr;
+
+    for (uint32 attempt = 0; attempt < EliteSpawnTries; ++attempt)
+    {
+        Position const& spot = Acore::Containers::SelectRandomContainerElement(state.spots);
+        if (NearTown(state, spot) || std::ranges::any_of(players, [&spot](Player* player)
+            { return player->GetExactDist2d(&spot) < ChestSpawnClearance; }))
+            continue;
+        GameObject* chest = map->SummonGameObject(GO_CHEST, spot.GetPositionX(), spot.GetPositionY(),
+            spot.GetPositionZ(), frand(0.0f, 2.0f * float(M_PI)), 0.0f, 0.0f, 0.0f, 0.0f, 0);
+        if (!chest)
+            continue;
+        if (chest->GetZoneId() != zone.id ||
+            map->IsInWater(PHASEMASK_NORMAL, spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(), 0.5f))
+        {
+            chest->DespawnOrUnsummon();
+            continue;
+        }
+        chest->SetPhaseMask(FrontierPhaseMask, true);
+        return chest;
+    }
+    return nullptr;
+}
+
+// Each opened chest goes a minute after its first opening, an unopened one after ChestStayMs; another one takes its
+// place ChestRespawnMs later
+void UpdateChests(Map* map, Zone const& zone, ZoneState& state, std::vector<Player*> const& players, uint32 elapsed)
+{
+    for (auto chest = state.chests.begin(); chest != state.chests.end();)
+    {
+        GameObject* go = map->GetGameObject(chest->guid);
+        chest->ageMs += elapsed;
+        if (chest->opened)
+            chest->openedMs += elapsed;
+        if (go && (chest->opened ? chest->openedMs < ChestLingerMs : chest->ageMs < ChestStayMs))
+        {
+            ++chest;
+            continue;
+        }
+        if (go)
+            go->DespawnOrUnsummon();
+        chest = state.chests.erase(chest);
+        state.chestRespawns.push_back(ChestRespawnMs);
+    }
+
+    for (uint32& left : state.chestRespawns)
+        left = left > elapsed ? left - elapsed : 0;
+    auto const due = std::ranges::find(state.chestRespawns, 0u);
+    bool const free = state.chests.size() + state.chestRespawns.size() < ChestsPerZone;
+    if (state.chests.size() < ChestsPerZone && (free || due != state.chestRespawns.end()))
+        if (GameObject* chest = SpawnChest(map, zone, state, players))
+        {
+            state.chests.push_back({ chest->GetGUID() });
+            if (!free)
+                state.chestRespawns.erase(due);
+        }
+}
+
+void DespawnChests(Map* map, ZoneState& state)
+{
+    for (ChestState const& chest : state.chests)
+        if (GameObject* go = map->GetGameObject(chest.guid))
+            go->DespawnOrUnsummon();
+    state.chests.clear();
+    state.chestRespawns.clear();
+}
+
+// A chest opened by a player: its shards and chances, once a character; its first opening starts its last minute
+void OpenChest(Player* player, GameObject* go)
+{
+    Zone const* zone = FindZone(go->GetZoneId());
+    if (!zone || IsBot(player) || !SeesTier(player))
+        return;
+    ZoneState& state = States[std::size_t(zone - Zones.data())];
+    auto chest = std::ranges::find_if(state.chests, [go](ChestState const& each)
+        { return each.guid == go->GetGUID(); });
+    if (chest == state.chests.end())
+        return;
+    if (!chest->openers.insert(player->GetGUID()).second)
+    {
+        ChatHandler(player->GetSession()).SendSysMessage(Frontier::IsFrench(player) ?
+            "Vous avez déjà fouillé ce coffre." : "You already searched this chest.");
+        return;
+    }
+    chest->opened = true;
+    Tier const& tier = TierOf(*zone);
+    RewardPlayers({ player }, tier, tier.chestShards, ChestGearChance, ChestEssenceChance);
+    Frontier::CountDeed(player, Frontier::Deed::Chest, zone->id);
 }
 
 // --- The Colosses' schedule ----------------------------------------------------------------------------------------
@@ -697,10 +824,11 @@ public:
             if (present[index].empty())
             {
                 state.idleMs += elapsed;
-                if (state.idleMs >= ZoneIdleMs && !state.elites.empty())
+                if (state.idleMs >= ZoneIdleMs && (!state.elites.empty() || !state.chests.empty()))
                 {
                     DespawnElites(map, state);
                     state.respawns.clear();
+                    DespawnChests(map, state);
                 }
                 continue;
             }
@@ -732,6 +860,8 @@ public:
                     if (Creature* rift = SummonAtSpot(map, zone, state, present[index], NPC_RIFT, RiftSpawnClearance))
                         state.rift = rift->GetGUID();
             }
+
+            UpdateChests(map, zone, state, present[index], elapsed);
 
             std::string const pins = Pins(map, state);
             for (Player* player : present[index])
@@ -840,6 +970,7 @@ private:
             if (IsBot(player) || !player->IsInMap(me) || player->GetDistance(me) > RewardReach)
                 continue;
             player->AddItem(ITEM_FROST_SHARD, tier.eliteShards);
+            Frontier::CountDeed(player, Frontier::Deed::Elite, me->GetZoneId());
             if (roll_chance_f(EliteGearChance))
                 GiveMythicLootItem(player, tier.lootItemLevel);
             if (roll_chance_f(EliteEssenceChance))
@@ -1021,6 +1152,8 @@ private:
         for (Player* player : TierPlayersNear(me, RiftLeaveReach))
             players.insert(player);
         RewardPlayers(players, tier, tier.riftShards, RiftGearChance, RiftEssenceChance);
+        for (Player* player : players)
+            Frontier::CountDeed(player, Frontier::Deed::Rift, me->GetZoneId());
         LOG_INFO("module.frontier", "Front du Nord: rift closed in zone {}, {} player(s) near", me->GetZoneId(),
             players.size());
     }
@@ -1227,6 +1360,8 @@ struct npc_frontier_colossus : public ScriptedAI
                 player->GetDistance(me) <= ColossusRewardReach)
                 players.insert(player);
         RewardPlayers(players, tier, tier.colossusShards, 100.0f, ColossusEssenceChance);
+        for (Player* player : players)
+            Frontier::CountDeed(player, Frontier::Deed::Colossus, me->GetZoneId());
         LOG_INFO("module.frontier", "Front du Nord: Colosse {} slain in zone {} by {:.2f} damage dealers, {} player(s) "
             "near", _index + 1, me->GetZoneId(), _dealers, players.size());
         if (Colossi.here && me->GetGUID() == Colossi.guid)
@@ -1345,6 +1480,19 @@ private:
     uint32 _rescaleMs = 0;
 };
 
+// A chest: opened with a click, no loot window
+class go_frontier_chest : public GameObjectScript
+{
+public:
+    go_frontier_chest() : GameObjectScript("go_frontier_chest") { }
+
+    bool OnGossipHello(Player* player, GameObject* go) override
+    {
+        OpenChest(player, go);
+        return true;
+    }
+};
+
 class FrontierPlayerScript : public PlayerScript
 {
 public:
@@ -1383,6 +1531,10 @@ public:
             { "rift", HandleRift, SEC_GAMEMASTER, Console::No },
             { "advance", HandleAdvance, SEC_GAMEMASTER, Console::No },
             { "colossus", HandleColossus, SEC_GAMEMASTER, Console::No },
+            { "chest", HandleChest, SEC_GAMEMASTER, Console::No },
+            { "open", HandleOpen, SEC_GAMEMASTER, Console::No },
+            { "contracts", HandleContracts, SEC_GAMEMASTER, Console::No },
+            { "deed", HandleDeed, SEC_GAMEMASTER, Console::No },
             { "soon", HandleSoon, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commands = {
@@ -1521,6 +1673,66 @@ public:
         return true;
     }
 
+    // .frontier chest: one of the zone's chests, in front of the game master
+    static bool HandleChest(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Zone const* zone = FindZone(player->GetZoneId());
+        if (!zone || player->GetMapId() != MAP_NORTHREND)
+        {
+            handler->SendSysMessage("Front du Nord: not a tier zone.");
+            return false;
+        }
+        Position spot = player->GetPosition();
+        player->MovePosition(spot, 5.0f, 0.0f);
+        if (GameObject* chest = player->GetMap()->SummonGameObject(GO_CHEST, spot.GetPositionX(), spot.GetPositionY(),
+                spot.GetPositionZ(), player->GetOrientation() + float(M_PI), 0.0f, 0.0f, 0.0f, 0.0f, 0))
+        {
+            chest->SetPhaseMask(FrontierPhaseMask, true);
+            States[std::size_t(zone - Zones.data())].chests.push_back({ chest->GetGUID() });
+        }
+        return true;
+    }
+
+    // .frontier open: the nearest of the zone's chests, opened by the game master as by a click
+    static bool HandleOpen(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Zone const* zone = FindZone(player->GetZoneId());
+        if (!zone)
+            return false;
+        GameObject* nearest = nullptr;
+        for (ChestState const& chest : States[std::size_t(zone - Zones.data())].chests)
+            if (GameObject* go = player->GetMap()->GetGameObject(chest.guid);
+                go && (!nearest || player->GetDistance(go) < player->GetDistance(nearest)))
+                nearest = go;
+        if (!nearest)
+        {
+            handler->SendSysMessage("Front du Nord: no chest in this zone.");
+            return false;
+        }
+        handler->PSendSysMessage("Front du Nord: chest at {:.0f} yd opened; {} shard(s) before.",
+            player->GetDistance(nearest), player->GetItemCount(ITEM_FROST_SHARD));
+        OpenChest(player, nearest);
+        return true;
+    }
+
+    // .frontier contracts: the game master's contracts of the day
+    static bool HandleContracts(ChatHandler* handler)
+    {
+        handler->SendSysMessage(Frontier::DescribeContracts(handler->GetSession()->GetPlayer()));
+        return true;
+    }
+
+    // .frontier deed <1-4>: a deed done in the game master's zone (1 elite, 2 rift, 3 chest, 4 Colosse)
+    static bool HandleDeed(ChatHandler* handler, uint8 deed)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Frontier::CountDeed(player, Frontier::Deed(std::clamp<uint8>(deed, 1, 4)), player->GetZoneId());
+        handler->SendSysMessage(Frontier::DescribeContracts(player));
+        return true;
+    }
+
     // .frontier elite: one of the zone's roaming elites, here
     static bool HandleElite(ChatHandler* handler)
     {
@@ -1546,11 +1758,55 @@ public:
 };
 }
 
+namespace Frontier
+{
+uint32 LootItemLevel(uint8 tier)
+{
+    return tier >= 1 && tier <= TierCount ? Tiers[tier - 1].lootItemLevel : 0;
+}
+
+uint8 ZoneTier(uint32 zoneId)
+{
+    Zone const* zone = FindZone(zoneId);
+    return zone ? zone->tier : 0;
+}
+
+uint32 TierZone(uint8 tier, uint8 which)
+{
+    uint8 seen = 0;
+    for (Zone const& zone : Zones)
+        if (zone.tier == tier && seen++ == which)
+            return zone.id;
+    return 0;
+}
+
+bool IsBot(Player const* player)
+{
+    return ::IsBot(player);
+}
+
+bool IsFrench(Player const* player)
+{
+    return player->GetSession() && player->GetSession()->GetSessionDbcLocale() == LOCALE_frFR;
+}
+
+bool SeesTier(Player const* player)
+{
+    return (player->GetPhaseMask() & FrontierPhaseMask) != 0;
+}
+
+void SendAddon(Player* player, std::string const& body)
+{
+    ::SendAddon(player, body);
+}
+}
+
 void AddFrontierScripts()
 {
     new FrontierWorldScript();
     new FrontierPlayerScript();
     new FrontierCommandScript();
+    new go_frontier_chest();
     RegisterCreatureAI(npc_frontier_elite);
     RegisterCreatureAI(npc_frontier_rift);
     RegisterCreatureAI(npc_frontier_rift_creature);

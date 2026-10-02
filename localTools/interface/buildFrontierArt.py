@@ -6,6 +6,10 @@ localTools/interface/assets/frontier into the files the 3.3.5 client loads.
 - Interface\\Frontier\\ColossusIcon<n>  each Colosse's head, cut square from its portrait, for its chat line (256x256)
 - Interface\\Frontier\\Pin<Kind>        the map and minimap pins, painted in the game's own map icon look (64x64):
                                       Elite, Colossus, Rift, Chest and Quartermaster
+- Interface\\Frontier\\Quartermaster-Backdrop  the quartermaster's window's scene: her post, cut to the window's inside
+                                            and stretched into 1024x512 (the client stretches it back)
+- Interface\\Frontier\\Quartermaster-Figure    the quartermaster herself, at the proportions of her place on the right of
+                                            the window, her edges faded into the scene, in the top of a 512x1024
 - Interface\\Icons\\INV_Frontier_FrostShard   the Éclat de givre's item icon (64x64 TGA, shipped by patchFiles.js
                                             from client-assets/compiled; its ItemDisplayInfo row is the patcher's)
 
@@ -44,6 +48,12 @@ COLOSSUS_HEADS = {
 # Darker than this on every channel, and joined to the edge: background
 BLACK = 26
 
+# FrontierQuartermaster.lua: the window's inside, and the quartermaster's place on its right (width, height)
+QUARTERMASTER_INSIDE = (804, 506)
+QUARTERMASTER_FIGURE = (300, 506)
+# How far in from each edge her figure fades out, in shares of its width / height (left, bottom, right, top)
+QUARTERMASTER_FADE = (0.38, 0.2, 0.04, 0.02)
+
 
 def load_blp_writer():
     path = os.path.join(HERE, "buildParagonArt.py")
@@ -81,6 +91,44 @@ def colossus_head(index):
     return square(crop, 256).filter(ImageFilter.UnsharpMask(radius=1.2, percent=40, threshold=2))
 
 
+def smoothstep(values):
+    values = numpy.clip(values, 0.0, 1.0)
+    return values * values * (3.0 - 2.0 * values)
+
+
+def quartermaster_backdrop():
+    """Her post, cut to the window's proportions (top and bottom trimmed), stretched into 1024x512."""
+    painting = Image.open(os.path.join(SOURCE, "quartermaster-backdrop.png")).convert("RGBA")
+    aspect = QUARTERMASTER_INSIDE[0] / QUARTERMASTER_INSIDE[1]
+    height = min(painting.height, round(painting.width / aspect))
+    top = (painting.height - height) // 2
+    return painting.crop((0, top, painting.width, top + height)).resize((1024, 512), Image.Resampling.LANCZOS)
+
+
+def quartermaster_figure():
+    """Her portrait at her place's proportions (its sides trimmed), faded at the edges, at the top of a 512x1024."""
+    painting = Image.open(os.path.join(SOURCE, "quartermaster-portrait.png")).convert("RGBA")
+    aspect = QUARTERMASTER_FIGURE[0] / QUARTERMASTER_FIGURE[1]
+    width = min(painting.width, round(painting.height * aspect))
+    left = (painting.width - width) // 2
+    crop = painting.crop((left, 0, left + width, painting.height))
+    scaled = crop.resize((512, round(512 / aspect)), Image.Resampling.LANCZOS)
+
+    rgba = numpy.asarray(scaled, dtype=numpy.float32).copy()
+    rows, columns = rgba.shape[:2]
+    x = (numpy.arange(columns, dtype=numpy.float32) + 0.5) / columns
+    y = (numpy.arange(rows, dtype=numpy.float32) + 0.5) / rows
+    fade_left, fade_bottom, fade_right, fade_top = QUARTERMASTER_FADE
+    across = smoothstep(x / fade_left) * smoothstep((1.0 - x) / fade_right)
+    down = smoothstep(y / fade_top) * smoothstep((1.0 - y) / fade_bottom)
+    rgba[..., 3] *= down[:, None] * across[None, :]
+
+    texture = Image.new("RGBA", (512, 1024), (0, 0, 0, 0))
+    texture.paste(Image.fromarray(rgba.round().astype(numpy.uint8), "RGBA"), (0, 0))
+    print(f"quartermaster figure: {rows} of 1024 rows (FrontierQuartermaster.lua FIGURE_BOTTOM {rows / 1024:.4f})")
+    return texture
+
+
 def write_icon_tga(image, path, size=64):
     """Uncompressed 32-bit BGRA, top-down: the shape of the module's other icons (buildParagonIcons.py)."""
     image = image.convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
@@ -110,6 +158,8 @@ def main():
     for name in PINS:
         pin = key_black(Image.open(os.path.join(SOURCE, f"pin-{name.lower()}.png")))
         write_blp(square(pin, 64), os.path.join(OUT, f"Pin{name}.blp"))
+    write_blp(quartermaster_backdrop(), os.path.join(OUT, "Quartermaster-Backdrop.blp"))
+    write_blp(quartermaster_figure(), os.path.join(OUT, "Quartermaster-Figure.blp"))
     write_icon_tga(Image.open(os.path.join(SOURCE, "shard-icon.png")),
                    os.path.join(ICONS, "INV_Frontier_FrostShard.tga"))
     print(f"Front du Nord art written to {OUT} and the shard icon to {ICONS}")

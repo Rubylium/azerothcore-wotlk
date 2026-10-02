@@ -29,6 +29,9 @@ bool IsGroupTank(Player* player);
 // One epic of that item level fitted to the player's class, into their bags (or their mailbox when full); above the
 // game's best items, the generated variant of that item level. The Mythic+ reward, also the Infinite Dungeon's.
 void GiveMythicLootItem(Player* player, uint32 itemLevel);
+// The same for one slot chosen (an equipment slot: its group, both rings or both trinkets); false, nothing given, when
+// no item of that item level fits the player there (an off hand beside a two-hander)
+bool GiveMythicLootItemForSlot(Player* player, uint32 itemLevel, uint8 equipmentSlot);
 // The same, touched by L'Infini (the challenge board's god, InfiniteGod.cpp): a bonus of its own on top, drawn at
 // random among its three whatever the piece or its wearer, what it does and a line of its lore, in the item's five random property
 // enchantment slots (a generated item has no random property). They stay on it for good, forged too.

@@ -682,7 +682,7 @@ Player* PickLootOwner(Player* player, Creature* killed)
 constexpr std::array<uint32, 4> MythicItemLevelWindows = { ReplacementItemLevelWindow, 13, 26, 60 };
 
 SlotPick SelectMythicLoot(Player* player, uint32 itemLevel, uint32 givenItemLevel, std::vector<SlotGroup>& groups,
-    std::vector<size_t>& order)
+    std::vector<size_t>& order, uint8 equipmentSlot = NULL_SLOT)
 {
     BuildEquipmentCatalog();
     uint32 const progressionLevel = player->GetLevel();
@@ -693,6 +693,10 @@ SlotPick SelectMythicLoot(Player* player, uint32 itemLevel, uint32 givenItemLeve
 
     groups = BuildSlotGroups(player);
     order = OrderSlotGroups(groups);
+    // A slot chosen (the Front du Nord's quartermaster): its group alone, upgrade or not
+    if (equipmentSlot != NULL_SLOT)
+        std::erase_if(order, [&groups, equipmentSlot](size_t group)
+            { return std::ranges::find(groups[group].slots, equipmentSlot) == groups[group].slots.end(); });
     std::vector<SlotCandidate> const candidates = CollectSlotCandidates(player, groups,
         [&](ItemTemplate const& candidate)
         {
@@ -797,14 +801,14 @@ void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
 // (wider when the game has no items there for that slot, as between raid tiers). `givenItemLevel` is what the player
 // really gets (above the game's best items, the generated variant of the pick), which is what "behind" is measured
 // against. A player whose gear is already better everywhere still gets something of the right item level.
-ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint32 givenItemLevel)
+ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint32 givenItemLevel, uint8 equipmentSlot)
 {
     if (!player)
         return nullptr;
 
     std::vector<SlotGroup> groups;
     std::vector<size_t> order;
-    return SelectMythicLoot(player, itemLevel, givenItemLevel, groups, order).itemTemplate;
+    return SelectMythicLoot(player, itemLevel, givenItemLevel, groups, order, equipmentSlot).itemTemplate;
 }
 
 // The Infinite Dungeon's gear while levelling (InfiniteDungeonSystem.cpp): an item of the quality asked for, made for

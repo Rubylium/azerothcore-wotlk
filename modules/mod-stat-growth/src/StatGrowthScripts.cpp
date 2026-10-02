@@ -729,6 +729,7 @@ public:
 
 // frontier/Frontier.cpp: Le Front du Nord, open-world content at level 80
 void AddFrontierScripts();
+void AddFrontierQuartermasterScripts();
 
 void AddStatGrowthScripts()
 {
@@ -764,6 +765,7 @@ void AddStatGrowthScripts()
     AddSmartLootScripts();
     AddInfiniteDungeonScripts();
     AddFrontierScripts();
+    AddFrontierQuartermasterScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
     new StatGrowthUnitScript();

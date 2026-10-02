@@ -9,12 +9,14 @@
 --   2 the rift's waves (940021-940022)
 --   3 the rift's guardian (940023)
 --   4 the Colosses (940030-940033), one a tier: world bosses, much larger, a boss's immunities (Sapphiron's)
+--   5 the quartermaster (940040), Ysolde Brisegivre on Krasus' Landing: Aliocha Segard's Argent Crusade look, her own
+--     window (FrontierQuartermaster.cpp) in place of a gossip menu
 
-DELETE FROM `creature_template_locale` WHERE `entry` BETWEEN 940000 AND 940033;
-DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 940000 AND 940033;
-DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 940000 AND 940033;
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 940000 AND 940033;
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 940000 AND 940033;
+DELETE FROM `creature_template_locale` WHERE `entry` BETWEEN 940000 AND 940040;
+DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 940000 AND 940040;
+DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 940000 AND 940040;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 940000 AND 940040;
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 940000 AND 940040;
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_frontier_copy`;
 CREATE TEMPORARY TABLE `tmp_frontier_copy` (
@@ -56,20 +58,24 @@ INSERT INTO `tmp_frontier_copy` (`entry`, `source`, `name`, `role`) VALUES
     (940030, 28379, 'Gorroth Grandes-Défenses', 4),
     (940031, 15989, 'Vyskarn', 4),
     (940032, 29306, 'Zul''Gath l''Avatar déchu', 4),
-    (940033, 29190, 'Mastodonte de saronite', 4);
+    (940033, 29190, 'Mastodonte de saronite', 4),
+    -- The quartermaster
+    (940040, 30431, 'Ysolde Brisegivre', 5);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_frontier_template`;
 CREATE TEMPORARY TABLE `tmp_frontier_template` LIKE `creature_template`;
-INSERT INTO `tmp_frontier_template` SELECT t.* FROM `creature_template` t JOIN `tmp_frontier_copy` c ON c.`source` = t.`entry`;
+INSERT INTO `tmp_frontier_template`
+SELECT t.* FROM `creature_template` t JOIN `tmp_frontier_copy` c ON c.`source` = t.`entry`;
 UPDATE `tmp_frontier_template` t JOIN `tmp_frontier_copy` c ON c.`source` = t.`entry` SET t.`entry` = c.`entry`;
 UPDATE `tmp_frontier_template` t JOIN `tmp_frontier_copy` c ON c.`entry` = t.`entry` SET
     t.`name` = c.`name`,
     t.`subname` = CASE c.`role` WHEN 0 THEN 'Élite du Front du Nord' WHEN 3 THEN 'Front du Nord'
-        WHEN 4 THEN 'Colosse du Front du Nord' ELSE '' END,
+        WHEN 4 THEN 'Colosse du Front du Nord' WHEN 5 THEN 'Intendante du Front du Nord'
+        ELSE '' END,
     t.`IconName` = '',
     t.`difficulty_entry_1` = 0, t.`difficulty_entry_2` = 0, t.`difficulty_entry_3` = 0,
-    t.`KillCredit1` = 0, t.`KillCredit2` = 0, t.`gossip_menu_id` = 0, t.`npcflag` = 0,
-    t.`faction` = IF(c.`role` = 1, 35, 14),
+    t.`KillCredit1` = 0, t.`KillCredit2` = 0, t.`gossip_menu_id` = 0,
+    t.`npcflag` = IF(c.`role` = 5, 1, 0), t.`faction` = IF(c.`role` IN (1, 5), 35, 14),
     t.`rank` = CASE c.`role` WHEN 4 THEN 3 WHEN 0 THEN 1 WHEN 3 THEN 1 ELSE 0 END,
     t.`minlevel` = CASE c.`role` WHEN 4 THEN 83 WHEN 0 THEN 81 WHEN 3 THEN 81 ELSE 80 END,
     t.`maxlevel` = CASE c.`role` WHEN 4 THEN 83 WHEN 0 THEN 81 WHEN 3 THEN 81 ELSE 80 END, t.`exp` = 2,
@@ -81,15 +87,17 @@ UPDATE `tmp_frontier_template` t JOIN `tmp_frontier_copy` c ON c.`entry` = t.`en
     t.`CreatureImmunitiesId` = IF(c.`role` = 4, -286, 0), t.`flags_extra` = 0,
     t.`ScriptName` = CASE c.`role` WHEN 0 THEN 'npc_frontier_elite' WHEN 1 THEN 'npc_frontier_rift'
         WHEN 2 THEN 'npc_frontier_rift_creature' WHEN 3 THEN 'npc_frontier_rift_guardian'
-        ELSE 'npc_frontier_colossus' END,
-    t.`detection_range` = IF(c.`role` = 1, 0, 18), t.`VerifiedBuild` = NULL;
+        WHEN 4 THEN 'npc_frontier_colossus' ELSE 'npc_frontier_quartermaster' END,
+    t.`detection_range` = IF(c.`role` IN (1, 5), 0, 18), t.`VerifiedBuild` = NULL;
 INSERT INTO `creature_template` SELECT * FROM `tmp_frontier_template`;
 
 INSERT INTO `creature_template_model`
     (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 SELECT c.`entry`, m.`Idx`, m.`CreatureDisplayID`,
     m.`DisplayScale` * CASE c.`entry` WHEN 940030 THEN 2.0 WHEN 940031 THEN 0.7 WHEN 940032 THEN 2.2
-        WHEN 940033 THEN 1.5 ELSE CASE c.`role` WHEN 1 THEN 1.6 WHEN 2 THEN 1.0 WHEN 3 THEN 1.4 ELSE 1.25 END END, m.`Probability`, NULL
+        WHEN 940033 THEN 1.5
+        ELSE CASE c.`role` WHEN 1 THEN 1.6 WHEN 2 THEN 1.0 WHEN 3 THEN 1.4 WHEN 5 THEN 1.0 ELSE 1.25 END END,
+    m.`Probability`, NULL
 FROM `tmp_frontier_copy` c JOIN `creature_template_model` m ON m.`CreatureID` = c.`source`;
 
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`)
@@ -104,19 +112,41 @@ FROM `tmp_frontier_copy` c JOIN `creature_template_movement` v ON v.`CreatureId`
 INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `VerifiedBuild`)
 SELECT c.`entry`, 'frFR', c.`name`,
     CASE c.`role` WHEN 0 THEN 'Élite du Front du Nord' WHEN 3 THEN 'Front du Nord'
-        WHEN 4 THEN 'Colosse du Front du Nord' ELSE NULL END, NULL
+        WHEN 4 THEN 'Colosse du Front du Nord' WHEN 5 THEN 'Intendante du Front du Nord' ELSE NULL END, NULL
 FROM `tmp_frontier_copy` c;
 
 DROP TEMPORARY TABLE `tmp_frontier_template`;
 DROP TEMPORARY TABLE `tmp_frontier_copy`;
 
+-- The quartermaster on Krasus' Landing, beside the flight master (Aludane Whitecloud, spawn 96278)
+DELETE FROM `creature` WHERE `guid` = 9400000;
+INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
+    `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`,
+    `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `VerifiedBuild`,
+    `CreateObject`, `Comment`) VALUES
+(9400000, 940040, 571, 0, 0, 1, 1, 1, 5817.24, 452.36, 658.84, 4.45, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', NULL, 0,
+    'Front du Nord: the quartermaster');
+
+-- The chests (Frontier.cpp): Ulduar's Cache of Winter (display 8630), a goober the script opens on a click
+DELETE FROM `gameobject_template_locale` WHERE `entry` = 940100;
+DELETE FROM `gameobject_template` WHERE `entry` = 940100;
+INSERT INTO `gameobject_template`
+    (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `AIName`, `ScriptName`,
+     `VerifiedBuild`)
+VALUES
+    (940100, 10, 8630, 'Coffre du Front', 'Interact', '', '', 1, '', 'go_frontier_chest', NULL);
+INSERT INTO `gameobject_template_locale` (`entry`, `locale`, `name`, `castBarCaption`, `VerifiedBuild`) VALUES
+    (940100, 'frFR', 'Coffre du Front', '', NULL);
+
 -- Éclat de givre, the Front du Nord's currency: item 37711, a row the client's Item.dbc already has (a currency
 -- token, class 10) with no template on the server. Display 70100: the patcher's own row, with the shard's icon.
+-- A currency token (BagFamily 0x2000): the row is CurrencyTypes.dbc's first currency (bit 1), so the shards go to the
+-- currency tab instead of the bags.
 DELETE FROM `item_template` WHERE `entry` = 37711;
 INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`,
     `BuyPrice`, `SellPrice`, `InventoryType`, `ItemLevel`, `RequiredLevel`, `maxcount`, `stackable`, `bonding`,
-    `Material`, `description`) VALUES
-(37711, 10, 0, 'Éclat de givre', 70100, 3, 0, 1, 0, 0, 0, 80, 0, 0, 1000, 1, 4,
+    `Material`, `BagFamily`, `description`) VALUES
+(37711, 10, 0, 'Éclat de givre', 70100, 3, 0, 1, 0, 0, 0, 80, 0, 0, 1000, 1, 4, 8192,
     'Arraché aux menaces du Front du Nord. Le quartier-maître de Dalaran l''échange contre de l''équipement.');
 DELETE FROM `item_template_locale` WHERE `ID` = 37711;
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES

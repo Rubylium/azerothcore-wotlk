@@ -52,6 +52,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'InfiniteDungeonKeeper.lua',
     // Le Front du Nord's banner and map pins (mod-stat-growth frontier); needs InfiniteDungeon.lua (InfiniteDungeonUI)
     'FrontierUI.lua',
+    // Its quartermaster's window in Dalaran: contracts and the shop; needs FrontierUI.lua (FrontierUIShared)
+    'FrontierQuartermaster.lua',
     // Loads after the CompactRaidFrame addon has run: it wraps that addon's UnitGetTotalAbsorbs
     'PestifereShield.lua',
     // Tags Mythic+ loot in its tooltip; needs GameTooltip, so it loads at the end of FrameXML

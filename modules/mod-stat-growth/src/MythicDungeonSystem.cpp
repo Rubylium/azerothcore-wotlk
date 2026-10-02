@@ -485,10 +485,11 @@ void MailMythicItem(Player* player, ItemTemplate const* itemTemplate, std::funct
 
 // An epic of that item level fitted to the player's class. Above the game's best items it is the generated variant of
 // that item level (MythicItemGeneration.cpp) of a best item.
-ItemTemplate const* SelectMythicItem(Player* player, uint32 itemLevel)
+ItemTemplate const* SelectMythicItem(Player* player, uint32 itemLevel, uint8 equipmentSlot = NULL_SLOT)
 {
     ItemTemplate const* itemTemplate = SelectMythicLootItem(player, std::min(itemLevel, Mythic::MaxItemLevel),
-        itemLevel > Mythic::MaxItemLevel ? Mythic::GetGeneratedItemLevel(Mythic::GetGeneratedVariant(itemLevel)) : 0);
+        itemLevel > Mythic::MaxItemLevel ? Mythic::GetGeneratedItemLevel(Mythic::GetGeneratedVariant(itemLevel)) : 0,
+        equipmentSlot);
     if (itemTemplate && itemLevel > Mythic::MaxItemLevel)
         if (ItemTemplate const* generated = sObjectMgr->GetItemTemplate(
                 Mythic::GetGeneratedItemEntry(itemTemplate->ItemId, Mythic::GetGeneratedVariant(itemLevel))))
@@ -496,17 +497,10 @@ ItemTemplate const* SelectMythicItem(Player* player, uint32 itemLevel)
     return itemTemplate;
 }
 
-// One epic of the run's item level, fitted to the player's class, straight into their bags; touch, if given, marks it
-// before it is shown to them
-void GiveMythicItem(Player* player, uint32 itemLevel, std::function<void(Item*)> const& touch = {})
+// That item, straight into the player's bags (their mailbox when full); touch, if given, marks it before it is shown
+// to them
+void GiveSelectedMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
 {
-    ItemTemplate const* itemTemplate = SelectMythicItem(player, itemLevel);
-    if (!itemTemplate)
-    {
-        ChatHandler(player->GetSession()).SendSysMessage("No mythic item fits your class this time.");
-        return;
-    }
-
     ItemPosCountVec destination;
     if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, itemTemplate->ItemId, 1) != EQUIP_ERR_OK)
     {
@@ -523,6 +517,19 @@ void GiveMythicItem(Player* player, uint32 itemLevel, std::function<void(Item*)>
         player->SendNewItem(item, 1, true, false, true);
         TryRollPersonalLoot(player, item);
     }
+}
+
+// One epic of the run's item level, fitted to the player's class, straight into their bags; touch, if given, marks it
+// before it is shown to them
+void GiveMythicItem(Player* player, uint32 itemLevel, std::function<void(Item*)> const& touch = {})
+{
+    ItemTemplate const* itemTemplate = SelectMythicItem(player, itemLevel);
+    if (!itemTemplate)
+    {
+        ChatHandler(player->GetSession()).SendSysMessage("No mythic item fits your class this time.");
+        return;
+    }
+    GiveSelectedMythicItem(player, itemTemplate, touch);
 }
 
 // The dungeon's own drops: its equipment never drops (the boss gives mythic items instead), trash keeps only
@@ -903,6 +910,16 @@ void GiveMythicLootItem(Player* player, uint32 itemLevel)
 {
     if (player)
         GiveMythicItem(player, std::min(itemLevel, Mythic::MaxLootItemLevel));
+}
+
+bool GiveMythicLootItemForSlot(Player* player, uint32 itemLevel, uint8 equipmentSlot)
+{
+    ItemTemplate const* itemTemplate = player ?
+        SelectMythicItem(player, std::min(itemLevel, Mythic::MaxLootItemLevel), equipmentSlot) : nullptr;
+    if (!itemTemplate)
+        return false;
+    GiveSelectedMythicItem(player, itemTemplate, {});
+    return true;
 }
 
 // Every generated item a player carries - worn, in the bags, in the bank - sent again at login: the client keeps an
