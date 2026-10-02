@@ -231,7 +231,7 @@ $spells = @(
            @{ Index = 2; Effect = 6; Aura = $A_ModDamagePercentTaken; TargetA = 1; Value = 10; Misc = 127 })
        Fields = (Own $flagOutrage @{ 20 = 17; 40 = 18; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = (Look 'Outrage') }) },
     @{ Id = 97127; Clone = $selfBuff; Name = "Tempête d'acier"; IconPath = 'Interface\Icons\Achievement_Arena_5v5_5'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 30000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Frappe la cible toutes les 0,5 s pendant 6 s : 50% des dégâts de l'arme à chaque coup."
+       Description = "Frappe la cible toutes les 0,5 s pendant 6 s : 70% des dégâts de l'arme à chaque coup."
        AuraDescription = 'Frappe la cible toutes les 0,5 s.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = 226; TargetA = 1 })
        Fields = (Own $flagStorm @{ 40 = 32; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 98 = 500; 131 = (Look 'StormOfSteel') }) },
