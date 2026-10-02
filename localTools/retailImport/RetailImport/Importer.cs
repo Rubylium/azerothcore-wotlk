@@ -56,7 +56,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
 {
     private readonly Dictionary<uint, string> convertedModels = new();
     private readonly Dictionary<uint, string> copiedTextures = new();
-    private readonly HashSet<string> copiedBodyTextures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, uint> bodyTextureOwners = new(StringComparer.OrdinalIgnoreCase);
     private bool halveBodyTextures;
     private readonly List<string> report = [];
     private bool failed;
@@ -285,6 +285,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
     private string CopyBodyTexture(int materialId, string folder, List<uint> retailTextures)
     {
         var components = retail.Table("ComponentTextureFileData");
+        var files = new List<(uint fdid, string retailName, string suffix)>();
         string baseName = null;
         foreach (var (fdid, _) in Probe.TextureFiles(retail, materialId))
         {
@@ -292,22 +293,36 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
             var stem = System.Text.RegularExpressions.Regex.Replace(Path.GetFileNameWithoutExtension(retailName),
                 @"_\d+$", "");
             var gender = components.TryGetValue((int)fdid, out var component) ? (int)(sbyte)component["GenderIndex"] : 3;
-            var suffix = gender switch { 0 => "M", 1 => "F", _ => "U" };
             var match = System.Text.RegularExpressions.Regex.Match(stem, @"^(.*)_([umf])$",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             var name = match.Success ? match.Groups[1].Value : stem;
             if (baseName != null && !baseName.Equals(name, StringComparison.OrdinalIgnoreCase))
                 Fail($"material {materialId}: files of two names, {baseName} and {name}");
             baseName ??= name;
-            var archivePath = $@"Item\TextureComponents\{folder}\{name}_{suffix}.blp";
-            if (!copiedBodyTextures.Add(archivePath))
+            files.Add((fdid, retailName, gender switch { 0 => "M", 1 => "F", _ => "U" }));
+        }
+        if (baseName == null)
+            throw new Exception($"material {materialId} has no texture file");
+
+        // Retail names some textures after a model's FileDataID (Midnight: 6756705_be_m_au_u_7443182), the same name
+        // for other colours or pieces: a name already holding another file gets the material's id
+        string PathOf(string name, string suffix) => $@"Item\TextureComponents\{folder}\{name}_{suffix}.blp";
+        if (files.Any(file => bodyTextureOwners.TryGetValue(PathOf(baseName, file.suffix), out var owner)
+                              && owner != file.fdid))
+            baseName = $"{baseName}_{materialId}";
+
+        foreach (var (fdid, retailName, suffix) in files)
+        {
+            var archivePath = PathOf(baseName, suffix);
+            if (!bodyTextureOwners.TryAdd(archivePath, fdid))
                 continue;
-            var bytes = BodyTexture.ToPalettized(retail.Open(fdid), retailName, halveBodyTextures, out var description);
+            var bytes = BodyTexture.ToPalettized(retail.Open(fdid), retailName, halveBodyTextures ? 128 : 256,
+                out var description);
             WriteOutput(archivePath, bytes);
             report.Add($"  body {fdid} {retailName} -> {archivePath} ({description})");
             retailTextures.Add(fdid);
         }
-        return baseName ?? throw new Exception($"material {materialId} has no texture file");
+        return baseName;
     }
 
     /// <summary>Copies a retail BLP to archivePrefix + its own name, returns that name without extension.</summary>

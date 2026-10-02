@@ -34,7 +34,28 @@
     { "id": 70010, "retailDisplay": 159873, "slot": "body", "clone": 64439,
       "note": "Cruel Gladiator's Leather Wristguards" },
     { "id": 70011, "retailDisplay": 160939, "slot": "cape", "clone": 64304,
-      "note": "Fanged Slayer's Shroud, Mythic" }
+      "note": "Fanged Slayer's Shroud, Mythic" },
+
+    // The Grim Jest (rogue tier, Midnight season 1), Mythic look, as far as 3.3.5 goes: its shoulders, cloak and the
+    // region textures of every body piece. Most of the set is collections geometry (rigged to the character
+    // skeleton): the chest, legs, gloves, boots and belt lose their 3D parts, and the mask (Masquerade of the Grim
+    // Jest), collections only, is not imported at all.
+    { "id": 70012, "retailDisplay": 720074, "slot": "shoulder", "clone": 64431,
+      "note": "Venom Casks of the Grim Jest, Mythic" },
+    { "id": 70013, "retailDisplay": 719967, "slot": "body", "clone": 64435,
+      "note": "Fantastic Finery of the Grim Jest, Mythic (textures only)" },
+    { "id": 70014, "retailDisplay": 729576, "slot": "body", "clone": 64432,
+      "note": "Blade Holsters of the Grim Jest, Mythic (textures only)" },
+    { "id": 70015, "retailDisplay": 719972, "slot": "body", "clone": 64944,
+      "note": "Sleight of Hand of the Grim Jest, Mythic (textures only)" },
+    { "id": 70016, "retailDisplay": 719970, "slot": "body", "clone": 64437,
+      "note": "Balancing Boots of the Grim Jest, Mythic (textures only)" },
+    { "id": 70017, "retailDisplay": 720042, "slot": "body", "clone": 64430,
+      "note": "Toolbelt of the Grim Jest, Mythic (textures only)" },
+    { "id": 70018, "retailDisplay": 719971, "slot": "body", "clone": 64439,
+      "note": "Trick Bracers of the Grim Jest, Mythic" },
+    { "id": 70019, "retailDisplay": 719973, "slot": "cape", "clone": 64304,
+      "note": "Disappearing Cloth of the Grim Jest, Mythic" }
   ],
 
   // Test items: entries below 65536 that the client's Item.dbc already has and the world database has no
@@ -76,6 +97,30 @@
       "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
     { "entry": 1162, "display": 70011, "class": 4, "subclass": 1, "material": 7, "inventoryType": 16, "sheath": 0,
       "statsFrom": 50653, "name": "Fanged Slayer's Shroud", "nameFr": "Linceul de tueur-crochu",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 905, "display": 70012, "class": 4, "subclass": 2, "material": 8, "inventoryType": 3, "sheath": 0,
+      "statsFrom": 51254, "name": "Venom Casks of the Grim Jest", "nameFr": "Fioles de venin de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 906, "display": 70013, "class": 4, "subclass": 2, "material": 8, "inventoryType": 5, "sheath": 0,
+      "statsFrom": 51250, "name": "Fantastic Finery of the Grim Jest", "nameFr": "Atours fantastiques de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 907, "display": 70014, "class": 4, "subclass": 2, "material": 8, "inventoryType": 7, "sheath": 0,
+      "statsFrom": 51253, "name": "Blade Holsters of the Grim Jest", "nameFr": "Fourreaux de lames de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 908, "display": 70015, "class": 4, "subclass": 2, "material": 8, "inventoryType": 10, "sheath": 0,
+      "statsFrom": 51251, "name": "Sleight of Hand of the Grim Jest", "nameFr": "Tours de passe-passe de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 909, "display": 70016, "class": 4, "subclass": 2, "material": 8, "inventoryType": 8, "sheath": 0,
+      "statsFrom": 50607, "name": "Balancing Boots of the Grim Jest", "nameFr": "Bottes d'équilibriste de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1163, "display": 70017, "class": 4, "subclass": 2, "material": 8, "inventoryType": 6, "sheath": 0,
+      "statsFrom": 50707, "name": "Toolbelt of the Grim Jest", "nameFr": "Ceinture à outils de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 4853, "display": 70018, "class": 4, "subclass": 2, "material": 8, "inventoryType": 9, "sheath": 0,
+      "statsFrom": 50670, "name": "Trick Bracers of the Grim Jest", "nameFr": "Brassards truqués de la Farce sinistre",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 7248, "display": 70019, "class": 4, "subclass": 1, "material": 7, "inventoryType": 16, "sheath": 0,
+      "statsFrom": 50653, "name": "Disappearing Cloth of the Grim Jest", "nameFr": "Étoffe escamotable de la Farce sinistre",
       "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." }
   ]
 }

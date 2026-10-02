@@ -461,6 +461,321 @@
         ],
         "icon": "1623443 interface/icons/inv_cape_leather_raidroguemythic_r_01.blp"
       }
+    },
+    {
+      "id": 70012,
+      "cloneOf": 64431,
+      "modelName": [
+        "shoulder_leather_raidroguemidnight_d_01_l.mdx",
+        "shoulder_leather_raidroguemidnight_d_01_r.mdx"
+      ],
+      "modelTexture": [
+        "shouldereather_raidroguemidnight_d_01_blackmythic",
+        "shouldereather_raidroguemidnight_d_01_blackmythic"
+      ],
+      "icon": "inv_shoulder_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Venom Casks of the Grim Jest, Mythic",
+      "retail": {
+        "display": 720074,
+        "models": [
+          "6756783 item/objectcomponents/shoulder/shoulder_leather_raidroguemidnight_d_01_l.m2",
+          "6756784 item/objectcomponents/shoulder/shoulder_leather_raidroguemidnight_d_01_r.m2"
+        ],
+        "textures": [
+          "7443076 item/objectcomponents/shoulder/shouldereather_raidroguemidnight_d_01_blackmythic.blp",
+          "7443076 item/objectcomponents/shoulder/shouldereather_raidroguemidnight_d_01_blackmythic.blp"
+        ],
+        "icon": "7446697 interface/icons/inv_shoulder_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70013,
+      "cloneOf": 64435,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "6756705_be_m_au",
+        "6756705_be_m_al",
+        "",
+        "6756705_be_m_tu",
+        "6756705_be_m_tl",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Fantastic Finery of the Grim Jest, Mythic (textures only)",
+      "retail": {
+        "display": 719967,
+        "models": [],
+        "textures": [
+          "7443182 item/texturecomponents/armuppertexture/6756705_be_m_au_u_7443182.blp",
+          "7443141 item/texturecomponents/armlowertexture/6756705_be_m_al_u_7443141.blp",
+          "7443149 item/texturecomponents/torsouppertexture/6756705_be_m_tu_u_7443149.blp",
+          "7443106 item/texturecomponents/torsolowertexture/6756705_be_m_tl_u_7443106.blp"
+        ],
+        "icon": "7446693 interface/icons/inv_chest_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70014,
+      "cloneOf": 64432,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "6756705_be_m_lu",
+        "6756705_be_m_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Blade Holsters of the Grim Jest, Mythic (textures only)",
+      "retail": {
+        "display": 729576,
+        "models": [],
+        "textures": [
+          "7443174 item/texturecomponents/leguppertexture/6756705_be_m_lu_u_7443174.blp",
+          "7443124 item/texturecomponents/leglowertexture/6756705_be_m_ll_u_7443124.blp"
+        ],
+        "icon": "7446696 interface/icons/inv_pant_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70015,
+      "cloneOf": 64944,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "6756705_be_m_al_1077519",
+        "6756705_be_m_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Sleight of Hand of the Grim Jest, Mythic (textures only)",
+      "retail": {
+        "display": 719972,
+        "models": [],
+        "textures": [
+          "7443140 item/texturecomponents/armlowertexture/6756705_be_m_al_u_7443140.blp",
+          "7443162 item/texturecomponents/handtexture/6756705_be_m_ha_u_7443162.blp"
+        ],
+        "icon": "7446694 interface/icons/inv_glove_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70016,
+      "cloneOf": 64437,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "6756705_be_m_ll_1077502",
+        "6756705_be_m_fo"
+      ],
+      "geosets": [
+        7,
+        2,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Balancing Boots of the Grim Jest, Mythic (textures only)",
+      "retail": {
+        "display": 719970,
+        "models": [],
+        "textures": [
+          "7443123 item/texturecomponents/leglowertexture/6756705_be_m_ll_u_7443123.blp",
+          "7443113 item/texturecomponents/foottexture/6756705_be_m_fo_u_7443113.blp"
+        ],
+        "icon": "7446699 interface/icons/inv_boot_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70017,
+      "cloneOf": 64430,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "6756785_tl",
+        "6756785_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Toolbelt of the Grim Jest, Mythic (textures only)",
+      "retail": {
+        "display": 720042,
+        "models": [],
+        "textures": [
+          "7443105 item/texturecomponents/torsolowertexture/6756785_tl_u_7443105.blp",
+          "7443173 item/texturecomponents/leguppertexture/6756785_lu_u_7443173.blp"
+        ],
+        "icon": "7446698 interface/icons/inv_belt_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70018,
+      "cloneOf": 64439,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "bracer_leather_raidroguemidnight_d_01_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Trick Bracers of the Grim Jest, Mythic",
+      "retail": {
+        "display": 719971,
+        "models": [],
+        "textures": [
+          "7443139 item/texturecomponents/armlowertexture/bracer_leather_raidroguemidnight_d_01_al_u_7443139.blp"
+        ],
+        "icon": "7446700 interface/icons/inv_bracer_leather_raidroguemidnight_d_01.blp"
+      }
+    },
+    {
+      "id": 70019,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_leather_raidroguemidnight_d_01_7443094",
+        ""
+      ],
+      "icon": "inv_cape_leather_raidroguemidnight_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Disappearing Cloth of the Grim Jest, Mythic",
+      "retail": {
+        "display": 719973,
+        "models": [],
+        "textures": [
+          "7443094 item/objectcomponents/cape/cape_leather_raidroguemidnight_d_01_7443094.blp"
+        ],
+        "icon": "7446701 interface/icons/inv_cape_leather_raidroguemidnight_d_01.blp"
+      }
     }
   ],
   "items": [
@@ -569,6 +884,78 @@
       "subclass": 1,
       "material": 7,
       "display": 70011,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 905,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70012,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 906,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70013,
+      "inventoryType": 5,
+      "sheath": 0
+    },
+    {
+      "entry": 907,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70014,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 908,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70015,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 909,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70016,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 1163,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70017,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 4853,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70018,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 7248,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70019,
       "inventoryType": 16,
       "sheath": 0
     }

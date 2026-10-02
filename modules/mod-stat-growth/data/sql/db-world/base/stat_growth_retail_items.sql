@@ -7,8 +7,8 @@
 -- and already in the client's Item.dbc with no template on the server before these;
 -- localTools/patchSinisterStrike.ps1 gives those Item.dbc rows the class, slot and display
 -- written here.
-DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162);
-DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162);
+DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248);
+DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_retail_item`;
 CREATE TEMPORARY TABLE `tmp_retail_item` LIKE `item_template`;
@@ -229,6 +229,150 @@ UPDATE `tmp_retail_item` SET
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
 
+-- Venom Casks of the Grim Jest: stats of item 51254, display 70012
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51254;
+UPDATE `tmp_retail_item` SET
+    `entry` = 905,
+    `name` = 'Venom Casks of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70012,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Fantastic Finery of the Grim Jest: stats of item 51250, display 70013
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51250;
+UPDATE `tmp_retail_item` SET
+    `entry` = 906,
+    `name` = 'Fantastic Finery of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70013,
+    `InventoryType` = 5,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Blade Holsters of the Grim Jest: stats of item 51253, display 70014
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51253;
+UPDATE `tmp_retail_item` SET
+    `entry` = 907,
+    `name` = 'Blade Holsters of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70014,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Sleight of Hand of the Grim Jest: stats of item 51251, display 70015
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51251;
+UPDATE `tmp_retail_item` SET
+    `entry` = 908,
+    `name` = 'Sleight of Hand of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70015,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Balancing Boots of the Grim Jest: stats of item 50607, display 70016
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50607;
+UPDATE `tmp_retail_item` SET
+    `entry` = 909,
+    `name` = 'Balancing Boots of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70016,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Toolbelt of the Grim Jest: stats of item 50707, display 70017
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50707;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1163,
+    `name` = 'Toolbelt of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70017,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Trick Bracers of the Grim Jest: stats of item 50670, display 70018
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50670;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4853,
+    `name` = 'Trick Bracers of the Grim Jest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70018,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Disappearing Cloth of the Grim Jest: stats of item 50653, display 70019
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 7248,
+    `name` = 'Disappearing Cloth of the Grim Jest',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70019,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
 DROP TEMPORARY TABLE `tmp_retail_item`;
 
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
@@ -243,4 +387,12 @@ INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `Veri
 (1025, 'frFR', 'Mules en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
 (1026, 'frFR', 'Ceinture en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
 (1027, 'frFR', 'Garde-poignets en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
-(1162, 'frFR', 'Linceul de tueur-crochu', 'Pièce de test importée du jeu actuel.', NULL);
+(1162, 'frFR', 'Linceul de tueur-crochu', 'Pièce de test importée du jeu actuel.', NULL),
+(905, 'frFR', 'Fioles de venin de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(906, 'frFR', 'Atours fantastiques de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(907, 'frFR', 'Fourreaux de lames de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(908, 'frFR', 'Tours de passe-passe de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(909, 'frFR', 'Bottes d''équilibriste de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(1163, 'frFR', 'Ceinture à outils de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(4853, 'frFR', 'Brassards truqués de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(7248, 'frFR', 'Étoffe escamotable de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL);

@@ -29,8 +29,11 @@ and Scalp, have no 3.3.5 region and are dropped). The importer:
   `<name>` (the client adds the suffix: `ComponentTextureFileData.GenderIndex` 0 → M, 1 → F, else U);
 - re-encodes them **palettized** (256 colours, 8-bit alpha when there is any, full mip chain), the format of every stock
   body texture (`BodyTexture.cs`). Retail ships them DXT-compressed;
-- keeps retail's size, twice the stock one (a torso upper 256x128 against 128x64), as Ascension's conversions do
-  (`halveBodyTextures` in items.json brings them to the stock size);
+- keeps them at most twice the stock size (256 wide: a torso upper 256x128 against stock's 128x64), as Ascension's
+  conversions do: Legion's come at that size, Midnight's at four times it (512x256) and are scaled down
+  (`halveBodyTextures` in items.json brings every one to the stock size);
+- gives a texture a name of its own when retail's would collide with another file's (Midnight names them after a
+  model's FileDataID, the same name for other colours: `6756705_be_m_al_1077519`);
 - takes the display's first three geoset groups from retail (boots 2, cape 1, ...).
 
 ### Modern sets: collections
@@ -46,6 +49,8 @@ Ascension's conversions show); a Dragonflight/Midnight one loses its 3D parts, a
 Ascension's client (`D:\ascension-live`, read by `localTools/ascensionImport/ascensionArchives.js`) holds about 61 000
 converted retail item displays, 447 of them full sets. For a set it converted, it is the answer to compare against:
 - `ascensionArchives.js dbc <out> ItemDisplayInfo` and `files <list.json> <out>` read its rows and files;
+- imported sets: Fanged Slayer's Mythic (test items 1020-1027, 1162) and the Grim Jest Mythic, Midnight season 1
+  rogue (905-909, 1163, 4853, 7248: shoulders, cloak and body textures; no mask);
 - the Fanged Slayer's Mythic set (Tomb of Sargeras rogue) is its displays 67441-67448: our import of it
   (70003-70011) matches them model for model (vertices, bones, textures, materials, global loops) and texture for
   texture (palettized, 256x128, same alpha).

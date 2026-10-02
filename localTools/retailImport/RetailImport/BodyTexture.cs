@@ -4,15 +4,17 @@ namespace RetailImport;
 /// Body textures (the regions of the character texture: ArmUpper ... Foot) the way a 3.3.5 client pastes them onto a
 /// character: palettized BLP2, 256 colours and an 8-bit alpha when there is any transparency, with a full mip chain -
 /// the format of every stock body texture (Leather_RaidDruid_B_01_Chest_TU_M.blp: 128x64, palette, alpha 8). Retail
-/// ships them DXT-compressed at twice that size (256x128); the size is kept (Ascension's conversions keep it too),
-/// the compression is not. Model textures (helmets, shoulders, capes) stay as they are (Blp.ForClassic).
+/// ships them DXT-compressed, Legion's at twice that size (256x128), Midnight's at four times (512x256): they are
+/// brought down to at most maxWidth (every region is 128 wide in stock, 256 in Ascension's conversions, which we
+/// keep), the compression is not kept. Model textures (helmets, shoulders, capes) stay as they are
+/// (Blp.ForClassic).
 /// </summary>
 public static class BodyTexture
 {
-    public static byte[] ToPalettized(byte[] blp, string what, bool halve, out string description)
+    public static byte[] ToPalettized(byte[] blp, string what, int maxWidth, out string description)
     {
         var (width, height, pixels) = Decode(blp, what);
-        if (halve && width > 1 && height > 1)
+        while (width > maxWidth && width > 1 && height > 1)
             (width, height, pixels) = Downsample(width, height, pixels);
 
         var hasAlpha = false;
