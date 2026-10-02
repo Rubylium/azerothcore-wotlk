@@ -244,14 +244,17 @@ constexpr std::array<ColossusKind, 4> ColossusKinds = { {
 } };
 
 // Who the reference model counts below Mythique 0: its measured curve starts at 223, and its straight line below
-// that drops a fresh 80 to a third of what it deals. Item level 223's damage, scaled by the square of the item level
-// ratio (gear's stats grow about so) - to re-measure on the combat bench.
+// that drops a fresh 80 to a third of what it deals. Item level 223's damage, scaled by the item level ratio to the
+// power 1.8: measured on the combat bench on 2026-10-02, Fire mages at 0 paragon, 60 s single target, against one at
+// 221 (3257, the model's 223 within 6%): 0.72 at 186, 0.84 at 200, 0.96 at 212 (the power 1.8 gives 0.73, 0.82, 0.92).
 constexpr float ModelFloorItemLevel = 223.0f;
+constexpr float BelowFloorExponent = 1.8f;
 
 float TierDps(Tier const& tier, bool pack = false)
 {
     float const ratio = std::min(tier.itemLevel / ModelFloorItemLevel, 1.0f);
-    return Power::ExpectedDps(std::max(tier.itemLevel, ModelFloorItemLevel), tier.paragon, pack) * ratio * ratio;
+    return Power::ExpectedDps(std::max(tier.itemLevel, ModelFloorItemLevel), tier.paragon, pack) *
+        std::pow(ratio, BelowFloorExponent);
 }
 
 float TierPlayerHealth(Tier const& tier)
