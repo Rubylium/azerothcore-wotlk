@@ -838,7 +838,7 @@
         97121,
         97290
       ],
-      "description": "Le barbare Brutalité frappe à deux armes ou à la hache à deux mains : enragé, il enchaîne Fracas et Déchaînement, couvre ses proies de Carnage et achève les blessés d'une Décapitation.",
+      "description": "Embrassez la sauvagerie véritable. Le barbare de Brutalité se jette au cœur de la mêlée, une arme massive au poing, et laisse sa fureur décider du reste : chaque coup déchire, et chaque blessure appelle la suivante.",
       "gates": [
         {
           "row": 4,
@@ -890,7 +890,7 @@
           "spells": [
             97122
           ],
-          "text": "Frappe l'ennemi et jusqu'à 2 ennemis proches : 90% des dégâts de l'arme. 30 points d'énergie, 8 s de recharge."
+          "text": "Frappe l'ennemi et jusqu'à 2 ennemis proches : 190% des dégâts de l'arme. 30 points d'énergie, 8 s de recharge."
         },
         {
           "id": 202,
@@ -1106,7 +1106,7 @@
           "spells": [
             97123
           ],
-          "text": "Écrase les ennemis dans un cône de 8 m : 170% des dégâts de l'arme, et les étourdit 1,5 s. 40 points d'énergie, 20 s de recharge.",
+          "text": "Écrase les ennemis dans un cône de 8 m : 300% des dégâts de l'arme, et les étourdit 1,5 s. 40 points d'énergie, 20 s de recharge.",
           "parents": [
             206,
             207
@@ -1340,7 +1340,7 @@
             {
               "name": "Tempête d'acier",
               "icon": "Achievement_Arena_5v5_5",
-              "text": "Frappe la cible toutes les 0,5 s pendant 6 s : 30% des dégâts de l'arme à chaque coup. 30 s de recharge.",
+              "text": "Frappe la cible et 4 ennemis proches toutes les 0,5 s pendant 6 s : 30% des dégâts de l'arme à chaque coup. 30 s de recharge.",
               "spell": 97127,
               "existing": true
             }
@@ -1666,7 +1666,7 @@
         97161,
         97291
       ],
-      "description": "Le chasseur de têtes se bat à distance : il lance ses haches et ses lances jusqu'à 30 m, en lance d'autres sans y penser toutes les 2 s, et fait saigner ses proies d'un Étripeur.",
+      "description": "Faites pleuvoir l'acier sur vos proies. Le chasseur de têtes cloue ses ennemis au sol de ses lances, puis les achève d'une volée de haches lancées avec une précision redoutable, sans jamais les laisser l'approcher.",
       "gates": [
         {
           "row": 4,
@@ -2474,7 +2474,7 @@
         97292,
         97215
       ],
-      "description": "Le barbare de l'Ascendance porte ses alliés : Puissance ancestrale et Santé ! renforcent leurs coups, dont une part revient en Écho ancestral - ses dégâts à lui, que le compteur montre. Le givre du Nord et sa Chope font le reste.",
+      "description": "Invoquez la puissance du Nord. Le barbare de l'Ascendance lève sa chope à ses compagnons et les porte de la force de ses ancêtres : sous ses chants et ses bénédictions, chacun de leurs coups frappe plus fort.",
       "gates": [
         {
           "row": 4,
@@ -2526,7 +2526,7 @@
           "spells": [
             97217
           ],
-          "text": "Trinque avec un allié à 40 m pendant 18 s : chacun de ses coups vous fait infliger 6% de ses dégâts en plus (Écho ancestral). 12 s de recharge."
+          "text": "Trinque avec un allié à 40 m pendant 20 s : chacun de ses coups vous fait infliger 6% de ses dégâts en plus. 12 s de recharge."
         },
         {
           "id": 402,
@@ -2834,7 +2834,7 @@
             97505,
             97506
           ],
-          "text": "Vider au moins 3 charges de votre Chope : pendant 10 s, chaque coup des membres du raid à 30 m vous fait infliger {0}% de ses dégâts en plus (Écho ancestral).",
+          "text": "Vider au moins 3 charges de votre Chope : pendant 10 s, chaque coup des membres du raid à 30 m vous fait infliger {0}% de ses dégâts en plus.",
           "values": [
             2,
             4
@@ -2854,7 +2854,7 @@
           "spells": [
             97219
           ],
-          "text": "Les ancêtres chantent avec le raid : pendant 15 s, chaque coup des membres du raid à 30 m vous fait infliger 5% de ses dégâts en plus (Écho ancestral). 2 min de recharge.",
+          "text": "Les ancêtres chantent avec le raid : pendant 15 s, chaque coup des membres du raid à 30 m vous fait infliger 5% de ses dégâts en plus. 2 min de recharge.",
           "parents": [
             410,
             411
@@ -3063,7 +3063,7 @@
             97519,
             97520
           ],
-          "text": "L'Écho ancestral de Santé ! vaut {0}% de plus.",
+          "text": "Santé ! vous fait infliger {0}% des dégâts de l'allié en plus.",
           "values": [
             2,
             4

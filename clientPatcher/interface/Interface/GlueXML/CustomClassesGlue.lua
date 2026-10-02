@@ -39,8 +39,11 @@ local CLASS_INFORMATION = {
     },
     BARBARIAN = {
         Name = "Barbare",
-        Description = "Un guerrier du Nord qui puise sa force dans la rage : il fracasse ses ennemis à la hache,"
-            .. " les abat de loin à coups de haches lancées, ou porte ses alliés de la force de ses ancêtres.",
+        Description = "Venus des terres glacées du Nord, les barbares se battent comme leurs ancêtres avant eux :"
+            .. " sans discipline ni pitié, portés par une rage qui ne s'éteint qu'avec le dernier ennemi. Certains"
+            .. " fendent les rangs adverses à la hache, d'autres abattent leurs proies de loin sous une pluie de lances"
+            .. " et de haches, et les plus vénérés appellent la force des ancêtres pour pousser leurs compagnons"
+            .. " au-delà de leurs limites.",
         Roles = "Dégâts de mêlée, dégâts à distance ou soutien.",
     },
 }

@@ -175,18 +175,18 @@ applyToLiveTables()
 -- Damage through allies ----------------------------------------------------------------------------------------------
 --
 -- A support class deals part of its damage as a share of its allies' hits (the Barbarian's Écho ancestral): its own
--- in the meter, but not its own doing. Those spells (CustomClasses[...].supportSpells, from classes.json) are shown
--- apart wherever Details lists spells: in the support colour, tagged, with the support badge as their icon. Details
+-- in the meter, but not its own doing. Those spells (CustomClasses[...].supportSpells, from classes.json: one per buff,
+-- named and drawn as it) are shown apart wherever Details lists spells: in the support colour, tagged. Details
 -- rebuilds its spell cache from SpellOverwrite (ClearSpellCache): they go in there, and onto the cache in use.
 local SUPPORT_ICON = [[Interface\TalentTree\role-support]]
 local SUPPORT_TAG = GetLocale() == "frFR" and "via alliés" or "via allies"
 
 local function supportSpellEntry(spellId)
-    local name = GetSpellInfo(spellId)
+    local name, _, icon = GetSpellInfo(spellId)
     if not name then
         return nil
     end
-    return { name = "|cffb48cff" .. name .. " (" .. SUPPORT_TAG .. ")|r", icon = SUPPORT_ICON }
+    return { name = "|cffb48cff" .. name .. " (" .. SUPPORT_TAG .. ")|r", icon = icon or SUPPORT_ICON }
 end
 
 local function addSupportSpells()

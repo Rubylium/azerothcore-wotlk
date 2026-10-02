@@ -82,6 +82,8 @@ function Own1($flag, $extra = @{}) {
 }
 
 # A throw: 30 yd, its missile flying at 30 yd/s (field 47, a float) so the blow lands with it
+# Throws show a thrown axe (Étripeur's look, the stock Missile_Axe_1HOutlandRaidD06): Ascension's ThrowWeapon look has
+# no missile model - its client draws the thrower's own weapon - and on this client it flew as an empty box.
 $throwSpeed = [BitConverter]::ToUInt32([BitConverter]::GetBytes([single]30), 0)
 function Thrown($extra = @{}) {
     $fields = @{ 46 = 4; 47 = $throwSpeed }
@@ -104,8 +106,8 @@ $spells = @(
        Description = "Frappe l'ennemi : 80% des dégâts de l'arme, et 2 charges de Carnage."
        Effects = (Strike 30 80); Fields = (Own $flagStrike @{ 131 = (Look 'BarbaricStrike') }) },
     @{ Id = 97102; Clone = $whirl; Name = 'Tourbillon barbare'; IconPath = 'Interface\Icons\Ability_Garrosh_Whirling_Corruption'; FallbackIconSpell = 1680; Cost = 30; Cooldown = 0; Level = 3; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Tourbillonne avec fureur : 80% des dégâts de l'arme à 8 ennemis au plus à 10 m, et 1 charge de Carnage à chacun."
-       Effects = (Strike 10 80 22)
+       Description = "Tourbillonne avec fureur : 110% des dégâts de l'arme à 8 ennemis au plus à 10 m, et 1 charge de Carnage à chacun."
+       Effects = (Strike 10 110 22)
        Fields = (Own $flagWhirl @{ 46 = 1; 89 = 15; 90 = 15; 92 = 13; 93 = 13; 116 = 0; 117 = 0; 212 = 8; 131 = (Look 'BarbaricWhirl') }) },
     @{ Id = 97103; Clone = $selfBuff; Name = 'Rage débridée'; IconPath = 'Interface\Icons\_D3wrathoftheberserker'; FallbackIconSpell = 18499; Cost = 0; Cooldown = 30000; Level = 5; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Effet d'enragement. Vos dégâts physiques augmentent de 10% pendant 10 s."
@@ -201,14 +203,14 @@ $spells = @(
        Description = "Nécessite d'être enragé. Frappe sauvagement l'ennemi : 90% des dégâts de l'arme, et 3 charges de Carnage."
        Effects = (Strike 20 90); Fields = (Own $flagRampage @{ 20 = 17; 131 = (Look 'Rampage') }) },
     @{ Id = 97122; Clone = $cleave; Name = 'Taille brutale'; IconPath = 'Interface\Icons\INV_Axe_2H_OrcWarrior_C_01'; FallbackIconSpell = 845; Cost = 30; Cooldown = 8000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Frappe l'ennemi et jusqu'à 2 ennemis proches : 90% des dégâts de l'arme."
-       Effects = (Strike 20 90); Fields = (Own $flagSwing @{ 28 = 1; 104 = 3; 105 = 3; 131 = (Look 'BrutalSwing') }) },
+       Description = "Frappe l'ennemi et jusqu'à 2 ennemis proches : 190% des dégâts de l'arme."
+       Effects = (Strike 20 190); Fields = (Own $flagSwing @{ 28 = 1; 104 = 3; 105 = 3; 131 = (Look 'BrutalSwing') }) },
     @{ Id = 97123; Clone = $strike; Name = 'Écrasement'; IconPath = 'Interface\Icons\Ability_Warrior_Trauma'; FallbackIconSpell = 46968; Cost = 40; Cooldown = 20000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Écrase les ennemis dans un cône de 8 m : 170% des dégâts de l'arme, et les étourdit 1,5 s."
+       Description = "Écrase les ennemis dans un cône de 8 m : 300% des dégâts de l'arme, et les étourdit 1,5 s."
        AuraDescription = 'Étourdi.'
        Effects = @(
            @{ Index = 0; Effect = 121; TargetA = 24; Value = 30 },
-           @{ Index = 1; Effect = 31; TargetA = 24; Value = 170 },
+           @{ Index = 1; Effect = 31; TargetA = 24; Value = 300 },
            @{ Index = 2; Effect = 6; Aura = 12; TargetA = 24 })
        Fields = (Own $flagCrush @{ 40 = 65; 46 = 1; 85 = 12; 92 = 14; 93 = 14; 94 = 14; 212 = 0; 131 = (Look 'Crush') }) },
     @{ Id = 97124; Clone = $strike; Name = 'Décapitation'; IconPath = 'Interface\Icons\Spell_DeathKnight_Butcher2'; FallbackIconSpell = 5308; Cost = 25; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
@@ -231,8 +233,8 @@ $spells = @(
            @{ Index = 2; Effect = 6; Aura = $A_ModDamagePercentTaken; TargetA = 1; Value = 10; Misc = 127 })
        Fields = (Own $flagOutrage @{ 20 = 17; 40 = 18; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = (Look 'Outrage') }) },
     @{ Id = 97127; Clone = $selfBuff; Name = "Tempête d'acier"; IconPath = 'Interface\Icons\Achievement_Arena_5v5_5'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 30000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Frappe la cible toutes les 0,5 s pendant 6 s : 70% des dégâts de l'arme à chaque coup."
-       AuraDescription = 'Frappe la cible toutes les 0,5 s.'
+       Description = "Frappe la cible et 4 ennemis proches toutes les 0,5 s pendant 6 s : 30% des dégâts de l'arme à chaque coup."
+       AuraDescription = 'Frappe la cible et 4 ennemis proches toutes les 0,5 s.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = 226; TargetA = 1 })
        Fields = (Own $flagStorm @{ 40 = 32; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 98 = 500; 131 = (Look 'StormOfSteel') }) },
     @{ Id = 97128; Clone = $strike; Name = 'Briseur de coque'; IconPath = 'Interface\Icons\INV_Archaeology_Ogres_Warmaul_Chieftain'; FallbackIconSpell = 12294; Cost = 30; Cooldown = 15000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
@@ -253,7 +255,7 @@ $spells = @(
     # --- Chasseur de têtes: the Barbarian throws its own melee weapon, 30 yd (melee damage class, its weapon's damage)
     @{ Id = 97160; Clone = $strike; Name = "Lancer d'arme"; IconPath = 'Interface\Icons\INV_ThrowingAxe_06'; FallbackIconSpell = 57755; Cost = 30; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Lance votre arme sur un ennemi à 30 m : 80% des dégâts de l'arme. Utilisable en mouvement."
-       Effects = (Strike 20 80); Fields = (Own1 $flagThrow (Thrown @{ 131 = (Look 'ThrowWeapon') })) },
+       Effects = (Strike 20 80); Fields = (Own1 $flagThrow (Thrown @{ 131 = (Look 'Gutspiller') })) },
     @{ Id = 97161; Clone = $strike; Name = 'Lance du chasseur de têtes'; IconPath = 'Interface\Icons\Warrior_Talent_Icon_MasterCleaver'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Lance une lance légère sur un ennemi à 30 m : 90% des dégâts de l'arme, et vous gagnez 15 points d'énergie."
        Effects = @(
@@ -263,7 +265,7 @@ $spells = @(
        Fields = (Own1 $flagSpear (Thrown @{ 131 = (Look 'HeadhuntersSpear') })) },
     @{ Id = 97162; Clone = $strike; Name = 'Hache berserker'; IconPath = 'Interface\Icons\INV_Axe_1H_DraenorCrafted_D_02_A_Horde'; FallbackIconSpell = 57755; Cost = 20; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 90% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois."
-       Effects = (Strike 20 90); Fields = (Own1 $flagBerserkAxe (Thrown @{ 20 = 17; 131 = (Look 'ThrowWeapon') })) },
+       Effects = (Strike 20 90); Fields = (Own1 $flagBerserkAxe (Thrown @{ 20 = 17; 131 = (Look 'Gutspiller') })) },
     @{ Id = 97163; Clone = $selfBuff; Name = 'Hache berserker'; IconPath = 'Interface\Icons\INV_Axe_1H_DraenorCrafted_D_02_A_Horde'; FallbackIconSpell = 7386; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Armure réduite de 3%.'; AuraDescription = 'Armure réduite de 3% par application.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModResistancePct; TargetA = 6; Value = -3; Misc = 1 })
@@ -292,7 +294,7 @@ $spells = @(
        Fields = (Own1 $flagTwirl @{ 40 = 29; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = (Look 'AxeTwirling') }) },
     @{ Id = 97168; Clone = $strike; Name = 'Danse des haches'; IconPath = 'Interface\Icons\INV_Axe_104'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = "90% des dégâts de l'arme."; Effects = (Strike 0 90)
-       Fields = (Own1 $flagTwirlHit (Thrown @{ 205 = 0; 206 = 0; 131 = (Look 'ThrowWeapon') })) },
+       Fields = (Own1 $flagTwirlHit (Thrown @{ 205 = 0; 206 = 0; 131 = (Look 'Gutspiller') })) },
     @{ Id = 97169; Clone = $strike; Name = 'Volée de haches'; IconPath = 'Interface\Icons\Ability_UpgradeMoonGlaive'; FallbackIconSpell = 57755; Cost = 40; Cooldown = 10000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Fait pleuvoir des haches sur l'ennemi et ceux à 10 m de lui : 210% des dégâts de l'arme."
        Effects = @(
@@ -402,13 +404,13 @@ $spells = @(
            @{ Index = 0; Effect = 65; Aura = $A_ModMeleeHaste; TargetA = 1; Value = 20 },
            @{ Index = 1; Effect = 65; Aura = 65; TargetA = 1; Value = 5 })
        Fields = (Own1 $flagFuryAura @{ 4 = 0x40; 40 = 21; 41 = 0; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 92 = 23; 93 = 23; 205 = 0; 206 = 0; 131 = 0 }) },
-    # The buffs that echo: while one is on an ally, every hit of the ally makes the Barbarian deal a share of it as
-    # Écho ancestral (97222, mod-barbarian) - the Barbarian's own damage, so a damage meter shows what its buffs bring
+    # The buffs that echo: while one is on an ally, every hit of the ally makes the Barbarian deal a share of it, as an
+    # echo spell of that buff's own (97222-97226, mod-barbarian) - the Barbarian's damage, so a meter shows each buff's
     @{ Id = 97217; Clone = $selfBuff; Name = 'Santé !'; IconPath = 'Interface\Icons\Archaeology_5_0_TwinsteinSetOfBrewfatherQuantouKuo'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 12000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = 'Trinque avec un allié à 40 m pendant 18 s : chacun de ses coups vous fait infliger 6% de ses dégâts en plus (Écho ancestral).'
+       Description = 'Trinque avec un allié à 40 m pendant 20 s : chacun de ses coups vous fait infliger 6% de ses dégâts en plus.'
        AuraDescription = 'Le barbare inflige une part de vos dégâts en plus.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 21 })
-       Fields = (Own1 $flagCheers @{ 40 = 31; 46 = 5; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 133; 206 = $gcd; 131 = (Look 'Cheers') }) },
+       Fields = (Own1 $flagCheers @{ 40 = 18; 46 = 5; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 133; 206 = $gcd; 131 = (Look 'Cheers') }) },
     @{ Id = 97218; Clone = $shout; Name = 'Fût ancestral'; IconPath = 'Interface\Icons\INV_Holiday_Beerfest_Maghar'; FallbackIconSpell = 6673; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Met un fût en perce : les membres du raid à 30 m récupèrent 1% de leurs points de vie et de leur mana maximum par seconde pendant 10 s."
        AuraDescription = 'Récupère 1% des points de vie et du mana maximum par seconde.'
@@ -417,7 +419,7 @@ $spells = @(
            @{ Index = 1; Effect = 65; Aura = 21; TargetA = 1; Value = 1; Misc = 0 })
        Fields = (Own1 $flagKegBuff @{ 40 = 1; 92 = 10; 93 = 10; 98 = 1000; 99 = 1000; 205 = 0; 206 = 0; 131 = (Look 'AncestralKeg') }) },
     @{ Id = 97219; Clone = $shout; Name = 'Chant des ancêtres'; IconPath = 'Interface\Icons\INV_Belt_Armor_OrcClan_D_01'; FallbackIconSpell = 6673; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = 'Les ancêtres chantent avec le raid : pendant 15 s, chaque coup des membres du raid à 30 m vous fait infliger 5% de ses dégâts en plus (Écho ancestral).'
+       Description = 'Les ancêtres chantent avec le raid : pendant 15 s, chaque coup des membres du raid à 30 m vous fait infliger 5% de ses dégâts en plus.'
        AuraDescription = 'Le barbare inflige une part de vos dégâts en plus.'
        Effects = @(@{ Index = 0; Effect = 65; Aura = $A_Dummy; TargetA = 1 })
        Fields = (Own1 $flagChant @{ 40 = 8; 92 = 10; 205 = 0; 206 = 0; 131 = (Look 'ClanlordsTotem') }) },
@@ -428,17 +430,31 @@ $spells = @(
        Fields = (Own1 0 @{ 40 = 1; 92 = 10; 205 = 0; 206 = 0; 131 = 0 }) },
     # Puissance ancestrale: the Ascendance's core buff, on up to 4 allies (mod-barbarian picks them and keeps it up)
     @{ Id = 97223; Clone = $selfBuff; Name = 'Puissance ancestrale'; IconPath = 'Interface\Icons\Achievement_AlliedRace_DarkIronDwarf'; FallbackIconSpell = 2983; Cost = 20; Cooldown = 20000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "La force de vos ancêtres passe sur les 4 alliés les plus proches qui infligent des dégâts, pendant 12 s : chacun de leurs coups vous fait infliger 8% de leurs dégâts en plus (Écho ancestral). Frappe ancestrale et Coup de fût la prolongent d'1 s, jusqu'à 20 s."
+       Description = "La force de vos ancêtres passe sur les 4 alliés les plus proches qui infligent des dégâts, pendant 12 s : chacun de leurs coups vous fait infliger 8% de leurs dégâts en plus. Frappe ancestrale et Coup de fût la prolongent d'1 s, jusqu'à 20 s."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
        Fields = (Own1 $flagMightCast @{ 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 131 = (Look 'AncestralMight') }) },
     @{ Id = 97221; Clone = $selfBuff; Name = 'Puissance ancestrale'; IconPath = 'Interface\Icons\Achievement_AlliedRace_DarkIronDwarf'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Le barbare inflige une part de vos dégâts en plus.'; AuraDescription = 'Le barbare inflige une part de vos dégâts en plus.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 })
        Fields = (Own1 0 @{ 40 = 29; 46 = 13; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = 0 }) },
-    # Écho ancestral: the share of a buffed ally's hit the Barbarian deals. Frost, so no armor takes it twice; never
-    # misses, crits or is resisted, and nothing of the Barbarian's own raises it (the ally's hit already counted all that)
-    @{ Id = 97222; Clone = $strike; Name = 'Écho ancestral'; IconPath = 'Interface\Icons\Achievement_Dungeon_UtgardeKeep_Normal'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "Une part des dégâts d'un allié renforcé."
+    # The Ascendance's echoes: a share of a buffed ally's hit, dealt by the Barbarian - one spell per buff, named and
+    # drawn as the buff, so the damage meter lists what each buff brought (Details shows them as through allies).
+    # Frost, so no armor takes it twice; never misses, crits or is resisted, and nothing of the Barbarian's own raises
+    # it (the ally's hit already counted all that)
+    @{ Id = 97222; Clone = $strike; Name = 'Puissance ancestrale'; IconPath = 'Interface\Icons\Achievement_AlliedRace_DarkIronDwarf'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Une part des dégâts d'un allié sous Puissance ancestrale."
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
+       Fields = (Own1 0 @{ 6 = 0x20000000; 7 = 0x20040000; 8 = 0x1; 46 = 13; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 213 = 1; 225 = 16; 131 = 0 }) },
+    @{ Id = 97224; Clone = $strike; Name = 'Santé !'; IconPath = 'Interface\Icons\Archaeology_5_0_TwinsteinSetOfBrewfatherQuantouKuo'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Une part des dégâts d'un allié qui a trinqué avec vous."
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
+       Fields = (Own1 0 @{ 6 = 0x20000000; 7 = 0x20040000; 8 = 0x1; 46 = 13; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 213 = 1; 225 = 16; 131 = 0 }) },
+    @{ Id = 97225; Clone = $strike; Name = 'Chant des ancêtres'; IconPath = 'Interface\Icons\INV_Belt_Armor_OrcClan_D_01'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Une part des dégâts d'un allié porté par le Chant des ancêtres."
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
+       Fields = (Own1 0 @{ 6 = 0x20000000; 7 = 0x20040000; 8 = 0x1; 46 = 13; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 213 = 1; 225 = 16; 131 = 0 }) },
+    @{ Id = 97226; Clone = $strike; Name = 'Éclaboussures'; IconPath = 'Interface\Icons\INV_Holiday_BrewfestBuff_01'; FallbackIconSpell = 2983; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Une part des dégâts d'un allié éclaboussé de bière ancestrale."
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
        Fields = (Own1 0 @{ 6 = 0x20000000; 7 = 0x20040000; 8 = 0x1; 46 = 13; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 213 = 1; 225 = 16; 131 = 0 }) },
 
@@ -453,12 +469,10 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModDamagePercentDone; TargetA = 1; Value = 10; Misc = 16 },
            @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -40; Misc = 0 })
        Fields = @{ 208 = $family; 125 = $flagWhirl; 126 = 0; 127 = 0 } },
-    # Brutalité: what tells the scripts the specialization is on, and the strongest whirl
+    # Brutalité: hidden, what tells the scripts the specialization is on
     @{ Id = 97290; Clone = $selfBuff; Name = 'Brutalité'; IconPath = 'Interface\Icons\Ability_Warrior_BloodFrenzy'; FallbackIconSpell = 12294; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
-       Description = 'Vos attaques automatiques ont 15% de chances de vous enrager (Rage sanguinaire). Tourbillon barbare inflige 45% de dégâts en plus.'
-       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 },
-           @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 45; Misc = 0 })
-       Fields = @{ 208 = $family; 125 = $flagWhirl; 126 = 0; 127 = 0 } }
+       Description = 'Vos attaques automatiques ont 15% de chances de vous enrager (Rage sanguinaire).'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 }); Fields = @{ 208 = $family } }
 )
 
 # Talent ranks come from the talent trees (talentTree.json), which the server and the talent window read as well

@@ -320,7 +320,7 @@
         { "icon": "localTools/interface/assets/specs/barbarian-headhunter.png", "cell": [3, 4] },
         { "icon": "localTools/interface/assets/specs/barbarian-ancestry.png", "cell": [4, 4] }
       ],
-      "supportSpells": [97222],
+      "supportSpells": [97222, 97224, 97225, 97226],
       "color": [0.86, 0.38, 0.17],
       "talentTree": "localTools/barbarian/talentTree.json",
       "talentTabs": [{

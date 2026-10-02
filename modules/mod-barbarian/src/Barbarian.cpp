@@ -86,7 +86,11 @@ enum Spells : uint32
     SPELL_ANCESTORS_CHANT = 97219,
     SPELL_SPLASH_ZONE = 97220,
     SPELL_ANCESTRAL_MIGHT_BUFF = 97221,
-    SPELL_ANCESTRAL_ECHO = 97222,
+    // The echoes, one per buff: what each brought shows apart in a damage meter
+    SPELL_ECHO_MIGHT = 97222,
+    SPELL_ECHO_CHEERS = 97224,
+    SPELL_ECHO_CHANT = 97225,
+    SPELL_ECHO_SPLASH = 97226,
     SPELL_ANCESTRAL_MIGHT_CAST = 97223,
     SPELL_SPEC_BRUTALITY = 97290,
     SPELL_SPEC_HEADHUNTER = 97291,
@@ -147,7 +151,10 @@ constexpr std::array<uint32, 7> InheritedWeaponSkills = { SKILL_DAGGERS, SKILL_F
     SKILL_CROSSBOWS, SKILL_STAVES, SKILL_UNARMED };
 
 // Balance, live with .tune (LiveTuning.h)
-LiveTuning::Knob const CarnageTickAp("barbarian.carnage_tick_ap", 0.012f);          // per stack, every 3 s
+LiveTuning::Knob const CarnageTickAp("barbarian.carnage_tick_ap", 0.024f);          // per stack, every 3 s
+// Tempête d'acier: each strike also hits this many enemies this close to its target
+LiveTuning::KnobUInt const StormOfSteelSplashTargets("barbarian.storm_of_steel_splash_targets", 4);
+constexpr float StormOfSteelSplashRadius = 8.0f;
 LiveTuning::KnobUInt const CarnageMaxStacks("barbarian.carnage_max_stacks", 10);
 LiveTuning::KnobInt const BloodthirstyRageChance("barbarian.bloodthirsty_rage_chance", 15);
 LiveTuning::KnobUInt const DecapitateMaxExtraEnergy("barbarian.decapitate_extra_energy", 50);
@@ -345,18 +352,21 @@ void Echo(Unit* ally, Unit* victim, uint32 damage)
 {
     if (InEcho || !damage || !victim || victim == ally || !victim->IsAlive() || !ally->IsPlayer())
         return;
-    std::map<ObjectGuid, float> shares;
-    for (uint32 spellId : { uint32(SPELL_ANCESTRAL_MIGHT_BUFF), uint32(SPELL_CHEERS), uint32(SPELL_ANCESTORS_CHANT),
-             uint32(SPELL_SPLASH_ZONE) })
+    // Each buff's share, by Barbarian and by echo spell
+    std::map<std::pair<ObjectGuid, uint32>, float> shares;
+    for (auto const& [buff, echo] : { std::pair<uint32, uint32>{ SPELL_ANCESTRAL_MIGHT_BUFF, SPELL_ECHO_MIGHT },
+             { SPELL_CHEERS, SPELL_ECHO_CHEERS }, { SPELL_ANCESTORS_CHANT, SPELL_ECHO_CHANT },
+             { SPELL_SPLASH_ZONE, SPELL_ECHO_SPLASH } })
     {
-        auto const range = ally->GetAppliedAuras().equal_range(spellId);
+        auto const range = ally->GetAppliedAuras().equal_range(buff);
         for (auto itr = range.first; itr != range.second; ++itr)
             if (Aura const* aura = itr->second->GetBase())
                 if (aura->GetCasterGUID() != ally->GetGUID())
-                    shares[aura->GetCasterGUID()] += EchoPct(aura);
+                    shares[{ aura->GetCasterGUID(), echo }] += EchoPct(aura);
     }
-    for (auto const& [casterGuid, pct] : shares)
+    for (auto const& [key, pct] : shares)
     {
+        auto const& [casterGuid, echoSpell] = key;
         Player* barbarian = ObjectAccessor::GetPlayer(*ally, casterGuid);
         if (!barbarian || pct <= 0.0f || !barbarian->IsAlive() || !barbarian->IsValidAttackTarget(victim))
             continue;
@@ -364,7 +374,7 @@ void Echo(Unit* ally, Unit* victim, uint32 damage)
         if (amount <= 0)
             continue;
         InEcho = true;
-        barbarian->CastCustomSpell(SPELL_ANCESTRAL_ECHO, SPELLVALUE_BASE_POINT0, amount, victim, true);
+        barbarian->CastCustomSpell(echoSpell, SPELLVALUE_BASE_POINT0, amount, victim, true);
         InEcho = false;
     }
 }
@@ -815,8 +825,12 @@ class spell_barbarian_storm_of_steel : public AuraScript
         if (!player)
             return;
         Unit* target = player->GetVictim();
-        if (target && target->IsAlive() && player->IsWithinMeleeRange(target))
-            player->CastSpell(target, SPELL_STORM_OF_STEEL_HIT, true);
+        if (!target || !target->IsAlive() || !player->IsWithinMeleeRange(target))
+            return;
+        player->CastSpell(target, SPELL_STORM_OF_STEEL_HIT, true);
+        // Its blades reach the enemies beside the target too: Brutalité's area damage is not the whirl's alone
+        for (Unit* enemy : NearbyEnemies(player, target, StormOfSteelSplashRadius, StormOfSteelSplashTargets))
+            player->CastSpell(enemy, SPELL_STORM_OF_STEEL_HIT, true);
     }
 
     void Register() override

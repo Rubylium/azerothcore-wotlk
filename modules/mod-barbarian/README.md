@@ -28,9 +28,10 @@ and sounds imported from the Ascension client.
   and regenerates 25% more energy. Lancer d'arme and Lance du chasseur de têtes; Hache berserker marks armor,
   Étripeur bleeds, Danse des haches spreads every throw to five more enemies.
 - **Ascendance**: the support, as Augmentation on retail - but its buffs are counted. Puissance ancestrale (4 nearest
-  allies, 12 s, extended a second by Frappe ancestrale and Coup de fût up to 20 s), Santé ! (one ally, 18 s), Chant
-  des ancêtres (the raid, 15 s) and Éclaboussures make it deal a share of every hit of a buffed ally as **Écho
-  ancestral** (8%, 6%, 5%: `barbarian.*_echo_pct`): its own damage, so Details credits the buffs to it. Its raid auras
+  allies, 12 s, extended a second by Frappe ancestrale and Coup de fût up to 20 s), Santé ! (one ally, 20 s), Chant
+  des ancêtres (the raid, 15 s) and Éclaboussures make it deal a share of every hit of a buffed ally (8%, 6%, 5%:
+  `barbarian.*_echo_pct`), as an echo spell named after each buff (97222, 97224-97226): its own damage, so Details
+  credits each buff to it, apart (shown "via alliés", DetailsCustomClasses). Its raid auras
   (Présence ancestrale: 10% attack power and 3% physical crit; Fureur ancestrale: 20% melee haste and 5% casting speed)
   are in the stacking groups of the WotLK buffs they match. 10% more frost damage, 40% less from Tourbillon barbare
   (its damage is in the echoes); its Tankard fills a charge every 3 s in combat (5, 7 with Chope pleine), Coup de fût

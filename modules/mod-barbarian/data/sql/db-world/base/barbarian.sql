@@ -19,10 +19,13 @@ INSERT INTO `spell_bonus_data` (`entry`, `direct_bonus`, `dot_bonus`, `ap_bonus`
 (97210, 0, 0, 0.3, 0, 'Barbarian - Frozen Tankard'),
 (97213, 0, 0, 0.25, 0, 'Barbarian - Ancestral Combat frost blow');
 
--- Écho ancestral is the share of a buffed ally's hit, worked out by mod-barbarian: nothing may be added to it
-DELETE FROM `spell_bonus_data` WHERE `entry` = 97222;
+-- The echoes (one per buff) are the share of a buffed ally's hit, worked out by mod-barbarian: nothing may be added to them
+DELETE FROM `spell_bonus_data` WHERE `entry` IN (97222, 97224, 97225, 97226);
 INSERT INTO `spell_bonus_data` (`entry`, `direct_bonus`, `dot_bonus`, `ap_bonus`, `ap_dot_bonus`, `comments`) VALUES
-(97222, 0, 0, 0, 0, 'Barbarian - Ancestral Echo (amount set by mod-barbarian)');
+(97222, 0, 0, 0, 0, 'Barbarian - Ancestral Might echo (amount set by mod-barbarian)'),
+(97224, 0, 0, 0, 0, 'Barbarian - Cheers echo (amount set by mod-barbarian)'),
+(97225, 0, 0, 0, 0, 'Barbarian - Ancestors Chant echo (amount set by mod-barbarian)'),
+(97226, 0, 0, 0, 0, 'Barbarian - Splash echo (amount set by mod-barbarian)');
 
 -- The Ascendance's raid auras do not stack with the WotLK buffs they match: Présence ancestrale with the percentage
 -- attack power buffs (Trueshot Aura, Unleashed Rage, Abomination's Might), Fureur ancestrale with the melee haste ones
