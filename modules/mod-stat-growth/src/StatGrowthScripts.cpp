@@ -727,6 +727,9 @@ public:
     }
 };
 
+// frontier/Frontier.cpp: Le Front du Nord, open-world content at level 80
+void AddFrontierScripts();
+
 void AddStatGrowthScripts()
 {
     AddAdaptiveTrainingDummyScripts();
@@ -760,6 +763,7 @@ void AddStatGrowthScripts()
     AddMythicAppearanceScripts();
     AddSmartLootScripts();
     AddInfiniteDungeonScripts();
+    AddFrontierScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
     new StatGrowthUnitScript();

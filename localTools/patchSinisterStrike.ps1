@@ -914,6 +914,10 @@ $customSpells += & ([ScriptBlock]::Create($infiniteBossSpellSource))
 # the log, its debuffs and the looks its bosses wear
 $hollowVoiceSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hollowVoice\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($hollowVoiceSpellSource))
+# Le Front du Nord, the open-world content at level 80 (modules/mod-stat-growth/src/frontier): the tier phase and its
+# abilities' names in the log
+$frontierSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\frontier\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($frontierSpellSource))
 
 # The Mage's reagents, gone: Arcane Powder (Arcane Brilliance, Dalaran Brilliance, Ritual of Refreshment), the Runes
 # of Teleportation and of Portals, Light Feather (Slow Fall). Chores rather than choices, and the rest of the class
