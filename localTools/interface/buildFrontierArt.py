@@ -2,26 +2,22 @@
 localTools/interface/assets/frontier into the files the 3.3.5 client loads.
 
 - Interface\\Frontier\\Crest<n>         the tier crests on the zone banner (256x256)
-- Interface\\Frontier\\RiftIcon         the rift's map pin and tracker icon (128x128)
-- Interface\\Frontier\\ColossusIcon<n>  each Colosse's head, cut square from its portrait, for its toast (256x256)
+- Interface\\Frontier\\RiftIcon         the rift tracker's icon (128x128)
+- Interface\\Frontier\\ColossusIcon<n>  each Colosse's head, cut square from its portrait, for its chat line (256x256)
+- Interface\\Frontier\\Pin<Kind>        the map and minimap pins, painted in the game's own map icon look (64x64):
+                                      Elite, Colossus, Rift, Chest and Quartermaster
 - Interface\\Icons\\INV_Frontier_FrostShard   the Éclat de givre's item icon (64x64 TGA, shipped by patchFiles.js
                                             from client-assets/compiled; its ItemDisplayInfo row is the patcher's)
-- Interface\\Frontier\\Pin<Kind>        the map and minimap pins: retail's own vignettes, so they read as the game's
-                                      markers - a roaming elite the silver-winged skull, a Colosse the gold-winged one,
-                                      a rift the event star (64x64). Cut from retail's minimap object icon atlas
-                                      (interface/minimap/objecticonsatlas.blp, FileDataID 1121272), read from the local
-                                      retail install by localTools/retailImport once and cached in cache/frontier.
 
-The crests and the rift icon were painted on flat black: the black around them is keyed out (only the black joined
-to the picture's edge, so the dark inside an emblem stays) and their outline softened. Shipped uncompressed (the
-Paragon writer): DXT would band their gradients.
+The crests, the rift icon and the pins were painted on flat black: the black around them is keyed out (only the
+black joined to the picture's edge, so the dark inside an emblem stays) and their outline softened. Shipped
+uncompressed (the Paragon writer): DXT would band their gradients.
 
 Usage: python localTools/interface/buildFrontierArt.py
 """
 import importlib.util
 import os
 import struct
-import subprocess
 
 import numpy
 from PIL import Image, ImageFilter
@@ -32,18 +28,9 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 SOURCE = os.path.join(HERE, "assets", "frontier")
 OUT = os.path.join(REPO, "clientPatcher", "interface", "Interface", "Frontier")
 ICONS = os.path.join(REPO, "modules", "mod-stat-growth", "client-assets", "compiled")
-CACHE = os.path.join(HERE, "cache", "frontier")
-RETAIL_IMPORT = os.path.join(REPO, "localTools", "retailImport", "RetailImport", "bin", "Release", "net10.0",
-                             "RetailImport.exe")
 
-# Retail's minimap object icons, and the vignettes in it each pin is (left, top, right, bottom). Matched by eye on
-# the sheet of retail 12.1.0: its UiTextureAtlasMember names had moved since the build wago.tools lists.
-OBJECT_ICONS_ATLAS = 1121272
-PINS = {
-    "PinElite": (929, 197, 993, 261),
-    "PinColossus": (863, 197, 927, 261),
-    "PinRift": (599, 197, 663, 261),
-}
+# The pins, each from assets/frontier/pin-<kind>.png
+PINS = ("Elite", "Colossus", "Rift", "Chest", "Quartermaster")
 
 # Each Colosse's head in its 1024x1536 portrait: its centre (shares of width / height) and the square's side (share of
 # the width)
@@ -94,18 +81,6 @@ def colossus_head(index):
     return square(crop, 256).filter(ImageFilter.UnsharpMask(radius=1.2, percent=40, threshold=2))
 
 
-def object_icons_atlas():
-    """Retail's minimap object icon sheet, extracted from the local retail install the first time."""
-    path = os.path.join(CACHE, f"{OBJECT_ICONS_ATLAS}.blp")
-    if not os.path.exists(path):
-        os.makedirs(CACHE, exist_ok=True)
-        subprocess.run([RETAIL_IMPORT, "extract", str(OBJECT_ICONS_ATLAS), path], check=True)
-    spec = importlib.util.spec_from_file_location("buildTalentTreeArt", os.path.join(HERE, "buildTalentTreeArt.py"))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.read_blp(path).convert("RGBA")
-
-
 def write_icon_tga(image, path, size=64):
     """Uncompressed 32-bit BGRA, top-down: the shape of the module's other icons (buildParagonIcons.py)."""
     image = image.convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
@@ -132,9 +107,9 @@ def main():
               os.path.join(OUT, "RiftIcon.blp"))
     for index in COLOSSUS_HEADS:
         write_blp(colossus_head(index), os.path.join(OUT, f"ColossusIcon{index}.blp"))
-    atlas = object_icons_atlas()
-    for name, box in PINS.items():
-        write_blp(atlas.crop(box), os.path.join(OUT, f"{name}.blp"))
+    for name in PINS:
+        pin = key_black(Image.open(os.path.join(SOURCE, f"pin-{name.lower()}.png")))
+        write_blp(square(pin, 64), os.path.join(OUT, f"Pin{name}.blp"))
     write_icon_tga(Image.open(os.path.join(SOURCE, "shard-icon.png")),
                    os.path.join(ICONS, "INV_Frontier_FrostShard.tga"))
     print(f"Front du Nord art written to {OUT} and the shard icon to {ICONS}")

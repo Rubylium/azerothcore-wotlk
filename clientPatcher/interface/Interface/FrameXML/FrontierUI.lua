@@ -251,13 +251,12 @@ local function ZonePins(zoneId)
     return list
 end
 
--- The pins are retail's own vignettes (localTools/interface/buildFrontierArt.py), so they read as the game's markers:
--- a roaming elite the silver-winged skull, a Colosse the gold-winged one, a rift the event star. Their world map size
--- and their minimap size.
+-- The pins, painted in the game's own map icon look (localTools/interface/buildFrontierArt.py): a roaming elite's
+-- horned skull, a Colosse's in gold, a rift's vortex. Their world map size and their minimap size.
 local PIN_LOOKS = {
-    E = { texture = "Interface\\Frontier\\PinElite", sizes = { 26, 22 } },
-    R = { texture = "Interface\\Frontier\\PinRift", sizes = { 24, 20 } },
-    C = { texture = "Interface\\Frontier\\PinColossus", sizes = { 34, 28 } },
+    E = { texture = "Interface\\Frontier\\PinElite", sizes = { 20, 16 } },
+    R = { texture = "Interface\\Frontier\\PinRift", sizes = { 22, 18 } },
+    C = { texture = "Interface\\Frontier\\PinColossus", sizes = { 30, 24 } },
 }
 
 local function PinSize(kind, onMinimap)
