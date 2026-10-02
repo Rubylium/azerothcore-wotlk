@@ -214,6 +214,78 @@ public sealed class ClassicM2
         SetU32(0x18, (uint)at);
     }
 
+    /// <summary>
+    /// Moves the model from where retail places it to where 3.3.5 does: p' = (p - (x, 0, z)) / scale, on everything
+    /// that holds a position (vertices, bone pivots and translation keyframes, attachments, events, lights, ribbons,
+    /// particles, cameras, collision, the bounds, the skins' sort centres). Retail re-fitted the helmets to its new
+    /// character models by moving them forward and up (Importer.HeadFits).
+    /// </summary>
+    public void Refit(float scale, float x, float z, IReadOnlyList<byte[]> skins)
+    {
+        float F(int at) => BitConverter.ToSingle(Data, at);
+        void SetF(int at, float value) => BitConverter.GetBytes(value).CopyTo(Data, at);
+        void Point(byte[] data, int at)
+        {
+            BitConverter.GetBytes((BitConverter.ToSingle(data, at) - x) / scale).CopyTo(data, at);
+            BitConverter.GetBytes(BitConverter.ToSingle(data, at + 4) / scale).CopyTo(data, at + 4);
+            BitConverter.GetBytes((BitConverter.ToSingle(data, at + 8) - z) / scale).CopyTo(data, at + 8);
+        }
+        void Each(int headerOffset, int size, int position)
+        {
+            var (count, offset) = Array(headerOffset);
+            for (var i = 0; i < count; ++i)
+                Point(Data, (int)offset + i * size + position);
+        }
+        // A track of vec3 offsets (a bone's translation): scaled, not moved
+        var scaledKeys = new HashSet<uint>();
+        void ScaleTrack(int track)
+        {
+            var (sequences, offset) = Array(track + 12);
+            for (var s = 0; s < sequences; ++s)
+            {
+                var (keys, keyOffset) = Array((int)offset + s * 8);
+                if (keys == 0 || !scaledKeys.Add(keyOffset))
+                    continue;
+                for (var k = 0; k < keys * 3; ++k)
+                    SetF((int)keyOffset + k * 4, F((int)keyOffset + k * 4) / scale);
+            }
+        }
+
+        Each(0x3C, 48, 0);                                  // vertices
+        Each(0x2C, 88, 0x4C);                               // bone pivots
+        if (scale != 1)
+        {
+            var (bones, boneOffset) = Array(0x2C);
+            for (var i = 0; i < bones; ++i)
+                ScaleTrack((int)boneOffset + i * 88 + 0x10);
+        }
+        Each(0xF0, 40, 8);                                  // attachments
+        Each(0x100, 36, 12);                                // events
+        Each(0x108, 156, 4);                                // lights
+        Each(0x110, 100, 36);                               // cameras: position base
+        Each(0x110, 100, 68);                               //   target base
+        Each(0x120, 176, 8);                                // ribbons
+        Each(0x128, 476, 8);                                // particles
+        Each(0xE0, 12, 0);                                  // collision vertices
+        foreach (var box in new[] { 0xA0, 0xBC })           // bounding and collision boxes, then their radius
+        {
+            Point(Data, box);
+            Point(Data, box + 12);
+            SetF(box + 24, F(box + 24) / scale);
+        }
+        foreach (var skin in skins)
+        {
+            var (count, offset) = (BitConverter.ToUInt32(skin, 0x1C), BitConverter.ToUInt32(skin, 0x20));
+            for (var i = 0; i < count; ++i)
+            {
+                var at = (int)offset + i * 48;
+                Point(skin, at + 0x14);                     // centre
+                Point(skin, at + 0x20);                     // sort centre
+                BitConverter.GetBytes(BitConverter.ToSingle(skin, at + 0x2C) / scale).CopyTo(skin, at + 0x2C);
+            }
+        }
+    }
+
     /// <summary>Every structural problem a 3.3.5 client could trip on, empty when the model and skins are
     /// sound.</summary>
     public List<string> Validate(IReadOnlyList<byte[]> skins)

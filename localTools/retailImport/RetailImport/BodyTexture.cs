@@ -6,14 +6,99 @@ namespace RetailImport;
 /// the format of every stock body texture (Leather_RaidDruid_B_01_Chest_TU_M.blp: 128x64, palette, alpha 8). Retail
 /// ships them DXT-compressed, Legion's at twice that size (256x128), Midnight's at four times (512x256): they are
 /// brought down to at most maxWidth (every region is 128 wide in stock, 256 in Ascension's conversions, which we
-/// keep), the compression is not kept. Model textures (helmets, shoulders, capes) stay as they are
-/// (Blp.ForClassic).
+/// keep), the compression is not kept. Model textures (helmets, shoulders) stay as they are (Blp.ForClassic);
+/// capes are filled where retail cuts them out (CapeForClassic).
 /// </summary>
 public static class BodyTexture
 {
     public static byte[] ToPalettized(byte[] blp, string what, int maxWidth, out string description)
     {
         var (width, height, pixels) = Decode(blp, what);
+        return Encode(width, height, pixels, maxWidth, out description);
+    }
+
+    /// <summary>
+    /// A cape for the 3.3.5 character model, which draws its cape opaque (HumanMale.m2's cape batches: blend mode 0):
+    /// retail cuts a cape's hem out with the texture's alpha (cape_leather_raidrogue_r_01_mythic2long: a diagonal
+    /// cut at the bottom left), and 3.3.5 shows whatever colour lies under the cut, white. The cut is filled by
+    /// repeating the cape's own pattern downwards, at the vertical period that best matches the rest of it (what
+    /// Ascension's copy of that cape does by hand). The layout is stock's: half a cape the model mirrors, the clasp in
+    /// the top left corner and an unused transparent strip under it, left as it is.
+    /// </summary>
+    public static byte[] CapeForClassic(byte[] blp, string what, out string description)
+    {
+        var (width, height, pixels) = Decode(blp, what);
+        bool Opaque(int x, int y) => pixels[(y * width + x) * 4 + 3] >= 128;
+
+        // The cape's body starts at the first column opaque over most of the texture's second quarter
+        var bodyX = 0;
+        while (bodyX < width && Enumerable.Range(height / 4, height / 4).Count(y => Opaque(bodyX, y)) * 2 < height / 4)
+            ++bodyX;
+        var holes = new List<int>();
+        for (var y = 0; y < height; ++y)
+            for (var x = bodyX; x < width; ++x)
+                if (!Opaque(x, y))
+                    holes.Add(y * width + x);
+        if (holes.Count == 0 || bodyX >= width)
+            return Encode(width, height, pixels, width, out description);
+
+        // The period: the shift whose rows best match the rows it would copy, over the cape's lower two thirds
+        var period = 0;
+        var bestScore = double.MaxValue;
+        for (var dy = Math.Max(8, height / 16); dy <= height / 2; dy += 2)
+        {
+            long difference = 0, pairs = 0;
+            for (var y = Math.Max(height / 3, dy); y < height; ++y)
+                for (var x = bodyX; x < width; ++x)
+                {
+                    if (!Opaque(x, y) || !Opaque(x, y - dy))
+                        continue;
+                    int p = (y * width + x) * 4, q = ((y - dy) * width + x) * 4;
+                    difference += Math.Abs(pixels[p] - pixels[q]) + Math.Abs(pixels[p + 1] - pixels[q + 1])
+                                  + Math.Abs(pixels[p + 2] - pixels[q + 2]);
+                    ++pairs;
+                }
+            if (pairs * 20 < (long)(width - bodyX) * height)
+                continue;
+            var score = (double)difference / pairs;
+            if (score < bestScore)
+            {
+                bestScore = score;
+                period = dy;
+            }
+        }
+
+        // Top down, so a hole copies a pixel already filled when the cut is taller than the period; a hole with no
+        // cape above it (none in retail's hem cuts) takes the nearest opaque pixel of its row
+        var filled = 0;
+        foreach (var hole in holes)
+        {
+            int x = hole % width, y = hole / width;
+            var source = period > 0 && y >= period ? hole - period * width : -1;
+            if (source < 0 || pixels[source * 4 + 3] < 128)
+            {
+                source = -1;
+                for (var distance = 1; distance < width && source < 0; ++distance)
+                    foreach (var sx in new[] { x + distance, x - distance })
+                        if (sx >= bodyX && sx < width && Opaque(sx, y))
+                        {
+                            source = y * width + sx;
+                            break;
+                        }
+                if (source < 0)
+                    continue;
+            }
+            Array.Copy(pixels, source * 4, pixels, hole * 4, 3);
+            pixels[hole * 4 + 3] = 255;
+            ++filled;
+        }
+        var bytes = Encode(width, height, pixels, width, out description);
+        description += $", hem cut filled ({filled} pixels, pattern repeated every {period} rows)";
+        return bytes;
+    }
+
+    private static byte[] Encode(int width, int height, byte[] pixels, int maxWidth, out string description)
+    {
         while (width > maxWidth && width > 1 && height > 1)
             (width, height, pixels) = Downsample(width, height, pixels);
 

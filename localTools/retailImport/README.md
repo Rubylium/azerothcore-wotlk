@@ -59,9 +59,11 @@ server DBCs (the server enforces Item.dbc's class, slot and display over item_te
 - Particle emitters are dropped (MultiConverter does not convert the Legion+ particle layout). Ribbons are kept.
 - Retail shader effects become two 3.3.5 passes (MultiConverter's mapping), so glows and reflections are close,
   not identical.
-- Not handled: .anim files (a Stand kept outside the model), external skeletons (SKID), race-specific models
-  (helmets), body textures of armour pieces (ItemDisplayInfoMaterialRes), models with more than 65535 vertices
-  in one submesh.
+- Not handled: .anim files (a Stand kept outside the model), external skeletons (SKID), collections models,
+  models with more than 65535 vertices in one submesh.
+- Adapted to the 3.3.5 character: helmets are moved back onto the 3.3.5 head per race and gender
+  (`Importer.HeadFits`, `ClassicM2.Refit`), and a cape's cut hem, which the opaque 3.3.5 cape would show white, is
+  filled with its own pattern (`BodyTexture.CapeForClassic`).
 - Up to Shadowlands per MultiConverter; later models may add chunks or layouts it does not know. The structural
   check fails the import rather than shipping a model the client may crash on.
 

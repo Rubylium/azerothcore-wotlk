@@ -4,7 +4,7 @@ using RetailImport;
 // Retail item model importer - see ../README.md.
 //
 //   RetailImport probe <itemId...>                  item -> appearances -> display -> model / texture FileDataIDs
-//   RetailImport extract <fdid> <outFile>            one raw retail file
+//   RetailImport extract <fdid> <outFile> [...]      raw retail files, several pairs at once
 //   RetailImport import [items.json]                 convert every entry of items.json into the client assets
 //
 // Options: --retail <install folder> (default C:\Program Files (x86)\World of Warcraft)
@@ -44,7 +44,9 @@ switch (positional[0])
             Probe.Texture(retail, uint.Parse(texture));
         return 0;
     case "extract":
-        File.WriteAllBytes(positional[2], retail.Open(uint.Parse(positional[1])));
+        // extract <fdid> <out> [<fdid> <out> ...]: several files for one load of the install
+        for (var pair = 1; pair + 1 < positional.Count; pair += 2)
+            File.WriteAllBytes(positional[pair + 1], retail.Open(uint.Parse(positional[pair])));
         return 0;
     case "import":
     {

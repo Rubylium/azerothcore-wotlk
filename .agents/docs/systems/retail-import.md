@@ -10,9 +10,9 @@ Retail WoW item looks (weapons, shoulders) are converted into 3.3.5a client file
 |---|---|
 | One-hand / two-hand weapons, shields, off-hands, ranged | ✅ `slot: weapon` |
 | Shoulders (left + right models) | ✅ `slot: shoulder` |
-| Helmets | ✅ `slot: head`: one model per 3.3.5 race and gender (20), the hair/ears it hides from a stock helmet (`helmetVis`, or the clone's) |
+| Helmets | ✅ `slot: head`: one model per 3.3.5 race and gender (20), moved back onto the 3.3.5 head (below), the hair/ears it hides from a stock helmet (`helmetVis`, or the clone's) |
 | Chest, legs, hands, feet, wrist, waist | ✅ `slot: body`: the body textures only (see below) |
-| Cloaks | ✅ `slot: cape`: the cape texture |
+| Cloaks | ✅ `slot: cape`: the cape texture, its cut hem filled (below) |
 | Collections models (retail Legion+: chest, legs, gloves, boots, belt buckle; Midnight: helmets too) | ❌ 3.3.5 has no slot that draws a model rigged to the character skeleton |
 | Models newer than Shadowlands | ⚠️ outside MultiConverter's range; the structural check fails the import rather than shipping a crashing model |
 
@@ -35,6 +35,31 @@ and Scalp, have no 3.3.5 region and are dropped). The importer:
 - gives a texture a name of its own when retail's would collide with another file's (Midnight names them after a
   model's FileDataID, the same name for other colours: `6756705_be_m_al_1077519`);
 - takes the display's first three geoset groups from retail (boots 2, cape 1, ...).
+
+### Helmets: the head moved
+
+Retail gave every race a new model and moved its helmets with it: a retail helmet sits forward and higher than the
+3.3.5 head (HuM: 0.061 forward, 0.193 up; seen in game as "too high"). The move is the same for every helmet of a race
+and gender, measured on stock helmets retail still ships (`helm_mail_raidhunter_h_01`, `helm_plate_raidwarrior_h_01`,
+`helm_leather_raidrogue_h_01`, the client's copy against retail's): a translation, plus a scale for tauren (1.35 male,
+1.25 female) and gnomes (1.15). The importer applies the inverse to each head model (`Importer.HeadFits`,
+`ClassicM2.Refit`: vertices, pivots, attachments, bounds). Ascension corrected only its HuM conversions, by hand, by
+the same amount; the rest of its helmets float.
+
+### Capes: no transparency
+
+3.3.5 draws the cape opaque (the character models' cape batches have blend mode 0). Retail cuts a cape's hem out with
+the texture's alpha (`cape_leather_raidrogue_r_01_mythic2long`: a diagonal at the bottom), and 3.3.5 shows the
+colour under the cut: white. The importer fills the cut by repeating the cape's own pattern downwards at the period
+that matches it best (`BodyTexture.CapeForClassic`), as Ascension's copy does by hand, and writes the cape
+palettized. The layout is stock's, nothing else to change: half a cape the model mirrors, the clasp in the top left
+corner and a transparent strip under it that no cape samples.
+
+### Belts
+
+A Legion+ belt's look is its collections model (the buckle and straps). Its region textures (`belt_tl`, `belt_lu`)
+repeat the waistband the leggings already paint: the T20 belt adds nothing visible over the T20 legs, in Ascension's
+conversion too. A belt of a set therefore "doesn't show" next to its own leggings; over other legs it does.
 
 ### Modern sets: collections
 
@@ -100,8 +125,10 @@ converted retail item displays, 447 of them full sets. For a set it converted, i
   corrupted committed models. Check `git diff --stat` shows `Bin` for them before committing.
 - The client reads ItemDisplayInfo.dbc from `Patch-D.MPQ` (124 HD weapon remakes), not the stock one. The pipeline
   builds on that effective copy (`mpq-builder/extractEffectiveClientFile.js`). Never patch the stock table.
-- Model textures (weapons, shoulders, helmets, capes) are copied as is (BLP2 DXT1/DXT5), except their "has mipmaps"
-  byte: don't re-encode them. Body textures are the exception: palettized like stock ones (above).
+- Model textures (weapons, shoulders, helmets) are copied as is (BLP2 DXT1/DXT5), except their "has mipmaps"
+  byte: don't re-encode them. Body textures and capes are the exceptions: palettized like stock ones (above).
+- Whatever retail cuts out with alpha must be checked against how 3.3.5 draws that part: an opaque batch (the cape)
+  shows the colour under the cut.
 - MultiConverter has no license: its source stays in the gitignored checkout, with attribution in the README. It
   had bugs the tool works around (texture name order, unknown global flags, and the blend override array it writes
   at 0x130 over whatever data starts there: the model name, or a helmet's global loops); keep

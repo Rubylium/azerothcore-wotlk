@@ -118,6 +118,27 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
         [11] = "Dr",
     };
 
+    // Where retail moved its helmets when it gave every race a new model, per 3.3.5 head suffix: retail = classic *
+    // scale + (x, 0, z). Measured on stock helmets retail still ships for every race (helm_mail_raidhunter_h_01,
+    // helm_plate_raidwarrior_h_01, helm_leather_raidrogue_h_01: the client's own against retail's, bounding boxes):
+    // the same move for every helmet of a race, an exact translation where the vertices line up (HuM 0.061, 0.193:
+    // Ascension moves its HuM conversions by that much by hand). Tauren and gnome helmets are also scaled up. The
+    // converter applies the inverse (ClassicM2.Refit).
+    private static readonly Dictionary<string, (float scale, float x, float z)> HeadFits =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["HuM"] = (1f, 0.061f, 0.193f), ["HuF"] = (1f, 0.085f, 0.185f),
+            ["OrM"] = (1f, 0.144f, 0.206f), ["OrF"] = (1f, 0.079f, 0.178f),
+            ["DwM"] = (1f, 0.015f, 0.190f), ["DwF"] = (1f, -0.009f, 0.208f),
+            ["NiM"] = (1f, 0.095f, 0.189f), ["NiF"] = (1f, 0.064f, 0.209f),
+            ["ScM"] = (1f, 0.126f, 0.131f), ["ScF"] = (1f, 0.009f, 0.161f),
+            ["TaM"] = (1.35f, 0.256f, 0.141f), ["TaF"] = (1.25f, 0.224f, 0.132f),
+            ["GnM"] = (1.15f, 0f, 0.280f), ["GnF"] = (1.15f, 0.011f, 0.310f),
+            ["TrM"] = (1f, 0.124f, 0.168f), ["TrF"] = (1f, 0.088f, 0.089f),
+            ["BeM"] = (1f, 0.080f, 0.168f), ["BeF"] = (1f, 0f, 0.205f),
+            ["DrM"] = (1f, 0.075f, 0.259f), ["DrF"] = (1f, 0.069f, 0.206f),
+        };
+
     // ItemDisplayInfoMaterialRes.ComponentSection -> the 3.3.5 folder of that region's textures
     private static readonly string[] SectionFolders =
     [
@@ -153,7 +174,11 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
                 var texture = Probe.TextureFiles(retail, materialResources[0]).Select(t => t.fdid).FirstOrDefault();
                 if (texture == 0)
                     throw new Exception($"display {spec.Id}: retail display {spec.RetailDisplay} has no cape texture");
-                modelTextures[0] = CopyTexture(texture, @"Item\ObjectComponents\Cape\");
+                var retailName = retail.NameOf(texture) ?? throw new Exception($"texture {texture} is not in the listfile");
+                modelTextures[0] = Path.GetFileNameWithoutExtension(retailName);
+                var bytes = BodyTexture.CapeForClassic(retail.Open(texture), retailName, out var description);
+                WriteOutput($@"Item\ObjectComponents\Cape\{modelTextures[0]}.blp", bytes);
+                report.Add($"  cape {texture} {retailName} ({description})");
                 retailTextures.Add(texture);
                 break;
             }
@@ -249,7 +274,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
             var gender = (int)(sbyte)component["GenderIndex"];
             if (!ClassicRaces.TryGetValue(race, out var suffix) || gender is not (0 or 1))
                 continue;
-            var name = ConvertModel(fdid, "Head");
+            var name = ConvertModel(fdid, "Head", HeadFits[suffix + (gender == 0 ? "M" : "F")]);
             var expected = "_" + suffix + (gender == 0 ? "m" : "f");
             if (!name.EndsWith(expected, StringComparison.OrdinalIgnoreCase))
             {
@@ -348,7 +373,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
     }
 
     /// <summary>Converts one retail model and its skins, returns its 3.3.5 name (no extension).</summary>
-    private string ConvertModel(uint fdid, string folder)
+    private string ConvertModel(uint fdid, string folder, (float scale, float x, float z)? fit = null)
     {
         if (convertedModels.TryGetValue(fdid, out var done))
             return done;
@@ -447,6 +472,13 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
         converted.NameTextures(names);
 
         var skins = skinPaths.Select(File.ReadAllBytes).ToList();
+        if (fit is { } move)
+        {
+            var (scale, x, z) = move;
+            converted.Refit(scale, x, z, skins);
+            report.Add(FormattableString.Invariant(
+                $"  {name}: moved onto the 3.3.5 head by ({-x:0.###}, 0, {-z:0.###}), scaled by 1/{scale}"));
+        }
         var problems = converted.Validate(skins);
         foreach (var problem in problems)
             Fail($"{name}: {problem}");
