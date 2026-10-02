@@ -444,7 +444,7 @@ $spells = @(
 
     # The specializations: hidden passives, what tells the scripts which one is on
     # Chasseur de têtes: 25% more energy regeneration (the axes it throws on its own come from mod-barbarian)
-    @{ Id = 97291; Clone = $selfBuff; Name = 'Chasseur de têtes'; IconPath = 'Interface\Icons\INV_ThrowingAxe_03'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+    @{ Id = 97291; Clone = $selfBuff; Name = 'Chasseur de têtes'; IconPath = 'Interface\Icons\Ability_Barbarian_Headhunting'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = "Toutes les 2 s en combat, vous lancez une hache sur votre cible à 30 m. Votre régénération d'énergie augmente de 25%."
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModPowerRegenPercent; TargetA = 1; Value = 25; Misc = 3 }); Fields = @{ 208 = $family } },
     # Ascendance: 10% more frost damage (its support is its buffs and auras), a lighter whirl than the damage specs
@@ -454,7 +454,7 @@ $spells = @(
            @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -40; Misc = 0 })
        Fields = @{ 208 = $family; 125 = $flagWhirl; 126 = 0; 127 = 0 } },
     # Brutalité: what tells the scripts the specialization is on, and the strongest whirl
-    @{ Id = 97290; Clone = $selfBuff; Name = 'Brutalité'; IconPath = 'Interface\Icons\Ability_Warrior_Rampage'; FallbackIconSpell = 12294; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
+    @{ Id = 97290; Clone = $selfBuff; Name = 'Brutalité'; IconPath = 'Interface\Icons\Ability_Warrior_BloodFrenzy'; FallbackIconSpell = 12294; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
        Description = 'Vos attaques automatiques ont 15% de chances de vous enrager (Rage sanguinaire). Tourbillon barbare inflige 45% de dégâts en plus.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 },
            @{ Index = 1; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 45; Misc = 0 })

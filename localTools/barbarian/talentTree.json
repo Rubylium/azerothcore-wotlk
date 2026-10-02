@@ -9,7 +9,7 @@
   ],
   "classId": 14,
   "backgroundArt": {
-    "from": "warrior-fury"
+    "file": "localTools/interface/assets/talents/barbarian.png"
   },
   "trees": [
     {
@@ -820,6 +820,15 @@
     {
       "id": 2,
       "kind": "spec",
+      "specArt": {
+        "file": "localTools/interface/assets/talents/barbarian-brutality.png",
+        "box": [
+          85,
+          0,
+          515,
+          372
+        ]
+      },
       "name": "Brutalité",
       "firstLevel": 11,
       "levelStep": 2,
@@ -1639,6 +1648,15 @@
     {
       "id": 3,
       "kind": "spec",
+      "specArt": {
+        "file": "localTools/interface/assets/talents/barbarian-headhunter.png",
+        "box": [
+          115,
+          0,
+          545,
+          372
+        ]
+      },
       "name": "Chasseur de têtes",
       "firstLevel": 11,
       "levelStep": 2,
@@ -2435,6 +2453,15 @@
     {
       "id": 4,
       "kind": "spec",
+      "specArt": {
+        "file": "localTools/interface/assets/talents/barbarian-ancestry.png",
+        "box": [
+          115,
+          0,
+          545,
+          372
+        ]
+      },
       "name": "Ascendance",
       "firstLevel": 11,
       "levelStep": 2,

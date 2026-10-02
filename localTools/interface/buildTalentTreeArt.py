@@ -8,6 +8,8 @@ clientPatcher/interface/Interface/FrameXML/TalentTreeArt.lua, which the window r
   Marlamin). The sheets and the atlas CSVs are cached under localTools/interface/cache/talents (gitignored), so
   only the first run needs retail and wago.tools.
 - each class's background: a retail talent background recoloured to the class (`backgroundArt` in its talentTree JSON)
+- each specialization's figure on the specialization page: cut from the right of its tree's painting, or a painting
+  of its own (`specArt` on the tree: a file, and the box of it to show)
 - node icons: the WotLK client's own icons cut to the node shapes - round for a passive, octagonal for a choice, and
   for each choice node its two options side by side, as retail shows a choice not made yet. 3.3.5 has no texture
   masks, so the shapes are baked here.
@@ -401,12 +403,21 @@ def main():
                                          'background-%d' % class_id, compressed=True)
         specs = [tree for tree in definition['trees'] if tree['kind'] == 'spec']
         for tree in specs:
+            key = '%d-%d' % (class_id, tree['id'])
+            # A figure of its own for the specialization page (`specArt`: a file and the box of it to show), whatever
+            # the tree's background
+            if tree.get('specArt'):
+                figure = Image.open(os.path.join(REPO, tree['specArt']['file'])).convert('RGBA')
+                if tree['specArt'].get('box'):
+                    figure = figure.crop(tuple(tree['specArt']['box']))
+                figure = figure.resize((SPEC_ART_WIDTH, round(figure.height * SPEC_ART_WIDTH / figure.width)),
+                                       Image.Resampling.LANCZOS)
+                spec_art[key] = art.save(figure, 'spec-' + key, compressed=True)
             if not tree.get('backgroundArt'):
                 continue
-            key = '%d-%d' % (class_id, tree['id'])
             image = painting(tree['backgroundArt'])
             backgrounds[key] = art.save(image, 'background-' + key, compressed=True)
-            if len(specs) > 1:
+            if len(specs) > 1 and key not in spec_art:
                 figure = image.crop((round(image.width * SPEC_ART_LEFT), 0, image.width, image.height))
                 figure = figure.resize((SPEC_ART_WIDTH, round(figure.height * SPEC_ART_WIDTH / figure.width)),
                                        Image.Resampling.LANCZOS)

@@ -316,14 +316,14 @@
         "id": 910,
         "name": "Brutalité",
         "background": "WarriorFury",
-        "icon": "Ability_Warrior_Rampage",
+        "icon": "Ability_Warrior_BloodFrenzy",
         "tabPage": 0,
         "talents": []
       }, {
         "id": 911,
         "name": "Chasseur de têtes",
         "background": "WarriorArms",
-        "icon": "INV_ThrowingAxe_03",
+        "icon": "Ability_Barbarian_Headhunting",
         "tabPage": 1,
         "talents": []
       }, {
