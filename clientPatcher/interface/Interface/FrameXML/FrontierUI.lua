@@ -37,7 +37,11 @@ local TEXT = french and {
     riftCollapsed = "La faille s'est effondrée",
     colossusKicker = "Colosse du Front du Nord",
     colossusArrives = "Arrive dans %s",
-    colossusArrived = "Est arrivé !",
+    colossusChatComing = "%s arrive dans %s",
+    colossusChatHere = "%s est arrivé",
+    colossusChatReward = "(palier %s, équipement de niveau %d garanti)",
+    minutes = "%d min",
+    seconds = "%d s",
     colossusLeaves = "Repart dans %s",
     colossusReward = "Palier %s  ·  équipement de niveau %d garanti",
     colossusHint = "Un colosse pour un joueur seul comme pour un groupe : il grandit avec ceux qui le combattent.",
@@ -59,7 +63,11 @@ local TEXT = french and {
     riftCollapsed = "The rift collapsed",
     colossusKicker = "Northrend Frontier Colossus",
     colossusArrives = "Arrives in %s",
-    colossusArrived = "Has arrived!",
+    colossusChatComing = "%s arrives in %s",
+    colossusChatHere = "%s has arrived",
+    colossusChatReward = "(tier %s, item level %d gear guaranteed)",
+    minutes = "%d min",
+    seconds = "%d s",
     colossusLeaves = "Leaves in %s",
     colossusReward = "Tier %s  ·  item level %d gear guaranteed",
     colossusHint = "A colossus for one player as for a group: it grows with those who fight it.",
@@ -230,7 +238,7 @@ local currentZone = 0
 local pins = {}         -- zone id -> { { kind, x, y }, ... }
 local colossi = {}      -- coming / here -> { index, zone, x, y, at (when it comes or leaves), loot, here }
 
--- The Colosses' stock icons: their map pins' (made round), and their toast's should their painted heads be missing
+-- The Colosses' stock icons, for their map pins (made round); their chat line shows their painted heads
 -- (Interface\Frontier\ColossusIcon<n>, localTools/interface/buildFrontierArt.py)
 local COLOSSUS_ICONS = {
     "Interface\\Icons\\Ability_Mount_Mammoth_White",
@@ -259,14 +267,6 @@ local PIN_SIZES = { E = { 18, 14 }, R = { 24, 18 }, C = { 34, 26 } }
 local function PinSize(kind, onMinimap)
     local sizes = PIN_SIZES[kind] or PIN_SIZES.E
     return sizes[onMinimap and 2 or 1]
-end
-
--- Where a Colosse is and when it comes or leaves
-local function ColossusWhere(colossus)
-    local zone = ZONES[colossus.zone]
-    local when = colossus.here and TEXT.colossusArrived
-        or format(TEXT.colossusArrives, UI.FormatClock(colossus.at - GetTime()))
-    return (zone and zone.name .. "  ·  " or "") .. when
 end
 
 -- The map pins -----------------------------------------------------------------------------------------------------
@@ -508,89 +508,44 @@ local function ShowRift(stage, wave, waves, alive, total, left)
     tracker:Show()
 end
 
--- The Colosse toast: who, where and when, on its portrait -----------------------------------------------------------
+-- The Colosse's news: one line in the chat, its painted head in front ----------------------------------------------
 
-local toast
-local TOAST_IN, TOAST_OUT, TOAST_HOLD = 0.4, 0.8, 9
-
-local function CreateToast()
-    toast = CreateFrame("Frame", "FrontierColossusToast", UIParent)
-    toast:SetSize(380, 96)
-    toast:SetPoint("TOP", UIParent, "TOP", 0, -300)
-    toast:SetFrameStrata("HIGH")
-    UI.Card(toast, 0.92)
-    toast:Hide()
-
-    local portrait = UI.FramedIcon(toast, 72)
-    portrait:SetPoint("LEFT", toast, "LEFT", 12, 0)
-    toast.portrait = portrait
-    local kicker = UI.Label(toast, "GameFontNormalSmall", UI.GOLD)
-    kicker:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 12, -4)
-    kicker:SetText(TEXT.colossusKicker)
-    local name = UI.Label(toast, "GameFontNormalLarge", UI.HEADING)
-    name:SetPoint("TOPLEFT", kicker, "BOTTOMLEFT", 0, -3)
-    toast.name = name
-    local where = UI.Label(toast, "GameFontHighlight", UI.SOFT)
-    where:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
-    toast.where = where
-    local reward = UI.Label(toast, "GameFontHighlightSmall", UI.AMBER)
-    reward:SetPoint("TOPLEFT", where, "BOTTOMLEFT", 0, -4)
-    toast.reward = reward
-
-    toast:SetScript("OnUpdate", function(self)
-        local now = GetTime()
-        local age = now - self.shownAt
-        if age < TOAST_IN then
-            self:SetAlpha(UI.OutCubic(age / TOAST_IN))
-        elseif now < self.hideAt then
-            self:SetAlpha(1)
-        else
-            local out = (now - self.hideAt) / TOAST_OUT
-            if out >= 1 then
-                self:Hide()
-                return
-            end
-            self:SetAlpha(1 - UI.OutCubic(out))
-        end
-        -- Its countdown runs while it shows
-        self.where:SetText(ColossusWhere(self.colossus))
-    end)
+-- 600 -> "10 min", 45 -> "45 s"
+local function Duration(seconds)
+    seconds = max(0, floor(seconds + 0.5))
+    if seconds >= 60 then
+        return format(TEXT.minutes, floor(seconds / 60 + 0.5))
+    end
+    return format(TEXT.seconds, seconds)
 end
 
-local function ShowToast(colossus)
-    if not toast then
-        CreateToast()
-    end
-    toast.colossus = colossus
-    local portrait = toast.portrait.icon
-    if not portrait:SetTexture("Interface\\Frontier\\ColossusIcon" .. colossus.index) then
-        portrait:SetTexture(COLOSSUS_ICONS[colossus.index] or COLOSSUS_ICONS[1])
-    end
-    toast.name:SetText(TEXT.colossi[colossus.index] or "")
-    toast.where:SetText(ColossusWhere(colossus))
-    toast.reward:SetText(format(TEXT.colossusReward, NUMERALS[colossus.index] or "", colossus.loot))
-    toast.shownAt = GetTime()
-    toast.hideAt = toast.shownAt + TOAST_IN + TOAST_HOLD
-    toast:SetAlpha(0)
-    toast:Show()
-    PlaySound("RaidWarning")
+local function AnnounceColossus(colossus)
+    local zone = ZONES[colossus.zone]
+    local name = UI.Colored(TEXT.colossi[colossus.index] or "", UI.HEADING)
+    local line = (colossus.here and format(TEXT.colossusChatHere, name)
+        or format(TEXT.colossusChatComing, name, Duration(colossus.at - GetTime())))
+        .. "  ·  " .. (zone and zone.name or "")
+    local reward = format(TEXT.colossusChatReward, NUMERALS[colossus.index] or "", colossus.loot)
+    DEFAULT_CHAT_FRAME:AddMessage(format("|TInterface\\Frontier\\ColossusIcon%d:16:16|t %s %s %s",
+        colossus.index, UI.Colored(TEXT.kicker .. (french and " :" or ":"), UI.GOLD), UI.Colored(line, UI.SOFT),
+        UI.Colored(reward, UI.MUTED)))
 end
 
 local COLOSSUS_COMING, COLOSSUS_HERE = 1, 2
 
--- A Colosse heard of, come, slain or gone: the toast for the first two, the pins for all
+-- A Colosse heard of, come, slain or gone: a chat line for the first two, the pins for all
 local function ReceiveColossus(state, index, zoneId, x, y, seconds, loot)
     local colossus = { index = index, zone = zoneId, x = x, y = y, at = GetTime() + seconds, loot = loot,
                        here = state == COLOSSUS_HERE }
     if state == COLOSSUS_COMING then
         colossi.coming = colossus
-        ShowToast(colossus)
+        AnnounceColossus(colossus)
     elseif state == COLOSSUS_HERE then
         colossi.here = colossus
         if colossi.coming and colossi.coming.index == index then
             colossi.coming = nil
         end
-        ShowToast(colossus)
+        AnnounceColossus(colossus)
     else
         colossi.here = nil
     end
