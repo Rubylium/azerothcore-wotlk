@@ -55,6 +55,8 @@
     "detailsSpecs  Its specializations' icons in Details, in talent tab order: { icon, cell } each, cell a free",
     "              [column, row] of Details' 8x8 spec icon sheet (row 4 from column 2, rows 5-7). The spec's id in",
     "              Details is class id * 100 + tab + 1.",
+    "supportSpells Its spells whose damage is its allies' (a share of their hits): Details shows them apart, in the",
+    "              support colour, so a support's buffs read at a glance.",
     "color         Class color as [r, g, b] 0-1, for unit frames and chat."
   ],
   "stockTalentTrees": [
@@ -318,6 +320,7 @@
         { "icon": "localTools/interface/assets/specs/barbarian-headhunter.png", "cell": [3, 4] },
         { "icon": "localTools/interface/assets/specs/barbarian-ancestry.png", "cell": [4, 4] }
       ],
+      "supportSpells": [97222],
       "color": [0.86, 0.38, 0.17],
       "talentTree": "localTools/barbarian/talentTree.json",
       "talentTabs": [{

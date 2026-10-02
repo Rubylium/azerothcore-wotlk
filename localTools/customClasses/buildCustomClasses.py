@@ -729,6 +729,9 @@ def details_cell(definition):
     specs = definition.get('detailsSpecs')
     if specs:
         text += ', specCells = { %s }' % ', '.join('{ %d, %d }' % tuple(spec['cell']) for spec in specs)
+    support = definition.get('supportSpells')
+    if support:
+        text += ', supportSpells = { %s }' % ', '.join(str(spell) for spell in support)
     return text
 
 

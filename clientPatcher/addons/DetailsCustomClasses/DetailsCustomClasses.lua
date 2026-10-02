@@ -172,6 +172,47 @@ hooksecurefunc(_detalhes, "ApplyProfile", applyToLiveTables)
 -- 3. A profile may already have been applied before this addon loaded
 applyToLiveTables()
 
+-- Damage through allies ----------------------------------------------------------------------------------------------
+--
+-- A support class deals part of its damage as a share of its allies' hits (the Barbarian's Écho ancestral): its own
+-- in the meter, but not its own doing. Those spells (CustomClasses[...].supportSpells, from classes.json) are shown
+-- apart wherever Details lists spells: in the support colour, tagged, with the support badge as their icon. Details
+-- rebuilds its spell cache from SpellOverwrite (ClearSpellCache): they go in there, and onto the cache in use.
+local SUPPORT_ICON = [[Interface\TalentTree\role-support]]
+local SUPPORT_TAG = GetLocale() == "frFR" and "via alliés" or "via allies"
+
+local function supportSpellEntry(spellId)
+    local name = GetSpellInfo(spellId)
+    if not name then
+        return nil
+    end
+    return { name = "|cffb48cff" .. name .. " (" .. SUPPORT_TAG .. ")|r", icon = SUPPORT_ICON }
+end
+
+local function addSupportSpells()
+    if not CustomClasses then
+        return
+    end
+    for _, class in pairs(CustomClasses) do
+        for _, spellId in ipairs(class.supportSpells or {}) do
+            local entry = supportSpellEntry(spellId)
+            if entry then
+                if type(_detalhes.SpellOverwrite) == "table" then
+                    _detalhes.SpellOverwrite[spellId] = entry
+                end
+                if type(_detalhes.spellcache) == "table" then
+                    rawset(_detalhes.spellcache, spellId, { entry.name, 1, entry.icon })
+                end
+            end
+        end
+    end
+end
+
+addSupportSpells()
+if type(_detalhes.ClearSpellCache) == "function" then
+    hooksecurefunc(_detalhes, "ClearSpellCache", addSupportSpells)
+end
+
 -- Real specs ---------------------------------------------------------------------------------------------------------
 --
 -- Details finds a spec on its own: from WotLK talent points, else from the spells it sees cast. Neither works for the
