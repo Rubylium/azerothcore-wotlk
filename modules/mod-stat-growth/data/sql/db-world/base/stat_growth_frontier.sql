@@ -111,12 +111,12 @@ DROP TEMPORARY TABLE `tmp_frontier_template`;
 DROP TEMPORARY TABLE `tmp_frontier_copy`;
 
 -- Éclat de givre, the Front du Nord's currency: item 37711, a row the client's Item.dbc already has (a currency
--- token, class 10) with no template on the server. Its icon is that row's own until the patcher gives it the shard's.
+-- token, class 10) with no template on the server. Display 70100: the patcher's own row, with the shard's icon.
 DELETE FROM `item_template` WHERE `entry` = 37711;
 INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`,
     `BuyPrice`, `SellPrice`, `InventoryType`, `ItemLevel`, `RequiredLevel`, `maxcount`, `stackable`, `bonding`,
-    `description`) VALUES
-(37711, 10, 0, 'Éclat de givre', 32278, 3, 0, 1, 0, 0, 0, 80, 0, 0, 1000, 1,
+    `Material`, `description`) VALUES
+(37711, 10, 0, 'Éclat de givre', 70100, 3, 0, 1, 0, 0, 0, 80, 0, 0, 1000, 1, 4,
     'Arraché aux menaces du Front du Nord. Le quartier-maître de Dalaran l''échange contre de l''équipement.');
 DELETE FROM `item_template_locale` WHERE `ID` = 37711;
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES

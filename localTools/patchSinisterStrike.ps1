@@ -2355,6 +2355,11 @@ foreach ($glyph in $glyphDisplays) {
     # Field 5: DisplayInfoID
     [BitConverter]::GetBytes([uint32]$glyph.display).CopyTo($itemBytes, $itemOffsets[[int]$glyph.item] + 5 * 4)
 }
+# Le Front du Nord's currency, the Éclat de givre (item 37711, stat_growth_frontier.sql): its own display, built below
+# on its stock row's, with the shard's icon (localTools\interface\buildFrontierArt.py)
+$frontierShard = @{ Item = 37711; Display = 70100; CloneOf = 32278; Icon = 'INV_Frontier_FrostShard' }
+if (-not $itemOffsets.ContainsKey($frontierShard.Item)) { throw "Item.dbc has no row $($frontierShard.Item) for the frost shard." }
+[BitConverter]::GetBytes([uint32]$frontierShard.Display).CopyTo($itemBytes, $itemOffsets[$frontierShard.Item] + 5 * 4)
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
 #
@@ -2414,6 +2419,13 @@ foreach ($display in $retailItems.displays) {
     if ($display.icon) { Set-Field $record 5 (Add-DbcString $displayDbc.Strings ([string]$display.icon)) }
     $displayDbc.NewRecords.AddRange($record)
 }
+# The frost shard's: its stock row (a token's), with its own icon
+if ($displayDbc.Offsets.ContainsKey($frontierShard.Display)) { throw "ItemDisplayInfo.dbc already has a row $($frontierShard.Display)." }
+$record = [byte[]]::new($displayDbc.RecordSize)
+[Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$frontierShard.CloneOf], $record, 0, $displayDbc.RecordSize)
+Set-Field $record 0 ([uint32]$frontierShard.Display)
+Set-Field $record 5 (Add-DbcString $displayDbc.Strings $frontierShard.Icon)
+$displayDbc.NewRecords.AddRange($record)
 $displayOutput = Get-StringDbcOutput $displayDbc
 [IO.File]::WriteAllBytes($serverDisplayPath, $displayOutput)
 [IO.File]::WriteAllBytes($clientDisplayPath, $displayOutput)

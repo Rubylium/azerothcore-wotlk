@@ -68,7 +68,7 @@ local TEXT = french and {
 local NUMERALS = { "I", "II", "III", "IV" }
 
 -- The tier zones: their name, their map (GetMapInfo), WorldMapArea.dbc bounds (left / right are world y, top / bottom
--- world x) and the icon the banner shows until the tier crests are in (Interface\Frontier\Crest<n>)
+-- world x) and the icon the banner falls back on without its tier crest (Interface\Frontier\Crest<n>)
 local ZONES = {
     [3537] = { name = french and "Toundra Boréenne" or "Borean Tundra",
                map = "BoreanTundra", left = 8570.83, right = 2806.25, top = 4897.92, bottom = 1054.17,
@@ -101,7 +101,7 @@ for id, zone in pairs(ZONES) do
 end
 
 local ELITE_ICON = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8"
--- The rift's own icon once generated (Interface\Frontier\RiftIcon), a stock portal until then
+-- The rift's own icon (localTools/interface/buildFrontierArt.py), a stock portal should it be missing
 local RIFT_ICON = "Interface\\Frontier\\RiftIcon"
 local RIFT_ICON_STOCK = "Interface\\Icons\\Spell_Arcane_PortalDalaran"
 
@@ -230,8 +230,8 @@ local currentZone = 0
 local pins = {}         -- zone id -> { { kind, x, y }, ... }
 local colossi = {}      -- coming / here -> { index, zone, x, y, at (when it comes or leaves), loot, here }
 
--- The Colosses' icons: their map pins', and their toast's until their portraits are in
--- (Interface\Frontier\ColossusIcon<n>)
+-- The Colosses' stock icons: their map pins' (made round), and their toast's should their painted heads be missing
+-- (Interface\Frontier\ColossusIcon<n>, localTools/interface/buildFrontierArt.py)
 local COLOSSUS_ICONS = {
     "Interface\\Icons\\Ability_Mount_Mammoth_White",
     "Interface\\Icons\\Achievement_Boss_Sapphiron_01",
