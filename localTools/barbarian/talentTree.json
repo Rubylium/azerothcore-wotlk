@@ -184,7 +184,7 @@
             {
               "name": "Avancée tourbillonnante",
               "icon": "_D3whirlwind",
-              "text": "Fonce en tourbillonnant vers un ennemi entre 8 et 25 m et frappe les ennemis à 8 m de l'arrivée : 60% des dégâts de l'arme. 20 s de recharge.",
+              "text": "Fonce en tourbillonnant vers un ennemi entre 8 et 25 m et frappe les ennemis à 8 m de l'arrivée : 90% des dégâts de l'arme. 20 s de recharge.",
               "spell": 97106,
               "existing": true
             }
@@ -881,7 +881,7 @@
           "spells": [
             97122
           ],
-          "text": "Frappe l'ennemi et jusqu'à 2 ennemis proches : 140% des dégâts de l'arme. 30 points d'énergie, 8 s de recharge."
+          "text": "Frappe l'ennemi et jusqu'à 2 ennemis proches : 210% des dégâts de l'arme. 30 points d'énergie, 8 s de recharge."
         },
         {
           "id": 202,
@@ -1097,7 +1097,7 @@
           "spells": [
             97123
           ],
-          "text": "Écrase les ennemis dans un cône de 8 m : 250% des dégâts de l'arme, et les étourdit 1,5 s. 40 points d'énergie, 20 s de recharge.",
+          "text": "Écrase les ennemis dans un cône de 8 m : 400% des dégâts de l'arme, et les étourdit 1,5 s. 40 points d'énergie, 20 s de recharge.",
           "parents": [
             206,
             207
@@ -1331,7 +1331,7 @@
             {
               "name": "Tempête d'acier",
               "icon": "Achievement_Arena_5v5_5",
-              "text": "Frappe la cible toutes les 0,5 s pendant 6 s : 50% des dégâts de l'arme à chaque coup. 30 s de recharge.",
+              "text": "Frappe la cible toutes les 0,5 s pendant 6 s : 70% des dégâts de l'arme à chaque coup. 30 s de recharge.",
               "spell": 97127,
               "existing": true
             }
@@ -1416,7 +1416,7 @@
           "spells": [
             97124
           ],
-          "text": "Tente de décapiter un ennemi sous 35% de ses points de vie : 200% des dégâts de l'arme, et chaque point d'énergie en plus, jusqu'à 50, ajoute 2% de dégâts. 25 points d'énergie.",
+          "text": "Tente de décapiter un ennemi sous 35% de ses points de vie : 240% des dégâts de l'arme, et chaque point d'énergie en plus, jusqu'à 50, ajoute 2% de dégâts. 25 points d'énergie.",
           "parents": [
             217,
             218
@@ -1621,14 +1621,14 @@
             {
               "name": "Briseur de coque",
               "icon": "INV_Archaeology_Ogres_Warmaul_Chieftain",
-              "text": "Fracasse l'ennemi : 180% des dégâts de l'arme, et il subit 10% de dégâts physiques en plus de votre part pendant 12 s. 30 points d'énergie, 15 s de recharge.",
+              "text": "Fracasse l'ennemi : 260% des dégâts de l'arme, et il subit 10% de dégâts physiques en plus de votre part pendant 12 s. 30 points d'énergie, 15 s de recharge.",
               "spell": 97128,
               "existing": true
             },
             {
               "name": "Empaler",
               "icon": "INV_Axe_2H_WarfrontsHorde_C_01",
-              "text": "Empale l'ennemi : 160% des dégâts de l'arme. Sous 35% de ses points de vie, 100% de plus et 5 charges de Carnage. 35 points d'énergie, 14 s de recharge.",
+              "text": "Empale l'ennemi : 240% des dégâts de l'arme. Sous 35% de ses points de vie, 100% de plus et 5 charges de Carnage. 35 points d'énergie, 14 s de recharge.",
               "spell": 97129,
               "existing": true
             }
@@ -1700,7 +1700,7 @@
           "spells": [
             97164
           ],
-          "text": "Lance une arme dans les jambes de l'ennemi : 110% des dégâts de l'arme, et sa vitesse de déplacement est réduite de 50% pendant 8 s. 25 points d'énergie, 6 s de recharge."
+          "text": "Lance une arme dans les jambes de l'ennemi : 165% des dégâts de l'arme, et sa vitesse de déplacement est réduite de 50% pendant 8 s. 25 points d'énergie, 6 s de recharge."
         },
         {
           "id": 302,
@@ -1836,7 +1836,7 @@
           "spells": [
             97162
           ],
-          "text": "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 160% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois. 20 points d'énergie.",
+          "text": "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 175% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois. 20 points d'énergie.",
           "parents": [
             302,
             303
@@ -2139,7 +2139,7 @@
             {
               "name": "Danse des haches",
               "icon": "INV_Axe_104",
-              "text": "Pendant 12 s, vos lancers frappent aussi 2 ennemis proches de leur cible. 1 min de recharge.",
+              "text": "Pendant 12 s, vos lancers frappent aussi 5 ennemis proches de leur cible. 1 min de recharge.",
               "spell": 97167,
               "existing": true
             },
@@ -2222,7 +2222,7 @@
           "spells": [
             97169
           ],
-          "text": "Fait pleuvoir des haches sur l'ennemi et ceux à 8 m de lui : 90% des dégâts de l'arme. 40 points d'énergie, 12 s de recharge.",
+          "text": "Fait pleuvoir des haches sur l'ennemi et ceux à 10 m de lui : 320% des dégâts de l'arme. 40 points d'énergie, 10 s de recharge.",
           "parents": [
             317,
             318
@@ -2408,7 +2408,7 @@
             {
               "name": "Javelot",
               "icon": "INV_Spear_06",
-              "text": "Projette un javelot sur l'ennemi : 220% des dégâts de l'arme. 45 points d'énergie, 10 s de recharge.",
+              "text": "Projette un javelot sur l'ennemi : 260% des dégâts de l'arme. 45 points d'énergie, 10 s de recharge.",
               "spell": 97172,
               "existing": true
             },
@@ -2438,13 +2438,15 @@
       "name": "Ascendance",
       "firstLevel": 11,
       "levelStep": 2,
-      "role": "tank",
+      "role": "damage",
       "specSpells": [
         97200,
         97201,
-        97292
+        97223,
+        97292,
+        97215
       ],
-      "description": "Le barbare de l'Ascendance tient la ligne, une arme et un bouclier en main : la force de ses ancêtres le protège, le givre du Nord frappe ses ennemis et sa Chope se remplit pendant le combat.",
+      "description": "Le barbare de l'Ascendance porte ses alliés : Puissance ancestrale et Santé ! renforcent leurs coups, dont une part revient en Écho ancestral - ses dégâts à lui, que le compteur montre. Le givre du Nord et sa Chope font le reste.",
       "gates": [
         {
           "row": 4,
@@ -2491,12 +2493,12 @@
           "row": 0,
           "col": 3,
           "kind": "active",
-          "name": "Moquerie",
-          "icon": "INV_Chicken2_White",
+          "name": "Santé !",
+          "icon": "Archaeology_5_0_TwinsteinSetOfBrewfatherQuantouKuo",
           "spells": [
-            97205
+            97217
           ],
-          "text": "Provoque les ennemis à 10 m : ils vous attaquent pendant 6 s. 15 s de recharge."
+          "text": "Trinque avec un allié à 40 m pendant 18 s : chacun de ses coups vous fait infliger 6% de ses dégâts en plus (Écho ancestral). 12 s de recharge."
         },
         {
           "id": 402,
@@ -2538,12 +2540,12 @@
           "row": 1,
           "col": 3,
           "kind": "active",
-          "name": "Mak'gora",
-          "icon": "Ability_HanzAndFranz_ChestBump",
+          "name": "Fût ancestral",
+          "icon": "INV_Holiday_Beerfest_Maghar",
           "spells": [
-            97206
+            97218
           ],
-          "text": "Défie un ennemi en duel : il vous attaque pendant 3 s. 30 m, 8 s de recharge.",
+          "text": "Met un fût en perce : les membres du raid à 30 m récupèrent 1% de leurs points de vie et de leur mana maximum par seconde pendant 10 s. 2 min de recharge.",
           "parents": [
             401
           ]
@@ -2630,8 +2632,8 @@
           "row": 2,
           "col": 4,
           "kind": "passive",
-          "name": "Garde du thane",
-          "icon": "INV_Shield_04",
+          "name": "Puissance des ancêtres",
+          "icon": "Achievement_Dungeon_UtgardeKeep_Normal",
           "spells": [
             97487,
             97488,
@@ -2639,20 +2641,26 @@
             97490,
             97491
           ],
-          "text": "Augmente de {0}% vos chances de bloquer.",
+          "text": "Augmente de {0}% les chances de coup critique de Frappe ancestrale.",
           "values": [
-            1,
             2,
-            3,
             4,
-            5
+            6,
+            8,
+            10
           ],
           "parents": [
             403,
             404
           ],
           "aura": {
-            "type": 51
+            "type": 107,
+            "misc": 7,
+            "classMask": [
+              0,
+              8192,
+              0
+            ]
           }
         },
         {
@@ -2703,12 +2711,12 @@
           "row": 3,
           "col": 3,
           "kind": "active",
-          "name": "Rugissement ancestral",
-          "icon": "Achievement_Boss_Ignis_01",
+          "name": "Fureur ancestrale",
+          "icon": "Ability_Warrior_EndlessRage",
           "spells": [
-            97204
+            97216
           ],
-          "text": "Nécessite d'être enragé. Un rugissement qui vous rend 15% de vos points de vie maximum. 25 s de recharge.",
+          "text": "Une aura : la hâte en mêlée et à distance des membres du raid à 40 m augmente de 20%, et leur vitesse d'incantation de 5%.",
           "parents": [
             406,
             407
@@ -2792,42 +2800,33 @@
           "row": 4,
           "col": 2,
           "kind": "passive",
-          "name": "Ancêtres vigilants",
-          "icon": "Achievement_Dungeon_UtgardeKeep_Normal",
+          "name": "Éclaboussures",
+          "icon": "INV_Holiday_BrewfestBuff_01",
           "spells": [
             97505,
             97506
           ],
-          "text": "Rugissement ancestral vous rend {0}% de points de vie maximum de plus.",
+          "text": "Vider au moins 3 charges de votre Chope : pendant 10 s, chaque coup des membres du raid à 30 m vous fait infliger {0}% de ses dégâts en plus (Écho ancestral).",
           "values": [
-            3,
-            6
+            2,
+            4
           ],
           "parents": [
             409,
             410
-          ],
-          "aura": {
-            "type": 107,
-            "misc": 3,
-            "classMask": [
-              0,
-              131072,
-              0
-            ]
-          }
+          ]
         },
         {
           "id": 414,
           "row": 4,
           "col": 4,
           "kind": "active",
-          "name": "Défi",
-          "icon": "INV_Plate_BlackrockClan_B_01Helm",
+          "name": "Chant des ancêtres",
+          "icon": "INV_Belt_Armor_OrcClan_D_01",
           "spells": [
-            97207
+            97219
           ],
-          "text": "Défie la mort : pendant 10 s, vous subissez de 30 à 60% de dégâts en moins, d'autant plus que vos points de vie sont bas. 3 min de recharge.",
+          "text": "Les ancêtres chantent avec le raid : pendant 15 s, chaque coup des membres du raid à 30 m vous fait infliger 5% de ses dégâts en plus (Écho ancestral). 2 min de recharge.",
           "parents": [
             410,
             411
@@ -2838,23 +2837,33 @@
           "row": 4,
           "col": 6,
           "kind": "passive",
-          "name": "Bouclier ancestral",
-          "icon": "INV_Shield_04",
+          "name": "Voix unificatrice",
+          "icon": "Ability_Warrior_WarCry",
           "spells": [
             97507,
             97508
           ],
-          "text": "Augmente de {0}% les dégâts bloqués par votre bouclier.",
+          "text": "Chant des ancêtres dure {0} s de plus.",
           "values": [
-            10,
-            20
+            3,
+            6
           ],
           "parents": [
             411
           ],
           "aura": {
-            "type": 158
-          }
+            "type": 107,
+            "misc": 1,
+            "classMask": [
+              0,
+              268435456,
+              0
+            ]
+          },
+          "auraValues": [
+            3000,
+            6000
+          ]
         },
         {
           "id": 416,
@@ -2898,17 +2907,17 @@
           ],
           "options": [
             {
-              "name": "Manteau d'étoiles",
-              "icon": "Spell_Arcane_StarFire",
-              "text": "Pendant 8 s, vos chances de bloquer augmentent de 40%. Nécessite un bouclier. 35 s de recharge.",
-              "spell": 97208,
-              "existing": true
-            },
-            {
               "name": "Combat ancestral",
               "icon": "Achievement_Dungeon_UtgardePinnacle_25man",
               "text": "Pendant 15 s, vos coups ont 30% de chances de frapper une seconde fois en Givre et de remplir votre Chope. 45 s de recharge.",
               "spell": 97212,
+              "existing": true
+            },
+            {
+              "name": "Rugissement ancestral",
+              "icon": "Achievement_Boss_Ignis_01",
+              "text": "Nécessite d'être enragé. Un rugissement qui vous rend 15% de vos points de vie maximum. 25 s de recharge.",
+              "spell": 97204,
               "existing": true
             }
           ]
@@ -2970,13 +2979,13 @@
           "row": 6,
           "col": 2,
           "kind": "passive",
-          "name": "Rempart vivant",
-          "icon": "INV_Plate_BlackrockClan_B_01Helm",
+          "name": "Tonnelier",
+          "icon": "INV_Holiday_Beerfest_Maghar",
           "spells": [
             97517,
             97518
           ],
-          "text": "Réduit de {0} s le temps de recharge de Défi.",
+          "text": "Réduit de {0} s le temps de recharge de Fût ancestral.",
           "values": [
             30,
             60
@@ -2990,7 +2999,7 @@
             "misc": 11,
             "classMask": [
               0,
-              1048576,
+              134217728,
               0
             ]
           },
@@ -3020,32 +3029,19 @@
           "row": 6,
           "col": 6,
           "kind": "passive",
-          "name": "Voix du thane",
-          "icon": "INV_Chicken2_White",
+          "name": "Tournée générale",
+          "icon": "Archaeology_5_0_TwinsteinSetOfBrewfatherQuantouKuo",
           "spells": [
             97519,
             97520
           ],
-          "text": "Réduit de {0} s le temps de recharge de Moquerie.",
+          "text": "L'Écho ancestral de Santé ! vaut {0}% de plus.",
           "values": [
             2,
             4
           ],
           "parents": [
             418
-          ],
-          "aura": {
-            "type": 107,
-            "misc": 11,
-            "classMask": [
-              0,
-              262144,
-              0
-            ]
-          },
-          "auraValues": [
-            -2000,
-            -4000
           ]
         },
         {
@@ -3117,24 +3113,29 @@
           "row": 7,
           "col": 5,
           "kind": "passive",
-          "name": "Peau d'ours",
-          "icon": "Ability_Druid_DemoralizingRoar",
+          "name": "Bagarreur ivre",
+          "icon": "INV_Holiday_Beerfest_Highmountain",
           "spells": [
             97525,
             97526
           ],
-          "text": "Augmente de {0}% les soins que vous recevez.",
+          "text": "Présence ancestrale augmente aussi de {0}% les chances de coup critique physique du raid.",
           "values": [
-            5,
-            10
+            1,
+            2
           ],
           "parents": [
             421,
             422
           ],
           "aura": {
-            "type": 118,
-            "misc": 127
+            "type": 107,
+            "misc": 23,
+            "classMask": [
+              0,
+              536870912,
+              0
+            ]
           }
         },
         {
@@ -3143,15 +3144,15 @@
           "col": 2,
           "kind": "passive",
           "name": "Échos du passé",
-          "icon": "Achievement_Boss_Ignis_01",
+          "icon": "INV_Belt_Armor_OrcClan_D_01",
           "spells": [
             97527,
             97528
           ],
-          "text": "Réduit de {0} s le temps de recharge de Rugissement ancestral.",
+          "text": "Réduit de {0} s le temps de recharge de Chant des ancêtres.",
           "values": [
-            5,
-            10
+            15,
+            30
           ],
           "parents": [
             423,
@@ -3162,13 +3163,13 @@
             "misc": 11,
             "classMask": [
               0,
-              131072,
+              268435456,
               0
             ]
           },
           "auraValues": [
-            -5000,
-            -10000
+            -15000,
+            -30000
           ]
         },
         {

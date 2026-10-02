@@ -18,3 +18,16 @@ INSERT INTO `spell_bonus_data` (`entry`, `direct_bonus`, `dot_bonus`, `ap_bonus`
 (97209, 0, 0, 0.8, 0, 'Barbarian - Hodir''s Wrath (each enemy)'),
 (97210, 0, 0, 0.3, 0, 'Barbarian - Frozen Tankard'),
 (97213, 0, 0, 0.25, 0, 'Barbarian - Ancestral Combat frost blow');
+
+-- Écho ancestral is the share of a buffed ally's hit, worked out by mod-barbarian: nothing may be added to it
+DELETE FROM `spell_bonus_data` WHERE `entry` = 97222;
+INSERT INTO `spell_bonus_data` (`entry`, `direct_bonus`, `dot_bonus`, `ap_bonus`, `ap_dot_bonus`, `comments`) VALUES
+(97222, 0, 0, 0, 0, 'Barbarian - Ancestral Echo (amount set by mod-barbarian)');
+
+-- The Ascendance's raid auras do not stack with the WotLK buffs they match: Présence ancestrale with the percentage
+-- attack power buffs (Trueshot Aura, Unleashed Rage, Abomination's Might), Fureur ancestrale with the melee haste ones
+-- (Windfury Totem, Improved Icy Talons)
+DELETE FROM `spell_group` WHERE `spell_id` IN (97215, 97216);
+INSERT INTO `spell_group` (`id`, `spell_id`) VALUES
+(1029, 97215),
+(1022, 97216);

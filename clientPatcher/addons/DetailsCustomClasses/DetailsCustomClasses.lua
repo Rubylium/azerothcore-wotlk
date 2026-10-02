@@ -52,14 +52,21 @@ local function forgetEmptySpecs()
 end
 
 -- The texture coordinates of the class in Details' 4x4 class icon sheet. The patcher paints the class's icon
--- into one of the sheet's empty cells (localTools/interface/buildDetailsClassIcons.py); without one, the
--- unknown cell keeps the bar correct.
+-- into one of the sheet's free cells, whole or a quadrant of it (localTools/interface/buildDetailsClassIcons.py:
+-- { column, row } or { column, row, quadrant }, 0 top left to 3 bottom right); without one, the unknown cell
+-- keeps the bar correct.
 local function iconCoords(class)
-    if class.detailsCell then
-        local column, row = class.detailsCell[1], class.detailsCell[2]
-        return { column / 4, (column + 1) / 4, row / 4, (row + 1) / 4 }
+    local cell = class.detailsCell
+    if not cell then
+        return { 0.75, 1, 0.75, 1 }
     end
-    return { 0.75, 1, 0.75, 1 }
+    local left, top, size = cell[1] / 4, cell[2] / 4, 1 / 4
+    if cell[3] then
+        size = 1 / 8
+        left = left + (cell[3] % 2) * size
+        top = top + math.floor(cell[3] / 2) * size
+    end
+    return { left, left + size, top, top + size }
 end
 
 -- Writes the custom classes into one set of class tables.

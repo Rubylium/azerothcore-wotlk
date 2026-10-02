@@ -98,6 +98,8 @@ uint32 GetPreferredArmorSubclass(Player const* player)
 {
     if (player->getClass() == 10) // Oathblade: knight armor, despite Rogue combat formulas.
         return player->GetLevel() >= 40 ? ITEM_SUBCLASS_ARMOR_PLATE : ITEM_SUBCLASS_ARMOR_MAIL;
+    if (player->getClass() == 14) // Barbarian: mail from level 1, despite Rogue combat formulas (its agility stays)
+        return ITEM_SUBCLASS_ARMOR_MAIL;
 
     // A custom class wears the armor of the class it is built on (see mod-custom-classes)
     switch (sObjectMgr->GetClassFormulaTemplate(player->getClass()))

@@ -724,7 +724,7 @@ def build_sql(definitions):
 def details_cell(definition):
     """The class's cell in Details' icon sheet, painted by localTools/interface/buildDetailsClassIcons.py."""
     cell = definition.get('detailsCell')
-    return ', detailsCell = { %d, %d }' % (cell[0], cell[1]) if cell else ''
+    return ', detailsCell = { %s }' % ', '.join(str(value) for value in cell) if cell else ''
 
 
 def build_lua(definitions):

@@ -13,7 +13,7 @@ INSERT INTO `custom_class` (`ClassId`, `TemplateClass`, `InheritSpells`, `Roles`
 (12, 6, 0, 14, 10, 'Pestiféré', 'Plague tank: carries its own diseases, spreads them, detonates them'),
 (13, 9, 0, 8, 15, 'Nécromancien', 'Commander of temporary melee and ranged undead minions'),
 (10, 4, 0, 8, 1, 'Oathblade', 'Noble sword duelist with frequent accelerated burst windows'),
-(14, 4, 0, 10, 1, 'Barbare', 'Enraged axe fighter from the north: melee, thrown axes or an ancestral shield (Ascension\'s Barbarian)');
+(14, 4, 0, 8, 1, 'Barbare', 'Enraged axe fighter from the north: melee, thrown axes or an ancestral shield (Ascension\'s Barbarian)');
 
 -- Class 12 (Pestiféré), built on class 6
 DELETE FROM `playercreateinfo` WHERE `class` = 12;

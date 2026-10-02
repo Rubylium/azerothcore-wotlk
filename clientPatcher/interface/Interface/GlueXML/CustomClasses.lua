@@ -3,7 +3,7 @@
 -- Finder roles it may queue as.
 CustomClasses = {
     [12] = { token = "PESTIFERE", name = "Pestiféré", color = { 0.420, 0.580, 0.270 }, iconCell = { 3, 2 }, roles = { tank = true, healer = true, damage = true }, detailsCell = { 2, 2 } },
-    [13] = { token = "NECROMANCER", name = "Nécromancien", color = { 0.580, 0.430, 0.720 }, iconCell = { 2, 2 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 3, 2 } },
+    [13] = { token = "NECROMANCER", name = "Nécromancien", color = { 0.580, 0.430, 0.720 }, iconCell = { 2, 2 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 3, 2, 0 } },
     [10] = { token = "OATHBLADE", name = "Oathblade", color = { 0.160, 0.560, 1.000 }, iconCell = { 0, 3 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 0, 3 } },
-    [14] = { token = "BARBARIAN", name = "Barbare", color = { 0.860, 0.380, 0.170 }, iconCell = { 1, 3 }, roles = { tank = true, healer = false, damage = true } },
+    [14] = { token = "BARBARIAN", name = "Barbare", color = { 0.860, 0.380, 0.170 }, iconCell = { 1, 3 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 3, 2, 1 } },
 }

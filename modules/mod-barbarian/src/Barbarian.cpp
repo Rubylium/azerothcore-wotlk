@@ -1,4 +1,5 @@
 #include "AllSpellScript.h"
+#include "Group.h"
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -19,12 +20,19 @@
 #include <algorithm>
 #include <array>
 #include <list>
+#include <map>
+#include <vector>
 
 // The Barbarian (class 14): what its spell data (localTools/barbarian/Spells.ps1) cannot carry. Its abilities taught by
 // level, its proficiencies, Carnage (a bleed of up to 10 stacks most strikes add to), the Brutalité enrage on auto
-// attacks, the axes the Chasseur de têtes throws on its own, the Ascendance's Tankard and Défi, and the talents its
-// trees mark as dummies (localTools/barbarian/talentTree.json): a talent is its rank spell's aura on the Barbarian,
+// attacks, the axes the Chasseur de têtes throws on its own, the Ascendance's Tankard and its echoes, and the talents
+// its trees mark as dummies (localTools/barbarian/talentTree.json): a talent is its rank spell's aura on the Barbarian,
 // learned by mod-custom-classes' TalentTree.cpp.
+//
+// The Ascendance supports as Augmentation does on retail, but shows it: an ally under one of its buffs (Puissance
+// ancestrale, Santé !, Chant des ancêtres, Éclaboussures) makes the Barbarian deal a share of every hit it lands as
+// Écho ancestral - the Barbarian's own damage, so a damage meter credits the buffs to the one who gave them. The raid's
+// damage grows as a damage buff would make it grow; only where it is counted differs.
 //
 // Enrage is the dispel type of the enrage auras (Spell.dbc field 2 = 9): the core then raises AURA_STATE_ENRAGE, which
 // Fracas, Déchaînement and Outrage ask for (field 20), so the client greys them too.
@@ -74,6 +82,12 @@ enum Spells : uint32
     SPELL_ANCESTRAL_COMBAT = 97212,
     SPELL_ANCESTRAL_COMBAT_HIT = 97213,
     SPELL_UNDYING_THANE_HEAL = 97214,
+    SPELL_CHEERS = 97217,
+    SPELL_ANCESTORS_CHANT = 97219,
+    SPELL_SPLASH_ZONE = 97220,
+    SPELL_ANCESTRAL_MIGHT_BUFF = 97221,
+    SPELL_ANCESTRAL_ECHO = 97222,
+    SPELL_ANCESTRAL_MIGHT_CAST = 97223,
     SPELL_SPEC_BRUTALITY = 97290,
     SPELL_SPEC_HEADHUNTER = 97291,
     SPELL_SPEC_ANCESTRY = 97292,
@@ -102,6 +116,10 @@ enum Spells : uint32
     TALENT_RETURNING_AXE_1 = 97465,
     TALENT_RETURNING_AXE_2 = 97466,
     TALENT_FULL_TANKARD = 97494,
+    TALENT_SPLASH_ZONE_1 = 97505,
+    TALENT_SPLASH_ZONE_2 = 97506,
+    TALENT_ROUND_FOR_ALL_1 = 97519,
+    TALENT_ROUND_FOR_ALL_2 = 97520,
     TALENT_ANCESTORS_BREW = 97514,
     TALENT_UNDYING_THANE = 97531,
 };
@@ -125,6 +143,8 @@ constexpr std::array<uint32, 17> ProficiencySpells = { 9078, 9077, 8737, 196, 19
 constexpr std::array<uint32, 8> WeaponSkills = { SKILL_AXES, SKILL_2H_AXES, SKILL_MACES, SKILL_2H_MACES, SKILL_POLEARMS,
     SKILL_SWORDS, SKILL_2H_SWORDS, SKILL_THROWN };
 constexpr std::array<uint32, 2> ArmorSkills = { SKILL_MAIL, SKILL_SHIELD };
+constexpr std::array<uint32, 7> InheritedWeaponSkills = { SKILL_DAGGERS, SKILL_FIST_WEAPONS, SKILL_BOWS, SKILL_GUNS,
+    SKILL_CROSSBOWS, SKILL_STAVES, SKILL_UNARMED };
 
 // Balance, live with .tune (LiveTuning.h)
 LiveTuning::Knob const CarnageTickAp("barbarian.carnage_tick_ap", 0.012f);          // per stack, every 3 s
@@ -143,6 +163,14 @@ LiveTuning::Knob const TortureFactor("barbarian.torture_factor", 1.15f);
 LiveTuning::KnobUInt const TankardFillMs("barbarian.tankard_fill_ms", 3000);
 LiveTuning::Knob const TankardFrostPerCharge("barbarian.tankard_frost_per_charge", 0.15f);
 LiveTuning::KnobInt const AncestralCombatChance("barbarian.ancestral_combat_chance", 30);
+// The Ascendance's echoes: the share of a buffed ally's hit the Barbarian deals, per buff, in percent
+LiveTuning::Knob const MightEchoPct("barbarian.might_echo_pct", 8.0f);
+LiveTuning::Knob const CheersEchoPct("barbarian.cheers_echo_pct", 6.0f);
+LiveTuning::Knob const ChantEchoPct("barbarian.chant_echo_pct", 5.0f);
+LiveTuning::KnobUInt const MightTargets("barbarian.might_targets", 4);
+LiveTuning::KnobUInt const MightMs("barbarian.might_ms", 12000);
+LiveTuning::KnobUInt const MightMaxMs("barbarian.might_max_ms", 20000);
+LiveTuning::KnobUInt const MightExtendMs("barbarian.might_extend_ms", 1000);
 // Défi: 30% from its aura, up to this much more of what is left as health runs out (30% -> 60% at none)
 LiveTuning::Knob const DefianceMissingHealthFactor("barbarian.defiance_missing_health", 0.43f);
 
@@ -247,6 +275,100 @@ void FillTankard(Player* player)
         aura->SetStackAmount(charges + 1);
 }
 
+// Puissance ancestrale: the nearest group members within 40 yards (the Barbarian left out), buffed for 12 s
+void AncestralMight(Player* player)
+{
+    Group* group = player->GetGroup();
+    if (!group)
+        return;
+    std::vector<Player*> allies;
+    for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
+        if (Player* member = itr->GetSource())
+            if (member != player && member->IsAlive() && member->IsInMap(player) && player->GetDistance(member) <= 40.0f)
+                allies.push_back(member);
+    std::sort(allies.begin(), allies.end(), [player](Player const* left, Player const* right)
+        { return player->GetDistance(left) < player->GetDistance(right); });
+    if (allies.size() > MightTargets)
+        allies.resize(MightTargets);
+    for (Player* ally : allies)
+        if (Aura* aura = player->AddAura(SPELL_ANCESTRAL_MIGHT_BUFF, ally))
+        {
+            aura->SetMaxDuration(int32(MightMs));
+            aura->SetDuration(int32(MightMs));
+        }
+}
+
+// Frappe ancestrale and Coup de fût: every Puissance ancestrale of the Barbarian's a second longer, up to 20 s
+void ExtendAncestralMight(Player* player)
+{
+    Group* group = player->GetGroup();
+    if (!group)
+        return;
+    for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
+        if (Player* member = itr->GetSource())
+            if (member->IsInMap(player))
+                if (Aura* aura = member->GetAura(SPELL_ANCESTRAL_MIGHT_BUFF, player->GetGUID()))
+                {
+                    int32 const duration = std::min<int32>(int32(MightMaxMs), aura->GetDuration() + int32(MightExtendMs));
+                    if (duration > aura->GetMaxDuration())
+                        aura->SetMaxDuration(duration);
+                    aura->SetDuration(duration);
+                }
+}
+
+// The share of a hit each buff on the ally gives back as echo, by Barbarian (two Barbarians each count their own)
+float EchoPct(Aura const* aura)
+{
+    switch (aura->GetId())
+    {
+        case SPELL_ANCESTRAL_MIGHT_BUFF:
+            return MightEchoPct;
+        case SPELL_CHEERS:
+            if (Unit const* caster = aura->GetCaster())
+                return CheersEchoPct + 2.0f * Rank(caster, TALENT_ROUND_FOR_ALL_1, TALENT_ROUND_FOR_ALL_2);
+            return CheersEchoPct;
+        case SPELL_ANCESTORS_CHANT:
+            return ChantEchoPct;
+        case SPELL_SPLASH_ZONE:
+            if (AuraEffect const* effect = aura->GetEffect(EFFECT_0))
+                return float(effect->GetAmount());
+            return 0.0f;
+        default:
+            return 0.0f;
+    }
+}
+
+// An echo never echoes (two Barbarians buffing each other would pass their echoes back and forth)
+thread_local bool InEcho = false;
+
+void Echo(Unit* ally, Unit* victim, uint32 damage)
+{
+    if (InEcho || !damage || !victim || victim == ally || !victim->IsAlive() || !ally->IsPlayer())
+        return;
+    std::map<ObjectGuid, float> shares;
+    for (uint32 spellId : { uint32(SPELL_ANCESTRAL_MIGHT_BUFF), uint32(SPELL_CHEERS), uint32(SPELL_ANCESTORS_CHANT),
+             uint32(SPELL_SPLASH_ZONE) })
+    {
+        auto const range = ally->GetAppliedAuras().equal_range(spellId);
+        for (auto itr = range.first; itr != range.second; ++itr)
+            if (Aura const* aura = itr->second->GetBase())
+                if (aura->GetCasterGUID() != ally->GetGUID())
+                    shares[aura->GetCasterGUID()] += EchoPct(aura);
+    }
+    for (auto const& [casterGuid, pct] : shares)
+    {
+        Player* barbarian = ObjectAccessor::GetPlayer(*ally, casterGuid);
+        if (!barbarian || pct <= 0.0f || !barbarian->IsAlive() || !barbarian->IsValidAttackTarget(victim))
+            continue;
+        int32 const amount = int32(float(damage) * pct / 100.0f);
+        if (amount <= 0)
+            continue;
+        InEcho = true;
+        barbarian->CastCustomSpell(SPELL_ANCESTRAL_ECHO, SPELLVALUE_BASE_POINT0, amount, victim, true);
+        InEcho = false;
+    }
+}
+
 // An aura of the Barbarian's on a unit, one more stack up to `max`, its duration refreshed
 void AddStack(Player* player, Unit* target, uint32 spellId, uint8 max)
 {
@@ -284,9 +406,17 @@ void RestoreTraining(Player* player)
     for (uint32 spellId : ProficiencySpells)
         if (!player->HasSpell(spellId))
             player->learnSpell(spellId, false);
+    // The weapon skills at the level's maximum: a skill granted at 1 made a level 80 Barbarian (a bench bot, a boosted
+    // character) miss or glance nearly every swing and ability
+    uint16 const maxSkill = player->GetMaxSkillValueForLevel();
     for (uint32 skill : WeaponSkills)
-        if (!player->GetSkillValue(skill))
-            player->SetSkill(skill, 0, 1, player->GetMaxSkillValueForLevel());
+        if (player->GetSkillValue(skill) < maxSkill)
+            player->SetSkill(skill, player->GetSkillStep(skill), maxSkill, maxSkill);
+    // The weapon skills its Rogue template gave it too (daggers, fist weapons, bows...): a bot geared with a dagger
+    // at 1 of 400 missed nearly everything
+    for (uint32 skill : InheritedWeaponSkills)
+        if (player->HasSkill(skill) && player->GetSkillValue(skill) < maxSkill)
+            player->SetSkill(skill, player->GetSkillStep(skill), maxSkill, maxSkill);
     for (uint32 skill : ArmorSkills)
         if (!player->GetSkillValue(skill))
             player->SetSkill(skill, 0, 1, 1);
@@ -371,8 +501,15 @@ public:
                 if (uint8 const rank = Rank(player, TALENT_BARBED_POINTS_1, TALENT_BARBED_POINTS_2))
                     player->ModifyPower(POWER_ENERGY, 5 * rank);
                 break;
+            case SPELL_ANCESTRAL_MIGHT_CAST:
+                AncestralMight(player);
+                break;
+            case SPELL_ANCESTRAL_STRIKE:
+                ExtendAncestralMight(player);
+                break;
             case SPELL_KEG_SMASH:
             {
+                ExtendAncestralMight(player);
                 // The Tankard emptied into the frost of the blow, each charge mending the Barbarian (Bière des
                 // ancêtres: twice as much)
                 BarbarianState* state = GetState(player);
@@ -384,6 +521,10 @@ public:
                 if (Unit* target = spell->m_targets.GetUnitTarget())
                     if (target->IsAlive())
                         player->CastSpell(target, SPELL_KEG_SMASH_FROST, true);
+                // Éclaboussures: 3 charges or more poured out for the raid
+                if (uint8 const rank = Rank(player, TALENT_SPLASH_ZONE_1, TALENT_SPLASH_ZONE_2))
+                    if (state->kegCharges >= 3)
+                        player->CastCustomSpell(SPELL_SPLASH_ZONE, SPELLVALUE_BASE_POINT0, 2 * rank, player, true);
                 break;
             }
             case SPELL_DECAPITATE:
@@ -497,9 +638,9 @@ public:
         }
         if (IsThrow(spellInfo->Id))
         {
-            // Danse des haches: two more enemies near the target, by a throw of its own (never a dance's own)
+            // Danse des haches: five more enemies near the target, by a throw of its own (never a dance's own)
             if (player->HasAura(SPELL_AXE_TWIRLING) && spellInfo->Id != SPELL_AXE_TWIRLING_HIT)
-                for (Unit* enemy : NearbyEnemies(player, victim, 8.0f, 2))
+                for (Unit* enemy : NearbyEnemies(player, victim, 10.0f, 5))
                     player->CastSpell(enemy, SPELL_AXE_TWIRLING_HIT, true);
             // Retour de hache: the spear back in hand
             if (uint8 const rank = Rank(player, TALENT_RETURNING_AXE_1, TALENT_RETURNING_AXE_2))
@@ -528,6 +669,10 @@ public:
     // Né dans le sang as it falls under 35%
     uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, DamageEffectType /*type*/) override
     {
+        // A buffed ally's hit: the Barbarian's echo of it
+        if (attacker && attacker->IsPlayer() && damage && victim != attacker)
+            Echo(attacker, victim, damage);
+
         Player* player = Barbarian(victim);
         if (!player || !damage || attacker == victim || !player->IsAlive())
             return damage;
