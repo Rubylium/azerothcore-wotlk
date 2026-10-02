@@ -108,8 +108,7 @@ for id, zone in pairs(ZONES) do
     ZONE_BY_MAP[zone.map] = id
 end
 
-local ELITE_ICON = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8"
--- The rift's own icon (localTools/interface/buildFrontierArt.py), a stock portal should it be missing
+-- The rift tracker's icon (localTools/interface/buildFrontierArt.py), a stock portal should it be missing
 local RIFT_ICON = "Interface\\Frontier\\RiftIcon"
 local RIFT_ICON_STOCK = "Interface\\Icons\\Spell_Arcane_PortalDalaran"
 
@@ -238,15 +237,6 @@ local currentZone = 0
 local pins = {}         -- zone id -> { { kind, x, y }, ... }
 local colossi = {}      -- coming / here -> { index, zone, x, y, at (when it comes or leaves), loot, here }
 
--- The Colosses' stock icons, for their map pins (made round); their chat line shows their painted heads
--- (Interface\Frontier\ColossusIcon<n>, localTools/interface/buildFrontierArt.py)
-local COLOSSUS_ICONS = {
-    "Interface\\Icons\\Ability_Mount_Mammoth_White",
-    "Interface\\Icons\\Achievement_Boss_Sapphiron_01",
-    "Interface\\Icons\\Achievement_Boss_GalDarah",
-    "Interface\\Icons\\Achievement_Boss_Patchwerk",
-}
-
 -- A zone's pins: what the server pinned there, and a Colosse coming or here
 local function ZonePins(zoneId)
     local list = {}
@@ -261,12 +251,18 @@ local function ZonePins(zoneId)
     return list
 end
 
--- The world map's size of a pin, and the minimap's
-local PIN_SIZES = { E = { 18, 14 }, R = { 24, 18 }, C = { 34, 26 } }
+-- The pins are retail's own vignettes (localTools/interface/buildFrontierArt.py), so they read as the game's markers:
+-- a roaming elite the silver-winged skull, a Colosse the gold-winged one, a rift the event star. Their world map size
+-- and their minimap size.
+local PIN_LOOKS = {
+    E = { texture = "Interface\\Frontier\\PinElite", sizes = { 26, 22 } },
+    R = { texture = "Interface\\Frontier\\PinRift", sizes = { 24, 20 } },
+    C = { texture = "Interface\\Frontier\\PinColossus", sizes = { 34, 28 } },
+}
 
 local function PinSize(kind, onMinimap)
-    local sizes = PIN_SIZES[kind] or PIN_SIZES.E
-    return sizes[onMinimap and 2 or 1]
+    local look = PIN_LOOKS[kind] or PIN_LOOKS.E
+    return look.sizes[onMinimap and 2 or 1]
 end
 
 -- The map pins -----------------------------------------------------------------------------------------------------
@@ -294,13 +290,8 @@ end
 local function CreatePin(parent, tooltipName)
     local pin = CreateFrame("Button", nil, parent)
     local icon = pin:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
     pin.icon = icon
-    -- A Colosse's ring: the tracking button's gold border (its ring fills the top left 54 / 64 of it)
-    local border = pin:CreateTexture(nil, "OVERLAY")
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    border:SetPoint("TOPLEFT")
-    border:Hide()
-    pin.border = border
     pin:SetScript("OnEnter", function(self) ShowPinTooltip(_G[tooltipName], self, self.entry) end)
     pin:SetScript("OnLeave", function() _G[tooltipName]:Hide() end)
     return pin
@@ -310,34 +301,9 @@ end
 local function SetPinEntry(pin, entry, size)
     pin.entry = entry
     pin:SetSize(size, size)
-    local look = entry.colossus and "C" .. entry.colossus.index or entry.kind
-    if pin.look == look and pin.lookSize == size then
-        return
-    end
-    pin.look, pin.lookSize = look, size
-    pin.icon:ClearAllPoints()
-    if entry.colossus then
-        -- Its icon made round, in the ring (the tracking button's proportions: a 20 icon in a 32 button)
-        SetPortraitToTexture(pin.icon, COLOSSUS_ICONS[entry.colossus.index] or COLOSSUS_ICONS[1])
-        pin.icon:SetTexCoord(0, 1, 0, 1)
-        pin.icon:SetSize(size * 20 / 32, size * 20 / 32)
-        pin.icon:SetPoint("TOPLEFT", pin, "TOPLEFT", size * 6 / 32, -size * 6 / 32)
-        pin.border:SetSize(size * 54 / 32, size * 54 / 32)
-        pin.border:Show()
-        return
-    end
-    pin.border:Hide()
-    pin.icon:SetAllPoints()
-    if entry.kind == "R" then
-        if pin.icon:SetTexture(RIFT_ICON) then
-            pin.icon:SetTexCoord(0, 1, 0, 1)
-        else
-            pin.icon:SetTexture(RIFT_ICON_STOCK)
-            pin.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        end
-    else
-        pin.icon:SetTexture(ELITE_ICON)
-        pin.icon:SetTexCoord(0, 1, 0, 1)
+    if pin.kind ~= entry.kind then
+        pin.kind = entry.kind
+        pin.icon:SetTexture((PIN_LOOKS[entry.kind] or PIN_LOOKS.E).texture)
     end
 end
 
