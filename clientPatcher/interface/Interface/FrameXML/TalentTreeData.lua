@@ -1254,7 +1254,7 @@ TalentTreeData = {
                   } },
               } },
             { id = 4, kind = "spec", name = "Ascendance", firstLevel = 11, levelStep = 2, gates = { { row = 4, cost = 8 }, { row = 7, cost = 20 } },
-              role = "damage", description = "Le barbare de l'Ascendance porte ses alliés : Puissance ancestrale et Santé ! renforcent leurs coups, dont une part revient en Écho ancestral - ses dégâts à lui, que le compteur montre. Le givre du Nord et sa Chope font le reste.",
+              role = "damage", support = true, description = "Le barbare de l'Ascendance porte ses alliés : Puissance ancestrale et Santé ! renforcent leurs coups, dont une part revient en Écho ancestral - ses dégâts à lui, que le compteur montre. Le givre du Nord et sa Chope font le reste.",
               nodes = {
                 { id = 401, row = 0, col = 3, kind = "active", level = 0, parents = {  },
                   name = "Santé !", icon = "Interface\\Icons\\Archaeology_5_0_TwinsteinSetOfBrewfatherQuantouKuo",

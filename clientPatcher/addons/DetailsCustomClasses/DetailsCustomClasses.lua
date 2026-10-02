@@ -91,9 +91,33 @@ local function addClasses(colors, coords)
     end
 end
 
+-- A custom class's specializations: Details knows a spec by a number, and draws its icon from the 8x8 spec sheet at
+-- class_specs_coords[spec id]. The patcher paints each spec into a free cell (buildDetailsClassIcons.py, from the
+-- class's detailsSpecs); its id is class id * 100 + tab + 1, clear of every Blizzard spec id.
+local function CustomSpecId(classId, tab)
+    local class = CustomClasses and CustomClasses[classId]
+    if class and class.specCells and class.specCells[tab + 1] then
+        return classId * 100 + tab + 1
+    end
+    return nil
+end
+
+local function addSpecs(specCoords)
+    if type(specCoords) ~= "table" or not CustomClasses then
+        return
+    end
+    for classId, class in pairs(CustomClasses) do
+        for index, cell in ipairs(class.specCells or {}) do
+            local left, top = cell[1] / 8, cell[2] / 8
+            specCoords[classId * 100 + index] = { left, left + 1 / 8, top, top + 1 / 8 }
+        end
+    end
+end
+
 -- The tables Details reads at runtime, whatever profile they came from
 local function applyToLiveTables()
     addClasses(_detalhes.class_colors, _detalhes.class_coords)
+    addSpecs(_detalhes.class_specs_coords)
     for name in pairs(FALLBACKS) do
         addFallback(name, _detalhes[name])
     end
@@ -112,6 +136,12 @@ if CustomClasses then
         end
         if _detalhes.classstring_to_classid then
             _detalhes.classstring_to_classid[class.token] = classId
+        end
+        -- A spec's class: Details sets an actor's class from its spec
+        if _detalhes.SpecIDToClass then
+            for index in ipairs(class.specCells or {}) do
+                _detalhes.SpecIDToClass[classId * 100 + index] = class.token
+            end
         end
     end
 end
@@ -133,6 +163,7 @@ end
 local defaults = _detalhes.default_profile
 if defaults then
     addClasses(defaults.class_colors, defaults.class_coords)
+    addSpecs(defaults.class_specs_coords)
 end
 
 -- 2. Every profile application replaces the live tables: restore the classes on the fresh copies
@@ -150,7 +181,7 @@ applyToLiveTables()
 --   GroupSpec  S <tab> <guid> <tab> <class id> <tab> <spec tab, 0-based>
 -- A spec known that way is the only one Details gets for that player: it is written into its cache and onto the
 -- players already in the meter, guessing is skipped for them, and it is put back whenever Details wipes or re-tracks
--- its cache. The server's custom classes have no Details spec ids: they keep their class icon.
+-- its cache. A custom class gets the ids CustomSpecId gives its specs, when it has spec icons (else its class icon).
 
 -- Class ids to Details' class tokens (the stock classes only: Details has no spec ids for the others)
 local CLASS_TOKENS = {
@@ -165,7 +196,7 @@ local realSpecs = {}
 local function SpecIdOf(classId, tab)
     local token = CLASS_TOKENS[classId]
     if not token then
-        return nil
+        return CustomSpecId(classId, tab)
     end
     if token == "DRUID" then
         return DRUID_SPECS[tab + 1]

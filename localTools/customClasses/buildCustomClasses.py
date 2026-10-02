@@ -722,9 +722,14 @@ def build_sql(definitions):
 
 
 def details_cell(definition):
-    """The class's cell in Details' icon sheet, painted by localTools/interface/buildDetailsClassIcons.py."""
+    """The class's cell in Details' icon sheet, painted by localTools/interface/buildDetailsClassIcons.py, and its
+    specializations' cells in Details' spec icon sheet."""
     cell = definition.get('detailsCell')
-    return ', detailsCell = { %s }' % ', '.join(str(value) for value in cell) if cell else ''
+    text = ', detailsCell = { %s }' % ', '.join(str(value) for value in cell) if cell else ''
+    specs = definition.get('detailsSpecs')
+    if specs:
+        text += ', specCells = { %s }' % ', '.join('{ %d, %d }' % tuple(spec['cell']) for spec in specs)
+    return text
 
 
 def build_lua(definitions):

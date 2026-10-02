@@ -11,6 +11,11 @@ DetailsCustomClasses points class_coords at it.
 Details reads four variants of the sheet: plain, alpha (soft cut-out corners), and a grey version of each.
 Only the class's own cell is painted, so running this again over an already painted sheet is harmless.
 
+Specializations the same way: Details draws a spec's icon from its 512x512 spec sheet (an 8x8 grid of 64 px cells,
+two variants: plain and alpha) at class_specs_coords[spec id]. The stock specs fill the first 34 cells; a custom
+class lists `detailsSpecs` (one { icon, cell } per talent tab) and DetailsCustomClasses gives each spec the id
+class id * 100 + tab + 1.
+
 Writes the sheets to clientPatcher/addons/Details/images (shipped by the patcher, which copies files one by
 one and never replaces the Details folder) and installs them into the local client.
 
@@ -21,7 +26,7 @@ import json
 import os
 import shutil
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFINITIONS = os.path.join(REPO, 'localTools', 'customClasses', 'classes.json')
@@ -33,6 +38,10 @@ CELL = SIZE // 4
 FREE_CELLS = {(2, 2), (3, 2), (0, 3)}
 # The alpha sheets cut every icon to the same soft-cornered shape: borrow it from the warrior cell
 MASK_CELL = (0, 0)
+# The spec sheet: 512x512, 64 px cells; the stock specs fill rows 0-3 and row 4's first two cells
+SPEC_CELL = 64
+SPEC_FREE = {(column, 4) for column in range(2, 8)} | {(column, row) for row in range(5, 8) for column in range(8)}
+SPEC_SHEETS = {'spec_icons_normal.tga': {'alpha': False}, 'spec_icons_normal_alpha.tga': {'alpha': True}}
 SHEETS = {
     'classes_small.tga': {'alpha': False, 'grey': False},
     'classes_small_bw.tga': {'alpha': False, 'grey': True},
@@ -113,7 +122,41 @@ def main():
 
     names = ', '.join(f"{d['name']} {d['detailsCell']}" for d in painted)
     print(f'Details class icons painted: {names}')
+    paint_specs(definitions, source_dir)
     return 0
+
+
+def rounded_mask(size, inset=3, radius=10):
+    """a rounded square, drawn 4 times larger and scaled down for a soft edge"""
+    scale = 4
+    mask = Image.new('L', (size * scale, size * scale), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        (inset * scale, inset * scale, (size - inset) * scale - 1, (size - inset) * scale - 1),
+        radius=radius * scale, fill=255)
+    return mask.resize((size, size), Image.LANCZOS)
+
+
+def paint_specs(definitions, source_dir):
+    specs = [(d['name'], spec) for d in definitions for spec in d.get('detailsSpecs', [])]
+    cells = [tuple(spec['cell']) for _, spec in specs]
+    assert all(cell in SPEC_FREE for cell in cells), f'a detailsSpecs cell is not free: {cells}'
+    assert len(set(cells)) == len(cells), 'two specializations claim the same Details spec cell'
+    for name, style in SPEC_SHEETS.items():
+        own = os.path.join(OUTPUT, name)
+        sheet = Image.open(os.path.join(source_dir, name)).convert('RGBA')
+        # The stock alpha sheet cuts each spec's subject out (a shield's outline...); a painted, full-bleed icon has no
+        # subject to cut, so it gets a soft rounded square
+        mask = rounded_mask(SPEC_CELL)
+        for _, spec in specs:
+            column, row = spec['cell']
+            tile = Image.open(os.path.join(REPO, spec['icon'])).convert('RGBA').resize(
+                (SPEC_CELL, SPEC_CELL), Image.LANCZOS)
+            if style['alpha']:
+                tile.putalpha(mask)
+            sheet.paste(tile, (column * SPEC_CELL, row * SPEC_CELL))
+        sheet.save(own, compression=None)
+        shutil.copyfile(own, os.path.join(source_dir, name))
+    print('Details spec icons painted: ' + ', '.join(f"{name} {spec['cell']}" for name, spec in specs))
 
 
 if __name__ == '__main__':

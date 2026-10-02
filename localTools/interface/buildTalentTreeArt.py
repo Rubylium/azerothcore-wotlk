@@ -327,6 +327,20 @@ def draw_link(dx, dy, reach):
     return image, pad
 
 
+def support_badge(size=64):
+    """The support role's medallion (localTools/interface/assets/roles/support.png, on black), cut round: a support
+    specialization wears it on its role icon. Support is not a role of its own - a support plays tank, healer or
+    damage - so it is a badge, never a Dungeon Finder role."""
+    image = Image.open(os.path.join(REPO, 'localTools', 'interface', 'assets', 'roles', 'support.png')).convert('RGBA')
+    # The medallion is what is not black around it
+    box = image.convert('L').point(lambda value: 255 if value > 24 else 0).getbbox()
+    image = image.crop(box).resize((size * 4, size * 4), Image.Resampling.LANCZOS)
+    mask = Image.new('L', image.size, 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, image.width - 1, image.height - 1), fill=255)
+    image.putalpha(mask)
+    return image.resize((size, size), Image.Resampling.LANCZOS)
+
+
 def rank_badge():
     """The small plate a node's rank sits on: dark, with a white rim the window tints."""
     over = 4
@@ -367,6 +381,7 @@ def main():
         image = image.resize((round(image.width * factor), round(image.height * factor)), Image.Resampling.LANCZOS)
         art.save(image, name, compressed=True)
     art.save(rank_badge(), 'rank-badge')
+    art.save(support_badge(), 'role-support')
     masks = {kind: retail.piece(member) for member, kind in MASKS.items()}
 
     # The trees: which icons they need, which link shapes, which backgrounds

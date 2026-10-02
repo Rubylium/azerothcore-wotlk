@@ -2453,6 +2453,7 @@
     {
       "id": 4,
       "kind": "spec",
+      "support": true,
       "specArt": {
         "file": "localTools/interface/assets/talents/barbarian-ancestry.png",
         "box": [

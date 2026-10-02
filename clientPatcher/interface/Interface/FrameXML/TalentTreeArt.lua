@@ -40,6 +40,7 @@ TalentTreeArt = {
         ["anim-orb"] = { file = "Interface\\TalentTree\\anim-orb", w = 512, h = 512, r = 1.000000, b = 1.000000 },
         ["anim-particles"] = { file = "Interface\\TalentTree\\anim-particles", w = 654, h = 387, r = 0.638672, b = 0.755859 },
         ["rank-badge"] = { file = "Interface\\TalentTree\\rank-badge", w = 44, h = 30, r = 0.687500, b = 0.937500 },
+        ["role-support"] = { file = "Interface\\TalentTree\\role-support", w = 64, h = 64, r = 1.000000, b = 1.000000 },
         ["background-12"] = { file = "Interface\\TalentTree\\background-12", w = 1612, h = 806, r = 0.787109, b = 0.787109 },
         ["background-12-2"] = { file = "Interface\\TalentTree\\background-12-2", w = 1612, h = 806, r = 0.787109, b = 0.787109 },
         ["spec-12-2"] = { file = "Interface\\TalentTree\\spec-12-2", w = 400, h = 526, r = 0.781250, b = 0.513672 },

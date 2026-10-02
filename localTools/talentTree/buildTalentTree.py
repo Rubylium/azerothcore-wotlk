@@ -339,7 +339,8 @@ def build_lua(definitions):
                          f"name = {lua_string(tree['name'])}, firstLevel = {tree['firstLevel']}, "
                          f"levelStep = {tree['levelStep']}, gates = {{ {gates} }},")
             if tree['kind'] == 'spec':
-                lines.append(f"              role = {lua_string(tree.get('role', 'damage'))}, "
+                support = ' support = true,' if tree.get('support') else ''
+                lines.append(f"              role = {lua_string(tree.get('role', 'damage'))},{support} "
                              f"description = {lua_string(tree.get('description', ''))},")
             lines.append('              nodes = {')
             for node in tree['nodes']:

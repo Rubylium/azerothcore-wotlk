@@ -52,6 +52,9 @@
     "classIcon     The class's own icon art (square, any size), used wherever a class icon is drawn.",
     "detailsCell   Free cell of Details' class icon sheet: [column, row] ([2, 2], [3, 2] or [0, 3]) for the whole",
     "              cell, or [column, row, quadrant] (0-3) to share one with up to three other classes.",
+    "detailsSpecs  Its specializations' icons in Details, in talent tab order: { icon, cell } each, cell a free",
+    "              [column, row] of Details' 8x8 spec icon sheet (row 4 from column 2, rows 5-7). The spec's id in",
+    "              Details is class id * 100 + tab + 1.",
     "color         Class color as [r, g, b] 0-1, for unit frames and chat."
   ],
   "stockTalentTrees": [
@@ -310,6 +313,11 @@
       "iconCell": [1, 3],
       "classIcon": "localTools/interface/assets/classes/barbarian.png",
       "detailsCell": [3, 2, 1],
+      "detailsSpecs": [
+        { "icon": "localTools/interface/assets/specs/barbarian-brutality.png", "cell": [2, 4] },
+        { "icon": "localTools/interface/assets/specs/barbarian-headhunter.png", "cell": [3, 4] },
+        { "icon": "localTools/interface/assets/specs/barbarian-ancestry.png", "cell": [4, 4] }
+      ],
       "color": [0.86, 0.38, 0.17],
       "talentTree": "localTools/barbarian/talentTree.json",
       "talentTabs": [{

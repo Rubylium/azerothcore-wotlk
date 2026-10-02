@@ -93,6 +93,7 @@ local TEXT = french and {
     specChanged = "Spécialisation : %s",
     specHint = "Vos talents de chaque spécialisation sont conservés : les retrouver ne coûte rien.",
     roles = { tank = "Tank", healer = "Soigneur", damage = "Dégâts" },
+    support = "Soutien",
     loadout = "Configuration",
     current = "Talents actuels",
     newLoadout = "Nouvelle configuration…",
@@ -162,6 +163,7 @@ local TEXT = french and {
     specChanged = "Specialization: %s",
     specHint = "Each specialization keeps its own talents: going back to one costs nothing.",
     roles = { tank = "Tank", healer = "Healer", damage = "Damage" },
+    support = "Support",
     loadout = "Loadout",
     current = "Current talents",
     newLoadout = "New loadout…",
@@ -1827,6 +1829,16 @@ CreateSpecPage = function()
         roleText:SetText(TEXT.roles[role] or role)
         roleText:SetPoint("TOP", name, "BOTTOM", 12, -6)
         roleIcon:SetPoint("RIGHT", roleText, "LEFT", -4, 0)
+        -- A support specialization plays its role and empowers the others: the support badge on its role icon
+        local supportPiece = tree.def.support and ART.pieces["role-support"]
+        if supportPiece then
+            local badge = card:CreateTexture(nil, "OVERLAY", nil, 1)
+            badge:SetTexture(supportPiece.file)
+            badge:SetTexCoord(0, supportPiece.r, 0, supportPiece.b)
+            badge:SetSize(14, 14)
+            badge:SetPoint("CENTER", roleIcon, "BOTTOMRIGHT", -2, 2)
+            roleText:SetText((TEXT.roles[role] or role) .. " · " .. TEXT.support)
+        end
 
         local description = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         description:SetWidth(CARD_WIDTH - 40)
