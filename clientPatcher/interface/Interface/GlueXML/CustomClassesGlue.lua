@@ -3,12 +3,17 @@
 -- CustomClasses.lua is generated from classes.json and lists each class by its ChrClasses id.
 --
 -- The package declares ten class buttons, CharacterCreateClassButton1..10, in
--- CharacterCreateClassButtonsContainer, and lays them out from Lua. A custom class gets one more button, and
--- the row is centred on however many classes the chosen race actually offers.
+-- CharacterCreateClassButtonsContainer, and lays them out from Lua. A custom class gets one more button. The
+-- classes the chosen race offers are laid out in as many rows as they need (MAX_PER_ROW at most, the rows evened
+-- out and each centred), the bottom one where the package's single row was, the others above it; the gender buttons
+-- go up as much.
 
 local STOCK_BUTTONS = 10        -- CharacterCreateClassButton1..10, declared in CharacterCreate.xml
 local BUTTON_SPACING = 80       -- CharacterCreate_PositionClassButtons
-local ROW_HEIGHT = 80           -- its distance above the bottom of the screen
+local ROW_HEIGHT = 80           -- the bottom row's distance above the bottom of the screen
+local ROW_SPACING = 64          -- between rows
+local MAX_PER_ROW = 8           -- 640 pixels: clear of the race columns at any screen width
+local GENDER_SPACING, GENDER_HEIGHT = 310, -250     -- CharacterCreate_PositionGenderButtons
 local ICON_COLUMNS, ICON_ROWS = 4, 4
 -- Our own round class icons: the package's own atlas has no room for another class
 local ICON_TEXTURE = "Interface\\Glues\\CharacterCreate\\RoundClasses"
@@ -71,14 +76,44 @@ local function ensureButton(index)
     return button
 end
 
--- The whole row, centred on the number of classes the race offers (the package positions ten, whatever is shown)
-local function centerRow(count)
-    local first = CharacterCreateClassButton1
-    if not first or not count or count < 1 then
+local classRows = 1
+
+-- The gender buttons, above the class rows
+local function placeGenderButtons()
+    local raise = (classRows - 1) * ROW_SPACING
+    if CharacterCreateGenderButtonMale then
+        CharacterCreateGenderButtonMale:ClearAllPoints()
+        CharacterCreateGenderButtonMale:SetPoint("CENTER", CharacterCreateFrame, "CENTER", -GENDER_SPACING / 2,
+            GENDER_HEIGHT + raise)
+    end
+    if CharacterCreateGenderButtonFemale then
+        CharacterCreateGenderButtonFemale:ClearAllPoints()
+        CharacterCreateGenderButtonFemale:SetPoint("CENTER", CharacterCreateFrame, "CENTER", GENDER_SPACING / 2,
+            GENDER_HEIGHT + raise)
+    end
+end
+
+-- The classes the race offers in rows: as few as fit MAX_PER_ROW, evened out, each centred, the first ones on top
+-- (the package positions ten in one row, whatever is shown)
+local function layoutRows(count)
+    if not count or count < 1 then
         return
     end
-    first:ClearAllPoints()
-    first:SetPoint("CENTER", CharacterCreateFrame, "BOTTOM", -(count - 1) * BUTTON_SPACING / 2, ROW_HEIGHT)
+    local rows = math.ceil(count / MAX_PER_ROW)
+    local perRow = math.ceil(count / rows)
+    for index = 1, count do
+        local button = _G["CharacterCreateClassButton" .. index]
+        if button then
+            local row = math.floor((index - 1) / perRow)
+            local inRow = (row == rows - 1) and (count - row * perRow) or perRow
+            local column = (index - 1) % perRow
+            button:ClearAllPoints()
+            button:SetPoint("CENTER", CharacterCreateFrame, "BOTTOM", (column - (inRow - 1) / 2) * BUTTON_SPACING,
+                ROW_HEIGHT + (rows - 1 - row) * ROW_SPACING)
+        end
+    end
+    classRows = rows
+    placeGenderButtons()
 end
 
 -- The package paints every class from one atlas; ours comes from its own file, with the cell classes.json names
@@ -133,14 +168,22 @@ local function registerCustomClasses()
             end
             index = index + 1
         end
-        centerRow(index - 1)
+        layoutRows(index - 1)
     end
 
     local position = CharacterCreate_PositionClassButtons
     if position then
         CharacterCreate_PositionClassButtons = function(...)
             position(...)
-            centerRow(CharacterCreate and CharacterCreate.numClasses)
+            layoutRows(CharacterCreate and CharacterCreate.numClasses)
+        end
+    end
+    -- The package puts them back at its own height after the classes: above the rows again
+    local positionGender = CharacterCreate_PositionGenderButtons
+    if positionGender then
+        CharacterCreate_PositionGenderButtons = function(...)
+            positionGender(...)
+            placeGenderButtons()
         end
     end
 end

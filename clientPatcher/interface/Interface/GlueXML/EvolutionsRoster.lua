@@ -14,6 +14,7 @@ local PRESTIGE_EMBLEM = "Interface\\Prestige\\Prestige-Emblem"
 local PARAGON_RING = "Interface\\Paragon\\Paragon-Node-Notable"
 
 local PANEL_WIDTH, CARD_HEIGHT, CARD_GAP, PANEL_PADDING, HEADER_HEIGHT = 284, 62, 7, 12, 64
+local SCROLL_WIDTH = 4
 
 local GOLD = { 1, 0.82, 0.45 }
 local GOLD_DIM = { 0.74, 0.6, 0.36 }
@@ -284,12 +285,65 @@ function EvolutionsRoster_Layout()
         Build(button)
     end
     CharSelectCreateCharacterButton:Hide()
+
+    -- More characters than cards: the wheel scrolls the list, a thin gold bar on the right says where it is (a click
+    -- on its track scrolls by a page)
+    frame:EnableMouseWheel(true)
+    frame:SetScript("OnMouseWheel", function(_, delta)
+        CharacterSelect_SetScroll((CharacterSelect.scrollOffset or 0) - delta)
+    end)
+    if not frame.evolutionsTrack then
+        local track = CreateFrame("Button", nil, frame)
+        track:SetWidth(SCROLL_WIDTH + 6)
+        track:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -HEADER_HEIGHT)
+        track:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, PANEL_PADDING)
+        local rail = Solid(track, "BACKGROUND", GOLD_DIM[1], GOLD_DIM[2], GOLD_DIM[3], 0.18)
+        rail:SetWidth(SCROLL_WIDTH)
+        rail:SetPoint("TOP")
+        rail:SetPoint("BOTTOM")
+        local thumb = Solid(track, "ARTWORK", GOLD[1], GOLD[2], GOLD[3], 0.75)
+        thumb:SetWidth(SCROLL_WIDTH)
+        track.thumb = thumb
+        track:SetScript("OnClick", function(self)
+            local _, cursorY = GetCursorPosition()
+            local scale = self:GetEffectiveScale()
+            local thumbTop = thumb:GetTop() or 0
+            local page = MAX_CHARACTERS_DISPLAYED - 1
+            local offset = CharacterSelect.scrollOffset or 0
+            CharacterSelect_SetScroll(cursorY / scale > thumbTop and offset - page or offset + page)
+        end)
+        frame.evolutionsTrack = track
+    end
+    -- The cards leave room for it
+    for index = 1, MAX_CHARACTERS_DISPLAYED do
+        _G["CharSelectCharacterButton" .. index]:SetWidth(PANEL_WIDTH - 2 * PANEL_PADDING - SCROLL_WIDTH)
+    end
+
     -- Under the list, out of the last card's way
     CharacterSelectDeleteButton:ClearAllPoints()
     CharacterSelectDeleteButton:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -2, -6)
     -- The selected character's name sits higher, to leave room for its details line under it
     CharSelectCharacterName:ClearAllPoints()
     CharSelectCharacterName:SetPoint("BOTTOM", CharSelectEnterWorldButton, "TOP", 0, 26)
+end
+
+-- The scroll bar: shown when the rows outnumber the cards, its thumb as long as the share on screen
+function EvolutionsRoster_UpdateScrollBar(offset, rows)
+    local track = CharacterSelectCharacterFrame.evolutionsTrack
+    if not track then
+        return
+    end
+    if rows <= MAX_CHARACTERS_DISPLAYED then
+        track:Hide()
+        return
+    end
+    track:Show()
+    local height = track:GetHeight()
+    local length = math.max(18, height * MAX_CHARACTERS_DISPLAYED / rows)
+    local travel = height - length
+    track.thumb:ClearAllPoints()
+    track.thumb:SetPoint("TOP", track, "TOP", 0, -travel * offset / (rows - MAX_CHARACTERS_DISPLAYED))
+    track.thumb:SetHeight(length)
 end
 
 function EvolutionsRoster_SetCount(count)
@@ -355,7 +409,7 @@ end
 function EvolutionsRoster_Select(selectedIndex)
     for index = 1, MAX_CHARACTERS_DISPLAYED do
         local button = _G["CharSelectCharacterButton" .. index]
-        button.evolutionsSelected = (index == selectedIndex) and not button.evolutionsEmpty or nil
+        button.evolutionsSelected = (button:GetID() == selectedIndex) and not button.evolutionsEmpty or nil
         if button.evolutions then
             RefreshLook(button)
         end
@@ -371,8 +425,7 @@ function EvolutionsRoster_UpdateHeadline(index)
         CharacterSelect.evolutionsHeadline = line
     end
     local line = CharacterSelect.evolutionsHeadline
-    local button = _G["CharSelectCharacterButton" .. (index or 0)]
-    if not index or index < 1 or index > GetNumCharacters() or not button then
+    if not index or index < 1 or index > GetNumCharacters() then
         line:SetText("")
         return
     end
@@ -380,11 +433,15 @@ function EvolutionsRoster_UpdateHeadline(index)
     local info = FindClass(class)
     local parts = { string.format("Niveau %d |cff%02x%02x%02x%s|r", level or 0, info.color[1] * 255,
         info.color[2] * 255, info.color[3] * 255, class or "") }
-    if button.evolutionsPrestige and button.evolutionsPrestige > 0 then
-        parts[#parts + 1] = string.format("|cffffd27fPrestige %d|r", button.evolutionsPrestige)
+    local prestige, paragon
+    if GetCharacterEvolution then
+        prestige, paragon = GetCharacterEvolution(index)
     end
-    if button.evolutionsParagon and button.evolutionsParagon > 0 then
-        parts[#parts + 1] = string.format("|cff9fd2ffParangon %d|r", button.evolutionsParagon)
+    if prestige and prestige > 0 then
+        parts[#parts + 1] = string.format("|cffffd27fPrestige %d|r", prestige)
+    end
+    if paragon and paragon > 0 then
+        parts[#parts + 1] = string.format("|cff9fd2ffParangon %d|r", paragon)
     end
     line:SetText(table.concat(parts, "   |cff6f7a88·|r   "))
 end

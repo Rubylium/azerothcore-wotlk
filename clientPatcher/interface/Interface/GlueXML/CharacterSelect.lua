@@ -6,8 +6,9 @@ CHARACTER_SELECT_INITIAL_FACING = nil;
 
 CHARACTER_ROTATION_CONSTANT = 0.6;
 
+-- Evolutions: eight cards on screen, the list scrolled under them (the server's CharactersPerRealm, worldserver.conf)
 MAX_CHARACTERS_DISPLAYED = 8;
-MAX_CHARACTERS_PER_REALM = 8;
+MAX_CHARACTERS_PER_REALM = 50;
 
 
 function CharacterSelect_OnLoad(self) 
@@ -379,17 +380,92 @@ function CharacterSelect_UpdateModel(self)
 end
 
 function UpdateCharacterSelection(self)
+	-- Evolutions: the selected character kept in view
+	CharacterSelect_ScrollTo(self.selectedIndex);
 	for i=1, MAX_CHARACTERS_DISPLAYED, 1 do
-		_G["CharSelectCharacterButton"..i]:UnlockHighlight();
-	end
-
-	local index = self.selectedIndex;
-	if ( (index > 0) and (index <= MAX_CHARACTERS_DISPLAYED) )then
-		_G["CharSelectCharacterButton"..index]:LockHighlight();
+		local button = _G["CharSelectCharacterButton"..i];
+		if ( button:GetID() == self.selectedIndex ) then
+			button:LockHighlight();
+		else
+			button:UnlockHighlight();
+		end
 	end
 	-- Evolutions
-	EvolutionsRoster_Select(index);
-	EvolutionsRoster_UpdateHeadline(index);
+	EvolutionsRoster_Select(self.selectedIndex);
+	EvolutionsRoster_UpdateHeadline(self.selectedIndex);
+end
+
+-- Evolutions: the list scrolls. Card i shows the row scrollOffset + i (its id: the character's index, or the create
+-- slot's), the rows being the characters and, when one more can be made, the create slot after them.
+function CharacterSelect_RowCount()
+    return GetNumCharacters() + ((CharacterSelect.createIndex > 0) and 1 or 0);
+end
+
+function CharacterSelect_MaxScroll()
+    return math.max(0, CharacterSelect_RowCount() - MAX_CHARACTERS_DISPLAYED);
+end
+
+function CharacterSelect_SetScroll(offset)
+    offset = math.max(0, math.min(offset, CharacterSelect_MaxScroll()));
+    if ( offset ~= (CharacterSelect.scrollOffset or 0) ) then
+        CharacterSelect.scrollOffset = offset;
+        CharacterSelect_PaintRows();
+        UpdateCharacterSelection(CharacterSelect);
+    end
+end
+
+-- The rows scrolled so that row `index` is on screen
+function CharacterSelect_ScrollTo(index)
+    local offset = CharacterSelect.scrollOffset or 0;
+    if ( not index or index < 1 ) then
+        return;
+    end
+    if ( index <= offset ) then
+        CharacterSelect_SetScroll(index - 1);
+    elseif ( index > offset + MAX_CHARACTERS_DISPLAYED ) then
+        CharacterSelect_SetScroll(index - MAX_CHARACTERS_DISPLAYED);
+    end
+end
+
+function CharacterSelect_PaintRows()
+    local numChars = GetNumCharacters();
+    local offset = math.max(0, math.min(CharacterSelect.scrollOffset or 0, CharacterSelect_MaxScroll()));
+    CharacterSelect.scrollOffset = offset;
+
+    for slot = 1, MAX_CHARACTERS_DISPLAYED do
+        local index = offset + slot;
+        local button = _G["CharSelectCharacterButton"..slot];
+        local customize = _G["CharSelectCharacterCustomize"..slot];
+        local raceChange = _G["CharSelectRaceChange"..slot];
+        local factionChange = _G["CharSelectFactionChange"..slot];
+        button:SetID(index);
+        customize:SetID(index);
+        raceChange:SetID(index);
+        factionChange:SetID(index);
+        customize:Hide();
+        raceChange:Hide();
+        factionChange:Hide();
+
+        if ( index <= numChars ) then
+            local name, race, class, level, zone, sex, ghost, PCC, PRC, PFC = GetCharacterInfo(index);
+            if ( not name ) then
+                EvolutionsRoster_Paint(button, index, "Erreur : contactez un administrateur", race, class, level or 0,
+                    "", sex, ghost);
+            else
+                EvolutionsRoster_Paint(button, index, name, race, class, level, zone, sex, ghost);
+            end
+            if ( PFC ) then
+                factionChange:Show();
+            elseif ( PRC ) then
+                raceChange:Show();
+            elseif ( PCC ) then
+                customize:Show();
+            end
+        else
+            EvolutionsRoster_PaintEmpty(button, index == CharacterSelect.createIndex);
+        end
+    end
+    EvolutionsRoster_UpdateScrollBar(offset, CharacterSelect_RowCount());
 end
 
 function UpdateCharacterList()
@@ -406,32 +482,7 @@ function UpdateCharacterList()
         CharacterSelect.createIndex = numChars + 1;
     end
     EvolutionsRoster_SetCount(numChars);
-
-    for index = 1, MAX_CHARACTERS_DISPLAYED do
-        local button = _G["CharSelectCharacterButton"..index];
-        _G["CharSelectCharacterCustomize"..index]:Hide();
-        _G["CharSelectRaceChange"..index]:Hide();
-        _G["CharSelectFactionChange"..index]:Hide();
-
-        if ( index <= numChars ) then
-            local name, race, class, level, zone, sex, ghost, PCC, PRC, PFC = GetCharacterInfo(index);
-            if ( not name ) then
-                EvolutionsRoster_Paint(button, index, "Erreur : contactez un administrateur", race, class, level or 0,
-                    "", sex, ghost);
-            else
-                EvolutionsRoster_Paint(button, index, name, race, class, level, zone, sex, ghost);
-            end
-            if ( PFC ) then
-                _G["CharSelectFactionChange"..index]:Show();
-            elseif ( PRC ) then
-                _G["CharSelectRaceChange"..index]:Show();
-            elseif ( PCC ) then
-                _G["CharSelectCharacterCustomize"..index]:Show();
-            end
-        else
-            EvolutionsRoster_PaintEmpty(button, index == CharacterSelect.createIndex);
-        end
-    end
+    CharacterSelect_PaintRows();
 
     if ( numChars == 0 ) then
         CharacterSelect.selectedIndex = 0;

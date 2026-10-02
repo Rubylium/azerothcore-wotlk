@@ -2071,8 +2071,8 @@ CharactersPerAccount = 50
 #
 #    CharactersPerRealm
 #        Description: Limit number of characters per account on this realm.
-#        Range:       1-10
-#        Default:     10 - (Client limitation)
+#        Range:       1-50 (the stock client's character screen shows 10; the patched one scrolls)
+#        Default:     10
 
 CharactersPerRealm = 10
 
