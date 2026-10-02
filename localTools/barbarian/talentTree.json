@@ -184,7 +184,7 @@
             {
               "name": "Avancée tourbillonnante",
               "icon": "_D3whirlwind",
-              "text": "Fonce en tourbillonnant vers un ennemi entre 8 et 25 m et frappe les ennemis à 8 m de l'arrivée : 90% des dégâts de l'arme. 20 s de recharge.",
+              "text": "Fonce en tourbillonnant vers un ennemi entre 8 et 25 m et frappe les ennemis à 8 m de l'arrivée : 40% des dégâts de l'arme. 20 s de recharge.",
               "spell": 97106,
               "existing": true
             }
@@ -890,7 +890,7 @@
           "spells": [
             97122
           ],
-          "text": "Frappe l'ennemi et jusqu'à 2 ennemis proches : 210% des dégâts de l'arme. 30 points d'énergie, 8 s de recharge."
+          "text": "Frappe l'ennemi et jusqu'à 2 ennemis proches : 90% des dégâts de l'arme. 30 points d'énergie, 8 s de recharge."
         },
         {
           "id": 202,
@@ -1106,7 +1106,7 @@
           "spells": [
             97123
           ],
-          "text": "Écrase les ennemis dans un cône de 8 m : 400% des dégâts de l'arme, et les étourdit 1,5 s. 40 points d'énergie, 20 s de recharge.",
+          "text": "Écrase les ennemis dans un cône de 8 m : 170% des dégâts de l'arme, et les étourdit 1,5 s. 40 points d'énergie, 20 s de recharge.",
           "parents": [
             206,
             207
@@ -1340,7 +1340,7 @@
             {
               "name": "Tempête d'acier",
               "icon": "Achievement_Arena_5v5_5",
-              "text": "Frappe la cible toutes les 0,5 s pendant 6 s : 70% des dégâts de l'arme à chaque coup. 30 s de recharge.",
+              "text": "Frappe la cible toutes les 0,5 s pendant 6 s : 30% des dégâts de l'arme à chaque coup. 30 s de recharge.",
               "spell": 97127,
               "existing": true
             }
@@ -1425,7 +1425,7 @@
           "spells": [
             97124
           ],
-          "text": "Tente de décapiter un ennemi sous 35% de ses points de vie : 240% des dégâts de l'arme, et chaque point d'énergie en plus, jusqu'à 50, ajoute 2% de dégâts. 25 points d'énergie.",
+          "text": "Tente de décapiter un ennemi sous 35% de ses points de vie : 100% des dégâts de l'arme, et chaque point d'énergie en plus, jusqu'à 50, ajoute 2% de dégâts. 25 points d'énergie.",
           "parents": [
             217,
             218
@@ -1630,14 +1630,14 @@
             {
               "name": "Briseur de coque",
               "icon": "INV_Archaeology_Ogres_Warmaul_Chieftain",
-              "text": "Fracasse l'ennemi : 260% des dégâts de l'arme, et il subit 10% de dégâts physiques en plus de votre part pendant 12 s. 30 points d'énergie, 15 s de recharge.",
+              "text": "Fracasse l'ennemi : 110% des dégâts de l'arme, et il subit 10% de dégâts physiques en plus de votre part pendant 12 s. 30 points d'énergie, 15 s de recharge.",
               "spell": 97128,
               "existing": true
             },
             {
               "name": "Empaler",
               "icon": "INV_Axe_2H_WarfrontsHorde_C_01",
-              "text": "Empale l'ennemi : 240% des dégâts de l'arme. Sous 35% de ses points de vie, 100% de plus et 5 charges de Carnage. 35 points d'énergie, 14 s de recharge.",
+              "text": "Empale l'ennemi : 100% des dégâts de l'arme. Sous 35% de ses points de vie, 100% de plus et 5 charges de Carnage. 35 points d'énergie, 14 s de recharge.",
               "spell": 97129,
               "existing": true
             }
@@ -1718,7 +1718,7 @@
           "spells": [
             97164
           ],
-          "text": "Lance une arme dans les jambes de l'ennemi : 165% des dégâts de l'arme, et sa vitesse de déplacement est réduite de 50% pendant 8 s. 25 points d'énergie, 6 s de recharge."
+          "text": "Lance une arme dans les jambes de l'ennemi : 75% des dégâts de l'arme, et sa vitesse de déplacement est réduite de 50% pendant 8 s. 25 points d'énergie, 6 s de recharge."
         },
         {
           "id": 302,
@@ -1854,7 +1854,7 @@
           "spells": [
             97162
           ],
-          "text": "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 175% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois. 20 points d'énergie.",
+          "text": "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 90% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois. 20 points d'énergie.",
           "parents": [
             302,
             303
@@ -2240,7 +2240,7 @@
           "spells": [
             97169
           ],
-          "text": "Fait pleuvoir des haches sur l'ennemi et ceux à 10 m de lui : 320% des dégâts de l'arme. 40 points d'énergie, 10 s de recharge.",
+          "text": "Fait pleuvoir des haches sur l'ennemi et ceux à 10 m de lui : 210% des dégâts de l'arme. 40 points d'énergie, 10 s de recharge.",
           "parents": [
             317,
             318
@@ -2426,7 +2426,7 @@
             {
               "name": "Javelot",
               "icon": "INV_Spear_06",
-              "text": "Projette un javelot sur l'ennemi : 260% des dégâts de l'arme. 45 points d'énergie, 10 s de recharge.",
+              "text": "Projette un javelot sur l'ennemi : 130% des dégâts de l'arme. 45 points d'énergie, 10 s de recharge.",
               "spell": 97172,
               "existing": true
             },
@@ -3280,7 +3280,7 @@
         "210": 1,
         "204": 5,
         "214": 1,
-        "217": 1,
+        "217": 2,
         "218": 1,
         "221": 1,
         "213": 2,
@@ -3362,7 +3362,7 @@
         "310": 1,
         "304": 5,
         "314": 1,
-        "317": 1,
+        "317": 2,
         "318": 1,
         "321": 1,
         "313": 2,

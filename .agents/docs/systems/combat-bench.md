@@ -86,6 +86,10 @@ bots brought again (the session), and no server build, restart or client release
 - **Bots are not players**: the bot's rotation can hide or create a gap (Subtlety bots counted enemies at 8 yd while
   their AoE reached 10, and played Sinister Strike on packs). When a spec looks off, check its casts in the per-spell
   table and the bot strategy (`modules/mod-playerbots/src/Ai/Class/<Class>/`) before changing numbers.
+- **Check the bench bots' weapons before tuning a weapon-damage class**: the bench gears bots by
+  `StatsWeightCalculator`, and a class without a weapon rule there takes whatever scores best. The Barbarian (no
+  rule) got a fast one-hand sword and a shield: tuned on it, its weapon-percentage strikes came out 2.2 times too
+  strong on the two-hander players use. Give a new class its weapon rule first (two-hander, dual wield, shield).
 - **Cloned DBC spells keep their clone's scaling**: a Death Knight spell cloned from Cone of Cold scales with spell
   power the class does not have (flat damage). Scale it in the class module (`ModifySpellDamageTaken`) or from attack
   power, not only in `localTools/<class>/Spells.ps1`.

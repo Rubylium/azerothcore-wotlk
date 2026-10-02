@@ -101,11 +101,11 @@ function Enrage($flag, $duration, $extra = @{}) {
 $spells = @(
     # --- Class baseline (mod-barbarian teaches these by level) ------------------------------------------------------
     @{ Id = 97100; Clone = $strike; Name = 'Frappe barbare'; IconPath = 'Interface\Icons\Warrior_Wild_Strike'; FallbackIconSpell = 12294; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Frappe l'ennemi : 190% des dégâts de l'arme, et 2 charges de Carnage."
-       Effects = (Strike 30 190); Fields = (Own $flagStrike @{ 131 = (Look 'BarbaricStrike') }) },
+       Description = "Frappe l'ennemi : 80% des dégâts de l'arme, et 2 charges de Carnage."
+       Effects = (Strike 30 80); Fields = (Own $flagStrike @{ 131 = (Look 'BarbaricStrike') }) },
     @{ Id = 97102; Clone = $whirl; Name = 'Tourbillon barbare'; IconPath = 'Interface\Icons\Ability_Garrosh_Whirling_Corruption'; FallbackIconSpell = 1680; Cost = 30; Cooldown = 0; Level = 3; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Tourbillonne avec fureur : 190% des dégâts de l'arme à 8 ennemis au plus à 10 m, et 1 charge de Carnage à chacun."
-       Effects = (Strike 10 190 22)
+       Description = "Tourbillonne avec fureur : 80% des dégâts de l'arme à 8 ennemis au plus à 10 m, et 1 charge de Carnage à chacun."
+       Effects = (Strike 10 80 22)
        Fields = (Own $flagWhirl @{ 46 = 1; 89 = 15; 90 = 15; 92 = 13; 93 = 13; 116 = 0; 117 = 0; 212 = 8; 131 = (Look 'BarbaricWhirl') }) },
     @{ Id = 97103; Clone = $selfBuff; Name = 'Rage débridée'; IconPath = 'Interface\Icons\_D3wrathoftheberserker'; FallbackIconSpell = 18499; Cost = 0; Cooldown = 30000; Level = 5; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Effet d'enragement. Vos dégâts physiques augmentent de 10% pendant 10 s."
@@ -121,7 +121,7 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModIncreaseSpeed; TargetA = 1; Value = 40 })
        Fields = (Own $flagRush @{ 40 = 35; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = (Look 'ImpalingRush') }) },
     @{ Id = 97106; Clone = $charge; Name = 'Avancée tourbillonnante'; IconPath = 'Interface\Icons\_D3whirlwind'; FallbackIconSpell = 100; Cost = 0; Cooldown = 20000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Fonce en tourbillonnant vers un ennemi entre 8 et 25 m et frappe les ennemis à 8 m de l'arrivée : 60% des dégâts de l'arme."
+       Description = "Fonce en tourbillonnant vers un ennemi entre 8 et 25 m et frappe les ennemis à 8 m de l'arrivée : 40% des dégâts de l'arme."
        Effects = @(@{ Index = 0; Effect = 96; TargetA = 6 })
        Fields = (Own $flagAdvance @{ 12 = 0; 46 = 95; 131 = (Look 'WhirlingAdvance') }) },
     @{ Id = 97107; Clone = $shout; Name = 'Cri de guerre'; IconPath = 'Interface\Icons\_D3threateningshout'; FallbackIconSpell = 6673; Cost = 0; Cooldown = 180000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
@@ -166,7 +166,7 @@ $spells = @(
        Fields = (Own $flagSkull @{ 9 = 0x8; 40 = 32; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = (Look 'ThickSkull') }) },
     # Avancée tourbillonnante's blow on arrival (mod-barbarian casts it as the Barbarian lands)
     @{ Id = 97113; Clone = $whirl; Name = 'Avancée tourbillonnante'; IconPath = 'Interface\Icons\_D3whirlwind'; FallbackIconSpell = 1680; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "90% des dégâts de l'arme."; Effects = (Strike 0 90 22)
+       Description = "40% des dégâts de l'arme."; Effects = (Strike 0 40 22)
        Fields = (Own $flagAdvance @{ 46 = 1; 89 = 15; 90 = 15; 92 = 14; 93 = 14; 116 = 0; 117 = 0; 205 = 0; 206 = 0; 212 = 0; 131 = 0 }) },
     # Carnage: a bleed of up to 10 stacks; mod-barbarian sizes each tick from the Barbarian's attack power
     @{ Id = 97114; Clone = 1943; Name = 'Carnage'; IconPath = 'Interface\Icons\Ability_Rogue_Rupture'; FallbackIconSpell = 1943; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; BleedAura = $true
@@ -195,25 +195,25 @@ $spells = @(
 
     # --- Brutalité ------------------------------------------------------------------------------------------------
     @{ Id = 97120; Clone = $strike; Name = 'Fracas'; IconPath = 'Interface\Icons\INV_Mace_69'; FallbackIconSpell = 12294; Cost = 15; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Nécessite d'être enragé. Fracasse l'ennemi : 270% des dégâts de l'arme."
-       Effects = (Strike 40 270); Fields = (Own $flagSmash @{ 20 = 17; 131 = (Look 'Smash') }) },
+       Description = "Nécessite d'être enragé. Fracasse l'ennemi : 130% des dégâts de l'arme."
+       Effects = (Strike 40 130); Fields = (Own $flagSmash @{ 20 = 17; 131 = (Look 'Smash') }) },
     @{ Id = 97121; Clone = $strike; Name = 'Déchaînement'; IconPath = 'Interface\Icons\Ability_Warrior_Rampage'; FallbackIconSpell = 29801; Cost = 20; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Nécessite d'être enragé. Frappe sauvagement l'ennemi : 190% des dégâts de l'arme, et 3 charges de Carnage."
-       Effects = (Strike 20 190); Fields = (Own $flagRampage @{ 20 = 17; 131 = (Look 'Rampage') }) },
+       Description = "Nécessite d'être enragé. Frappe sauvagement l'ennemi : 90% des dégâts de l'arme, et 3 charges de Carnage."
+       Effects = (Strike 20 90); Fields = (Own $flagRampage @{ 20 = 17; 131 = (Look 'Rampage') }) },
     @{ Id = 97122; Clone = $cleave; Name = 'Taille brutale'; IconPath = 'Interface\Icons\INV_Axe_2H_OrcWarrior_C_01'; FallbackIconSpell = 845; Cost = 30; Cooldown = 8000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Frappe l'ennemi et jusqu'à 2 ennemis proches : 210% des dégâts de l'arme."
-       Effects = (Strike 20 210); Fields = (Own $flagSwing @{ 28 = 1; 104 = 3; 105 = 3; 131 = (Look 'BrutalSwing') }) },
+       Description = "Frappe l'ennemi et jusqu'à 2 ennemis proches : 90% des dégâts de l'arme."
+       Effects = (Strike 20 90); Fields = (Own $flagSwing @{ 28 = 1; 104 = 3; 105 = 3; 131 = (Look 'BrutalSwing') }) },
     @{ Id = 97123; Clone = $strike; Name = 'Écrasement'; IconPath = 'Interface\Icons\Ability_Warrior_Trauma'; FallbackIconSpell = 46968; Cost = 40; Cooldown = 20000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Écrase les ennemis dans un cône de 8 m : 400% des dégâts de l'arme, et les étourdit 1,5 s."
+       Description = "Écrase les ennemis dans un cône de 8 m : 170% des dégâts de l'arme, et les étourdit 1,5 s."
        AuraDescription = 'Étourdi.'
        Effects = @(
            @{ Index = 0; Effect = 121; TargetA = 24; Value = 30 },
-           @{ Index = 1; Effect = 31; TargetA = 24; Value = 400 },
+           @{ Index = 1; Effect = 31; TargetA = 24; Value = 170 },
            @{ Index = 2; Effect = 6; Aura = 12; TargetA = 24 })
        Fields = (Own $flagCrush @{ 40 = 65; 46 = 1; 85 = 12; 92 = 14; 93 = 14; 94 = 14; 212 = 0; 131 = (Look 'Crush') }) },
     @{ Id = 97124; Clone = $strike; Name = 'Décapitation'; IconPath = 'Interface\Icons\Spell_DeathKnight_Butcher2'; FallbackIconSpell = 5308; Cost = 25; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Tente de décapiter un ennemi sous 35% de ses points de vie : 240% des dégâts de l'arme, et chaque point d'énergie en plus, jusqu'à 50, ajoute 2% de dégâts."
-       Effects = (Strike 40 240); Fields = (Own $flagDecapitate @{ 21 = 13; 131 = (Look 'Decapitate') }) },
+       Description = "Tente de décapiter un ennemi sous 35% de ses points de vie : 100% des dégâts de l'arme, et chaque point d'énergie en plus, jusqu'à 50, ajoute 2% de dégâts."
+       Effects = (Strike 40 100); Fields = (Own $flagDecapitate @{ 21 = 13; 131 = (Look 'Decapitate') }) },
     @{ Id = 97125; Clone = $selfBuff; Name = 'Assaut'; IconPath = 'Interface\Icons\_D3warcry'; FallbackIconSpell = 2687; Cost = 0; Cooldown = 60000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Effet d'enragement. Vous gagnez 25 points d'énergie, puis 5 par seconde pendant 10 s."
        AuraDescription = "Enragé. Rend 5 points d'énergie par seconde."
@@ -236,49 +236,49 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; Aura = 226; TargetA = 1 })
        Fields = (Own $flagStorm @{ 40 = 32; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 98 = 500; 131 = (Look 'StormOfSteel') }) },
     @{ Id = 97128; Clone = $strike; Name = 'Briseur de coque'; IconPath = 'Interface\Icons\INV_Archaeology_Ogres_Warmaul_Chieftain'; FallbackIconSpell = 12294; Cost = 30; Cooldown = 15000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Fracasse l'ennemi : 260% des dégâts de l'arme, et il subit 10% de dégâts physiques en plus de votre part pendant 12 s."
+       Description = "Fracasse l'ennemi : 110% des dégâts de l'arme, et il subit 10% de dégâts physiques en plus de votre part pendant 12 s."
        AuraDescription = 'Dégâts physiques subis du barbare augmentés de 10%.'
        Effects = @(
            @{ Index = 0; Effect = 121; TargetA = 6; Value = 30 },
-           @{ Index = 1; Effect = 31; TargetA = 6; Value = 260 },
+           @{ Index = 1; Effect = 31; TargetA = 6; Value = 110 },
            @{ Index = 2; Effect = 6; Aura = 271; TargetA = 6; Value = 10; Misc = 1 })
        Fields = (Own $flagHull @{ 40 = 29; 131 = (Look 'Hullbreaker') }) },
     @{ Id = 97129; Clone = $strike; Name = 'Empaler'; IconPath = 'Interface\Icons\INV_Axe_2H_WarfrontsHorde_C_01'; FallbackIconSpell = 12294; Cost = 35; Cooldown = 14000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Empale l'ennemi : 240% des dégâts de l'arme. Sous 35% de ses points de vie, 100% de plus et 5 charges de Carnage."
-       Effects = (Strike 30 240); Fields = (Own $flagImpale @{ 131 = (Look 'Impale') }) },
+       Description = "Empale l'ennemi : 100% des dégâts de l'arme. Sous 35% de ses points de vie, 100% de plus et 5 charges de Carnage."
+       Effects = (Strike 30 100); Fields = (Own $flagImpale @{ 131 = (Look 'Impale') }) },
     # Tempête d'acier's blows (mod-barbarian casts one at the target every 0.5 s)
     @{ Id = 97130; Clone = $strike; Name = "Tempête d'acier"; IconPath = 'Interface\Icons\Achievement_Arena_5v5_5'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "70% des dégâts de l'arme."; Effects = (Strike 0 70)
+       Description = "30% des dégâts de l'arme."; Effects = (Strike 0 30)
        Fields = (Own $flagStorm @{ 205 = 0; 206 = 0; 131 = 0 }) },
     # --- Chasseur de têtes: the Barbarian throws its own melee weapon, 30 yd (melee damage class, its weapon's damage)
     @{ Id = 97160; Clone = $strike; Name = "Lancer d'arme"; IconPath = 'Interface\Icons\INV_ThrowingAxe_06'; FallbackIconSpell = 57755; Cost = 30; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Lance votre arme sur un ennemi à 30 m : 165% des dégâts de l'arme. Utilisable en mouvement."
-       Effects = (Strike 20 165); Fields = (Own1 $flagThrow (Thrown @{ 131 = (Look 'ThrowWeapon') })) },
+       Description = "Lance votre arme sur un ennemi à 30 m : 80% des dégâts de l'arme. Utilisable en mouvement."
+       Effects = (Strike 20 80); Fields = (Own1 $flagThrow (Thrown @{ 131 = (Look 'ThrowWeapon') })) },
     @{ Id = 97161; Clone = $strike; Name = 'Lance du chasseur de têtes'; IconPath = 'Interface\Icons\Warrior_Talent_Icon_MasterCleaver'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Lance une lance légère sur un ennemi à 30 m : 185% des dégâts de l'arme, et vous gagnez 15 points d'énergie."
+       Description = "Lance une lance légère sur un ennemi à 30 m : 90% des dégâts de l'arme, et vous gagnez 15 points d'énergie."
        Effects = @(
            @{ Index = 0; Effect = 121; TargetA = 6; Value = 30 },
-           @{ Index = 1; Effect = 31; TargetA = 6; Value = 185 },
+           @{ Index = 1; Effect = 31; TargetA = 6; Value = 90 },
            @{ Index = 2; Effect = 30; TargetA = 1; Value = 15; Misc = 3 })
        Fields = (Own1 $flagSpear (Thrown @{ 131 = (Look 'HeadhuntersSpear') })) },
     @{ Id = 97162; Clone = $strike; Name = 'Hache berserker'; IconPath = 'Interface\Icons\INV_Axe_1H_DraenorCrafted_D_02_A_Horde'; FallbackIconSpell = 57755; Cost = 20; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 175% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois."
-       Effects = (Strike 20 175); Fields = (Own1 $flagBerserkAxe (Thrown @{ 20 = 17; 131 = (Look 'ThrowWeapon') })) },
+       Description = "Nécessite d'être enragé. Lance deux haches sur l'ennemi : 90% des dégâts de l'arme, et son armure est réduite de 3% pendant 10 s, jusqu'à 5 fois."
+       Effects = (Strike 20 90); Fields = (Own1 $flagBerserkAxe (Thrown @{ 20 = 17; 131 = (Look 'ThrowWeapon') })) },
     @{ Id = 97163; Clone = $selfBuff; Name = 'Hache berserker'; IconPath = 'Interface\Icons\INV_Axe_1H_DraenorCrafted_D_02_A_Horde'; FallbackIconSpell = 7386; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Armure réduite de 3%.'; AuraDescription = 'Armure réduite de 3% par application.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModResistancePct; TargetA = 6; Value = -3; Misc = 1 })
        Fields = (Own1 $flagBerserkMark @{ 40 = 1; 46 = 4; 49 = 5; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = 0 }) },
     @{ Id = 97164; Clone = $strike; Name = 'Lance mutilante'; IconPath = 'Interface\Icons\Ability_Hunter_HatchetToss'; FallbackIconSpell = 57755; Cost = 25; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Lance une arme dans les jambes de l'ennemi : 165% des dégâts de l'arme, et sa vitesse de déplacement est réduite de 50% pendant 8 s."
+       Description = "Lance une arme dans les jambes de l'ennemi : 75% des dégâts de l'arme, et sa vitesse de déplacement est réduite de 50% pendant 8 s."
        AuraDescription = 'Vitesse de déplacement réduite de 50%.'
        Effects = @(
            @{ Index = 0; Effect = 121; TargetA = 6; Value = 20 },
-           @{ Index = 1; Effect = 31; TargetA = 6; Value = 165 },
+           @{ Index = 1; Effect = 31; TargetA = 6; Value = 75 },
            @{ Index = 2; Effect = 6; Aura = 33; TargetA = 6; Value = -50 })
        Fields = (Own1 $flagMaim (Thrown @{ 40 = 31; 85 = 11; 131 = (Look 'MaimingSpear') })) },
     # The axes the Chasseur de têtes throws on its own, every 2 s (mod-barbarian)
     @{ Id = 97165; Clone = $strike; Name = 'Hache lancée'; IconPath = 'Interface\Icons\INV_ThrowingAxe_03'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "70% des dégâts de l'arme."; Effects = (Strike 0 70)
+       Description = "35% des dégâts de l'arme."; Effects = (Strike 0 35)
        Fields = (Own1 $flagAutoThrow (Thrown @{ 205 = 0; 206 = 0; 131 = (Look 'JavelinToss') })) },
     @{ Id = 97166; Clone = $strike; Name = 'Étripeur'; IconPath = 'Interface\Icons\INV_Axe_94'; FallbackIconSpell = 703; Cost = 20; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Lance une lourde hache : l'ennemi saigne toutes les 3 s pendant 12 s."
@@ -291,13 +291,13 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 })
        Fields = (Own1 $flagTwirl @{ 40 = 29; 46 = 1; 68 = [uint32]::MaxValue; 69 = 0; 70 = 0; 205 = 0; 206 = 0; 131 = (Look 'AxeTwirling') }) },
     @{ Id = 97168; Clone = $strike; Name = 'Danse des haches'; IconPath = 'Interface\Icons\INV_Axe_104'; FallbackIconSpell = 57755; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "150% des dégâts de l'arme."; Effects = (Strike 0 150)
+       Description = "90% des dégâts de l'arme."; Effects = (Strike 0 90)
        Fields = (Own1 $flagTwirlHit (Thrown @{ 205 = 0; 206 = 0; 131 = (Look 'ThrowWeapon') })) },
     @{ Id = 97169; Clone = $strike; Name = 'Volée de haches'; IconPath = 'Interface\Icons\Ability_UpgradeMoonGlaive'; FallbackIconSpell = 57755; Cost = 40; Cooldown = 10000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Fait pleuvoir des haches sur l'ennemi et ceux à 10 m de lui : 320% des dégâts de l'arme."
+       Description = "Fait pleuvoir des haches sur l'ennemi et ceux à 10 m de lui : 210% des dégâts de l'arme."
        Effects = @(
            @{ Index = 0; Effect = 121; TargetA = 53; Value = 10 },
-           @{ Index = 1; Effect = 31; TargetA = 53; Value = 320 })
+           @{ Index = 1; Effect = 31; TargetA = 53; Value = 210 })
        Fields = (Own1 $flagVolley (Thrown @{ 89 = 16; 90 = 16; 92 = 13; 93 = 13; 212 = 0; 131 = (Look 'BerserkerRush') })) },
     @{ Id = 97170; Clone = 781; Name = 'Soif du chasseur'; IconPath = 'Interface\Icons\Ability_Hunter_Pet_Raptor'; FallbackIconSpell = 781; Cost = 0; Cooldown = 20000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = 'Bondit en arrière, loin de vos ennemis.'
@@ -311,16 +311,16 @@ $spells = @(
            ($enrageRegen + @{ Index = 2 }))
        Fields = (Enrage 0 8 @{ 210 = $flagBerserker; 122 = 0; 123 = $flagThrow; 124 = 0; 131 = (Look 'Berserker') }) },
     @{ Id = 97172; Clone = $strike; Name = 'Javelot'; IconPath = 'Interface\Icons\INV_Spear_06'; FallbackIconSpell = 57755; Cost = 45; Cooldown = 10000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Projette un javelot sur l'ennemi : 260% des dégâts de l'arme."
-       Effects = (Strike 40 260); Fields = (Own1 $flagJavelin (Thrown @{ 131 = (Look 'JavelinToss') })) },
+       Description = "Projette un javelot sur l'ennemi : 130% des dégâts de l'arme."
+       Effects = (Strike 40 130); Fields = (Own1 $flagJavelin (Thrown @{ 131 = (Look 'JavelinToss') })) },
 
     # --- Ascendance: the tank, a one-hander and a shield, the north's frost and its Tankard -----------------------
     @{ Id = 97200; Clone = $strike; Name = 'Frappe ancestrale'; IconPath = 'Interface\Icons\Spell_Shadow_DeathCoil'; FallbackIconSpell = 23922; Cost = 30; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Frappe l'ennemi de la force de vos ancêtres : 140% des dégâts de l'arme, une menace élevée et 1 charge de Carnage."
-       Effects = (Strike 30 140); Fields = (Own1 $flagAncestralStrike @{ 131 = (Look 'AncestralStrike') }) },
+       Description = "Frappe l'ennemi de la force de vos ancêtres : 70% des dégâts de l'arme, une menace élevée et 1 charge de Carnage."
+       Effects = (Strike 30 70); Fields = (Own1 $flagAncestralStrike @{ 131 = (Look 'AncestralStrike') }) },
     @{ Id = 97201; Clone = $strike; Name = 'Coup de fût'; IconPath = 'Interface\Icons\INV_Holiday_BrewfestBuff_01'; FallbackIconSpell = 6343; Cost = 30; Cooldown = 8000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Fracasse l'ennemi d'un fût : 100% des dégâts de l'arme, et des dégâts de Givre à lui et aux ennemis à 8 m. Vide votre Chope : chaque charge augmente ces dégâts de Givre de 15% et vous rend 1% de vos points de vie maximum."
-       Effects = (Strike 20 100); Fields = (Own1 $flagKeg @{ 131 = (Look 'KegSmash') }) },
+       Description = "Fracasse l'ennemi d'un fût : 50% des dégâts de l'arme, et des dégâts de Givre à lui et aux ennemis à 8 m. Vide votre Chope : chaque charge augmente ces dégâts de Givre de 15% et vous rend 1% de vos points de vie maximum."
+       Effects = (Strike 20 50); Fields = (Own1 $flagKeg @{ 131 = (Look 'KegSmash') }) },
     @{ Id = 97202; Clone = $strike; Name = 'Coup de fût'; IconPath = 'Interface\Icons\INV_Holiday_BrewfestBuff_01'; FallbackIconSpell = 6343; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Dégâts de Givre.'
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 53; Value = 20 })
