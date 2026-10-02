@@ -17,7 +17,14 @@ $spells = @(
        Fields = @{ 40 = 21 } },
     # The roaming elites' telegraphed blow, on the circle drawn under their target
     @{ Id = 97601; Clone = 59706; Name = 'Coup dévastateur'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = 'Frappe le sol là où se tenait la cible : quiconque reste dans la zone rougie est durement touché.' }
+       Description = 'Frappe le sol là où se tenait la cible : quiconque reste dans la zone rougie est durement touché.' },
+    # The rift guardian's: a crystal falling where a fighter stood, and a nova all around itself (arcane, 64)
+    @{ Id = 97602; Clone = 59706; Name = 'Éclat de cristal'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Un éclat de cristal s''abat là où se tenait un combattant.'
+       Fields = @{ 225 = 64 } },
+    @{ Id = 97603; Clone = 59706; Name = 'Nova arcanique'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Une onde arcanique frappe tout autour du gardien de la faille.'
+       Fields = @{ 225 = 64 } }
 )
 
 return $spells

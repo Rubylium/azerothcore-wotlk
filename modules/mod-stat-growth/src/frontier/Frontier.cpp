@@ -41,8 +41,8 @@
 // player and grows with the players taking part, so a group meets the same challenge per head.
 // Plan: .agents/plans/northrend-frontier/northrend-frontier.PLAN.md
 //
-// Milestone 1 (this file): the tiers, the phase, the zone banner and the roaming elites. Each tier is sized on its
-// profile with the power model (.agents/docs/systems/power-scaling.md), one damage dealer a participant:
+// Here: the tiers, the phase, the zone banner, the roaming elites and the rifts. Each tier is sized on its profile with
+// the power model (.agents/docs/systems/power-scaling.md), one damage dealer a participant:
 //   Palier I   Borean Tundra, Howling Fjord     187 / 0   drops 200
 //   Palier II  Dragonblight, Grizzly Hills      200 / 0   drops 213
 //   Palier III Zul'Drak, Sholazar Basin         213 / 0   drops 219
@@ -50,7 +50,9 @@
 //
 // Client: Interface\FrameXML\FrontierUI.lua, on the "Frontier" addon prefix, whispered to the player:
 //   ZONE <tier 0-4> <zone id> <loot item level>     entering (or leaving: tier 0) a tier zone
-//   PINS <zone id> <kind>:<x>:<y>,...               the zone's content to pin on the maps (kind E: a roaming elite)
+//   PINS <zone id> <kind>:<x>:<y>,...               the zone's content to pin on the maps (E a roaming elite, R a rift)
+//   RIFT <stage> <wave> <waves> <alive> <total> <s>  a rift near the player (stage: 1 waiting, 2 waves, 3 guardian,
+//                                                   4 closed, 5 collapsed; s: its time left)
 
 namespace
 {
@@ -69,15 +71,16 @@ struct Tier
     float itemLevel;            // the profile the tier is sized for
     float paragon;
     uint32 lootItemLevel;       // the gear it drops
-    uint32 eliteShards;         // Éclats de givre a roaming elite gives
+    uint32 eliteShards;         // Éclats de givre a roaming elite gives...
+    uint32 riftShards;          // ... and a closed rift
 };
 
 // Tiers I-IV (index 0-3)
 constexpr std::array<Tier, 4> Tiers = { {
-    { 187.0f, 0.0f, 200, 2 },
-    { 200.0f, 0.0f, 213, 3 },
-    { 213.0f, 0.0f, 219, 4 },
-    { 223.0f, 0.0f, 226, 5 },
+    { 187.0f, 0.0f, 200, 2, 6 },
+    { 200.0f, 0.0f, 213, 3, 8 },
+    { 213.0f, 0.0f, 219, 4, 10 },
+    { 223.0f, 0.0f, 226, 5, 12 },
 } };
 
 struct Zone
@@ -127,15 +130,49 @@ constexpr float EliteEssenceChance = 5.0f;
 constexpr float RewardReach = 80.0f;
 constexpr Seconds CorpseDespawn = 60s;
 
+// --- The rifts (Failles) -----------------------------------------------------------------------------------------
+// One a zone while a tier player is in it: a portal at a random spot, opened by whoever comes near; three waves come
+// out of it, then its guardian. Sized on the participants when it opens (a tank a third of a damage dealer).
+constexpr uint32 NPC_RIFT = 940020;
+constexpr std::array<uint32, 2> RiftCreatures = { 940021, 940022 };
+constexpr uint32 NPC_RIFT_GUARDIAN = 940023;
+constexpr uint32 RiftFirstMs = 20000;               // a zone just entered gets its rift this soon
+constexpr uint32 RiftCooldownMs = 2 * 60 * 1000;    // the next one, this long after the last closed
+constexpr uint32 RiftIdleMs = 10 * 60 * 1000;       // a rift nobody opens closes after this long
+constexpr uint32 RiftLimitMs = 4 * 60 * 1000;       // an opened rift collapses unless closed within this
+constexpr float RiftSpawnClearance = 80.0f;
+constexpr float RiftStartReach = 15.0f;             // a tier player this close opens it
+constexpr float RiftReach = 45.0f;                  // its participants, and who it hits
+constexpr float RiftLeaveReach = 80.0f;             // nobody alive this close: it collapses
+constexpr uint32 RiftAbandonMs = 20000;
+constexpr uint32 RiftWaves = 3;
+constexpr uint32 RiftWaveGapMs = 4000;
+constexpr float RiftWaveSeconds = 15.0f;            // a wave, against the participants' area damage
+constexpr float RiftGuardianSeconds = 35.0f;        // the guardian, against their single-target damage
+constexpr float RiftCreatureSwingPct = 2.0f;
+constexpr float RiftGuardianSwingPct = 4.0f;
+// The guardian's: Éclat de cristal (a circle under a fighter) and Nova arcanique (a circle around itself: get out)
+constexpr float CrystalPct = 35.0f;
+constexpr float CrystalRadius = 5.0f;
+constexpr uint32 CrystalWarningMs = 2500;
+constexpr float NovaPct = 45.0f;
+constexpr float NovaRadius = 10.0f;
+constexpr uint32 NovaWarningMs = 3000;
+constexpr float RiftGearChance = 50.0f;
+constexpr float RiftEssenceChance = 30.0f;
+constexpr uint32 SPELL_CRYSTAL_SHARD = 97602;
+constexpr uint32 SPELL_ARCANE_NOVA = 97603;
+constexpr uint32 SPELL_ARCANE_STOCK = 59706;
+
 // Who the reference model counts below Mythique 0: its measured curve starts at 223, and its straight line below
 // that drops a fresh 80 to a third of what it deals. Item level 223's damage, scaled by the square of the item level
 // ratio (gear's stats grow about so) - to re-measure on the combat bench.
 constexpr float ModelFloorItemLevel = 223.0f;
 
-float TierDps(Tier const& tier)
+float TierDps(Tier const& tier, bool pack = false)
 {
     float const ratio = std::min(tier.itemLevel / ModelFloorItemLevel, 1.0f);
-    return Power::ExpectedDps(std::max(tier.itemLevel, ModelFloorItemLevel), tier.paragon) * ratio * ratio;
+    return Power::ExpectedDps(std::max(tier.itemLevel, ModelFloorItemLevel), tier.paragon, pack) * ratio * ratio;
 }
 
 float TierPlayerHealth(Tier const& tier)
@@ -233,22 +270,60 @@ float Participants(Creature* elite, Unit* engager)
     return std::max(dealers, share(player));
 }
 
-void ScaleElite(Creature* elite, Tier const& tier, float dealers)
+// A creature's health and melee, its health kept at the same share
+void ScaleUnit(Creature* creature, float health, float swing)
 {
-    uint32 const maxHealth = uint32(std::max(1.0f, TierDps(tier) * dealers * EliteSeconds));
-    float const pct = elite->GetHealthPct();
-    elite->SetCreateHealth(maxHealth);
-    elite->SetMaxHealth(maxHealth);
-    elite->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, float(maxHealth));
-    float const swing = TierPlayerHealth(tier) * EliteSwingPct / 100.0f * ArmourMargin;
+    uint32 const maxHealth = uint32(std::max(1.0f, health));
+    float const pct = creature->GetHealthPct();
+    creature->SetCreateHealth(maxHealth);
+    creature->SetMaxHealth(maxHealth);
+    creature->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, float(maxHealth));
     for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
     {
-        elite->SetBaseWeaponDamage(attackType, MINDAMAGE, swing * 0.85f);
-        elite->SetBaseWeaponDamage(attackType, MAXDAMAGE, swing * 1.15f);
+        creature->SetBaseWeaponDamage(attackType, MINDAMAGE, swing * ArmourMargin * 0.85f);
+        creature->SetBaseWeaponDamage(attackType, MAXDAMAGE, swing * ArmourMargin * 1.15f);
     }
-    elite->UpdateAllStats();
-    elite->SetHealth(uint32(maxHealth * pct / 100.0f));
-    elite->ResetPlayerDamageReq();
+    creature->UpdateAllStats();
+    creature->SetHealth(uint32(maxHealth * pct / 100.0f));
+    creature->ResetPlayerDamageReq();
+}
+
+void ScaleElite(Creature* elite, Tier const& tier, float dealers)
+{
+    ScaleUnit(elite, TierDps(tier) * dealers * EliteSeconds, TierPlayerHealth(tier) * EliteSwingPct / 100.0f);
+}
+
+// A player's or a bot's share of a group's damage
+float DealerShare(Player* player)
+{
+    return IsGroupTank(player) ? TankShare : 1.0f;
+}
+
+// The tier players and bots alive within reach of a spot
+std::vector<Player*> TierPlayersNear(WorldObject* center, float reach)
+{
+    std::vector<Player*> players;
+    for (auto const& ref : center->GetMap()->GetPlayers())
+        if (Player* player = ref.GetSource(); player && player->IsAlive() && player->IsInWorld() &&
+            (player->GetPhaseMask() & FrontierPhaseMask) && player->GetDistance(center) <= reach)
+            players.push_back(player);
+    return players;
+}
+
+// Rewards to these players (bots take nothing): shards, and chances of the tier's gear and an essence
+void RewardPlayers(std::set<Player*> const& players, Tier const& tier, uint32 shards, float gearChance,
+    float essenceChance)
+{
+    for (Player* player : players)
+    {
+        if (IsBot(player))
+            continue;
+        player->AddItem(ITEM_FROST_SHARD, shards);
+        if (roll_chance_f(gearChance))
+            GiveMythicLootItem(player, tier.lootItemLevel);
+        if (roll_chance_f(essenceChance))
+            GrantEssenceRewards(player, 1, 0);
+    }
 }
 
 // --- The zones' state ----------------------------------------------------------------------------------------------
@@ -260,6 +335,8 @@ struct ZoneState
     std::vector<uint32> respawns;       // a slain elite's place, the time left before it is taken again
     uint32 idleMs = 0;
     uint8 nextEntry = 0;
+    ObjectGuid rift;
+    uint32 riftInMs = RiftFirstMs;
 };
 
 std::array<ZoneState, Zones.size()> States;
@@ -274,7 +351,9 @@ void BuildSpots(Zone const& zone, ZoneState& state)
     LOG_INFO("module.frontier", "Front du Nord: zone {} has {} spawn spots", zone.id, state.spots.size());
 }
 
-Creature* SpawnElite(Map* map, Zone const& zone, ZoneState& state, std::vector<Player*> const& players)
+// A creature of the tier phase at one of the zone's spawn spots, away from every player
+Creature* SummonAtSpot(Map* map, Zone const& zone, ZoneState& state, std::vector<Player*> const& players,
+    uint32 entry, float clearance)
 {
     if (!state.spotsBuilt)
         BuildSpots(zone, state);
@@ -284,27 +363,35 @@ Creature* SpawnElite(Map* map, Zone const& zone, ZoneState& state, std::vector<P
     for (uint32 attempt = 0; attempt < EliteSpawnTries; ++attempt)
     {
         Position const& spot = Acore::Containers::SelectRandomContainerElement(state.spots);
-        if (std::ranges::any_of(players, [&spot](Player* player)
-            { return player->GetExactDist2d(&spot) < EliteSpawnClearance; }))
+        if (std::ranges::any_of(players, [&spot, clearance](Player* player)
+            { return player->GetExactDist2d(&spot) < clearance; }))
             continue;
 
-        uint32 const entry = zone.elites[state.nextEntry % zone.elites.size()];
-        TempSummon* elite = map->SummonCreature(entry, spot);
-        if (!elite)
+        TempSummon* creature = map->SummonCreature(entry, spot);
+        if (!creature)
             continue;
         // The spawn rectangles overlap their neighbours: the zone is checked where the creature stands
-        if (elite->GetZoneId() != zone.id || elite->IsInWater())
+        if (creature->GetZoneId() != zone.id || creature->IsInWater())
         {
-            elite->DespawnOrUnsummon();
+            creature->DespawnOrUnsummon();
             continue;
         }
-        elite->SetPhaseMask(FrontierPhaseMask, true);
-        elite->SetHomePosition(spot);
-        ScaleElite(elite, TierOf(zone), 1.0f);
-        ++state.nextEntry;
-        return elite;
+        creature->SetPhaseMask(FrontierPhaseMask, true);
+        creature->SetHomePosition(spot);
+        return creature;
     }
     return nullptr;
+}
+
+Creature* SpawnElite(Map* map, Zone const& zone, ZoneState& state, std::vector<Player*> const& players)
+{
+    Creature* elite = SummonAtSpot(map, zone, state, players, zone.elites[state.nextEntry % zone.elites.size()],
+        EliteSpawnClearance);
+    if (!elite)
+        return nullptr;
+    ScaleElite(elite, TierOf(zone), 1.0f);
+    ++state.nextEntry;
+    return elite;
 }
 
 void DespawnElites(Map* map, ZoneState& state)
@@ -319,11 +406,16 @@ void DespawnElites(Map* map, ZoneState& state)
 std::string Pins(Map* map, ZoneState const& state)
 {
     std::string pins;
+    auto const add = [&pins](char kind, Creature const* creature)
+    {
+        pins += Acore::StringFormat("{}{}:{:.0f}:{:.0f}", pins.empty() ? "" : ",", kind, creature->GetPositionX(),
+            creature->GetPositionY());
+    };
     for (ObjectGuid const& guid : state.elites)
-        if (Creature* elite = map->GetCreature(guid))
-            if (elite->IsAlive())
-                pins += Acore::StringFormat("{}E:{:.0f}:{:.0f}", pins.empty() ? "" : ",", elite->GetPositionX(),
-                    elite->GetPositionY());
+        if (Creature* elite = map->GetCreature(guid); elite && elite->IsAlive())
+            add('E', elite);
+    if (Creature* rift = map->GetCreature(state.rift))
+        add('R', rift);
     return pins;
 }
 
@@ -389,6 +481,20 @@ public:
                     if (!free)
                         state.respawns.erase(due);
                 }
+
+            // Its rift: a new one RiftCooldownMs after the last one closed
+            if (!state.rift.IsEmpty() && !map->GetCreature(state.rift))
+            {
+                state.rift.Clear();
+                state.riftInMs = RiftCooldownMs;
+            }
+            if (state.rift.IsEmpty())
+            {
+                state.riftInMs = state.riftInMs > elapsed ? state.riftInMs - elapsed : 0;
+                if (!state.riftInMs)
+                    if (Creature* rift = SummonAtSpot(map, zone, state, present[index], NPC_RIFT, RiftSpawnClearance))
+                        state.rift = rift->GetGUID();
+            }
 
             std::string const pins = Pins(map, state);
             for (Player* player : present[index])
@@ -503,6 +609,304 @@ private:
     }
 };
 
+// --- The rifts ---------------------------------------------------------------------------------------------------
+enum class RiftStage : uint8
+{
+    Waiting = 1,        // open, nobody near
+    Waves = 2,
+    Guardian = 3,
+    Closed = 4,         // the guardian slain: rewards given
+    Collapsed = 5       // its time ran out, or everyone left or died
+};
+
+Tier const* TierAt(WorldObject const* object)
+{
+    Zone const* zone = FindZone(object->GetZoneId());
+    return zone ? &TierOf(*zone) : nullptr;
+}
+
+// The nearest tier player or bot to a spot, within reach
+Unit* NearestFighter(WorldObject* center, float reach)
+{
+    Player* nearest = nullptr;
+    for (Player* player : TierPlayersNear(center, reach))
+        if (!nearest || center->GetDistance(player) < center->GetDistance(nearest))
+            nearest = player;
+    return nearest;
+}
+
+// The rift: opened by the first tier player near it, it sends three waves then its guardian, sized on whoever was
+// there when it opened, and rewards everyone near when the guardian falls. The client's tracker follows it (RIFT).
+struct npc_frontier_rift : public ScriptedAI
+{
+    explicit npc_frontier_rift(Creature* creature) : ScriptedAI(creature), _summons(creature) { }
+
+    void InitializeAI() override
+    {
+        me->SetReactState(REACT_PASSIVE);
+    }
+
+    void JustSummoned(Creature* summon) override { _summons.Summon(summon); }
+    void SummonedCreatureDespawn(Creature* summon) override { _summons.Despawn(summon); }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _tickMs += diff;
+        if (_tickMs < 1000)
+            return;
+        uint32 const elapsed = _tickMs;
+        _tickMs = 0;
+        _ageMs += elapsed;
+
+        Tier const* tier = TierAt(me);
+        if (!tier)
+        {
+            me->DespawnOrUnsummon();
+            return;
+        }
+
+        switch (_stage)
+        {
+            case RiftStage::Waiting:
+                if (_ageMs >= RiftIdleMs)
+                {
+                    me->DespawnOrUnsummon();
+                    return;
+                }
+                if (!TierPlayersNear(me, RiftStartReach).empty())
+                    Open(*tier);
+                break;
+            case RiftStage::Waves:
+            case RiftStage::Guardian:
+                if (_ageMs - _openedMs >= RiftLimitMs)
+                {
+                    Collapse();
+                    break;
+                }
+                _abandonMs = TierPlayersNear(me, RiftLeaveReach).empty() ? _abandonMs + elapsed : 0;
+                if (_abandonMs >= RiftAbandonMs)
+                {
+                    Collapse();
+                    break;
+                }
+                if (Alive() == 0)
+                {
+                    if (_stage == RiftStage::Guardian)
+                        Close(*tier);
+                    else if ((_gapMs += elapsed) >= RiftWaveGapMs)
+                    {
+                        _gapMs = 0;
+                        NextWave(*tier);
+                    }
+                }
+                break;
+            case RiftStage::Closed:
+            case RiftStage::Collapsed:
+                if ((_endMs += elapsed) >= 8000)
+                {
+                    me->DespawnOrUnsummon();
+                    return;
+                }
+                break;
+        }
+        SendTracker();
+    }
+
+private:
+    uint32 Alive() const
+    {
+        uint32 alive = 0;
+        for (ObjectGuid const& guid : _current)
+            if (Creature* creature = ObjectAccessor::GetCreature(*me, guid); creature && creature->IsAlive())
+                ++alive;
+        return alive;
+    }
+
+    void Open(Tier const& tier)
+    {
+        float dealers = 0.0f;
+        for (Player* player : TierPlayersNear(me, RiftReach))
+            dealers += DealerShare(player);
+        _dealers = std::max(dealers, 1.0f);
+        _openedMs = _ageMs;
+        _stage = RiftStage::Waves;
+        LOG_INFO("module.frontier", "Front du Nord: rift opened in zone {} for {:.2f} damage dealers", me->GetZoneId(),
+            _dealers);
+        NextWave(tier);
+    }
+
+    TempSummon* SummonFighter(uint32 entry, float distance, float health, float swing)
+    {
+        float const angle = frand(0.0f, 2.0f * float(M_PI));
+        float x = me->GetPositionX() + std::cos(angle) * distance;
+        float y = me->GetPositionY() + std::sin(angle) * distance;
+        float z = me->GetPositionZ();
+        me->UpdateGroundPositionZ(x, y, z);
+        TempSummon* creature = me->SummonCreature(entry, Position(x, y, z, angle + float(M_PI)),
+            TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20000);
+        if (!creature)
+            return nullptr;
+        creature->SetPhaseMask(FrontierPhaseMask, true);
+        ScaleUnit(creature, health, swing);
+        if (Unit* target = NearestFighter(me, RiftReach))
+            creature->AI()->AttackStart(target);
+        _current.push_back(creature->GetGUID());
+        return creature;
+    }
+
+    // A wave: as many creatures as two plus the damage dealers (3-8), sharing the wave's health; after the last one,
+    // the guardian
+    void NextWave(Tier const& tier)
+    {
+        _current.clear();
+        if (++_wave > RiftWaves)
+        {
+            _stage = RiftStage::Guardian;
+            SummonFighter(NPC_RIFT_GUARDIAN, 3.0f, TierDps(tier) * _dealers * RiftGuardianSeconds,
+                TierPlayerHealth(tier) * RiftGuardianSwingPct / 100.0f);
+            _total = 1;
+            return;
+        }
+        uint32 const count = std::clamp<uint32>(uint32(std::lround(2.0f + _dealers)), 3, 8);
+        float const health = TierDps(tier, true) * _dealers * RiftWaveSeconds / float(count);
+        float const swing = TierPlayerHealth(tier) * RiftCreatureSwingPct / 100.0f;
+        for (uint32 index = 0; index < count; ++index)
+            SummonFighter(RiftCreatures[index % RiftCreatures.size()], frand(5.0f, 8.0f), health, swing);
+        _total = count;
+    }
+
+    void Close(Tier const& tier)
+    {
+        _stage = RiftStage::Closed;
+        std::set<Player*> players;
+        for (Player* player : TierPlayersNear(me, RiftLeaveReach))
+            players.insert(player);
+        RewardPlayers(players, tier, tier.riftShards, RiftGearChance, RiftEssenceChance);
+        LOG_INFO("module.frontier", "Front du Nord: rift closed in zone {}, {} player(s) near", me->GetZoneId(),
+            players.size());
+    }
+
+    void Collapse()
+    {
+        _stage = RiftStage::Collapsed;
+        _summons.DespawnAll();
+        _current.clear();
+    }
+
+    // RIFT <stage> <wave> <waves> <alive> <total> <seconds left>, to the players near it; the client hides the
+    // tracker when it stops hearing of it
+    void SendTracker()
+    {
+        bool const running = _stage == RiftStage::Waves || _stage == RiftStage::Guardian;
+        uint32 const left = running ? (RiftLimitMs - std::min(RiftLimitMs, _ageMs - _openedMs)) / 1000 : 0;
+        std::string const body = Acore::StringFormat("RIFT\t{}\t{}\t{}\t{}\t{}\t{}", uint32(_stage),
+            std::min(_wave, RiftWaves), RiftWaves, Alive(), _total, left);
+        float const reach = _stage == RiftStage::Waiting ? 40.0f : RiftLeaveReach;
+        for (Player* player : TierPlayersNear(me, reach))
+            if (!IsBot(player))
+                SendAddon(player, body);
+    }
+
+    SummonList _summons;
+    std::vector<ObjectGuid> _current;
+    RiftStage _stage = RiftStage::Waiting;
+    uint32 _tickMs = 0;
+    uint32 _ageMs = 0;
+    uint32 _openedMs = 0;
+    uint32 _abandonMs = 0;
+    uint32 _gapMs = 0;
+    uint32 _endMs = 0;
+    uint32 _wave = 0;
+    uint32 _total = 0;
+    float _dealers = 1.0f;
+};
+
+// A rift's wave creature: melee only
+struct npc_frontier_rift_creature : public ScriptedAI
+{
+    explicit npc_frontier_rift_creature(Creature* creature) : ScriptedAI(creature) { }
+
+    void UpdateAI(uint32 /*diff*/) override
+    {
+        if (!UpdateVictim())
+            return;
+        DoMeleeAttackIfReady();
+    }
+};
+
+// A rift's guardian: its melee, Éclat de cristal under a fighter and Nova arcanique around itself
+struct npc_frontier_rift_guardian : public ScriptedAI
+{
+    explicit npc_frontier_rift_guardian(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        scheduler.CancelAll();
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        scheduler.Schedule(6s, [this](TaskContext context)
+        {
+            CrystalShard();
+            context.Repeat(8s, 11s);
+        });
+        scheduler.Schedule(12s, [this](TaskContext context)
+        {
+            ArcaneNova();
+            context.Repeat(15s, 18s);
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+        scheduler.Update(diff, [this] { DoMeleeAttackIfReady(); });
+    }
+
+private:
+    // A hit on whoever stands in area when it lands
+    void Land(GroundIndicators::Area const& area, uint32 spellId, uint32 stock, float pct)
+    {
+        Tier const* tier = TierAt(me);
+        if (!tier)
+            return;
+        uint32 const amount = uint32(TierPlayerHealth(*tier) * pct / 100.0f);
+        for (Player* player : TierPlayersNear(me, RiftReach + NovaRadius))
+            if (area.Contains(player->GetPosition()))
+            {
+                MythicTuning::DealAbilityDamage(me, player, SpellOrStock(spellId, stock), amount);
+                MythicTuning::ApplyImprudence(player);
+            }
+    }
+
+    void CrystalShard()
+    {
+        std::vector<Player*> players = TierPlayersNear(me, RiftReach);
+        if (players.empty())
+            return;
+        Player* target = Acore::Containers::SelectRandomContainerElement(players);
+        GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, target->GetPosition(), CrystalRadius,
+            CrystalWarningMs, GroundIndicators::Theme::Arcane);
+        scheduler.Schedule(Milliseconds(CrystalWarningMs), [this, area](TaskContext)
+        {
+            Land(area, SPELL_CRYSTAL_SHARD, SPELL_ARCANE_STOCK, CrystalPct);
+        });
+    }
+
+    void ArcaneNova()
+    {
+        me->HandleEmoteCommand(EMOTE_ONESHOT_SPELL_CAST_OMNI);
+        GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, me->GetPosition(), NovaRadius,
+            NovaWarningMs, GroundIndicators::Theme::Arcane);
+        scheduler.Schedule(Milliseconds(NovaWarningMs), [this, area](TaskContext)
+        {
+            Land(area, SPELL_ARCANE_NOVA, SPELL_ARCANE_STOCK, NovaPct);
+        });
+    }
+};
+
 class FrontierPlayerScript : public PlayerScript
 {
 public:
@@ -529,6 +933,8 @@ public:
             { "info", HandleInfo, SEC_GAMEMASTER, Console::No },
             { "elite", HandleElite, SEC_GAMEMASTER, Console::No },
             { "kill", HandleKill, SEC_GAMEMASTER, Console::No },
+            { "rift", HandleRift, SEC_GAMEMASTER, Console::No },
+            { "advance", HandleAdvance, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commands = {
             { "frontier", frontier },
@@ -581,6 +987,47 @@ public:
         return true;
     }
 
+    // .frontier rift: a rift here, the zone's own (it opens when a tier player comes near)
+    static bool HandleRift(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Zone const* zone = FindZone(player->GetZoneId());
+        if (!zone || player->GetMapId() != MAP_NORTHREND)
+        {
+            handler->SendSysMessage("Front du Nord: not a tier zone.");
+            return false;
+        }
+        Position spot = player->GetPosition();
+        player->MovePosition(spot, 25.0f, 0.0f);
+        ZoneState& state = States[std::size_t(zone - Zones.data())];
+        if (Creature* old = player->GetMap()->GetCreature(state.rift))
+            old->DespawnOrUnsummon();
+        if (TempSummon* rift = player->GetMap()->SummonCreature(NPC_RIFT, spot))
+        {
+            rift->SetPhaseMask(FrontierPhaseMask, true);
+            state.rift = rift->GetGUID();
+        }
+        return true;
+    }
+
+    // .frontier advance: every rift creature near the game master slain by them (a wave, or the guardian)
+    static bool HandleAdvance(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        std::list<Creature*> creatures;
+        for (uint32 entry : { RiftCreatures[0], RiftCreatures[1], NPC_RIFT_GUARDIAN })
+            player->GetCreatureListWithEntryInGrid(creatures, entry, 80.0f);
+        uint32 slain = 0;
+        for (Creature* creature : creatures)
+            if (creature->IsAlive())
+            {
+                Unit::Kill(player, creature);
+                ++slain;
+            }
+        handler->PSendSysMessage("Front du Nord: {} rift creature(s) slain.", slain);
+        return true;
+    }
+
     // .frontier elite: one of the zone's roaming elites, here
     static bool HandleElite(ChatHandler* handler)
     {
@@ -612,4 +1059,7 @@ void AddFrontierScripts()
     new FrontierPlayerScript();
     new FrontierCommandScript();
     RegisterCreatureAI(npc_frontier_elite);
+    RegisterCreatureAI(npc_frontier_rift);
+    RegisterCreatureAI(npc_frontier_rift_creature);
+    RegisterCreatureAI(npc_frontier_rift_guardian);
 }
