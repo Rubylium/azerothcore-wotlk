@@ -55,6 +55,37 @@ public static class Probe
         }
     }
 
+    /// <summary>
+    /// The items whose looks use a texture file, as a body texture or a model's: to find the retail items of the
+    /// pieces a set's textures belong to (a tier set's belt, boots and bracers are other items sharing its look).
+    /// </summary>
+    public static void Texture(Retail retail, uint textureFileDataId)
+    {
+        var materials = retail.Table("TextureFileData").Values
+            .Where(row => (uint)(int)row["FileDataID"] == textureFileDataId)
+            .Select(row => (int)row["MaterialResourcesID"]).ToHashSet();
+        Console.WriteLine($"{textureFileDataId} {retail.NameOf(textureFileDataId)}: material resources"
+                          + $" {string.Join(",", materials)}");
+        var displays = retail.Table("ItemDisplayInfoMaterialRes").Values
+            .Where(row => materials.Contains((int)row["MaterialResourcesID"]))
+            .Select(row => (int)row["ItemDisplayInfoID"]).ToHashSet();
+        displays.UnionWith(retail.Table("ItemDisplayInfo").Values
+            .Where(row => ((int[])row["ModelMaterialResourcesID"]).Any(materials.Contains)).Select(row => row.ID));
+        var appearances = retail.Table("ItemAppearance").Values
+            .Where(row => displays.Contains((int)row["ItemDisplayInfoID"])).ToDictionary(row => row.ID);
+        var sparse = retail.Table("ItemSparse");
+        foreach (var modified in retail.Table("ItemModifiedAppearance").Values
+                     .Where(row => appearances.ContainsKey((int)row["ItemAppearanceID"])))
+        {
+            var itemId = (int)modified["ItemID"];
+            var name = sparse.TryGetValue(itemId, out var itemRow) ? (string)itemRow["Display_lang"] : "?";
+            var inventoryType = itemRow != null ? (sbyte)itemRow["InventoryType"] : -1;
+            Console.WriteLine($"  item {itemId} \"{name}\" inventory type {inventoryType} modifier"
+                              + $" {modified["ItemAppearanceModifierID"]}"
+                              + $" display {appearances[(int)modified["ItemAppearanceID"]]["ItemDisplayInfoID"]}");
+        }
+    }
+
     public static void Display(Retail retail, int displayId)
     {
         if (!retail.Table("ItemDisplayInfo").TryGetValue(displayId, out var display))
@@ -75,7 +106,30 @@ public static class Probe
                     Console.WriteLine($"      texture[{slot}] res {materials[slot]}: {texture.fdid}"
                                       + $" {retail.NameOf(texture.fdid)} {texture.component}");
         }
+        // The body textures: one material per component section (the character texture's regions)
+        foreach (var (section, materialId) in BodyMaterials(retail, displayId))
+            foreach (var texture in TextureFiles(retail, materialId))
+                Console.WriteLine($"      body {SectionNames[section]} res {materialId}: {texture.fdid}"
+                                  + $" {retail.NameOf(texture.fdid)} {texture.component}");
     }
+
+    /// <summary>
+    /// ItemDisplayInfoMaterialRes.ComponentSection: the character texture's regions, in the order of 3.3.5
+    /// ItemDisplayInfo.dbc's Texture[8] fields (ArmUpper, ArmLower, Hand, TorsoUpper, TorsoLower, LegUpper, LegLower,
+    /// Foot); retail adds Accessory (8) and ScalpUpper / ScalpLower (9, 10), which 3.3.5 has no region for.
+    /// </summary>
+    public static readonly string[] SectionNames =
+    [
+        "ArmUpper", "ArmLower", "Hand", "TorsoUpper", "TorsoLower", "LegUpper", "LegLower", "Foot", "Accessory",
+        "ScalpUpper", "ScalpLower",
+    ];
+
+    public static IEnumerable<(int section, int materialId)> BodyMaterials(Retail retail, int displayId) =>
+        retail.Table("ItemDisplayInfoMaterialRes").Values
+            .Where(row => (int)row["ItemDisplayInfoID"] == displayId)
+            .Select(row => ((int)(sbyte)row["ComponentSection"], (int)row["MaterialResourcesID"]))
+            .Where(entry => entry.Item1 >= 0 && entry.Item1 < SectionNames.Length)
+            .OrderBy(entry => entry.Item1);
 
     public static IEnumerable<(uint fdid, string component)> ModelFiles(Retail retail, uint resourcesId)
     {

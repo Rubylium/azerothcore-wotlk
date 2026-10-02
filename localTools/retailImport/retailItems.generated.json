@@ -13,6 +13,22 @@
         ""
       ],
       "icon": "inv_knife_1h_artifactfangs_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
       "note": "Fangs of the Devourer, the Legion Subtlety rogue artifact daggers (7.0), base appearance",
       "retail": {
         "display": 152523,
@@ -37,6 +53,22 @@
         "shoulder_leather_raidroguemythic_s_01"
       ],
       "icon": "inv_leather_raidroguemythic_s_01_shoulder",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
       "note": "Shoulderpads of the Dashing Scoundrel, rogue Tier 21 (Antorus, Legion 7.3), Mythic look",
       "retail": {
         "display": 163375,
@@ -49,6 +81,385 @@
           "1627336 item/objectcomponents/shoulder/shoulder_leather_raidroguemythic_s_01.blp"
         ],
         "icon": "1627527 interface/icons/inv_leather_raidroguemythic_s_01_shoulder.blp"
+      }
+    },
+    {
+      "id": 70003,
+      "cloneOf": 64429,
+      "modelName": [
+        "helm_leather_raidroguemythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_leather_raidroguemythic_r_01_mythic",
+        ""
+      ],
+      "icon": "inv_helm_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": [
+        247,
+        369
+      ],
+      "note": "Cruel Gladiator\u0027s Leather Helm (Fanged Slayer\u0027s Mythic look)",
+      "retail": {
+        "display": 159875,
+        "models": [
+          "1548036 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_bef.m2",
+          "1548037 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_bem.m2",
+          "1548038 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_drf.m2",
+          "1548039 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_drm.m2",
+          "1548040 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_dwf.m2",
+          "1548041 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_dwm.m2",
+          "1548042 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_gnf.m2",
+          "1548043 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_gnm.m2",
+          "1548046 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_huf.m2",
+          "1548047 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_hum.m2",
+          "1548048 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_nif.m2",
+          "1548049 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_nim.m2",
+          "1548050 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_orf.m2",
+          "1548051 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_orm.m2",
+          "1548054 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_scf.m2",
+          "1548055 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_scm.m2",
+          "1548056 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_taf.m2",
+          "1548057 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_tam.m2",
+          "1548058 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_trf.m2",
+          "1548059 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1549038 item/objectcomponents/head/helm_leather_raidroguemythic_r_01_mythic.blp"
+        ],
+        "icon": "1611386 interface/icons/inv_helm_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70004,
+      "cloneOf": 64431,
+      "modelName": [
+        "shoulder_leather_raidroguemythic_r_01_l.mdx",
+        "shoulder_leather_raidroguemythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "shoulder_leather_raidroguemythic_r_01_mythic1",
+        "shoulder_leather_raidroguemythic_r_01_mythic1"
+      ],
+      "icon": "inv_shoulder_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Spaulders",
+      "retail": {
+        "display": 159872,
+        "models": [
+          "1549163 item/objectcomponents/shoulder/shoulder_leather_raidroguemythic_r_01_l.m2",
+          "1549162 item/objectcomponents/shoulder/shoulder_leather_raidroguemythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1549164 item/objectcomponents/shoulder/shoulder_leather_raidroguemythic_r_01_mythic1.blp",
+          "1549164 item/objectcomponents/shoulder/shoulder_leather_raidroguemythic_r_01_mythic1.blp"
+        ],
+        "icon": "1611388 interface/icons/inv_shoulder_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70005,
+      "cloneOf": 64435,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "leather_raidroguemythic_r_01_mythic1_sleeve_au",
+        "leather_raidroguemythic_r_01_mythic1_sleeve_al",
+        "",
+        "leather_raidroguemythic_r_01_mythic1_chest_tu",
+        "leather_raidroguemythic_r_01_mythic1_chest_tl",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Tunic",
+      "retail": {
+        "display": 159868,
+        "models": [],
+        "textures": [
+          "1549342 item/texturecomponents/armuppertexture/leather_raidroguemythic_r_01_mythic1_sleeve_au_u.blp",
+          "1549338 item/texturecomponents/armlowertexture/leather_raidroguemythic_r_01_mythic1_sleeve_al_u.blp",
+          "1549365 item/texturecomponents/torsouppertexture/leather_raidroguemythic_r_01_mythic1_chest_tu_f.blp",
+          "1549366 item/texturecomponents/torsouppertexture/leather_raidroguemythic_r_01_mythic1_chest_tu_m.blp",
+          "1549360 item/texturecomponents/torsolowertexture/leather_raidroguemythic_r_01_mythic1_chest_tl_f.blp",
+          "1549361 item/texturecomponents/torsolowertexture/leather_raidroguemythic_r_01_mythic1_chest_tl_m.blp"
+        ],
+        "icon": "1611384 interface/icons/inv_chest_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70006,
+      "cloneOf": 64944,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "leather_raidroguemythic_r_01_mythic1_glove_al",
+        "leather_raidroguemythic_r_01_mythic1_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Gloves",
+      "retail": {
+        "display": 159869,
+        "models": [],
+        "textures": [
+          "1549337 item/texturecomponents/armlowertexture/leather_raidroguemythic_r_01_mythic1_glove_al_u.blp",
+          "1549345 item/texturecomponents/handtexture/leather_raidroguemythic_r_01_mythic1_glove_ha_u.blp"
+        ],
+        "icon": "1611385 interface/icons/inv_glove_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70007,
+      "cloneOf": 64432,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "leather_raidroguemythic_r_01_mythic1_pant_lu",
+        "leather_raidroguemythic_r_01_mythic1_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Legguards",
+      "retail": {
+        "display": 159871,
+        "models": [],
+        "textures": [
+          "1549354 item/texturecomponents/leguppertexture/leather_raidroguemythic_r_01_mythic1_pant_lu_u.blp",
+          "1549348 item/texturecomponents/leglowertexture/leather_raidroguemythic_r_01_mythic1_pant_ll_u.blp"
+        ],
+        "icon": "1611387 interface/icons/inv_pant_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70008,
+      "cloneOf": 64437,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "leather_raidroguemythic_r_01_mythic1_boot_ll",
+        "leather_raidroguemythic_r_01_mythic1_boot_fo"
+      ],
+      "geosets": [
+        2,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Slippers",
+      "retail": {
+        "display": 159867,
+        "models": [],
+        "textures": [
+          "1549347 item/texturecomponents/leglowertexture/leather_raidroguemythic_r_01_mythic1_boot_ll_u.blp",
+          "1549343 item/texturecomponents/foottexture/leather_raidroguemythic_r_01_mythic1_boot_fo_u.blp"
+        ],
+        "icon": "1611382 interface/icons/inv_boot_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70009,
+      "cloneOf": 64430,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "leather_raidroguemythic_r_01_mythic1_belt_tl",
+        "leather_raidroguemythic_r_01_mythic1_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Belt (its buckle model is not imported)",
+      "retail": {
+        "display": 686181,
+        "models": [],
+        "textures": [
+          "1549359 item/texturecomponents/torsolowertexture/leather_raidroguemythic_r_01_mythic1_belt_tl_u.blp",
+          "1549353 item/texturecomponents/leguppertexture/leather_raidroguemythic_r_01_mythic1_belt_lu_u.blp"
+        ],
+        "icon": "1611381 interface/icons/inv_belt_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70010,
+      "cloneOf": 64439,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "leather_raidroguemythic_r_01_mythic1_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Cruel Gladiator\u0027s Leather Wristguards",
+      "retail": {
+        "display": 159873,
+        "models": [],
+        "textures": [
+          "1549336 item/texturecomponents/armlowertexture/leather_raidroguemythic_r_01_mythic1_bracer_al_u.blp"
+        ],
+        "icon": "1611383 interface/icons/inv_bracer_leather_raidroguemythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70011,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_leather_raidrogue_r_01_mythic2long",
+        ""
+      ],
+      "icon": "inv_cape_leather_raidroguemythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Fanged Slayer\u0027s Shroud, Mythic",
+      "retail": {
+        "display": 160939,
+        "models": [],
+        "textures": [
+          "1549030 item/objectcomponents/cape/cape_leather_raidrogue_r_01_mythic2long.blp"
+        ],
+        "icon": "1623443 interface/icons/inv_cape_leather_raidroguemythic_r_01.blp"
       }
     }
   ],
@@ -78,6 +489,87 @@
       "material": 8,
       "display": 70002,
       "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 1020,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70003,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 1021,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70004,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 1022,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70005,
+      "inventoryType": 5,
+      "sheath": 0
+    },
+    {
+      "entry": 1023,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70006,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 1024,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70007,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 1025,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70008,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 1026,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70009,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 1027,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70010,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 1162,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70011,
+      "inventoryType": 16,
       "sheath": 0
     }
   ]

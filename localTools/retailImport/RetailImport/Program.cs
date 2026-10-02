@@ -39,6 +39,10 @@ switch (positional[0])
         foreach (var model in positional.Skip(1))
             Probe.Model(retail, uint.Parse(model));
         return 0;
+    case "probe-texture":
+        foreach (var texture in positional.Skip(1))
+            Probe.Texture(retail, uint.Parse(texture));
+        return 0;
     case "extract":
         File.WriteAllBytes(positional[2], retail.Open(uint.Parse(positional[1])));
         return 0;

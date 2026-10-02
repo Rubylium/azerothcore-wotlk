@@ -2406,9 +2406,23 @@ foreach ($display in $retailItems.displays) {
     }
     $record = [byte[]]::new($displayDbc.RecordSize)
     [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[[int]$display.cloneOf], $record, 0, $displayDbc.RecordSize)
-    # Kept from the clone: 10 Flags, 11 SpellVisualID, 12 GroupSoundIndex. Cleared: 6 second icon, 7-9 geoset
-    # groups, 13-14 helmet geoset visibility, 15-22 body textures, 23 ItemVisual, 24 ParticleColorID.
-    foreach ($field in @(6, 7, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24)) { Set-Field $record $field 0 }
+    # Kept from the clone: 10 Flags, 11 SpellVisualID, 12 GroupSoundIndex, 13-14 helmet geoset visibility (what a
+    # helmet hides of the hair and ears: a helmet clones a stock helmet of the same cover). Cleared, then set from the
+    # import: 6 second icon, 7-9 geoset groups, 15-22 body textures, 23 ItemVisual, 24 ParticleColorID.
+    foreach ($field in @(6, 7, 8, 9, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24)) { Set-Field $record $field 0 }
+    if ($display.geosets) {
+        for ($group = 0; $group -lt 3; ++$group) { Set-Field $record (7 + $group) ([uint32]$display.geosets[$group]) }
+    }
+    if ($display.helmetVis) {
+        Set-Field $record 13 ([uint32]$display.helmetVis[0])
+        Set-Field $record 14 ([uint32]$display.helmetVis[1])
+    }
+    if ($display.bodyTextures) {
+        for ($region = 0; $region -lt 8; ++$region) {
+            $texture = [string]$display.bodyTextures[$region]
+            if ($texture) { Set-Field $record (15 + $region) (Add-DbcString $displayDbc.Strings $texture) }
+        }
+    }
     Set-Field $record 0 ([uint32]$display.id)
     for ($slot = 0; $slot -lt 2; ++$slot) {
         $model = [string]$display.modelName[$slot]

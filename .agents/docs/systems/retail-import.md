@@ -8,14 +8,47 @@ Retail WoW item looks (weapons, shoulders) are converted into 3.3.5a client file
 
 | Kind | Status |
 |---|---|
-| One-hand / two-hand weapons, shields, off-hands, ranged | ✅ one line in `items.json` |
-| Shoulders (left + right models) | ✅ one line |
-| Helmets | ❌ per race/gender models not handled yet |
-| Chest, legs, hands, feet, wrist, waist, back | ❌ retail body textures use the HD character layout (ItemDisplayInfoMaterialRes); they would need repacking into 3.3.5's texture regions |
+| One-hand / two-hand weapons, shields, off-hands, ranged | ✅ `slot: weapon` |
+| Shoulders (left + right models) | ✅ `slot: shoulder` |
+| Helmets | ✅ `slot: head`: one model per 3.3.5 race and gender (20), the hair/ears it hides from a stock helmet (`helmetVis`, or the clone's) |
+| Chest, legs, hands, feet, wrist, waist | ✅ `slot: body`: the body textures only (see below) |
+| Cloaks | ✅ `slot: cape`: the cape texture |
+| Collections models (retail Legion+: chest, legs, gloves, boots, belt buckle; Midnight: helmets too) | ❌ 3.3.5 has no slot that draws a model rigged to the character skeleton |
 | Models newer than Shadowlands | ⚠️ outside MultiConverter's range; the structural check fails the import rather than shipping a crashing model |
 
 Conversion losses: particle emitters are dropped (a flame, a mist), retail shader effects become two 3.3.5 passes
 (glows and reflections close, not identical), only the Stand sequence is kept (stock item models have one).
+
+### Body armour
+
+Retail still paints armour on the character texture region by region, with the same region names 3.3.5 uses
+(`…_Chest_TU`, `…_Sleeve_AU`, `…_Boot_FO`): `ItemDisplayInfoMaterialRes` gives each display one material per
+`ComponentSection` (0-7 are 3.3.5's ArmUpper … Foot, in the order of ItemDisplayInfo.dbc's Texture[8]; 8-10, Accessory
+and Scalp, have no 3.3.5 region and are dropped). The importer:
+- writes each region's files as `Item\TextureComponents\<Region>Texture\<name>_<U|M|F>.blp`, the field holding
+  `<name>` (the client adds the suffix: `ComponentTextureFileData.GenderIndex` 0 → M, 1 → F, else U);
+- re-encodes them **palettized** (256 colours, 8-bit alpha when there is any, full mip chain), the format of every stock
+  body texture (`BodyTexture.cs`). Retail ships them DXT-compressed;
+- keeps retail's size, twice the stock one (a torso upper 256x128 against 128x64), as Ascension's conversions do
+  (`halveBodyTextures` in items.json brings them to the stock size);
+- takes the display's first three geoset groups from retail (boots 2, cape 1, ...).
+
+### Modern sets: collections
+
+From Legion on, retail adds "collections" models to body pieces: geometry rigged to the character skeleton (a Legion
+chest's straps; the Midnight rogue set's chest, legs, gloves, boots, belt and its whole mask: 36 bones, 15 000
+vertices), one per race and gender. 3.3.5 draws no model on those slots, and the geometry is shaped for retail's newer
+bodies, so the importer leaves them out and says so. A Legion set loses little (its look is in the textures, as
+Ascension's conversions show); a Dragonflight/Midnight one loses its 3D parts, and a collections-only helmet entirely.
+
+### Ascension as the reference
+
+Ascension's client (`D:\ascension-live`, read by `localTools/ascensionImport/ascensionArchives.js`) holds about 61 000
+converted retail item displays, 447 of them full sets. For a set it converted, it is the answer to compare against:
+- `ascensionArchives.js dbc <out> ItemDisplayInfo` and `files <list.json> <out>` read its rows and files;
+- the Fanged Slayer's Mythic set (Tomb of Sargeras rogue) is its displays 67441-67448: our import of it
+  (70003-70011) matches them model for model (vertices, bones, textures, materials, global loops) and texture for
+  texture (palettized, 256x128, same alpha).
 
 ## Adding a look (checklist)
 
@@ -23,15 +56,20 @@ Conversion losses: particle emitters are dropped (a flame, a mist), retail shade
    listfile, build into the gitignored `.deps`). Retail must be installed at `C:\Program Files (x86)\World of
    Warcraft` (read only, never written).
 2. **Find the retail display**:
-   - `RetailImport.exe probe <retail item id>` lists an item's appearances: display id, model and texture
-     FileDataIDs, icon;
-   - `probe-model <fdid>` goes from a model file (found in the listfile) to its items.
+   - `RetailImport.exe probe <retail item id>` lists an item's appearances (modifier 0 normal, 1 heroic, 3 mythic,
+     4 LFR): display id, models, their textures, the body textures by region, icon;
+   - `probe-model <fdid>` goes from a model file (found in the listfile) to its items, `probe-texture <fdid>` from a
+     texture: a tier set's belt, boots and bracers are often other items sharing its textures (a PvP set);
+   - a set's files share a name in the listfile (`leather_raidroguemythic_r_01`, `leather_raidroguemidnight_d_01`).
    - Prefer Legion to Shadowlands pieces.
 3. **Add a `displays` entry** to `localTools/retailImport/items.json`:
    - `id`: next free in the reserved **70001-79999** range (the client's highest stock ItemDisplayInfo id is 68742);
    - `retailDisplay`;
-   - `slot` (`weapon` / `shoulder`);
-   - `clone`: a stock 3.3.5 display of the same kind, for sounds and flags;
+   - `slot` (`weapon` / `shoulder` / `head` / `body` / `cape`);
+   - for a helmet, `helmetVis` [male, female]: HelmetGeosetVisData ids of a stock helmet of the same cover (247 / 369
+     hide the hair as a hood does), or none to keep the clone's;
+   - `clone`: a stock 3.3.5 display of the same slot, for sounds and flags (the ICC rogue tier's for leather:
+     helmet 64429, chest 64435, legs 64432, gloves 64944, boots 64437, belt 64430, bracers 64439, cloak 64304);
    - a `note`.
 4. **Give it a carrier item** if it needs one (a test item, or an item the gear-looks system can point at):
    - `python localTools/retailImport/freeItemIds.py --class 2` lists entries below 65536 that the client Item.dbc
@@ -57,9 +95,11 @@ Conversion losses: particle emitters are dropped (a flame, a mist), retail shade
   corrupted committed models. Check `git diff --stat` shows `Bin` for them before committing.
 - The client reads ItemDisplayInfo.dbc from `Patch-D.MPQ` (124 HD weapon remakes), not the stock one. The pipeline
   builds on that effective copy (`mpq-builder/extractEffectiveClientFile.js`). Never patch the stock table.
-- Retail BLPs are copied as is (BLP2 DXT1/DXT5), except their "has mipmaps" byte. Don't re-encode them.
+- Model textures (weapons, shoulders, helmets, capes) are copied as is (BLP2 DXT1/DXT5), except their "has mipmaps"
+  byte: don't re-encode them. Body textures are the exception: palettized like stock ones (above).
 - MultiConverter has no license: its source stays in the gitignored checkout, with attribution in the README. It
-  had three bugs the tool works around (texture name order, overwritten model name, unknown global flags); keep
+  had bugs the tool works around (texture name order, unknown global flags, and the blend override array it writes
+  at 0x130 over whatever data starts there: the model name, or a helmet's global loops); keep
   that pass (`M2.cs`) when updating the pin.
 - A new look is invisible to the gear-looks system (`localTools/mythicAppearance/buildMythicAppearance.py`,
   `mythic_appearance_tier`) until a carrier item exists. Weapons go in `WEAPONS`; armour needs a per-slot override
@@ -80,11 +120,10 @@ Asked by the user on 2026-09-29 ("keep the limits in touch, we need to look into
 2. **Particles**:
    - Legion+ emitters are dropped (the T21 shoulders lose their flame).
    - Port the particle layout to 3.3.5's M2Particle, or rebuild each emitter from a stock one.
-3. **Helmets**: generate the per-race/gender models (`<name>_<Race><Gender>.m2`) and the ItemDisplayInfo rows.
-4. **Body armour**:
-   - Repack retail ItemDisplayInfoMaterialRes textures (HD layout) into 3.3.5's texture regions (ArmUpper,
-     TorsoUpper, LegUpper, …).
-   - Needs a per-region resample and probably manual review per set.
+3. ~~Helmets~~ and 4. ~~Body armour~~: done on 2026-10-02 (above). Open: whether the stock client composites
+   retail-size (2x) body textures as well as Ascension's does, to check in game; `halveBodyTextures` is the fallback.
+   Collections models (rigged to the character skeleton) would need the client DLL to draw them, on the classic
+   bodies: a research project, not a converter feature.
 5. **Newer models**: Dragonflight/The War Within M2s are outside MultiConverter's range. Our own converter would also
    remove the dependency on an unlicensed, unmaintained library.
 6. **Gear-looks wiring**: feed imported weapons and shoulders into `mythic_appearance_tier` for the high tiers.

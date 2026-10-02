@@ -3,7 +3,9 @@
 Step-by-step procedure: `.agents/docs/systems/retail-import.md`.
 
 Converts item looks from the local retail install (`C:\Program Files (x86)\World of Warcraft`, read only) into
-3.3.5a client files, plus the DBC rows and test items that use them. Proof of concept: weapons and shoulders.
+3.3.5a client files, plus the DBC rows and test items that use them: weapons, shoulders, helmets (a model per race
+and gender), body armour (its region textures, palettized as stock ones) and cloaks. Retail's collections models
+(rigged to the character skeleton) are left out: 3.3.5 cannot draw them (`.agents/docs/systems/retail-import.md`).
 
 ## Pieces
 
@@ -35,6 +37,7 @@ powershell -File localTools/retailImport/setup.ps1        # once: MultiConverter
 $tool = 'localTools/retailImport/RetailImport/bin/Release/net10.0/RetailImport.exe'
 & $tool probe 128476          # an item's appearances: retail display ids, model/texture FileDataIDs, icons
 & $tool probe-model 1627181   # the items (and displays) using a model file, e.g. one found in the listfile
+& $tool probe-texture 1549343 # the items using a texture file (a set's belt, boots, bracers on other items)
 & $tool import                # convert everything in items.json
 python localTools/retailImport/freeItemIds.py --class 2   # free item entries to carry a new look
 python localTools/retailImport/preview.py

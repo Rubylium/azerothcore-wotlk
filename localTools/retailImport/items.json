@@ -11,7 +11,30 @@
     { "id": 70001, "retailDisplay": 152523, "slot": "weapon", "clone": 31808,
       "note": "Fangs of the Devourer, the Legion Subtlety rogue artifact daggers (7.0), base appearance" },
     { "id": 70002, "retailDisplay": 163375, "slot": "shoulder", "clone": 45430,
-      "note": "Shoulderpads of the Dashing Scoundrel, rogue Tier 21 (Antorus, Legion 7.3), Mythic look" }
+      "note": "Shoulderpads of the Dashing Scoundrel, rogue Tier 21 (Antorus, Legion 7.3), Mythic look" },
+
+    // Fanged Slayer's (rogue Tier 20, Tomb of Sargeras, Legion 7.2) in its Mythic look, as the Cruel Gladiator's
+    // leather set wears it (the same models and "mythic1" textures for every slot, belt, boots and bracers included).
+    // The pieces' retail collections models are not imported (3.3.5 draws no model there): Ascension's own
+    // conversion of the set (its ItemDisplayInfo 67441-67448) is the same.
+    { "id": 70003, "retailDisplay": 159875, "slot": "head", "clone": 64429, "helmetVis": [ 247, 369 ],
+      "note": "Cruel Gladiator's Leather Helm (Fanged Slayer's Mythic look)" },
+    { "id": 70004, "retailDisplay": 159872, "slot": "shoulder", "clone": 64431,
+      "note": "Cruel Gladiator's Leather Spaulders" },
+    { "id": 70005, "retailDisplay": 159868, "slot": "body", "clone": 64435,
+      "note": "Cruel Gladiator's Leather Tunic" },
+    { "id": 70006, "retailDisplay": 159869, "slot": "body", "clone": 64944,
+      "note": "Cruel Gladiator's Leather Gloves" },
+    { "id": 70007, "retailDisplay": 159871, "slot": "body", "clone": 64432,
+      "note": "Cruel Gladiator's Leather Legguards" },
+    { "id": 70008, "retailDisplay": 159867, "slot": "body", "clone": 64437,
+      "note": "Cruel Gladiator's Leather Slippers" },
+    { "id": 70009, "retailDisplay": 686181, "slot": "body", "clone": 64430,
+      "note": "Cruel Gladiator's Leather Belt (its buckle model is not imported)" },
+    { "id": 70010, "retailDisplay": 159873, "slot": "body", "clone": 64439,
+      "note": "Cruel Gladiator's Leather Wristguards" },
+    { "id": 70011, "retailDisplay": 160939, "slot": "cape", "clone": 64304,
+      "note": "Fanged Slayer's Shroud, Mythic" }
   ],
 
   // Test items: entries below 65536 that the client's Item.dbc already has and the world database has no
@@ -26,6 +49,33 @@
     { "entry": 16144, "display": 70002, "class": 4, "subclass": 2, "material": 8, "inventoryType": 3, "sheath": 0,
       "statsFrom": 50646, "name": "Shoulderpads of the Dashing Scoundrel",
       "nameFr": "Protège-épaules du scélérat fringant",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1020, "display": 70003, "class": 4, "subclass": 2, "material": 8, "inventoryType": 1, "sheath": 0,
+      "statsFrom": 51252, "name": "Cruel Gladiator's Leather Helm", "nameFr": "Heaume en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1021, "display": 70004, "class": 4, "subclass": 2, "material": 8, "inventoryType": 3, "sheath": 0,
+      "statsFrom": 51254, "name": "Cruel Gladiator's Leather Spaulders", "nameFr": "Spallières en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1022, "display": 70005, "class": 4, "subclass": 2, "material": 8, "inventoryType": 5, "sheath": 0,
+      "statsFrom": 51250, "name": "Cruel Gladiator's Leather Tunic", "nameFr": "Tunique en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1023, "display": 70006, "class": 4, "subclass": 2, "material": 8, "inventoryType": 10, "sheath": 0,
+      "statsFrom": 51251, "name": "Cruel Gladiator's Leather Gloves", "nameFr": "Gants en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1024, "display": 70007, "class": 4, "subclass": 2, "material": 8, "inventoryType": 7, "sheath": 0,
+      "statsFrom": 51253, "name": "Cruel Gladiator's Leather Legguards", "nameFr": "Jambières en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1025, "display": 70008, "class": 4, "subclass": 2, "material": 8, "inventoryType": 8, "sheath": 0,
+      "statsFrom": 50607, "name": "Cruel Gladiator's Leather Slippers", "nameFr": "Mules en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1026, "display": 70009, "class": 4, "subclass": 2, "material": 8, "inventoryType": 6, "sheath": 0,
+      "statsFrom": 50707, "name": "Cruel Gladiator's Leather Belt", "nameFr": "Ceinture en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1027, "display": 70010, "class": 4, "subclass": 2, "material": 8, "inventoryType": 9, "sheath": 0,
+      "statsFrom": 50670, "name": "Cruel Gladiator's Leather Wristguards", "nameFr": "Garde-poignets en cuir de gladiateur cruel",
+      "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." },
+    { "entry": 1162, "display": 70011, "class": 4, "subclass": 1, "material": 7, "inventoryType": 16, "sheath": 0,
+      "statsFrom": 50653, "name": "Fanged Slayer's Shroud", "nameFr": "Linceul de tueur-crochu",
       "description": "Retail import test piece.", "descriptionFr": "Pièce de test importée du jeu actuel." }
   ]
 }

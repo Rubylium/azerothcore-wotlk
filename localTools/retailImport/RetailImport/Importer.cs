@@ -10,6 +10,8 @@ public sealed class Manifest
     public string OutputRoot { get; set; }
     public string Generated { get; set; }
     public string Sql { get; set; }
+    // Body textures at the stock size (half retail's) rather than retail's own
+    public bool HalveBodyTextures { get; set; }
     public List<DisplaySpec> Displays { get; set; } = [];
     public List<ItemSpec> Items { get; set; } = [];
 }
@@ -20,6 +22,8 @@ public sealed class DisplaySpec
     public int RetailDisplay { get; set; }
     public string Slot { get; set; }
     public int Clone { get; set; }
+    // A helmet's HelmetGeosetVisData ids (male, female: the hair and ears it hides); the clone's when absent
+    public int[] HelmetVis { get; set; }
     public string Note { get; set; }
 }
 
@@ -52,16 +56,19 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
 {
     private readonly Dictionary<uint, string> convertedModels = new();
     private readonly Dictionary<uint, string> copiedTextures = new();
+    private readonly HashSet<string> copiedBodyTextures = new(StringComparer.OrdinalIgnoreCase);
+    private bool halveBodyTextures;
     private readonly List<string> report = [];
     private bool failed;
     private string outputRoot;
 
-    private sealed record Row(int Id, int CloneOf, string[] ModelName, string[] ModelTexture, string Icon, string Note,
-        object Retail);
+    private sealed record Row(int Id, int CloneOf, string[] ModelName, string[] ModelTexture, string Icon,
+        string[] BodyTextures, int[] Geosets, int[] HelmetVis, string Note, object Retail);
 
     public bool Run(Manifest manifest)
     {
         outputRoot = Path.Combine(repoRoot, manifest.OutputRoot);
+        halveBodyTextures = manifest.HalveBodyTextures;
         if (Directory.Exists(outputRoot))
             Directory.Delete(outputRoot, true);
         Directory.CreateDirectory(outputRoot);
@@ -103,23 +110,105 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
         report.Add("ERROR " + message);
     }
 
+    // ChrRaces ids the 3.3.5 client has, and the suffix its head models carry (Item\ObjectComponents\Head\
+    // <name>_<Race><M|F>.m2): retail names them the same way, in lower case
+    private static readonly Dictionary<int, string> ClassicRaces = new()
+    {
+        [1] = "Hu", [2] = "Or", [3] = "Dw", [4] = "Ni", [5] = "Sc", [6] = "Ta", [7] = "Gn", [8] = "Tr", [10] = "Be",
+        [11] = "Dr",
+    };
+
+    // ItemDisplayInfoMaterialRes.ComponentSection -> the 3.3.5 folder of that region's textures
+    private static readonly string[] SectionFolders =
+    [
+        "ArmUpperTexture", "ArmLowerTexture", "HandTexture", "TorsoUpperTexture", "TorsoLowerTexture",
+        "LegUpperTexture", "LegLowerTexture", "FootTexture",
+    ];
+
     private Row ImportDisplay(DisplaySpec spec)
     {
-        var folder = spec.Slot switch
-        {
-            "weapon" => "Weapon",
-            "shoulder" => "Shoulder",
-            _ => throw new Exception($"display {spec.Id}: slot {spec.Slot} is not supported (weapon, shoulder)"),
-        };
         var display = retail.Table("ItemDisplayInfo")[spec.RetailDisplay];
         var modelResources = (uint[])display["ModelResourcesID"];
         var materialResources = (int[])display["ModelMaterialResourcesID"];
         report.Add($"display {spec.Id} <- retail display {spec.RetailDisplay} ({spec.Note})");
 
+        var modelNames = new[] { "", "" };
+        var modelTextures = new[] { "", "" };
+        var retailModels = new List<uint>();
+        var retailTextures = new List<uint>();
+        switch (spec.Slot)
+        {
+            case "weapon":
+            case "shoulder":
+                ImportRigidModels(spec, modelResources, materialResources, modelNames, modelTextures, retailModels,
+                    retailTextures);
+                break;
+            case "head":
+                ImportHead(spec, modelResources[0], materialResources[0], modelNames, modelTextures, retailModels,
+                    retailTextures);
+                break;
+            case "cape":
+            {
+                // A cape is the character's cape geoset painted with this texture
+                var texture = Probe.TextureFiles(retail, materialResources[0]).Select(t => t.fdid).FirstOrDefault();
+                if (texture == 0)
+                    throw new Exception($"display {spec.Id}: retail display {spec.RetailDisplay} has no cape texture");
+                modelTextures[0] = CopyTexture(texture, @"Item\ObjectComponents\Cape\");
+                retailTextures.Add(texture);
+                break;
+            }
+            case "body":
+                break;
+            default:
+                throw new Exception(
+                    $"display {spec.Id}: slot {spec.Slot} is not supported (weapon, shoulder, head, cape, body)");
+        }
+
+        // Every piece but a weapon paints the regions retail gives it; 3.3.5 has no Accessory or Scalp region
+        var bodyTextures = Enumerable.Repeat("", 8).ToArray();
+        if (spec.Slot != "weapon")
+            foreach (var (section, materialId) in Probe.BodyMaterials(retail, spec.RetailDisplay))
+            {
+                if (section >= SectionFolders.Length)
+                {
+                    report.Add($"  WARNING retail region {Probe.SectionNames[section]} dropped (no 3.3.5 region)");
+                    continue;
+                }
+                bodyTextures[section] = CopyBodyTexture(materialId, SectionFolders[section], retailTextures);
+            }
+        if (spec.Slot is "body" or "head" && modelResources.Any(resource => resource != 0) && spec.Slot != "head")
+            report.Add($"  WARNING display {spec.Id}: its retail models (collections, a buckle) are not imported:"
+                       + " 3.3.5 draws no model on that slot");
+
+        // The geoset groups 3.3.5 knows are retail's first three (gloves, boots, cape, robe...)
+        var geosets = ((int[])display["GeosetGroup"]).Take(3).ToArray();
+
+        var appearance = retail.Table("ItemAppearance").Values
+            .FirstOrDefault(row => (int)row["ItemDisplayInfoID"] == spec.RetailDisplay);
+        var icon = "";
+        uint iconFile = 0;
+        if (appearance != null && (iconFile = (uint)(int)appearance["DefaultIconFileDataID"]) != 0)
+            icon = CopyTexture(iconFile, @"Interface\Icons\");
+        else
+            report.Add($"  no retail icon for display {spec.RetailDisplay}; the clone's icon stays");
+
+        return new Row(spec.Id, spec.Clone, modelNames, modelTextures, icon, bodyTextures, geosets, spec.HelmetVis,
+            spec.Note, new
+        {
+            display = spec.RetailDisplay,
+            models = retailModels.Select(fdid => $"{fdid} {retail.NameOf(fdid)}"),
+            textures = retailTextures.Select(fdid => $"{fdid} {retail.NameOf(fdid)}"),
+            icon = iconFile != 0 ? $"{iconFile} {retail.NameOf(iconFile)}" : null,
+        });
+    }
+
+    // Weapons and shoulders: one rigid model a hand or a shoulder, with its texture
+    private void ImportRigidModels(DisplaySpec spec, uint[] modelResources, int[] materialResources,
+        string[] modelNames, string[] modelTextures, List<uint> retailModels, List<uint> retailTextures)
+    {
+        var folder = spec.Slot == "weapon" ? "Weapon" : "Shoulder";
         // 3.3.5 shoulders are two models, [0] left and [1] right; retail keeps both in one model resource and
         // tells them apart by ComponentModelFileData.PositionIndex (0 left, 1 right).
-        var modelFiles = new uint[2];
-        var textureFiles = new uint[2];
         var slots = spec.Slot == "shoulder" ? 2 : 1;
         for (var slot = 0; slot < slots; ++slot)
         {
@@ -133,40 +222,92 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
             if (candidates.Count == 0)
                 throw new Exception(
                     $"display {spec.Id}: retail display {spec.RetailDisplay} has no model for slot {slot}");
-            modelFiles[slot] = candidates[0];
             var textures = Probe.TextureFiles(retail, materialResources[slot]).Select(texture => texture.fdid).ToList();
             if (textures.Count == 0)
                 throw new Exception(
                     $"display {spec.Id}: retail display {spec.RetailDisplay} has no texture for slot {slot}");
-            textureFiles[slot] = textures[0];
+            modelNames[slot] = ConvertModel(candidates[0], folder) + ".mdx";
+            modelTextures[slot] = CopyTexture(textures[0], $@"Item\ObjectComponents\{folder}\");
+            retailModels.Add(candidates[0]);
+            retailTextures.Add(textures[0]);
         }
+    }
 
-        var modelNames = new string[2];
-        var modelTextures = new string[2];
-        for (var slot = 0; slot < slots; ++slot)
+    // A helmet: one model a race and gender (the client adds _HuM, _OrF... to the display's model name), and one
+    // texture. Retail's file names already carry 3.3.5's suffixes (helm_..._hum.m2).
+    private void ImportHead(DisplaySpec spec, uint modelResource, int materialResource, string[] modelNames,
+        string[] modelTextures, List<uint> retailModels, List<uint> retailTextures)
+    {
+        var components = retail.Table("ComponentModelFileData");
+        string baseName = null;
+        var found = new HashSet<string>();
+        foreach (var (fdid, _) in Probe.ModelFiles(retail, modelResource))
         {
-            modelNames[slot] = ConvertModel(modelFiles[slot], folder) + ".mdx";
-            modelTextures[slot] = CopyTexture(textureFiles[slot], $@"Item\ObjectComponents\{folder}\");
+            if (!components.TryGetValue((int)fdid, out var component))
+                continue;
+            var race = (int)(sbyte)component["RaceID"];
+            var gender = (int)(sbyte)component["GenderIndex"];
+            if (!ClassicRaces.TryGetValue(race, out var suffix) || gender is not (0 or 1))
+                continue;
+            var name = ConvertModel(fdid, "Head");
+            var expected = "_" + suffix + (gender == 0 ? "m" : "f");
+            if (!name.EndsWith(expected, StringComparison.OrdinalIgnoreCase))
+            {
+                Fail($"{name}: race {race} gender {gender} should end with {expected}");
+                continue;
+            }
+            var stem = name[..^expected.Length];
+            if (baseName != null && !baseName.Equals(stem, StringComparison.OrdinalIgnoreCase))
+                Fail($"display {spec.Id}: head models of two names, {baseName} and {stem}");
+            baseName ??= stem;
+            found.Add(suffix + (gender == 0 ? "M" : "F"));
+            retailModels.Add(fdid);
         }
-        for (var slot = slots; slot < 2; ++slot)
-            modelNames[slot] = modelTextures[slot] = "";
+        if (baseName == null)
+            throw new Exception($"display {spec.Id}: retail display {spec.RetailDisplay} has no head model");
+        var missing = ClassicRaces.Values.SelectMany(race => new[] { race + "M", race + "F" })
+            .Where(code => !found.Contains(code)).ToList();
+        if (missing.Count > 0)
+            report.Add($"  WARNING display {spec.Id}: no head model for {string.Join(" ", missing)}"
+                       + " (those characters show no helmet)");
+        modelNames[0] = baseName + ".mdx";
 
-        var appearance = retail.Table("ItemAppearance").Values
-            .FirstOrDefault(row => (int)row["ItemDisplayInfoID"] == spec.RetailDisplay);
-        var icon = "";
-        uint iconFile = 0;
-        if (appearance != null && (iconFile = (uint)(int)appearance["DefaultIconFileDataID"]) != 0)
-            icon = CopyTexture(iconFile, @"Interface\Icons\");
-        else
-            report.Add($"  no retail icon for display {spec.RetailDisplay}; the clone's icon stays");
+        var texture = Probe.TextureFiles(retail, materialResource).Select(t => t.fdid).FirstOrDefault();
+        if (texture == 0)
+            throw new Exception($"display {spec.Id}: retail display {spec.RetailDisplay} has no helmet texture");
+        modelTextures[0] = CopyTexture(texture, @"Item\ObjectComponents\Head\");
+        retailTextures.Add(texture);
+    }
 
-        return new Row(spec.Id, spec.Clone, modelNames, modelTextures, icon, spec.Note, new
+    // A region's texture: each file of the material (unisex _U, or _M and _F) palettized under the region's folder,
+    // named as retail names it without its suffix (and the FileDataID some retail names end with). Returns that name,
+    // what the display's region field holds: the client adds _U, _M or _F.
+    private string CopyBodyTexture(int materialId, string folder, List<uint> retailTextures)
+    {
+        var components = retail.Table("ComponentTextureFileData");
+        string baseName = null;
+        foreach (var (fdid, _) in Probe.TextureFiles(retail, materialId))
         {
-            display = spec.RetailDisplay,
-            models = modelFiles.Take(slots).Select(fdid => $"{fdid} {retail.NameOf(fdid)}"),
-            textures = textureFiles.Take(slots).Select(fdid => $"{fdid} {retail.NameOf(fdid)}"),
-            icon = iconFile != 0 ? $"{iconFile} {retail.NameOf(iconFile)}" : null,
-        });
+            var retailName = retail.NameOf(fdid) ?? throw new Exception($"texture {fdid} is not in the listfile");
+            var stem = System.Text.RegularExpressions.Regex.Replace(Path.GetFileNameWithoutExtension(retailName),
+                @"_\d+$", "");
+            var gender = components.TryGetValue((int)fdid, out var component) ? (int)(sbyte)component["GenderIndex"] : 3;
+            var suffix = gender switch { 0 => "M", 1 => "F", _ => "U" };
+            var match = System.Text.RegularExpressions.Regex.Match(stem, @"^(.*)_([umf])$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var name = match.Success ? match.Groups[1].Value : stem;
+            if (baseName != null && !baseName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                Fail($"material {materialId}: files of two names, {baseName} and {name}");
+            baseName ??= name;
+            var archivePath = $@"Item\TextureComponents\{folder}\{name}_{suffix}.blp";
+            if (!copiedBodyTextures.Add(archivePath))
+                continue;
+            var bytes = BodyTexture.ToPalettized(retail.Open(fdid), retailName, halveBodyTextures, out var description);
+            WriteOutput(archivePath, bytes);
+            report.Add($"  body {fdid} {retailName} -> {archivePath} ({description})");
+            retailTextures.Add(fdid);
+        }
+        return baseName ?? throw new Exception($"material {materialId} has no texture file");
     }
 
     /// <summary>Copies a retail BLP to archivePrefix + its own name, returns that name without extension.</summary>
@@ -267,6 +408,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
         // Our pass: 3.3.5 texture names for what the model hardcodes, and only the global flags 3.3.5 knows
         var converted = new ClassicM2(File.ReadAllBytes(modelPath));
         converted.RestoreName(model.Name);
+        converted.RestoreGlobalLoops(model.GlobalLoops());
         converted.MaskGlobalFlags();
         var droppedSequences = converted.KeepFirstStand();
         if (droppedSequences > 0)

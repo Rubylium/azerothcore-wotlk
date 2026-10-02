@@ -7,8 +7,8 @@
 -- and already in the client's Item.dbc with no template on the server before these;
 -- localTools/patchSinisterStrike.ps1 gives those Item.dbc rows the class, slot and display
 -- written here.
-DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144);
-DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144);
+DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162);
+DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_retail_item`;
 CREATE TEMPORARY TABLE `tmp_retail_item` LIKE `item_template`;
@@ -67,9 +67,180 @@ UPDATE `tmp_retail_item` SET
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
 
+-- Cruel Gladiator's Leather Helm: stats of item 51252, display 70003
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51252;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1020,
+    `name` = 'Cruel Gladiator''s Leather Helm',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70003,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Spaulders: stats of item 51254, display 70004
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51254;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1021,
+    `name` = 'Cruel Gladiator''s Leather Spaulders',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70004,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Tunic: stats of item 51250, display 70005
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51250;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1022,
+    `name` = 'Cruel Gladiator''s Leather Tunic',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70005,
+    `InventoryType` = 5,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Gloves: stats of item 51251, display 70006
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51251;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1023,
+    `name` = 'Cruel Gladiator''s Leather Gloves',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70006,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Legguards: stats of item 51253, display 70007
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51253;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1024,
+    `name` = 'Cruel Gladiator''s Leather Legguards',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70007,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Slippers: stats of item 50607, display 70008
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50607;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1025,
+    `name` = 'Cruel Gladiator''s Leather Slippers',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70008,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Belt: stats of item 50707, display 70009
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50707;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1026,
+    `name` = 'Cruel Gladiator''s Leather Belt',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70009,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cruel Gladiator's Leather Wristguards: stats of item 50670, display 70010
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50670;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1027,
+    `name` = 'Cruel Gladiator''s Leather Wristguards',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70010,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Fanged Slayer's Shroud: stats of item 50653, display 70011
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 1162,
+    `name` = 'Fanged Slayer''s Shroud',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70011,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'Retail import test piece.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
 DROP TEMPORARY TABLE `tmp_retail_item`;
 
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
 (19313, 'frFR', 'Crocs du Dévoreur', 'Pièce de test importée du jeu actuel.', NULL),
 (19314, 'frFR', 'Crocs du Dévoreur', 'Pièce de test importée du jeu actuel.', NULL),
-(16144, 'frFR', 'Protège-épaules du scélérat fringant', 'Pièce de test importée du jeu actuel.', NULL);
+(16144, 'frFR', 'Protège-épaules du scélérat fringant', 'Pièce de test importée du jeu actuel.', NULL),
+(1020, 'frFR', 'Heaume en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1021, 'frFR', 'Spallières en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1022, 'frFR', 'Tunique en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1023, 'frFR', 'Gants en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1024, 'frFR', 'Jambières en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1025, 'frFR', 'Mules en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1026, 'frFR', 'Ceinture en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1027, 'frFR', 'Garde-poignets en cuir de gladiateur cruel', 'Pièce de test importée du jeu actuel.', NULL),
+(1162, 'frFR', 'Linceul de tueur-crochu', 'Pièce de test importée du jeu actuel.', NULL);
