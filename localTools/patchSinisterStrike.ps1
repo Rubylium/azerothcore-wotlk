@@ -216,7 +216,9 @@ $customSpells = @(
     @{ Id = 90203; Clone = 355; Name = 'Odeur de charogne'; Icon = 'Pestifere_OdeurCharogne'; FallbackIconSpell = 355; Cost = 0; Cooldown = 8000; Level = 14; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Force la cible à vous attaquer pendant 3 sec.' },
     @{ Id = 90204; Clone = 47476; Name = 'Crachat bilieux'; Icon = 'Pestifere_CrachatBilieux'; FallbackIconSpell = 47476; Cost = 100; Cooldown = 20000; Level = 20; Spellbook = $true; SkillLine = 900; ClassMask = 2048
-       Description = 'Crache de la bile sur un ennemi situé à 30 mètres au plus et le réduit au silence pendant 5 sec.' },
+       Description = 'Crache de la bile sur un ennemi situé à 30 mètres au plus et le réduit au silence pendant 5 sec.'
+       # The tank's interrupt: off the global cooldown (Strangulate, its clone, is on it)
+       Fields = @{ 205 = 0; 206 = 0 } },
     # Détonation en chaîne: the blast jumping to an enemy outside it. mod-pestifere computes the damage (the same
     # formula as Détonation, on that enemy's own rot) and casts this with it; no damage class, so it cannot miss.
     @{ Id = 90206; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
