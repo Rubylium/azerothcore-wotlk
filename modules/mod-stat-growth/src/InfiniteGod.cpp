@@ -850,6 +850,8 @@ private:
         _nextStandingCheckMs = 0;
         _offTankSide = 0.0f;
         _offTankBase = 0.0f;
+        _mainTank.Clear();
+        _offTank.Clear();
         _fragments.clear();
         _lifted = false;
         me->ClearEmoteState();
@@ -2049,15 +2051,64 @@ private:
 
     // The off-tank's spot: at the god's side, a quarter turn from its target, on the side with fewer players, so the
     // two cones point away from each other and from the group
+    // The two tanks, named once: the first the god hits is its main tank, the other its off-tank, whoever holds it
+    // a moment. Read from its target, the off-tank's spot jumped to whichever tank had just lost the god (a taunt war
+    // between bots): the two walked through each other, and through the group, with a cone each in tow.
+    void NameTanks(Unit* victim)
+    {
+        auto const isTank = [this](Unit* unit)
+        {
+            return unit && unit->IsAlive() && unit->IsInMap(me) && unit->IsPlayer() && IsGroupTank(unit->ToPlayer());
+        };
+        Unit* main = ObjectAccessor::GetUnit(*me, _mainTank);
+        if (!isTank(main))
+        {
+            // The off-tank takes over when the main one is gone; at the pull, the god's target if a tank pulled, else
+            // the tank it holds most against
+            Unit* off = ObjectAccessor::GetUnit(*me, _offTank);
+            main = isTank(off) ? off : isTank(victim) ? victim : nullptr;
+            if (!main)
+                for (Unit* tank : BusterTargets())
+                    if (isTank(tank))
+                    {
+                        main = tank;
+                        break;
+                    }
+            _offTank.Clear();
+            if (!main)
+            {
+                _mainTank.Clear();
+                return;
+            }
+            _mainTank = main->GetGUID();
+        }
+        Unit* off = ObjectAccessor::GetUnit(*me, _offTank);
+        if (!off || !off->IsAlive() || !off->IsInMap(me) || off == main)
+        {
+            _offTank.Clear();
+            for (Unit* tank : BusterTargets())
+                if (tank != main && isTank(tank))
+                {
+                    _offTank = tank->GetGUID();
+                    break;
+                }
+        }
+    }
+
     void UpdateOffTankSpot()
     {
         Unit* victim = me->GetVictim();
         if (!victim || !CanMelee())
             return;
+        NameTanks(victim);
+        Unit* main = ObjectAccessor::GetUnit(*me, _mainTank);
+        Unit* off = ObjectAccessor::GetUnit(*me, _offTank);
+        if (!main || !off)
+            return;
 
-        // The spot keeps its angle while the god is turned about by its tank ("tank face"): it only follows the tank
-        // round once the tank has gone OffTankRebaseAngle round the god. The off-tank used to chase every turn.
-        float const toVictim = me->GetAngle(victim);
+        // The spot keeps its angle while the main tank moves a little: it only follows it round once it has gone
+        // OffTankRebaseAngle round the god. The off-tank used to chase every turn.
+        float const toVictim = me->GetAngle(main);
         if (_offTankSide != 0.0f &&
             std::fabs(std::remainder(toVictim - _offTankBase, 2.0f * float(M_PI))) > OffTankRebaseAngle)
             _offTankBase = toVictim;
@@ -2068,7 +2119,7 @@ private:
             uint32 right = 0;
             for (Player* player : ArenaPlayers())
             {
-                if (player == victim)
+                if (player == main)
                     continue;
                 float const relative = std::remainder(me->GetAngle(player) - toVictim, 2.0f * float(M_PI));
                 ++(relative > 0.0f ? left : right);
@@ -2078,8 +2129,9 @@ private:
 
         float const angle = _offTankBase + _offTankSide * float(M_PI) / 2.0f;
         float const distance = me->GetCombatReach() + 2.0f;
+        // Held: the named off-tank stands there and stays, rather than following the god about
         GroundIndicators::SetOffTankSpot(me, Ground(Position(me->GetPositionX() + std::cos(angle) * distance,
-            me->GetPositionY() + std::sin(angle) * distance, ArenaFloorZ)), 2500);
+            me->GetPositionY() + std::sin(angle) * distance, ArenaFloorZ)), 2500, true, off);
     }
 
     SummonList _summons;
@@ -2101,6 +2153,8 @@ private:
     uint32 _nextEdgeMs = 0;
     uint32 _lastKillYellMs = 0;
     float _offTankSide = 0.0f;
+    ObjectGuid _mainTank;                       // NameTanks
+    ObjectGuid _offTank;
     float _offTankBase = 0.0f;                  // the angle of the tank round the god the spot is set from
     Position _liftFrom;
     GroundIndicators::Area _bigBang;

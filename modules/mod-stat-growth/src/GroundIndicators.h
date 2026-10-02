@@ -164,7 +164,13 @@ namespace GroundIndicators
                   Theme theme = Theme::Holy, bool tanks = false);
     // hold: a spot the tank must stand on until it lands (a Bastion tower, a hammer to take): it goes to within
     // OffTankHoldSlack of it and holds there (HoldsOffTankSpot), instead of following its target about
-    void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold = false);
+    // tank: the one tank it is for, whoever the owner is hitting; otherwise any tank the owner is not hitting. A fight
+    // that names its off-tank keeps the two tanks apart through a taunt (the spot no longer jumps to whichever tank
+    // lost the boss a moment).
+    void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold = false, Unit* tank = nullptr);
+    // Whether owner places its tanks itself (an off-tank spot on show): their own facing of it (mod-playerbots "tank
+    // face") would only drag its aimed cones across the group
+    bool PlacesTanks(Unit* owner);
     // Whether unit is a tank standing on a spot it must hold (SetOffTankSpot hold)
     bool HoldsOffTankSpot(Unit* unit);
     // Whether unit should go somewhere for one of those, and where. Always after FindEscape: the red comes first.
@@ -184,6 +190,9 @@ namespace GroundIndicators
     // carrying a circle does not run from the group either; the group leaves it. Bosses' circles, and every area
     // laid elsewhere, a tank still dodges.
     bool FindEscape(Unit* unit, Position& escape, bool tank = false);
+    // Whether spot is in an area unit would leave (FindEscape's): a bot's ordinary moves (chasing its target, getting
+    // in range, its formation) are not to end there - only an escape crosses the red
+    bool KeepsOutOf(Unit* unit, Position const& spot);
 
     // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
     // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it

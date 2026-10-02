@@ -96,6 +96,9 @@ constexpr float InsideMargin = 0.5f;
 constexpr float EscapeStep = 3.0f;
 constexpr float EscapeReach = 36.0f;
 constexpr uint32 EscapeDirections = 16;
+// No way out at EscapeDirections: once more, finer - a lane between areas (Supernova's, 30 degrees) is narrower than
+// the gap between two coarse directions once the margins are taken off, and the bot stayed in and died
+constexpr uint32 EscapeDirectionsFine = 48;
 // A carried circle is taken this far past its own radius from every other player
 constexpr float CarrierClearance = 2.0f;
 // A sweeping line (ShowSweepingRectangle, WatchSweepingRectangle) read this far ahead, in that many steps
@@ -1085,6 +1088,7 @@ struct Goal
     uint64 endMs = 0;
     bool tanks = false;                         // a soak the tanks go to as well (nothing to hold meanwhile)
     bool hold = false;                          // an off-tank spot to stand on until it lands
+    ObjectGuid tank;                            // an off-tank spot for this tank only (SetOffTankSpot)
     std::vector<ObjectGuid> assigned;           // a soak's bots (AssignSoaks): each bot goes to one soak only
 };
 
@@ -1665,11 +1669,9 @@ bool StoodInAreaOf(Unit* victim, Unit* attacker)
     return false;
 }
 
-bool FindEscape(Unit* unit, Position& escape, bool tank)
+// The areas unit would leave (FindEscape): those around it, less what a tank holds and what it would survive
+std::vector<ActiveArea> AreasToLeave(Unit* unit, bool tank)
 {
-    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
-        return false;
-
     std::vector<ActiveArea> areas = AreasAround(unit);
     if (tank)
         areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
@@ -1702,6 +1704,24 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     // What would not come close to killing it is not worth giving up the fight for: stood in (SurvivableHit)
     areas.erase(std::remove_if(areas.begin(), areas.end(), [unit](ActiveArea const& entry)
         { return SurvivableHit(unit, entry); }), areas.end());
+    return areas;
+}
+
+bool KeepsOutOf(Unit* unit, Position const& spot)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Player* player = unit->ToPlayer();
+    std::vector<ActiveArea> const areas = AreasToLeave(unit, player && IsGroupTank(player));
+    return !areas.empty() && InAnyArea(areas, spot, unit->GetGUID(), InsideMargin);
+}
+
+bool FindEscape(Unit* unit, Position& escape, bool tank)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+
+    std::vector<ActiveArea> const areas = AreasToLeave(unit, tank);
     if (areas.empty())
         return false;
 
@@ -1725,52 +1745,57 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     Goal soak;
     bool const soaking = AssignedSoak(unit, soak);
     float const soakInside = std::max(soak.radius - SoakInsideMargin, 0.5f);
-    float const angleOffset = UnitSpread(unit, 1) * 2.0f * float(M_PI) / EscapeDirections;
     float const distanceOffset = UnitSpread(unit, 2) * EscapeDistanceSpread;
     bool found = false;
     float foundRing = 0.0f;
     Candidate best;
-    for (float ring = EscapeStep; ring <= EscapeReach; ring += EscapeStep)
+    for (uint32 directions : { EscapeDirections, EscapeDirectionsFine })
     {
-        float const distance = ring + distanceOffset;
-        for (uint32 direction = 0; direction < EscapeDirections; ++direction)
-        {
-            float const angle = angleOffset + 2.0f * float(M_PI) * direction / EscapeDirections;
-            float x = here.GetPositionX() + distance * std::cos(angle);
-            float y = here.GetPositionY() + distance * std::sin(angle);
-            float z = here.GetPositionZ();
-            if (!unit->GetMap()->CheckCollisionAndGetValidCoords(unit, here.GetPositionX(), here.GetPositionY(),
-                here.GetPositionZ(), x, y, z))
-                continue;
-
-            Position const spot(x, y, z);
-            if (InAnyArea(areas, spot, unit->GetGUID(), EscapeMargin))
-                continue;
-            if (carried > 0.0f && OtherPlayerNear(unit, spot, carried + CarrierClearance))
-                continue;
-
-            // The shortest way out, and not too far from what it is fighting
-            float cost = here.GetExactDist2d(&spot);
-            if (victim)
-                cost += std::max(0.0f, spot.GetExactDist2d(victim) - here.GetExactDist2d(victim)) * 0.5f;
-            cost += CrowdCost * PlayersNear(unit, spot, CrowdRadius);
-            if (soaking && spot.GetExactDist2d(&soak.center) > soakInside)
-                cost += OutOfSoakCost;
-            if (!found || cost < best.cost)
-            {
-                if (!found)
-                    foundRing = ring;
-                best.spot = spot;
-                best.cost = cost;
-                found = true;
-            }
-        }
-
-        // The nearest ring with a way out, and the one after it (an empty spot a step further beats a crowded one),
-        // are enough: any further only costs more
-        if (found && ring >= foundRing + EscapeStep &&
-            (!soaking || best.spot.GetExactDist2d(&soak.center) <= soakInside || ring > 2.0f * soak.radius))
+        if (found)
             break;
+        float const angleOffset = UnitSpread(unit, 1) * 2.0f * float(M_PI) / directions;
+        for (float ring = EscapeStep; ring <= EscapeReach; ring += EscapeStep)
+        {
+            float const distance = ring + distanceOffset;
+            for (uint32 direction = 0; direction < directions; ++direction)
+            {
+                float const angle = angleOffset + 2.0f * float(M_PI) * direction / directions;
+                float x = here.GetPositionX() + distance * std::cos(angle);
+                float y = here.GetPositionY() + distance * std::sin(angle);
+                float z = here.GetPositionZ();
+                if (!unit->GetMap()->CheckCollisionAndGetValidCoords(unit, here.GetPositionX(), here.GetPositionY(),
+                    here.GetPositionZ(), x, y, z))
+                    continue;
+
+                Position const spot(x, y, z);
+                if (InAnyArea(areas, spot, unit->GetGUID(), EscapeMargin))
+                    continue;
+                if (carried > 0.0f && OtherPlayerNear(unit, spot, carried + CarrierClearance))
+                    continue;
+
+                // The shortest way out, and not too far from what it is fighting
+                float cost = here.GetExactDist2d(&spot);
+                if (victim)
+                    cost += std::max(0.0f, spot.GetExactDist2d(victim) - here.GetExactDist2d(victim)) * 0.5f;
+                cost += CrowdCost * PlayersNear(unit, spot, CrowdRadius);
+                if (soaking && spot.GetExactDist2d(&soak.center) > soakInside)
+                    cost += OutOfSoakCost;
+                if (!found || cost < best.cost)
+                {
+                    if (!found)
+                        foundRing = ring;
+                    best.spot = spot;
+                    best.cost = cost;
+                    found = true;
+                }
+            }
+
+            // The nearest ring with a way out, and the one after it (an empty spot a step further beats a crowded one),
+            // are enough: any further only costs more
+            if (found && ring >= foundRing + EscapeStep &&
+                (!soaking || best.spot.GetExactDist2d(&soak.center) <= soakInside || ring > 2.0f * soak.radius))
+                break;
+        }
     }
 
     if (found)
@@ -1803,7 +1828,7 @@ void ShowDecal(Unit* owner, Position const& center, float orientation, float rad
     Place(owner, center, orientation, spellId, radius, durationMs);
 }
 
-void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold)
+void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold, Unit* tank)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return;
@@ -1816,7 +1841,19 @@ void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool h
     goal.center = spot;
     goal.endMs = NowMs() + durationMs;
     goal.hold = hold;
+    if (tank)
+        goal.tank = tank->GetGUID();
     AddGoal(goal, true);
+}
+
+bool PlacesTanks(Unit* owner)
+{
+    if (!owner || !owner->IsInWorld())
+        return false;
+    for (Goal const& goal : GoalsAround(owner))
+        if (goal.kind == Goal::Kind::OffTank && goal.owner == owner->GetGUID())
+            return true;
+    return false;
 }
 
 bool FindGoal(Unit* unit, Position& spot, bool tank)
@@ -1832,8 +1869,9 @@ bool FindGoal(Unit* unit, Position& spot, bool tank)
 
         if (goal.kind == Goal::Kind::OffTank)
         {
-            // Only a tank the owner is not hitting: the one it is stays where it holds it
-            if (!tank || !owner->IsInCombat() || owner->GetVictim() == unit ||
+            // The tank it names, or a tank the owner is not hitting: the one it is stays where it holds it
+            bool const forUnit = goal.tank.IsEmpty() ? owner->GetVictim() != unit : goal.tank == unit->GetGUID();
+            if (!tank || !owner->IsInCombat() || !forUnit ||
                 unit->GetExactDist2d(&goal.center) <= (goal.hold ? OffTankHoldSlack : OffTankSlack))
                 continue;
             spot = goal.center;
@@ -1866,7 +1904,8 @@ bool HoldsOffTankSpot(Unit* unit)
             unit->GetExactDist2d(&goal.center) > OffTankHoldSlack + 1.0f)
             continue;
         Unit* owner = ObjectAccessor::GetUnit(*unit, goal.owner);
-        if (owner && owner->IsAlive() && owner->GetVictim() != unit)
+        if (owner && owner->IsAlive() &&
+            (goal.tank.IsEmpty() ? owner->GetVictim() != unit : goal.tank == unit->GetGUID()))
             return true;
     }
     return false;
