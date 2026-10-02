@@ -35,8 +35,11 @@ void RestoreEquipmentTraining(Player* player)
         if (!player->HasSpell(spellId))
             player->learnSpell(spellId, false);
 
-    if (!player->GetSkillValue(SKILL_SWORDS))
-        player->SetSkill(SKILL_SWORDS, 0, 1, player->GetMaxSkillValueForLevel());
+    // Swords at the level's maximum: granted at 1, a level 80 Oathblade (a bench bot, a boosted character) missed or
+    // glanced nearly every swing
+    uint16 const maxSwords = player->GetMaxSkillValueForLevel();
+    if (player->GetSkillValue(SKILL_SWORDS) < maxSwords)
+        player->SetSkill(SKILL_SWORDS, player->GetSkillStep(SKILL_SWORDS), maxSwords, maxSwords);
     if (!player->GetSkillValue(SKILL_MAIL))
         player->SetSkill(SKILL_MAIL, 0, 1, 1);
     if (!player->GetSkillValue(SKILL_PLATE_MAIL))
