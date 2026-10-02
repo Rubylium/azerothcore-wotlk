@@ -358,22 +358,30 @@ uint32 BaseItemEntry(uint32 entry)
     return Mythic::IsGeneratedItem(entry) ? entry % Mythic::GeneratedItemBase : entry;
 }
 
-bool IsSameItem(Item const* item, uint32 baseEntry)
+// Whether the item is the candidate, as itself or as a generated variant of it, at the item level the player would get
+// or better: a copy the loot would not improve on
+bool IsSameItem(Item const* item, uint32 baseEntry, uint32 givenItemLevel)
 {
-    return item && BaseItemEntry(item->GetEntry()) == baseEntry;
+    return item && BaseItemEntry(item->GetEntry()) == baseEntry && item->GetTemplate()->ItemLevel >= givenItemLevel;
 }
 
-// Whether the player owns the candidate already, as itself or as any generated variant of it (worn, in the bags or
-// the bank), or could not wear it beside what it wears (a unique ring or trinket, a unique category): a variant of a
-// worn unique ring was offered as the upgrade of the other ring slot, and could not be put on
-bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate)
+// Whether the player owns the candidate already at the item level it would be given at or better, as itself or as any
+// generated variant of it (worn, in the bags or the bank), or could not wear it beside what it wears (a unique ring or
+// trinket, a unique category): a variant of a worn unique ring was offered as the upgrade of the other ring slot, and
+// could not be put on. A lower copy does not count: a slot with a single item for the class (a rogue's leather
+// agility boots near the top: Frostbitten Fur Boots alone) was never offered its better variants once the stock item
+// was worn, and stayed the weakest slot for good while the loot went elsewhere. A unique item keeps the strict rule:
+// any copy owned rules it out (a better variant of it would go to the other ring or trinket slot, beside it).
+bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate, uint32 givenItemLevel)
 {
     uint32 const baseEntry = BaseItemEntry(candidate.ItemId);
+    if (candidate.HasFlag(ITEM_FLAG_UNIQUE_EQUIPPABLE) || candidate.ItemLimitCategory)
+        givenItemLevel = 0;
     for (uint8 slot = EQUIPMENT_SLOT_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
-        if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry))
+        if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry, givenItemLevel))
             return true;
     for (uint8 slot = BANK_SLOT_ITEM_START; slot < BANK_SLOT_ITEM_END; ++slot)
-        if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry))
+        if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry, givenItemLevel))
             return true;
     std::array<std::pair<uint8, uint8>, 2> const bagRanges = { {
         { static_cast<uint8>(INVENTORY_SLOT_BAG_START), static_cast<uint8>(INVENTORY_SLOT_BAG_END) },
@@ -383,15 +391,16 @@ bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate)
         for (uint8 bagIndex = start; bagIndex < end; ++bagIndex)
             if (Bag const* bag = player->GetBagByPos(bagIndex))
                 for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
-                    if (IsSameItem(bag->GetItemByPos(static_cast<uint8>(slot)), baseEntry))
+                    if (IsSameItem(bag->GetItemByPos(static_cast<uint8>(slot)), baseEntry, givenItemLevel))
                         return true;
     }
     return player->CanEquipUniqueItem(&candidate) != EQUIP_ERR_OK;
 }
 
 // Whether the player could and would wear the candidate: its class, armor, stats, weapon skill and way of fighting,
-// and not something it owns already. The item level, quality and required level are each selector's own.
-bool SuitsPlayer(Player* player, ItemTemplate const& candidate)
+// and not something it owns already at the item level it would get (givenItemLevel) or better. The item level, quality
+// and required level are each selector's own.
+bool SuitsPlayer(Player* player, ItemTemplate const& candidate, uint32 givenItemLevel)
 {
     if (player->BotCanUseItem(&candidate) != EQUIP_ERR_OK || !HasEquipmentProficiency(candidate, player) ||
         !HasClassAppropriateStats(candidate, player) || !FitsWeaponStyle(player, candidate))
@@ -399,7 +408,7 @@ bool SuitsPlayer(Player* player, ItemTemplate const& candidate)
     if (candidate.Class == ITEM_CLASS_ARMOR && UsesArmorSubclass(candidate.InventoryType) &&
         candidate.SubClass != GetPreferredArmorSubclass(player))
         return false;
-    return !OwnsOrCannotWear(player, candidate);
+    return !OwnsOrCannotWear(player, candidate, givenItemLevel);
 }
 
 // Loot is fitted slot first: the slot the player is furthest behind in is chosen, then the best item for it. Picking
@@ -532,7 +541,7 @@ std::vector<SlotCandidate> CollectSlotCandidates(Player* player, std::vector<Slo
             continue;
 
         ItemTemplate const* given = givenOf(*candidate);
-        if (!given || !SuitsPlayer(player, *candidate))
+        if (!given || !SuitsPlayer(player, *candidate, given->ItemLevel))
             continue;
 
         candidates.push_back({ candidate, given->ItemLevel, GetClassStatScore(*given, player),
