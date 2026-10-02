@@ -27,4 +27,36 @@ $spells = @(
        Fields = @{ 225 = 64 } }
 )
 
+# The Colosses' four each, from 97604 (Frontier.cpp SPELL_COLOSSUS_FIRST): a cone toward their target, a circle under
+# every fighter, a circle around themselves, and a ring that spares only the ground at their feet.
+# School: 1 physical, 8 nature, 16 frost, 32 shadow.
+$colossi = @(
+    # Gorroth Grandes-Défenses
+    @('Coup de défenses', 1, 'Gorroth balaie de ses défenses tout ce qui se tient devant lui.'),
+    @('Chute de glace', 16, 'Des blocs de glace s''abattent sous chacun de ses assaillants.'),
+    @('Piétinement', 1, 'Gorroth piétine le sol tout autour de lui.'),
+    @('Avalanche', 16, 'Une avalanche ensevelit tout, sauf l''abri à ses pieds.'),
+    # Vyskarn
+    @('Souffle de givre', 16, 'Un souffle glacé devant le wyrm.'),
+    @('Pluie verglaçante', 16, 'Une pluie gelée s''abat sous chacun de ses assaillants.'),
+    @('Battement d''ailes', 1, 'Ses ailes déchirées balaient tout autour de lui.'),
+    @('Blizzard', 16, 'Le blizzard ravage tout, sauf l''abri sous ses ailes.'),
+    # Zul'Gath l'Avatar déchu
+    @('Hache rituelle', 1, 'Zul''Gath abat sa hache rituelle devant lui.'),
+    @('Malédiction vaudou', 32, 'Une malédiction frappe sous chacun de ses assaillants.'),
+    @('Fureur du loa', 8, 'Le loa mort se déchaîne tout autour de Zul''Gath.'),
+    @('Esprits serpents', 8, 'Les esprits serpents fondent sur tout, sauf l''abri à ses pieds.'),
+    # Mastodonte de saronite
+    @('Écrasement', 1, 'Le Mastodonte écrase tout ce qui se tient devant lui.'),
+    @('Peste glaciale', 8, 'La peste jaillit sous chacun de ses assaillants.'),
+    @('Onde de saronite', 32, 'Une onde de saronite frappe tout autour du Mastodonte.'),
+    @('Brume du chaudron', 32, 'La brume de son chaudron noie tout, sauf l''abri à ses pieds.')
+)
+$id = 97604
+foreach ($ability in $colossi) {
+    $spells += @{ Id = $id; Clone = 59706; Name = $ability[0]; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+                  Description = $ability[2]; Fields = @{ 225 = $ability[1] } }
+    $id++
+}
+
 return $spells

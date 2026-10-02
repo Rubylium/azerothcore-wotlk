@@ -7,6 +7,7 @@
 #include "CommandScript.h"
 #include "Containers.h"
 #include "CreatureScript.h"
+#include "DBCStores.h"
 #include "GameTime.h"
 #include "Group.h"
 #include "Log.h"
@@ -26,10 +27,12 @@
 #include "WorldPacket.h"
 #include "WorldScript.h"
 #include "WorldSession.h"
+#include "WorldSessionMgr.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -41,8 +44,9 @@
 // player and grows with the players taking part, so a group meets the same challenge per head.
 // Plan: .agents/plans/northrend-frontier/northrend-frontier.PLAN.md
 //
-// Here: the tiers, the phase, the zone banner, the roaming elites and the rifts. Each tier is sized on its profile with
-// the power model (.agents/docs/systems/power-scaling.md), one damage dealer a participant:
+// Here: the tiers, the phase, the zone banner, the roaming elites, the rifts and the Colosses (world bosses). Each
+// tier is sized on its profile with the power model (.agents/docs/systems/power-scaling.md), one damage dealer a
+// participant:
 //   Palier I   Borean Tundra, Howling Fjord     187 / 0   drops 200
 //   Palier II  Dragonblight, Grizzly Hills      200 / 0   drops 213
 //   Palier III Zul'Drak, Sholazar Basin         213 / 0   drops 219
@@ -53,6 +57,9 @@
 //   PINS <zone id> <kind>:<x>:<y>,...               the zone's content to pin on the maps (E a roaming elite, R a rift)
 //   RIFT <stage> <wave> <waves> <alive> <total> <s>  a rift near the player (stage: 1 waiting, 2 waves, 3 guardian,
 //                                                   4 closed, 5 collapsed; s: its time left)
+//   COLOSSUS <state> <colossus 1-4> <zone id> <x> <y> <s> <loot item level>
+//                                                   to every level-80 player: state 1 coming (s: until it
+//                                                   comes), 2 here (s: until it leaves), 3 slain, 4 gone unfought
 
 namespace
 {
@@ -72,15 +79,16 @@ struct Tier
     float paragon;
     uint32 lootItemLevel;       // the gear it drops
     uint32 eliteShards;         // Éclats de givre a roaming elite gives...
-    uint32 riftShards;          // ... and a closed rift
+    uint32 riftShards;          // ... a closed rift
+    uint32 colossusShards;      // ... and the tier's Colosse
 };
 
 // Tiers I-IV (index 0-3)
 constexpr std::array<Tier, 4> Tiers = { {
-    { 187.0f, 0.0f, 200, 2, 6 },
-    { 200.0f, 0.0f, 213, 3, 8 },
-    { 213.0f, 0.0f, 219, 4, 10 },
-    { 223.0f, 0.0f, 226, 5, 12 },
+    { 187.0f, 0.0f, 200, 2, 6, 15 },
+    { 200.0f, 0.0f, 213, 3, 8, 20 },
+    { 213.0f, 0.0f, 219, 4, 10, 25 },
+    { 223.0f, 0.0f, 226, 5, 12, 30 },
 } };
 
 struct Zone
@@ -163,6 +171,61 @@ constexpr float RiftEssenceChance = 30.0f;
 constexpr uint32 SPELL_CRYSTAL_SHARD = 97602;
 constexpr uint32 SPELL_ARCANE_NOVA = 97603;
 constexpr uint32 SPELL_ARCANE_STOCK = 59706;
+
+// --- The Colosses (world bosses) ---------------------------------------------------------------------------------
+// One at a time, the four in turn (tier I's, then II's, III's and IV's), at a spot of one of their tier's two zones.
+// Every level-80 player hears of one ColossusLeadMs before it comes; it stays ColossusStayMs unless fought. Sized for
+// whoever fights it (one damage dealer at least, more as players join), its abilities all on the ground indicators,
+// its rewards to every player who fought it: many shards and the tier's gear for certain.
+constexpr std::array<uint32, 4> NPC_COLOSSI = { 940030, 940031, 940032, 940033 };
+constexpr uint32 ColossusFirstMs = 5 * 60 * 1000;    // the first one comes this long after the server starts
+constexpr uint32 ColossusEveryMs = 15 * 60 * 1000;   // then one this often: each tier's once an hour
+constexpr uint32 ColossusLeadMs = 10 * 60 * 1000;
+constexpr uint32 ColossusStayMs = 12 * 60 * 1000;
+constexpr float ColossusSeconds = 60.0f;             // a fight of about this long, against its participants
+constexpr float ColossusSwingPct = 2.5f;             // its melee is light: what kills is standing in its abilities
+constexpr float ColossusReach = 60.0f;               // its participants, and who it hits
+constexpr float ColossusRewardReach = 100.0f;
+constexpr float ColossusEssenceChance = 50.0f;
+constexpr float TownClearance = 60.0f;               // never this close to a friendly creature's spawn
+// Its abilities: a cone toward its target, a circle under every fighter (spread out), a circle around itself (get
+// out), and at two thirds and a third of its health everything but the ground at its feet (come in)
+constexpr float ConePct = 50.0f;
+constexpr float ConeRadius = 22.0f;
+constexpr float ConeArc = 90.0f;
+constexpr uint32 ConeWarningMs = 3000;
+constexpr float SpreadPct = 35.0f;
+constexpr float SpreadRadius = 5.0f;
+constexpr uint32 SpreadWarningMs = 3000;
+constexpr float StompPct = 50.0f;
+constexpr float StompRadius = 12.0f;
+constexpr uint32 StompWarningMs = 3500;
+constexpr float RingPct = 60.0f;
+constexpr float RingOuter = 45.0f;
+constexpr float RingInner = 9.0f;
+constexpr uint32 RingWarningMs = 5000;
+// localTools/frontier/Spells.ps1: each Colosse's four (cone, spread, stomp, ring), from SPELL_COLOSSUS_FIRST
+constexpr uint32 SPELL_COLOSSUS_FIRST = 97604;
+
+struct ColossusKind
+{
+    GroundIndicators::Theme cone, spread, stomp, ring;
+};
+
+constexpr std::array<ColossusKind, 4> ColossusKinds = { {
+    // Gorroth Grandes-Défenses: his tusks, falling ice, his stomp, an avalanche
+    { GroundIndicators::Theme::None, GroundIndicators::Theme::Frost, GroundIndicators::Theme::None,
+      GroundIndicators::Theme::Frost },
+    // Vyskarn: frost breath, freezing rain, his wings, a blizzard
+    { GroundIndicators::Theme::Frost, GroundIndicators::Theme::Frost, GroundIndicators::Theme::None,
+      GroundIndicators::Theme::Frost },
+    // Zul'Gath: his ritual axe, a voodoo curse, the loa's fury, its serpent spirits
+    { GroundIndicators::Theme::None, GroundIndicators::Theme::Shadow, GroundIndicators::Theme::Nature,
+      GroundIndicators::Theme::Nature },
+    // The Saronite Juggernaut: its fists, plague, a saronite wave, its cauldron's mist
+    { GroundIndicators::Theme::None, GroundIndicators::Theme::Nature, GroundIndicators::Theme::Shadow,
+      GroundIndicators::Theme::Shadow },
+} };
 
 // Who the reference model counts below Mythique 0: its measured curve starts at 223, and its straight line below
 // that drops a fresh 80 to a third of what it deals. Item level 223's damage, scaled by the square of the item level
@@ -329,7 +392,8 @@ void RewardPlayers(std::set<Player*> const& players, Tier const& tier, uint32 sh
 // --- The zones' state ----------------------------------------------------------------------------------------------
 struct ZoneState
 {
-    std::vector<Position> spots;        // its creatures' own spawn points: valid ground, built once
+    std::vector<Position> spots;        // its hostile and wild creatures' spawn points: valid ground, built once
+    std::vector<Position> towns;        // its friendly creatures' (quest givers, guards, vendors): kept away from
     bool spotsBuilt = false;
     std::vector<ObjectGuid> elites;
     std::vector<uint32> respawns;       // a slain elite's place, the time left before it is taken again
@@ -345,10 +409,25 @@ void BuildSpots(Zone const& zone, ZoneState& state)
 {
     state.spotsBuilt = true;
     for (auto const& [spawnId, data] : sObjectMgr->GetAllCreatureData())
-        if (data.mapid == MAP_NORTHREND && (data.phaseMask & PHASEMASK_NORMAL) &&
-            data.posX >= zone.xMin && data.posX <= zone.xMax && data.posY >= zone.yMin && data.posY <= zone.yMax)
-            state.spots.emplace_back(data.posX, data.posY, data.posZ, frand(0.0f, 2.0f * float(M_PI)));
-    LOG_INFO("module.frontier", "Front du Nord: zone {} has {} spawn spots", zone.id, state.spots.size());
+    {
+        if (data.mapid != MAP_NORTHREND || !(data.phaseMask & PHASEMASK_NORMAL) || data.posX < zone.xMin ||
+            data.posX > zone.xMax || data.posY < zone.yMin || data.posY > zone.yMax)
+            continue;
+        CreatureTemplate const* info = sObjectMgr->GetCreatureTemplate(data.id);
+        FactionTemplateEntry const* faction = info ? sFactionTemplateStore.LookupEntry(info->faction) : nullptr;
+        bool const wild = info && !info->npcflag && faction &&
+            (faction->IsHostileToPlayers() || faction->IsNeutralToAll());
+        (wild ? state.spots : state.towns).emplace_back(data.posX, data.posY, data.posZ,
+            frand(0.0f, 2.0f * float(M_PI)));
+    }
+    LOG_INFO("module.frontier", "Front du Nord: zone {} has {} spawn spots, {} friendly", zone.id, state.spots.size(),
+        state.towns.size());
+}
+
+bool NearTown(ZoneState const& state, Position const& spot)
+{
+    return std::ranges::any_of(state.towns, [&spot](Position const& town)
+        { return town.GetExactDist2d(&spot) < TownClearance; });
 }
 
 // A creature of the tier phase at one of the zone's spawn spots, away from every player
@@ -363,7 +442,7 @@ Creature* SummonAtSpot(Map* map, Zone const& zone, ZoneState& state, std::vector
     for (uint32 attempt = 0; attempt < EliteSpawnTries; ++attempt)
     {
         Position const& spot = Acore::Containers::SelectRandomContainerElement(state.spots);
-        if (std::ranges::any_of(players, [&spot, clearance](Player* player)
+        if (NearTown(state, spot) || std::ranges::any_of(players, [&spot, clearance](Player* player)
             { return player->GetExactDist2d(&spot) < clearance; }))
             continue;
 
@@ -419,7 +498,165 @@ std::string Pins(Map* map, ZoneState const& state)
     return pins;
 }
 
-// Every few seconds: each tier zone with a tier player in it keeps its roaming elites; an empty one loses them
+// --- The Colosses' schedule ----------------------------------------------------------------------------------------
+enum class ColossusNews : uint8
+{
+    Coming = 1,
+    Here = 2,
+    Slain = 3,
+    Gone = 4
+};
+
+// A Colosse and its spot, in one of its tier's zones
+struct ColossusSpot
+{
+    uint8 index = 0;            // 0-3: its tier's, less one
+    std::size_t zone = 0;       // in Zones
+    Position spot;
+};
+
+struct ColossusSchedule
+{
+    uint8 next = 0;
+    uint32 inMs = ColossusFirstMs;          // until the next one comes
+    std::optional<ColossusSpot> coming;     // heard of, not come yet
+    std::optional<ColossusSpot> here;       // come: on its spot, summoned whenever a player is in its zone
+    uint32 stayMs = 0;
+    ObjectGuid guid;
+    bool slain = false;
+};
+
+ColossusSchedule Colossi;
+
+std::string ColossusMessage(ColossusNews news, ColossusSpot const& colossus, uint32 seconds)
+{
+    return Acore::StringFormat("COLOSSUS\t{}\t{}\t{}\t{:.0f}\t{:.0f}\t{}\t{}", uint32(news), colossus.index + 1,
+        Zones[colossus.zone].id, colossus.spot.GetPositionX(), colossus.spot.GetPositionY(), seconds,
+        Tiers[colossus.index].lootItemLevel);
+}
+
+// Every level-80 player in the world (bots aside) hears of the Colosses
+void TellEveryone(std::string const& body)
+{
+    for (auto const& [accountId, session] : sWorldSessionMgr->GetAllSessions())
+        if (Player* player = session ? session->GetPlayer() : nullptr; player && player->IsInWorld() &&
+            !IsBot(player) && player->GetLevel() >= DEFAULT_MAX_LEVEL)
+            SendAddon(player, body);
+}
+
+// What a player coming into the world should know of
+void TellColossi(Player* player)
+{
+    if (IsBot(player) || player->GetLevel() < DEFAULT_MAX_LEVEL)
+        return;
+    if (Colossi.coming)
+        SendAddon(player, ColossusMessage(ColossusNews::Coming, *Colossi.coming, Colossi.inMs / 1000));
+    if (Colossi.here && !Colossi.slain)
+        SendAddon(player, ColossusMessage(ColossusNews::Here, *Colossi.here, Colossi.stayMs / 1000));
+}
+
+// A spot for a Colosse in one of its tier's zones: a hostile or wild creature's spawn point away from the towns,
+// outdoors and on dry ground (an invisible trigger stands there a moment to tell)
+std::optional<ColossusSpot> FindColossusSpot(Map* map, uint8 index)
+{
+    std::vector<std::size_t> zones;
+    for (std::size_t zoneIndex = 0; zoneIndex < Zones.size(); ++zoneIndex)
+        if (Zones[zoneIndex].tier == index + 1)
+            zones.push_back(zoneIndex);
+    std::size_t const zoneIndex = Acore::Containers::SelectRandomContainerElement(zones);
+    Zone const& zone = Zones[zoneIndex];
+    ZoneState& state = States[zoneIndex];
+    if (!state.spotsBuilt)
+        BuildSpots(zone, state);
+    if (state.spots.empty())
+        return std::nullopt;
+
+    for (uint32 attempt = 0; attempt < EliteSpawnTries * 2; ++attempt)
+    {
+        Position const& spot = Acore::Containers::SelectRandomContainerElement(state.spots);
+        if (NearTown(state, spot))
+            continue;
+        TempSummon* probe = map->SummonCreature(WORLD_TRIGGER, spot);
+        if (!probe)
+            continue;
+        bool const fits = probe->GetZoneId() == zone.id && !probe->IsInWater() && probe->IsOutdoors();
+        probe->DespawnOrUnsummon();
+        if (fits)
+            return ColossusSpot{ index, zoneIndex, spot };
+    }
+    return std::nullopt;
+}
+
+Creature* SummonColossus(Map* map, ColossusSpot const& colossus)
+{
+    TempSummon* creature = map->SummonCreature(NPC_COLOSSI[colossus.index], colossus.spot);
+    if (!creature)
+        return nullptr;
+    creature->SetPhaseMask(FrontierPhaseMask, true);
+    creature->SetHomePosition(colossus.spot);
+    return creature;
+}
+
+// Every manager tick: the Colosse on its spot stays its time (longer while fought), the next one is heard of, then
+// comes once the one before has left
+void UpdateColossi(Map* map, std::array<std::vector<Player*>, Zones.size()> const& present, uint32 elapsed)
+{
+    ColossusSchedule& schedule = Colossi;
+    Creature* creature = schedule.guid.IsEmpty() ? nullptr : map->GetCreature(schedule.guid);
+    bool const fighting = creature && creature->IsAlive() && creature->IsInCombat();
+
+    if (schedule.here)
+    {
+        schedule.stayMs = schedule.stayMs > elapsed ? schedule.stayMs - elapsed : 0;
+        if (schedule.slain || (!schedule.stayMs && !fighting))
+        {
+            if (!schedule.slain)
+            {
+                if (creature)
+                    creature->DespawnOrUnsummon();
+                TellEveryone(ColossusMessage(ColossusNews::Gone, *schedule.here, 0));
+                LOG_INFO("module.frontier", "Front du Nord: Colosse {} left zone {} unfought", schedule.here->index + 1,
+                    Zones[schedule.here->zone].id);
+            }
+            schedule.here.reset();
+            schedule.guid.Clear();
+        }
+        // Summoned when a player is in its zone, and again if its grid was unloaded with it
+        else if (!creature && std::ranges::any_of(present[schedule.here->zone], [](Player* player)
+            { return !IsBot(player); }))
+        {
+            if (Creature* summoned = SummonColossus(map, *schedule.here))
+                schedule.guid = summoned->GetGUID();
+        }
+    }
+
+    schedule.inMs = schedule.inMs > elapsed ? schedule.inMs - elapsed : 0;
+    if (!schedule.coming && schedule.inMs <= ColossusLeadMs)
+    {
+        schedule.coming = FindColossusSpot(map, schedule.next);
+        if (schedule.coming)
+        {
+            TellEveryone(ColossusMessage(ColossusNews::Coming, *schedule.coming, schedule.inMs / 1000));
+            LOG_INFO("module.frontier", "Front du Nord: Colosse {} coming to zone {} ({:.0f}, {:.0f}) in {} s",
+                schedule.coming->index + 1, Zones[schedule.coming->zone].id, schedule.coming->spot.GetPositionX(),
+                schedule.coming->spot.GetPositionY(), schedule.inMs / 1000);
+        }
+    }
+    if (schedule.coming && !schedule.inMs && !schedule.here)
+    {
+        schedule.here = schedule.coming;
+        schedule.coming.reset();
+        schedule.stayMs = ColossusStayMs;
+        schedule.slain = false;
+        schedule.guid.Clear();
+        schedule.next = uint8((schedule.next + 1) % NPC_COLOSSI.size());
+        schedule.inMs = ColossusEveryMs;
+        TellEveryone(ColossusMessage(ColossusNews::Here, *schedule.here, schedule.stayMs / 1000));
+    }
+}
+
+// Every few seconds: each tier zone with a tier player in it keeps its roaming elites and its rift; an empty one loses
+// its elites. The Colosses keep their schedule.
 class FrontierWorldScript : public WorldScript
 {
 public:
@@ -501,6 +738,8 @@ public:
                 if (!IsBot(player))
                     SendAddon(player, Acore::StringFormat("PINS\t{}\t{}", zone.id, pins));
         }
+
+        UpdateColossi(map, present, elapsed);
     }
 
 private:
@@ -907,6 +1146,205 @@ private:
     }
 };
 
+// --- The Colosses --------------------------------------------------------------------------------------------------
+// A Colosse: a light melee and four abilities on the ground indicators, the same for the four but in their own colours
+// and names. It grows as players join its fight, and rewards every player who fought it.
+struct npc_frontier_colossus : public ScriptedAI
+{
+    explicit npc_frontier_colossus(Creature* creature) : ScriptedAI(creature),
+        _index(uint8(std::min<uint32>(creature->GetEntry() - NPC_COLOSSI[0], NPC_COLOSSI.size() - 1))) { }
+
+    void Reset() override
+    {
+        scheduler.CancelAll();
+        GroundIndicators::ClearAreasOf(me);
+        me->SetControlled(false, UNIT_STATE_ROOT);
+        _dealers = 1.0f;
+        _rings = 0;
+        _rescaleMs = 0;
+        Scale();
+    }
+
+    void JustEngagedWith(Unit* who) override
+    {
+        _dealers = std::max(Participants(me, who), DealersNear());
+        Scale();
+        scheduler.Schedule(8s, GroupAbilities, [this](TaskContext context)
+        {
+            Cone();
+            context.Repeat(12s, 15s);
+        });
+        scheduler.Schedule(14s, GroupAbilities, [this](TaskContext context)
+        {
+            Spread();
+            context.Repeat(18s, 22s);
+        });
+        scheduler.Schedule(20s, GroupAbilities, [this](TaskContext context)
+        {
+            Stomp();
+            context.Repeat(22s, 26s);
+        });
+    }
+
+    // At two thirds and a third of its health, its ring (the second one waits for the first to land)
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*school*/) override
+    {
+        if (!me->IsInCombat() || me->HasUnitState(UNIT_STATE_ROOT))
+            return;
+        uint8 const due = me->HealthBelowPctDamaged(33, damage) ? 2 : me->HealthBelowPctDamaged(66, damage) ? 1 : 0;
+        if (due > _rings)
+        {
+            _rings = due;
+            Ring();
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+        // Players joining the fight make it bigger, never smaller
+        if ((_rescaleMs += diff) >= ManagerTickMs)
+        {
+            _rescaleMs = 0;
+            if (float const dealers = DealersNear(); dealers > _dealers)
+            {
+                _dealers = dealers;
+                Scale();
+            }
+        }
+        scheduler.Update(diff, [this] { DoMeleeAttackIfReady(); });
+    }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        scheduler.CancelAll();
+        GroundIndicators::ClearAreasOf(me);
+        Tier const& tier = Tiers[_index];
+        std::set<Player*> players;
+        for (auto const& ref : me->GetMap()->GetPlayers())
+            if (Player* player = ref.GetSource(); player && player->IsInWorld() && SeesTier(player) &&
+                player->GetDistance(me) <= ColossusRewardReach)
+                players.insert(player);
+        RewardPlayers(players, tier, tier.colossusShards, 100.0f, ColossusEssenceChance);
+        LOG_INFO("module.frontier", "Front du Nord: Colosse {} slain in zone {} by {:.2f} damage dealers, {} player(s) "
+            "near", _index + 1, me->GetZoneId(), _dealers, players.size());
+        if (Colossi.here && me->GetGUID() == Colossi.guid)
+        {
+            Colossi.slain = true;
+            TellEveryone(ColossusMessage(ColossusNews::Slain, *Colossi.here, 0));
+        }
+        me->DespawnOrUnsummon(2min);
+    }
+
+private:
+    static constexpr uint32 GroupAbilities = 1;
+
+    enum Ability : uint8
+    {
+        AbilityCone,
+        AbilitySpread,
+        AbilityStomp,
+        AbilityRing
+    };
+
+    ColossusKind const& Kind() const { return ColossusKinds[_index]; }
+
+    void Scale()
+    {
+        Tier const& tier = Tiers[_index];
+        ScaleUnit(me, TierDps(tier) * _dealers * ColossusSeconds, TierPlayerHealth(tier) * ColossusSwingPct / 100.0f);
+    }
+
+    float DealersNear() const
+    {
+        float dealers = 0.0f;
+        for (Player* player : TierPlayersNear(me, ColossusReach))
+            dealers += DealerShare(player);
+        return std::max(dealers, 1.0f);
+    }
+
+    uint32 Amount(float pct) const
+    {
+        return uint32(TierPlayerHealth(Tiers[_index]) * pct / 100.0f);
+    }
+
+    // A hit on every player standing in area when it lands
+    void Land(GroundIndicators::Area const& area, Ability ability, float pct)
+    {
+        uint32 const spellId = SpellOrStock(SPELL_COLOSSUS_FIRST + _index * 4 + ability, SPELL_DEVASTATING_BLOW_STOCK);
+        for (Player* player : TierPlayersNear(me, ColossusReach + RingOuter))
+            if (area.Contains(player->GetPosition()))
+            {
+                MythicTuning::DealAbilityDamage(me, player, spellId, Amount(pct));
+                MythicTuning::ApplyImprudence(player);
+            }
+    }
+
+    // Toward its target, wherever they stand: step aside
+    void Cone()
+    {
+        Unit* victim = me->GetVictim();
+        if (!victim)
+            return;
+        float const facing = me->GetAngle(victim);
+        me->SetFacingTo(facing);
+        GroundIndicators::Area const area = GroundIndicators::ShowCone(me, me->GetPosition(), facing, ConeRadius,
+            ConeArc, ConeWarningMs, Kind().cone, Amount(ConePct));
+        scheduler.Schedule(Milliseconds(ConeWarningMs), [this, area](TaskContext)
+        {
+            Land(area, AbilityCone, ConePct);
+        });
+    }
+
+    // A circle under every fighter: spread out, each circle hits whoever stands in it
+    void Spread()
+    {
+        std::vector<GroundIndicators::Area> areas;
+        for (Player* player : TierPlayersNear(me, ColossusReach))
+            areas.push_back(GroundIndicators::ShowCircle(me, player->GetPosition(), SpreadRadius, SpreadWarningMs,
+                Kind().spread, Amount(SpreadPct)));
+        scheduler.Schedule(Milliseconds(SpreadWarningMs), [this, areas](TaskContext)
+        {
+            for (GroundIndicators::Area const& area : areas)
+                Land(area, AbilitySpread, SpreadPct);
+        });
+    }
+
+    // A circle around itself: get out, its tank too
+    void Stomp()
+    {
+        me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK2HTIGHT);
+        GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, me->GetPosition(), StompRadius,
+            StompWarningMs, Kind().stomp, Amount(StompPct));
+        scheduler.Schedule(Milliseconds(StompWarningMs), [this, area](TaskContext)
+        {
+            Land(area, AbilityStomp, StompPct);
+        });
+    }
+
+    // Everything but the ground at its feet: come in. It holds still, and its other abilities wait for it.
+    void Ring()
+    {
+        scheduler.DelayGroup(GroupAbilities, Milliseconds(RingWarningMs + 2000));
+        me->SetControlled(true, UNIT_STATE_ROOT);
+        me->HandleEmoteCommand(EMOTE_ONESHOT_SPELL_CAST_OMNI);
+        me->TextEmote(Acore::StringFormat("{} se déchaîne : rapprochez-vous de lui !", me->GetName()), nullptr, true);
+        GroundIndicators::Area const area = GroundIndicators::ShowRing(me, me->GetPosition(), RingOuter, RingInner,
+            RingWarningMs, Kind().ring, Amount(RingPct));
+        scheduler.Schedule(Milliseconds(RingWarningMs), [this, area](TaskContext)
+        {
+            Land(area, AbilityRing, RingPct);
+            me->SetControlled(false, UNIT_STATE_ROOT);
+        });
+    }
+
+    uint8 _index;
+    float _dealers = 1.0f;
+    uint8 _rings = 0;
+    uint32 _rescaleMs = 0;
+};
+
 class FrontierPlayerScript : public PlayerScript
 {
 public:
@@ -914,9 +1352,18 @@ public:
         PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_UPDATE_ZONE, PLAYERHOOK_ON_LEVEL_CHANGED
     }) { }
 
-    void OnPlayerLogin(Player* player) override { RefreshPhase(player); }
+    void OnPlayerLogin(Player* player) override
+    {
+        RefreshPhase(player);
+        TellColossi(player);
+    }
+
     void OnPlayerUpdateZone(Player* player, uint32 /*newZone*/, uint32 /*newArea*/) override { RefreshPhase(player); }
-    void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override { RefreshPhase(player); }
+    void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override
+    {
+        RefreshPhase(player);
+        TellColossi(player);
+    }
 };
 
 // .frontier: where the Front du Nord stands for a game master
@@ -935,6 +1382,8 @@ public:
             { "kill", HandleKill, SEC_GAMEMASTER, Console::No },
             { "rift", HandleRift, SEC_GAMEMASTER, Console::No },
             { "advance", HandleAdvance, SEC_GAMEMASTER, Console::No },
+            { "colossus", HandleColossus, SEC_GAMEMASTER, Console::No },
+            { "soon", HandleSoon, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commands = {
             { "frontier", frontier },
@@ -960,6 +1409,49 @@ public:
             States[index].elites.size(), States[index].spots.size(), TierDps(tier) * EliteSeconds,
             TierPlayerHealth(tier) * EliteSwingPct / 100.0f, TierPlayerHealth(tier) * BlowPct / 100.0f,
             player->GetItemCount(ITEM_FROST_SHARD));
+        handler->PSendSysMessage("Front du Nord: Colosse {} next in {} s{}; {}", Colossi.next + 1, Colossi.inMs / 1000,
+            Colossi.coming ? Acore::StringFormat(" (heard of, zone {})", Zones[Colossi.coming->zone].id) : "",
+            Colossi.here ? Acore::StringFormat("Colosse {} in zone {}, {} for {} s more", Colossi.here->index + 1,
+                Zones[Colossi.here->zone].id, Colossi.slain ? "slain" : Colossi.guid.IsEmpty() ? "waiting" : "here",
+                Colossi.stayMs / 1000) : "none here");
+        return true;
+    }
+
+    // .frontier colossus [1-4]: that Colosse (the next one otherwise) in front of the game master, now
+    static bool HandleColossus(ChatHandler* handler, Optional<uint8> which)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Zone const* zone = FindZone(player->GetZoneId());
+        if (!zone || player->GetMapId() != MAP_NORTHREND)
+        {
+            handler->SendSysMessage("Front du Nord: not a tier zone.");
+            return false;
+        }
+        Map* map = player->GetMap();
+        if (Creature* old = Colossi.guid.IsEmpty() ? nullptr : map->GetCreature(Colossi.guid))
+            old->DespawnOrUnsummon();
+        Position spot = player->GetPosition();
+        player->MovePosition(spot, 25.0f, 0.0f);
+        uint8 const index = which ? uint8(std::clamp<uint8>(*which, 1, 4) - 1) : Colossi.next;
+        Colossi.here = ColossusSpot{ index, std::size_t(zone - Zones.data()), spot };
+        Colossi.stayMs = ColossusStayMs;
+        Colossi.slain = false;
+        Colossi.guid.Clear();
+        if (Creature* colossus = SummonColossus(map, *Colossi.here))
+        {
+            Colossi.guid = colossus->GetGUID();
+            handler->PSendSysMessage("Front du Nord: {} here, {} health for one damage dealer.", colossus->GetName(),
+                colossus->GetMaxHealth());
+        }
+        TellEveryone(ColossusMessage(ColossusNews::Here, *Colossi.here, Colossi.stayMs / 1000));
+        return true;
+    }
+
+    // .frontier soon: the next Colosse in 30 seconds (heard of at the next tick)
+    static bool HandleSoon(ChatHandler* handler)
+    {
+        Colossi.inMs = std::min<uint32>(Colossi.inMs, 30000);
+        handler->PSendSysMessage("Front du Nord: Colosse {} in {} s.", Colossi.next + 1, Colossi.inMs / 1000);
         return true;
     }
 
@@ -1015,7 +1507,8 @@ public:
     {
         Player* player = handler->GetSession()->GetPlayer();
         std::list<Creature*> creatures;
-        for (uint32 entry : { RiftCreatures[0], RiftCreatures[1], NPC_RIFT_GUARDIAN })
+        for (uint32 entry : { RiftCreatures[0], RiftCreatures[1], NPC_RIFT_GUARDIAN, NPC_COLOSSI[0], NPC_COLOSSI[1],
+            NPC_COLOSSI[2], NPC_COLOSSI[3] })
             player->GetCreatureListWithEntryInGrid(creatures, entry, 80.0f);
         uint32 slain = 0;
         for (Creature* creature : creatures)
@@ -1024,7 +1517,7 @@ public:
                 Unit::Kill(player, creature);
                 ++slain;
             }
-        handler->PSendSysMessage("Front du Nord: {} rift creature(s) slain.", slain);
+        handler->PSendSysMessage("Front du Nord: {} rift creature(s) or Colosse slain.", slain);
         return true;
     }
 
@@ -1062,4 +1555,5 @@ void AddFrontierScripts()
     RegisterCreatureAI(npc_frontier_rift);
     RegisterCreatureAI(npc_frontier_rift_creature);
     RegisterCreatureAI(npc_frontier_rift_guardian);
+    RegisterCreatureAI(npc_frontier_colossus);
 }

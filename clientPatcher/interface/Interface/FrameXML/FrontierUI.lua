@@ -6,6 +6,9 @@
 --   RIFT <stage> <wave> <waves> <alive> <total> <seconds left>
 --                                                 a rift near the player: stage 1 waiting, 2 waves, 3 guardian, 4
 --                                                 closed, 5 collapsed; the tracker hides when it stops hearing of it
+--   COLOSSUS <state> <colossus 1-4> <zone id> <x> <y> <seconds> <loot item level>
+--                                                 a world boss, to every level-80 player: state 1 coming (seconds
+--                                                 until it comes), 2 here (until it leaves), 3 slain, 4 gone unfought
 --
 -- Built on the Infinite Dungeon's pieces (InfiniteDungeonUI: the banner's look, its helpers and palette).
 
@@ -22,7 +25,8 @@ local TEXT = french and {
     gear = "Équipement de niveau %d",
     content = "Élites rôdeurs",
     eliteTitle = "Élite rôdeur",
-    eliteHint = "Un défi pour un joueur seul, qui grandit avec le groupe. Éclats de givre, et une chance d'équipement du palier.",
+    eliteHint = "Un défi pour un joueur seul, qui grandit avec le groupe. Éclats de givre, et une chance "
+        .. "d'équipement du palier.",
     riftTitle = "Faille arcanique",
     riftHint = "Approchez-vous pour l'ouvrir : trois vagues, puis son gardien. Elle grandit avec le groupe.",
     riftWaiting = "Approchez-vous pour l'ouvrir",
@@ -31,6 +35,13 @@ local TEXT = french and {
     riftGuardian = "Le gardien de la faille",
     riftClosed = "Faille refermée !",
     riftCollapsed = "La faille s'est effondrée",
+    colossusKicker = "Colosse du Front du Nord",
+    colossusArrives = "Arrive dans %s",
+    colossusArrived = "Est arrivé !",
+    colossusLeaves = "Repart dans %s",
+    colossusReward = "Palier %s  ·  équipement de niveau %d garanti",
+    colossusHint = "Un colosse pour un joueur seul comme pour un groupe : il grandit avec ceux qui le combattent.",
+    colossi = { "Gorroth Grandes-Défenses", "Vyskarn", "Zul'Gath l'Avatar déchu", "Mastodonte de saronite" },
 } or {
     kicker = "Northrend Frontier",
     tier = "Tier %s",
@@ -46,27 +57,42 @@ local TEXT = french and {
     riftGuardian = "The rift's guardian",
     riftClosed = "Rift closed!",
     riftCollapsed = "The rift collapsed",
+    colossusKicker = "Northrend Frontier Colossus",
+    colossusArrives = "Arrives in %s",
+    colossusArrived = "Has arrived!",
+    colossusLeaves = "Leaves in %s",
+    colossusReward = "Tier %s  ·  item level %d gear guaranteed",
+    colossusHint = "A colossus for one player as for a group: it grows with those who fight it.",
+    colossi = { "Gorroth Greattusk", "Vyskarn", "Zul'Gath the Fallen Avatar", "The Saronite Juggernaut" },
 }
 local NUMERALS = { "I", "II", "III", "IV" }
 
--- The tier zones: their map (GetMapInfo), WorldMapArea.dbc bounds (left / right are world y, top / bottom world x)
--- and the icon the banner shows until the tier crests are in (Interface\Frontier\Crest<n>)
+-- The tier zones: their name, their map (GetMapInfo), WorldMapArea.dbc bounds (left / right are world y, top / bottom
+-- world x) and the icon the banner shows until the tier crests are in (Interface\Frontier\Crest<n>)
 local ZONES = {
-    [3537] = { map = "BoreanTundra", left = 8570.83, right = 2806.25, top = 4897.92, bottom = 1054.17,
+    [3537] = { name = french and "Toundra Boréenne" or "Borean Tundra",
+               map = "BoreanTundra", left = 8570.83, right = 2806.25, top = 4897.92, bottom = 1054.17,
                icon = "Interface\\Icons\\Achievement_Zone_BoreanTundra_01" },
-    [495] = { map = "HowlingFjord", left = -1397.92, right = -7443.75, top = 3116.67, bottom = -914.58,
+    [495] = { name = french and "Fjord Hurlant" or "Howling Fjord",
+              map = "HowlingFjord", left = -1397.92, right = -7443.75, top = 3116.67, bottom = -914.58,
               icon = "Interface\\Icons\\Achievement_Zone_HowlingFjord_01" },
-    [65] = { map = "Dragonblight", left = 3627.08, right = -1981.25, top = 5575.0, bottom = 1835.42,
+    [65] = { name = french and "Désolation des dragons" or "Dragonblight",
+             map = "Dragonblight", left = 3627.08, right = -1981.25, top = 5575.0, bottom = 1835.42,
              icon = "Interface\\Icons\\Achievement_Zone_Dragonblight_01" },
-    [394] = { map = "GrizzlyHills", left = -1110.42, right = -6360.42, top = 5516.67, bottom = 2016.67,
+    [394] = { name = french and "Les Grisonnes" or "Grizzly Hills",
+              map = "GrizzlyHills", left = -1110.42, right = -6360.42, top = 5516.67, bottom = 2016.67,
               icon = "Interface\\Icons\\Achievement_Zone_GrizzlyHills_01" },
-    [66] = { map = "ZulDrak", left = -600.0, right = -5593.75, top = 7668.75, bottom = 4339.58,
+    [66] = { name = french and "Zul'Drak" or "Zul'Drak",
+             map = "ZulDrak", left = -600.0, right = -5593.75, top = 7668.75, bottom = 4339.58,
              icon = "Interface\\Icons\\Achievement_Zone_ZulDrak_01" },
-    [3711] = { map = "SholazarBasin", left = 6929.17, right = 2572.92, top = 7287.5, bottom = 4383.33,
+    [3711] = { name = french and "Bassin de Sholazar" or "Sholazar Basin",
+               map = "SholazarBasin", left = 6929.17, right = 2572.92, top = 7287.5, bottom = 4383.33,
                icon = "Interface\\Icons\\Achievement_Zone_Sholazar_01" },
-    [67] = { map = "TheStormPeaks", left = 1841.67, right = -5270.83, top = 10197.9, bottom = 5456.25,
+    [67] = { name = french and "Les pics Foudroyés" or "The Storm Peaks",
+             map = "TheStormPeaks", left = 1841.67, right = -5270.83, top = 10197.9, bottom = 5456.25,
              icon = "Interface\\Icons\\Achievement_Zone_StormPeaks_01" },
-    [210] = { map = "IcecrownGlacier", left = 5443.75, right = -827.08, top = 9427.08, bottom = 5245.83,
+    [210] = { name = french and "La Couronne de glace" or "Icecrown",
+              map = "IcecrownGlacier", left = 5443.75, right = -827.08, top = 9427.08, bottom = 5245.83,
               icon = "Interface\\Icons\\Achievement_Zone_IceCrown_01" },
 }
 local ZONE_BY_MAP = {}
@@ -202,34 +228,107 @@ end
 
 local currentZone = 0
 local pins = {}         -- zone id -> { { kind, x, y }, ... }
+local colossi = {}      -- coming / here -> { index, zone, x, y, at (when it comes or leaves), loot, here }
+
+-- The Colosses' icons: their map pins', and their toast's until their portraits are in
+-- (Interface\Frontier\ColossusIcon<n>)
+local COLOSSUS_ICONS = {
+    "Interface\\Icons\\Ability_Mount_Mammoth_White",
+    "Interface\\Icons\\Achievement_Boss_Sapphiron_01",
+    "Interface\\Icons\\Achievement_Boss_GalDarah",
+    "Interface\\Icons\\Achievement_Boss_Patchwerk",
+}
+
+-- A zone's pins: what the server pinned there, and a Colosse coming or here
+local function ZonePins(zoneId)
+    local list = {}
+    for _, entry in ipairs(pins[zoneId] or {}) do
+        tinsert(list, entry)
+    end
+    for _, colossus in pairs(colossi) do
+        if colossus.zone == zoneId then
+            tinsert(list, { kind = "C", x = colossus.x, y = colossus.y, colossus = colossus })
+        end
+    end
+    return list
+end
+
+-- The world map's size of a pin, and the minimap's
+local PIN_SIZES = { E = { 18, 14 }, R = { 24, 18 }, C = { 34, 26 } }
+
+local function PinSize(kind, onMinimap)
+    local sizes = PIN_SIZES[kind] or PIN_SIZES.E
+    return sizes[onMinimap and 2 or 1]
+end
+
+-- Where a Colosse is and when it comes or leaves
+local function ColossusWhere(colossus)
+    local zone = ZONES[colossus.zone]
+    local when = colossus.here and TEXT.colossusArrived
+        or format(TEXT.colossusArrives, UI.FormatClock(colossus.at - GetTime()))
+    return (zone and zone.name .. "  ·  " or "") .. when
+end
 
 -- The map pins -----------------------------------------------------------------------------------------------------
 
-local function ShowPinTooltip(tooltip, owner, kind)
+local function ShowPinTooltip(tooltip, owner, entry)
     tooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    local rift = kind == "R"
-    tooltip:AddLine(rift and TEXT.riftTitle or TEXT.eliteTitle, UI.HEADING[1], UI.HEADING[2], UI.HEADING[3])
-    tooltip:AddLine(rift and TEXT.riftHint or TEXT.eliteHint, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3], true)
+    local colossus = entry and entry.colossus
+    if colossus then
+        tooltip:AddLine(TEXT.colossi[colossus.index] or "", UI.HEADING[1], UI.HEADING[2], UI.HEADING[3])
+        tooltip:AddLine(TEXT.colossusKicker, UI.GOLD[1], UI.GOLD[2], UI.GOLD[3])
+        local when = colossus.here and format(TEXT.colossusLeaves, UI.FormatClock(colossus.at - GetTime()))
+            or format(TEXT.colossusArrives, UI.FormatClock(colossus.at - GetTime()))
+        tooltip:AddLine(when, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3])
+        tooltip:AddLine(format(TEXT.colossusReward, NUMERALS[colossus.index] or "", colossus.loot),
+            UI.AMBER[1], UI.AMBER[2], UI.AMBER[3])
+        tooltip:AddLine(TEXT.colossusHint, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3], true)
+    else
+        local rift = entry and entry.kind == "R"
+        tooltip:AddLine(rift and TEXT.riftTitle or TEXT.eliteTitle, UI.HEADING[1], UI.HEADING[2], UI.HEADING[3])
+        tooltip:AddLine(rift and TEXT.riftHint or TEXT.eliteHint, UI.SOFT[1], UI.SOFT[2], UI.SOFT[3], true)
+    end
     tooltip:Show()
 end
 
 local function CreatePin(parent, tooltipName)
     local pin = CreateFrame("Button", nil, parent)
-    local icon = pin:CreateTexture(nil, "OVERLAY")
-    icon:SetAllPoints()
+    local icon = pin:CreateTexture(nil, "ARTWORK")
     pin.icon = icon
-    pin:SetScript("OnEnter", function(self) ShowPinTooltip(_G[tooltipName], self, self.kind) end)
+    -- A Colosse's ring: the tracking button's gold border (its ring fills the top left 54 / 64 of it)
+    local border = pin:CreateTexture(nil, "OVERLAY")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetPoint("TOPLEFT")
+    border:Hide()
+    pin.border = border
+    pin:SetScript("OnEnter", function(self) ShowPinTooltip(_G[tooltipName], self, self.entry) end)
     pin:SetScript("OnLeave", function() _G[tooltipName]:Hide() end)
     return pin
 end
 
--- A pin's look for what it marks
-local function SetPinKind(pin, kind)
-    if pin.kind == kind then
+-- A pin's look for what it marks, at its size
+local function SetPinEntry(pin, entry, size)
+    pin.entry = entry
+    pin:SetSize(size, size)
+    local look = entry.colossus and "C" .. entry.colossus.index or entry.kind
+    if pin.look == look and pin.lookSize == size then
         return
     end
-    pin.kind = kind
-    if kind == "R" then
+    pin.look, pin.lookSize = look, size
+    pin.icon:ClearAllPoints()
+    if entry.colossus then
+        -- Its icon made round, in the ring (the tracking button's proportions: a 20 icon in a 32 button)
+        SetPortraitToTexture(pin.icon, COLOSSUS_ICONS[entry.colossus.index] or COLOSSUS_ICONS[1])
+        pin.icon:SetTexCoord(0, 1, 0, 1)
+        pin.icon:SetSize(size * 20 / 32, size * 20 / 32)
+        pin.icon:SetPoint("TOPLEFT", pin, "TOPLEFT", size * 6 / 32, -size * 6 / 32)
+        pin.border:SetSize(size * 54 / 32, size * 54 / 32)
+        pin.border:Show()
+        return
+    end
+    pin.border:Hide()
+    pin.icon:SetAllPoints()
+    if entry.kind == "R" then
         if pin.icon:SetTexture(RIFT_ICON) then
             pin.icon:SetTexCoord(0, 1, 0, 1)
         else
@@ -260,7 +359,7 @@ local function UpdateMapPins()
     local width, height = WorldMapButton:GetWidth(), WorldMapButton:GetHeight()
     local pinScale = UIParent:GetEffectiveScale() / WorldMapButton:GetEffectiveScale()
     local shown = 0
-    for _, entry in ipairs(zone and pins[zoneId] or {}) do
+    for _, entry in ipairs(zone and ZonePins(zoneId) or {}) do
         local px, py = MapPosition(zone, entry.x, entry.y)
         if px then
             shown = shown + 1
@@ -269,10 +368,9 @@ local function UpdateMapPins()
                 pin = CreatePin(WorldMapButton, "WorldMapTooltip")
                 mapPins[shown] = pin
             end
-            SetPinKind(pin, entry.kind)
-            pin:SetFrameLevel(WorldMapButton:GetFrameLevel() + 6)
+            SetPinEntry(pin, entry, PinSize(entry.kind))
+            pin:SetFrameLevel(WorldMapButton:GetFrameLevel() + (entry.colossus and 8 or 6))
             pin:SetScale(pinScale)
-            pin:SetSize(entry.kind == "R" and 24 or 18, entry.kind == "R" and 24 or 18)
             pin:ClearAllPoints()
             pin:SetPoint("CENTER", WorldMapButton, "TOPLEFT", px * width / pinScale, -py * height / pinScale)
             pin:Show()
@@ -309,7 +407,7 @@ local function UpdateMinimapPins()
             local radius = Minimap:GetWidth() / 2 - 8
             local rotate = GetCVar("rotateMinimap") == "1"
             local facing = rotate and GetPlayerFacing() or 0
-            for _, entry in ipairs(pins[currentZone] or {}) do
+            for _, entry in ipairs(ZonePins(currentZone)) do
                 local east, south = playerY - entry.y, playerX - entry.x
                 if rotate then
                     local sine, cosine = math.sin(facing), math.cos(facing)
@@ -323,9 +421,8 @@ local function UpdateMinimapPins()
                         pin = CreatePin(Minimap, "GameTooltip")
                         minimapPins[shown] = pin
                     end
-                    SetPinKind(pin, entry.kind)
-                    pin:SetFrameLevel(Minimap:GetFrameLevel() + 5)
-                    pin:SetSize(entry.kind == "R" and 18 or 14, entry.kind == "R" and 18 or 14)
+                    SetPinEntry(pin, entry, PinSize(entry.kind, true))
+                    pin:SetFrameLevel(Minimap:GetFrameLevel() + (entry.colossus and 7 or 5))
                     pin:ClearAllPoints()
                     pin:SetPoint("CENTER", Minimap, "CENTER", x, y)
                     pin:Show()
@@ -411,6 +508,97 @@ local function ShowRift(stage, wave, waves, alive, total, left)
     tracker:Show()
 end
 
+-- The Colosse toast: who, where and when, on its portrait -----------------------------------------------------------
+
+local toast
+local TOAST_IN, TOAST_OUT, TOAST_HOLD = 0.4, 0.8, 9
+
+local function CreateToast()
+    toast = CreateFrame("Frame", "FrontierColossusToast", UIParent)
+    toast:SetSize(380, 96)
+    toast:SetPoint("TOP", UIParent, "TOP", 0, -300)
+    toast:SetFrameStrata("HIGH")
+    UI.Card(toast, 0.92)
+    toast:Hide()
+
+    local portrait = UI.FramedIcon(toast, 72)
+    portrait:SetPoint("LEFT", toast, "LEFT", 12, 0)
+    toast.portrait = portrait
+    local kicker = UI.Label(toast, "GameFontNormalSmall", UI.GOLD)
+    kicker:SetPoint("TOPLEFT", portrait, "TOPRIGHT", 12, -4)
+    kicker:SetText(TEXT.colossusKicker)
+    local name = UI.Label(toast, "GameFontNormalLarge", UI.HEADING)
+    name:SetPoint("TOPLEFT", kicker, "BOTTOMLEFT", 0, -3)
+    toast.name = name
+    local where = UI.Label(toast, "GameFontHighlight", UI.SOFT)
+    where:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+    toast.where = where
+    local reward = UI.Label(toast, "GameFontHighlightSmall", UI.AMBER)
+    reward:SetPoint("TOPLEFT", where, "BOTTOMLEFT", 0, -4)
+    toast.reward = reward
+
+    toast:SetScript("OnUpdate", function(self)
+        local now = GetTime()
+        local age = now - self.shownAt
+        if age < TOAST_IN then
+            self:SetAlpha(UI.OutCubic(age / TOAST_IN))
+        elseif now < self.hideAt then
+            self:SetAlpha(1)
+        else
+            local out = (now - self.hideAt) / TOAST_OUT
+            if out >= 1 then
+                self:Hide()
+                return
+            end
+            self:SetAlpha(1 - UI.OutCubic(out))
+        end
+        -- Its countdown runs while it shows
+        self.where:SetText(ColossusWhere(self.colossus))
+    end)
+end
+
+local function ShowToast(colossus)
+    if not toast then
+        CreateToast()
+    end
+    toast.colossus = colossus
+    local portrait = toast.portrait.icon
+    if not portrait:SetTexture("Interface\\Frontier\\ColossusIcon" .. colossus.index) then
+        portrait:SetTexture(COLOSSUS_ICONS[colossus.index] or COLOSSUS_ICONS[1])
+    end
+    toast.name:SetText(TEXT.colossi[colossus.index] or "")
+    toast.where:SetText(ColossusWhere(colossus))
+    toast.reward:SetText(format(TEXT.colossusReward, NUMERALS[colossus.index] or "", colossus.loot))
+    toast.shownAt = GetTime()
+    toast.hideAt = toast.shownAt + TOAST_IN + TOAST_HOLD
+    toast:SetAlpha(0)
+    toast:Show()
+    PlaySound("RaidWarning")
+end
+
+local COLOSSUS_COMING, COLOSSUS_HERE = 1, 2
+
+-- A Colosse heard of, come, slain or gone: the toast for the first two, the pins for all
+local function ReceiveColossus(state, index, zoneId, x, y, seconds, loot)
+    local colossus = { index = index, zone = zoneId, x = x, y = y, at = GetTime() + seconds, loot = loot,
+                       here = state == COLOSSUS_HERE }
+    if state == COLOSSUS_COMING then
+        colossi.coming = colossus
+        ShowToast(colossus)
+    elseif state == COLOSSUS_HERE then
+        colossi.here = colossus
+        if colossi.coming and colossi.coming.index == index then
+            colossi.coming = nil
+        end
+        ShowToast(colossus)
+    else
+        colossi.here = nil
+    end
+    if WorldMapFrame:IsShown() then
+        UpdateMapPins()
+    end
+end
+
 -- The server's messages ------------------------------------------------------------------------------------------
 
 local function Receive(message)
@@ -436,6 +624,10 @@ local function Receive(message)
         local _, stage, wave, waves, alive, total, left = strsplit("\t", message)
         ShowRift(tonumber(stage) or 0, tonumber(wave) or 0, tonumber(waves) or 3, tonumber(alive) or 0,
             tonumber(total) or 0, tonumber(left) or 0)
+    elseif kind == "COLOSSUS" then
+        local _, state, index, zoneId, x, y, seconds, loot = strsplit("\t", message)
+        ReceiveColossus(tonumber(state) or 0, tonumber(index) or 1, tonumber(zoneId) or 0, tonumber(x) or 0,
+            tonumber(y) or 0, tonumber(seconds) or 0, tonumber(loot) or 0)
     end
 end
 
