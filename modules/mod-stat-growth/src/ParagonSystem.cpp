@@ -464,8 +464,10 @@ thread_local bool DealingProcHeal = false;
 // The damage hook (UnitScript::OnDamage) is not told what dealt the hit. The hooks just before it are: the final
 // damage of a melee swing or of a spell (ModifyFinalDamage) and a periodic tick (ModifyPeriodicDamageAurasTick) name
 // the spell, or none for a white swing, and the same thread then goes on to deal that damage. It is noted here, and
-// read and cleared by the damage hook; a hit it does not match - other units, or damage dealt with no hook before
-// it - is Other.
+// taken by the damage hook; a hit it does not match - other units, or damage dealt with no hook before it - is
+// Other. A stack: a hit can deal another before it lands (a Barbarian's echo of a buffed ally's hit, cast from the
+// ally's own damage), which lands first and takes its own note. With a single note the echo took the ally's, and
+// every hit of a melee ally of an Ascendance Barbarian answered to no weapon node (Brutalité: no double strike).
 struct DamageSource
 {
     Unit const* attacker = nullptr;
@@ -474,7 +476,9 @@ struct DamageSource
     bool periodic = false;
     bool set = false;
 };
-thread_local DamageSource PendingSource;
+thread_local std::vector<DamageSource> PendingSources;
+// Notes left by hits that never landed (absorbed whole, dealt no damage) go past this many
+constexpr std::size_t MaxPendingSources = 16;
 
 HitKind KindOf(SpellInfo const* spell)
 {
@@ -2129,6 +2133,17 @@ void UpdateBotParagon(Player* bot, uint32 diff)
     RefreshBot(bot);
 }
 
+// The combat bench's `.bench list`: a bot's board as the bots' plan made it (role, points, effects that strike)
+std::string DescribeBotParagon(Player* bot)
+{
+    static char const* const roles[] = { "none", "tank", "strength", "agility", "caster", "healer" };
+    ParagonState const* state = bot ? GetState(bot) : nullptr;
+    if (!state || !state->applied)
+        return "no board";
+    uint8 const role = state->botRole < std::size(roles) ? state->botRole : 0;
+    return Acore::StringFormat("board {} {} pts, {} procs", roles[role], state->botBudget, state->procs.size());
+}
+
 void SetBotParagonBudgetOverride(Player* bot, uint32 points)
 {
     if (!bot || !bot->GetSession() || !bot->GetSession()->IsBot())
@@ -2711,11 +2726,9 @@ void NoteParagonDamageSource(Unit* attacker, Unit* victim, SpellInfo const* spel
     if (!attacker || !attacker->IsPlayer())
         return;
 
-    PendingSource.attacker = attacker;
-    PendingSource.victim = victim;
-    PendingSource.spell = spellInfo;
-    PendingSource.periodic = periodic;
-    PendingSource.set = true;
+    if (PendingSources.size() >= MaxPendingSources)
+        PendingSources.erase(PendingSources.begin());
+    PendingSources.push_back({ attacker, victim, spellInfo, periodic, true });
 }
 
 // Rancune (Bastion) counts every hit taken as it would have landed without the player's defences: what shields
@@ -2868,9 +2881,19 @@ static uint64 AreaShare(uint64 share, std::size_t targets)
 
 void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 {
-    // Read and cleared on every hit, whoever dealt it, so a note is never left over for a later one
-    DamageSource const source = PendingSource;
-    PendingSource = {};
+    // This hit's note: the latest one of the same attacker on the same victim, taken with any left above it (hits
+    // noted inside this one that never landed)
+    DamageSource source;
+    auto const note = std::find_if(PendingSources.rbegin(), PendingSources.rend(),
+        [attacker, victim](DamageSource const& pending)
+    {
+        return pending.attacker == attacker && pending.victim == victim;
+    });
+    if (note != PendingSources.rend())
+    {
+        source = *note;
+        PendingSources.erase(std::next(note).base(), PendingSources.end());
+    }
 
     Player* player = attacker ? attacker->ToPlayer() : nullptr;
     if (!player || !damage || !victim || attacker == victim || DealingProcDamage)
