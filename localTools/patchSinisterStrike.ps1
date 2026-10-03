@@ -1268,6 +1268,9 @@ $customVisualKits = @(
     # The Hollow Voice (localTools/hollowVoice/Spells.ps1): Beam of Light's pillar (its state kit, 11581) without its
     # sound, Holy_Form_Precast, which loops (flag 0x200) for as long as the aura stays: it went on after a held tower
     @{ Key = 'HV_LightPillar'; Clone = 11581; Fields = @{ 15 = 0 } }
+    # and Mark of Rimefang's reticle (its state kit, 13250) without Sindragosa_DarkmoonVengeance_Impact_Head, which went on
+    # for as long as the mark
+    @{ Key = 'HV_MarkReticle'; Clone = 13250; Fields = @{ 15 = 0 } }
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15

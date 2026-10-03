@@ -110,7 +110,7 @@ local TEXT = french and {
     heroic = "Héroïque",
     heroicTag = "HÉROÏQUE",
     itemLevel = "Butin de niveau d'objet %d",
-    tierItemLevel = "Butin %d · pièce du défi : niveau d'objet %d",
+    tierItemLevel = "Butin %d · pièce du défi : niv. %d",
     required = "Requis : niv. d'objet %d+ · parangon %d",
     paragon = "+%d Parangon",
     essences = "+%d essences",
@@ -274,7 +274,7 @@ local TEXT = french and {
     heroic = "Heroic",
     heroicTag = "HEROIC",
     itemLevel = "Drops item level %d",
-    tierItemLevel = "Drops %d · challenge piece: item level %d",
+    tierItemLevel = "Drops %d · challenge piece: %d",
     required = "Requires item level %d+ · paragon %d",
     paragon = "+%d Paragon",
     essences = "+%d essences",
@@ -806,6 +806,9 @@ local function CreateCard(index)
     -- What the boss drops in this mode, in the epic colour, as one more line about the mission
     local itemLevel = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     itemLevel:SetPoint("TOPLEFT", size, "BOTTOMLEFT", 0, -3)
+    -- The card's width inside its margins (a tier's line ran past its edge and over the next card), a second line if it
+    -- needs one
+    itemLevel:SetWidth(CARD_WIDTH - 16)
     itemLevel:SetJustifyH("LEFT")
     itemLevel:SetTextColor(0.75, 0.45, 1)
     card.itemLevel = itemLevel

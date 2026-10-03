@@ -283,6 +283,12 @@ constexpr uint32 FervorMs = 10000;
 constexpr uint32 TankExposureMs = 20000;
 constexpr uint32 TankExposureGraceMs = 1000;
 constexpr float TankExposedHitPct = 75.0f;
+// The tank swap, for players: a tank carrying TauntCueStacks of the boss's own (Condemned, Vampiric Brand, from which
+// the demon feeds) is told to let the boss go and the other tank to taunt it - a raid boss whisper in the middle of
+// their screen, the other tank flashing Taunt's shout - every TauntCueEveryMs until it is done. Bots swap on their own.
+constexpr uint32 TauntCueStacks = 3;
+constexpr uint32 TauntCueEveryMs = 4000;
+constexpr uint32 KIT_TAUNT = 259;
 // How far from the room's middle the demon's tank may hold him before it walks him back (KeepDemonCentred)
 constexpr float DemonCentreSlack = 6.0f;
 constexpr float CrossLength = 42.0f;
@@ -529,8 +535,9 @@ constexpr uint32 TowerCheckMs = 250;
 constexpr uint32 ShrinkAwayMs = 600;            // a pillar of light shrinking away (ShrinkAway)
 constexpr uint32 StrikeMs = 900;
 constexpr uint32 ScorchMs = 3000;
-// Stock: a red reticle over the head (Mark of Rimefang), a purple beam (a dummy channel)
-constexpr uint32 SPELL_FX_MARK = 69275;
+// A red reticle over the head: Mark of Rimefang's look without its sound, which went on as long as the mark
+// (localTools/hollowVoice/Spells.ps1, 94047); stock: a purple beam (a dummy channel)
+constexpr uint32 SPELL_FX_MARK = 94047;
 constexpr uint32 SPELL_FX_PURPLE_BEAM = 28309;
 
 // Stock spell visual kits (SpellVisualKit.dbc), from the paladin's and the demons' own spells. Nothing that flashes
@@ -2158,6 +2165,49 @@ private:
         GroundIndicators::SetTankSpot(demon, Center(), 2000, DemonCentreSlack);
     }
 
+    // The stacks a boss's own (Condemned, Vampiric Brand) has on a player now, 0 once lapsed
+    static uint32 StacksOn(std::map<ObjectGuid, std::pair<uint32, uint32>> const& stacks, Player const* player)
+    {
+        auto const found = stacks.find(player->GetGUID());
+        if (found == stacks.end() || getMSTimeDiff(found->second.second, getMSTime()) < 0x80000000u)
+            return 0;
+        return found->second.first;
+    }
+
+    // The tank swap's cue (TauntCueStacks), for the players among the tanks
+    void UpdateTauntCue(uint32 elapsed)
+    {
+        if (elapsed < _nextTauntCueMs)
+            return;
+        Creature* boss = _phase == Phase::Aldric ? me : _phase == Phase::Hollow ? Velthazar() : nullptr;
+        Player* tank = boss && boss->IsAlive() && boss->GetVictim() ? boss->GetVictim()->ToPlayer() : nullptr;
+        if (!tank || StacksOn(_phase == Phase::Aldric ? _condemned : _brand, tank) < TauntCueStacks)
+            return;
+        _nextTauntCueMs = elapsed + TauntCueEveryMs;
+        bool const demon = _phase == Phase::Hollow;
+        for (Player* other : ArenaPlayers())
+        {
+            if (other == tank || !IsGroupTank(other) || !IsRealPlayer(other))
+                continue;
+            bool const french = other->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
+            boss->Whisper(french
+                ? Acore::StringFormat("{} porte trop de {} : provoquez {} maintenant !", tank->GetName(),
+                    demon ? "Marques vampiriques" : "Condamnations", boss->GetName())
+                : Acore::StringFormat("{} carries too many {}: taunt {} now!", tank->GetName(),
+                    demon ? "Vampiric Brands" : "Condemnations", boss->GetName()), LANG_UNIVERSAL, other, true);
+            other->SendPlaySpellVisual(KIT_TAUNT);
+        }
+        if (IsRealPlayer(tank))
+        {
+            bool const french = tank->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
+            boss->Whisper(french
+                ? Acore::StringFormat("Trop de {} : laissez {} à l'autre tank !",
+                    demon ? "Marques vampiriques" : "Condamnations", boss->GetName())
+                : Acore::StringFormat("Too many {}: let the other tank take {}!",
+                    demon ? "Vampiric Brands" : "Condemnations", boss->GetName()), LANG_UNIVERSAL, tank, true);
+        }
+    }
+
     // --- The clock -------------------------------------------------------------------------------------------------
     void UpdateClock(bool skipping)
     {
@@ -2181,6 +2231,7 @@ private:
             _nextReachSample = elapsed + 1000;
             SampleReach();
             KeepDemonCentred();
+            UpdateTauntCue(elapsed);
         }
         if (_phase != Phase::Hollow)
             return;
@@ -3679,6 +3730,7 @@ private:
     };
     std::map<ObjectGuid, Dealt> _dealt;         // the report's damage and melee reach (NoteDamage, SampleReach)
     uint32 _nextReachSample = 0;
+    uint32 _nextTauntCueMs = 0;
     uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
     uint32 _nextLitany = 0;                     // ... the earliest the next may fall...
     bool _ongoing = false;                      // ... and a mechanic running on (none falls meanwhile)

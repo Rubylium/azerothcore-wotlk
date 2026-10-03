@@ -168,6 +168,12 @@ $spells = @(
     @{ Id = 94155; Clone = 686; Name = 'Voix de la ruine'; FallbackIconSpell = 46605; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Tout le groupe dans l''égide du tank.'
        Fields = @{ 16 = 0; 31 = 0; 71 = 3; 72 = 0; 73 = 0; 86 = 1; 87 = 0; 88 = 0; 89 = 0; 95 = 0; 96 = 0; 97 = 0; 205 = 0; 206 = 0; 213 = 0; 214 = 0 } },
+    # The red reticle over a marked player's head (Execution Sentence, Nightmare Lances): Mark of Rimefang's look (its
+    # visual 14339) with a state kit of its own without its sound (HV_MarkReticle: a whoosh that went on for the whole
+    # mark); hidden from the auras (field 4: 0x80), the mark's own debuff says what to do
+    @{ Id = 94047; Clone = 2983; Name = 'Marque'; FallbackIconSpell = 69275; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une marque.'; AuraDescription = 'Une marque.'
+       Fields = @{ 4 = 0x80; 40 = 21 }; Visual = @{ Clone = 14339; State = 'HV_MarkReticle' } },
     # A tank's Exposure (HollowVoice.cpp Expose): struck by a mechanic that is not a tank's, once, twice
     @{ Id = 94046; Clone = 2983; Name = 'Exposition'; FallbackIconSpell = 25771; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 3; Spellbook = $false
        Description = 'Un tank frappé par une mécanique qui n''est pas la sienne.'
