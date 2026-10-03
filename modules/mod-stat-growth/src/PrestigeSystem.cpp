@@ -91,8 +91,11 @@ void SendState(Player* player)
 {
     uint32 const prestige = GetParagonPrestige(player);
     uint32 const cap = GetParagonPointCap(player);
-    uint32 const per = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige);
-    uint32 const nextCap = per > (std::numeric_limits<uint32>::max() - cap) ? cap : cap + per;
+    // The next prestige unlocks every point banked, the ones it pays included (PerformPrestige)
+    uint32 const earned = GetParagonEarned(player);
+    uint32 const reward = PrestigeParagonReward(prestige + 1);
+    uint32 const afterReward = earned > std::numeric_limits<uint32>::max() - reward ? earned : earned + reward;
+    uint32 const nextCap = std::max(cap, afterReward);
     PrestigeBlock const block = BlockReason(player);
     Send(player, Acore::StringFormat("STATE\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
         prestige, cap, nextCap, GetParagonEarned(player), GetParagonSpent(player),
@@ -305,8 +308,10 @@ bool PerformPrestige(Player* player)
     GrantOpeningKit(player);
     player->UpdateAllStats();
 
-    // Paid before the numbers below are read, so the frame and the message that follow already count them
+    // Paid before the numbers below are read, so the frame and the message that follow already count them; then
+    // everything banked, those included, is unlocked
     AwardParagonPoints(player, PrestigeParagonReward(GetParagonPrestige(player)), "prestige");
+    UnlockBankedParagonPoints(player);
 
     uint32 const cap = GetParagonPointCap(player);
     uint32 const earned = GetParagonEarned(player);

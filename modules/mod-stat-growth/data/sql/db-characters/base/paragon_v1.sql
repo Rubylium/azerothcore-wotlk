@@ -8,14 +8,16 @@ CREATE TABLE IF NOT EXISTS `character_paragon` (
     KEY `idx_guid` (`guid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Total points ever earned, including any past the cap, and how many prestiges raised that cap.
+-- Total points ever earned, including any past the cap, how many prestiges the character made, and how many
+-- points they unlocked past Paragon.PointCap.
 --
 -- Points keep dropping at the cap and bank here rather than being thrown away. Available to spend is
--- min(earned, cap) - spent, and the cap is Paragon.PointCap plus prestige times Paragon.PointsPerPrestige,
--- so banked points appear the moment a prestige moves it.
+-- min(earned, cap) - spent, and the cap is Paragon.PointCap plus unlocked: every prestige unlocks all the
+-- points banked at that moment.
 CREATE TABLE IF NOT EXISTS `character_paragon_points` (
     `guid` INT UNSIGNED NOT NULL,
     `earned` INT UNSIGNED NOT NULL DEFAULT 0,
     `prestige` INT UNSIGNED NOT NULL DEFAULT 0,
+    `unlocked` INT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (`guid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

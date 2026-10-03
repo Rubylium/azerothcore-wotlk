@@ -336,7 +336,8 @@ uint8 MergeScope(uint8 current, uint8 incoming, bool first)
 struct ParagonState : public DataMap::Base
 {
     uint32 earned = 0;                      // everything ever awarded, including past the cap
-    uint32 prestige = 0;                    // how many times this character has reset; each one raises the cap
+    uint32 prestige = 0;                    // how many times this character has reset
+    uint32 unlocked = 0;                    // opened past Paragon.PointCap by the prestiges: all that was banked
     std::unordered_set<uint32> allocated;   // paid-for nodes only; free ones are never stored
     bool applied = false;
     bool overCapReset = false;              // the allocation broke the board's rules at login and was refunded
@@ -577,16 +578,14 @@ ParagonState* GetState(Player* player)
     return player ? player->CustomData.Get<ParagonState>(StateKey) : nullptr;
 }
 
+// Paragon.PointCap to begin with; every prestige opens what was banked past it (UnlockBankedParagonPoints)
 uint32 PointCap(ParagonState const* state)
 {
     uint32 const base = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap);
-    uint32 const per = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige);
-    uint32 const prestige = state ? state->prestige : 0;
-    if (per == 0)
-        return base;
-    if (prestige > (std::numeric_limits<uint32>::max() - base) / per)
+    uint32 const unlocked = state ? state->unlocked : 0;
+    if (unlocked > std::numeric_limits<uint32>::max() - base)
         return std::numeric_limits<uint32>::max();
-    return base + prestige * per;
+    return base + unlocked;
 }
 
 // What a node costs. Free nodes cost nothing; a node the data leaves at 0 still costs a point.
@@ -1135,8 +1134,8 @@ void ClearBuffs(Player* player, ParagonState* state)
 void SaveEarned(Player* player, ParagonState const* state)
 {
     CharacterDatabase.Execute(
-        "REPLACE INTO character_paragon_points (guid, earned, prestige) VALUES ({}, {}, {})",
-        player->GetGUID().GetCounter(), state->earned, state->prestige);
+        "REPLACE INTO character_paragon_points (guid, earned, prestige, unlocked) VALUES ({}, {}, {}, {})",
+        player->GetGUID().GetCounter(), state->earned, state->prestige, state->unlocked);
 }
 
 void SaveGlyph(Player* player, uint32 glyphId, ParagonState::GlyphState const& glyph)
@@ -1997,16 +1996,18 @@ void LoadParagonForPlayer(Player* player)
     ParagonState* state = player->CustomData.GetDefault<ParagonState>(StateKey);
     state->earned = 0;
     state->prestige = 0;
+    state->unlocked = 0;
     state->allocated.clear();
     state->applied = false;
 
     uint32 const guid = player->GetGUID().GetCounter();
     if (QueryResult result = CharacterDatabase.Query(
-            "SELECT earned, prestige FROM character_paragon_points WHERE guid = {}", guid))
+            "SELECT earned, prestige, unlocked FROM character_paragon_points WHERE guid = {}", guid))
     {
         Field* field = result->Fetch();
         state->earned = field[0].Get<uint32>();
         state->prestige = field[1].Get<uint32>();
+        state->unlocked = field[2].Get<uint32>();
     }
 
     state->level = 0;
@@ -2097,12 +2098,11 @@ void ApplyStoredParagon(Player* player)
         state->overCapReset = false;
         ChatHandler(player->GetSession()).PSendSysMessage(IsFrench(player)
             ? "|cffa335ee[Parangon]|r Les règles du tableau ont changé (coût des nœuds, paliers à compléter par "
-              "branche, plafond de {} points, +{} par prestige) : votre tableau a été réinitialisé gratuitement. Vos "
-              "points gagnés restent acquis ; ceux au-delà du plafond attendent vos prochains prestiges."
+              "branche, plafond de {} points) : votre tableau a été réinitialisé gratuitement. Vos points gagnés "
+              "restent acquis ; ceux au-delà du plafond sont en réserve, et votre prochain prestige les débloque tous."
             : "|cffa335ee[Paragon]|r The board's rules changed (node costs, tiers to complete per branch, a cap of {} "
-              "points, +{} per prestige): your board was reset for free. Your earned points are kept; those past the "
-              "cap wait for your next prestiges.", PointCap(state),
-            statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointsPerPrestige));
+              "points): your board was reset for free. Your earned points are kept; those past the cap are banked, and "
+              "your next prestige unlocks them all.", PointCap(state));
     }
 }
 
@@ -3459,6 +3459,15 @@ void SetParagonPrestige(Player* player, uint32 prestige)
         state->prestige = prestige;
 }
 
+void UnlockBankedParagonPoints(Player* player)
+{
+    ParagonState* state = StateOf(player);
+    if (!state)
+        return;
+    uint32 const base = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap);
+    state->unlocked = std::max(state->unlocked, state->earned > base ? state->earned - base : 0);
+}
+
 void SaveParagonPoints(Player* player, CharacterDatabaseTransaction trans)
 {
     ParagonState const* state = GetState(player);
@@ -3466,8 +3475,8 @@ void SaveParagonPoints(Player* player, CharacterDatabaseTransaction trans)
         return;
 
     CharacterDatabase.ExecuteOrAppend(trans, Acore::StringFormat(
-        "REPLACE INTO character_paragon_points (guid, earned, prestige) VALUES ({}, {}, {})",
-        player->GetGUID().GetCounter(), state->earned, state->prestige));
+        "REPLACE INTO character_paragon_points (guid, earned, prestige, unlocked) VALUES ({}, {}, {}, {})",
+        player->GetGUID().GetCounter(), state->earned, state->prestige, state->unlocked));
 }
 
 // A glyph used from the bags: learnt into the collection, or absorbed as experience. The item's on-use spell is only

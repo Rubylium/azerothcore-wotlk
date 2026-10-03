@@ -57,7 +57,7 @@ local TEXT = french and {
     gain = "Vous gagnez",
     keep = "Vous conservez",
     lose = "Vous perdez",
-    gains = { "+%d au plafond de parangon", "+%d points de parangon", "Des éclats à chaque niveau", "Des héritages à acheter" },
+    gains = { "+%d points en réserve débloqués", "+%d points de parangon", "Des éclats à chaque niveau", "Des héritages à acheter" },
     keeps = { "Essences", "Tableau de parangon", "Quêtes, réputation, or", "Métiers et montures", "Héritages équipés" },
     loses = { "Niveau ramené à 1", "Sorts au-dessus du niveau 1", "Spécialisations et glyphes", "Équipement de haut niveau" },
     ready = "Vous êtes au niveau maximum.",
@@ -99,7 +99,7 @@ local TEXT = french and {
     gain = "You gain",
     keep = "You keep",
     lose = "You lose",
-    gains = { "+%d paragon cap", "+%d paragon points", "Shards at every level", "Heirlooms to buy" },
+    gains = { "+%d banked points unlocked", "+%d paragon points", "Shards at every level", "Heirlooms to buy" },
     keeps = { "Essences", "Paragon board", "Quests, reputation, gold", "Professions and mounts", "Equipped heirlooms" },
     loses = { "Level back to 1", "Spells above level 1", "Specializations and glyphs", "High-level gear" },
     ready = "You are at the maximum level.",
@@ -934,7 +934,8 @@ local function Refresh()
         ui.capNext:Hide()
         ui.capText:SetPoint("CENTER", ui.capArrow, "CENTER", 0, 1)
     end
-    ui.gainColumn.rows[1]:SetFormattedText(TEXT.gains[1], max(0, state.nextCap - state.cap))
+    -- Every point banked past the cap is unlocked (the cap rises to all that was earned, the reward included)
+    ui.gainColumn.rows[1]:SetFormattedText(TEXT.gains[1], max(0, state.nextCap - state.cap - (state.reward or 0)))
     ui.gainColumn.rows[2]:SetFormattedText(TEXT.gains[2], state.reward)
 
     local allowed = state.can == 1 and not state.pending

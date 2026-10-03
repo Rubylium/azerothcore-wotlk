@@ -15,7 +15,8 @@ class Unit;
 
 // The paragon board: a second layer of permanent power on top of the essences, spent on a tree rather than
 // granted flat. A node is worth several essences at least, so every point is an event; the point cap is what
-// keeps that from running away. Prestige raises it (Paragon.PointsPerPrestige each reset).
+// keeps that from running away: Paragon.PointCap to begin with, points past it banked, and every prestige unlocks all
+// that was banked (UnlockBankedParagonPoints).
 //
 // Points come from bosses, from finished keys and from paragon levels: at the level cap, experience keeps
 // filling a bar, and every level of it is a point. The board has three zones, and the outer two are where a
@@ -42,6 +43,8 @@ uint32 GetParagonEarned(Player* player);
 uint32 GetParagonSpent(Player* player);
 uint32 GetParagonPointCap(Player* player);
 void SetParagonPrestige(Player* player, uint32 prestige);
+// A prestige's unlocking: the cap rises to every point earned, so all that was banked can be spent
+void UnlockBankedParagonPoints(Player* player);
 
 // Writes earned and prestige. Pass a transaction to commit them with the rest of a prestige.
 void SaveParagonPoints(Player* player, CharacterDatabaseTransaction trans);

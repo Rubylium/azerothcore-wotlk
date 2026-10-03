@@ -47,7 +47,6 @@ enum class StatGrowthConfigKey : uint8
     MythicEssenceBonusPerKeyLevel,
     ParagonEnabled,
     ParagonPointCap,
-    ParagonPointsPerPrestige,
     ParagonNormalChance,
     ParagonHeroicChance,
     ParagonMythicZeroChance,

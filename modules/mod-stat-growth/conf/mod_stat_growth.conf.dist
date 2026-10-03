@@ -146,15 +146,10 @@ Fortune.MaxGearBonusValueIncrease = 10.0
 
 Paragon.Enabled = 1
 
-# Points a character may have spent at once. Points keep coming past this (bosses, keys and
-# paragon levels from experience at the level cap) and
-# are banked, appearing the moment the cap is raised, so a drop at cap is never
-# wasted.
-Paragon.PointCap = 10
-
-# Added to Paragon.PointCap for each prestige. Points already earned past the old cap become
-# spendable as soon as the cap moves.
-Paragon.PointsPerPrestige = 20
+# Points a character may have spent at once to begin with. Points keep coming past this (bosses, keys and
+# paragon levels from experience at the level cap) and are banked; every prestige unlocks all that was
+# banked (stored 10, unlocks 10; stored 50, unlocks 50), so a drop at cap is never wasted.
+Paragon.PointCap = 20
 
 # Chance, in percent, that a boss kill awards a point. Rolled per player, so
 # nobody competes with their own group for it. Trash never awards one: a long
