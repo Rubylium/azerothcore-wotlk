@@ -793,17 +793,15 @@ bool IsInTankStance(Player* player)
 
 bool IsGroupTank(Player* player)
 {
-    if (uint8 const roles = sLFGMgr->GetRoles(player->GetGUID()))
-        if (roles & lfg::PLAYER_ROLE_TANK)
-            return true;
-
-    // A group put together by hand never ran a role check through the finder, but the group still carries a
-    // role and a main-tank flag per member, and either one is a clear enough statement of who is tanking.
+    // A role given says it: a healer or a damage dealer is no tank whatever its stance (a healing paladin under
+    // Righteous Fury counted as one, and was named to take a boss it never taunted). The group's own first (the
+    // Raid Finder's places, a role or main-tank flag set by hand), then the Dungeon Finder's.
     if (Group* group = player->GetGroup())
         for (Group::MemberSlot const& member : group->GetMemberSlots())
-            if (member.guid == player->GetGUID() &&
-                ((member.roles & lfg::PLAYER_ROLE_TANK) || (member.flags & MEMBER_FLAG_MAINTANK)))
-                return true;
+            if (member.guid == player->GetGUID() && (member.roles || (member.flags & MEMBER_FLAG_MAINTANK)))
+                return (member.roles & lfg::PLAYER_ROLE_TANK) || (member.flags & MEMBER_FLAG_MAINTANK);
+    if (uint8 const roles = sLFGMgr->GetRoles(player->GetGUID()))
+        return roles & lfg::PLAYER_ROLE_TANK;
 
     // Nobody set a role at all, which is most groups made by hand: whoever is in a tank stance is the tank
     return IsInTankStance(player);
