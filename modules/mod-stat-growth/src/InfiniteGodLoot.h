@@ -12,6 +12,14 @@ namespace InfiniteGodLoot
 constexpr std::array<uint32, 3> BonusEnchants = { 3890, 3895, 3900 };
 constexpr uint32 EnchantLines = 5;
 
+// The Hollow Voice's gear: a chance (BonusChancePct) of one of three bonuses of its own, five enchantments as L'Infini's
+// (SpellItemEnchantment 4100-4114, localTools/patchSinisterStrike.ps1; their spells localTools/hollowVoice/Spells.ps1)
+namespace HollowVoice
+{
+constexpr std::array<uint32, 3> BonusEnchants = { 4100, 4105, 4110 };
+constexpr float BonusChancePct = 25.0f;
+}
+
 inline bool IsReward(Item const* item)
 {
     uint32 const first = item->GetEnchantmentId(PROP_ENCHANTMENT_SLOT_0);

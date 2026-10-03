@@ -2588,6 +2588,32 @@ for ($kind = 0; $kind -lt $infiniGear.Count; ++$kind) {
             Spell = $(if ($line -eq 0) { $infiniGear[$kind].Spell } else { 0 }) }
     }
 }
+# The Hollow Voice's gear (MythicDungeonSystem.cpp TouchByHollowVoice, one piece in four): the same five lines, its
+# name in Aldric's pale gold-violet. Five ids a bonus from 4100. Their spells: localTools\hollowVoice\Spells.ps1.
+$voiceName = '|cffd8b4ff{0}|r'
+$voiceGear = @(
+    @{ Spell = 94156; Lines = @(($voiceName -f 'Ailes du Séraphin'),
+        ($infiniEffect -f 'Équipé : vos attaques, sorts et soins ont une chance'),
+        ($infiniEffect -f 'd''augmenter vos dégâts et soins de 10% (10 s).'),
+        ($infiniLore -f '« Les ailes qu''Aldric déploya'),
+        ($infiniLore -f 'pour sa dernière prière. »')) }
+    @{ Spell = 94158; Lines = @(($voiceName -f 'Égide d''Aldric'),
+        ($infiniEffect -f 'Équipé : quand vous subissez des dégâts, chance'),
+        ($infiniEffect -f 'd''absorber 30000 points de dégâts (10 s).'),
+        ($infiniLore -f '« Sa lumière garde encore'),
+        ($infiniLore -f 'ceux qui l''ont libéré. »')) }
+    @{ Spell = 94160; Lines = @(($voiceName -f 'Murmure de Vel''thazar'),
+        ($infiniEffect -f 'Équipé : vos attaques et sorts nuisibles ont une'),
+        ($infiniEffect -f 'chance d''infliger 35000 dégâts d''Ombre.'),
+        ($infiniLore -f '« Le démon s''est tu.'),
+        ($infiniLore -f 'Sa voix, elle, murmure encore. »')) }
+)
+for ($kind = 0; $kind -lt $voiceGear.Count; ++$kind) {
+    for ($line = 0; $line -lt 5; ++$line) {
+        $infiniEnchants += @{ Id = 4100 + 5 * $kind + $line; Name = $voiceGear[$kind].Lines[$line]
+            Spell = $(if ($line -eq 0) { $voiceGear[$kind].Spell } else { 0 }) }
+    }
+}
 $serverEnchantPath = Join-Path $serverDbcRoot 'SpellItemEnchantment.dbc'
 $enchantBackupPath = Join-Path $serverDbcRoot 'SpellItemEnchantment.before-infinite-gear.dbc'
 if (-not (Test-Path -LiteralPath $enchantBackupPath)) {

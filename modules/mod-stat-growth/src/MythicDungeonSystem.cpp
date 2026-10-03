@@ -453,6 +453,16 @@ void TouchByInfiniteGod(Item* item)
         item->SetEnchantment(EnchantmentSlot(PROP_ENCHANTMENT_SLOT_0 + line), first + line, 0, 0);
 }
 
+// The Hollow Voice's touch on its gear (as L'Infini's, InfiniteGodLoot::HollowVoice): Ailes du Séraphin, Égide
+// d'Aldric or Murmure de Vel'thazar, drawn for the piece
+void TouchByHollowVoice(Item* item)
+{
+    auto const& bonuses = InfiniteGodLoot::HollowVoice::BonusEnchants;
+    uint32 const first = bonuses[urand(0, uint32(bonuses.size() - 1))];
+    for (uint32 line = 0; line < InfiniteGodLoot::EnchantLines; ++line)
+        item->SetEnchantment(EnchantmentSlot(PROP_ENCHANTMENT_SLOT_0 + line), first + line, 0, 0);
+}
+
 // A generated item's record, sent before the item itself: the client only asks for it once it sees the item, and an
 // answer it misses leaves the item nameless ("Retrieving item information") for the whole session
 void SendGeneratedItemRecord(Player* player, uint32 entry)
@@ -954,10 +964,15 @@ void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)
         GiveMythicItem(player, std::min(itemLevel, Mythic::MaxRaidItemLevel), TouchByInfiniteGod);
 }
 
+// The Hollow Voice's loot: one piece in four touched by it (TouchByHollowVoice), its bonus, frame and tooltip its own
 void GivePinnacleLootItem(Player* player, uint32 itemLevel)
 {
     if (player)
-        GiveMythicItem(player, std::min(itemLevel, Mythic::MaxPinnacleItemLevel));
+        GiveMythicItem(player, std::min(itemLevel, Mythic::MaxPinnacleItemLevel), [](Item* item)
+        {
+            if (roll_chance_f(InfiniteGodLoot::HollowVoice::BonusChancePct))
+                TouchByHollowVoice(item);
+        });
 }
 
 bool IsMythicLootless(Creature const* creature)

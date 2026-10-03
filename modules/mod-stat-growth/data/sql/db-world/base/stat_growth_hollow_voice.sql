@@ -186,3 +186,14 @@ INSERT INTO `creature`
 VALUES
     (9000401, 930100, 580, 0, 0, 1, 1, 1, 1816.25, 625.484, 69.65, 5.62435, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
      NULL, 0, 'The Hollow Voice - M''uru''s chamber (Défi board only)');
+
+-- Its gear's bonuses (localTools/hollowVoice/Spells.ps1 94156-94161, one piece in four by MythicDungeonSystem.cpp
+-- TouchByHollowVoice): the equip auras' proc chance stays their spell's own, the cooldowns are here. SpellTypeMask 1
+-- damage, 3 damage or heal; SpellPhaseMask 2 on the hit (none for the struck one, as L'Infini's armour bonus).
+DELETE FROM `spell_proc` WHERE `SpellId` IN (94156, 94158, 94160);
+INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`,
+    `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`,
+    `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
+    (94156, 0, 0, 0, 0, 0, 0, 3, 2, 0, 0, 0, 0, 0, 60000, 0),     -- Ailes du Séraphin
+    (94158, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 45000, 0),     -- Égide d'Aldric
+    (94160, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 20000, 0);     -- Murmure de Vel'thazar

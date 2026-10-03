@@ -56,8 +56,10 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'FrontierQuartermaster.lua',
     // Loads after the CompactRaidFrame addon has run: it wraps that addon's UnitGetTotalAbsorbs
     'PestifereShield.lua',
-    // Tags Mythic+ loot in its tooltip; needs GameTooltip, so it loads at the end of FrameXML
-    'MythicItemTag.lua', 'ItemFrames.lua', 'ItemFramesInfinite.lua', 'ItemFramesAdapters.lua',
+    // Our items' tooltips: their layout (the source on the second line, a boss's touch moved under their effects),
+    // then their source tag; needs GameTooltip, so it loads at the end of FrameXML. Then their bag and slot frames.
+    'ItemTooltipLayout.lua', 'MythicItemTag.lua', 'ItemFrames.lua', 'ItemFramesInfinite.lua', 'ItemFramesVoice.lua',
+    'ItemFramesAdapters.lua',
     // The rotation's pause / resume panel (mod-playerbots .cheat rotation)
     'RotationControl.lua'];
 

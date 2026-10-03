@@ -115,6 +115,32 @@ $spells = @(
        AuraDescription = 'Dégâts et soins augmentés de 20%.' },
     # Fervour of the Faithful: Aldric's Blessing at +40% for 10 s (fields 80-81: Avenging Wrath's two effects, 40 = 1:
     # 10 s), without its wings (131): many players gain it at once, at every tower and shared impact held
+    # Its gear's bonuses (MythicDungeonSystem.cpp TouchByHollowVoice, one piece in four; patchSinisterStrike.ps1 puts
+    # them on as SpellItemEnchantment equip spells, as L'Infini's). Each a stock proc trinket's equip aura (34 its proc
+    # flags, 35 its chance, 116 what it triggers) and a spell kept for its look; cooldowns in stat_growth_hollow_voice.sql.
+    # Ailes du Séraphin: on any hit (0x10154 | 0x4000 heals), Aldric's wings - Avenging Wrath (31884) kept with its
+    # wings, +10% damage and healing for 10 s
+    @{ Id = 94156; Clone = 60490; Name = 'Ailes du Séraphin'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Vos attaques, sorts et soins ont une chance de vous donner les ailes d''Aldric : dégâts et soins augmentés de 10% pendant 10 s.'
+       Fields = @{ 34 = 0x14154; 35 = 10; 116 = 94157 } },
+    @{ Id = 94157; Clone = 31884; Name = 'Ailes du Séraphin'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Dégâts et soins augmentés de 10%.'; AuraDescription = 'Dégâts et soins augmentés de 10%.'
+       Fields = @{ 40 = 1; 80 = 9; 81 = 9 } },
+    # Égide d'Aldric: when struck (60221), his light around you - Power Word: Shield's bubble (48066) absorbing 30 000
+    @{ Id = 94158; Clone = 60221; Name = 'Égide d''Aldric'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Quand vous subissez des dégâts, chance d''être entouré de la lumière d''Aldric, qui absorbe 30000 points de dégâts pendant 10 s.'
+       Fields = @{ 35 = 10; 116 = 94159 } },
+    @{ Id = 94159; Clone = 48066; Name = 'Égide d''Aldric'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Absorbe 30000 points de dégâts.'; AuraDescription = 'Absorbe les dégâts.'
+       Fields = @{ 40 = 1; 80 = 29999 } },
+    # Murmure de Vel'thazar: on harmful hits (60482 on melee and ranged too), a bolt of the void at the target - Shadow
+    # Bolt's (47809) look, 35 000 Shadow
+    @{ Id = 94160; Clone = 60482; Name = 'Murmure de Vel''thazar'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Vos attaques et sorts nuisibles ont une chance de projeter le néant sur la cible, infligeant 35000 points de dégâts d''Ombre.'
+       Fields = @{ 34 = 0x10154; 35 = 15; 116 = 94161 } },
+    @{ Id = 94161; Clone = 47809; Name = 'Murmure de Vel''thazar'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Inflige 35000 points de dégâts d''Ombre.'
+       Fields = @{ 80 = 34999 } },
     @{ Id = 94045; Clone = 31884; Name = 'Ferveur des fidèles'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Une mécanique tenue loin du boss : dégâts et soins augmentés de 40% pendant 10 s.'
        AuraDescription = 'Dégâts et soins augmentés de 40%.'
