@@ -231,7 +231,13 @@ local TEXT = french and {
     voiceFace = "Affronter la Voix creuse",
     voiceOnce = "Une victoire par tableau : elle revient avec les nouvelles missions.",
     voiceAbsent = "La Voix creuse attend les aventuriers de niveau 80.",
-    satchelVoice = "De l'or : la Voix creuse ne laisse aucun butin.",
+    satchelVoice = "Chaque vainqueur reçoit une épique faite pour lui, de niveau d'objet %d, aux couleurs de "
+        .. "l'ensemble de sa classe ; la besace contient de l'or et %d %% de chances d'une seconde pièce.",
+    voiceGear = "Équipement épique, niveau d'objet %d · l'ensemble de votre classe",
+    voiceGearTitle = "Les ensembles de la Voix creuse",
+    voiceGearHelp = "Chaque pièce qu'elle laisse est faite pour vous et porte l'apparence de l'ensemble de votre "
+        .. "classe : chaque classe a le sien, celui qu'elle portait au Tombeau de Sargeras. C'est le plus haut niveau "
+        .. "d'objet du jeu.",
     failed = {
         [1] = "Défi échoué : trop de tentatives.",
         [2] = "Défi échoué : le temps est écoulé.",
@@ -387,7 +393,12 @@ local TEXT = french and {
     voiceFace = "Face the Hollow Voice",
     voiceOnce = "One win per board: it returns with the new missions.",
     voiceAbsent = "The Hollow Voice awaits adventurers of level 80.",
-    satchelVoice = "Gold: the Hollow Voice leaves no spoils.",
+    satchelVoice = "Every winner gets an epic made for them, item level %d, in their class's set's look; the satchel "
+        .. "holds gold and a %d%% chance of a second piece.",
+    voiceGear = "Epic gear, item level %d · your class's set",
+    voiceGearTitle = "The Hollow Voice's sets",
+    voiceGearHelp = "Every piece it leaves is made for you and wears your class's set: each class has its own, the one "
+        .. "it wore in the Tomb of Sargeras. The highest item level in the game.",
     failed = {
         [1] = "Challenge failed: too many attempts.",
         [2] = "Challenge failed: time ran out.",
@@ -695,8 +706,9 @@ local function CardTooltipSatchel(owner)
     if mission and mission.kind == KIND_DUNGEON then
         GameTooltip:AddLine(TEXT.satchelDungeon, 1, 0.82, 0.3, true)
     elseif IsVoice(mission) then
-        -- Its bosses have no loot table: the satchel holds the gold alone
-        GameTooltip:AddLine(TEXT.satchelVoice, 1, 0.82, 0.3, true)
+        -- A piece at the kill, and the satchel's chance of a second (ChallengeBoard.cpp FillSatchel)
+        GameTooltip:AddLine(format(TEXT.satchelVoice, mission.itemLevel or 0, SATCHEL_ITEM_CHANCE[0] or 35),
+            1, 0.82, 0.3, true)
     elseif mission then
         local tier = CardTier(mission)
         local chance = min(100, (SATCHEL_ITEM_CHANCE[mission.difficulty] or 35) + TierExtraItemChance(tier))
@@ -1465,10 +1477,11 @@ local function CreateGodPage(spec)
     paragon:SetPoint("TOPLEFT", gold, "BOTTOMLEFT", 0, -3)
     local essences = GodText(rewards, FRIZ, 11, 0.45, 0.9, 0.55)
     essences:SetPoint("LEFT", paragon, "RIGHT", 8, 0)
-    -- The gear's line, across the column under what it asks and pays: too long for the rewards' half. The Hollow
-    -- Voice has no gear of its own: the line says why its way in is locked, when it is.
+    -- The gear's line, across the column under what it asks and pays: too long for the rewards' half. On the Hollow
+    -- Voice's page it says why its way in is locked, when it is.
     local gear = GodText(column, FRIZ, 11, 0.78, 0.55, 1)
     gear:SetPoint("TOP", column, "TOP", 0, -462)
+    local gearLocked = false
     if spec.tiers then
         -- What the gear carries on top of its item level (MythicDungeonSystem.cpp TouchByInfiniteGod), on hover
         local gearHover = CreateFrame("Frame", nil, column)
@@ -1487,7 +1500,20 @@ local function CreateGodPage(spec)
         end)
         gearHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
     else
-        gear:SetTextColor(0.85, 0.53, 0.37)
+        -- Its gear wears the class sets (mod-stat-growth MythicAppearance.cpp), on hover
+        local gearHover = CreateFrame("Frame", nil, column)
+        gearHover:SetAllPoints(gear)
+        gearHover:EnableMouse(true)
+        gearHover:SetScript("OnEnter", function(self)
+            if gearLocked then
+                return
+            end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(TEXT.voiceGearTitle, 0.78, 0.55, 1)
+            GameTooltip:AddLine(TEXT.voiceGearHelp, 1, 0.9, 0.7, true)
+            GameTooltip:Show()
+        end)
+        gearHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
 
     local satchel = CreateFrame("Button", nil, rewards)
@@ -1619,7 +1645,14 @@ local function CreateGodPage(spec)
             end
             gear:SetText(format(TEXT.godGear, rewardLevel))
         else
-            gear:SetText(locked and format(TEXT.voiceLocked, mission.signUpItemLevel, state.itemLevel or 0) or "")
+            gearLocked = locked
+            if locked then
+                gear:SetText(format(TEXT.voiceLocked, mission.signUpItemLevel, state.itemLevel or 0))
+                gear:SetTextColor(0.85, 0.53, 0.37)
+            else
+                gear:SetText(format(TEXT.voiceGear, mission.itemLevel or 0))
+                gear:SetTextColor(0.78, 0.55, 1)
+            end
         end
 
         local done = mission.state == STATE_CLAIMED

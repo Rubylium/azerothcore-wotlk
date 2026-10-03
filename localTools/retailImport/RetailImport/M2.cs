@@ -46,11 +46,6 @@ public sealed class RetailM2
     }
     public uint ViewCount => BitConverter.ToUInt32(Md20, 0x44);
 
-    public uint[] GlobalLoops()
-    {
-        var (count, offset) = Array(0x14);
-        return Enumerable.Range(0, (int)count).Select(i => BitConverter.ToUInt32(Md20, (int)offset + i * 4)).ToArray();
-    }
     public (uint count, uint offset) Array(int headerOffset) =>
         (BitConverter.ToUInt32(Md20, headerOffset), BitConverter.ToUInt32(Md20, headerOffset + 4));
 
@@ -175,43 +170,34 @@ public sealed class ClassicM2
 
     /// <summary>
     /// With blend overrides (flag 0x08) the header grows by their array, 0x130-0x137. A retail file without them
-    /// starts its data there, the model name first, and MultiConverter writes the new array over it: the name is
-    /// written again at the end of the file.
+    /// starts its data there, and MultiConverter writes the new array over whatever comes first: the model name, a
+    /// helmet's global loops, the start of the first sequence (paladin and some mage helmets). That array is moved to
+    /// the end of the file, its overwritten bytes taken back from the retail model (MultiConverter keeps every array
+    /// where retail has it).
     /// </summary>
-    public void RestoreName(string name)
+    public List<string> RestoreUnderHeader(byte[] retailMd20)
     {
-        var (_, offset) = Array(0x08);
-        if (offset >= HeaderSize)
-            return;
-        var encoded = Encoding.ASCII.GetBytes(name + "\0");
-        var at = (Data.Length + 15) & ~15;
-        var grown = new byte[at + encoded.Length];
-        Buffer.BlockCopy(Data, 0, grown, 0, Data.Length);
-        Buffer.BlockCopy(encoded, 0, grown, at, encoded.Length);
-        Data = grown;
-        SetU32(0x08, (uint)encoded.Length);
-        SetU32(0x0C, (uint)at);
-    }
-
-    /// <summary>
-    /// The same overwrite, for the global loops: a model whose data starts with them (a name of its own elsewhere:
-    /// the helmets) has its first loop durations under the blend override array. They are written again at the end
-    /// of the file, from the retail model's.
-    /// </summary>
-    public void RestoreGlobalLoops(uint[] loops)
-    {
-        var (count, offset) = Array(0x14);
-        if (count == 0 || offset >= HeaderSize)
-            return;
-        if (count != loops.Length)
-            throw new Exception($"{count} global loops in the model, {loops.Length} in the retail one");
-        var at = (Data.Length + 15) & ~15;
-        var grown = new byte[at + loops.Length * 4];
-        Buffer.BlockCopy(Data, 0, grown, 0, Data.Length);
-        for (var i = 0; i < loops.Length; ++i)
-            BitConverter.GetBytes(loops[i]).CopyTo(grown, at + i * 4);
-        Data = grown;
-        SetU32(0x18, (uint)at);
+        var restored = new List<string>();
+        foreach (var (name, headerOffset, size) in HeaderArrays)
+        {
+            var (count, offset) = Array(headerOffset);
+            if (count == 0 || offset >= HeaderSize)
+                continue;
+            if (BitConverter.ToUInt32(retailMd20, headerOffset + 4) != offset)
+                throw new Exception($"{name} moved from 0x{BitConverter.ToUInt32(retailMd20, headerOffset + 4):X}"
+                                    + $" to 0x{offset:X}: cannot take its overwritten bytes back from retail");
+            var length = (int)count * size;
+            var at = (Data.Length + 15) & ~15;
+            var grown = new byte[at + length];
+            Buffer.BlockCopy(Data, 0, grown, 0, Data.Length);
+            Buffer.BlockCopy(Data, (int)offset, grown, at, length);
+            var overwritten = Math.Min(length, HeaderSize - (int)offset);
+            Buffer.BlockCopy(retailMd20, (int)offset, grown, at, overwritten);
+            Data = grown;
+            SetU32(headerOffset + 4, (uint)at);
+            restored.Add(name);
+        }
+        return restored;
     }
 
     /// <summary>

@@ -75,10 +75,20 @@ Ascension's client (`D:\ascension-live`, read by `localTools/ascensionImport/asc
 converted retail item displays, 447 of them full sets. For a set it converted, it is the answer to compare against:
 - `ascensionArchives.js dbc <out> ItemDisplayInfo` and `files <list.json> <out>` read its rows and files;
 - imported sets: Fanged Slayer's Mythic (test items 1020-1027, 1162) and the Grim Jest Mythic, Midnight season 1
-  rogue (905-909, 1163, 4853, 7248: shoulders, cloak and body textures; no mask);
+  rogue (905-909, 1163, 4853, 7248: shoulders, cloak and body textures; no mask); every other class's Tomb of
+  Sargeras tier in its Mythic look (displays 70020-70100), the Hollow Voice's gear (below);
 - the Fanged Slayer's Mythic set (Tomb of Sargeras rogue) is its displays 67441-67448: our import of it
   (70003-70011) matches them model for model (vertices, bones, textures, materials, global loops) and texture for
   texture (palettized, 256x128, same alpha).
+
+### The Hollow Voice's class sets
+
+The board's pinnacle raid pays item level 477, and the gear-looks system (`localTools/mythicAppearance`, its tier at
+477) shows each class its own Tomb of Sargeras (Legion T20) set in the Mythic look, as the Cruel Gladiator's sets
+wear it: one retail item batch, 144780-145030, the same look on all eight armour slots and the cloak. The custom
+classes wear the set of a class of their armour (`CUSTOM_CLASSES` there). A look reaches the client through a real
+item: the rogue's are its test items, the others "Hollow Voice look" items (16102-17835 in items.json) that no one is
+given.
 
 ## Adding a look (checklist)
 
@@ -90,6 +100,9 @@ converted retail item displays, 447 of them full sets. For a set it converted, i
      4 LFR): display id, models, their textures, the body textures by region, icon;
    - `probe-model <fdid>` goes from a model file (found in the listfile) to its items, `probe-texture <fdid>` from a
      texture: a tier set's belt, boots and bracers are often other items sharing its textures (a PvP set);
+   - `look <text>` lists, slot by slot, every display drawn from the files whose name holds the text, with the items
+     wearing it: `look raidwarlockmythic_r_01` is a whole set, belt and bracers included. `find <text>` lists the
+     items whose name holds it;
    - a set's files share a name in the listfile (`leather_raidroguemythic_r_01`, `leather_raidroguemidnight_d_01`).
    - Prefer Legion to Shadowlands pieces.
 3. **Add a `displays` entry** to `localTools/retailImport/items.json`:
@@ -131,8 +144,11 @@ converted retail item displays, 447 of them full sets. For a set it converted, i
   shows the colour under the cut.
 - MultiConverter has no license: its source stays in the gitignored checkout, with attribution in the README. It
   had bugs the tool works around (texture name order, unknown global flags, and the blend override array it writes
-  at 0x130 over whatever data starts there: the model name, or a helmet's global loops); keep
-  that pass (`M2.cs`) when updating the pin.
+  at 0x130 over whatever data starts there: the model name, a helmet's global loops, the first sequence of the
+  paladin's T20 helmets; `ClassicM2.RestoreUnderHeader` moves any of them out and takes the bytes back from
+  retail); keep that pass (`M2.cs`) when updating the pin.
+- One retail texture can serve two slots (the warlock's T20 helmet and shoulders): the client looks for it in each
+  model's folder, so it is copied once per folder.
 - A new look is invisible to the gear-looks system (`localTools/mythicAppearance/buildMythicAppearance.py`,
   `mythic_appearance_tier`) until a carrier item exists. Weapons go in `WEAPONS`; armour needs a per-slot override
   (tiers are picked by item set).

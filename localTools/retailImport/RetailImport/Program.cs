@@ -4,6 +4,8 @@ using RetailImport;
 // Retail item model importer - see ../README.md.
 //
 //   RetailImport probe <itemId...>                  item -> appearances -> display -> model / texture FileDataIDs
+//   RetailImport find <text...>                     items whose name holds the text, with their displays
+//   RetailImport look <text...>                     a set's displays and items by slot, from its files' names
 //   RetailImport extract <fdid> <outFile> [...]      raw retail files, several pairs at once
 //   RetailImport import [items.json]                 convert every entry of items.json into the client assets
 //
@@ -38,6 +40,14 @@ switch (positional[0])
     case "probe-model":
         foreach (var model in positional.Skip(1))
             Probe.Model(retail, uint.Parse(model));
+        return 0;
+    case "find":
+        foreach (var text in positional.Skip(1))
+            Probe.Find(retail, text);
+        return 0;
+    case "look":
+        foreach (var text in positional.Skip(1))
+            Probe.Look(retail, text);
         return 0;
     case "probe-texture":
         foreach (var texture in positional.Skip(1))

@@ -7,8 +7,8 @@
 -- and already in the client's Item.dbc with no template on the server before these;
 -- localTools/patchSinisterStrike.ps1 gives those Item.dbc rows the class, slot and display
 -- written here.
-DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248);
-DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248);
+DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835);
+DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_retail_item`;
 CREATE TEMPORARY TABLE `tmp_retail_item` LIKE `item_template`;
@@ -373,6 +373,1464 @@ UPDATE `tmp_retail_item` SET
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
 
+-- Hollow Voice look: Warrior helm: stats of item 51127, display 70020
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51127;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16102,
+    `name` = 'Hollow Voice look: Warrior helm',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70020,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior shoulders: stats of item 51125, display 70021
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51125;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16103,
+    `name` = 'Hollow Voice look: Warrior shoulders',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70021,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior chest: stats of item 51129, display 70022
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51129;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16105,
+    `name` = 'Hollow Voice look: Warrior chest',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70022,
+    `InventoryType` = 5,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior gloves: stats of item 51128, display 70023
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51128;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16106,
+    `name` = 'Hollow Voice look: Warrior gloves',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70023,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior legs: stats of item 51126, display 70024
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51126;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16107,
+    `name` = 'Hollow Voice look: Warrior legs',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70024,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior boots: stats of item 50625, display 70025
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50625;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16108,
+    `name` = 'Hollow Voice look: Warrior boots',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70025,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior belt: stats of item 50620, display 70026
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50620;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16109,
+    `name` = 'Hollow Voice look: Warrior belt',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70026,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior bracers: stats of item 50611, display 70027
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50611;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16116,
+    `name` = 'Hollow Voice look: Warrior bracers',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70027,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warrior cloak: stats of item 50653, display 70028
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16117,
+    `name` = 'Hollow Voice look: Warrior cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70028,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin helm: stats of item 51127, display 70029
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51127;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16118,
+    `name` = 'Hollow Voice look: Paladin helm',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70029,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin shoulders: stats of item 51125, display 70030
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51125;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16119,
+    `name` = 'Hollow Voice look: Paladin shoulders',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70030,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin chest: stats of item 51129, display 70031
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51129;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16120,
+    `name` = 'Hollow Voice look: Paladin chest',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70031,
+    `InventoryType` = 5,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin gloves: stats of item 51128, display 70032
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51128;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16121,
+    `name` = 'Hollow Voice look: Paladin gloves',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70032,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin legs: stats of item 51126, display 70033
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51126;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16122,
+    `name` = 'Hollow Voice look: Paladin legs',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70033,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin boots: stats of item 50625, display 70034
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50625;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16123,
+    `name` = 'Hollow Voice look: Paladin boots',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70034,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin belt: stats of item 50620, display 70035
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50620;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16124,
+    `name` = 'Hollow Voice look: Paladin belt',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70035,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin bracers: stats of item 50611, display 70036
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50611;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16125,
+    `name` = 'Hollow Voice look: Paladin bracers',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70036,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Paladin cloak: stats of item 50653, display 70037
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16126,
+    `name` = 'Hollow Voice look: Paladin cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70037,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight helm: stats of item 51127, display 70038
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51127;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16127,
+    `name` = 'Hollow Voice look: Death Knight helm',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70038,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight shoulders: stats of item 51125, display 70039
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51125;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16129,
+    `name` = 'Hollow Voice look: Death Knight shoulders',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70039,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight chest: stats of item 51129, display 70040
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51129;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16131,
+    `name` = 'Hollow Voice look: Death Knight chest',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70040,
+    `InventoryType` = 5,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight gloves: stats of item 51128, display 70041
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51128;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16132,
+    `name` = 'Hollow Voice look: Death Knight gloves',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70041,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight legs: stats of item 51126, display 70042
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51126;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16134,
+    `name` = 'Hollow Voice look: Death Knight legs',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70042,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight boots: stats of item 50625, display 70043
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50625;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16135,
+    `name` = 'Hollow Voice look: Death Knight boots',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70043,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight belt: stats of item 50620, display 70044
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50620;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16136,
+    `name` = 'Hollow Voice look: Death Knight belt',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70044,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight bracers: stats of item 50611, display 70045
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50611;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16137,
+    `name` = 'Hollow Voice look: Death Knight bracers',
+    `class` = 4,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70045,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Death Knight cloak: stats of item 50653, display 70046
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16138,
+    `name` = 'Hollow Voice look: Death Knight cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70046,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter helm: stats of item 51153, display 70047
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51153;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16139,
+    `name` = 'Hollow Voice look: Hunter helm',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70047,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter shoulders: stats of item 51151, display 70048
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51151;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16140,
+    `name` = 'Hollow Voice look: Hunter shoulders',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70048,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter chest: stats of item 51150, display 70049
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51150;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16141,
+    `name` = 'Hollow Voice look: Hunter chest',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70049,
+    `InventoryType` = 5,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter gloves: stats of item 51154, display 70050
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51154;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16142,
+    `name` = 'Hollow Voice look: Hunter gloves',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70050,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter legs: stats of item 51152, display 70051
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51152;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16143,
+    `name` = 'Hollow Voice look: Hunter legs',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70051,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter boots: stats of item 50652, display 70052
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50652;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16145,
+    `name` = 'Hollow Voice look: Hunter boots',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70052,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter belt: stats of item 50671, display 70053
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50671;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16146,
+    `name` = 'Hollow Voice look: Hunter belt',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70053,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter bracers: stats of item 50655, display 70054
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50655;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16147,
+    `name` = 'Hollow Voice look: Hunter bracers',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70054,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Hunter cloak: stats of item 50653, display 70055
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16148,
+    `name` = 'Hollow Voice look: Hunter cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70055,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman helm: stats of item 51153, display 70056
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51153;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16149,
+    `name` = 'Hollow Voice look: Shaman helm',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70056,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman shoulders: stats of item 51151, display 70057
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51151;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16150,
+    `name` = 'Hollow Voice look: Shaman shoulders',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70057,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman chest: stats of item 51150, display 70058
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51150;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16151,
+    `name` = 'Hollow Voice look: Shaman chest',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70058,
+    `InventoryType` = 20,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman gloves: stats of item 51154, display 70059
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51154;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16152,
+    `name` = 'Hollow Voice look: Shaman gloves',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70059,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman legs: stats of item 51152, display 70060
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51152;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16153,
+    `name` = 'Hollow Voice look: Shaman legs',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70060,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman boots: stats of item 50652, display 70061
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50652;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16154,
+    `name` = 'Hollow Voice look: Shaman boots',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70061,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman belt: stats of item 50671, display 70062
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50671;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16155,
+    `name` = 'Hollow Voice look: Shaman belt',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70062,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman bracers: stats of item 50655, display 70063
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50655;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16156,
+    `name` = 'Hollow Voice look: Shaman bracers',
+    `class` = 4,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 5,
+    `displayid` = 70063,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Shaman cloak: stats of item 50653, display 70064
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16157,
+    `name` = 'Hollow Voice look: Shaman cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70064,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid helm: stats of item 51137, display 70065
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51137;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16158,
+    `name` = 'Hollow Voice look: Druid helm',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70065,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid shoulders: stats of item 51135, display 70066
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51135;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16159,
+    `name` = 'Hollow Voice look: Druid shoulders',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70066,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid chest: stats of item 51139, display 70067
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51139;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16160,
+    `name` = 'Hollow Voice look: Druid chest',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70067,
+    `InventoryType` = 20,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid gloves: stats of item 51138, display 70068
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51138;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16161,
+    `name` = 'Hollow Voice look: Druid gloves',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70068,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid legs: stats of item 51136, display 70069
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51136;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16162,
+    `name` = 'Hollow Voice look: Druid legs',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70069,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid boots: stats of item 50607, display 70070
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50607;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16163,
+    `name` = 'Hollow Voice look: Druid boots',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70070,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid belt: stats of item 50707, display 70071
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50707;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16164,
+    `name` = 'Hollow Voice look: Druid belt',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70071,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid bracers: stats of item 50670, display 70072
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50670;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16165,
+    `name` = 'Hollow Voice look: Druid bracers',
+    `class` = 4,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 8,
+    `displayid` = 70072,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Druid cloak: stats of item 50653, display 70073
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16172,
+    `name` = 'Hollow Voice look: Druid cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70073,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest helm: stats of item 51158, display 70074
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51158;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16173,
+    `name` = 'Hollow Voice look: Priest helm',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70074,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest shoulders: stats of item 51155, display 70075
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51155;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16174,
+    `name` = 'Hollow Voice look: Priest shoulders',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70075,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest chest: stats of item 51156, display 70076
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51156;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16175,
+    `name` = 'Hollow Voice look: Priest chest',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70076,
+    `InventoryType` = 20,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest gloves: stats of item 51159, display 70077
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51159;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16176,
+    `name` = 'Hollow Voice look: Priest gloves',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70077,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest legs: stats of item 51157, display 70078
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51157;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16177,
+    `name` = 'Hollow Voice look: Priest legs',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70078,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest boots: stats of item 50699, display 70079
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50699;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16178,
+    `name` = 'Hollow Voice look: Priest boots',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70079,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest belt: stats of item 50613, display 70080
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50613;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16179,
+    `name` = 'Hollow Voice look: Priest belt',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70080,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest bracers: stats of item 50651, display 70081
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50651;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16180,
+    `name` = 'Hollow Voice look: Priest bracers',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70081,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Priest cloak: stats of item 50653, display 70082
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16181,
+    `name` = 'Hollow Voice look: Priest cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70082,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage helm: stats of item 51158, display 70083
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51158;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16182,
+    `name` = 'Hollow Voice look: Mage helm',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70083,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage shoulders: stats of item 51155, display 70084
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51155;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16183,
+    `name` = 'Hollow Voice look: Mage shoulders',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70084,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage chest: stats of item 51156, display 70085
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51156;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16184,
+    `name` = 'Hollow Voice look: Mage chest',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70085,
+    `InventoryType` = 20,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage gloves: stats of item 51159, display 70086
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51159;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16185,
+    `name` = 'Hollow Voice look: Mage gloves',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70086,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage legs: stats of item 51157, display 70087
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51157;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16186,
+    `name` = 'Hollow Voice look: Mage legs',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70087,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage boots: stats of item 50699, display 70088
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50699;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16187,
+    `name` = 'Hollow Voice look: Mage boots',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70088,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage belt: stats of item 50613, display 70089
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50613;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16188,
+    `name` = 'Hollow Voice look: Mage belt',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70089,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage bracers: stats of item 50651, display 70090
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50651;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16211,
+    `name` = 'Hollow Voice look: Mage bracers',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70090,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Mage cloak: stats of item 50653, display 70091
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16212,
+    `name` = 'Hollow Voice look: Mage cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70091,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock helm: stats of item 51158, display 70092
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51158;
+UPDATE `tmp_retail_item` SET
+    `entry` = 16213,
+    `name` = 'Hollow Voice look: Warlock helm',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70092,
+    `InventoryType` = 1,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock shoulders: stats of item 51155, display 70093
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51155;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17824,
+    `name` = 'Hollow Voice look: Warlock shoulders',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70093,
+    `InventoryType` = 3,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock chest: stats of item 51156, display 70094
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51156;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17825,
+    `name` = 'Hollow Voice look: Warlock chest',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70094,
+    `InventoryType` = 20,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock gloves: stats of item 51159, display 70095
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51159;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17826,
+    `name` = 'Hollow Voice look: Warlock gloves',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70095,
+    `InventoryType` = 10,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock legs: stats of item 51157, display 70096
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 51157;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17831,
+    `name` = 'Hollow Voice look: Warlock legs',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70096,
+    `InventoryType` = 7,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock boots: stats of item 50699, display 70097
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50699;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17832,
+    `name` = 'Hollow Voice look: Warlock boots',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70097,
+    `InventoryType` = 8,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock belt: stats of item 50613, display 70098
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50613;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17833,
+    `name` = 'Hollow Voice look: Warlock belt',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70098,
+    `InventoryType` = 6,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock bracers: stats of item 50651, display 70099
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50651;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17834,
+    `name` = 'Hollow Voice look: Warlock bracers',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70099,
+    `InventoryType` = 9,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hollow Voice look: Warlock cloak: stats of item 50653, display 70100
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50653;
+UPDATE `tmp_retail_item` SET
+    `entry` = 17835,
+    `name` = 'Hollow Voice look: Warlock cloak',
+    `class` = 4,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 7,
+    `displayid` = 70100,
+    `InventoryType` = 16,
+    `sheath` = 0,
+    `description` = 'The look of the Hollow Voice''s gear.',
+    `itemset` = 0,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
 DROP TEMPORARY TABLE `tmp_retail_item`;
 
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
@@ -395,4 +1853,85 @@ INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `Veri
 (909, 'frFR', 'Bottes d''équilibriste de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
 (1163, 'frFR', 'Ceinture à outils de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
 (4853, 'frFR', 'Brassards truqués de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
-(7248, 'frFR', 'Étoffe escamotable de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL);
+(7248, 'frFR', 'Étoffe escamotable de la Farce sinistre', 'Pièce de test importée du jeu actuel.', NULL),
+(16102, 'frFR', 'Apparence de la Voix creuse : heaume (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16103, 'frFR', 'Apparence de la Voix creuse : épaulières (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16105, 'frFR', 'Apparence de la Voix creuse : plastron (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16106, 'frFR', 'Apparence de la Voix creuse : gants (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16107, 'frFR', 'Apparence de la Voix creuse : jambières (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16108, 'frFR', 'Apparence de la Voix creuse : bottes (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16109, 'frFR', 'Apparence de la Voix creuse : ceinture (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16116, 'frFR', 'Apparence de la Voix creuse : brassards (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16117, 'frFR', 'Apparence de la Voix creuse : cape (Guerrier)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16118, 'frFR', 'Apparence de la Voix creuse : heaume (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16119, 'frFR', 'Apparence de la Voix creuse : épaulières (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16120, 'frFR', 'Apparence de la Voix creuse : plastron (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16121, 'frFR', 'Apparence de la Voix creuse : gants (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16122, 'frFR', 'Apparence de la Voix creuse : jambières (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16123, 'frFR', 'Apparence de la Voix creuse : bottes (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16124, 'frFR', 'Apparence de la Voix creuse : ceinture (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16125, 'frFR', 'Apparence de la Voix creuse : brassards (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16126, 'frFR', 'Apparence de la Voix creuse : cape (Paladin)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16127, 'frFR', 'Apparence de la Voix creuse : heaume (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16129, 'frFR', 'Apparence de la Voix creuse : épaulières (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16131, 'frFR', 'Apparence de la Voix creuse : plastron (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16132, 'frFR', 'Apparence de la Voix creuse : gants (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16134, 'frFR', 'Apparence de la Voix creuse : jambières (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16135, 'frFR', 'Apparence de la Voix creuse : bottes (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16136, 'frFR', 'Apparence de la Voix creuse : ceinture (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16137, 'frFR', 'Apparence de la Voix creuse : brassards (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16138, 'frFR', 'Apparence de la Voix creuse : cape (Chevalier de la mort)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16139, 'frFR', 'Apparence de la Voix creuse : heaume (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16140, 'frFR', 'Apparence de la Voix creuse : épaulières (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16141, 'frFR', 'Apparence de la Voix creuse : plastron (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16142, 'frFR', 'Apparence de la Voix creuse : gants (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16143, 'frFR', 'Apparence de la Voix creuse : jambières (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16145, 'frFR', 'Apparence de la Voix creuse : bottes (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16146, 'frFR', 'Apparence de la Voix creuse : ceinture (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16147, 'frFR', 'Apparence de la Voix creuse : brassards (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16148, 'frFR', 'Apparence de la Voix creuse : cape (Chasseur)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16149, 'frFR', 'Apparence de la Voix creuse : heaume (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16150, 'frFR', 'Apparence de la Voix creuse : épaulières (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16151, 'frFR', 'Apparence de la Voix creuse : plastron (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16152, 'frFR', 'Apparence de la Voix creuse : gants (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16153, 'frFR', 'Apparence de la Voix creuse : jambières (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16154, 'frFR', 'Apparence de la Voix creuse : bottes (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16155, 'frFR', 'Apparence de la Voix creuse : ceinture (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16156, 'frFR', 'Apparence de la Voix creuse : brassards (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16157, 'frFR', 'Apparence de la Voix creuse : cape (Chaman)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16158, 'frFR', 'Apparence de la Voix creuse : heaume (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16159, 'frFR', 'Apparence de la Voix creuse : épaulières (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16160, 'frFR', 'Apparence de la Voix creuse : plastron (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16161, 'frFR', 'Apparence de la Voix creuse : gants (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16162, 'frFR', 'Apparence de la Voix creuse : jambières (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16163, 'frFR', 'Apparence de la Voix creuse : bottes (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16164, 'frFR', 'Apparence de la Voix creuse : ceinture (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16165, 'frFR', 'Apparence de la Voix creuse : brassards (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16172, 'frFR', 'Apparence de la Voix creuse : cape (Druide)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16173, 'frFR', 'Apparence de la Voix creuse : heaume (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16174, 'frFR', 'Apparence de la Voix creuse : épaulières (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16175, 'frFR', 'Apparence de la Voix creuse : plastron (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16176, 'frFR', 'Apparence de la Voix creuse : gants (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16177, 'frFR', 'Apparence de la Voix creuse : jambières (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16178, 'frFR', 'Apparence de la Voix creuse : bottes (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16179, 'frFR', 'Apparence de la Voix creuse : ceinture (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16180, 'frFR', 'Apparence de la Voix creuse : brassards (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16181, 'frFR', 'Apparence de la Voix creuse : cape (Prêtre)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16182, 'frFR', 'Apparence de la Voix creuse : heaume (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16183, 'frFR', 'Apparence de la Voix creuse : épaulières (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16184, 'frFR', 'Apparence de la Voix creuse : plastron (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16185, 'frFR', 'Apparence de la Voix creuse : gants (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16186, 'frFR', 'Apparence de la Voix creuse : jambières (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16187, 'frFR', 'Apparence de la Voix creuse : bottes (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16188, 'frFR', 'Apparence de la Voix creuse : ceinture (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16211, 'frFR', 'Apparence de la Voix creuse : brassards (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16212, 'frFR', 'Apparence de la Voix creuse : cape (Mage)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(16213, 'frFR', 'Apparence de la Voix creuse : heaume (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17824, 'frFR', 'Apparence de la Voix creuse : épaulières (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17825, 'frFR', 'Apparence de la Voix creuse : plastron (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17826, 'frFR', 'Apparence de la Voix creuse : gants (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17831, 'frFR', 'Apparence de la Voix creuse : jambières (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17832, 'frFR', 'Apparence de la Voix creuse : bottes (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17833, 'frFR', 'Apparence de la Voix creuse : ceinture (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17834, 'frFR', 'Apparence de la Voix creuse : brassards (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(17835, 'frFR', 'Apparence de la Voix creuse : cape (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL);

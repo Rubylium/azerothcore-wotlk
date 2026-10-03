@@ -27,8 +27,13 @@ TEST(MythicProgression, GeneratedLootHonorsExactCaps)
         uint32 const variant = Mythic::GetGeneratedVariant(requested);
         EXPECT_TRUE(variant < Mythic::GeneratedItemVariants ||
             (variant >= Mythic::FirstCapVariant && variant < Mythic::FirstCapVariant + Mythic::CapVariants));
-        EXPECT_LE(Mythic::GetGeneratedItemLevel(variant), std::min(requested, 460u));
+        EXPECT_LE(Mythic::GetGeneratedItemLevel(variant), std::min(requested, Mythic::MaxPinnacleItemLevel));
     }
+    // The pinnacle's level is on the ladder: no cap block of its own, no client change
+    uint32 const pinnacle = Mythic::GetGeneratedVariant(Mythic::MaxPinnacleItemLevel);
+    EXPECT_LT(pinnacle, Mythic::GeneratedItemVariants);
+    EXPECT_EQ(Mythic::GetGeneratedItemLevel(pinnacle), Mythic::MaxPinnacleItemLevel);
+    EXPECT_EQ(Mythic::GetGeneratedVariant(800), pinnacle);
 }
 
 TEST(MythicProgression, ExistingTemplatesAndForgeBlocksRemainUnchanged)

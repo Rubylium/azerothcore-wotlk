@@ -951,6 +951,12 @@ void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)
         GiveMythicItem(player, std::min(itemLevel, Mythic::MaxRaidItemLevel), TouchByInfiniteGod);
 }
 
+void GivePinnacleLootItem(Player* player, uint32 itemLevel)
+{
+    if (player)
+        GiveMythicItem(player, std::min(itemLevel, Mythic::MaxPinnacleItemLevel));
+}
+
 bool IsMythicLootless(Creature const* creature)
 {
     return IsMythicCreature(creature) && (!IsMythicBoss(creature) || GetMythicLevel(creature) > 0);

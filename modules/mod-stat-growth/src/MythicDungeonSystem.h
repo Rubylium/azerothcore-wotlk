@@ -36,6 +36,9 @@ bool GiveMythicLootItemForSlot(Player* player, uint32 itemLevel, uint8 equipment
 // random among its three whatever the piece or its wearer, what it does and a line of its lore, in the item's five random property
 // enchantment slots (a generated item has no random property). They stay on it for good, forged too.
 void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel);
+// The same for the board's pinnacle raid (the Hollow Voice), up to Mythic::MaxPinnacleItemLevel: the gear-looks system
+// shows such an item as its wearer's class set of the raid (MythicAppearance.cpp, stat_growth_mythic_appearance.sql)
+void GivePinnacleLootItem(Player* player, uint32 itemLevel);
 // Every generated item the player carries, its record sent to the client again (at login: their stats may have
 // changed since the client cached them)
 void SendGeneratedItemRecords(Player* player);

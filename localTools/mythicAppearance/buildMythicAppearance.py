@@ -79,13 +79,20 @@ ITEM_FLAG_DEPRECATED = 0x10
 
 
 class Tier:
-    def __init__(self, min_item_level, name, sets, maps=(), item_levels=(0, 0), cloaks=()):
+    def __init__(self, min_item_level, name, sets=None, maps=(), item_levels=(0, 0), cloaks=(), pieces=None):
         self.min_item_level = min_item_level
         self.name = name
-        self.sets = sets                    # class -> itemset id
+        self.sets = sets or {}              # class -> itemset id
         self.maps = maps                    # raids whose loot gives the pieces the sets lack, and the cloak
         self.item_levels = item_levels      # the item levels of that loot, both included
         self.cloaks = cloaks                # a fixed choice of cloaks when the loot is not in the database
+        # Or every piece named: class -> entries of PIECE_SLOTS (a look no item of the game has, carried by an item
+        # of its own: the retail imports, localTools/retailImport)
+        self.pieces = pieces or {}
+
+
+# The order of a Tier's pieces
+PIECE_SLOTS = (HEAD, SHOULDERS, CHEST, HANDS, LEGS, FEET, WAIST, WRISTS, BACK)
 
 
 # The appearance tiers, lowest first: from 300 a step every 20 item levels (5 keys), and the last one kept from there
@@ -109,7 +116,32 @@ TIERS = [
     Tier(400, "Tier 3 - Naxxramas 40", {
         WARRIOR: 523, PALADIN: 528, HUNTER: 530, ROGUE: 524, PRIEST: 525, SHAMAN: 527, MAGE: 526, WARLOCK: 529,
         DRUID: 521}, cloaks=(23050, 23045, 22731, 23017, 22960, 22938, 23030)),
+    # The Hollow Voice's gear (Mythic::MaxPinnacleItemLevel, the only reward this high): each class's Tomb of Sargeras
+    # tier (Legion T20) in its Mythic look, imported from retail (localTools/retailImport items.json, displays
+    # 70003-70011 and 70020-70100, carried by the rogue's test items and "Hollow Voice look" items no one is given)
+    Tier(477, "The Hollow Voice - Tomb of Sargeras sets, Mythic", pieces={
+        WARRIOR: (16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117),
+        PALADIN: (16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126),
+        DEATH_KNIGHT: (16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138),
+        HUNTER: (16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148),
+        SHAMAN: (16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157),
+        ROGUE: (1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162),
+        DRUID: (16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172),
+        PRIEST: (16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181),
+        MAGE: (16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212),
+        WARLOCK: (16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835)}),
 ]
+
+# The custom classes (localTools/customClasses/classes.json) wear the set of a class of their armour in the tiers
+# that name pieces, and the class 0 rows' looks below (the server falls back to class 0 only when a class has no row
+# at all for an armour type and slot, so they are given every tier's)
+CUSTOM_CLASSES = {
+    10: (PALADIN, "Oathblade"),         # plate, a knight of the blade
+    12: (DEATH_KNIGHT, "Pestifere"),    # plate, built on the death knight
+    13: (WARLOCK, "Necromancer"),       # cloth, built on the warlock
+    14: (HUNTER, "Barbarian"),          # mail, an agility fighter
+}
+
 
 # The glow a generated weapon shows by tier, in the enchantment slot the client draws: stock enchantments whose item
 # visual glows, from a few embers to a blaze. Only the visible field changes: the weapon's real enchantment and its
@@ -125,31 +157,33 @@ GLOWS = [
 
 # Weapon models, one per tier (the same levels as TIERS): (weapon subclass, role) -> entries, lowest tier first.
 # A dict entry picks by class (0 for the others). One-hand weapons have a main-hand and an off-hand role, so a pair
-# can differ (the Warglaives). The era follows the armour tiers where it can; the legendaries take the top.
+# can differ (the Warglaives). The era follows the armour tiers where it can; the legendaries take the top. The
+# Hollow Voice's tier has none (None): its weapons keep Tier 3's look, the highest below it.
 W, A = ITEM_CLASS_WEAPON, ITEM_CLASS_ARMOR
 ONE_HAND = (MAIN_HAND, OFF_HAND)
 ATIESH = {0: 22589, MAGE: 22589, WARLOCK: 22630, PRIEST: 22631, DRUID: 22632}
 WEAPONS = [
     # (item class, subclass, roles, entries by tier)
-    (W, AXE, ONE_HAND, [17068, 29924, 46031, 32236, 50654, 50737]),         # ... Havoc's Call
-    (W, AXE2, (TWO_HAND,), [19353, 30316, 45165, 32348, 50709, 49623]),     # Devastation ... Shadowmourne
-    (W, BOW, (RANGED,), [18713, 30318, 45327, 32336, 50638, 34334]),        # Rhok'delar ... Thori'dal
-    (W, GUN, (RANGED_RIGHT,), [19368, 29949, 45870, 32325, 51845, 51834]),
-    (W, MACE, ONE_HAND, [19335, 30317, 45612, 34335, 50734, 46017]),        # Cosmic Infuser ... Val'anyr
-    (W, MACE2, (TWO_HAND,), [19357, 30090, 46067, 32332, 50603, 17182]),    # ... Sulfuras
-    (W, POLEARM, (TWO_HAND,), [21635, 28774, 45533, 34183, 50727, 50735]),  # ... Oathbinder
-    (W, SWORD, (MAIN_HAND,), [19352, 30311, 45110, 34214, 19019, 32837]),   # Warp Slicer, Thunderfury, Warglaives
-    (W, SWORD, (OFF_HAND,), [19352, 30311, 45110, 34214, 19019, 32838]),
-    (W, SWORD2, (TWO_HAND,), [19364, 29993, 45516, 34247, 50730, 22691]),   # Ashkandi ... Corrupted Ashbringer
-    (W, STAFF, (TWO_HAND,), [19356, 30313, 45457, 34337, 50731, ATIESH]),   # Staff of Disintegration ... Atiesh
-    (W, FIST, (MAIN_HAND,), [19365, 32944, 45132, 32946, 50692, 34331]),
-    (W, FIST, (OFF_HAND,), [23242, 29948, 45494, 32945, 50710, 34346]),
-    (W, DAGGER, ONE_HAND, [18816, 30312, 45607, 34329, 50736, 22802]),      # Perdition's, Infinity Blade ... Kingsfall
-    (W, THROWN, (THROWN_SLOT,), [None, 30025, 45296, 34349, 50474, None]),
-    (W, CROSSBOW, (RANGED_RIGHT,), [19361, 28504, 45570, 32253, 51940, 50733]),     # ... Fal'inrush
-    (W, WAND, (RANGED_RIGHT,), [19367, 29982, 45511, 34347, 50684, 22821]),
-    (A, SHIELD, (SHIELD_SLOT,), [19349, 30314, 45587, 32375, 50729, 23043]),        # Phaseshift ... Face of Death
-    (A, ARMOR_MISC, (HOLDABLE,), [19366, 29923, 45617, 34179, 50635, 23049]),       # ... Sapphiron's Left Eye
+    (W, AXE, ONE_HAND, [17068, 29924, 46031, 32236, 50654, 50737, None]),         # ... Havoc's Call
+    (W, AXE2, (TWO_HAND,), [19353, 30316, 45165, 32348, 50709, 49623, None]),     # Devastation ... Shadowmourne
+    (W, BOW, (RANGED,), [18713, 30318, 45327, 32336, 50638, 34334, None]),        # Rhok'delar ... Thori'dal
+    (W, GUN, (RANGED_RIGHT,), [19368, 29949, 45870, 32325, 51845, 51834, None]),
+    (W, MACE, ONE_HAND, [19335, 30317, 45612, 34335, 50734, 46017, None]),        # Cosmic Infuser ... Val'anyr
+    (W, MACE2, (TWO_HAND,), [19357, 30090, 46067, 32332, 50603, 17182, None]),    # ... Sulfuras
+    (W, POLEARM, (TWO_HAND,), [21635, 28774, 45533, 34183, 50727, 50735, None]),  # ... Oathbinder
+    (W, SWORD, (MAIN_HAND,), [19352, 30311, 45110, 34214, 19019, 32837, None]),   # Warp Slicer, Thunderfury, Warglaives
+    (W, SWORD, (OFF_HAND,), [19352, 30311, 45110, 34214, 19019, 32838, None]),
+    (W, SWORD2, (TWO_HAND,), [19364, 29993, 45516, 34247, 50730, 22691, None]),   # Ashkandi ... Corrupted Ashbringer
+    (W, STAFF, (TWO_HAND,), [19356, 30313, 45457, 34337, 50731, ATIESH, None]),   # Staff of Disintegration ... Atiesh
+    (W, FIST, (MAIN_HAND,), [19365, 32944, 45132, 32946, 50692, 34331, None]),
+    (W, FIST, (OFF_HAND,), [23242, 29948, 45494, 32945, 50710, 34346, None]),
+    # Perdition's, Infinity Blade ... Kingsfall
+    (W, DAGGER, ONE_HAND, [18816, 30312, 45607, 34329, 50736, 22802, None]),
+    (W, THROWN, (THROWN_SLOT,), [None, 30025, 45296, 34349, 50474, None, None]),
+    (W, CROSSBOW, (RANGED_RIGHT,), [19361, 28504, 45570, 32253, 51940, 50733, None]),     # ... Fal'inrush
+    (W, WAND, (RANGED_RIGHT,), [19367, 29982, 45511, 34347, 50684, 22821, None]),
+    (A, SHIELD, (SHIELD_SLOT,), [19349, 30314, 45587, 32375, 50729, 23043, None]),        # Phaseshift ... Face of Death
+    (A, ARMOR_MISC, (HOLDABLE,), [19366, 29923, 45617, 34179, 50635, 23049, None]),       # ... Sapphiron's Left Eye
 ]
 # The inventory types an appearance may have for each role
 ROLE_TYPES = {MAIN_HAND: (WEAPON_ONE_HAND, MAIN_HAND), OFF_HAND: (WEAPON_ONE_HAND, OFF_HAND, MAIN_HAND),
@@ -307,9 +341,28 @@ def main():
     # --- Armour ---------------------------------------------------------------------------------------------------
     set_ids = sorted({set_id for tier in TIERS for set_id in tier.sets.values()})
     set_items = remember(load_items("itemset IN (%s)" % ",".join(map(str, set_ids))))
+    piece_entries = sorted({entry for tier in TIERS for entries in tier.pieces.values() for entry in entries})
+    if piece_entries:
+        remember(load_items("entry IN (%s)" % ",".join(map(str, piece_entries))))
+        unknown = [entry for entry in piece_entries if entry not in items]
+        if unknown:
+            sys.exit("pieces missing from item_template (the retail import's SQL not applied yet?): %s" % unknown)
     armor_classes = [0] + sorted(CLASS_ARMOR)
 
     for tier in TIERS:
+        if tier.pieces:
+            for player_class in armor_classes:
+                subclasses = [CLASS_ARMOR[player_class]] if player_class else sorted(DEFAULT_CLASS)
+                for subclass in subclasses:
+                    owner = player_class if player_class in tier.pieces else DEFAULT_CLASS[subclass]
+                    for slot, entry in zip(PIECE_SLOTS, tier.pieces[owner]):
+                        item = items[entry]
+                        if slot == BACK:
+                            add(A, CLOTH, BACK, player_class, tier, item, (BACK,), tier.name)
+                        else:
+                            add(A, subclass, slot, player_class, tier, item,
+                                (slot, ROBE) if slot == CHEST else (slot,), tier.name)
+            continue
         loot = []
         if tier.maps:
             dropped = raid_loot(tier.maps)
@@ -363,6 +416,21 @@ def main():
                 add(A, CLOTH, BACK, player_class, tier, cloak, (BACK,), tier.name)
             else:
                 print("  %s: no cloak" % tier.name)
+
+    # The custom classes: class 0's rows of their armour and cloaks, every tier, and their model class's pieces where
+    # a tier names them (their other armour types fall back to class 0 on their own)
+    for custom, (model, label) in CUSTOM_CLASSES.items():
+        for (item_class, subclass, slot, player_class, level), (entry, note) in list(rows.items()):
+            if item_class == A and player_class == 0 and (subclass == CLASS_ARMOR[model] or slot == BACK):
+                rows[(item_class, subclass, slot, custom, level)] = (entry, note.replace("(any class)",
+                                                                                          "(%s)" % label))
+        for tier in TIERS:
+            if model not in tier.pieces:
+                continue
+            for slot, entry in zip(PIECE_SLOTS, tier.pieces[model]):
+                subclass = CLOTH if slot == BACK else CLASS_ARMOR[model]
+                rows[(A, subclass, slot, custom, tier.min_item_level)] = (
+                    entry, "%s: %s (%s, the %s's set)" % (tier.name, items[entry].name, label, CLASS_NAMES[model]))
 
     # --- Weapons, shields and off-hands ---------------------------------------------------------------------------
     weapon_entries = sorted({entry for _, _, _, entries in WEAPONS for choice in entries if choice

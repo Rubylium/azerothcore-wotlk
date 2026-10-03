@@ -60,6 +60,10 @@ public sealed class Retail : IDBCProvider, IDBDProvider
 
     public string NameOf(uint fileDataId) => names.TryGetValue(fileDataId, out var name) ? name : null;
 
+    /// <summary>The files whose listfile name holds a text</summary>
+    public HashSet<uint> FilesNamed(string text) => names.Where(pair => pair.Value.Contains(text,
+        StringComparison.OrdinalIgnoreCase)).Select(pair => pair.Key).ToHashSet();
+
     public uint IdOf(string name) => ids.TryGetValue(name.Replace('\\', '/'), out var id) ? id : 0;
 
     public byte[] Open(uint fileDataId) => build.OpenFileByFDID(fileDataId);

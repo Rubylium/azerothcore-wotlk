@@ -30,6 +30,9 @@ constexpr uint32 BaseItemLevel = 223;
 // Reward progression is independent of the generated templates' four-level spacing.
 constexpr uint32 MaxLootItemLevel = 370;
 constexpr uint32 MaxRaidItemLevel = 460;
+// The board's pinnacle raid (the Hollow Voice, mod-stat-growth HollowVoice.cpp) pays above L'Infini's 460: a level
+// of the four-level ladder (variant 48), which the client extension already decodes. The highest any reward reaches.
+constexpr uint32 MaxPinnacleItemLevel = 477;
 constexpr uint32 MaxInfiniteItemLevel = 310;
 constexpr int32 MaxLootKeyLevel = 60;
 constexpr uint32 MaxKeyLevel = 99;
@@ -170,7 +173,7 @@ inline uint32 GetGeneratedItemLevel(uint32 variant)
 // Best generated reward at or below the requested level, capped for new drops; legacy templates remain intact.
 inline uint32 GetGeneratedVariant(uint32 itemLevel)
 {
-    itemLevel = std::min(itemLevel, MaxRaidItemLevel);
+    itemLevel = std::min(itemLevel, MaxPinnacleItemLevel);
     uint32 const above = itemLevel > MaxItemLevel ? itemLevel - MaxItemLevel - 1 : 0;
     uint32 variant = std::min(above / ItemLevelPerKeyLevel, GeneratedItemVariants - 1);
     for (uint32 capVariant = FirstCapVariant; capVariant < FirstCapVariant + CapVariants; ++capVariant)

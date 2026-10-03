@@ -29,6 +29,63 @@ public static class Probe
         }
     }
 
+    /// <summary>The items whose name holds a text, with each appearance's display: a set's pieces by its name
+    /// ("Cruel Gladiator's Felweave").</summary>
+    public static void Find(Retail retail, string text)
+    {
+        var appearances = retail.Table("ItemAppearance");
+        var looks = retail.Table("ItemModifiedAppearance").Values.GroupBy(row => (int)row["ItemID"])
+            .ToDictionary(group => group.Key, group => group.OrderBy(row => (int)row["ItemAppearanceModifierID"])
+                .Select(row => appearances.TryGetValue((int)row["ItemAppearanceID"], out var appearance)
+                    ? $"{row["ItemAppearanceModifierID"]}:{appearance["ItemDisplayInfoID"]}" : "?").ToList());
+        foreach (var row in retail.Table("ItemSparse").Values
+                     .Where(row => ((string)row["Display_lang"]).Contains(text, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(row => row.ID))
+            Console.WriteLine($"  item {row.ID} \"{row["Display_lang"]}\" inventory type {row["InventoryType"]}"
+                              + $" displays {string.Join(" ", looks.GetValueOrDefault(row.ID) ?? [])}");
+    }
+
+    /// <summary>
+    /// The displays drawn from files whose listfile name holds a text (a set's look: "raidwarlockmythic_r_01"), by
+    /// inventory type, with the items wearing each: a whole set's pieces, the belt, boots and bracers included.
+    /// </summary>
+    public static void Look(Retail retail, string text)
+    {
+        var files = retail.FilesNamed(text);
+        var textureMaterials = retail.Table("TextureFileData").Values
+            .Where(row => files.Contains((uint)(int)row["FileDataID"]))
+            .Select(row => (int)row["MaterialResourcesID"]).ToHashSet();
+        var modelResources = retail.Table("ModelFileData").Values
+            .Where(row => files.Contains((uint)row.ID)).Select(row => (uint)row["ModelResourcesID"]).ToHashSet();
+        var displays = retail.Table("ItemDisplayInfoMaterialRes").Values
+            .Where(row => textureMaterials.Contains((int)row["MaterialResourcesID"]))
+            .Select(row => (int)row["ItemDisplayInfoID"]).ToHashSet();
+        displays.UnionWith(retail.Table("ItemDisplayInfo").Values
+            .Where(row => ((int[])row["ModelMaterialResourcesID"]).Any(textureMaterials.Contains)
+                          || ((uint[])row["ModelResourcesID"]).Any(modelResources.Contains)).Select(row => row.ID));
+        var appearances = retail.Table("ItemAppearance").Values
+            .Where(row => displays.Contains((int)row["ItemDisplayInfoID"])).ToDictionary(row => row.ID);
+        var sparse = retail.Table("ItemSparse");
+        Console.WriteLine($"{text}: {files.Count} files, {displays.Count} displays");
+        foreach (var group in retail.Table("ItemModifiedAppearance").Values
+                     .Where(row => appearances.ContainsKey((int)row["ItemAppearanceID"]))
+                     .Select(row => (item: (int)row["ItemID"], modifier: (int)row["ItemAppearanceModifierID"],
+                         display: (int)appearances[(int)row["ItemAppearanceID"]]["ItemDisplayInfoID"]))
+                     .GroupBy(entry => sparse.TryGetValue(entry.item, out var itemRow)
+                         ? (sbyte)itemRow["InventoryType"] : -1)
+                     .OrderBy(group => group.Key))
+        {
+            Console.WriteLine($"  inventory type {group.Key}:");
+            foreach (var byDisplay in group.GroupBy(entry => entry.display))
+            {
+                var items = byDisplay.Take(3).Select(entry => $"{entry.item}/{entry.modifier} \""
+                    + (sparse.TryGetValue(entry.item, out var itemRow) ? (string)itemRow["Display_lang"] : "?") + "\"");
+                Console.WriteLine($"    display {byDisplay.Key} ({byDisplay.Count()} items):"
+                                  + $" {string.Join(", ", items)}");
+            }
+        }
+    }
+
     /// <summary>The items whose looks use a model file, to find the retail item of a listfile path.</summary>
     public static void Model(Retail retail, uint modelFileDataId)
     {

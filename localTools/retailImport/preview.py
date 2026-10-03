@@ -184,7 +184,12 @@ def main():
             if not model:
                 continue
             name = model[:-4]
-            converted = glob.glob(os.path.join(args.output_root, 'Item', 'ObjectComponents', '*', name + '.m2'))[0]
+            found = glob.glob(os.path.join(args.output_root, 'Item', 'ObjectComponents', '*', name + '.m2'))
+            if not found:
+                # A helmet: one model a race and gender, the display holding their common name; the human male's
+                name += '_hum'
+                found = glob.glob(os.path.join(args.output_root, 'Item', 'ObjectComponents', 'Head', name + '.m2'))
+            converted = found[0]
             folder = os.path.dirname(converted)
             texture = os.path.join(folder, display['modelTexture'][slot] + '.blp')
             retail_m2 = os.path.join(WORK, name, name + '.retail.m2')

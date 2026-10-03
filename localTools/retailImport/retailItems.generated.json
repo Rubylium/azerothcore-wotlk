@@ -776,6 +776,3390 @@
         ],
         "icon": "7446701 interface/icons/inv_cape_leather_raidroguemidnight_d_01.blp"
       }
+    },
+    {
+      "id": 70020,
+      "cloneOf": 64601,
+      "modelName": [
+        "helm_plate_raidwarriormythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_plate_raidwarriormythic_r_01_red",
+        ""
+      ],
+      "icon": "inv_helm_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 helm",
+      "retail": {
+        "display": 164624,
+        "models": [
+          "1518606 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_bef.m2",
+          "1518607 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_bem.m2",
+          "1518608 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_drf.m2",
+          "1518609 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_drm.m2",
+          "1518610 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_dwf.m2",
+          "1518611 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_dwm.m2",
+          "1518612 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_gnf.m2",
+          "1518613 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_gnm.m2",
+          "1518616 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_huf.m2",
+          "1518617 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_hum.m2",
+          "1518618 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_nif.m2",
+          "1518619 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_nim.m2",
+          "1518620 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_orf.m2",
+          "1518621 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_orm.m2",
+          "1518624 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_scf.m2",
+          "1518625 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_scm.m2",
+          "1518626 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_taf.m2",
+          "1518627 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_tam.m2",
+          "1518628 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_trf.m2",
+          "1518629 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1518762 item/objectcomponents/head/helm_plate_raidwarriormythic_r_01_red.blp"
+        ],
+        "icon": "1518787 interface/icons/inv_helm_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70021,
+      "cloneOf": 64706,
+      "modelName": [
+        "shoulder_plate_raidwarriormythic_r_01_l.mdx",
+        "shoulder_plate_raidwarriormythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "plate_raidwarriormythic_r_01_red",
+        "plate_raidwarriormythic_r_01_red"
+      ],
+      "icon": "inv_shoulder_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 shoulders",
+      "retail": {
+        "display": 164620,
+        "models": [
+          "1518556 item/objectcomponents/shoulder/shoulder_plate_raidwarriormythic_r_01_l.m2",
+          "1518557 item/objectcomponents/shoulder/shoulder_plate_raidwarriormythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1518767 item/objectcomponents/shoulder/plate_raidwarriormythic_r_01_red.blp",
+          "1518767 item/objectcomponents/shoulder/plate_raidwarriormythic_r_01_red.blp"
+        ],
+        "icon": "1518789 interface/icons/inv_shoulder_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70022,
+      "cloneOf": 64600,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "plate_raidwarrior_r_01_red_sleeve_au",
+        "",
+        "",
+        "plate_raidwarrior_r_01_red_chest_tu",
+        "plate_raidwarrior_r_01_red_chest_tl",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 chest",
+      "retail": {
+        "display": 158797,
+        "models": [],
+        "textures": [
+          "1518981 item/texturecomponents/armuppertexture/plate_raidwarrior_r_01_red_sleeve_au_u.blp",
+          "1519037 item/texturecomponents/torsouppertexture/plate_raidwarrior_r_01_red_chest_tu_u.blp",
+          "1519030 item/texturecomponents/torsolowertexture/plate_raidwarrior_r_01_red_chest_tl_u.blp"
+        ],
+        "icon": "1518785 interface/icons/inv_chest_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70023,
+      "cloneOf": 64602,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "plate_raidwarrior_r_01_red_glove_al",
+        "plate_raidwarrior_r_01_red_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 gloves",
+      "retail": {
+        "display": 158803,
+        "models": [],
+        "textures": [
+          "1518972 item/texturecomponents/armlowertexture/plate_raidwarrior_r_01_red_glove_al_u.blp",
+          "1518995 item/texturecomponents/handtexture/plate_raidwarrior_r_01_red_glove_ha_u.blp"
+        ],
+        "icon": "1518786 interface/icons/inv_glove_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70024,
+      "cloneOf": 64603,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raidwarrior_r_01_red_pant_lu",
+        "plate_raidwarrior_r_01_red_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 legs",
+      "retail": {
+        "display": 158800,
+        "models": [],
+        "textures": [
+          "1519021 item/texturecomponents/leguppertexture/plate_raidwarrior_r_01_red_pant_lu_u.blp",
+          "1519007 item/texturecomponents/leglowertexture/plate_raidwarrior_r_01_red_pant_ll_u.blp"
+        ],
+        "icon": "1518788 interface/icons/inv_pant_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70025,
+      "cloneOf": 64797,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raidwarrior_r_01_red_boot_ll",
+        "plate_raidwarrior_r_01_red_boot_fo"
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 boots",
+      "retail": {
+        "display": 158778,
+        "models": [],
+        "textures": [
+          "1519006 item/texturecomponents/leglowertexture/plate_raidwarrior_r_01_red_boot_ll_u.blp",
+          "1518988 item/texturecomponents/foottexture/plate_raidwarrior_r_01_red_boot_fo_u.blp"
+        ],
+        "icon": "1518783 interface/icons/inv_boot_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70026,
+      "cloneOf": 64798,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raidwarrior_r_01_red_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 belt",
+      "retail": {
+        "display": 164623,
+        "models": [],
+        "textures": [
+          "1519020 item/texturecomponents/leguppertexture/plate_raidwarrior_r_01_red_belt_lu_u.blp"
+        ],
+        "icon": "1518782 interface/icons/inv_belt_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70027,
+      "cloneOf": 64799,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_plate_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "plate_raidwarrior_r_01_red_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 bracers",
+      "retail": {
+        "display": 158802,
+        "models": [],
+        "textures": [
+          "1518971 item/texturecomponents/armlowertexture/plate_raidwarrior_r_01_red_bracer_al_u.blp"
+        ],
+        "icon": "1518784 interface/icons/inv_bracer_plate_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70028,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_raidwarrior_r_01_red",
+        ""
+      ],
+      "icon": "inv_cape_raidwarriormythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warrior T20 cloak",
+      "retail": {
+        "display": 158867,
+        "models": [],
+        "textures": [
+          "1518748 item/objectcomponents/cape/cape_raidwarrior_r_01_red.blp"
+        ],
+        "icon": "1611367 interface/icons/inv_cape_raidwarriormythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70029,
+      "cloneOf": 64601,
+      "modelName": [
+        "helm_plate_raidpaladinmythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_plate_raidpaladin_r_01mythicpvp",
+        ""
+      ],
+      "icon": "inv_helm_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 helm",
+      "retail": {
+        "display": 188873,
+        "models": [
+          "1515214 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_bef.m2",
+          "1515215 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_bem.m2",
+          "1515216 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_drf.m2",
+          "1515217 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_drm.m2",
+          "1515218 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_dwf.m2",
+          "1515219 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_dwm.m2",
+          "1515220 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_gnf.m2",
+          "1515221 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_gnm.m2",
+          "1515224 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_huf.m2",
+          "1515227 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_hum.m2",
+          "1515228 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_nif.m2",
+          "1515229 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_nim.m2",
+          "1515230 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_orf.m2",
+          "1515231 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_orm.m2",
+          "1515234 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_scf.m2",
+          "1515235 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_scm.m2",
+          "1515236 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_taf.m2",
+          "1515237 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_tam.m2",
+          "1515238 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_trf.m2",
+          "1515239 item/objectcomponents/head/helm_plate_raidpaladinmythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1522770 item/objectcomponents/head/helm_plate_raidpaladin_r_01mythicpvp.blp"
+        ],
+        "icon": "1581161 interface/icons/inv_helm_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70030,
+      "cloneOf": 64706,
+      "modelName": [
+        "shoulder_plate_raidpaladinmythic_r_01_l.mdx",
+        "shoulder_plate_raidpaladinmythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "lshoulder_plate_raidpaladinmythic_r_01pvp",
+        "rshoulder_plate_raidpaladinmythic_r_01pvp"
+      ],
+      "icon": "inv_shoulder_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 shoulders",
+      "retail": {
+        "display": 161647,
+        "models": [
+          "1514739 item/objectcomponents/shoulder/shoulder_plate_raidpaladinmythic_r_01_l.m2",
+          "1514738 item/objectcomponents/shoulder/shoulder_plate_raidpaladinmythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1514746 item/objectcomponents/shoulder/lshoulder_plate_raidpaladinmythic_r_01pvp.blp",
+          "1514748 item/objectcomponents/shoulder/rshoulder_plate_raidpaladinmythic_r_01pvp.blp"
+        ],
+        "icon": "1581163 interface/icons/inv_shoulder_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70031,
+      "cloneOf": 64600,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "plate_raidpaladin_r_01pvp_sleeve_au",
+        "plate_raidpaladin_r_01pvp_sleeve_al",
+        "",
+        "plate_raidpaladin_r_01pvp_chest_tu",
+        "plate_raidpaladin_r_01pvp_chest_tl",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 chest",
+      "retail": {
+        "display": 158628,
+        "models": [],
+        "textures": [
+          "1512320 item/texturecomponents/armuppertexture/plate_raidpaladin_r_01pvp_sleeve_au_u.blp",
+          "1512299 item/texturecomponents/armlowertexture/plate_raidpaladin_r_01pvp_sleeve_al_u.blp",
+          "1512449 item/texturecomponents/torsouppertexture/plate_raidpaladin_r_01pvp_chest_tu_f.blp",
+          "1512450 item/texturecomponents/torsouppertexture/plate_raidpaladin_r_01pvp_chest_tu_m.blp",
+          "1512423 item/texturecomponents/torsolowertexture/plate_raidpaladin_r_01pvp_chest_tl_f.blp",
+          "1512424 item/texturecomponents/torsolowertexture/plate_raidpaladin_r_01pvp_chest_tl_m.blp"
+        ],
+        "icon": "1581159 interface/icons/inv_chest_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70032,
+      "cloneOf": 64602,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "plate_raidpaladin_r_01pvp_glove_al",
+        "plate_raidpaladin_r_01pvp_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 gloves",
+      "retail": {
+        "display": 164282,
+        "models": [],
+        "textures": [
+          "1512298 item/texturecomponents/armlowertexture/plate_raidpaladin_r_01pvp_glove_al_u.blp",
+          "1512344 item/texturecomponents/handtexture/plate_raidpaladin_r_01pvp_glove_ha_u.blp"
+        ],
+        "icon": "1581160 interface/icons/inv_glove_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70033,
+      "cloneOf": 64603,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raidpaladin_r_01pvp_pant_lu",
+        "plate_raidpaladin_r_01pvp_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 legs",
+      "retail": {
+        "display": 161611,
+        "models": [],
+        "textures": [
+          "1512390 item/texturecomponents/leguppertexture/plate_raidpaladin_r_01pvp_pant_lu_u.blp",
+          "1512366 item/texturecomponents/leglowertexture/plate_raidpaladin_r_01pvp_pant_ll_u.blp"
+        ],
+        "icon": "1581162 interface/icons/inv_pant_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70034,
+      "cloneOf": 64797,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raidpaladin_r_01pvp_boot_ll",
+        "plate_raidpaladin_r_01pvp_boot_fo"
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 boots",
+      "retail": {
+        "display": 158630,
+        "models": [],
+        "textures": [
+          "1512365 item/texturecomponents/leglowertexture/plate_raidpaladin_r_01pvp_boot_ll_u.blp",
+          "1512332 item/texturecomponents/foottexture/plate_raidpaladin_r_01pvp_boot_fo_u.blp"
+        ],
+        "icon": "1581157 interface/icons/inv_boot_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70035,
+      "cloneOf": 64798,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "plate_raidpaladin_r_01pvp_belt_tl",
+        "plate_raidpaladin_r_01pvp_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 belt",
+      "retail": {
+        "display": 159528,
+        "models": [],
+        "textures": [
+          "1512422 item/texturecomponents/torsolowertexture/plate_raidpaladin_r_01pvp_belt_tl_u.blp",
+          "1512389 item/texturecomponents/leguppertexture/plate_raidpaladin_r_01pvp_belt_lu_u.blp"
+        ],
+        "icon": "1581156 interface/icons/inv_belt_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70036,
+      "cloneOf": 64799,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_plate_raidpaladin_r_01mythic",
+      "bodyTextures": [
+        "",
+        "plate_raidpaladin_r_01pvp_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 bracers",
+      "retail": {
+        "display": 158591,
+        "models": [],
+        "textures": [
+          "1512297 item/texturecomponents/armlowertexture/plate_raidpaladin_r_01pvp_bracer_al_u.blp"
+        ],
+        "icon": "1581158 interface/icons/inv_bracer_plate_raidpaladin_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70037,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_raidpaladin_r_01_pvplong",
+        ""
+      ],
+      "icon": "inv_cape_raidpaladinmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Paladin T20 cloak",
+      "retail": {
+        "display": 158678,
+        "models": [],
+        "textures": [
+          "1521190 item/objectcomponents/cape/cape_raidpaladin_r_01_pvplong.blp"
+        ],
+        "icon": "1623454 interface/icons/inv_cape_raidpaladinmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70038,
+      "cloneOf": 64601,
+      "modelName": [
+        "helm_plate_raiddeathknightmythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_plate_raiddeathknight_r_01_mythicred",
+        ""
+      ],
+      "icon": "inv_helm_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 helm",
+      "retail": {
+        "display": 160826,
+        "models": [
+          "1548986 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_bef.m2",
+          "1548987 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_bem.m2",
+          "1548988 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_drf.m2",
+          "1548989 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_drm.m2",
+          "1548990 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_dwf.m2",
+          "1548991 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_dwm.m2",
+          "1548992 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_gnf.m2",
+          "1548993 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_gnm.m2",
+          "1548996 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_huf.m2",
+          "1548997 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_hum.m2",
+          "1548998 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_nif.m2",
+          "1548999 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_nim.m2",
+          "1549000 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_orf.m2",
+          "1549001 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_orm.m2",
+          "1549004 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_scf.m2",
+          "1549005 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_scm.m2",
+          "1549006 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_taf.m2",
+          "1549007 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_tam.m2",
+          "1549008 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_trf.m2",
+          "1549009 item/objectcomponents/head/helm_plate_raiddeathknightmythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1549738 item/objectcomponents/head/helm_plate_raiddeathknight_r_01_mythicred.blp"
+        ],
+        "icon": "1551056 interface/icons/inv_helm_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70039,
+      "cloneOf": 64706,
+      "modelName": [
+        "shoulder_plate_raiddeathknightmythic_r_01_l.mdx",
+        "shoulder_plate_raiddeathknightmythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "shoulder_plate_raiddeathknight_r_01_mythicred",
+        "shoulder_plate_raiddeathknight_r_01_mythicred"
+      ],
+      "icon": "inv_shoulder_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 shoulders",
+      "retail": {
+        "display": 160822,
+        "models": [
+          "1549041 item/objectcomponents/shoulder/shoulder_plate_raiddeathknightmythic_r_01_l.m2",
+          "1549042 item/objectcomponents/shoulder/shoulder_plate_raiddeathknightmythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1549745 item/objectcomponents/shoulder/shoulder_plate_raiddeathknight_r_01_mythicred.blp",
+          "1549745 item/objectcomponents/shoulder/shoulder_plate_raiddeathknight_r_01_mythicred.blp"
+        ],
+        "icon": "1551060 interface/icons/inv_shoulder_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70040,
+      "cloneOf": 64600,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "plate_raiddeathknight_r_01_mythicred_sleeve_au",
+        "plate_raiddeathknight_r_01_mythicred_sleeve_al",
+        "",
+        "plate_raiddeathknight_r_01_mythicred_chest_tu",
+        "plate_raiddeathknight_r_01_mythicred_chest_tl",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 chest",
+      "retail": {
+        "display": 160044,
+        "models": [],
+        "textures": [
+          "1549842 item/texturecomponents/armuppertexture/plate_raiddeathknight_r_01_mythicred_sleeve_au_u.blp",
+          "1549829 item/texturecomponents/armlowertexture/plate_raiddeathknight_r_01_mythicred_sleeve_al_u.blp",
+          "1549915 item/texturecomponents/torsouppertexture/plate_raiddeathknight_r_01_mythicred_chest_tu_f.blp",
+          "1549916 item/texturecomponents/torsouppertexture/plate_raiddeathknight_r_01_mythicred_chest_tu_m.blp",
+          "1549898 item/texturecomponents/torsolowertexture/plate_raiddeathknight_r_01_mythicred_chest_tl_f.blp",
+          "1549899 item/texturecomponents/torsolowertexture/plate_raiddeathknight_r_01_mythicred_chest_tl_m.blp"
+        ],
+        "icon": "1551052 interface/icons/inv_chest_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70041,
+      "cloneOf": 64602,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "plate_raiddeathknight_r_01_mythicred_glove_al",
+        "plate_raiddeathknight_r_01_mythicred_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 gloves",
+      "retail": {
+        "display": 160045,
+        "models": [],
+        "textures": [
+          "1549828 item/texturecomponents/armlowertexture/plate_raiddeathknight_r_01_mythicred_glove_al_u.blp",
+          "1549856 item/texturecomponents/handtexture/plate_raiddeathknight_r_01_mythicred_glove_ha_u.blp"
+        ],
+        "icon": "1551054 interface/icons/inv_glove_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70042,
+      "cloneOf": 64603,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raiddeathknight_r_01_mythicred_pant_lu",
+        "plate_raiddeathknight_r_01_mythicred_pant_ll",
+        ""
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 legs",
+      "retail": {
+        "display": 160047,
+        "models": [],
+        "textures": [
+          "1549881 item/texturecomponents/leguppertexture/plate_raiddeathknight_r_01_mythicred_pant_lu_u.blp",
+          "1549867 item/texturecomponents/leglowertexture/plate_raiddeathknight_r_01_mythicred_pant_ll_u.blp"
+        ],
+        "icon": "1551058 interface/icons/inv_pant_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70043,
+      "cloneOf": 64797,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "plate_raiddeathknight_r_01_mythicred_boot_ll",
+        "plate_raiddeathknight_r_01_mythicred_boot_fo"
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 boots",
+      "retail": {
+        "display": 160043,
+        "models": [],
+        "textures": [
+          "1549866 item/texturecomponents/leglowertexture/plate_raiddeathknight_r_01_mythicred_boot_ll_u.blp",
+          "1549849 item/texturecomponents/foottexture/plate_raiddeathknight_r_01_mythicred_boot_fo_u.blp"
+        ],
+        "icon": "1551048 interface/icons/inv_boot_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70044,
+      "cloneOf": 64798,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "plate_raiddeathknight_r_01_mythicred_belt_tl",
+        "plate_raiddeathknight_r_01_mythicred_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 belt",
+      "retail": {
+        "display": 160042,
+        "models": [],
+        "textures": [
+          "1549897 item/texturecomponents/torsolowertexture/plate_raiddeathknight_r_01_mythicred_belt_tl_u.blp",
+          "1549880 item/texturecomponents/leguppertexture/plate_raiddeathknight_r_01_mythicred_belt_lu_u.blp"
+        ],
+        "icon": "1551046 interface/icons/inv_belt_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70045,
+      "cloneOf": 64799,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "plate_raiddeathknight_r_01_mythicred_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 bracers",
+      "retail": {
+        "display": 160049,
+        "models": [],
+        "textures": [
+          "1549827 item/texturecomponents/armlowertexture/plate_raiddeathknight_r_01_mythicred_bracer_al_u.blp"
+        ],
+        "icon": "1551050 interface/icons/inv_bracer_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70046,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_plate_raiddeathknight_r_01_mythicredlong",
+        ""
+      ],
+      "icon": "inv_cape_plate_raiddeathknightmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        8,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Death Knight T20 cloak",
+      "retail": {
+        "display": 160706,
+        "models": [],
+        "textures": [
+          "1549936 item/objectcomponents/cape/cape_plate_raiddeathknight_r_01_mythicredlong.blp"
+        ],
+        "icon": "1585548 interface/icons/inv_cape_plate_raiddeathknightmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70047,
+      "cloneOf": 65129,
+      "modelName": [
+        "helm_mail_raidhuntermythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_mail_raidhuntermythic_r_01_green",
+        ""
+      ],
+      "icon": "inv_helm_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 helm",
+      "retail": {
+        "display": 161668,
+        "models": [
+          "1529637 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_bef.m2",
+          "1529638 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_bem.m2",
+          "1529639 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_drf.m2",
+          "1529640 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_drm.m2",
+          "1529641 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_dwf.m2",
+          "1529642 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_dwm.m2",
+          "1529643 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_gnf.m2",
+          "1529644 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_gnm.m2",
+          "1529647 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_huf.m2",
+          "1529648 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_hum.m2",
+          "1529649 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_nif.m2",
+          "1529650 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_nim.m2",
+          "1529651 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_orf.m2",
+          "1529652 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_orm.m2",
+          "1529655 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_scf.m2",
+          "1529656 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_scm.m2",
+          "1529657 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_taf.m2",
+          "1529658 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_tam.m2",
+          "1529659 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_trf.m2",
+          "1529660 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1530067 item/objectcomponents/head/helm_mail_raidhuntermythic_r_01_green.blp"
+        ],
+        "icon": "1529810 interface/icons/inv_helm_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70048,
+      "cloneOf": 64819,
+      "modelName": [
+        "shoulder_mail_raidhuntermythic_r_01_l.mdx",
+        "shoulder_mail_raidhuntermythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "shoulder_mail_raidhuntermythic_r_01_green",
+        "shoulder_mail_raidhuntermythic_r_01_green"
+      ],
+      "icon": "inv_shoulder_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 shoulders",
+      "retail": {
+        "display": 194717,
+        "models": [
+          "1529724 item/objectcomponents/shoulder/shoulder_mail_raidhuntermythic_r_01_l.m2",
+          "1529725 item/objectcomponents/shoulder/shoulder_mail_raidhuntermythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1530074 item/objectcomponents/shoulder/shoulder_mail_raidhuntermythic_r_01_green.blp",
+          "1530074 item/objectcomponents/shoulder/shoulder_mail_raidhuntermythic_r_01_green.blp"
+        ],
+        "icon": "1529812 interface/icons/inv_shoulder_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70049,
+      "cloneOf": 64828,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "mail_raidhuntermythic_r_01_green_sleeve_au",
+        "",
+        "",
+        "mail_raidhuntermythic_r_01_green_chest_tu",
+        "mail_raidhuntermythic_r_01_green_chest_tl",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 chest",
+      "retail": {
+        "display": 161695,
+        "models": [],
+        "textures": [
+          "1530194 item/texturecomponents/armuppertexture/mail_raidhuntermythic_r_01_green_sleeve_au_u.blp",
+          "1530214 item/texturecomponents/torsouppertexture/mail_raidhuntermythic_r_01_green_chest_tu_f.blp",
+          "1530215 item/texturecomponents/torsouppertexture/mail_raidhuntermythic_r_01_green_chest_tu_m.blp",
+          "1530209 item/texturecomponents/torsolowertexture/mail_raidhuntermythic_r_01_green_chest_tl_f.blp",
+          "1530210 item/texturecomponents/torsolowertexture/mail_raidhuntermythic_r_01_green_chest_tl_m.blp"
+        ],
+        "icon": "1529808 interface/icons/inv_chest_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70050,
+      "cloneOf": 64823,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "mail_raidhuntermythic_r_01_green_glove_al",
+        "mail_raidhuntermythic_r_01_green_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 gloves",
+      "retail": {
+        "display": 159596,
+        "models": [],
+        "textures": [
+          "1530191 item/texturecomponents/armlowertexture/mail_raidhuntermythic_r_01_green_glove_al_u.blp",
+          "1530198 item/texturecomponents/handtexture/mail_raidhuntermythic_r_01_green_glove_ha_u.blp"
+        ],
+        "icon": "1529809 interface/icons/inv_glove_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70051,
+      "cloneOf": 64821,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "mail_raidhuntermythic_r_01_green_pant_lu",
+        "mail_raidhuntermythic_r_01_green_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 legs",
+      "retail": {
+        "display": 159598,
+        "models": [],
+        "textures": [
+          "1530205 item/texturecomponents/leguppertexture/mail_raidhuntermythic_r_01_green_pant_lu_u.blp",
+          "1530201 item/texturecomponents/leglowertexture/mail_raidhuntermythic_r_01_green_pant_ll_u.blp"
+        ],
+        "icon": "1529811 interface/icons/inv_pant_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70052,
+      "cloneOf": 65187,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "mail_raidhuntermythic_r_01_green_boot_ll",
+        "mail_raidhuntermythic_r_01_green_boot_fo"
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 boots",
+      "retail": {
+        "display": 159594,
+        "models": [],
+        "textures": [
+          "1530200 item/texturecomponents/leglowertexture/mail_raidhuntermythic_r_01_green_boot_ll_u.blp",
+          "1530196 item/texturecomponents/foottexture/mail_raidhuntermythic_r_01_green_boot_fo_u.blp"
+        ],
+        "icon": "1529806 interface/icons/inv_boot_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70053,
+      "cloneOf": 65186,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "mail_raidhuntermythic_r_01_green_belt_tl",
+        "mail_raidhuntermythic_r_01_green_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 belt",
+      "retail": {
+        "display": 161667,
+        "models": [],
+        "textures": [
+          "1530208 item/texturecomponents/torsolowertexture/mail_raidhuntermythic_r_01_green_belt_tl_u.blp",
+          "1530204 item/texturecomponents/leguppertexture/mail_raidhuntermythic_r_01_green_belt_lu_u.blp"
+        ],
+        "icon": "1529805 interface/icons/inv_belt_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70054,
+      "cloneOf": 64831,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_mail_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "mail_raidhuntermythic_r_01_green_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 bracers",
+      "retail": {
+        "display": 159600,
+        "models": [],
+        "textures": [
+          "1530190 item/texturecomponents/armlowertexture/mail_raidhuntermythic_r_01_green_bracer_al_u.blp"
+        ],
+        "icon": "1529807 interface/icons/inv_bracer_mail_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70055,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_raidhuntermythic_r_01_green_full",
+        ""
+      ],
+      "icon": "inv_cape_raidhuntermythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        8,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hunter T20 cloak",
+      "retail": {
+        "display": 160379,
+        "models": [],
+        "textures": [
+          "1529823 item/objectcomponents/cape/cape_raidhuntermythic_r_01_green_full.blp"
+        ],
+        "icon": "1529796 interface/icons/inv_cape_raidhuntermythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70056,
+      "cloneOf": 65129,
+      "modelName": [
+        "helm_mail_raidshamanmythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_mail_raidshamanmythic_r_01red",
+        ""
+      ],
+      "icon": "inv_helm_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 helm",
+      "retail": {
+        "display": 161630,
+        "models": [
+          "1550111 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_bef.m2",
+          "1550112 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_bem.m2",
+          "1550113 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_drf.m2",
+          "1550114 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_drm.m2",
+          "1550115 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_dwf.m2",
+          "1550116 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_dwm.m2",
+          "1550117 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_gnf.m2",
+          "1550118 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_gnm.m2",
+          "1550121 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_huf.m2",
+          "1550122 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_hum.m2",
+          "1550123 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_nif.m2",
+          "1550124 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_nim.m2",
+          "1550125 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_orf.m2",
+          "1550126 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_orm.m2",
+          "1550129 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_scf.m2",
+          "1550130 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_scm.m2",
+          "1550131 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_taf.m2",
+          "1550132 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_tam.m2",
+          "1550133 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_trf.m2",
+          "1550134 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1550296 item/objectcomponents/head/helm_mail_raidshamanmythic_r_01red.blp"
+        ],
+        "icon": "1551576 interface/icons/inv_helm_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70057,
+      "cloneOf": 64819,
+      "modelName": [
+        "shoulder_mail_raidshamanmythic_r_01_l.mdx",
+        "shoulder_mail_raidshamanmythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "mail_raidshamanmythic_r_01red",
+        "mail_raidshamanmythic_r_01red"
+      ],
+      "icon": "inv_shoulder_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 shoulders",
+      "retail": {
+        "display": 160784,
+        "models": [
+          "1550265 item/objectcomponents/shoulder/shoulder_mail_raidshamanmythic_r_01_l.m2",
+          "1550266 item/objectcomponents/shoulder/shoulder_mail_raidshamanmythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1530343 item/objectcomponents/shoulder/mail_raidshamanmythic_r_01red.blp",
+          "1530343 item/objectcomponents/shoulder/mail_raidshamanmythic_r_01red.blp"
+        ],
+        "icon": "1551578 interface/icons/inv_shoulder_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70058,
+      "cloneOf": 64828,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "mail_raidshaman_r_01mythicred_sleeve_au",
+        "",
+        "",
+        "mail_raidshaman_r_01mythicred_chest_tu",
+        "mail_raidshaman_r_01mythicred_chest_tl",
+        "mail_raidshaman_r_01mythicred_robe_lu",
+        "mail_raidshaman_r_01mythicred_robe_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        1
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 chest",
+      "retail": {
+        "display": 160308,
+        "models": [],
+        "textures": [
+          "1559220 item/texturecomponents/armuppertexture/mail_raidshaman_r_01mythicred_sleeve_au_u.blp",
+          "1559262 item/texturecomponents/torsouppertexture/mail_raidshaman_r_01mythicred_chest_tu_f.blp",
+          "1559263 item/texturecomponents/torsouppertexture/mail_raidshaman_r_01mythicred_chest_tu_m.blp",
+          "1559254 item/texturecomponents/torsolowertexture/mail_raidshaman_r_01mythicred_chest_tl_f.blp",
+          "1559255 item/texturecomponents/torsolowertexture/mail_raidshaman_r_01mythicred_chest_tl_m.blp",
+          "1559245 item/texturecomponents/leguppertexture/mail_raidshaman_r_01mythicred_robe_lu_u.blp",
+          "1559234 item/texturecomponents/leglowertexture/mail_raidshaman_r_01mythicred_robe_ll_u.blp"
+        ],
+        "icon": "1551574 interface/icons/inv_chest_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70059,
+      "cloneOf": 64823,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "mail_raidshaman_r_01mythicred_glove_al",
+        "mail_raidshaman_r_01mythicred_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 gloves",
+      "retail": {
+        "display": 160305,
+        "models": [],
+        "textures": [
+          "1559214 item/texturecomponents/armlowertexture/mail_raidshaman_r_01mythicred_glove_al_u.blp",
+          "1559227 item/texturecomponents/handtexture/mail_raidshaman_r_01mythicred_glove_ha_u.blp"
+        ],
+        "icon": "1551575 interface/icons/inv_glove_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70060,
+      "cloneOf": 64821,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "mail_raidshaman_r_01mythicred_pant_lu",
+        "mail_raidshaman_r_01mythicred_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 legs",
+      "retail": {
+        "display": 161306,
+        "models": [],
+        "textures": [
+          "1559244 item/texturecomponents/leguppertexture/mail_raidshaman_r_01mythicred_pant_lu_u.blp",
+          "1559233 item/texturecomponents/leglowertexture/mail_raidshaman_r_01mythicred_pant_ll_u.blp"
+        ],
+        "icon": "1559210 interface/icons/inv_pant_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70061,
+      "cloneOf": 65187,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "mail_raidshaman_r_01mythicred_boot_ll",
+        "mail_raidshaman_r_01mythicred_boot_fo"
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 boots",
+      "retail": {
+        "display": 160304,
+        "models": [],
+        "textures": [
+          "1559232 item/texturecomponents/leglowertexture/mail_raidshaman_r_01mythicred_boot_ll_u.blp",
+          "1559223 item/texturecomponents/foottexture/mail_raidshaman_r_01mythicred_boot_fo_u.blp"
+        ],
+        "icon": "1551572 interface/icons/inv_boot_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70062,
+      "cloneOf": 65186,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "mail_raidshaman_r_01mythicred_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 belt",
+      "retail": {
+        "display": 160303,
+        "models": [],
+        "textures": [
+          "1559243 item/texturecomponents/leguppertexture/mail_raidshaman_r_01mythicred_belt_lu_u.blp"
+        ],
+        "icon": "1551571 interface/icons/inv_belt_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70063,
+      "cloneOf": 64831,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_mail_raidshamanmythic_r_01",
+      "bodyTextures": [
+        "",
+        "mail_raidshaman_r_01mythicred_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 bracers",
+      "retail": {
+        "display": 160307,
+        "models": [],
+        "textures": [
+          "1559213 item/texturecomponents/armlowertexture/mail_raidshaman_r_01mythicred_bracer_al_u.blp"
+        ],
+        "icon": "1551573 interface/icons/inv_bracer_mail_raidshamanmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70064,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_mail_raidshaman_r_01_redlong",
+        ""
+      ],
+      "icon": "inv_cape_mail_raidshaman_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Shaman T20 cloak",
+      "retail": {
+        "display": 160866,
+        "models": [],
+        "textures": [
+          "1550284 item/objectcomponents/cape/cape_mail_raidshaman_r_01_redlong.blp"
+        ],
+        "icon": "1551600 interface/icons/inv_cape_mail_raidshaman_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70065,
+      "cloneOf": 64429,
+      "modelName": [
+        "helm_leather_raiddruidmythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_leather_raiddruidmythic_r_01_dark",
+        ""
+      ],
+      "icon": "inv_helm_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 helm",
+      "retail": {
+        "display": 159762,
+        "models": [
+          "1543072 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_hum.m2",
+          "1544157 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_bef.m2",
+          "1544158 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_bem.m2",
+          "1544159 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_drf.m2",
+          "1544160 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_drm.m2",
+          "1544161 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_dwf.m2",
+          "1544162 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_dwm.m2",
+          "1544163 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_gnf.m2",
+          "1544164 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_gnm.m2",
+          "1544167 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_huf.m2",
+          "1544168 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_nif.m2",
+          "1544169 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_nim.m2",
+          "1544170 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_orf.m2",
+          "1544171 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_orm.m2",
+          "1544174 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_scf.m2",
+          "1544175 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_scm.m2",
+          "1544176 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_taf.m2",
+          "1544177 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_tam.m2",
+          "1544178 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_trf.m2",
+          "1544179 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1544242 item/objectcomponents/head/helm_leather_raiddruidmythic_r_01_dark.blp"
+        ],
+        "icon": "1544254 interface/icons/inv_helm_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70066,
+      "cloneOf": 64431,
+      "modelName": [
+        "shoulder_leather_raiddruidmythic_r_01_l.mdx",
+        "shoulder_leather_raiddruidmythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "shoulder_leather_raiddruidmythic_r_01_dark",
+        "shoulder_leather_raiddruidmythic_r_01_dark"
+      ],
+      "icon": "inv_shoulder_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 shoulders",
+      "retail": {
+        "display": 159764,
+        "models": [
+          "1544284 item/objectcomponents/shoulder/shoulder_leather_raiddruidmythic_r_01_l.m2",
+          "1544285 item/objectcomponents/shoulder/shoulder_leather_raiddruidmythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1544244 item/objectcomponents/shoulder/shoulder_leather_raiddruidmythic_r_01_dark.blp",
+          "1544244 item/objectcomponents/shoulder/shoulder_leather_raiddruidmythic_r_01_dark.blp"
+        ],
+        "icon": "1544257 interface/icons/inv_shoulder_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70067,
+      "cloneOf": 64435,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "leather_raiddruidmythic_r_01_dark_sleeve_au",
+        "",
+        "",
+        "leather_raiddruidmythic_r_01_dark_chest_tu",
+        "leather_raiddruidmythic_r_01_dark_chest_tl",
+        "leather_raiddruidmythic_r_01_dark_robe_lu",
+        "leather_raiddruidmythic_r_01_dark_robe_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        1
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 chest",
+      "retail": {
+        "display": 161566,
+        "models": [],
+        "textures": [
+          "1544373 item/texturecomponents/armuppertexture/leather_raiddruidmythic_r_01_dark_sleeve_au_u.blp",
+          "1544397 item/texturecomponents/torsouppertexture/leather_raiddruidmythic_r_01_dark_chest_tu_f.blp",
+          "1544398 item/texturecomponents/torsouppertexture/leather_raiddruidmythic_r_01_dark_chest_tu_m.blp",
+          "1544392 item/texturecomponents/torsolowertexture/leather_raiddruidmythic_r_01_dark_chest_tl_f.blp",
+          "1544393 item/texturecomponents/torsolowertexture/leather_raiddruidmythic_r_01_dark_chest_tl_m.blp",
+          "1544387 item/texturecomponents/leguppertexture/leather_raiddruidmythic_r_01_dark_robe_lu_u.blp",
+          "1544381 item/texturecomponents/leglowertexture/leather_raiddruidmythic_r_01_dark_robe_ll_u.blp"
+        ],
+        "icon": "1544252 interface/icons/inv_chest_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70068,
+      "cloneOf": 64944,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "leather_raiddruidmythic_r_01_dark_glove_al",
+        "leather_raiddruidmythic_r_01_dark_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 gloves",
+      "retail": {
+        "display": 159771,
+        "models": [],
+        "textures": [
+          "1544369 item/texturecomponents/armlowertexture/leather_raiddruidmythic_r_01_dark_glove_al_u.blp",
+          "1544377 item/texturecomponents/handtexture/leather_raiddruidmythic_r_01_dark_glove_ha_u.blp"
+        ],
+        "icon": "1544253 interface/icons/inv_glove_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70069,
+      "cloneOf": 64432,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "leather_raiddruidmythic_r_01_dark_pant_lu",
+        "leather_raiddruidmythic_r_01_dark_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 legs",
+      "retail": {
+        "display": 159763,
+        "models": [],
+        "textures": [
+          "1544386 item/texturecomponents/leguppertexture/leather_raiddruidmythic_r_01_dark_pant_lu_u.blp",
+          "1544380 item/texturecomponents/leglowertexture/leather_raiddruidmythic_r_01_dark_pant_ll_u.blp"
+        ],
+        "icon": "1544255 interface/icons/inv_pant_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70070,
+      "cloneOf": 64437,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "leather_raiddruidmythic_r_01_dark_boot_ll",
+        "leather_raiddruidmythic_r_01_dark_boot_fo"
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 boots",
+      "retail": {
+        "display": 159768,
+        "models": [],
+        "textures": [
+          "1544379 item/texturecomponents/leglowertexture/leather_raiddruidmythic_r_01_dark_boot_ll_u.blp",
+          "1544375 item/texturecomponents/foottexture/leather_raiddruidmythic_r_01_dark_boot_fo_u.blp"
+        ],
+        "icon": "1544250 interface/icons/inv_boot_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70071,
+      "cloneOf": 64430,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "leather_raiddruidmythic_r_01_dark_belt_tl",
+        "leather_raiddruidmythic_r_01_dark_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 belt",
+      "retail": {
+        "display": 159759,
+        "models": [],
+        "textures": [
+          "1544391 item/texturecomponents/torsolowertexture/leather_raiddruidmythic_r_01_dark_belt_tl_u.blp",
+          "1544385 item/texturecomponents/leguppertexture/leather_raiddruidmythic_r_01_dark_belt_lu_u.blp"
+        ],
+        "icon": "1544249 interface/icons/inv_belt_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70072,
+      "cloneOf": 64439,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "leather_raiddruidmythic_r_01_dark_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 bracers",
+      "retail": {
+        "display": 159765,
+        "models": [],
+        "textures": [
+          "1544368 item/texturecomponents/armlowertexture/leather_raiddruidmythic_r_01_dark_bracer_al_u.blp"
+        ],
+        "icon": "1544251 interface/icons/inv_bracer_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70073,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_leather_raiddruidmythic_r_01_darklong",
+        ""
+      ],
+      "icon": "inv_cape_leather_raiddruidmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Druid T20 cloak",
+      "retail": {
+        "display": 160591,
+        "models": [],
+        "textures": [
+          "1544221 item/objectcomponents/cape/cape_leather_raiddruidmythic_r_01_darklong.blp"
+        ],
+        "icon": "1589460 interface/icons/inv_cape_leather_raiddruidmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70074,
+      "cloneOf": 65647,
+      "modelName": [
+        "helm_cloth_raidpriestmythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_cloth_raidpriestmythic_r_01_black",
+        ""
+      ],
+      "icon": "inv_helm_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 helm",
+      "retail": {
+        "display": 161326,
+        "models": [
+          "1519768 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_bef.m2",
+          "1519769 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_bem.m2",
+          "1519770 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_drf.m2",
+          "1519771 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_drm.m2",
+          "1519772 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_dwf.m2",
+          "1519773 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_dwm.m2",
+          "1519774 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_gnf.m2",
+          "1519775 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_gnm.m2",
+          "1519778 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_huf.m2",
+          "1519779 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_hum.m2",
+          "1519780 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_nif.m2",
+          "1519781 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_nim.m2",
+          "1519782 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_orf.m2",
+          "1519783 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_orm.m2",
+          "1519786 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_scf.m2",
+          "1519787 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_scm.m2",
+          "1519788 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_taf.m2",
+          "1519789 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_tam.m2",
+          "1519790 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_trf.m2",
+          "1519791 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1519810 item/objectcomponents/head/helm_cloth_raidpriestmythic_r_01_black.blp"
+        ],
+        "icon": "1601100 interface/icons/inv_helm_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70075,
+      "cloneOf": 64895,
+      "modelName": [
+        "shoulder_cloth_raidpriestmythic_r_01_l.mdx",
+        "shoulder_cloth_raidpriestmythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "cloth_raidpriestmythic_r_01_black",
+        "cloth_raidpriestmythic_r_01_black"
+      ],
+      "icon": "inv_shoulder_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 shoulders",
+      "retail": {
+        "display": 161325,
+        "models": [
+          "1519795 item/objectcomponents/shoulder/shoulder_cloth_raidpriestmythic_r_01_l.m2",
+          "1519796 item/objectcomponents/shoulder/shoulder_cloth_raidpriestmythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1519812 item/objectcomponents/shoulder/cloth_raidpriestmythic_r_01_black.blp",
+          "1519812 item/objectcomponents/shoulder/cloth_raidpriestmythic_r_01_black.blp"
+        ],
+        "icon": "1601102 interface/icons/inv_shoulder_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70076,
+      "cloneOf": 64242,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_robe_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "cloth_raidpriestmythic_r_01_black_sleeve_au",
+        "cloth_raidpriestmythic_r_01_black_sleeve_al",
+        "",
+        "cloth_raidpriestmythic_r_01_black_chest_tu",
+        "cloth_raidpriestmythic_r_01_black_chest_tl",
+        "cloth_raidpriestmythic_r_01_black_robe_lu",
+        "cloth_raidpriestmythic_r_01_black_robe_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        1
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 chest",
+      "retail": {
+        "display": 161360,
+        "models": [],
+        "textures": [
+          "1519891 item/texturecomponents/armuppertexture/cloth_raidpriestmythic_r_01_black_sleeve_au_u.blp",
+          "1519887 item/texturecomponents/armlowertexture/cloth_raidpriestmythic_r_01_black_sleeve_al_u.blp",
+          "1519907 item/texturecomponents/torsouppertexture/cloth_raidpriestmythic_r_01_black_chest_tu_f.blp",
+          "1519908 item/texturecomponents/torsouppertexture/cloth_raidpriestmythic_r_01_black_chest_tu_m.blp",
+          "1519903 item/texturecomponents/torsolowertexture/cloth_raidpriestmythic_r_01_black_chest_tl_f.blp",
+          "1519904 item/texturecomponents/torsolowertexture/cloth_raidpriestmythic_r_01_black_chest_tl_m.blp",
+          "1519900 item/texturecomponents/leguppertexture/cloth_raidpriestmythic_r_01_black_robe_lu_u.blp",
+          "1519897 item/texturecomponents/leglowertexture/cloth_raidpriestmythic_r_01_black_robe_ll_u.blp"
+        ],
+        "icon": "1601101 interface/icons/inv_robe_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70077,
+      "cloneOf": 64235,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "cloth_raidpriestmythic_r_01_black_glove_al",
+        "cloth_raidpriestmythic_r_01_black_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        2,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 gloves",
+      "retail": {
+        "display": 159513,
+        "models": [],
+        "textures": [
+          "1519886 item/texturecomponents/armlowertexture/cloth_raidpriestmythic_r_01_black_glove_al_u.blp",
+          "1519895 item/texturecomponents/handtexture/cloth_raidpriestmythic_r_01_black_glove_ha_u.blp"
+        ],
+        "icon": "1601099 interface/icons/inv_glove_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70078,
+      "cloneOf": 64241,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "pant_cloth_raidpriest_r_01_gold_lu",
+        "pant_cloth_raidpriest_r_01_gold_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 legs",
+      "retail": {
+        "display": 655463,
+        "models": [],
+        "textures": [
+          "4287884 item/texturecomponents/leguppertexture/pant_cloth_raidpriest_r_01_gold_lu_u_4287884.blp",
+          "4287883 item/texturecomponents/leglowertexture/pant_cloth_raidpriest_r_01_gold_ll_u_4287883.blp"
+        ],
+        "icon": "1603362 interface/icons/inv_pant_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70079,
+      "cloneOf": 64351,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidpriestmythic_r_01_black_boot_fo"
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 boots",
+      "retail": {
+        "display": 159512,
+        "models": [],
+        "textures": [
+          "1519893 item/texturecomponents/foottexture/cloth_raidpriestmythic_r_01_black_boot_fo_u.blp"
+        ],
+        "icon": "1601096 interface/icons/inv_boot_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70080,
+      "cloneOf": 64349,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidpriestmythic_r_01_black_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 belt",
+      "retail": {
+        "display": 159511,
+        "models": [],
+        "textures": [
+          "1519899 item/texturecomponents/leguppertexture/cloth_raidpriestmythic_r_01_black_belt_lu_u.blp"
+        ],
+        "icon": "1601095 interface/icons/inv_belt_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70081,
+      "cloneOf": 64361,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "cloth_raidpriestmythic_r_01_black_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 bracers",
+      "retail": {
+        "display": 159517,
+        "models": [],
+        "textures": [
+          "1519885 item/texturecomponents/armlowertexture/cloth_raidpriestmythic_r_01_black_bracer_al_u.blp"
+        ],
+        "icon": "1601097 interface/icons/inv_bracer_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70082,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_cloth_raidpriestmythic_r_01_black",
+        ""
+      ],
+      "icon": "inv_cape_cloth_raidpriest_r_01_gold",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Priest T20 cloak",
+      "retail": {
+        "display": 160552,
+        "models": [],
+        "textures": [
+          "1519816 item/objectcomponents/cape/cape_cloth_raidpriestmythic_r_01_black.blp"
+        ],
+        "icon": "1601098 interface/icons/inv_cape_cloth_raidpriest_r_01_gold.blp"
+      }
+    },
+    {
+      "id": 70083,
+      "cloneOf": 65647,
+      "modelName": [
+        "helm_cloth_raidmagemythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_cloth_raidmagemythic_r_01pvp",
+        ""
+      ],
+      "icon": "inv_helm_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 helm",
+      "retail": {
+        "display": 159718,
+        "models": [
+          "1538262 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_bef.m2",
+          "1538263 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_bem.m2",
+          "1538264 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_drf.m2",
+          "1538265 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_drm.m2",
+          "1538266 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_dwf.m2",
+          "1538267 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_dwm.m2",
+          "1538268 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_gnf.m2",
+          "1538269 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_gnm.m2",
+          "1538272 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_huf.m2",
+          "1538273 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_hum.m2",
+          "1538274 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_nif.m2",
+          "1538275 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_nim.m2",
+          "1538276 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_orf.m2",
+          "1538277 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_orm.m2",
+          "1538280 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_scf.m2",
+          "1538281 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_scm.m2",
+          "1538282 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_taf.m2",
+          "1538283 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_tam.m2",
+          "1538284 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_trf.m2",
+          "1538285 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1538224 item/objectcomponents/head/helm_cloth_raidmagemythic_r_01pvp.blp"
+        ],
+        "icon": "1581054 interface/icons/inv_helm_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70084,
+      "cloneOf": 64895,
+      "modelName": [
+        "shoulder_cloth_raidmagemythic_r_01_l.mdx",
+        "shoulder_cloth_raidmagemythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "shoulder_cloth_raidmagemythic_r_01pvp",
+        "shoulder_cloth_raidmagemythic_r_01pvp"
+      ],
+      "icon": "inv_shoulder_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 shoulders",
+      "retail": {
+        "display": 159720,
+        "models": [
+          "1537320 item/objectcomponents/shoulder/shoulder_cloth_raidmagemythic_r_01_l.m2",
+          "1537321 item/objectcomponents/shoulder/shoulder_cloth_raidmagemythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1538222 item/objectcomponents/shoulder/shoulder_cloth_raidmagemythic_r_01pvp.blp",
+          "1538222 item/objectcomponents/shoulder/shoulder_cloth_raidmagemythic_r_01pvp.blp"
+        ],
+        "icon": "1581056 interface/icons/inv_shoulder_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70085,
+      "cloneOf": 64242,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "cloth_raidmagemythic_r_01pvp_sleeve_au",
+        "cloth_raidmagemythic_r_01pvp_sleeve_al",
+        "",
+        "cloth_raidmagemythic_r_01pvp_chest_tu",
+        "cloth_raidmagemythic_r_01pvp_chest_tl",
+        "cloth_raidmagemythic_r_01pvp_robe_lu",
+        "cloth_raidmagemythic_r_01pvp_robe_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        1
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 chest",
+      "retail": {
+        "display": 160711,
+        "models": [],
+        "textures": [
+          "1538305 item/texturecomponents/armuppertexture/cloth_raidmagemythic_r_01pvp_sleeve_au_u.blp",
+          "1538303 item/texturecomponents/armlowertexture/cloth_raidmagemythic_r_01pvp_sleeve_al_u.blp",
+          "1538330 item/texturecomponents/torsouppertexture/cloth_raidmagemythic_r_01pvp_chest_tu_f.blp",
+          "1538331 item/texturecomponents/torsouppertexture/cloth_raidmagemythic_r_01pvp_chest_tu_m.blp",
+          "1538326 item/texturecomponents/torsolowertexture/cloth_raidmagemythic_r_01pvp_chest_tl_f.blp",
+          "1538327 item/texturecomponents/torsolowertexture/cloth_raidmagemythic_r_01pvp_chest_tl_m.blp",
+          "1538321 item/texturecomponents/leguppertexture/cloth_raidmagemythic_r_01pvp_robe_lu_u.blp",
+          "1538315 item/texturecomponents/leglowertexture/cloth_raidmagemythic_r_01pvp_robe_ll_u.blp"
+        ],
+        "icon": "1581052 interface/icons/inv_chest_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70086,
+      "cloneOf": 64235,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "cloth_raidmagemythic_r_01pvp_glove_al",
+        "cloth_raidmagemythic_r_01pvp_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 gloves",
+      "retail": {
+        "display": 159717,
+        "models": [],
+        "textures": [
+          "1538302 item/texturecomponents/armlowertexture/cloth_raidmagemythic_r_01pvp_glove_al_u.blp",
+          "1538309 item/texturecomponents/handtexture/cloth_raidmagemythic_r_01pvp_glove_ha_u.blp"
+        ],
+        "icon": "1581053 interface/icons/inv_glove_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70087,
+      "cloneOf": 64241,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidmagemythic_r_01pvp_pant_lu",
+        "cloth_raidmagemythic_r_01pvp_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 legs",
+      "retail": {
+        "display": 159719,
+        "models": [],
+        "textures": [
+          "1538320 item/texturecomponents/leguppertexture/cloth_raidmagemythic_r_01pvp_pant_lu_u.blp",
+          "1538314 item/texturecomponents/leglowertexture/cloth_raidmagemythic_r_01pvp_pant_ll_u.blp"
+        ],
+        "icon": "1581055 interface/icons/inv_pant_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70088,
+      "cloneOf": 64351,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidmagemythic_r_01pvp_boot_ll",
+        "cloth_raidmagemythic_r_01pvp_boot_fo"
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 boots",
+      "retail": {
+        "display": 159716,
+        "models": [],
+        "textures": [
+          "1538313 item/texturecomponents/leglowertexture/cloth_raidmagemythic_r_01pvp_boot_ll_u.blp",
+          "1538307 item/texturecomponents/foottexture/cloth_raidmagemythic_r_01pvp_boot_fo_u.blp"
+        ],
+        "icon": "1581050 interface/icons/inv_boot_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70089,
+      "cloneOf": 64349,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidmagemythic_r_01pvp_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 belt",
+      "retail": {
+        "display": 159715,
+        "models": [],
+        "textures": [
+          "1538319 item/texturecomponents/leguppertexture/cloth_raidmagemythic_r_01pvp_belt_lu_u.blp"
+        ],
+        "icon": "1581049 interface/icons/inv_belt_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70090,
+      "cloneOf": 64361,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_cloth_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "cloth_raidmagemythic_r_01pvp_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 bracers",
+      "retail": {
+        "display": 159721,
+        "models": [],
+        "textures": [
+          "1538301 item/texturecomponents/armlowertexture/cloth_raidmagemythic_r_01pvp_bracer_al_u.blp"
+        ],
+        "icon": "1581051 interface/icons/inv_bracer_cloth_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70091,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_raidmagemythic_r_01pvplong",
+        ""
+      ],
+      "icon": "inv_cape_raidmage_r_01mythic",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Mage T20 cloak",
+      "retail": {
+        "display": 160629,
+        "models": [],
+        "textures": [
+          "1551594 item/objectcomponents/cape/cape_raidmagemythic_r_01pvplong.blp"
+        ],
+        "icon": "1600256 interface/icons/inv_cape_raidmage_r_01mythic.blp"
+      }
+    },
+    {
+      "id": 70092,
+      "cloneOf": 65647,
+      "modelName": [
+        "helm_cloth_raidwarlockmythic_r_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "helm_cloth_raidwarlockmythic_r_01_purple",
+        ""
+      ],
+      "icon": "inv_helm_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 helm",
+      "retail": {
+        "display": 161684,
+        "models": [
+          "1511320 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_bef.m2",
+          "1511321 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_bem.m2",
+          "1511322 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_drf.m2",
+          "1511323 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_drm.m2",
+          "1511324 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_dwf.m2",
+          "1511325 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_dwm.m2",
+          "1511326 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_gnf.m2",
+          "1511327 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_gnm.m2",
+          "1511330 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_huf.m2",
+          "1511331 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_hum.m2",
+          "1511332 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_nif.m2",
+          "1511333 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_nim.m2",
+          "1511334 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_orf.m2",
+          "1511335 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_orm.m2",
+          "1511338 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_scf.m2",
+          "1511339 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_scm.m2",
+          "1511340 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_taf.m2",
+          "1511341 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_tam.m2",
+          "1511342 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_trf.m2",
+          "1511343 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_trm.m2"
+        ],
+        "textures": [
+          "1511364 item/objectcomponents/head/helm_cloth_raidwarlockmythic_r_01_purple.blp"
+        ],
+        "icon": "1511484 interface/icons/inv_helm_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70093,
+      "cloneOf": 64895,
+      "modelName": [
+        "shoulder_cloth_raidwarlockmythic_r_01_l.mdx",
+        "shoulder_cloth_raidwarlockmythic_r_01_r.mdx"
+      ],
+      "modelTexture": [
+        "cloth_raidwarlockmythic_r_01_purple",
+        "cloth_raidwarlockmythic_r_01_purple"
+      ],
+      "icon": "inv_shoulder_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 shoulders",
+      "retail": {
+        "display": 159037,
+        "models": [
+          "1511349 item/objectcomponents/shoulder/shoulder_cloth_raidwarlockmythic_r_01_l.m2",
+          "1511350 item/objectcomponents/shoulder/shoulder_cloth_raidwarlockmythic_r_01_r.m2"
+        ],
+        "textures": [
+          "1511371 item/objectcomponents/shoulder/cloth_raidwarlockmythic_r_01_purple.blp",
+          "1511371 item/objectcomponents/shoulder/cloth_raidwarlockmythic_r_01_purple.blp"
+        ],
+        "icon": "1511486 interface/icons/inv_shoulder_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70094,
+      "cloneOf": 64242,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_chest_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "cloth_raidwarlock_r_01_purple_sleeve_au",
+        "cloth_raidwarlock_r_01_purple_sleeve_al",
+        "",
+        "cloth_raidwarlock_r_01_purple_chest_tu",
+        "cloth_raidwarlock_r_01_purple_chest_tl",
+        "cloth_raidwarlock_r_01_purple_robe_lu",
+        "cloth_raidwarlock_r_01_purple_robe_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        1
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 chest",
+      "retail": {
+        "display": 159039,
+        "models": [],
+        "textures": [
+          "1511602 item/texturecomponents/armuppertexture/cloth_raidwarlock_r_01_purple_sleeve_au_u.blp",
+          "1511593 item/texturecomponents/armlowertexture/cloth_raidwarlock_r_01_purple_sleeve_al_u.blp",
+          "1511672 item/texturecomponents/torsouppertexture/cloth_raidwarlock_r_01_purple_chest_tu_u.blp",
+          "1629412 item/texturecomponents/torsouppertexture/cloth_raidwarlock_r_01_purple_chest_tu_f.blp",
+          "1629431 item/texturecomponents/torsouppertexture/cloth_raidwarlock_r_01_purple_chest_tu_m.blp",
+          "1511665 item/texturecomponents/torsolowertexture/cloth_raidwarlock_r_01_purple_chest_tl_u.blp",
+          "1629426 item/texturecomponents/torsolowertexture/cloth_raidwarlock_r_01_purple_chest_tl_m.blp",
+          "1629434 item/texturecomponents/torsolowertexture/cloth_raidwarlock_r_01_purple_chest_tl_f.blp",
+          "1511656 item/texturecomponents/leguppertexture/cloth_raidwarlock_r_01_purple_robe_lu_u.blp",
+          "1511635 item/texturecomponents/leglowertexture/cloth_raidwarlock_r_01_purple_robe_ll_u.blp"
+        ],
+        "icon": "1511482 interface/icons/inv_chest_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70095,
+      "cloneOf": 64235,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_glove_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "cloth_raidwarlock_r_01_purple_glove_al",
+        "cloth_raidwarlock_r_01_purple_glove_ha",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 gloves",
+      "retail": {
+        "display": 159034,
+        "models": [],
+        "textures": [
+          "1511592 item/texturecomponents/armlowertexture/cloth_raidwarlock_r_01_purple_glove_al_u.blp",
+          "1511616 item/texturecomponents/handtexture/cloth_raidwarlock_r_01_purple_glove_ha_u.blp"
+        ],
+        "icon": "1511483 interface/icons/inv_glove_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70096,
+      "cloneOf": 64241,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_pant_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidwarlock_r_01_purple_pant_lu",
+        "cloth_raidwarlock_r_01_purple_pant_ll",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 legs",
+      "retail": {
+        "display": 159036,
+        "models": [],
+        "textures": [
+          "1511655 item/texturecomponents/leguppertexture/cloth_raidwarlock_r_01_purple_pant_lu_u.blp",
+          "1511634 item/texturecomponents/leglowertexture/cloth_raidwarlock_r_01_purple_pant_ll_u.blp"
+        ],
+        "icon": "1511485 interface/icons/inv_pant_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70097,
+      "cloneOf": 64351,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_boot_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidwarlock_r_01_purple_boot_ll",
+        "cloth_raidwarlock_r_01_purple_boot_fo"
+      ],
+      "geosets": [
+        3,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 boots",
+      "retail": {
+        "display": 159032,
+        "models": [],
+        "textures": [
+          "1511633 item/texturecomponents/leglowertexture/cloth_raidwarlock_r_01_purple_boot_ll_u.blp",
+          "1511609 item/texturecomponents/foottexture/cloth_raidwarlock_r_01_purple_boot_fo_u.blp"
+        ],
+        "icon": "1511480 interface/icons/inv_boot_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70098,
+      "cloneOf": 64349,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_belt_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "cloth_raidwarlock_r_01_purple_belt_lu",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 belt",
+      "retail": {
+        "display": 686186,
+        "models": [],
+        "textures": [
+          "1511654 item/texturecomponents/leguppertexture/cloth_raidwarlock_r_01_purple_belt_lu_u.blp"
+        ],
+        "icon": "1511479 interface/icons/inv_belt_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70099,
+      "cloneOf": 64361,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "",
+        ""
+      ],
+      "icon": "inv_bracer_cloth_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "cloth_raidwarlock_r_01_purple_bracer_al",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 bracers",
+      "retail": {
+        "display": 159038,
+        "models": [],
+        "textures": [
+          "1511591 item/texturecomponents/armlowertexture/cloth_raidwarlock_r_01_purple_bracer_al_u.blp"
+        ],
+        "icon": "1511481 interface/icons/inv_bracer_cloth_raidwarlockmythic_r_01.blp"
+      }
+    },
+    {
+      "id": 70100,
+      "cloneOf": 64304,
+      "modelName": [
+        "",
+        ""
+      ],
+      "modelTexture": [
+        "cape_raidwarlock_r_01_purplemedium",
+        ""
+      ],
+      "icon": "inv_cape_raidwarlockmythic_r_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        1,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Warlock T20 cloak",
+      "retail": {
+        "display": 159092,
+        "models": [],
+        "textures": [
+          "1517242 item/objectcomponents/cape/cape_raidwarlock_r_01_purplemedium.blp"
+        ],
+        "icon": "1608768 interface/icons/inv_cape_raidwarlockmythic_r_01.blp"
+      }
     }
   ],
   "items": [
@@ -956,6 +4340,735 @@
       "subclass": 1,
       "material": 7,
       "display": 70019,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16102,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70020,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16103,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70021,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16105,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70022,
+      "inventoryType": 5,
+      "sheath": 0
+    },
+    {
+      "entry": 16106,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70023,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16107,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70024,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16108,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70025,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16109,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70026,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16116,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70027,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16117,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70028,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16118,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70029,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16119,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70030,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16120,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70031,
+      "inventoryType": 5,
+      "sheath": 0
+    },
+    {
+      "entry": 16121,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70032,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16122,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70033,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16123,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70034,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16124,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70035,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16125,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70036,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16126,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70037,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16127,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70038,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16129,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70039,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16131,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70040,
+      "inventoryType": 5,
+      "sheath": 0
+    },
+    {
+      "entry": 16132,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70041,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16134,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70042,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16135,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70043,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16136,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70044,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16137,
+      "class": 4,
+      "subclass": 4,
+      "material": 6,
+      "display": 70045,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16138,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70046,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16139,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70047,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16140,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70048,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16141,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70049,
+      "inventoryType": 5,
+      "sheath": 0
+    },
+    {
+      "entry": 16142,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70050,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16143,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70051,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16145,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70052,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16146,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70053,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16147,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70054,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16148,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70055,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16149,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70056,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16150,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70057,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16151,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70058,
+      "inventoryType": 20,
+      "sheath": 0
+    },
+    {
+      "entry": 16152,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70059,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16153,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70060,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16154,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70061,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16155,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70062,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16156,
+      "class": 4,
+      "subclass": 3,
+      "material": 5,
+      "display": 70063,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16157,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70064,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16158,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70065,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16159,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70066,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16160,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70067,
+      "inventoryType": 20,
+      "sheath": 0
+    },
+    {
+      "entry": 16161,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70068,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16162,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70069,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16163,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70070,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16164,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70071,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16165,
+      "class": 4,
+      "subclass": 2,
+      "material": 8,
+      "display": 70072,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16172,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70073,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16173,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70074,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16174,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70075,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16175,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70076,
+      "inventoryType": 20,
+      "sheath": 0
+    },
+    {
+      "entry": 16176,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70077,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16177,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70078,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16178,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70079,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16179,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70080,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16180,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70081,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16181,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70082,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16182,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70083,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 16183,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70084,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 16184,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70085,
+      "inventoryType": 20,
+      "sheath": 0
+    },
+    {
+      "entry": 16185,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70086,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 16186,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70087,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 16187,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70088,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 16188,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70089,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 16211,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70090,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 16212,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70091,
+      "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 16213,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70092,
+      "inventoryType": 1,
+      "sheath": 0
+    },
+    {
+      "entry": 17824,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70093,
+      "inventoryType": 3,
+      "sheath": 0
+    },
+    {
+      "entry": 17825,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70094,
+      "inventoryType": 20,
+      "sheath": 0
+    },
+    {
+      "entry": 17826,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70095,
+      "inventoryType": 10,
+      "sheath": 0
+    },
+    {
+      "entry": 17831,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70096,
+      "inventoryType": 7,
+      "sheath": 0
+    },
+    {
+      "entry": 17832,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70097,
+      "inventoryType": 8,
+      "sheath": 0
+    },
+    {
+      "entry": 17833,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70098,
+      "inventoryType": 6,
+      "sheath": 0
+    },
+    {
+      "entry": 17834,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70099,
+      "inventoryType": 9,
+      "sheath": 0
+    },
+    {
+      "entry": 17835,
+      "class": 4,
+      "subclass": 1,
+      "material": 7,
+      "display": 70100,
       "inventoryType": 16,
       "sheath": 0
     }

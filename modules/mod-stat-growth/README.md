@@ -129,9 +129,11 @@ the client never supplies coordinates.
 ## Infinite Dungeon (Donjon infini)
 
 Endgame rewards: Infinite Dungeon caps at ilvl 310 on floor 100; Mythic+ at ilvl 370 on key +60, with keys
-limited to +99; L'Infini reaches ilvl 460 at tier X. The Forge caps non-raid upgrades at 370 and L'Infini
-upgrades at 460. Existing items retain their templates and stats; exact-cap rewards use new generated blocks
-after the existing Forge range, requiring the matching `awesome_wotlk` client extension.
+limited to +99; L'Infini reaches ilvl 460 at tier X; the Hollow Voice, the board's pinnacle, pays 477
+(`Mythic::MaxPinnacleItemLevel`, a level of the generated ladder, the highest any reward reaches), shown as each
+class's own Tomb of Sargeras set (the gear-looks tier at 477, `localTools/mythicAppearance`). The Forge caps non-raid
+upgrades at 370 and L'Infini upgrades at 460. Existing items retain their templates and stats; exact-cap rewards use
+new generated blocks after the existing Forge range, requiring the matching `awesome_wotlk` client extension.
 
 An endless ladder of short floors for one or two real players, from level 15 (design:
 `.agents/plans/infinite-dungeon/infinite-dungeon.DESIGN.md`). Code in `src/infinite/`, the core side in

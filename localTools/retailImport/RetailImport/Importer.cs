@@ -55,7 +55,9 @@ public sealed class ItemSpec
 public sealed class Importer(Retail retail, string repoRoot, string workDir)
 {
     private readonly Dictionary<uint, string> convertedModels = new();
-    private readonly Dictionary<uint, string> copiedTextures = new();
+    // By file and folder: the client looks for a display's texture in its model's folder, and one texture can serve
+    // two slots (the warlock's T20 helmet and shoulders)
+    private readonly Dictionary<(uint, string), string> copiedTextures = new();
     private readonly Dictionary<string, uint> bodyTextureOwners = new(StringComparer.OrdinalIgnoreCase);
     private bool halveBodyTextures;
     private readonly List<string> report = [];
@@ -174,7 +176,8 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
                 var texture = Probe.TextureFiles(retail, materialResources[0]).Select(t => t.fdid).FirstOrDefault();
                 if (texture == 0)
                     throw new Exception($"display {spec.Id}: retail display {spec.RetailDisplay} has no cape texture");
-                var retailName = retail.NameOf(texture) ?? throw new Exception($"texture {texture} is not in the listfile");
+                var retailName = retail.NameOf(texture)
+                                 ?? throw new Exception($"texture {texture} is not in the listfile");
                 modelTextures[0] = Path.GetFileNameWithoutExtension(retailName);
                 var bytes = BodyTexture.CapeForClassic(retail.Open(texture), retailName, out var description);
                 WriteOutput($@"Item\ObjectComponents\Cape\{modelTextures[0]}.blp", bytes);
@@ -353,7 +356,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
     /// <summary>Copies a retail BLP to archivePrefix + its own name, returns that name without extension.</summary>
     private string CopyTexture(uint fdid, string archivePrefix)
     {
-        if (copiedTextures.TryGetValue(fdid, out var done))
+        if (copiedTextures.TryGetValue((fdid, archivePrefix), out var done))
             return done;
         var retailName = retail.NameOf(fdid) ?? throw new Exception($"texture {fdid} is not in the listfile");
         var name = Path.GetFileNameWithoutExtension(retailName);
@@ -361,7 +364,7 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
         var archivePath = archivePrefix + name + ".blp";
         WriteOutput(archivePath, bytes);
         report.Add($"  texture {fdid} {retailName} -> {archivePath} ({description})");
-        copiedTextures[fdid] = name;
+        copiedTextures[(fdid, archivePrefix)] = name;
         return name;
     }
 
@@ -447,8 +450,9 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
 
         // Our pass: 3.3.5 texture names for what the model hardcodes, and only the global flags 3.3.5 knows
         var converted = new ClassicM2(File.ReadAllBytes(modelPath));
-        converted.RestoreName(model.Name);
-        converted.RestoreGlobalLoops(model.GlobalLoops());
+        if (converted.RestoreUnderHeader(model.Md20) is { Count: > 0 } restored)
+            report.Add($"  {name}: {string.Join(", ", restored)} moved out from under the 3.3.5 header"
+                       + " (MultiConverter wrote over it)");
         converted.MaskGlobalFlags();
         var droppedSequences = converted.KeepFirstStand();
         if (droppedSequences > 0)
