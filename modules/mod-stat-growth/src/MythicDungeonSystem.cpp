@@ -1071,6 +1071,9 @@ uint32 EquipTestGear(Player* player, uint32 itemLevel, bool infiniteGod)
             continue;
         if (infiniteGod)
             TouchByInfiniteGod(item);
+        // Its personal loot bonuses rolled as a drop's are (stamina, maximum health, ...): the power model's player
+        // wears them, and without them a test profile at 460 had half its health (100 000 for about 221 000)
+        TryRollPersonalLoot(player, item);
         uint16 destination;
         if (player->CanEquipItem(slot, destination, item, false) != EQUIP_ERR_OK)
         {
@@ -1150,10 +1153,12 @@ public:
             GrantVitalityBoost(player, vitality - storedVitality, vitalityTotal);
         player->UpdateAllStats();
 
+        player->SetFullHealth();
         handler->PSendSysMessage("{}: {} slots in item level {}{} gear, paragon {} ({}), essences of {:.0f} keys: {} "
-            "Growth a stat, {} Vitality (at least).", player->GetName(), equipped, itemLevel,
-            infinite ? " L'Infini" : voice ? " Hollow Voice" : "", points, boarded ? "board spent as a bot of that role would" : "board unchanged",
-            keys, growth, vitality);
+            "Growth a stat, {} Vitality (at least). Health {} (the power model's player: {:.0f}).", player->GetName(),
+            equipped, itemLevel, infinite ? " L'Infini" : voice ? " Hollow Voice" : "", points,
+            boarded ? "board spent as a bot of that role would" : "board unchanged", keys, growth, vitality,
+            player->GetMaxHealth(), Power::ExpectedPlayerHealth(float(itemLevel), float(points)));
         return true;
     }
 };
