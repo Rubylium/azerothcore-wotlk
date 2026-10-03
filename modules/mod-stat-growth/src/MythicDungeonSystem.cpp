@@ -1101,7 +1101,10 @@ public:
     // with the paragon the game expects at it (TestProfileParagon), unless given, and the essences that progress
     // comes with (the power model's player, PowerScaling.h: EssenceGrowthPerKey of each stat and
     // EssenceVitalityPerKey Vitality a key of ProgressKeys; never lowered). "infini": L'Infini's own gear at its cap
-    // (460), touched by it, with the Hollow Voice's 650.
+    // (460), touched by it, with the Hollow Voice's 650 - the profile the Hollow Voice is sized on. "voice" (or
+    // "hollow", "raid"): what is enough to clear the Hollow Voice - its own loot (477, the game's best) and 650. On the
+    // power model a damage dealer there deals 106 600 a second, 14% over what the Archbishop's check asks of each
+    // (93 700), where 460 / 650 leaves 10%: a group in it that plays it well clears it.
     static bool HandleTestProfile(ChatHandler* handler, std::string profile, Optional<uint32> paragon)
     {
         Player* player = handler->getSelectedPlayerOrSelf();
@@ -1117,20 +1120,21 @@ public:
         }
         std::transform(profile.begin(), profile.end(), profile.begin(), ::tolower);
         bool const infinite = profile == "infini" || profile == "infinite";
-        uint32 itemLevel = Mythic::MaxRaidItemLevel;
-        if (!infinite)
+        bool const voice = profile == "voice" || profile == "hollow" || profile == "raid";
+        uint32 itemLevel = voice ? Mythic::MaxPinnacleItemLevel : Mythic::MaxRaidItemLevel;
+        if (!infinite && !voice)
         {
             char* end = nullptr;
             unsigned long const asked = std::strtoul(profile.c_str(), &end, 10);
             if (!end || *end || asked < 200 || asked > Mythic::MaxPinnacleItemLevel)
             {
-                handler->SendErrorMessage("Usage: .testprofile <item level 200-{}|infini> [paragon]",
+                handler->SendErrorMessage("Usage: .testprofile <item level 200-{}|infini|voice> [paragon]",
                     Mythic::MaxPinnacleItemLevel);
                 return false;
             }
             itemLevel = uint32(asked);
         }
-        uint32 const points = paragon ? *paragon : infinite ? 650 : TestProfileParagon(itemLevel);
+        uint32 const points = paragon ? *paragon : infinite || voice ? 650 : TestProfileParagon(itemLevel);
 
         uint32 const equipped = EquipTestGear(player, itemLevel, infinite);
         bool const boarded = SetParagonForTest(player, points);
@@ -1148,7 +1152,7 @@ public:
 
         handler->PSendSysMessage("{}: {} slots in item level {}{} gear, paragon {} ({}), essences of {:.0f} keys: {} "
             "Growth a stat, {} Vitality (at least).", player->GetName(), equipped, itemLevel,
-            infinite ? " L'Infini" : "", points, boarded ? "board spent as a bot of that role would" : "board unchanged",
+            infinite ? " L'Infini" : voice ? " Hollow Voice" : "", points, boarded ? "board spent as a bot of that role would" : "board unchanged",
             keys, growth, vitality);
         return true;
     }
