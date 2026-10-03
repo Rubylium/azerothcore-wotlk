@@ -36,6 +36,7 @@
 #include "Group.h"
 #include "Item.h"
 #include "LFGMgr.h"
+#include "LiveTuning.h"
 #include "Map.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -589,14 +590,113 @@ private:
     }
 };
 
+// mod-custom-classes (TalentTree.cpp): the specialization as an index among the class's spec trees
+int8 GetTalentSpecializationIndex(Player* player);
+// ParagonSystem.cpp: the paragon points a character fights with
+uint32 GetParagonBalancePoints(Player* player);
+
 namespace
 {
+// Spec balance (the combat bench, Fire mage the reference, .agents/docs/systems/combat-bench.md): the last step
+// after a spec's own spells and talents, every hit of the spec - its pets' and totems' too - scaled as one, so its
+// abilities keep their shares. Two factors, as specs drift apart with paragon (at +10 the melee dealt twice the mage,
+// at the Hollow Voice's 650 points a fraction of it): one at no paragon (balance0, measured at +10 and its gear),
+// one at 650 points (balance, measured at the Hollow Voice's 460), in between by the character's points.
+// Live: .tune set balance.<class>.<spec> <factor> / balance0.<class>.<spec> (spec: its tree, 1 to 4).
+constexpr float SpecBalanceParagon = 650.0f;
+struct SpecBalanceRow
+{
+    LiveTuning::Knob specs[4];
+};
+SpecBalanceRow const SpecBalance[] = {
+    { { { "balance.none.1", 1.0f }, { "balance.none.2", 1.0f },
+        { "balance.none.3", 1.0f }, { "balance.none.4", 1.0f } } },
+    { { { "balance.warrior.1", 1.14f }, { "balance.warrior.2", 0.97f },
+        { "balance.warrior.3", 1.0f }, { "balance.warrior.4", 1.0f } } },
+    { { { "balance.paladin.1", 1.0f }, { "balance.paladin.2", 1.0f },
+        { "balance.paladin.3", 1.0f }, { "balance.paladin.4", 1.0f } } },
+    { { { "balance.hunter.1", 1.4f }, { "balance.hunter.2", 1.1f },
+        { "balance.hunter.3", 1.0f }, { "balance.hunter.4", 1.0f } } },
+    { { { "balance.rogue.1", 1.25f }, { "balance.rogue.2", 1.5f },
+        { "balance.rogue.3", 1.44f }, { "balance.rogue.4", 1.0f } } },
+    { { { "balance.priest.1", 1.0f }, { "balance.priest.2", 1.0f },
+        { "balance.priest.3", 0.62f }, { "balance.priest.4", 1.0f } } },
+    { { { "balance.dk.1", 1.0f }, { "balance.dk.2", 1.55f },
+        { "balance.dk.3", 1.38f }, { "balance.dk.4", 1.0f } } },
+    { { { "balance.shaman.1", 0.85f }, { "balance.shaman.2", 1.0f },
+        { "balance.shaman.3", 1.0f }, { "balance.shaman.4", 1.0f } } },
+    { { { "balance.mage.1", 0.9f }, { "balance.mage.2", 1.0f },
+        { "balance.mage.3", 1.22f }, { "balance.mage.4", 1.0f } } },
+    { { { "balance.warlock.1", 1.0f }, { "balance.warlock.2", 0.93f },
+        { "balance.warlock.3", 1.0f }, { "balance.warlock.4", 1.0f } } },
+    { { { "balance.oathblade.1", 0.66f }, { "balance.oathblade.2", 1.0f },
+        { "balance.oathblade.3", 1.0f }, { "balance.oathblade.4", 1.0f } } },
+    { { { "balance.druid.1", 1.14f }, { "balance.druid.2", 1.72f },
+        { "balance.druid.3", 1.0f }, { "balance.druid.4", 1.0f } } },
+    { { { "balance.pestifere.1", 1.0f }, { "balance.pestifere.2", 1.0f },
+        { "balance.pestifere.3", 1.0f }, { "balance.pestifere.4", 1.0f } } },
+    { { { "balance.necromancer.1", 1.0f }, { "balance.necromancer.2", 1.0f },
+        { "balance.necromancer.3", 1.0f }, { "balance.necromancer.4", 1.0f } } },
+    { { { "balance.barbarian.1", 1.41f }, { "balance.barbarian.2", 1.25f },
+        { "balance.barbarian.3", 1.0f }, { "balance.barbarian.4", 1.0f } } },
+};
+SpecBalanceRow const SpecBalanceLow[] = {
+    { { { "balance0.none.1", 1.0f }, { "balance0.none.2", 1.0f },
+        { "balance0.none.3", 1.0f }, { "balance0.none.4", 1.0f } } },
+    { { { "balance0.warrior.1", 0.94f }, { "balance0.warrior.2", 0.9f },
+        { "balance0.warrior.3", 1.0f }, { "balance0.warrior.4", 1.0f } } },
+    { { { "balance0.paladin.1", 1.0f }, { "balance0.paladin.2", 1.0f },
+        { "balance0.paladin.3", 0.76f }, { "balance0.paladin.4", 1.0f } } },
+    { { { "balance0.hunter.1", 0.81f }, { "balance0.hunter.2", 0.8f },
+        { "balance0.hunter.3", 0.65f }, { "balance0.hunter.4", 1.0f } } },
+    { { { "balance0.rogue.1", 0.77f }, { "balance0.rogue.2", 1.28f },
+        { "balance0.rogue.3", 1.26f }, { "balance0.rogue.4", 1.0f } } },
+    { { { "balance0.priest.1", 1.0f }, { "balance0.priest.2", 1.0f },
+        { "balance0.priest.3", 0.63f }, { "balance0.priest.4", 1.0f } } },
+    { { { "balance0.dk.1", 1.0f }, { "balance0.dk.2", 1.53f },
+        { "balance0.dk.3", 1.09f }, { "balance0.dk.4", 1.0f } } },
+    { { { "balance0.shaman.1", 0.95f }, { "balance0.shaman.2", 0.6f },
+        { "balance0.shaman.3", 1.0f }, { "balance0.shaman.4", 1.0f } } },
+    { { { "balance0.mage.1", 0.83f }, { "balance0.mage.2", 1.0f },
+        { "balance0.mage.3", 1.23f }, { "balance0.mage.4", 1.0f } } },
+    { { { "balance0.warlock.1", 1.0f }, { "balance0.warlock.2", 0.84f },
+        { "balance0.warlock.3", 1.0f }, { "balance0.warlock.4", 1.0f } } },
+    { { { "balance0.oathblade.1", 1.23f }, { "balance0.oathblade.2", 1.0f },
+        { "balance0.oathblade.3", 1.0f }, { "balance0.oathblade.4", 1.0f } } },
+    { { { "balance0.druid.1", 1.0f }, { "balance0.druid.2", 1.06f },
+        { "balance0.druid.3", 1.0f }, { "balance0.druid.4", 1.0f } } },
+    { { { "balance0.pestifere.1", 1.0f }, { "balance0.pestifere.2", 1.0f },
+        { "balance0.pestifere.3", 1.0f }, { "balance0.pestifere.4", 1.0f } } },
+    { { { "balance0.necromancer.1", 1.0f }, { "balance0.necromancer.2", 1.0f },
+        { "balance0.necromancer.3", 1.0f }, { "balance0.necromancer.4", 1.0f } } },
+    { { { "balance0.barbarian.1", 1.22f }, { "balance0.barbarian.2", 1.19f },
+        { "balance0.barbarian.3", 1.25f }, { "balance0.barbarian.4", 1.0f } } },
+};
+
+float GetSpecBalance(Unit* attacker)
+{
+    Player* player = attacker ? attacker->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr;
+    if (!player || player->getClass() >= std::size(SpecBalance))
+        return 1.0f;
+    int8 const index = GetTalentSpecializationIndex(player);
+    std::size_t const spec = index >= 0 && index < 4 ? std::size_t(index) : 0;
+    float const high = SpecBalance[player->getClass()].specs[spec];
+    float const low = SpecBalanceLow[player->getClass()].specs[spec];
+    if (high == low)
+        return high;
+    float const share = std::min(float(GetParagonBalancePoints(player)) / SpecBalanceParagon, 1.0f);
+    return low + (high - low) * share;
+}
+
 template<typename T>
 void ScaleByCatchUp(Unit* attacker, Unit* target, T& damage)
 {
     if (!(damage > 0))
         return;
-    if (float const multiplier = GetBotCatchUpMultiplier(attacker, target); multiplier > 1.0f)
+    float multiplier = GetSpecBalance(attacker);
+    if (float const catchUp = GetBotCatchUpMultiplier(attacker, target); catchUp > 1.0f)
+        multiplier *= catchUp;
+    if (multiplier != 1.0f)
         damage = static_cast<T>(std::min<double>(double(damage) * multiplier, std::numeric_limits<T>::max()));
 }
 }

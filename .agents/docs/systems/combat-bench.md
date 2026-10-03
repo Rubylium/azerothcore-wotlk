@@ -42,6 +42,19 @@ bots brought again (the session), and no server build, restart or client release
 - Short runs (`-seconds 30`, `single,pack5`) to find the direction, then 60 s and the full layouts, repeated, to
   settle it (variance below).
 
+## Spec balance (the last step)
+
+`modules/mod-stat-growth/src/StatGrowthScripts.cpp` `SpecBalance`: one damage factor per class and spec (its pets'
+and totems' hits too), applied before mitigation so meters show it. Two of them, since specs drift apart with
+paragon: `balance0.<class>.<spec>` at no paragon (measured at +10, ilvl 258) and `balance.<class>.<spec>` at 650
+points (the Hollow Voice's 460 / 650), in between by the character's points. Spec: its tree, 1 to 4 (Arms 1, Fury 2).
+Fix a spec's own spells first; use these to bring a spec to the Fire mage at both ends, then bake them into the
+table (`.tune set balance...` live, the table's defaults in the code). Compare against the mage's **mean** over all
+groups of a survey: one group's mage varies ±30% at +10.
+
+Bench content bots (Bot/ContentBotMgr.h) come fresh: logged in, specced and geared for the bench, bags emptied. A
+row at the wrong item level or without its paragon board (`.bench list` shows it) is not to be trusted.
+
 ## Running it headless (one run)
 
 ```powershell

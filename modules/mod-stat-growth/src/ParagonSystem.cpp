@@ -2133,6 +2133,15 @@ void UpdateBotParagon(Player* bot, uint32 diff)
     RefreshBot(bot);
 }
 
+// The spec balance (StatGrowthScripts.cpp): the points a character fights with - a bot's board, a player's spent
+uint32 GetParagonBalancePoints(Player* player)
+{
+    ParagonState const* state = player ? GetState(player) : nullptr;
+    if (!state || !state->applied)
+        return 0;
+    return state->bot ? state->botBudget : SpentPoints(state);
+}
+
 // The combat bench's `.bench list`: a bot's board as the bots' plan made it (role, points, effects that strike)
 std::string DescribeBotParagon(Player* bot)
 {
