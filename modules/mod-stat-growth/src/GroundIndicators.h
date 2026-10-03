@@ -160,8 +160,12 @@ namespace GroundIndicators
     // - The off-tank's spot: where a tank that is not owner's current target should stand (a boss aiming a cleave at
     //   each tank: the two apart, their cones away from the group). Set again as the boss moves.
     // tanks: the tanks are sent too (a soak while the boss holds still); otherwise they stay on it
+    // particles: the golden ones over it (they last durationMs); a fight that draws the soak itself and ends it
+    // early (EndSoak) leaves them out
     void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted,
-                  Theme theme = Theme::Holy, bool tanks = false);
+                  Theme theme = Theme::Holy, bool tanks = false, bool particles = true);
+    // The soak of owner's at center taken off before its time (its bots stop going there)
+    void EndSoak(Unit* owner, Position const& center);
     // hold: a spot the tank must stand on until it lands (a Bastion tower, a hammer to take): it goes to within
     // OffTankHoldSlack of it and holds there (HoldsOffTankSpot), instead of following its target about
     // tank: the one tank it is for, whoever the owner is hitting; otherwise any tank the owner is not hitting. A fight

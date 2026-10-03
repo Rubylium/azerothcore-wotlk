@@ -1806,7 +1806,7 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
 }
 
 void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted, Theme theme,
-              bool tanks)
+              bool tanks, bool particles)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return;
@@ -1822,7 +1822,20 @@ void ShowSoak(Unit* owner, Position const& center, float radius, uint32 duration
     goal.endMs = NowMs() + durationMs;
     goal.tanks = tanks;
     AddGoal(goal, false);
-    ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), theme, durationMs);
+    if (particles)
+        ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), theme, durationMs);
+}
+
+void EndSoak(Unit* owner, Position const& center)
+{
+    if (!owner)
+        return;
+    std::lock_guard<std::mutex> guard(GoalLock);
+    Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [owner, &center](Goal const& goal)
+        {
+            return goal.kind == Goal::Kind::Soak && goal.owner == owner->GetGUID() &&
+                goal.center.GetExactDist2d(&center) < 0.5f;
+        }), Goals.end());
 }
 
 void ShowDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs, uint32 spellId)

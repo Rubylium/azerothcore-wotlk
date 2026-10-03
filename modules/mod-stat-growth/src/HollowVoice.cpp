@@ -240,7 +240,7 @@ constexpr uint32 WhisperCarriers = 3;
 constexpr uint32 WhisperMs = 6000;
 constexpr float WhisperRadius = 8.0f;
 constexpr uint32 LastLightPools = 3;
-constexpr float LastLightPoolDistance = 20.0f;
+constexpr float LastLightPoolDistance = 9.0f;      // close enough to him that melee keep hitting from them
 constexpr std::array<float, 3> LastLightPoolRadii = { 7.0f, 5.5f, 4.5f };
 constexpr uint32 LastLightShrinkMs = 5000;
 constexpr uint32 LanceMarked = 2;
@@ -1524,6 +1524,8 @@ private:
         _edge = false;
         _prisonCracks = 0;
         _prisonLights.clear();
+        _prisonSigils.clear();
+        _prisonSpots.clear();
         _towers.clear();
         _condemned.clear();
         _brand.clear();
@@ -3486,6 +3488,8 @@ private:
             demon->AddAura(SPELL_PRISON_AURA, demon);
         _prisonCracks = 0;
         _prisonLights.clear();
+        _prisonSigils.clear();
+        _prisonSpots.clear();
         uint32 const lasts = AtLastPrayerEnd - AtLastPrayer;
         float const base = frand(0.0f, 2.0f * float(M_PI));
         for (uint32 index = 0; index < PrayerLights; ++index)
@@ -3496,10 +3500,14 @@ private:
             if (!light)
                 continue;
             light->AddAura(SPELL_LIGHT_FX, light);
-            Decal(spot, 0.0f, PrayerLightRadius, lasts,
-                GroundIndicators::SPELL_SIGIL_AEGIS);
-            GroundIndicators::ShowSoak(Caster(), spot, PrayerLightRadius, lasts, 1);
+            // The light's sigil and its soak go with it when it is taken (a decal and the soak's particles stayed
+            // the whole prayer: a smaller tower came back where each light had been)
+            Creature* sigil = Look(spot, 0.0f, PrayerLightRadius, lasts, GroundIndicators::SPELL_SIGIL_AEGIS);
+            GroundIndicators::ShowSoak(Caster(), spot, PrayerLightRadius, lasts, 1, GroundIndicators::Theme::Holy,
+                false, false);
             _prisonLights.push_back(light->GetGUID());
+            _prisonSigils.push_back(sigil ? sigil->GetGUID() : ObjectGuid::Empty);
+            _prisonSpots.push_back(spot);
         }
         for (uint32 at = 250; at < lasts; at += 250)
             scheduler.Schedule(Milliseconds(at), [this](TaskContext) { UpdatePrayerLights(); });
@@ -3508,8 +3516,9 @@ private:
     // A light with a player on it is picked up; it reaches the demon PrayerCarryMs later
     void UpdatePrayerLights()
     {
-        for (ObjectGuid& guid : _prisonLights)
+        for (std::size_t index = 0; index < _prisonLights.size(); ++index)
         {
+            ObjectGuid& guid = _prisonLights[index];
             Creature* light = guid ? me->GetMap()->GetCreature(guid) : nullptr;
             if (!light)
                 continue;
@@ -3524,6 +3533,7 @@ private:
                 continue;
             guid = ObjectGuid::Empty;
             ShrinkAway(light);
+            TakePrayerLight(index);
             AddTimedAura(carrier, SPELL_CARRY_LIGHT, PrayerCarryMs);
             carrier->SendPlaySpellVisual(KIT_HOLY_WRATH_HIT);
             ObjectGuid const carrierGuid = carrier->GetGUID();
@@ -3540,6 +3550,34 @@ private:
                     BreakPrison();
             });
         }
+    }
+
+    // A light's sigil faded out and its soak ended, as it is taken or the prayer ends
+    void TakePrayerLight(std::size_t index)
+    {
+        if (index < _prisonSigils.size())
+        {
+            if (Creature* sigil = _prisonSigils[index] ? me->GetMap()->GetCreature(_prisonSigils[index]) : nullptr)
+                FadeLook(sigil);
+            _prisonSigils[index] = ObjectGuid::Empty;
+        }
+        if (index < _prisonSpots.size())
+            GroundIndicators::EndSoak(Caster(), _prisonSpots[index]);
+    }
+
+    // A look (Look) faded out now rather than at its end: its fading twin, then gone
+    static void FadeLook(Creature* stalker)
+    {
+        if (!stalker || !stalker->IsInWorld())
+            return;
+        for (auto const& [auraId, application] : stalker->GetAppliedAuras())
+            if (uint32 const twin = GroundIndicators::FadingTwinOf(auraId))
+            {
+                stalker->RemoveAurasDueToSpell(auraId);
+                stalker->AddAura(twin, stalker);
+                break;
+            }
+        stalker->DespawnOrUnsummon(Milliseconds(GroundIndicators::FadingTwinMs));
     }
 
     // The prison broken before the climax: he fights on, the lights' carriers blessed
@@ -3559,10 +3597,15 @@ private:
         Creature* demon = Velthazar();
         uint32 const left = PrayerLights - std::min(_prisonCracks, PrayerLights);
         Resolved("Aldric's Last Prayer", left == 0, Acore::StringFormat("lights carried={}", _prisonCracks));
-        for (ObjectGuid const& guid : _prisonLights)
-            if (Creature* light = guid ? me->GetMap()->GetCreature(guid) : nullptr)
+        for (std::size_t index = 0; index < _prisonLights.size(); ++index)
+        {
+            if (Creature* light = _prisonLights[index] ? me->GetMap()->GetCreature(_prisonLights[index]) : nullptr)
                 ShrinkAway(light);
+            TakePrayerLight(index);
+        }
         _prisonLights.clear();
+        _prisonSigils.clear();
+        _prisonSpots.clear();
         if (demon && VelthazarAI()->_imprisoned)
         {
             // Not broken: the void bursts out, once for each light left
@@ -3805,6 +3848,8 @@ private:
     };
     std::map<std::pair<ObjectGuid, std::string>, Exposure> _exposure;   // a tank's, by mechanic (Expose)   // outside every pool at a pulse of this Last Light: no Fervour
     std::vector<ObjectGuid> _prisonLights;
+    std::vector<ObjectGuid> _prisonSigils;      // each light's sigil (Look), faded as it is taken
+    std::vector<Position> _prisonSpots;
     GroundIndicators::Area _inhaleCore;
     GroundIndicators::Area _edgeArea;
     std::set<ObjectGuid> _fightListeners;
