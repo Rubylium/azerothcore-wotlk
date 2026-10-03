@@ -3819,7 +3819,7 @@ boss_hollow_voice_aldric* FindAldric(Player* player)
 using namespace Acore::ChatCommands;
 
 // .hollow info | skip <seconds> | reveal | pull | cast <ability> | music <aldric|velthazar|stop> | floor: for game
-// masters trying the fight. The fight itself starts from the board: its own page (an equipped item level of 450 to sign
+// masters trying the fight. The fight itself starts from the board: its own page (an equipped item level of 400 to sign
 // up), or a game master's .defi start 930100.
 class HollowVoiceCommandScript final : public CommandScript
 {

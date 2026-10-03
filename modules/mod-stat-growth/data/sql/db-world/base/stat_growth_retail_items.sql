@@ -27,6 +27,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 3,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -45,6 +46,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 3,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -63,6 +65,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -81,6 +84,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -99,6 +103,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -117,6 +122,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -135,6 +141,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -153,6 +160,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -171,6 +179,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -189,6 +198,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -207,6 +217,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -225,6 +236,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -243,6 +255,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -261,6 +274,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -279,6 +293,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -297,6 +312,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -315,6 +331,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -333,6 +350,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -351,6 +369,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -369,6 +388,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'Retail import test piece.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -387,6 +407,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -405,6 +426,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -423,6 +445,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -441,6 +464,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -459,6 +483,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -477,6 +502,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -495,6 +521,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -513,6 +540,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -531,6 +559,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -549,6 +578,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -567,6 +597,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -585,6 +616,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -603,6 +635,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -621,6 +654,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -639,6 +673,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -657,6 +692,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -675,6 +711,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -693,6 +730,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -711,6 +749,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -729,6 +768,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -747,6 +787,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -765,6 +806,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -783,6 +825,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -801,6 +844,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -819,6 +863,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -837,6 +882,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -855,6 +901,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -873,6 +920,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -891,6 +939,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -909,6 +958,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -927,6 +977,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -945,6 +996,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -963,6 +1015,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -981,6 +1034,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -999,6 +1053,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1017,6 +1072,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1035,6 +1091,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1053,6 +1110,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1071,6 +1129,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1089,6 +1148,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1107,6 +1167,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1125,6 +1186,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1143,6 +1205,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1161,6 +1224,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1179,6 +1243,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1197,6 +1262,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1215,6 +1281,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1233,6 +1300,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1251,6 +1319,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1269,6 +1338,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1287,6 +1357,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1305,6 +1376,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1323,6 +1395,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1341,6 +1414,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1359,6 +1433,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1377,6 +1452,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1395,6 +1471,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1413,6 +1490,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1431,6 +1509,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1449,6 +1528,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1467,6 +1547,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1485,6 +1566,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1503,6 +1585,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1521,6 +1604,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1539,6 +1623,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1557,6 +1642,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1575,6 +1661,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1593,6 +1680,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1611,6 +1699,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1629,6 +1718,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1647,6 +1737,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1665,6 +1756,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1683,6 +1775,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1701,6 +1794,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1719,6 +1813,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1737,6 +1832,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1755,6 +1851,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1773,6 +1870,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1791,6 +1889,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1809,6 +1908,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
@@ -1827,6 +1927,7 @@ UPDATE `tmp_retail_item` SET
     `sheath` = 0,
     `description` = 'The look of the Hollow Voice''s gear.',
     `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
     `VerifiedBuild` = NULL;
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;

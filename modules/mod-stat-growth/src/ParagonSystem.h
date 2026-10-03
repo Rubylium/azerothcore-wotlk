@@ -45,6 +45,9 @@ uint32 GetParagonPointCap(Player* player);
 void SetParagonPrestige(Player* player, uint32 prestige);
 // A prestige's unlocking: the cap rises to every point earned, so all that was banked can be spent
 void UnlockBankedParagonPoints(Player* player);
+// For testing (.testprofile): the character's board rebuilt with that many points, spent as a bot of its role spends
+// them, its earned and unlocked points brought up to them. False in combat.
+bool SetParagonForTest(Player* player, uint32 points);
 
 // Writes earned and prestige. Pass a transaction to commit them with the rest of a prestige.
 void SaveParagonPoints(Player* player, CharacterDatabaseTransaction trans);

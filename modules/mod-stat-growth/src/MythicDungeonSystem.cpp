@@ -8,6 +8,8 @@
 
 #include "Bag.h"
 #include "Chat.h"
+#include "ChatCommand.h"
+#include "CommandScript.h"
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "Item.h"
@@ -984,8 +986,159 @@ void ApplyMythicBenchScaling(Creature* creature, int32 keyLevel, uint8 role)
     ScaleCreature(cinfo, creature, data, scaling);
 }
 
+// --- Test profiles (.testprofile) ---------------------------------------------------------------------------------
+// A character dressed and boarded as the game expects at an item level, to try a system or a fight at it
+
+// The paragon the game expects with that item level: a Mythic+ key's (the key whose players wear it, its recommended
+// points) up to the keys' loot cap, then on to the Hollow Voice's profile (460 / 650, mod-playerbots ChallengeTiers.h)
+uint32 TestProfileParagon(uint32 itemLevel)
+{
+    if (itemLevel <= Mythic::MaxLootItemLevel)
+    {
+        int32 key = 0;
+        while (key < Mythic::MaxLootKeyLevel + 1 && Mythic::GetExpectedItemLevel(float(key)) < float(itemLevel))
+            ++key;
+        return Mythic::GetRecommendedParagon(key);
+    }
+    float const top = float(Mythic::GetRecommendedParagon(Mythic::MaxLootKeyLevel + 1));
+    float const share = std::min(1.0f, float(itemLevel - Mythic::MaxLootItemLevel) /
+        float(Mythic::MaxRaidItemLevel - Mythic::MaxLootItemLevel));
+    return uint32(top + (650.0f - top) * share + 0.5f);
+}
+
+// Every equipment slot given an epic of that item level fitted to the character, slot by slot as the Mythic+ reward
+// picks it (touched by L'Infini when asked); what it wore goes to its bags, or its mailbox once they are full.
+// Returns the slots equipped.
+uint32 EquipTestGear(Player* player, uint32 itemLevel, bool infiniteGod)
+{
+    static constexpr std::array<uint8, 17> Slots = { EQUIPMENT_SLOT_HEAD, EQUIPMENT_SLOT_NECK,
+        EQUIPMENT_SLOT_SHOULDERS, EQUIPMENT_SLOT_BACK, EQUIPMENT_SLOT_CHEST, EQUIPMENT_SLOT_WRISTS,
+        EQUIPMENT_SLOT_HANDS, EQUIPMENT_SLOT_WAIST, EQUIPMENT_SLOT_LEGS, EQUIPMENT_SLOT_FEET, EQUIPMENT_SLOT_FINGER1,
+        EQUIPMENT_SLOT_FINGER2, EQUIPMENT_SLOT_TRINKET1, EQUIPMENT_SLOT_TRINKET2, EQUIPMENT_SLOT_MAINHAND,
+        EQUIPMENT_SLOT_OFFHAND, EQUIPMENT_SLOT_RANGED };
+
+    // What it wears now, off: into its bags, the rest mailed
+    std::vector<Item*> overflow;
+    for (uint8 slot : Slots)
+    {
+        Item* worn = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        if (!worn)
+            continue;
+        ItemPosCountVec destination;
+        if (player->CanStoreItem(NULL_BAG, NULL_SLOT, destination, worn, false) == EQUIP_ERR_OK)
+        {
+            player->RemoveItem(INVENTORY_SLOT_BAG_0, slot, true);
+            player->StoreItem(destination, worn, true);
+        }
+        else
+        {
+            player->MoveItemFromInventory(INVENTORY_SLOT_BAG_0, slot, true);
+            overflow.push_back(worn);
+        }
+    }
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    for (std::size_t start = 0; start < overflow.size(); start += MAX_MAIL_ITEMS)
+    {
+        MailDraft draft("Test profile", "What you wore before .testprofile.");
+        for (std::size_t index = start; index < std::min(overflow.size(), start + MAX_MAIL_ITEMS); ++index)
+        {
+            overflow[index]->DeleteFromInventoryDB(trans);
+            overflow[index]->SaveToDB(trans);
+            draft.AddItem(overflow[index]);
+        }
+        draft.SendMailTo(trans, MailReceiver(player, player->GetGUID().GetCounter()),
+            MailSender(MAIL_NORMAL, 0, MAIL_STATIONERY_GM));
+    }
+    CharacterDatabase.CommitTransaction(trans);
+
+    // Then the slots one by one: a ring or a trinket already worn is not picked again
+    uint32 equipped = 0;
+    for (uint8 slot : Slots)
+    {
+        if (slot == EQUIPMENT_SLOT_OFFHAND)
+            if (Item const* main = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+                if (main->GetTemplate()->InventoryType == INVTYPE_2HWEAPON && !player->CanTitanGrip())
+                    continue;
+        ItemTemplate const* itemTemplate = SelectMythicItem(player, itemLevel, slot);
+        if (!itemTemplate)
+            continue;
+        SendGeneratedItemRecord(player, itemTemplate->ItemId);
+        Item* item = Item::CreateItem(itemTemplate->ItemId, 1, player);
+        if (!item)
+            continue;
+        if (infiniteGod)
+            TouchByInfiniteGod(item);
+        uint16 destination;
+        if (player->CanEquipItem(slot, destination, item, false) != EQUIP_ERR_OK)
+        {
+            delete item;
+            continue;
+        }
+        player->EquipItem(destination, item, true);
+        ++equipped;
+    }
+    player->SaveToDB(false, false);
+    return equipped;
+}
+
+class TestProfileCommandScript final : public CommandScript
+{
+public:
+    TestProfileCommandScript() : CommandScript("TestProfileCommandScript") { }
+
+    Acore::ChatCommands::ChatCommandTable GetCommands() const override
+    {
+        static Acore::ChatCommands::ChatCommandTable commands = {
+            { "testprofile", HandleTestProfile, SEC_ADMINISTRATOR, Acore::ChatCommands::Console::No },
+        };
+        return commands;
+    }
+
+    // .testprofile <item level|infini> [paragon]: the selected player (or yourself) in a full set of that item level
+    // and with the paragon the game expects at it (TestProfileParagon), unless given. "infini": L'Infini's own gear at
+    // its cap (460), touched by it, with the Hollow Voice's 650.
+    static bool HandleTestProfile(ChatHandler* handler, std::string profile, Optional<uint32> paragon)
+    {
+        Player* player = handler->getSelectedPlayerOrSelf();
+        if (!player || player->GetSession()->IsBot())
+        {
+            handler->SendErrorMessage("Select a player (or nobody, for yourself).");
+            return false;
+        }
+        if (player->IsInCombat())
+        {
+            handler->SendErrorMessage("Not while in combat.");
+            return false;
+        }
+        std::transform(profile.begin(), profile.end(), profile.begin(), ::tolower);
+        bool const infinite = profile == "infini" || profile == "infinite";
+        uint32 itemLevel = Mythic::MaxRaidItemLevel;
+        if (!infinite)
+        {
+            char* end = nullptr;
+            unsigned long const asked = std::strtoul(profile.c_str(), &end, 10);
+            if (!end || *end || asked < 200 || asked > Mythic::MaxPinnacleItemLevel)
+            {
+                handler->SendErrorMessage("Usage: .testprofile <item level 200-{}|infini> [paragon]",
+                    Mythic::MaxPinnacleItemLevel);
+                return false;
+            }
+            itemLevel = uint32(asked);
+        }
+        uint32 const points = paragon ? *paragon : infinite ? 650 : TestProfileParagon(itemLevel);
+
+        uint32 const equipped = EquipTestGear(player, itemLevel, infinite);
+        bool const boarded = SetParagonForTest(player, points);
+        handler->PSendSysMessage("{}: {} slots in item level {}{} gear, paragon {} ({}).", player->GetName(),
+            equipped, itemLevel, infinite ? " L'Infini" : "", points,
+            boarded ? "board spent as a bot of that role would" : "board unchanged");
+        return true;
+    }
+};
+
 void AddMythicDungeonScripts()
 {
+    new TestProfileCommandScript();
     new MythicDungeonCreatureScript();
     new MythicDungeonUnitScript();
     new MythicDungeonMiscScript();

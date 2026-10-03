@@ -535,6 +535,10 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
             sql.AppendLine($"    `sheath` = {item.Sheath},");
             sql.AppendLine($"    `description` = {Quote(item.Description)},");
             sql.AppendLine("    `itemset` = 0,");
+            // Never loot: a test piece or a look's carrier (mythic_appearance_tier) is not a Mythic+ reward nor the
+            // base of one (SmartLootSystem IsCatalogEquipment, MythicItemGeneration IsBaseItem skip deprecated items);
+            // a "Hollow Voice look" belt was handed out as raid gear
+            sql.AppendLine("    `Flags` = `Flags` | 0x10,");
             sql.AppendLine("    `VerifiedBuild` = NULL;");
             sql.AppendLine("INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;");
             sql.AppendLine("DELETE FROM `tmp_retail_item`;");

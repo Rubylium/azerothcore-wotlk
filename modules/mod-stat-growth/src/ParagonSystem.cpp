@@ -3493,6 +3493,52 @@ public:
     }
 };
 
+bool SetParagonForTest(Player* player, uint32 points)
+{
+    ParagonState* state = player && !player->GetSession()->IsBot() ? GetState(player) : nullptr;
+    if (!state || player->IsInCombat())
+        return false;
+
+    // The board as RESET leaves it: nodes off, sockets emptied (their glyphs back to the collection, levels kept)
+    RemoveGlyphLayer(player, state);
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId); node != Board.end())
+            ApplyNode(player, node->second, false);
+    state->allocated.clear();
+    ClearBuffs(player, state);
+    for (auto& [glyphId, glyph] : state->glyphs)
+        if (glyph.socket)
+        {
+            glyph.socket = 0;
+            SaveGlyph(player, glyphId, glyph);
+        }
+
+    // The points earned and unlocked, at least that many
+    uint32 const base = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap);
+    state->earned = std::max(state->earned, points);
+    state->unlocked = std::max(state->unlocked, state->earned > base ? state->earned - base : 0);
+    SaveEarned(player, state);
+
+    // Spent as a bot of its role spends that many (PlanBotBoard: the bench's reference)
+    uint32 const guid = player->GetGUID().GetCounter();
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    trans->Append("DELETE FROM character_paragon WHERE guid = {}", guid);
+    for (uint32 nodeId : GetBotPlan(RoleOf(player, BotRole::None), points))
+        if (auto const node = Board.find(nodeId); node != Board.end())
+        {
+            state->allocated.insert(nodeId);
+            ApplyNode(player, node->second, true);
+            trans->Append("INSERT INTO character_paragon (guid, node) VALUES ({}, {})", guid, nodeId);
+        }
+    CharacterDatabase.CommitTransaction(trans);
+
+    RefreshGlyphs(player, state);
+    player->UpdateMaxHealth();
+    SendState(player, false);
+    RefreshGroupBots(player);
+    return true;
+}
+
 void AddParagonScripts()
 {
     new npc_stat_growth_paragon_keeper();
