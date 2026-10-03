@@ -13,6 +13,7 @@
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
 #include "Log.h"
+#include "Group.h"
 #include "Map.h"
 #include "ModelIgnoreFlags.h"
 #include "MoveSplineInit.h"
@@ -1082,7 +1083,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         ScriptedAI::EnterEvadeMode(why);
     }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void JustEngagedWith(Unit* who) override
     {
         if (_phase != Phase::None)
             return;
@@ -1120,8 +1121,16 @@ struct boss_hollow_voice_aldric : public ScriptedAI
             _fightListeners.insert(player->GetGUID());
             FightMusic::Claim(player->GetGUID(), me->GetGUID());
         }
-        LOG_INFO("module.hollowvoice", "The Hollow Voice pulled instance={} health={} tier factor={}",
-                 me->GetInstanceId(), me->GetMaxHealth(), GetChallengeDamageFactorOf(me));
+        // Who pulled, and who of the group was not there yet (a group pulled before its tank was in)
+        std::string absent;
+        if (Player* puller = who ? who->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr)
+            if (Group* group = puller->GetGroup())
+                for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                    if (Player* member = ref->GetSource(); member && !member->IsInMap(me))
+                        absent += " " + member->GetName();
+        LOG_INFO("module.hollowvoice", "The Hollow Voice pulled instance={} health={} tier factor={} by={} absent:{}",
+                 me->GetInstanceId(), me->GetMaxHealth(), GetChallengeDamageFactorOf(me),
+                 who ? who->GetName() : "-", absent.empty() ? " none" : absent);
     }
 
     void KilledUnit(Unit* victim) override
