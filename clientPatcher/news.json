@@ -4,216 +4,216 @@
     "Date": "2026-10-03",
     "Tag": "Raids",
     "Image": "hollowvoice",
-    "Body": "Sous le Puits de soleil, l'archevêque Aldric Dawnmantle garde un terrible secret : le démon Vel'thazar, la Voix creuse. Le raid est désormais accessible depuis le tableau des Défis.\n\n• Niveau d'objet équipé requis : 400.\n• Un affrontement en deux phases, accompagné d'une musique originale.\n• Au programme : zones au sol, tours à partager, changement de tank et la Dernière prière d'Aldric, au cours de laquelle chaque joueur doit porter sa lumière jusqu'à l'autel. Un seul oubli et le groupe est anéanti.\n• La Voix creuse dispose de sa propre page dans le tableau des Défis."
+    "Body": "Sous le Puits de soleil, une voix murmure. Rassemblez vos alliés et découvrez ce qui s'y cache.\n\nLa Voix creuse est accessible depuis le tableau des Défis, à partir d'un niveau d'objet équipé de 400."
   },
   {
-    "Title": "La Voix creuse : butin et bonus de boss",
+    "Title": "La Voix creuse : butin et infobulles",
     "Date": "2026-10-03",
     "Tag": "Butin",
     "Image": "argent",
-    "Body": "Les aventuriers qui viennent à bout de la Voix creuse obtiennent un équipement de niveau d'objet 477.\n\n• Chaque classe dispose de son propre set, issu du Tombeau de Sargeras.\n• Une pièce sur quatre porte un bonus de la Voix : Ailes du Séraphin, Égide d'Aldric ou Murmure de Vel'thazar. Ces objets possèdent un effet visuel unique et un cadre distinct dans les sacs.\n• Infobulles : la provenance de l'objet s'affiche désormais sous son nom, les bonus d'équipement apparaissent en vert avec les autres effets de l'objet, et les bonus de boss sont regroupés à part."
+    "Body": "Les vainqueurs de la Voix creuse repartent avec un équipement de niveau d'objet 477, dont certaines pièces portent un bonus unique.\n\nLes infobulles des objets ont également été réorganisées."
   },
   {
     "Title": "Compagnons : des bots dédiés à chaque groupe",
     "Date": "2026-10-03",
     "Tag": "Bots",
     "Image": "bots",
-    "Body": "Les compagnons qui rejoignent vos donjons, clés Mythique+, raids et Défis sont désormais créés pour l'occasion, au lieu d'être pris parmi les bots qui parcourent le monde.\n\n• Ils arrivent équipés, réparés et avec leurs temps de recharge disponibles, puis se déconnectent une fois le groupe dissous.\n• Le tank compagnon provoque correctement lors des changements de tank.\n• Les soigneurs compagnons utilisent leurs techniques défensives de groupe avant les dégâts importants annoncés.\n• Correction d'un problème qui amenait certains compagnons à quitter la tour qu'ils devaient tenir pour charger le boss."
+    "Body": "Les compagnons qui rejoignent vos donjons, clés Mythique+, raids et Défis sont désormais créés pour l'occasion et arrivent prêts au combat. Leur comportement en combat a également été amélioré."
   },
   {
     "Title": "Notes de mise à jour : équilibrage des classes",
     "Date": "2026-10-03",
     "Tag": "Classe",
     "Image": "malygos",
-    "Body": "Toutes les spécialisations offensives ont été mesurées face à la même cible, à faible et à haut niveau de Parangon, avec le Mage Feu pour référence. Les ajustements suivants en découlent.\n\n• Prêtre Ombre et Chaman Élémentaire : dégâts réduits.\n• Spécialisations de mêlée et Chasseur Maîtrise des bêtes : dégâts augmentés.\n• Barbare : correction d'un problème qui empêchait les alliés de mêlée d'un Barbare Ascendance de déclencher leurs effets de Parangon. Brutalité et Chasseur de têtes en bénéficient également.\n• Les compagnons Lames-serment s'équipent désormais d'épées."
+    "Body": "Les dégâts des spécialisations offensives ont été ajustés afin de les rapprocher les uns des autres, à tous les niveaux de Parangon.\n\n• Prêtre Ombre et Chaman Élémentaire : dégâts réduits.\n• Spécialisations de mêlée et Chasseur Maîtrise des bêtes : dégâts augmentés.\n• Correction d'un problème qui empêchait les alliés de mêlée d'un Barbare Ascendance de déclencher leurs effets de Parangon."
   },
   {
     "Title": "Parangon : modification de la progression",
     "Date": "2026-10-03",
     "Tag": "Parangon",
     "Image": "prestige",
-    "Body": "La progression du Parangon a été revue, pour les nouveaux personnages comme pour les vétérans.\n\n• Tous les personnages commencent avec 20 points de Parangon.\n• Les points gagnés au-delà sont mis en réserve. Chaque prestige débloque l'intégralité de la réserve.\n• Les personnages ayant déjà effectué un prestige récupèrent les points qu'ils avaient gagnés."
+    "Body": "Tous les personnages commencent désormais avec 20 points de Parangon. Les points gagnés au-delà sont conservés en réserve et débloqués à chaque prestige.\n\nLes personnages ayant déjà effectué un prestige ont récupéré leurs points."
   },
   {
     "Title": "Nouveau : le Front du Nord",
     "Date": "2026-10-02",
     "Tag": "Monde",
     "Image": "frontier",
-    "Body": "La guerre reprend en Norfendre. Le Front du Nord fait du continent un champ de bataille ouvert aux personnages de niveau 80.\n\n• Plusieurs paliers de difficulté.\n• Des élites errantes, et des failles arcaniques à refermer en repoussant des vagues d'ennemis.\n• Des Colosses, annoncés dans le canal de discussion, qui nécessitent un groupe.\n• Des coffres à remporter, ainsi que les contrats et récompenses du quartier-maître de Dalaran."
+    "Body": "Le Norfendre est de nouveau en guerre. Les personnages de niveau 80 peuvent rejoindre le Front du Nord auprès du quartier-maître de Dalaran."
   },
   {
     "Title": "Défis : nouveaux boss de la Citadelle de la Couronne de glace",
     "Date": "2026-10-02",
     "Tag": "Défis",
     "Image": "icecrown",
-    "Body": "Cinq boss de la Citadelle de la Couronne de glace rejoignent le tableau des Défis.\n\n• Chaque palier au-delà de Défi I octroie désormais un équipement de niveau supérieur.\n• Il n'est plus nécessaire de vaincre les boss obligatoires de l'instance avant d'affronter celui du Défi."
+    "Body": "Cinq boss de la Citadelle de la Couronne de glace rejoignent le tableau des Défis.\n\nLes paliers au-delà de Défi I offrent désormais un meilleur équipement, et il n'est plus nécessaire de vaincre les boss précédents de l'instance pour affronter celui du Défi."
   },
   {
     "Title": "Nouvelle classe : le Barbare",
     "Date": "2026-10-01",
     "Tag": "Nouvelle classe",
     "Image": "barbarian",
-    "Body": "Le Barbare, inspiré de la classe d'Ascension, est désormais jouable. Il dispose de trois spécialisations.\n\n• Brutalité : dégâts au corps à corps avec une arme à deux mains.\n• Chasseur de têtes : lancers de haches et de javelots.\n• Ascendance : renforce le groupe grâce à ses cris et ses bannières.\n\nLe Barbare dispose d'arbres de talents illustrés et peut être sélectionné dans la recherche de donjon. Les dégâts infligés par l'intermédiaire de ses alliés sont détaillés séparément dans Details."
+    "Body": "Le Barbare est désormais jouable, avec trois spécialisations : Brutalité, Chasseur de têtes et Ascendance."
   },
   {
     "Title": "Arbres de talents : toutes les classes",
     "Date": "2026-10-01",
     "Tag": "Talents",
     "Image": "talents",
-    "Body": "Chevalier de la mort, Paladin, Chasseur, Prêtre, Guerrier, Chaman, Démoniste et Druide passent à leur tour au nouveau système de talents.\n\n• Nouvelles ressources : Puissance sacrée, Focalisation, Folie, Maelström, Fragments d'âme et Puissance astrale.\n• Chaque arbre est illustré et propose deux builds conseillés, l'un monocible, l'autre de zone.\n• Les compagnons savent jouer chacune de ces spécialisations."
+    "Body": "Toutes les classes passent désormais au nouveau système de talents. Plusieurs d'entre elles gagnent également une nouvelle ressource."
   },
   {
-    "Title": "Recherche de groupe et Mythique+ : nouvelle interface",
+    "Title": "Recherche de groupe : nouvelle interface",
     "Date": "2026-09-30",
     "Tag": "Donjons",
     "Image": "mythicplus",
-    "Body": "La recherche de groupe adopte une nouvelle interface, organisée en trois onglets : Donjons, Raids et Mythique+.\n\n• L'onglet Mythique+ présente désormais votre clé au centre de son cercle de runes.\n• Nouvel effet : Imprudence. Rester dans une zone de dégâts au sol cumule cet effet.\n• Les dégâts infligés par les ennemis sont désormais calculés à partir des points de vie réels des joueurs.\n• Les tanks compagnons enchaînent les groupes d'ennemis de façon plus fiable.\n• Correction d'un problème qui faisait manquer de mana les soigneurs compagnons."
+    "Body": "La fenêtre de recherche de groupe a été repensée, onglet Mythique+ compris."
   },
   {
     "Title": "Nouveau Défi : l'Infini",
     "Date": "2026-09-29",
     "Tag": "Défis",
     "Image": "infini",
-    "Body": "Le dieu qui veille sur le tableau des Défis vous attend désormais dans le Planétarium céleste. Son apparition est accompagnée d'une cinématique et d'une musique originale.\n\n• Une seule tentative par palier.\n• Étoiles filantes, lasers et croix célestes : un combat qui exige autant de mobilité que de dégâts.\n• Son équipement porte l'un de ses trois bonus : Égide des astres, Éclat d'étoile filante ou Étincelle d'éternité."
+    "Body": "Le gardien du tableau des Défis attend les plus téméraires dans le Planétarium céleste.\n\nUne seule tentative est autorisée par palier."
   },
   {
     "Title": "Parangon : le Panthéon et les glyphes",
     "Date": "2026-09-29",
     "Tag": "Parangon",
     "Image": "pantheon",
-    "Body": "Au-delà de la Transcendance s'ouvre une nouvelle étape du Parangon : le Panthéon.\n\n• Douze sceaux des Titans à débloquer.\n• Glyphes de Parangon : sertissez-les pour renforcer les nœuds qui les entourent.\n• Les essences ont désormais des rendements décroissants.\n• Le bonus d'expérience peut désormais atteindre +3000 %."
+    "Body": "Au-delà de la Transcendance s'ouvre une nouvelle étape du Parangon : le Panthéon, accompagné des glyphes de Parangon.\n\nLes essences ont désormais des rendements décroissants, et le bonus d'expérience peut atteindre +3000 %."
   },
   {
     "Title": "Nouveau : le Donjon infini",
     "Date": "2026-09-28",
     "Tag": "Serveur",
     "Image": "raidfinder",
-    "Body": "Le Donjon infini est désormais ouvert. Parlez à son gardien à Hurlevent pour gravir, seul ou à deux, une succession sans fin d'étages courts. Terminer un étage rapidement permet de sauter les suivants.\n\n• Jusqu'à 50 personnages par royaume.\n• Le Voyage rapide peut être utilisé en donjon, hors combat.\n• Les armes à distance ne nécessitent plus de munitions.\n• Les sorts de familier du Chasseur sont appris automatiquement."
+    "Body": "Le gardien du Donjon infini vous attend à Hurlevent. Seul ou à deux, montez aussi haut que possible.\n\nÉgalement dans cette mise à jour :\n\n• Jusqu'à 50 personnages par royaume.\n• Le Voyage rapide est utilisable en donjon, hors combat.\n• Les armes à distance ne nécessitent plus de munitions.\n• Les sorts de familier du Chasseur sont appris automatiquement."
   },
   {
     "Title": "Nouvel écran de connexion et nouveau launcher",
     "Date": "2026-09-27",
     "Tag": "Serveur",
     "Image": "evolution",
-    "Body": "Evolutions change de visage avec un nouvel écran de connexion, construit autour d'une nouvelle illustration et du nouveau logo.\n\n• L'écran de connexion est animé et s'adapte à toutes les résolutions, écrans ultra-larges compris.\n• Le menu Options a été entièrement redessiné.\n• Le launcher reprend la même illustration, animée.\n• Correction d'un problème qui provoquait un plantage du jeu à la fermeture."
+    "Body": "Evolutions fait peau neuve avec un nouvel écran de connexion et un nouveau launcher. Le menu Options a également été redessiné.\n\nCorrection d'un problème qui provoquait un plantage du jeu à la fermeture."
   },
   {
     "Title": "Mage : mise à jour de la classe",
     "Date": "2026-09-27",
     "Tag": "Classe",
     "Image": "malygos",
-    "Body": "Le Mage a été revu pour gagner en rythme.\n\n• Boule de feu, Éclair de givre, Éclair de givrefeu et Déflagration des arcanes : temps d'incantation réduit à 1,5 s.\n• Projectiles des arcanes, Blizzard et Évocation : canalisation deux fois plus rapide.\n• Explosion pyrotechnique conserve son temps d'incantation.\n• Chaleur continue rend désormais Choc de flammes instantané.\n• Explosion des arcanes confère des charges des Arcanes.\n• Météore et Flammes du phénix : dégâts augmentés en fonction de leur temps de recharge."
+    "Body": "Plusieurs sorts du Mage ont été accélérés.\n\n• Boule de feu, Éclair de givre, Éclair de givrefeu et Déflagration des arcanes : temps d'incantation réduit à 1,5 s.\n• Projectiles des arcanes, Blizzard et Évocation : durée de canalisation réduite de moitié.\n• Chaleur continue rend désormais Choc de flammes instantané.\n• Explosion des arcanes confère désormais des charges des Arcanes.\n• Dégâts de Météore et de Flammes du phénix augmentés."
   },
   {
     "Title": "Parangon : refonte du tableau",
     "Date": "2026-09-27",
     "Tag": "Parangon",
     "Image": "talents",
-    "Body": "Le tableau de Parangon a été profondément revu.\n\n• Les nœuds importants coûtent désormais davantage de points, jusqu'à 5.\n• Les branches se débloquent par paliers : l'Éveil doit être terminé pour accéder à l'Ascension, et l'Ascension pour accéder à la Transcendance.\n• Les explosions ont désormais une chance de se déclencher.\n• Les lanceurs de sorts disposent de leurs propres effets : échos, arcs, célérité et bouclier.\n• Chaque prestige relève le plafond de 20 points et rapporte 10, puis 5, puis 3 points.\n• Les compagnons reçoivent un tableau de Parangon adapté au contenu."
+    "Body": "Le tableau de Parangon a été revu.\n\n• Les nœuds importants coûtent désormais jusqu'à 5 points.\n• Les branches se débloquent dans l'ordre : Éveil, Ascension, puis Transcendance.\n• Les lanceurs de sorts disposent de leurs propres effets.\n• Chaque prestige relève le plafond de 20 points.\n• Les compagnons reçoivent un tableau de Parangon adapté au contenu."
   },
   {
     "Title": "Mythique+ : ajustements de difficulté",
     "Date": "2026-09-27",
     "Tag": "Donjons",
     "Image": "mythicplus",
-    "Body": "Les clés Mythique+ ont été revues pour offrir un défi plus relevé et plus lisible.\n\n• Au-delà de +10, chaque clé indique le niveau de Parangon conseillé. La difficulté des hautes clés augmente plus rapidement.\n• Les mécaniques des huit donjons ont été revues, et leurs zones au sol sont désormais visibles.\n• Les techniques des monstres sont désormais annoncées.\n• Les tanks génèrent davantage de menace et résistent mieux aux effets de contrôle.\n• La mort d'un compagnon est désormais comptabilisée dans le chronomètre.\n• Le butin cible vos emplacements les plus faibles et ne propose plus d'objets de lanceur de sorts aux combattants."
+    "Body": "La difficulté des clés Mythique+ a été revue.\n\n• Au-delà de +10, chaque clé indique le niveau de Parangon conseillé.\n• Les techniques des monstres sont désormais annoncées.\n• Les tanks génèrent davantage de menace.\n• La mort d'un compagnon est désormais comptabilisée dans le chronomètre.\n• Le butin privilégie vos emplacements les plus faibles."
   },
   {
     "Title": "Voleur : refonte d'Assassinat et de Finesse",
     "Date": "2026-09-26",
     "Tag": "Classe",
     "Image": "icecrown",
-    "Body": "Les spécialisations Assassinat et Finesse du Voleur ont été repensées.\n\n• Assassinat est désormais centré sur les poisons et les saignements.\n• Éventail de couteaux génère des points de combo.\n• Tempête cramoisie propage Rupture et Garrot aux ennemis proches.\n• Les armes restent empoisonnées en permanence.\n• Finesse : nouvelles techniques de zone, Poudre noire et Technique secrète.\n• Finesse : les principaux temps de recharge ne dépassent plus 30 secondes."
+    "Body": "Les spécialisations Assassinat et Finesse du Voleur ont été repensées. Assassinat se concentre désormais sur les poisons et les saignements, et Finesse gagne de nouvelles techniques de zone."
   },
   {
     "Title": "Talents : configurations et builds conseillés",
     "Date": "2026-09-26",
     "Tag": "Talents",
     "Image": "talents",
-    "Body": "Vous pouvez désormais enregistrer vos configurations de talents.\n\n• Nommez chaque configuration et passez de l'une à l'autre en un clic, y compris pendant la montée en niveau.\n• Chaque spécialisation propose deux builds conseillés, l'un monocible, l'autre de zone."
+    "Body": "Vous pouvez désormais enregistrer plusieurs configurations de talents et passer de l'une à l'autre en un clic. Chaque spécialisation propose également deux builds conseillés."
   },
   {
     "Title": "Bots : comportement amélioré",
     "Date": "2026-09-26",
     "Tag": "Serveur",
     "Image": "wintergrasp",
-    "Body": "Les bots qui peuplent le monde se comportent de façon plus naturelle.\n\n• Ils saluent le groupe, discutent à l'occasion et signalent lorsqu'ils cherchent un soigneur.\n• Ils s'occupent entre les combats et se déplacent de façon plus naturelle.\n• Ils se rendent à la forge et au tableau des Défis sans s'empiler les uns sur les autres.\n• En donjon, ils choisissent leurs talents de zone et utilisent leurs sorts de zone.\n• Des Oathblades figurent désormais parmi eux."
+    "Body": "Les bots qui peuplent le monde se comportent de façon plus naturelle, en groupe comme entre deux combats. On croise également des Oathblades parmi eux."
   },
   {
     "Title": "Forge : effets visuels d'armure",
     "Date": "2026-09-25",
     "Tag": "Forge",
     "Image": "argent",
-    "Body": "Les pièces d'armure forgées affichent désormais des effets visuels qui évoluent avec leur rang.\n\n• Braises aux pieds, puis aux mains, cœur de métal en fusion, couronne de flammes et, au dernier palier, l'Avatar de la forge, parcouru d'éclairs.\n• Le nombre de rangs nécessaires pour atteindre les derniers paliers a été augmenté."
+    "Body": "Les pièces d'armure forgées affichent désormais des effets visuels qui évoluent avec leur rang. Les derniers paliers demandent davantage de rangs."
   },
   {
     "Title": "Nouvelle interface de talents",
     "Date": "2026-09-24",
     "Tag": "Talents",
     "Image": "talents",
-    "Body": "L'Oathblade, le Nécromancien et le Pestiféré disposent d'une nouvelle fenêtre de talents, inspirée de la version actuelle du jeu.\n\n• Un arbre de classe à gauche et un arbre de spécialisation à droite, chacun avec ses propres points.\n• Les talents sont plus nombreux que les points disponibles : orientez votre personnage vers la monocible ou la zone, l'attaque ou la défense.\n• Certains talents proposent un choix entre deux effets.\n• Des paliers se débloquent à mesure que vous investissez des points.\n• Un code de talents permet de partager votre configuration.\n• Aucune modification n'est appliquée tant que vous n'avez pas cliqué sur Appliquer."
+    "Body": "L'Oathblade, le Nécromancien et le Pestiféré disposent d'une nouvelle fenêtre de talents."
   },
   {
     "Title": "Pestiféré : choix de la spécialisation",
     "Date": "2026-09-24",
     "Tag": "Classe",
     "Image": "pestifere",
-    "Body": "La fenêtre de talents du Pestiféré s'ouvre désormais sur un onglet Spécialisation : Charnier pour tanker, Sangsue pour soigner.\n\n• Chaque spécialisation conserve ses propres talents. Changer de spécialisation est gratuit.\n• Charnier : choisissez entre davantage de survie (réduction des dégâts, armure qui se renforce sous les coups, points de vie) et davantage de dégâts.\n• Sangsue : nouvelles techniques Poussée de sang, un soin d'urgence, et Jet de sang, un soin à distance.\n• Vos talents ont été réinitialisés. Pensez à répartir vos points, et à choisir Sangsue si vous soignez."
+    "Body": "Le Pestiféré peut désormais choisir sa spécialisation : Charnier pour tanker, Sangsue pour soigner. Changer de spécialisation est gratuit.\n\nLes talents ont été réinitialisés : pensez à répartir vos points."
   },
   {
     "Title": "Nécromancien : refonte de la classe",
     "Date": "2026-09-24",
     "Tag": "Classe",
     "Image": "necromancer",
-    "Body": "Le Nécromancien a été entièrement repensé autour de son armée de morts-vivants.\n\n• Trait d'âme est désormais un sort incanté d'une seconde qui accumule des Âmes.\n• À 10 Âmes, Levée des morts invoque une escouade complète : deux guerriers squelettes, un archer maudit et un mage de peste.\n• Les serviteurs se décomposent avec le temps. Maintenez-les en vie en drainant vos ennemis avec Drain d'âme, et en leur ordonnant de charger avec Ordre de mort, qui les soigne.\n• Nouvel arbre de talents."
+    "Body": "Le Nécromancien a été entièrement repensé autour de son armée de morts-vivants et dispose d'un nouvel arbre de talents."
   },
   {
     "Title": "Mythique+ : soins des ennemis",
     "Date": "2026-09-24",
     "Tag": "Donjons",
     "Image": "mythicplus",
-    "Body": "Correction d'un problème qui permettait aux soigneurs ennemis de remettre des groupes entiers à pleine vie, notamment à la Cathédrale écarlate.\n\n• Les soins que les monstres se prodiguent entre eux sont désormais plafonnés."
+    "Body": "Correction d'un problème qui permettait aux soigneurs ennemis de soigner leurs alliés de manière excessive, notamment à la Cathédrale écarlate."
   },
   {
     "Title": "Le Mythique+ est disponible",
     "Date": "2026-09-19",
     "Tag": "Donjons",
     "Image": "mythicplus",
-    "Body": "Le Mythique+ arrive dans l'outil Donjons, avec son propre onglet. Choisissez un donjon, insérez votre clé et lancez la course contre la montre.\n\n• Un dôme protège le groupe pendant le compte à rebours, puis le chronomètre démarre.\n• Terminez dans les temps pour améliorer votre clé de 1 à 3 niveaux, selon votre avance. Chaque mort coûte quelques secondes.\n• Plus la clé est élevée, plus les ennemis sont redoutables et plus le butin est puissant.\n• Votre score Mythique+ conserve la trace de vos exploits.\n• Le tank compagnon ouvre désormais la route jusqu'aux boss."
+    "Body": "Le Mythique+ est désormais disponible depuis l'outil Donjons. Insérez votre clé, terminez le donjon dans le temps imparti pour l'améliorer, et montez aussi haut que possible."
   },
   {
     "Title": "Pestiféré : nouvelle spécialisation Sangsue",
     "Date": "2026-09-19",
     "Tag": "Nouvelle classe",
     "Image": "icecrown",
-    "Body": "Le Pestiféré gagne un second arbre de talents, Sangsue, qui en fait un soigneur de mêlée.\n\n• Lorsque vos alliés sont blessés, vos attaques convertissent leurs dégâts en soins sur l'allié le plus blessé.\n• Sangsue, Saignée, Don de sang, Symbiote et Pestilence salvatrice sont instantanés et choisissent leur cible automatiquement."
+    "Body": "Le Pestiféré gagne une seconde spécialisation : Sangsue, un soigneur de mêlée."
   },
   {
     "Title": "Recherche de raid : tous les raids disponibles",
     "Date": "2026-09-18",
     "Tag": "Raids",
     "Image": "raidfinder",
-    "Body": "Du Cœur du Magma à la Citadelle de la Couronne de glace, tous les raids sont désormais accessibles depuis la recherche de donjon.\n\n• Dans l'onglet Raids, sélectionnez vos raids en mode 10 ou 25 joueurs, normal ou héroïque.\n• Des compagnons complètent le raid pour qu'il puisse partir immédiatement.\n• Seul ou entre amis, sans verrouillage d'instance : recommencez autant de fois que vous le souhaitez."
+    "Body": "Tous les raids, du Cœur du Magma à la Citadelle de la Couronne de glace, sont désormais accessibles depuis la recherche de donjon, en 10 ou 25 joueurs, normal ou héroïque. Des compagnons complètent votre raid, et aucun verrouillage d'instance ne s'applique."
   },
   {
     "Title": "Nouvelle classe : le Pestiféré",
     "Date": "2026-09-18",
     "Tag": "Nouvelle classe",
     "Image": "icecrown",
-    "Body": "Une nouvelle classe jouable fait son apparition : le Pestiféré, un tank qui porte la peste en lui. Accumulez les maladies sur vos ennemis, laissez la contagion se répandre, puis déclenchez Détonation pour les faire exploser."
+    "Body": "Une nouvelle classe fait son apparition : le Pestiféré, un tank qui porte la peste en lui."
   },
   {
     "Title": "Donjons avec compagnons",
     "Date": "2026-09-17",
     "Tag": "Donjons",
     "Image": "ulduar",
-    "Body": "L'outil Donjons complète désormais votre groupe avec des compagnons contrôlés par le serveur. Choisissez votre rôle et lancez la recherche, même seul. Un suivi de progression vous accompagne boss après boss."
+    "Body": "L'outil Donjons complète désormais votre groupe avec des compagnons. Choisissez votre rôle et lancez la recherche, même seul."
   },
   {
     "Title": "Bienvenue sur Evolutions",
     "Date": "2026-09-16",
     "Tag": "Serveur",
     "Image": "wintergrasp",
-    "Body": "Le launcher installe et maintient à jour tout ce dont le jeu a besoin : l'interface du serveur, DragonUI, Details et les correctifs du client. Cliquez sur Jouer, il s'occupe du reste."
+    "Body": "Le launcher installe et maintient à jour tout ce dont le jeu a besoin. Cliquez sur Jouer, il s'occupe du reste."
   }
 ]
