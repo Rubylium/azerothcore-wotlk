@@ -1023,9 +1023,10 @@ uint32 TestProfileParagon(uint32 itemLevel)
 }
 
 // Every equipment slot given an epic of that item level fitted to the character, slot by slot as the Mythic+ reward
-// picks it (touched by L'Infini when asked); what it wore goes to its bags, or its mailbox once they are full.
+// picks it (touched by L'Infini when asked, by the Hollow Voice as its drops are); what it wore goes to its bags, or
+// its mailbox once they are full.
 // Returns the slots equipped.
-uint32 EquipTestGear(Player* player, uint32 itemLevel, bool infiniteGod)
+uint32 EquipTestGear(Player* player, uint32 itemLevel, bool infiniteGod, bool hollowVoice = false)
 {
     static constexpr std::array<uint8, 17> Slots = { EQUIPMENT_SLOT_HEAD, EQUIPMENT_SLOT_NECK,
         EQUIPMENT_SLOT_SHOULDERS, EQUIPMENT_SLOT_BACK, EQUIPMENT_SLOT_CHEST, EQUIPMENT_SLOT_WRISTS,
@@ -1084,6 +1085,9 @@ uint32 EquipTestGear(Player* player, uint32 itemLevel, bool infiniteGod)
             continue;
         if (infiniteGod)
             TouchByInfiniteGod(item);
+        // The Hollow Voice's loot as it drops: one piece in four touched
+        else if (hollowVoice && roll_chance_f(InfiniteGodLoot::HollowVoice::BonusChancePct))
+            TouchByHollowVoice(item);
         // Its personal loot bonuses rolled as a drop's are (stamina, maximum health, ...): the power model's player
         // wears them, and without them a test profile at 460 had half its health (100 000 for about 221 000)
         TryRollPersonalLoot(player, item);
@@ -1152,7 +1156,7 @@ public:
         }
         uint32 const points = paragon ? *paragon : infinite || voice ? 650 : TestProfileParagon(itemLevel);
 
-        uint32 const equipped = EquipTestGear(player, itemLevel, infinite);
+        uint32 const equipped = EquipTestGear(player, itemLevel, infinite, voice);
         bool const boarded = SetParagonForTest(player, points);
 
         // The essences of that progress
