@@ -110,9 +110,30 @@ health nodes, and buffs:
 | Mythic+ key `k` | `GetExpectedItemLevel(k)` (223 + 2.45 ilvl a key, one key behind, capped 370) with `GetRecommendedParagon(k)` = round(8.5 x (k - 10)) past +10. For example +20 = 270 / 85, +30 = 294 / 170, +52 = 348 / 357, +60 = 368 / 425. Creature health grows 1.08 a key to +10, then by the power index ratio over +10's. Damage follows the player health of the profile, plus a pressure of 2.5% a key past +10 (capped at 1.6). | `MythicDungeon.h` |
 | Défi tier `T`, normal missions | The raid as it is at Défi I, plus 31 paragon a tier (Défi X: 279). Health `x ParagonDpsIndex(31 (T-1))` (x1.22 a tier, x6.1 at X). Damage x1.115 a tier (x2.7 at X). | `ChallengeTiers.h` |
 | L'Infini, Défi `T` | 300 / 100 at Défi I, then +10 item level and +50 paragon a tier (Défi III 320 / 200, Défi X 390 / 550). Health x the tier profile's `PowerIndex` over Défi I's (x1.72 at III, x5.63 at X), damage x its `ExpectedPlayerHealth` over Défi I's (x1.15 at III, x1.72 at X), avoidable hits +10% a tier on top. Its base health is the model's hard DPS check at the Défi I profile (`HealthModifier` 1394: 19.4M, `DpsCheckHealth(300, 100, 5.97, 290 * 0.85 * 0.85)`) and its damage reference `ExpectedPlayerHealth(300, 100)` (102k); both were set by play (47.6M, 122k) while its bots were still scaled on the player. Bots: the profile, and at least a typical player's essences for their gear (`SetBotEssenceFloor`). | `ChallengeTiers.h` BossProfiles, `InfiniteGod.cpp` |
-| The Hollow Voice | 460 / 650, 10 players, one difficulty (`PowerIndex` 16.1: 103k a second a damage dealer, what the bench measures). Sized on the profile's group (5.97 damage dealers: 615k a second): the Archbishop 65.7 million (`HealthModifier` 4713, the model's 58.6 + 12%, about 110 s of the 2:00 his track gives), Vel'thazar 176.4 million (12647: the model's 136.7 + 7.5% + 20%, played too easy once the melee's paragon was fixed), Dread Infernals 4 million. Hits are shares of `ExpectedPlayerHealth(460, 650)` (about 221k). Bots at the full profile (margins 0), their health sized to it; bots alone reach about a third of the group's damage (tested headless: `e2e/local/hollowvoice`). On its own page of the board, signing up from an equipped item level of 450 (`signUpItemLevel`, the Dungeon Finder's average); a game master's `.defi start 930100` skips that. | `ChallengeTiers.h` BossProfiles, `HollowVoice.cpp` |
+| The Hollow Voice | 460 / 650, 10 players, one difficulty (`PowerIndex` 16.1: 103k a second a damage dealer, what the bench measures). Sized on the profile's group (5.97 damage dealers: 615k a second): the Archbishop 65.7 million (`HealthModifier` 4713, the model's 58.6 + 12%, about 110 s of the 2:00 his track gives), Vel'thazar 176.4 million (12647: the model's 136.7 + 7.5% + 20%, played too easy once the melee's paragon was fixed), Dread Infernals 4 million. Hits are shares of `ExpectedPlayerHealth(460, 650)` (about 221k). Bots at the full profile (margins 0), their health sized to it. On its own page of the board, signing up from an equipped item level of 450 (`signUpItemLevel`, the Dungeon Finder's average); a game master's `.defi start 930100` skips that. Pays item level 477 (`Mythic::MaxPinnacleItemLevel`), each class in its own set's look. Measured headless on 2026-10-03 (below). | `ChallengeTiers.h` BossProfiles, `HollowVoice.cpp` |
 | Le Front du Nord, tier `T` | Open world at 80, sized for one damage dealer of the tier's profile (tanks a third): 187 / 200 / 213 / 223 at 0 paragon, loot 200 / 213 / 219 / 226. Below 223 (the measured curve's start) the damage is 223's x `(I / 223)^1.8`, measured on the bench (0.72 at 186, 0.84 at 200, 0.96 at 212). Fight lengths against that: a roaming elite 25 s, a rift wave 15 s (pack damage), its guardian 35 s, a Colosse 60 s; all grow with the participants. Hits are shares of `ExpectedPlayerHealth` of the profile (melee 2.5-4%, telegraphed 35-60%). | `frontier/Frontier.cpp` `TierDps` |
 | Infinite Dungeon | **Not on the model yet.** It has its own ladder (`gearRatio^2` from item level 200 to 310, 12k-28.8k reference). | `infinite/InfiniteDungeonScaling.h` |
+
+## The Hollow Voice, measured (2026-10-03)
+
+Nine bots alone (`e2e/local/hollowvoice/run.ps1`, the game master watching takes no damage slot: 2 tanks, 3 healers,
+4 damage dealers; `-itemMargin` / `-paragonMargin` lower the bots' profile through the live knobs
+`challenge.sim_bot_item_level_margin` / `challenge.sim_bot_paragon_margin`, no build). Damage a second on the boss:
+
+| Bots | The Archbishop (needs 554k for his 117.5 s check) | Vel'thazar (needs about 585k over his window) |
+|---|---|---|
+| 460 / 650 | 327k, 439k, 361k: down to 29-37% at Last Rites | 169k: 69% left at the enrage |
+| 440 / 650 | 318k, 342k | |
+| 460 / 425 | 162k, 102k | |
+| 440 / 425 | 153k, 97k | 110k, 121k |
+| 420 / 425 | 130k, 100k | |
+
+- Twenty item levels move it about 5%, as the model says. **Paragon from 425 to 650 multiplies it by about 2.5**,
+  where `ParagonCurve` is flat past 425: the curve was measured on a lone Fire mage on the bench; a fight's group of
+  bots is not that.
+- At the full profile the bots reach about 70% of the model's group damage on the Archbishop and under 30% on
+  Vel'thazar (the lights, the moves, the infernals): neither check is met by a player and nine bots.
+- The equipped item level asked to sign up hardly changes the outcome; the paragon does.
 
 ## Measures, and re-measuring
 
