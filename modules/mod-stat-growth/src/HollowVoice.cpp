@@ -232,6 +232,10 @@ constexpr float WakeArc = 60.0f;
 constexpr float SwarmRadius = 40.0f;
 constexpr float SwarmArc = 50.0f;
 constexpr uint32 SwarmWarningMs = 2500;
+// The Carrion Swarm grows as the fight goes on: its casts' cones, a fan side by side centred on someone (six of 50
+// degrees: 300 of the circle, one place left), and the warning a little longer a cone to reach the gap
+constexpr std::array<uint32, 9> SwarmCones = { 1, 1, 2, 2, 3, 3, 4, 5, 6 };
+constexpr uint32 SwarmWarningPerConeMs = 600;
 constexpr uint32 WhisperCarriers = 3;
 constexpr uint32 WhisperMs = 6000;
 constexpr float WhisperRadius = 8.0f;
@@ -708,11 +712,12 @@ std::vector<Step> BuildTimeline()
     once(Ability::Radiance, 1500);              // the orchestra's first hit
     for (uint32 at : { 4000u, 16000u, 28000u, 40000u, 53000u, 72000u, 84000u, 96000u, 104000u, 112000u })
         once(Ability::Judgement, at);
-    for (uint32 at : { 7000u, 26000u, 47000u, 88000u, 103000u, 116000u })
+    // No mechanic over a soak: none under the Choir's towers (0:43.3, 0:51.5), the Sentences (1:14, 1:41) or the Verdict
+    for (uint32 at : { 7000u, 26000u, 88000u, 116000u })
         once(Ability::LightOfDawn, at);
     for (uint32 at : { 11600u, 36000u, 70000u, 110000u })
         once(Ability::Aisles, at);               // on the break (0:11.6), a swell (0:36), the build (1:09.6)
-    for (uint32 at : { 24000u, 77000u, 106000u })
+    for (uint32 at : { 24000u, 107500u })
         once(Ability::Hammers, at);
     // Nef sacrée in the two quiet stretches: three waves after the first aisles, one before the Choir
     once(Ability::Nave, 15500);
@@ -733,7 +738,7 @@ std::vector<Step> BuildTimeline()
     // The final climax: his wings
     once(Ability::Seraphim, AtSeraphim);
     every(Ability::Radiance, AtSeraphim + 1000, 7000, AtLastRites - 1000);
-    once(Ability::Wake, 98000);
+    once(Ability::Wake, 96500);
     once(Ability::Sentence, 101000);
     once(Ability::Wake, 108000);
 
@@ -741,12 +746,15 @@ std::vector<Step> BuildTimeline()
     uint32 const start = AtReveal + 1000;
     every(Ability::HollowPulse, AtReveal + 6500, 12000, AtLastLight - 2000);
     every(Ability::Brand, AtReveal + 4500, 10000, AtLastLight);
-    for (uint32 at : { AtReveal + 9500, AtReveal + 23500, AtReveal + 37500, AtReveal + 51500 })
+    // From here on one mechanic at a time (a soak never under lines or cones, a swarm never over a grid), a second
+    // between a landing and the next warning, so the bots are ready for each: what did not fit was cut. The Carrion
+    // Swarm grows a cone a cast or two (SwarmCones), its warning with it.
+    for (uint32 at : { AtReveal + 9500, AtReveal + 22500, AtReveal + 36300, AtReveal + 54000 })
         once(Ability::Swarm, at);
     once(Ability::EchoAisles, start + 14500);
-    once(Ability::EchoPulpit, start + 31500);
-    once(Ability::LanceBarrage, AtReveal + 27000);
-    once(Ability::EchoWeave, AtReveal + 40500);
+    once(Ability::LanceBarrage, AtReveal + 26500);
+    once(Ability::EchoPulpit, AtReveal + 32300);
+    once(Ability::EchoWeave, AtReveal + 40400);
     once(Ability::Whisper, AtWhisper);
     // Last Light: the shelters
     once(Ability::LastLightStart, AtLastLight);
@@ -756,13 +764,12 @@ std::vector<Step> BuildTimeline()
     // Phase 3: the lances, the infernals on the hit
     every(Ability::HollowPulse, AtLastLightEnd + 6500, 12000, AtInhale - 1000);
     every(Ability::Brand, AtLastLightEnd + 2500, 10000, AtInhale);
-    for (uint32 at : { AtLastLightEnd + 5500, AtLastLightEnd + 19500, AtLastLightEnd + 35500 })
+    for (uint32 at : { AtLastLightEnd + 3500, AtLastLightEnd + 18200, AtLastLightEnd + 35500 })
         once(Ability::Swarm, at);
-    once(Ability::Lances, AtLastLightEnd + 10500);
-    once(Ability::Lances, AtLastLightEnd + 33500);
-    once(Ability::EchoPulpit, AtLastLightEnd + 15500);
-    once(Ability::EchoWeave, AtLastLightEnd + 24500);
-    once(Ability::LanceBarrage, AtLastLightEnd + 40000);
+    once(Ability::Lances, AtLastLightEnd + 8200);
+    once(Ability::EchoPulpit, AtLastLightEnd + 14200);
+    once(Ability::EchoWeave, AtLastLightEnd + 22900);
+    once(Ability::Lances, AtLastLightEnd + 29500);
     once(Ability::Infernals, AtInfernals - InfernalWarningMs);
     // Inhale of the Void in the near silence, the true form on the drop
     once(Ability::InhaleStart, AtInhale);
@@ -770,42 +777,37 @@ std::vector<Step> BuildTimeline()
     // Phase 4: the spinning swarms
     every(Ability::HollowPulse, AtTrueForm + 4000, 10000, AtLastPrayer - 1000);
     every(Ability::Brand, AtTrueForm + 2000, 9000, AtLastPrayer);
-    once(Ability::SpinSwarm, AtTrueForm + 7000);
-    once(Ability::EchoAisles, AtTrueForm + 17000);
-    once(Ability::Lances, AtTrueForm + 23000);
-    once(Ability::SpinSwarm, AtTrueForm + 24500);
-    once(Ability::EchoWeave, AtTrueForm + 12000);
-    once(Ability::LanceBarrage, AtTrueForm + 31000);
+    once(Ability::SpinSwarm, AtTrueForm + 4000);
+    once(Ability::EchoWeave, AtTrueForm + 13000);
+    once(Ability::SpinSwarm, AtTrueForm + 19600);
+    once(Ability::EchoAisles, AtTrueForm + 28600);
     // Aldric's Last Prayer, in the quiet verse
     once(Ability::LastPrayerStart, AtLastPrayer);
     every(Ability::LastPrayerPulse, AtLastPrayer + 3000, 3000, AtLastPrayerEnd);
-    once(Ability::EchoAisles, AtLastPrayer + 11000);
     once(Ability::LastPrayerEnd, AtLastPrayerEnd);
     // Phase 5, the loudest climax: the Hollow Sermon, the crosses, the swarms
     every(Ability::HollowPulse, AtLastPrayerEnd + 5000, 10000, AtRuinSection);
     every(Ability::Brand, AtLastPrayerEnd + 2000, 8000, AtRuinSection);
     once(Ability::Sermon, AtLastPrayerEnd + 3600);
-    once(Ability::VoidCross, AtLastPrayerEnd + 13600);
-    once(Ability::SpinSwarm, AtLastPrayerEnd + 19600);
-    once(Ability::Sermon, AtLastPrayerEnd + 31600);
-    once(Ability::Lances, AtLastPrayerEnd + 42600);
-    once(Ability::SpinSwarm, AtLastPrayerEnd + 48600);
-    once(Ability::VoidCross, AtLastPrayerEnd + 55600);
-    once(Ability::LanceBarrage, AtLastPrayerEnd + 9000);
-    once(Ability::EchoWeave, AtLastPrayerEnd + 25000);
-    once(Ability::EchoWeave, AtLastPrayerEnd + 37000);
-    once(Ability::LanceBarrage, AtLastPrayerEnd + 52000);
+    once(Ability::VoidCross, AtLastPrayerEnd + 11600);
+    once(Ability::SpinSwarm, AtLastPrayerEnd + 17400);
+    once(Ability::EchoWeave, AtLastPrayerEnd + 26400);
+    once(Ability::Sermon, AtLastPrayerEnd + 33000);
+    once(Ability::Lances, AtLastPrayerEnd + 41000);
+    once(Ability::SpinSwarm, AtLastPrayerEnd + 47000);
+    once(Ability::LanceBarrage, AtLastPrayerEnd + 56000);
     // The dark section: Voice of Ruin on the three stabs, the Aegis shown before each
     every(Ability::HollowPulse, AtRuinSection + 4000, 10000, AtEnrageBlasts[0] - 3000);
     every(Ability::Brand, AtRuinSection + 2000, 9000, AtEnrageBlasts[0] - 2000);
     for (uint32 at : AtRuins)
         once(Ability::Ruin, at - RuinWarningMs);
-    once(Ability::Swarm, AtRuins[0] + 5000);
-    once(Ability::EchoPulpit, AtRuins[1] + 4000);
-    once(Ability::Swarm, AtRuins[2] + 5000);
-    once(Ability::Lances, AtRuins[2] + 9000);
-    once(Ability::EchoWeave, AtRuins[0] + 8000);
-    once(Ability::LanceBarrage, AtRuins[1] + 8000);
+    // Between the Voices: the swarm at five cones, the rings; after the last, the swarm at six (one place left), the
+    // lances and the last barrage before the end
+    once(Ability::Swarm, AtRuins[0] + 1000);
+    once(Ability::EchoPulpit, AtRuins[1] + 1000);
+    once(Ability::Swarm, AtRuins[2] + 1000);
+    once(Ability::Lances, AtRuins[2] + 7500);
+    once(Ability::LanceBarrage, AtRuins[2] + 13500);
 
     std::stable_sort(steps.begin(), steps.end(), [](Step const& left, Step const& right)
     {
@@ -1082,6 +1084,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         _stats.clear();
         _timeline = BuildTimeline();
         _next = 0;
+        _swarmCasts = 0;
         uint32 track = MUSIC_FIGHT;
         if (_revealArmed)
         {
@@ -3083,22 +3086,37 @@ private:
         std::vector<Player*> const players = NonTanks();
         if (!demon || players.empty() || VelthazarAI()->_held)
             return;
+        uint32 const cones = SwarmCones[std::min<std::size_t>(_swarmCasts++, SwarmCones.size() - 1)];
+        uint32 const warning = SwarmWarningMs + SwarmWarningPerConeMs * (cones - 1);
         Player* target = Acore::Containers::SelectRandomContainerElement(players);
         Position const apex = Ground(demon->GetPosition());
         float const facing = apex.GetAngle(target);
         BeginWindup(facing);
-        CastBar(demon, CAST_CARRION, SwarmWarningMs);
+        CastBar(demon, CAST_CARRION, warning);
         demon->SendPlaySpellVisual(KIT_CARRION_CAST);
-        GroundIndicators::Area const area = Paint(ConeArea(apex, facing, SwarmRadius,
-            SwarmArc), PAINT_CARRION, SwarmWarningMs, GroundIndicators::Theme::Shadow);
-        ConeEdges(area, EDGE_CARRION, SwarmWarningMs);
-        scheduler.Schedule(Milliseconds(SwarmWarningMs), [this, area](TaskContext)
+        // The first at someone, the next ones on either side of it in turn
+        float const step = SwarmArc * float(M_PI) / 180.0f;
+        std::vector<GroundIndicators::Area> areas;
+        for (uint32 cone = 0; cone < cones; ++cone)
+        {
+            float const side = (cone % 2 ? 1.0f : -1.0f) * float((cone + 1) / 2);
+            GroundIndicators::Area const area = Paint(ConeArea(apex, facing + side * step, SwarmRadius, SwarmArc),
+                PAINT_CARRION, warning, GroundIndicators::Theme::Shadow);
+            ConeEdges(area, EDGE_CARRION, warning);
+            areas.push_back(area);
+        }
+        scheduler.Schedule(Milliseconds(warning), [this, areas](TaskContext)
         {
             Sound(SOUND_CARRION_SWARM);
-            Strike(area, PAINT_CARRION_HIT);
-            StrikeEdges(area, EDGE_CARRION, EDGE_CARRION_HIT);
-            for (Player* player : PlayersIn(area))
-                Hit(player, SPELL_SWARM, SwarmPct, true);
+            std::set<ObjectGuid> struck;
+            for (GroundIndicators::Area const& area : areas)
+            {
+                Strike(area, PAINT_CARRION_HIT);
+                StrikeEdges(area, EDGE_CARRION, EDGE_CARRION_HIT);
+                for (Player* player : PlayersIn(area))
+                    if (struck.insert(player->GetGUID()).second)
+                        Hit(player, SPELL_SWARM, SwarmPct, true);
+            }
             EndWindup();
         });
     }
@@ -3760,6 +3778,7 @@ private:
     std::map<ObjectGuid, Dealt> _dealt;         // the report's damage and melee reach (NoteDamage, SampleReach)
     uint32 _nextReachSample = 0;
     uint32 _nextTauntCueMs = 0;
+    uint32 _swarmCasts = 0;                     // the Carrion Swarm's casts this fight (SwarmCones)
     ObjectGuid _holder;                         // the tank last named to hold the boss (UpdateTauntCue)
     uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
     uint32 _nextLitany = 0;                     // ... the earliest the next may fall...

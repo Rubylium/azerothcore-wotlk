@@ -9,11 +9,12 @@
 --        (First sized on the compounded paragon rule at 505 million, seven times what the bench measures.) His health
 --        stops at 1%; he is the board's boss (its kill is the win), and stays hidden once the demon is out.
 -- 930101 Vel'thazar, the Hollow Voice: Balnazzar's look (10813, display 10691), the demon inside him, summoned by his
---        script. 12 262 x 13 945 = 171.0 million: as hard as the Archbishop and 7.5% more, measured on nine bots at
---        the profile (2026-10-03, e2e/local/hollowvoice): the Archbishop asks 554k a second of a group dealing him
---        368k, 1.50 times it; once held in the middle of the room, with Fervour of the Faithful, the bots dealt the
---        demon 299-465k (350k), and 171.0 million over his 317 s asks 1.62 times that. (Before: 176.4 million, the
---        model's 136.7 + 7.5% + 20%, when tanked against the walls the bots dealt him 169k.)
+--        script. 11 894 x 13 945 = 165.9 million (the user took 3% off the 171.0 below, 2026-10-03, once the bots
+--        swapped tanks on his Brands and he no longer fed on them). The 171.0: as hard as the Archbishop and 7.5% more,
+--        measured on nine bots at the profile (2026-10-03, e2e/local/hollowvoice): the Archbishop asks 554k a second of
+--        a group dealing him 368k, 1.50 times it; once held in the middle of the room, with Fervour of the Faithful,
+--        the bots dealt the demon 299-465k (350k), and 171.0 million over his 317 s asks 1.62 times that. (Before:
+--        176.4 million, the model's 136.7 + 7.5% + 20%, when tanked against the walls the bots dealt him 169k.)
 -- 930102 Dread Doomguard: a Doomguard Pillager's look (display 16269) on an Infernal's (89) template, two stepping out
 --        of portals in phase 3, already on the off-tank (they crashed down as infernals once, and their impacts killed
 --        players): 287 x 13 945 =
@@ -79,7 +80,7 @@ UPDATE `tmp_stat_growth_hollow_voice` SET
     `unit_flags` = 0,
     `DamageModifier` = 80,
     `BaseAttackTime` = 2000,
-    `HealthModifier` = 12262,
+    `HealthModifier` = 11894,
     `ManaModifier` = 1,
     `RegenHealth` = 0,
     `CreatureImmunitiesId` = -361,
