@@ -2176,14 +2176,43 @@ private:
         return found->second.first;
     }
 
-    // The tank swap's cue (TauntCueStacks), for the players among the tanks
+    // The tank swap (TauntCueStacks), every second: the tank to hold the boss named for the bots (GroundIndicators
+    // SetBossHolder: the one on it while under the stacks, else the tank with the fewest; the bot named taunts, the
+    // others do not taunt it back), and the cue for the players among the tanks
     void UpdateTauntCue(uint32 elapsed)
     {
-        if (elapsed < _nextTauntCueMs)
-            return;
         Creature* boss = _phase == Phase::Aldric ? me : _phase == Phase::Hollow ? Velthazar() : nullptr;
-        Player* tank = boss && boss->IsAlive() && boss->GetVictim() ? boss->GetVictim()->ToPlayer() : nullptr;
-        if (!tank || StacksOn(_phase == Phase::Aldric ? _condemned : _brand, tank) < TauntCueStacks)
+        if (!boss || !boss->IsAlive() || !boss->IsInCombat())
+            return;
+        auto const& stacks = _phase == Phase::Aldric ? _condemned : _brand;
+        Player* tank = boss->GetVictim() ? boss->GetVictim()->ToPlayer() : nullptr;
+
+        std::vector<Player*> tanks;
+        for (Player* player : ArenaPlayers())
+            if (player->IsAlive() && IsGroupTank(player))
+                tanks.push_back(player);
+        if (tanks.size() >= 2)
+        {
+            Player* holder = tank && IsGroupTank(tank) && StacksOn(stacks, tank) < TauntCueStacks ? tank : nullptr;
+            if (!holder)
+                holder = *std::ranges::min_element(tanks, [&stacks, tank](Player* a, Player* b)
+                {
+                    // The fewest stacks; on a tie, not the one the boss is on
+                    uint32 const sa = StacksOn(stacks, a);
+                    uint32 const sb = StacksOn(stacks, b);
+                    return sa != sb ? sa < sb : (a != tank && b == tank);
+                });
+            GroundIndicators::SetBossHolder(boss, holder, 2000);
+            if (holder->GetGUID() != _holder)
+            {
+                _holder = holder->GetGUID();
+                LOG_INFO("module.hollowvoice", "hv holder {} (stacks {}) of {}, on {} (stacks {}) at={:.1f}s",
+                         holder->GetName(), StacksOn(stacks, holder), boss->GetName(), tank ? tank->GetName() : "-",
+                         tank ? StacksOn(stacks, tank) : 0, elapsed / 1000.0f);
+            }
+        }
+
+        if (elapsed < _nextTauntCueMs || !tank || StacksOn(stacks, tank) < TauntCueStacks)
             return;
         _nextTauntCueMs = elapsed + TauntCueEveryMs;
         bool const demon = _phase == Phase::Hollow;
@@ -3731,6 +3760,7 @@ private:
     std::map<ObjectGuid, Dealt> _dealt;         // the report's damage and melee reach (NoteDamage, SampleReach)
     uint32 _nextReachSample = 0;
     uint32 _nextTauntCueMs = 0;
+    ObjectGuid _holder;                         // the tank last named to hold the boss (UpdateTauntCue)
     uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
     uint32 _nextLitany = 0;                     // ... the earliest the next may fall...
     bool _ongoing = false;                      // ... and a mechanic running on (none falls meanwhile)

@@ -177,6 +177,14 @@ namespace GroundIndicators
     // around it), slack yards of it. A bot tank further away walks back to it, the boss following; nothing while it
     // dodges (FindEscape first). Set again while it applies (a boss held still for an intermission has none).
     void SetTankSpot(Unit* owner, Position const& spot, uint32 durationMs, float slack);
+    // The tank swap: which tank should hold owner now (a fight whose boss stacks a debuff on its tank says so, set
+    // again while it applies). The bot tank named takes the boss with its taunt (mod-playerbots "fight taunt"); the
+    // other tanks leave it to that one, their taunt on losing aggro held back (BossToTaunt, LeavesToOtherTank).
+    void SetBossHolder(Unit* owner, Unit* tank, uint32 durationMs);
+    // The boss unit is to taunt now: a holder names it and the boss is not on it; nullptr otherwise
+    Unit* BossToTaunt(Unit* unit);
+    // Whether target is a boss whose holder is another tank than unit: unit is not to taunt it back
+    bool LeavesToOtherTank(Unit* unit, Unit* target);
     // Whether owner places its tanks itself (an off-tank spot on show): their own facing of it (mod-playerbots "tank
     // face") would only drag its aimed cones across the group
     bool PlacesTanks(Unit* owner);

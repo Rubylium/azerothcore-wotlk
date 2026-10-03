@@ -1076,7 +1076,8 @@ struct Goal
     {
         Soak,
         OffTank,
-        Tank                                    // the spot of the tank the owner is hitting (SetTankSpot)
+        Tank,                                   // the spot of the tank the owner is hitting (SetTankSpot)
+        Holder                                  // the tank to hold the owner (SetBossHolder)
     };
 
     Kind kind = Kind::Soak;
@@ -1845,6 +1846,46 @@ void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool h
     if (tank)
         goal.tank = tank->GetGUID();
     AddGoal(goal, true);
+}
+
+void SetBossHolder(Unit* owner, Unit* tank, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || !tank || durationMs == 0)
+        return;
+
+    Goal goal;
+    goal.kind = Goal::Kind::Holder;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.tank = tank->GetGUID();
+    goal.endMs = NowMs() + durationMs;
+    AddGoal(goal, true);
+}
+
+Unit* BossToTaunt(Unit* unit)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return nullptr;
+    for (Goal const& goal : GoalsAround(unit))
+    {
+        if (goal.kind != Goal::Kind::Holder || goal.tank != unit->GetGUID())
+            continue;
+        Unit* owner = ObjectAccessor::GetUnit(*unit, goal.owner);
+        if (owner && owner->IsAlive() && owner->IsInCombat() && owner->GetVictim() != unit)
+            return owner;
+    }
+    return nullptr;
+}
+
+bool LeavesToOtherTank(Unit* unit, Unit* target)
+{
+    if (!unit || !target || !unit->IsInWorld())
+        return false;
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::Holder && goal.owner == target->GetGUID() && goal.tank != unit->GetGUID())
+            return true;
+    return false;
 }
 
 uint32 FadingTwinOf(uint32 look)
