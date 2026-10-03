@@ -203,6 +203,18 @@ namespace GroundIndicators
     // Whether unit stands in the soak it was given (bots are shared out between the soaks shown, one each): it holds
     // there until it lands rather than walking back to its fight
     bool HoldsSoak(Unit* unit);
+    // Whether the fight wants unit somewhere: a soak it was given, a spot of its own, an off-tank spot it holds, a
+    // circle it carries away. A bot then casts nothing that moves it (a warrior's charge took it off its tower and
+    // back to the boss).
+    bool HasFightPlace(Unit* unit);
+    // The bots given owner's soak at center (a fight's log of a soak that failed)
+    std::vector<ObjectGuid> SoakAssignees(Unit* owner, Position const& center);
+
+    // A hit on the whole group coming in inMs (a shared tower, a raid-wide blast): the bots' healers and others with
+    // a group defensive put it up before it lands (mod-playerbots "group damage soon")
+    void WarnGroupDamage(Unit* owner, uint32 inMs);
+    // Whether such a hit lands on unit's group within withinMs
+    bool GroupDamageSoon(Unit* unit, uint32 withinMs);
 
     // Whether unit stands in an area it should leave: in one of the red areas around it, or carrying one next to
     // another player. If so, escape is the nearest spot where it would not. An area whose hit is known and would

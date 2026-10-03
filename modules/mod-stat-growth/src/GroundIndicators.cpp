@@ -1078,7 +1078,8 @@ struct Goal
         OffTank,
         Tank,                                   // the spot of the tank the owner is hitting (SetTankSpot)
         Holder,                                 // the tank to hold the owner (SetBossHolder)
-        Unit                                    // a spot for one unit (SetUnitSpot), named in `tank`
+        Unit,                                   // a spot for one unit (SetUnitSpot), named in `tank`
+        GroupHit                                // a hit on the whole group landing at endMs (WarnGroupDamage)
     };
 
     Kind kind = Kind::Soak;
@@ -1858,6 +1859,56 @@ void EndUnitSpot(Unit* owner, Unit* unit)
         {
             return goal.kind == Goal::Kind::Unit && goal.owner == owner->GetGUID() && goal.tank == unit->GetGUID();
         }), Goals.end());
+}
+
+bool HasFightPlace(Unit* unit)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Goal soak;
+    if (AssignedSoak(unit, soak) || HoldsOffTankSpot(unit) || KeepsAway(unit))
+        return true;
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::Unit && goal.tank == unit->GetGUID())
+            return true;
+    return false;
+}
+
+std::vector<ObjectGuid> SoakAssignees(Unit* owner, Position const& center)
+{
+    if (!owner)
+        return {};
+    std::lock_guard<std::mutex> guard(GoalLock);
+    for (Goal const& goal : Goals)
+        if (goal.kind == Goal::Kind::Soak && goal.owner == owner->GetGUID() &&
+            goal.center.GetExactDist2d(&center) < 0.5f)
+            return goal.assigned;
+    return {};
+}
+
+void WarnGroupDamage(Unit* owner, uint32 inMs)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    Goal goal;
+    goal.kind = Goal::Kind::GroupHit;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = owner->GetPosition();
+    goal.endMs = NowMs() + inMs;
+    AddGoal(goal, false);
+}
+
+bool GroupDamageSoon(Unit* unit, uint32 withinMs)
+{
+    if (!unit || !unit->IsInWorld())
+        return false;
+    uint64 const now = NowMs();
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::GroupHit && goal.endMs <= now + withinMs)
+            return true;
+    return false;
 }
 
 void EndSoak(Unit* owner, Position const& center)

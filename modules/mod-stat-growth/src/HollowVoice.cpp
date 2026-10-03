@@ -221,7 +221,8 @@ constexpr uint32 AbsolutionMs = 9000;
 constexpr float AbsolutionSigilRadius = 8.0f;
 constexpr uint32 SentenceMs = 6000;
 constexpr float SentenceRadius = 7.0f;
-constexpr uint32 SentenceSoakersBots = 4;
+// The bots sent to each Sentence: three, so two of them split six bots evenly (four left the other with two)
+constexpr uint32 SentenceSoakersBots = 3;
 constexpr uint32 VerdictMs = 5000;
 constexpr float VerdictRadius = 5.0f;
 constexpr uint32 WakeCones = 3;
@@ -306,6 +307,8 @@ constexpr uint32 CrossWaves = 2;
 constexpr uint32 CrossWaveMs = 2300;
 constexpr uint32 CrossWarningMs = 2500;
 constexpr uint32 RuinWarningMs = 7000;
+// A big hit on the group is announced to the bots this long before it lands (their group defensives)
+constexpr uint32 GroupHitWarnMs = 3000;
 constexpr float RuinAegisRadius = 8.0f;
 
 // M'uru's chamber: round, 39 yards to its walls round the Archbishop's spot (.hollow floor), its floor 69.6 in the
@@ -2743,8 +2746,24 @@ private:
 
     // Choir of the Faithful (the Archbishop) and the Hollow Sermon (the demon): towers for two players each, their
     // sigil on the floor, and a Bastion tower only a tank may hold. A tower held by fewer bursts on everyone.
+    // A big hit on the group coming in inMs (a shared tower, Voice of Ruin, the Inhale's blast): announced to the bots
+    // GroupHitWarnMs before it lands, for their group defensives (GroundIndicators::WarnGroupDamage)
+    void WarnGroupHit(uint32 inMs)
+    {
+        if (inMs <= GroupHitWarnMs)
+        {
+            GroundIndicators::WarnGroupDamage(me, inMs);
+            return;
+        }
+        scheduler.Schedule(Milliseconds(inMs - GroupHitWarnMs), [this](TaskContext)
+        {
+            GroundIndicators::WarnGroupDamage(me, GroupHitWarnMs);
+        });
+    }
+
     void Towers(bool sermon)
     {
+        WarnGroupHit(TowerMs);
         Unit* caster = Caster();
         Position const center = Center();
         // Three towers of two and a Bastion: six soakers and a tank, what a group of ten has with its tank on the
@@ -2874,6 +2893,7 @@ private:
     // on, split between everyone standing in its circle - stand with them
     void ExecutionSentence()
     {
+        WarnGroupHit(SentenceMs);
         for (Player* marked : SpreadPick(NonTanks(), 2))
         {
             Position const spot = Ground(marked->GetPosition());
@@ -2882,6 +2902,15 @@ private:
             ShowTower(spot, 0.0f, SentenceRadius, SentenceMs, 3, false, true, PAINT_SENTENCE, PAINT_SENTENCE);
             GroundIndicators::ShowSoak(Caster(), spot, SentenceRadius, SentenceMs, SentenceSoakersBots);
             ObjectGuid const scorch = PrepareScorch(spot, SentenceRadius, SentenceMs);
+            // Its bots, read just before it lands (the soak goes with its time): who was sent, and where they are
+            scheduler.Schedule(Milliseconds(SentenceMs - 100), [this, spot](TaskContext)
+            {
+                std::string sent;
+                for (ObjectGuid const& guid : GroundIndicators::SoakAssignees(Caster(), spot))
+                    if (Player* bot = ObjectAccessor::GetPlayer(*me, guid))
+                        sent += Acore::StringFormat(" {}({:.0f})", bot->GetName(), bot->GetExactDist2d(&spot));
+                _sentenceSent[uint64(spot.GetPositionX() * 10.0f) << 32 | uint32(spot.GetPositionY() * 10.0f)] = sent;
+            });
             scheduler.Schedule(Milliseconds(SentenceMs), [this, spot, scorch](TaskContext)
             {
                 Sound(SOUND_EXECUTION_SENTENCE);
@@ -2889,7 +2918,10 @@ private:
                 PlayOnGround(spot, KIT_WRATH_HAMMER_HIT);
                 LandScorch(scorch, PAINT_HOLY_SCORCH);
                 std::vector<Player*> const soakers = PlayersIn(CircleArea(spot, SentenceRadius));
-                Resolved("Execution Sentence", soakers.size() >= 3, Acore::StringFormat("soakers={}", soakers.size()));
+                std::string const& sent =
+                    _sentenceSent[uint64(spot.GetPositionX() * 10.0f) << 32 | uint32(spot.GetPositionY() * 10.0f)];
+                Resolved("Execution Sentence", soakers.size() >= 3, Acore::StringFormat("soakers={} sent:{}",
+                    soakers.size(), sent));
                 if (soakers.empty())
                     return;
                 float const shared = SentencePct / float(soakers.size());
@@ -3392,6 +3424,7 @@ private:
             return;
         EndWindup();
         HoldDemon(true);
+        WarnGroupHit(AtTrueForm - AtInhale);
         demon->SendPlaySpellVisual(KIT_THOUSAND_SOULS);
         demon->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         CastBar(demon, CAST_INHALE, AtTrueForm - AtInhale, true);
@@ -3825,6 +3858,7 @@ private:
     // half. The Aegis is laid on his tank, the group stacks in it.
     void VoiceOfRuin()
     {
+        WarnGroupHit(RuinWarningMs);
         Creature* demon = Velthazar();
         Unit* tank = demon ? demon->GetVictim() : nullptr;
         Position const spot = Ground(tank ? tank->GetPosition() : AtAngle(Center(), 0.0f, 8.0f));
@@ -3991,6 +4025,7 @@ private:
     uint32 _nextReachSample = 0;
     uint32 _nextTauntCueMs = 0;
     uint32 _swarmCasts = 0;                     // the Carrion Swarm's casts this fight (SwarmCones)
+    std::map<uint64, std::string> _sentenceSent;    // each Sentence's bots and their distance, for its log
     uint64 _aldricHealth = 0;                   // the Archbishop's true health (what is shown: ShownHealth)
     ObjectGuid _holder;                         // the tank last named to hold the boss (UpdateTauntCue)
     uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
