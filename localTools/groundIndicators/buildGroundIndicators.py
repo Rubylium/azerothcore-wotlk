@@ -646,11 +646,14 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     u0 = index / count
     u1 = u0 + shape.get('tiles', 1.0) / count
 
-    # Two planes, an X across the line: from one side at the floor to the other at the top, and back
+    # Two planes, an X across the line: from one side at the floor to the other at the top, and back. `rise` lifts its
+    # far end that many yards over its near one: a whole line from a room's middle to its rising edge (the Hollow
+    # Voice's floor climbs 1.6 yards to the walls) would otherwise sink into the floor as it goes
+    rise = float(shape.get('rise', 0.0))
     corners = []
     for side in (-1.0, 1.0):
-        corners += [(x0, side * lean, 0.0, u0, 1.0), (x1, side * lean, 0.0, u1, 1.0),
-                    (x0, -side * lean, height, u0, 0.0), (x1, -side * lean, height, u1, 0.0)]
+        corners += [(x0, side * lean, 0.0, u0, 1.0), (x1, side * lean, rise, u1, 1.0),
+                    (x0, -side * lean, height, u0, 0.0), (x1, -side * lean, height + rise, u1, 0.0)]
     _, template_vertices = array(data, 0x3C)
     vertex = bytes(data[template_vertices:template_vertices + 48])
     block = bytearray()
@@ -708,11 +711,12 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     if fade:
         fade_alpha(data)
 
-    radius = math.sqrt(max(abs(x0), abs(x1)) ** 2 + lean ** 2 + height ** 2)
-    struct.pack_into('<6ff', data, 0xA0, x0, -lean, 0.0, x1, lean, height, radius)
+    top = height + rise
+    radius = math.sqrt(max(abs(x0), abs(x1)) ** 2 + lean ** 2 + top ** 2)
+    struct.pack_into('<6ff', data, 0xA0, x0, -lean, 0.0, x1, lean, top, radius)
     sequences_count, sequences = array(data, 0x1C)
     for sequence in range(sequences_count):
-        struct.pack_into('<6ff', data, sequences + 64 * sequence + 32, x0, -lean, 0.0, x1, lean, height, radius)
+        struct.pack_into('<6ff', data, sequences + 64 * sequence + 32, x0, -lean, 0.0, x1, lean, top, radius)
 
     # Its skin: the eight corners, two quads; a plain batch (not projected on the floor), its texture flowing
     model_skin = bytearray(skin)
@@ -724,7 +728,7 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     _, submeshes = struct.unpack_from('<II', model_skin, 0x1C)
     struct.pack_into('<H', model_skin, submeshes + 6, 8)
     struct.pack_into('<H', model_skin, submeshes + 10, len(triangles))
-    centre = ((x0 + x1) / 2.0, 0.0, height / 2.0)
+    centre = ((x0 + x1) / 2.0, 0.0, top / 2.0)
     struct.pack_into('<3f', model_skin, submeshes + 20, *centre)
     struct.pack_into('<3f', model_skin, submeshes + 32, *centre)
     struct.pack_into('<f', model_skin, submeshes + 44, radius)

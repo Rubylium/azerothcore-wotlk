@@ -533,7 +533,7 @@ std::vector<EmitterSpot> EmitterSpots(Unit* owner, GroundIndicators::Area const&
 
 // A look's fading twin (its alpha falling to nothing in FadeMs from when it is put on: buildGroundIndicators.py
 // fade_spell, patchSinisterStrike.ps1 keep the same rule), 0 for none
-constexpr uint32 FadeMs = 300;
+constexpr uint32 FadeMs = GroundIndicators::FadingTwinMs;
 
 uint32 FadeLookOf(uint32 look)
 {
@@ -1075,7 +1075,8 @@ struct Goal
     enum class Kind : uint8
     {
         Soak,
-        OffTank
+        OffTank,
+        Tank                                    // the spot of the tank the owner is hitting (SetTankSpot)
     };
 
     Kind kind = Kind::Soak;
@@ -1846,6 +1847,27 @@ void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool h
     AddGoal(goal, true);
 }
 
+uint32 FadingTwinOf(uint32 look)
+{
+    return FadeLookOf(look);
+}
+
+void SetTankSpot(Unit* owner, Position const& spot, uint32 durationMs, float slack)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+
+    Goal goal;
+    goal.kind = Goal::Kind::Tank;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = spot;
+    goal.radius = slack;
+    goal.endMs = NowMs() + durationMs;
+    AddGoal(goal, true);
+}
+
 bool PlacesTanks(Unit* owner)
 {
     if (!owner || !owner->IsInWorld())
@@ -1873,6 +1895,16 @@ bool FindGoal(Unit* unit, Position& spot, bool tank)
             bool const forUnit = goal.tank.IsEmpty() ? owner->GetVictim() != unit : goal.tank == unit->GetGUID();
             if (!tank || !owner->IsInCombat() || !forUnit ||
                 unit->GetExactDist2d(&goal.center) <= (goal.hold ? OffTankHoldSlack : OffTankSlack))
+                continue;
+            spot = goal.center;
+            return true;
+        }
+
+        // The tank the owner is hitting, back to where it should hold it
+        if (goal.kind == Goal::Kind::Tank)
+        {
+            if (!tank || !owner->IsInCombat() || owner->GetVictim() != unit ||
+                unit->GetExactDist2d(&goal.center) <= goal.radius)
                 continue;
             spot = goal.center;
             return true;

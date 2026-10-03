@@ -29,6 +29,10 @@ GAP_SECONDS = 5.0           # HollowVoice.cpp TransitionMs: Vel'thazar's starts 
 # Vel'thazar's track whole: its first 1.5 s are drum hits, heard as the demon tears out (cut once as a fade-in: the
 # user wants them; HollowVoice.cpp SecondTrackTrimMs)
 VELTHAZAR_TRIM_SECONDS = 0.0
+# Vel'thazar's part louder in the fight's track (the user asked 15% more, 2026-10-03), kept under TRUE_PEAK by a
+# limiter: x1.24 lands it at -8.4 LUFS against -9.3 (+0.9 dB); his track is already near its ceiling, so more gain only
+# squashes it (x1.30 gave -8.3)
+VELTHAZAR_GAIN = 1.24
 REVEAL_TEST_SECONDS = 110.0 # HollowVoice.cpp RevealTestStartMs
 
 
@@ -111,14 +115,17 @@ def join(ffmpeg):
     aldric = os.path.join(OUTPUT, 'HollowVoiceAldric.mp3')
     velthazar = os.path.join(OUTPUT, 'HollowVoiceVelthazar.mp3')
     target = os.path.join(OUTPUT, 'HollowVoice.mp3')
+    limit = 10 ** (TRUE_PEAK / 20.0)
     graph = (f'[0]atrim=0:{SWITCH_SECONDS},asetpts=N/SR/TB[a];[1]atrim=0:{GAP_SECONDS},asetpts=N/SR/TB[g];'
-             f'[2]atrim=start={VELTHAZAR_TRIM_SECONDS},asetpts=N/SR/TB[v];[a][g][v]concat=n=3:v=0:a=1')
+             f'[2]atrim=start={VELTHAZAR_TRIM_SECONDS},asetpts=N/SR/TB,volume={VELTHAZAR_GAIN},'
+             f'alimiter=limit={limit:.3f}:attack=2:release=60:level=false[v];[a][g][v]concat=n=3:v=0:a=1')
     silence = ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100']
     subprocess.run([ffmpeg, '-hide_banner', '-nostats', '-y', '-i', aldric, *silence, '-i', velthazar,
                     '-filter_complex', graph,
                     '-ar', '44100', '-ac', '2', '-codec:a', 'libmp3lame', '-b:a', '192k', target],
                    capture_output=True, check=True)
-    print(f'{os.path.basename(target)}: the two joined at {SWITCH_SECONDS} s, {GAP_SECONDS} s apart')
+    print(f'{os.path.basename(target)}: the two joined at {SWITCH_SECONDS} s, {GAP_SECONDS} s apart, the demon'
+          f' x{VELTHAZAR_GAIN}')
     late = os.path.join(OUTPUT, 'HollowVoiceFromReveal.mp3')
     subprocess.run([ffmpeg, '-hide_banner', '-nostats', '-y', '-i', target, '-af',
                     f'atrim={REVEAL_TEST_SECONDS},asetpts=N/SR/TB', '-ar', '44100', '-ac', '2', '-codec:a',

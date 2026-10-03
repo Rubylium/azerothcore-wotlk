@@ -2,6 +2,7 @@
 #include "MythicDungeonSystem.h"
 #include "MythicTuning.h"
 
+#include "AllSpellScript.h"
 #include "CellImpl.h"
 #include "Chat.h"
 #include "CommandScript.h"
@@ -19,6 +20,7 @@
 #include "PowerScaling.h"
 #include "Random.h"
 #include "ScriptedCreature.h"
+#include "Spell.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "StringFormat.h"
@@ -29,6 +31,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iterator>
 #include <list>
 #include <map>
 #include <memory>
@@ -269,6 +272,19 @@ constexpr uint32 PrayerLights = 4;
 constexpr float PrayerLightDistance = 24.0f;
 constexpr float PrayerLightRadius = 3.0f;
 constexpr uint32 PrayerCarryMs = 2500;          // a light picked up reaches the demon this long after
+// Fervour of the Faithful: a mechanic that sends players away from the boss (a tower, a shared impact, a carried
+// whisper, the shelter of Last Light), done right, gives those who did it +40% damage and healing this long - what
+// a melee player loses walking out and back, about given back
+constexpr uint32 FervorMs = 10000;
+// A tank's Exposure: a tank struck by a mechanic that is not a tank's (the red to dodge, a damage dealers' soak) may
+// be once; struck again by the same within TankExposureMs, the hit takes at least TankExposedHitPct of its health;
+// a third time kills it. Tanks soaked their health into the group's areas, too sturdy to care. Hits of the same
+// mechanic closer than TankExposureGraceMs count once (a spiral's ticks).
+constexpr uint32 TankExposureMs = 20000;
+constexpr uint32 TankExposureGraceMs = 1000;
+constexpr float TankExposedHitPct = 75.0f;
+// How far from the room's middle the demon's tank may hold him before it walks him back (KeepDemonCentred)
+constexpr float DemonCentreSlack = 6.0f;
 constexpr float CrossLength = 42.0f;
 constexpr float CrossWidth = 6.0f;
 constexpr uint32 CrossWaves = 2;
@@ -422,7 +438,34 @@ constexpr uint32 SPELL_BRAND_STACKS = 94022;
 constexpr uint32 SPELL_PRISON_AURA = 94030;
 constexpr uint32 SPELL_BLESSING = 94031;
 constexpr uint32 SPELL_CARRY_LIGHT = 94032;
+constexpr uint32 SPELL_FERVOR = 94045;
+constexpr uint32 SPELL_TANK_EXPOSED = 94046;
 constexpr uint32 SPELL_TRUE_FORM = 94041;
+// Cast bars: what a boss is about to do, a bar over its head ending where it lands (CastBar). Self-cast dummies
+// (localTools/hollowVoice/Spells.ps1), never interrupted, their length set for each cast (HollowVoiceCastBars). The
+// telegraphs aimed from the boss or laid over the room get one; what the players move with or around (the spinning
+// swarms, the hammers, the whispers, the soaks and the pools) does not.
+enum CastBarSpell : uint32
+{
+    CAST_LIGHT_OF_DAWN = 94141,
+    CAST_PULPIT,
+    CAST_AISLES,
+    CAST_NAVE,
+    CAST_VERDICT,
+    CAST_WAKE,
+    CAST_CARRION,
+    CAST_ECHO,
+    CAST_ECHO_AISLES,
+    CAST_WEAVE,
+    CAST_BARRAGE,
+    CAST_LANCES,
+    CAST_INHALE,
+    CAST_CROSSES,
+    CAST_RUIN,
+    CAST_LAST = CAST_RUIN
+};
+// The length of the cast being started (set around CastSpell, which prepares it at once, on the map's thread)
+thread_local uint32 PendingCastBarMs = 0;
 // Its abilities painted on the ground in place of the red (localTools/hollowVoice/textures, shapes.json kind texture:
 // each painting warped to the area it marks). A warning breathes; its "hit" twin, at full strength, flashes where it
 // lands (StrikeMs). The rings and round ones turn slowly.
@@ -483,6 +526,7 @@ constexpr uint32 LOOK_PIP_VOID_LIT = 90679;
 constexpr float PipRadius = 0.8f;
 constexpr float PipGap = 1.2f;                  // past the tower's edge
 constexpr uint32 TowerCheckMs = 250;
+constexpr uint32 ShrinkAwayMs = 600;            // a pillar of light shrinking away (ShrinkAway)
 constexpr uint32 StrikeMs = 900;
 constexpr uint32 ScorchMs = 3000;
 // Stock: a red reticle over the head (Mark of Rimefang), a purple beam (a dummy channel)
@@ -1247,6 +1291,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
     std::string Describe() const
     {
         Creature* demon = Velthazar();
+        Position const center = Center();
         std::vector<Player*> const players = ArenaPlayers();
         uint64 health = 0;
         for (Player* player : players)
@@ -1254,8 +1299,9 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         return Acore::StringFormat("The Hollow Voice: phase {} at {:.1f}s, Aldric {}/{} ({:.1f}%), Vel'thazar {}, "
                                    "tier damage x{:.2f}, reference {:.0f}, next step {}/{}, {} standing (health {} on "
                                    "average)", uint32(_phase), Elapsed() / 1000.0f, me->GetHealth(), me->GetMaxHealth(),
-                                   me->GetHealthPct(), demon ? Acore::StringFormat("{}/{}", demon->GetHealth(),
-                                   demon->GetMaxHealth()) : std::string("-"), GetChallengeDamageFactorOf(me),
+                                   me->GetHealthPct(), demon ? Acore::StringFormat("{}/{} ({:.0f} yd from the middle)",
+                                   demon->GetHealth(), demon->GetMaxHealth(), demon->GetExactDist2d(&center)) :
+                                   std::string("-"), GetChallengeDamageFactorOf(me),
                                    Reference(), _next, _timeline.size(), players.size(),
                                    players.empty() ? 0 : health / players.size());
     }
@@ -1797,16 +1843,42 @@ private:
     }
 
     // A look of the ground (shapes.json) on an invisible stalker of its own, radius yards: kept by guid, so it can
-    // change looks (a tower waiting, held)
+    // change looks (a tower waiting, held). Once lasts is over it fades out (the look's fading twin, a sigil and its
+    // gems after their tower) rather than popping off the floor.
     Creature* Look(Position const& at, float orientation, float radius, uint32 lasts, uint32 look)
     {
         TempSummon* stalker = me->SummonCreature(NPC_STALKER, Position(at.GetPositionX(), at.GetPositionY(),
-            at.GetPositionZ(), orientation), TEMPSUMMON_TIMED_DESPAWN, lasts);
+            at.GetPositionZ(), orientation), TEMPSUMMON_TIMED_DESPAWN, lasts + GroundIndicators::FadingTwinMs);
         if (!stalker)
             return nullptr;
         stalker->SetObjectScale(radius);
-        stalker->AddAura(look, stalker);
+        if (look)
+            stalker->AddAura(look, stalker);
+        stalker->m_Events.AddEventAtOffset([stalker]()
+        {
+            uint32 shown = 0;
+            for (auto const& [auraId, application] : stalker->GetAppliedAuras())
+                if (GroundIndicators::FadingTwinOf(auraId))
+                {
+                    shown = auraId;
+                    break;
+                }
+            if (!shown)
+                return;
+            stalker->RemoveAurasDueToSpell(shown);
+            stalker->AddAura(GroundIndicators::FadingTwinOf(shown), stalker);
+        }, Milliseconds(lasts));
         return stalker;
+    }
+
+    // A stalker's model (a pillar of light, which has no fading twin) shrunk away rather than gone at once: the client
+    // eases a unit's scale change
+    static void ShrinkAway(Creature* stalker)
+    {
+        if (!stalker || !stalker->IsInWorld())
+            return;
+        stalker->SetObjectScale(0.05f);
+        stalker->DespawnOrUnsummon(Milliseconds(ShrinkAwayMs));
     }
 
     void SwapLook(ObjectGuid guid, uint32 from, uint32 to)
@@ -1881,17 +1953,19 @@ private:
                 continue;
             if (full)
             {
-                uint32 const left = getMSTimeDiff(now, tower.endsAt);
-                if (Creature* light = FxStalker(tower.center, std::max<uint32>(left, 100), NPC_HOVER_STALKER))
+                uint32 const left = std::max<uint32>(getMSTimeDiff(now, tower.endsAt), 100);
+                if (Creature* light = FxStalker(tower.center, left + ShrinkAwayMs, NPC_HOVER_STALKER))
                 {
                     light->AddAura(SPELL_LIGHT_FX, light);
                     tower.light = light->GetGUID();
+                    // Shrinks away once the tower lands
+                    light->m_Events.AddEventAtOffset([light]() { ShrinkAway(light); }, Milliseconds(left));
                 }
                 PlayOnGround(tower.center, KIT_HOLY_WRATH_HIT);
             }
             else if (Creature* light = tower.light ? me->GetMap()->GetCreature(tower.light) : nullptr)
             {
-                light->DespawnOrUnsummon();
+                ShrinkAway(light);
                 tower.light = ObjectGuid::Empty;
             }
         }
@@ -1909,6 +1983,27 @@ private:
         }
     }
 
+    // Those of players who are not tanks: a damage dealers' soak rewards them alone
+    static std::vector<Player*> DamageDealers(std::vector<Player*> players)
+    {
+        std::erase_if(players, [](Player* player) { return IsGroupTank(player); });
+        return players;
+    }
+
+    // Fervour of the Faithful (FervorMs): to those who held a mechanic that took them away from the boss
+    void Reward(std::vector<Player*> const& players, std::string_view what)
+    {
+        uint32 given = 0;
+        for (Player* player : players)
+            if (player && player->IsAlive())
+            {
+                AddTimedAura(player, SPELL_FERVOR, FervorMs);
+                ++given;
+            }
+        if (given)
+            LOG_INFO("module.hollowvoice", "hv fervor {} players={} at={:.1f}s", what, given, Elapsed() / 1000.0f);
+    }
+
     // --- Hits --------------------------------------------------------------------------------------------------------
     // Holy damage taken, from Condemned
     float TakenFactor(Player const* player, bool holy) const
@@ -1919,6 +2014,23 @@ private:
         if (condemned == _condemned.end() || getMSTimeDiff(condemned->second.second, getMSTime()) < 0x80000000u)
             return 1.0f;
         return 1.0f + CondemnedPerStackPct / 100.0f * float(condemned->second.first);
+    }
+
+    // A tank struck by a mechanic that is not a tank's: the times the same one struck it lately (TankExposureMs), 1 to 3,
+    // shown as the stacks of Exposure (94046)
+    uint32 Expose(Player* tank, std::string const& ability)
+    {
+        uint32 const now = getMSTime();
+        Exposure& exposure = _exposure[{ tank->GetGUID(), ability }];
+        if (exposure.count && getMSTimeDiff(exposure.last, now) > TankExposureMs)
+            exposure.count = 0;
+        if (exposure.count == 0 || getMSTimeDiff(exposure.last, now) >= TankExposureGraceMs)
+            exposure.count = std::min<uint32>(exposure.count + 1, 3);
+        exposure.last = now;
+        ShowStacks(tank, SPELL_TANK_EXPOSED, exposure.count, TankExposureMs);
+        LOG_INFO("module.hollowvoice", "hv exposed {} ability={} times={} at={:.1f}s", tank->GetName(), ability,
+                 exposure.count, Elapsed() / 1000.0f);
+        return exposure.count;
     }
 
     // A share of the reference health, as spell: the tier's factor applies on the way (ChallengeTierUnitScript), then
@@ -1936,9 +2048,14 @@ private:
                      AbilityLabel(spell.custom), Elapsed() / 1000.0f);
         }
         bool const holy = spell.stock == STOCK_HOLY;
-        float const amount = Reference() * percent / 100.0f * TakenFactor(player, holy);
+        float amount = Reference() * percent / 100.0f * TakenFactor(player, holy);
+        uint32 const exposure = avoidable && IsGroupTank(player) ? Expose(player, AbilityLabel(spell.custom)) : 0;
+        if (exposure == 2)
+            amount = std::max(amount, float(player->GetMaxHealth()) * TankExposedHitPct / 100.0f);
         _inHit = true;
         MythicTuning::DealAbilityDamage(Caster(), player, SpellOf(spell), uint32(std::max(1.0f, amount)));
+        if (exposure >= 3 && player->IsAlive())
+            Unit::Kill(Caster(), player);
         _inHit = false;
         if (avoidable)
             MythicTuning::ApplyImprudence(player);
@@ -1954,6 +2071,33 @@ private:
     {
         for (Player* player : ArenaPlayers())
             Hit(player, spell, percent, false);
+    }
+
+    // --- Cast bars ---------------------------------------------------------------------------------------------------
+    // caster casts spellId for ms: its bar ends where the ability lands. Never over another cast (a new cast would cut
+    // it): a boss already casting shows none for this one - unless it matters more (urgent: the Inhale, the Voice of
+    // Ruin), which cuts a cast bar under way (a dummy: nothing else is lost)
+    static void CastBar(Unit* caster, uint32 spellId, uint32 ms, bool urgent = false)
+    {
+        if (!caster || !caster->IsAlive() || ms == 0 || !sSpellMgr->GetSpellInfo(spellId))
+            return;
+        if (caster->IsNonMeleeSpellCast(false))
+        {
+            Spell const* current = caster->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+            bool const castBar = current && current->GetSpellInfo()->Id >= CAST_LIGHT_OF_DAWN &&
+                current->GetSpellInfo()->Id <= CAST_LAST;
+            if (!urgent || !castBar)
+                return;
+            caster->InterruptNonMeleeSpells(false);
+        }
+        PendingCastBarMs = ms;
+        SpellCastResult const result = caster->CastSpell(caster, spellId, false);
+        PendingCastBarMs = 0;
+        if (result != SPELL_CAST_OK)
+            LOG_ERROR("module.hollowvoice", "hv cast bar {} by {} refused: {}", spellId, caster->GetName(),
+                      uint32(result));
+        else
+            LOG_INFO("module.hollowvoice", "hv cast bar {} by {} for {} ms", spellId, caster->GetName(), ms);
     }
 
     // --- Windups: the caster held still, facing where it strikes --------------------------------------------------
@@ -2001,6 +2145,19 @@ private:
             DoZoneInCombat(demon, ArenaReach);
     }
 
+    // The demon is fought in the middle of the room, where his mechanics are laid around him: the pools, towers,
+    // lights and impacts 12-26 yards off, the void's edge from 30. Tanked against a wall, his cones and rings ran
+    // off the floor and the edge ate his melee. His tank holds him there (GroundIndicators::SetTankSpot, the bots;
+    // a player tanks him where they like), except while he is held still or winds up.
+    void KeepDemonCentred()
+    {
+        Creature* demon = Velthazar();
+        boss_hollow_voice_velthazar* ai = VelthazarAI();
+        if (_phase != Phase::Hollow || !demon || !demon->IsAlive() || !ai || ai->_held || _windup)
+            return;
+        GroundIndicators::SetTankSpot(demon, Center(), 2000, DemonCentreSlack);
+    }
+
     // --- The clock -------------------------------------------------------------------------------------------------
     void UpdateClock(bool skipping)
     {
@@ -2023,6 +2180,7 @@ private:
         {
             _nextReachSample = elapsed + 1000;
             SampleReach();
+            KeepDemonCentred();
         }
         if (_phase != Phase::Hollow)
             return;
@@ -2186,6 +2344,7 @@ private:
             return;
         float const facing = apex.GetAngle(*clear);
         BeginWindup(facing);
+        CastBar(me, CAST_LIGHT_OF_DAWN, LightOfDawnWarningMs);
         me->SendPlaySpellVisual(KIT_DIVINE_STORM_CAST);
         GroundIndicators::Area const area = Paint(ConeArea(apex, facing,
             LightOfDawnRadius, LightOfDawnArc), PAINT_DAWN, LightOfDawnWarningMs, GroundIndicators::Theme::Holy);
@@ -2274,6 +2433,7 @@ private:
     {
         Position const center = Ground(me->GetPosition());
         me->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
+        CastBar(me, CAST_PULPIT, PulpitWarningMs + uint32(PulpitRings.size() - 1) * PulpitWaveMs);
         for (uint32 wave = 0; wave < PulpitRings.size(); ++wave)
         {
             auto const [outer, inner] = PulpitRings[wave];
@@ -2300,6 +2460,7 @@ private:
         Position const center = Ground(caster->GetPosition());
         Sound(SOUND_HOLLOW_ECHO);
         caster->SendPlaySpellVisual(KIT_SHADOW_CRASH_CAST);
+        CastBar(caster, CAST_ECHO, EchoWarningMs);
         std::vector<GroundIndicators::Area> areas;
         areas.push_back(Paint(CircleArea(center, EchoCoreRadius), PAINT_ECHO_CORE,
             EchoWarningMs, GroundIndicators::Theme::Shadow));
@@ -2325,6 +2486,7 @@ private:
         float const across = facing + float(M_PI) / 2.0f;
         uint32 const burning = echo ? 1u : 0u;
         Sound(echo ? SOUND_HOLLOW_ECHO : SOUND_CONSECRATED_AISLES);
+        CastBar(Caster(), echo ? CAST_ECHO_AISLES : CAST_AISLES, AisleWarningMs);
         std::vector<GroundIndicators::Area> lanes;
         for (uint32 lane = burning; lane < AisleCount; lane += 2)
         {
@@ -2386,6 +2548,7 @@ private:
         float const facing = frand(0.0f, float(M_PI) / 2.0f);
         Sound(SOUND_CONSECRATED_AISLES);
         me->SendPlaySpellVisual(KIT_HYMN_CAST);
+        CastBar(me, CAST_NAVE, NaveFirstWarningMs + (waves > 1 ? (waves - 1) * NaveWarningMs : 0));
         LineGrid({ facing, facing + float(M_PI) / 2.0f }, NaveSpacing, 0.0f, NaveFirstWarningMs, false);
         for (uint32 wave = 1; wave < waves; ++wave)
         {
@@ -2407,7 +2570,10 @@ private:
         float const third = float(M_PI) / 3.0f;
         Sound(SOUND_HOLLOW_ECHO);
         if (Creature* demon = Velthazar())
+        {
             demon->SendPlaySpellVisual(KIT_SHADOWFLAME_CAST);
+            CastBar(demon, CAST_WEAVE, WeaveSecondMs + WeaveWarningMs);
+        }
         LineGrid({ facing, facing + third, facing + 2.0f * third }, WeaveSpacing, frand(0.0f, 1.0f), WeaveWarningMs,
             true);
         scheduler.Schedule(Milliseconds(WeaveSecondMs), [this, facing, third](TaskContext)
@@ -2430,6 +2596,7 @@ private:
                 Creature* demon = Velthazar();
                 if (!demon || _phase != Phase::Hollow)
                     return;
+                CastBar(demon, CAST_BARRAGE, BarrageWarningMs);
                 Position const source = Ground(demon->GetPosition());
                 std::vector<Player*> players = ArenaPlayers();
                 Acore::Containers::RandomShuffle(players);
@@ -2502,13 +2669,14 @@ private:
                 {
                     float const shared = (sermon ? SermonSharedPct : TowerSharedPct) / float(soakers.size());
                     for (Player* player : soakers)
-                        Hit(player, spell, shared, false);
+                        Hit(player, spell, shared, IsGroupTank(player));
+                    Reward(DamageDealers(soakers), "tower");
                 }
                 else
                 {
                     ++failed;
                     for (Player* player : soakers)
-                        Hit(player, spell, (sermon ? SermonSharedPct : TowerSharedPct) / 2.0f, false);
+                        Hit(player, spell, (sermon ? SermonSharedPct : TowerSharedPct) / 2.0f, IsGroupTank(player));
                 }
             }
             PlayOnGround(bastion, KIT_WRATH_HAMMER_HIT);
@@ -2518,6 +2686,13 @@ private:
                      Acore::StringFormat("bastion inside={}", inBastion.size()));
             for (Player* player : inBastion)
                 Hit(player, spell, IsGroupTank(player) ? BastionTankPct : BastionOtherPct, !IsGroupTank(player));
+            if (held)
+            {
+                std::vector<Player*> tanks;
+                std::ranges::copy_if(inBastion, std::back_inserter(tanks), [](Player* player)
+                    { return IsGroupTank(player); });
+                Reward(tanks, "bastion");
+            }
             float burst = float(failed) * (sermon ? SermonFailPct : TowerFailPct);
             if (!held)
                 burst += BastionFailPct;
@@ -2601,7 +2776,9 @@ private:
                     return;
                 float const shared = SentencePct / float(soakers.size());
                 for (Player* player : soakers)
-                    Hit(player, SPELL_SENTENCE, shared, false);
+                    Hit(player, SPELL_SENTENCE, shared, IsGroupTank(player));
+                if (soakers.size() >= 3)
+                    Reward(DamageDealers(soakers), "sentence");
             });
         }
     }
@@ -2617,6 +2794,7 @@ private:
         GroundIndicators::SetOffTankSpot(Caster(), spot, VerdictMs, true);
         // The others leave it: they followed the tank in and were crushed
         GroundIndicators::WatchArea(me, CircleArea(spot, VerdictRadius), VerdictMs, 0, true);
+        CastBar(me, CAST_VERDICT, VerdictMs);
         me->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
         ObjectGuid const scorch = PrepareScorch(spot, VerdictRadius * 1.3f, VerdictMs);
         scheduler.Schedule(Milliseconds(VerdictMs), [this, spot, scorch](TaskContext)
@@ -2632,6 +2810,13 @@ private:
             for (Player* player : inside)
                 Hit(player, SPELL_VERDICT, IsGroupTank(player) ? VerdictTankPct : VerdictOtherPct,
                     !IsGroupTank(player));
+            if (held)
+            {
+                std::vector<Player*> tanks;
+                std::ranges::copy_if(inside, std::back_inserter(tanks), [](Player* player)
+                    { return IsGroupTank(player); });
+                Reward(tanks, "verdict");
+            }
             if (!held)
                 HitEveryone(SPELL_VERDICT, VerdictFailPct);
         });
@@ -2665,6 +2850,7 @@ private:
         float const toward = apex.GetAngle(x / float(players.size()), y / float(players.size()));
         float const turn = roll_chance_i(50) ? 1.0f : -1.0f;
         BeginWindup(toward);
+        CastBar(me, CAST_WAKE, WakeWarningMs + (WakeCones - 1) * WakeStepMs);
         Sound(SOUND_WAKE_OF_ASHES);
         for (uint32 cone = 0; cone < WakeCones; ++cone)
         {
@@ -2819,6 +3005,7 @@ private:
         Position const apex = Ground(demon->GetPosition());
         float const facing = apex.GetAngle(target);
         BeginWindup(facing);
+        CastBar(demon, CAST_CARRION, SwarmWarningMs);
         demon->SendPlaySpellVisual(KIT_CARRION_CAST);
         GroundIndicators::Area const area = Paint(ConeArea(apex, facing, SwarmRadius,
             SwarmArc), PAINT_CARRION, SwarmWarningMs, GroundIndicators::Theme::Shadow);
@@ -2849,9 +3036,16 @@ private:
                     return;
                 carrier->SendPlaySpellVisual(KIT_FEAR_HIT);
                 Hit(carrier, SPELL_WHISPER, WhisperCarrierPct, false);
+                uint32 caught = 0;
                 for (Player* player : PlayersIn(GroundIndicators::CurrentArea(carrier, area)))
                     if (player != carrier)
+                    {
                         Hit(player, SPELL_WHISPER, WhisperOtherPct, true);
+                        ++caught;
+                    }
+                Resolved("Whisper of Doubt", caught == 0, Acore::StringFormat("caught={}", caught));
+                if (caught == 0)
+                    Reward({ carrier }, "whisper");
             });
         }
     }
@@ -2871,6 +3065,7 @@ private:
         GroundIndicators::ShowParticles(me, CircleArea(Center(), ArenaWalkRadius), GroundIndicators::Theme::Shadow,
             AtLastLightEnd - AtLastLight);
         _pools.clear();
+        _caughtByLastLight.clear();
         float const base = frand(0.0f, 2.0f * float(M_PI));
         for (uint32 pool = 0; pool < LastLightPools; ++pool)
             _pools.push_back(AtAngle(Center(), base + float(pool) * 2.0f * float(M_PI) / float(LastLightPools),
@@ -2913,13 +3108,23 @@ private:
             bool const sheltered = std::ranges::any_of(_pools, [this, player](Position const& pool)
                 { return player->GetExactDist2d(&pool) <= _poolRadius; });
             if (!sheltered)
+            {
                 player->SendPlaySpellVisual(KIT_SHADOWFURY_HIT);
+                _caughtByLastLight.insert(player->GetGUID());
+            }
             Hit(player, SPELL_LAST_LIGHT, sheltered ? LastLightInsidePct : LastLightOutsidePct, false);
         }
     }
 
     void EndLastLight()
     {
+        std::vector<Player*> sheltered;
+        if (!_pools.empty())
+            for (Player* player : ArenaPlayers())
+                if (!_caughtByLastLight.contains(player->GetGUID()))
+                    sheltered.push_back(player);
+        Reward(sheltered, "last light");
+        _caughtByLastLight.clear();
         _pools.clear();
         HoldDemon(false);
     }
@@ -2935,6 +3140,7 @@ private:
             return;
         Position const source = Ground(demon->GetPosition());
         Sound(SOUND_NIGHTMARE_LANCES);
+        CastBar(demon, CAST_LANCES, LanceMs);
         for (Player* marked : SpreadPick(NonTanks(), LanceMarked))
         {
             float const facing = source.GetAngle(marked);
@@ -2999,8 +3205,11 @@ private:
                 Resolved("Dread Infernal impact", soakers.size() >= 2, Acore::StringFormat("soakers={}",
                          soakers.size()));
                 if (soakers.size() >= 2)
+                {
                     for (Player* player : soakers)
-                        Hit(player, SPELL_INFERNAL, InfernalSharedPct / float(soakers.size()), false);
+                        Hit(player, SPELL_INFERNAL, InfernalSharedPct / float(soakers.size()), IsGroupTank(player));
+                    Reward(DamageDealers(soakers), "infernal impact");
+                }
                 else
                     ++failed;
                 if (Creature* infernal = me->SummonCreature(NPC_INFERNAL, spot, TEMPSUMMON_CORPSE_TIMED_DESPAWN,
@@ -3025,6 +3234,7 @@ private:
         HoldDemon(true);
         demon->SendPlaySpellVisual(KIT_THOUSAND_SOULS);
         demon->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        CastBar(demon, CAST_INHALE, AtTrueForm - AtInhale, true);
         Position const center = Ground(demon->GetPosition());
         uint32 const lasts = AtTrueForm - AtInhale;
         _inhaleCore = Paint(CircleArea(center, InhaleBlastRadius), PAINT_INHALE, lasts,
@@ -3215,7 +3425,7 @@ private:
             if (!carrier)
                 continue;
             guid = ObjectGuid::Empty;
-            light->DespawnOrUnsummon();
+            ShrinkAway(light);
             AddTimedAura(carrier, SPELL_CARRY_LIGHT, PrayerCarryMs);
             carrier->SendPlaySpellVisual(KIT_HOLY_WRATH_HIT);
             ObjectGuid const carrierGuid = carrier->GetGUID();
@@ -3253,7 +3463,7 @@ private:
         Resolved("Aldric's Last Prayer", left == 0, Acore::StringFormat("lights carried={}", _prisonCracks));
         for (ObjectGuid const& guid : _prisonLights)
             if (Creature* light = guid ? me->GetMap()->GetCreature(guid) : nullptr)
-                light->DespawnOrUnsummon();
+                ShrinkAway(light);
         _prisonLights.clear();
         if (demon && VelthazarAI()->_imprisoned)
         {
@@ -3273,6 +3483,7 @@ private:
         if (!demon)
             return;
         Position const center = Ground(demon->GetPosition());
+        CastBar(demon, CAST_CROSSES, CrossWarningMs + (CrossWaves - 1) * CrossWaveMs);
         float const first = frand(0.0f, float(M_PI) / 2.0f);
         for (uint32 wave = 0; wave < CrossWaves; ++wave)
         {
@@ -3311,6 +3522,7 @@ private:
             GroundIndicators::SPELL_SIGIL_AEGIS);
         GroundIndicators::ShowSoak(Caster(), spot, RuinAegisRadius, RuinWarningMs, 10, GroundIndicators::Theme::Holy,
             true);
+        CastBar(demon, CAST_RUIN, RuinWarningMs, true);
         scheduler.Schedule(Milliseconds(RuinWarningMs - 2000), [this](TaskContext)
         {
             if (Creature* demon = Velthazar())
@@ -3484,6 +3696,13 @@ private:
     uint32 _prisonCracks = 0;
     float _poolRadius = 0.0f;
     std::vector<Position> _pools;
+    std::set<ObjectGuid> _caughtByLastLight;
+    struct Exposure
+    {
+        uint32 count = 0;
+        uint32 last = 0;
+    };
+    std::map<std::pair<ObjectGuid, std::string>, Exposure> _exposure;   // a tank's, by mechanic (Expose)   // outside every pool at a pulse of this Last Light: no Fervour
     std::vector<ObjectGuid> _prisonLights;
     GroundIndicators::Area _inhaleCore;
     GroundIndicators::Area _edgeArea;
@@ -3696,8 +3915,22 @@ public:
 };
 }
 
+// A cast bar's length (CastBar), set over whatever its spell's own cast time says (and over haste and slows)
+class HollowVoiceCastBars : public AllSpellScript
+{
+public:
+    HollowVoiceCastBars() : AllSpellScript("HollowVoiceCastBars", { ALLSPELLHOOK_ON_CAST_TIME }) { }
+
+    void OnSpellCastTime(Spell* /*spell*/, Unit* /*caster*/, SpellInfo const* spellInfo, int32& castTime) override
+    {
+        if (PendingCastBarMs && spellInfo->Id >= CAST_LIGHT_OF_DAWN && spellInfo->Id <= CAST_LAST)
+            castTime = int32(PendingCastBarMs);
+    }
+};
+
 void AddHollowVoiceScripts()
 {
+    new HollowVoiceCastBars();
     RegisterCreatureAI(boss_hollow_voice_aldric);
     RegisterCreatureAI(boss_hollow_voice_velthazar);
     RegisterCreatureAI(npc_hollow_voice_infernal);

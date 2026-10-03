@@ -168,6 +168,15 @@ namespace GroundIndicators
     // that names its off-tank keeps the two tanks apart through a taunt (the spot no longer jumps to whichever tank
     // lost the boss a moment).
     void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold = false, Unit* tank = nullptr);
+    // A look's fading twin (its alpha falling to nothing in FadingTwinMs from when it is put on), 0 if it has none: a
+    // fight's own looks turn to it before they go, as the indicators do on their own
+    constexpr uint32 FadingTwinMs = 300;
+    uint32 FadingTwinOf(uint32 look);
+
+    // The tank spot: where the tank owner is hitting should hold it (the middle of a room whose mechanics are laid
+    // around it), slack yards of it. A bot tank further away walks back to it, the boss following; nothing while it
+    // dodges (FindEscape first). Set again while it applies (a boss held still for an intermission has none).
+    void SetTankSpot(Unit* owner, Position const& spot, uint32 durationMs, float slack);
     // Whether owner places its tanks itself (an off-tank spot on show): their own facing of it (mod-playerbots "tank
     // face") would only drag its aimed cones across the group
     bool PlacesTanks(Unit* owner);
