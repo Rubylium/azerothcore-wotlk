@@ -161,8 +161,10 @@ constexpr float LastLightOutsidePct = 30.0f;    // Last Light, every 2 s, out of
 constexpr float LastLightInsidePct = 3.0f;      // ... in one
 constexpr float LancePct = 80.0f;               // Nightmare Lances, on anyone on the line...
 constexpr float LanceMarkedPct = 25.0f;         // ... on the marked
-constexpr float InfernalSharedPct = 150.0f;     // a Dread Infernal's impact, split between its soakers (two or more)...
-constexpr float InfernalFailPct = 50.0f;        // ... fewer: everyone
+// A Dread Infernal's impact, split between its soakers (two or more)... fewer: everyone, for each impact missed. Were
+// 150 and 50: two impacts missed struck the whole raid for a full reference health and killed it.
+constexpr float InfernalSharedPct = 100.0f;
+constexpr float InfernalFailPct = 35.0f;
 constexpr float InhaleVoidPct = 50.0f;          // the void falling while he inhales
 constexpr float InhaleBlastPct = 150.0f;        // the drop, on anyone near him
 constexpr float TrueFormPulsePct = 15.0f;
@@ -3235,8 +3237,10 @@ private:
                  ++attempt)
                 spot = ArenaSpot(12.0f, 24.0f);
             spots.push_back(spot);
-            ShowTower(spot, 0.0f, InfernalRadius, InfernalWarningMs, 2, false, false, PAINT_INFERNAL, PAINT_INFERNAL,
-                false);
+            // A tower to hold, as the Sermon's (its void sigil and its gems, lit as soakers step in): painted as a fire
+            // crash, it read as an area to leave, and two impacts nobody shared struck the whole raid
+            ShowTower(spot, 0.0f, InfernalRadius, InfernalWarningMs, 2, false, false, GroundIndicators::SPELL_SIGIL_VOID,
+                LOOK_SIGIL_VOID_LIT, false);
             GroundIndicators::ShowSoak(Caster(), spot, InfernalRadius, InfernalWarningMs, InfernalSoakersBots,
                 GroundIndicators::Theme::Fire);
             scorches.push_back(PrepareScorch(spot, InfernalRadius * 1.2f, InfernalWarningMs));

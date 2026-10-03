@@ -197,20 +197,20 @@ $spells = @(
 
     # --- Brutalité ------------------------------------------------------------------------------------------------
     @{ Id = 97120; Clone = $strike; Name = 'Fracas'; IconPath = 'Interface\Icons\INV_Mace_69'; FallbackIconSpell = 12294; Cost = 15; Cooldown = 6000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Nécessite d'être enragé. Fracasse l'ennemi : 130% des dégâts de l'arme."
-       Effects = (Strike 40 130); Fields = (Own $flagSmash @{ 20 = 17; 131 = (Look 'Smash') }) },
+       Description = "Nécessite d'être enragé. Fracasse l'ennemi : 163% des dégâts de l'arme."
+       Effects = (Strike 50 163); Fields = (Own $flagSmash @{ 20 = 17; 131 = (Look 'Smash') }) },
     @{ Id = 97121; Clone = $strike; Name = 'Déchaînement'; IconPath = 'Interface\Icons\Ability_Warrior_Rampage'; FallbackIconSpell = 29801; Cost = 20; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Nécessite d'être enragé. Frappe sauvagement l'ennemi : 90% des dégâts de l'arme, et 3 charges de Carnage."
-       Effects = (Strike 20 90); Fields = (Own $flagRampage @{ 20 = 17; 131 = (Look 'Rampage') }) },
+       Description = "Nécessite d'être enragé. Frappe sauvagement l'ennemi : 113% des dégâts de l'arme, et 3 charges de Carnage."
+       Effects = (Strike 25 113); Fields = (Own $flagRampage @{ 20 = 17; 131 = (Look 'Rampage') }) },
     @{ Id = 97122; Clone = $cleave; Name = 'Taille brutale'; IconPath = 'Interface\Icons\INV_Axe_2H_OrcWarrior_C_01'; FallbackIconSpell = 845; Cost = 30; Cooldown = 8000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
        Description = "Frappe l'ennemi et jusqu'à 2 ennemis proches : 190% des dégâts de l'arme."
        Effects = (Strike 20 190); Fields = (Own $flagSwing @{ 28 = 1; 104 = 3; 105 = 3; 131 = (Look 'BrutalSwing') }) },
     @{ Id = 97123; Clone = $strike; Name = 'Écrasement'; IconPath = 'Interface\Icons\Ability_Warrior_Trauma'; FallbackIconSpell = 46968; Cost = 40; Cooldown = 20000; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
-       Description = "Écrase les ennemis dans un cône de 8 m : 300% des dégâts de l'arme, et les étourdit 1,5 s."
+       Description = "Écrase les ennemis dans un cône de 8 m : 375% des dégâts de l'arme, et les étourdit 1,5 s."
        AuraDescription = 'Étourdi.'
        Effects = @(
-           @{ Index = 0; Effect = 121; TargetA = 24; Value = 30 },
-           @{ Index = 1; Effect = 31; TargetA = 24; Value = 300 },
+           @{ Index = 0; Effect = 121; TargetA = 24; Value = 38 },
+           @{ Index = 1; Effect = 31; TargetA = 24; Value = 375 },
            @{ Index = 2; Effect = 6; Aura = 12; TargetA = 24 })
        Fields = (Own $flagCrush @{ 40 = 65; 46 = 1; 85 = 12; 92 = 14; 93 = 14; 94 = 14; 212 = 0; 131 = (Look 'Crush') }) },
     @{ Id = 97124; Clone = $strike; Name = 'Décapitation'; IconPath = 'Interface\Icons\Spell_DeathKnight_Butcher2'; FallbackIconSpell = 5308; Cost = 25; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
@@ -250,7 +250,7 @@ $spells = @(
        Effects = (Strike 30 100); Fields = (Own $flagImpale @{ 131 = (Look 'Impale') }) },
     # Tempête d'acier's blows (mod-barbarian casts one at the target every 0.5 s)
     @{ Id = 97130; Clone = $strike; Name = "Tempête d'acier"; IconPath = 'Interface\Icons\Achievement_Arena_5v5_5'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "30% des dégâts de l'arme."; Effects = (Strike 0 30)
+       Description = "38% des dégâts de l'arme."; Effects = (Strike 0 38)
        Fields = (Own $flagStorm @{ 205 = 0; 206 = 0; 131 = 0 }) },
     # --- Chasseur de têtes: the Barbarian throws its own melee weapon, 30 yd (melee damage class, its weapon's damage)
     @{ Id = 97160; Clone = $strike; Name = "Lancer d'arme"; IconPath = 'Interface\Icons\INV_ThrowingAxe_06'; FallbackIconSpell = 57755; Cost = 30; Cooldown = 0; Level = 0; Spellbook = $true; SkillLine = $skillLine; ClassMask = $classMask
