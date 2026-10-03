@@ -1,4 +1,5 @@
 #include "GroundIndicators.h"
+#include "FightMusic.h"
 #include "MythicDungeonSystem.h"
 #include "MythicTuning.h"
 
@@ -1103,6 +1104,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         {
             SendMusic(player, track);
             _fightListeners.insert(player->GetGUID());
+            FightMusic::Claim(player->GetGUID(), me->GetGUID());
         }
         LOG_INFO("module.hollowvoice", "The Hollow Voice pulled instance={} health={} tier factor={}",
                  me->GetInstanceId(), me->GetMaxHealth(), GetChallengeDamageFactorOf(me));
@@ -1658,9 +1660,11 @@ private:
     {
         if (!_fightListeners.empty())
             LOG_INFO("module.hollowvoice", "hv music ended ({}) at={:.1f}s", soundId, Elapsed() / 1000.0f);
+        // Wherever they are now, unless they went on to another fight's track since (FightMusic.h)
         for (ObjectGuid const& guid : _fightListeners)
-            if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
-                SendMusic(player, soundId);
+            if (FightMusic::Release(guid, me->GetGUID()))
+                if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
+                    SendMusic(player, soundId);
         _fightListeners.clear();
     }
 

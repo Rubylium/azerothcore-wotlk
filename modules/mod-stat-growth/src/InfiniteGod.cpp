@@ -1,4 +1,5 @@
 #include "GroundIndicators.h"
+#include "FightMusic.h"
 #include "MythicDungeonSystem.h"
 #include "MythicTuning.h"
 
@@ -622,6 +623,7 @@ struct boss_infinite_god : public ScriptedAI
         {
             SendMusic(player, MUSIC_FIGHT);
             _fightListeners.insert(player->GetGUID());
+            FightMusic::Claim(player->GetGUID(), me->GetGUID());
         }
         LOG_INFO("module.infinite", "L'Infini pulled instance={} health={} tier factor={}", me->GetInstanceId(),
                  me->GetMaxHealth(), GetChallengeDamageFactorOf(me));
@@ -726,13 +728,14 @@ struct boss_infinite_god : public ScriptedAI
     }
 
     // --- Music, and the game master's commands -----------------------------------------------------------------
-    // What ends the track, to each player it was sent to and still in the instance
-    // Wherever they are now: a wipe's players may be home already, the track still playing for them
+    // What ends the track, to each player it was sent to, wherever they are now (a wipe's players may be home already,
+    // the track still playing for them), unless they went on to another fight's track since (FightMusic.h)
     void EndTrack(uint32 soundId)
     {
         for (ObjectGuid const& guid : _fightListeners)
-            if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
-                SendMusic(player, soundId);
+            if (FightMusic::Release(guid, me->GetGUID()))
+                if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
+                    SendMusic(player, soundId);
         _fightListeners.clear();
     }
 
