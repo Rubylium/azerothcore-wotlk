@@ -14,7 +14,9 @@
 --        368k, 1.50 times it; once held in the middle of the room, with Fervour of the Faithful, the bots dealt the
 --        demon 299-465k (350k), and 171.0 million over his 317 s asks 1.62 times that. (Before: 176.4 million, the
 --        model's 136.7 + 7.5% + 20%, when tanked against the walls the bots dealt him 169k.)
--- 930102 Dread Infernal: an Infernal (89), two crashing down in phase 3, an off-tank holding them: 287 x 13 945 =
+-- 930102 Dread Doomguard: a Doomguard Pillager's look (display 16269) on an Infernal's (89) template, two stepping out
+--        of portals in phase 3, already on the off-tank (they crashed down as infernals once, and their impacts killed
+--        players): 287 x 13 945 =
 --        4 million each, about 11 s of the group for the two.
 -- The Archbishop's static spawn stands where M'uru floats, in every Sunwell (spawn mask 1: its only mode); his script
 -- hides him and removes him from any instance that is not a challenge's, and clears the chamber of its own occupants.
@@ -95,7 +97,7 @@ WHERE `entry` = 10813;
 UPDATE `tmp_stat_growth_hollow_voice` SET
     `entry` = 930102,
     `difficulty_entry_1` = 0,
-    `name` = 'Dread Infernal',
+    `name` = 'Dread Doomguard',
     `subname` = '',
     `minlevel` = 83,
     `maxlevel` = 83,
@@ -126,7 +128,7 @@ INSERT INTO `creature_template_model`
 VALUES
     (930100, 0, 26326, 1.3, 1, NULL),
     (930101, 0, 10691, 1.6, 1, NULL),
-    (930102, 0, 169, 1.3, 1, NULL);
+    (930102, 0, 16269, 1.2, 1, NULL);
 
 INSERT INTO `creature_template_movement`
     (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`)
@@ -138,7 +140,7 @@ VALUES
 INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `VerifiedBuild`) VALUES
     (930100, 'frFR', 'Archevêque Aldric Mantaube', NULL, NULL),
     (930101, 'frFR', 'Vel''thazar', 'La Voix creuse', NULL),
-    (930102, 'frFR', 'Infernal de l''effroi', NULL, NULL);
+    (930102, 'frFR', 'Garde funeste de l''effroi', NULL, NULL);
 
 -- Type 14: yell, lore only (no line announcing a mechanic). TextRange 3: the whole map. The Archbishop never names the
 -- demon: his warning, fallen, in the silence before it tears out, is a frightened man's.

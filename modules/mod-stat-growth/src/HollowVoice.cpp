@@ -161,10 +161,6 @@ constexpr float LastLightOutsidePct = 30.0f;    // Last Light, every 2 s, out of
 constexpr float LastLightInsidePct = 3.0f;      // ... in one
 constexpr float LancePct = 80.0f;               // Nightmare Lances, on anyone on the line...
 constexpr float LanceMarkedPct = 25.0f;         // ... on the marked
-// A Dread Infernal's impact, split between its soakers (two or more)... fewer: everyone, for each impact missed. Were
-// 150 and 50: two impacts missed struck the whole raid for a full reference health and killed it.
-constexpr float InfernalSharedPct = 100.0f;
-constexpr float InfernalFailPct = 35.0f;
 constexpr float InhaleVoidPct = 50.0f;          // the void falling while he inhales
 constexpr float InhaleBlastPct = 150.0f;        // the drop, on anyone near him
 constexpr float TrueFormPulsePct = 15.0f;
@@ -248,8 +244,8 @@ constexpr float LanceLength = 60.0f;
 constexpr float LanceWidth = 4.0f;
 constexpr uint32 InfernalCount = 2;
 constexpr uint32 InfernalWarningMs = 4000;
-constexpr float InfernalRadius = 6.0f;
-constexpr uint32 InfernalSoakersBots = 3;
+// The threat the Dread Doomguards start with on their tank
+constexpr float AddsTankThreat = 1000000.0f;
 constexpr float InhaleBlastRadius = 15.0f;
 constexpr float InhalePullSpeed = 6.0f;
 constexpr float InhaleVoidRadius = 5.0f;
@@ -3225,11 +3221,12 @@ private:
         }
     }
 
-    // Dread Infernals (the 1:43.5 hit): two impacts to share, then two infernals an off-tank holds
+    // Dread Doomguards (on the 1:43.5 hit): two portals open, and two demons step out on the hit, already on the tank
+    // that is not on Vel'thazar (his own when there is none). They crashed down as infernals once, two impacts to
+    // share that killed players when they landed; nothing lands now.
     void DreadInfernals()
     {
         std::vector<Position> spots;
-        std::vector<ObjectGuid> scorches;
         for (uint32 index = 0; index < InfernalCount; ++index)
         {
             Position spot = ArenaSpot(12.0f, 24.0f);
@@ -3237,46 +3234,41 @@ private:
                  ++attempt)
                 spot = ArenaSpot(12.0f, 24.0f);
             spots.push_back(spot);
-            // A tower to hold, as the Sermon's (its void sigil and its gems, lit as soakers step in): painted as a fire
-            // crash, it read as an area to leave, and two impacts nobody shared struck the whole raid
-            ShowTower(spot, 0.0f, InfernalRadius, InfernalWarningMs, 2, false, false, GroundIndicators::SPELL_SIGIL_VOID,
-                LOOK_SIGIL_VOID_LIT, false);
-            GroundIndicators::ShowSoak(Caster(), spot, InfernalRadius, InfernalWarningMs, InfernalSoakersBots,
-                GroundIndicators::Theme::Fire);
-            scorches.push_back(PrepareScorch(spot, InfernalRadius * 1.2f, InfernalWarningMs));
+            // A portal of shadow where each will stand: nothing to soak, nothing to leave
+            GroundIndicators::ShowParticles(me, CircleArea(spot, 4.0f), GroundIndicators::Theme::Shadow,
+                InfernalWarningMs);
         }
         Caster()->SendPlaySpellVisual(KIT_SHADOW_CRASH_CAST);
-        scheduler.Schedule(Milliseconds(InfernalWarningMs), [this, spots, scorches](TaskContext)
+        scheduler.Schedule(Milliseconds(InfernalWarningMs), [this, spots](TaskContext)
         {
-            uint32 failed = 0;
-            Impact(true);
-            for (std::size_t index = 0; index < spots.size(); ++index)
+            Unit* tank = AddsTank();
+            for (Position const& spot : spots)
             {
-                Position const& spot = spots[index];
-                PlayOnGround(spot, KIT_INFERNO_HIT);
-                GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Fire);
-                LandScorch(scorches[index], PAINT_VOID_SCORCH);
-                std::vector<Player*> const soakers = PlayersIn(CircleArea(spot, InfernalRadius));
-                Resolved("Dread Infernal impact", soakers.size() >= 2, Acore::StringFormat("soakers={}",
-                         soakers.size()));
-                if (soakers.size() >= 2)
+                PlayOnGround(spot, KIT_SHADOW_NOVA_HIT);
+                Creature* demon = me->SummonCreature(NPC_INFERNAL, spot, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
+                if (!demon)
+                    continue;
+                demon->SetReactState(REACT_AGGRESSIVE);
+                DoZoneInCombat(demon, ArenaReach);
+                // On the tank from the first moment, with a lead the damage dealers do not pass before it holds them
+                if (tank)
                 {
-                    for (Player* player : soakers)
-                        Hit(player, SPELL_INFERNAL, InfernalSharedPct / float(soakers.size()), IsGroupTank(player));
-                    Reward(DamageDealers(soakers), "infernal impact");
-                }
-                else
-                    ++failed;
-                if (Creature* infernal = me->SummonCreature(NPC_INFERNAL, spot, TEMPSUMMON_CORPSE_TIMED_DESPAWN,
-                    10000))
-                {
-                    infernal->SetReactState(REACT_AGGRESSIVE);
-                    DoZoneInCombat(infernal, ArenaReach);
+                    demon->GetThreatMgr().AddThreat(tank, AddsTankThreat);
+                    demon->AI()->AttackStart(tank);
                 }
             }
-            if (failed)
-                HitEveryone(SPELL_INFERNAL, InfernalFailPct * float(failed));
         });
+    }
+
+    // The tank the Doomguards go for: one of the group's tanks the demon is not hitting, else his own
+    Unit* AddsTank() const
+    {
+        Creature* demon = Velthazar();
+        Unit* main = demon ? demon->GetVictim() : nullptr;
+        for (Player* player : ArenaPlayers())
+            if (player != main && IsGroupTank(player))
+                return player;
+        return main;
     }
 
     // Inhale of the Void (the near silence): he draws everyone in while void falls; on the drop, all near him struck
