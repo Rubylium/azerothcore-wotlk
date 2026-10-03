@@ -1,5 +1,96 @@
 [
   {
+    "Title": "La Voix creuse : le nouveau raid ultime",
+    "Date": "2026-10-03",
+    "Tag": "Raids",
+    "Image": "ruby",
+    "Body": "Au cœur du Puits de soleil, l'archevêque Aldric Dawnmantle cache un démon : Vel'thazar, la Voix creuse. Un combat en deux actes calé sur sa propre musique, avec des mécaniques peintes au sol, des barres d'incantation, des tours à partager, un changement de tank annoncé et la Dernière prière d'Aldric, où chaque joueur doit porter sa lumière jusqu'à l'autel. Ouvert dès un niveau d'objet équipé de 400 depuis le tableau des Défis, où il a sa propre page."
+  },
+  {
+    "Title": "Butin : sets de classe, bonus uniques et infobulles claires",
+    "Date": "2026-10-03",
+    "Tag": "Butin",
+    "Image": "argent",
+    "Body": "La Voix creuse donne de l'équipement de niveau 477, chaque classe dans son propre set du Tombeau de Sargeras. Une pièce sur quatre porte en plus un bonus de la Voix : Ailes du Séraphin, Égide d'Aldric ou Murmure de Vel'thazar, avec son propre effet visuel et un cadre doré dans vos sacs. Les infobulles sont réorganisées : la provenance sous le nom, vos bonus d'équipement en vert avec les effets de l'objet, et les bonus de boss dans un bloc à part."
+  },
+  {
+    "Title": "Des bots dédiés pour vos donjons et vos raids",
+    "Date": "2026-10-03",
+    "Tag": "Bots",
+    "Image": "wintergrasp",
+    "Body": "Les groupes ne prennent plus les bots qui peuplent le monde : des bots dédiés se connectent pour chaque donjon, Mythique+, raid ou Défi, équipés, réparés, temps de recharge prêts, et repartent ensuite. En combat, le bot tank provoque au bon moment pour le changement de tank, les soigneurs posent leurs défensifs de groupe avant les gros dégâts, et plus aucun bot ne charge hors d'une tour qu'il devait tenir."
+  },
+  {
+    "Title": "Équilibrage : toutes les spécialisations au même niveau",
+    "Date": "2026-10-03",
+    "Tag": "Classe",
+    "Image": "malygos",
+    "Body": "Chaque spécialisation offensive a été mesurée sur le terrain d'essai face au Mage Feu, à faible et à haut Parangon, puis ajustée : Ombre et Élémentaire redescendent, les corps-à-corps et le Chasseur Maîtrise des bêtes remontent. Un bug privait de leurs procs de Parangon les alliés au corps-à-corps d'un Barbare Ascendance : Brutalité et Chasseur de têtes retrouvent toute leur puissance. Les bots Oathblade s'équipent enfin d'épées."
+  },
+  {
+    "Title": "Parangon : 20 points pour commencer, le prestige débloque la réserve",
+    "Date": "2026-10-03",
+    "Tag": "Parangon",
+    "Image": "talents",
+    "Body": "Vous débutez avec 20 points de Parangon. Ceux gagnés au-delà sont mis en réserve, et chaque prestige débloque d'un coup tout ce que vous avez accumulé. Les personnages ayant déjà prestigié retrouvent les points de leurs prestiges."
+  },
+  {
+    "Title": "Le Front du Nord s'embrase",
+    "Date": "2026-10-02",
+    "Tag": "Monde",
+    "Image": "wintergrasp",
+    "Body": "Le Norfendre devient un champ de bataille ouvert pour les personnages de niveau 80, en paliers de difficulté. Des élites errantes, des failles arcaniques à refermer vague après vague et des Colosses annoncés dans le canal attendent les groupes, avec des coffres à la clé. Le quartier-maître de Dalaran propose contrats et récompenses."
+  },
+  {
+    "Title": "Défis : de nouveaux boss et l'équipement par palier",
+    "Date": "2026-10-02",
+    "Tag": "Défis",
+    "Image": "icecrown",
+    "Body": "Cinq nouveaux boss de la Citadelle de la Couronne de glace rejoignent le tableau des Défis, et chaque palier au-delà de Défi I donne un équipement plus élevé. Plus besoin de vaincre les boss obligatoires de l'instance avant celui du Défi."
+  },
+  {
+    "Title": "Le Barbare entre dans la mêlée",
+    "Date": "2026-10-01",
+    "Tag": "Nouvelle classe",
+    "Image": "evolution",
+    "Body": "Une nouvelle classe, inspirée d'Ascension : le Barbare. Brutalité frappe fort avec une arme à deux mains, le Chasseur de têtes lance ses haches et ses javelots, et l'Ascendance renforce tout le groupe par ses chants et ses cris. Ses arbres de talents sont illustrés, il est disponible dans la recherche de donjon, et les dégâts qu'il fait faire à ses alliés apparaissent à part dans Details."
+  },
+  {
+    "Title": "Des arbres de talents pour toutes les classes",
+    "Date": "2026-10-01",
+    "Tag": "Talents",
+    "Image": "talents",
+    "Body": "Chevalier de la mort, Paladin, Chasseur, Prêtre, Guerrier, Chaman, Démoniste et Druide passent aux arbres de talents modernes, avec leurs ressources : Puissance sacrée, Focalisation, Folie, Maelström, Fragments d'âme, Puissance astrale. Chaque arbre a ses illustrations, ses builds conseillés monocible et zone, et vos bots savent jouer chaque spécialisation."
+  },
+  {
+    "Title": "Recherche de groupe et Mythique+ font peau neuve",
+    "Date": "2026-09-30",
+    "Tag": "Donjons",
+    "Image": "mythicplus",
+    "Body": "La recherche de groupe adopte le grand format moderne, avec ses boutons Donjons, Raids et Mythique+, et l'onglet Mythique+ affiche la clé dans son cercle de runes. En donjon, rester dans une zone rouge cumule Imprudence, les dégâts ennemis suivent la santé réelle des joueurs, et les bots tanks enchaînent leurs pulls proprement. Les soigneurs bots ne manquent plus de mana."
+  },
+  {
+    "Title": "L'Infini vous attend dans le Planétarium céleste",
+    "Date": "2026-09-29",
+    "Tag": "Défis",
+    "Image": "ulduar",
+    "Body": "Le dieu du tableau des Défis apparaît dans le Planétarium céleste, introduit par une cinématique et porté par sa propre musique. Une seule tentative par palier, des étoiles qui tombent, des lasers, des croix célestes et un vrai test de dégâts. Son équipement est imprégné d'un de ses trois bonus : Égide des astres, Éclat d'étoile filante ou Étincelle d'éternité."
+  },
+  {
+    "Title": "Parangon : le Panthéon et les glyphes",
+    "Date": "2026-09-29",
+    "Tag": "Parangon",
+    "Image": "talents",
+    "Body": "Au-delà de la Transcendance s'ouvre le Panthéon : douze sceaux des Titans à débloquer sous un ciel étoilé, et des glyphes de Parangon à sertir pour renforcer les nœuds autour d'eux. Les essences ont désormais des rendements décroissants, et le bonus d'expérience monte jusqu'à +3000 %."
+  },
+  {
+    "Title": "Le Donjon infini et plus de confort",
+    "Date": "2026-09-28",
+    "Tag": "Serveur",
+    "Image": "raidfinder",
+    "Body": "Le Donjon infini est une échelle sans fin d'étages courts pour un ou deux joueurs, depuis son gardien à Hurlevent : un étage bouclé vite fait sauter les suivants. Côté confort : jusqu'à 50 personnages par royaume, le Voyage rapide utilisable en donjon hors combat, plus besoin de munitions pour les armes à distance, et les sorts de familier du Chasseur appris d'office."
+  },
+  {
     "Title": "Un nouvel écran de connexion et un nouveau launcher",
     "Date": "2026-09-27",
     "Tag": "Serveur",
