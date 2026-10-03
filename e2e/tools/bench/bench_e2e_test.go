@@ -145,6 +145,22 @@ func spawnBots(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, bots, pu
 		}
 	}
 	time.Sleep(10 * time.Second)
+	// Content bots (ContentBotMgr) log in for the bench: `.bench list` names the ones still on their way
+	for deadline := time.Now().Add(90 * time.Second); time.Now().Before(deadline); {
+		start := log.count()
+		bot.GM(t, ".bench list")
+		time.Sleep(2 * time.Second)
+		pending := false
+		for _, line := range log.since(start) {
+			if strings.Contains(line, "logging in") || strings.Contains(line, "en connexion") {
+				pending = true
+			}
+		}
+		if !pending {
+			break
+		}
+		time.Sleep(3 * time.Second)
+	}
 	if pulse != "" {
 		bot.GM(t, ".bench pulse "+pulse)
 		time.Sleep(time.Second)
