@@ -168,7 +168,7 @@ constexpr float TrueFormPulsePct = 15.0f;
 constexpr float EdgePct = 30.0f;                // each second on the devoured edge
 constexpr float SpinSwarmPct = 60.0f;           // a spinning swarm crossing someone (every 1.5 s at most)
 constexpr float PrayerPulsePct = 6.0f;          // Aldric's Last Prayer, every 3 s
-constexpr float PrayerFailPct = 50.0f;          // the prison not broken: everyone, for each light left
+constexpr float PrayerFailPct = 1000.0f;        // the prison not broken by the end: everyone, dead
 constexpr float SermonSharedPct = 130.0f;       // a void tower of the Hollow Sermon, split...
 constexpr float SermonFailPct = 50.0f;          // ... held by fewer than two: everyone, for each
 constexpr float VoidCrossPct = 70.0f;
@@ -271,10 +271,12 @@ constexpr uint32 SpinSwarmStackMs = 6000;
 constexpr float SpinSwarmStackPct = 50.0f;
 constexpr uint32 SPELL_SWARM_BITES = 94044;
 constexpr uint32 LaserTickMs = 100;
-constexpr uint32 PrayerLights = 4;
+// Aldric's Last Prayer: a light for each player, around the chamber; each carries one into the altar at the demon's
+// feet, and the prison breaks once every player still standing has. Not broken by the end, the group dies.
 constexpr float PrayerLightDistance = 24.0f;
 constexpr float PrayerLightRadius = 3.0f;
-constexpr uint32 PrayerCarryMs = 2500;          // a light picked up reaches the demon this long after
+constexpr float PrayerAltarRadius = 7.0f;       // a carried light is laid within this of him
+constexpr uint32 SPELL_PRISON_SHIELD = 642;     // Divine Shield's golden dome on him: the prison, seen from anywhere
 // Fervour of the Faithful: a mechanic that sends players away from the boss (a tower, a shared impact, a carried
 // whisper, the shelter of Last Light), done right, gives those who did it +40% damage and healing this long - what
 // a melee player loses walking out and back, about given back
@@ -1522,10 +1524,12 @@ private:
         _seraphim = false;
         _windup = false;
         _edge = false;
-        _prisonCracks = 0;
         _prisonLights.clear();
         _prisonSigils.clear();
         _prisonSpots.clear();
+        _prisonCarried.clear();
+        _prisonLaid.clear();
+        _prisonAltar.Clear();
         _towers.clear();
         _condemned.clear();
         _brand.clear();
@@ -3472,8 +3476,11 @@ private:
         scheduler.Schedule(Milliseconds(SpinSwarmMs + 100), [this](TaskContext) { EndWindup(); });
     }
 
-    // Aldric's Last Prayer (the quiet verse): the demon imprisoned; four lights of the Archbishop's in the chamber,
-    // each picked up and carried into him cracks the prison and blesses its carrier
+    // Aldric's Last Prayer (the quiet verse): the demon imprisoned in the Archbishop's light (a golden dome on him), an
+    // altar of light at his feet, and a light for each player around the chamber. Each player picks one up (one each:
+    // the whole group takes part) and carries it into the altar; once every player standing has laid theirs the prison
+    // breaks and he fights on, the carriers blessed. Not broken by the prayer's end, the void kills the group: the
+    // first time a group sees it, it likely wipes.
     void StartLastPrayer()
     {
         Creature* demon = Velthazar();
@@ -3484,27 +3491,30 @@ private:
         VelthazarAI()->_imprisoned = true;
         Sound(SOUND_ABSOLUTION);
         demon->SendPlaySpellVisual(KIT_HOLY_WRATH_CAST);
+        uint32 const lasts = AtLastPrayerEnd - AtLastPrayer;
+        if (Aura* dome = demon->AddAura(SPELL_PRISON_SHIELD, demon))
+        {
+            dome->SetMaxDuration(int32(lasts));
+            dome->SetDuration(int32(lasts));
+        }
         if (sSpellMgr->GetSpellInfo(SPELL_PRISON_AURA))
             demon->AddAura(SPELL_PRISON_AURA, demon);
-        _prisonCracks = 0;
-        _prisonLights.clear();
-        _prisonSigils.clear();
-        _prisonSpots.clear();
-        uint32 const lasts = AtLastPrayerEnd - AtLastPrayer;
+        ClearPrayer();
+        Creature* altar = Look(Ground(demon->GetPosition()), 0.0f, PrayerAltarRadius, lasts,
+            GroundIndicators::SPELL_SIGIL_AEGIS);
+        _prisonAltar = altar ? altar->GetGUID() : ObjectGuid::Empty;
+
+        std::size_t const count = std::max<std::size_t>(1, ArenaPlayers().size());
         float const base = frand(0.0f, 2.0f * float(M_PI));
-        for (uint32 index = 0; index < PrayerLights; ++index)
+        for (std::size_t index = 0; index < count; ++index)
         {
-            Position const spot = AtAngle(Center(), base + float(index) * 2.0f * float(M_PI) / float(PrayerLights),
+            Position const spot = AtAngle(Center(), base + float(index) * 2.0f * float(M_PI) / float(count),
                 PrayerLightDistance);
             Creature* light = FxStalker(spot, lasts, NPC_HOVER_STALKER);
             if (!light)
                 continue;
             light->AddAura(SPELL_LIGHT_FX, light);
-            // The light's sigil and its soak go with it when it is taken (a decal and the soak's particles stayed
-            // the whole prayer: a smaller tower came back where each light had been)
             Creature* sigil = Look(spot, 0.0f, PrayerLightRadius, lasts, GroundIndicators::SPELL_SIGIL_AEGIS);
-            GroundIndicators::ShowSoak(Caster(), spot, PrayerLightRadius, lasts, 1, GroundIndicators::Theme::Holy,
-                false, false);
             _prisonLights.push_back(light->GetGUID());
             _prisonSigils.push_back(sigil ? sigil->GetGUID() : ObjectGuid::Empty);
             _prisonSpots.push_back(spot);
@@ -3513,56 +3523,140 @@ private:
             scheduler.Schedule(Milliseconds(at), [this](TaskContext) { UpdatePrayerLights(); });
     }
 
-    // A light with a player on it is picked up; it reaches the demon PrayerCarryMs later
+    // Every quarter second: lights picked up (a player not carrying one and who has not laid one yet steps into it;
+    // the light follows them), lights laid in the altar, the prison broken once every player standing has laid one,
+    // and each bot sent to a light of its own, then to the altar
     void UpdatePrayerLights()
     {
+        Creature* demon = Velthazar();
+        if (!demon || !VelthazarAI()->_imprisoned)
+            return;
+        Position const altar = Ground(demon->GetPosition());
+        std::vector<Player*> const players = ArenaPlayers();
+
         for (std::size_t index = 0; index < _prisonLights.size(); ++index)
         {
-            ObjectGuid& guid = _prisonLights[index];
-            Creature* light = guid ? me->GetMap()->GetCreature(guid) : nullptr;
+            Creature* light = _prisonLights[index] ? me->GetMap()->GetCreature(_prisonLights[index]) : nullptr;
             if (!light)
                 continue;
-            Player* carrier = nullptr;
-            for (Player* player : ArenaPlayers())
-                if (player->GetExactDist2d(light) <= PrayerLightRadius)
-                {
-                    carrier = player;
-                    break;
-                }
-            if (!carrier)
-                continue;
-            guid = ObjectGuid::Empty;
-            ShrinkAway(light);
-            TakePrayerLight(index);
-            AddTimedAura(carrier, SPELL_CARRY_LIGHT, PrayerCarryMs);
-            carrier->SendPlaySpellVisual(KIT_HOLY_WRATH_HIT);
-            ObjectGuid const carrierGuid = carrier->GetGUID();
-            scheduler.Schedule(Milliseconds(PrayerCarryMs), [this, carrierGuid](TaskContext)
+            for (Player* player : players)
             {
-                Creature* demon = Velthazar();
-                if (!demon || !VelthazarAI()->_imprisoned)
-                    return;
-                demon->SendPlaySpellVisual(KIT_HOLY_WRATH_HIT);
-                if (Player* carrier = ObjectAccessor::GetPlayer(*me, carrierGuid))
-                    if (carrier->IsAlive())
-                        AddTimedAura(carrier, SPELL_BLESSING, 20000);
-                if (++_prisonCracks >= PrayerLights)
-                    BreakPrison();
+                if (_prisonCarried.contains(player->GetGUID()) || _prisonLaid.contains(player->GetGUID()) ||
+                    player->GetExactDist2d(&_prisonSpots[index]) > PrayerLightRadius)
+                    continue;
+                _prisonCarried[player->GetGUID()] = light->GetGUID();
+                _prisonLights[index] = ObjectGuid::Empty;
+                FadePrayerSigil(index);
+                // The stalker walks at a stalker's pace: run, and fast, to keep over its carrier
+                light->SetWalk(false);
+                light->SetSpeed(MOVE_RUN, 3.0f);
+                light->SetSpeed(MOVE_FLIGHT, 3.0f);
+                light->GetMotionMaster()->MoveFollow(player, 0.5f, 0.0f);
+                AddTimedAura(player, SPELL_CARRY_LIGHT, AtLastPrayerEnd - AtLastPrayer);
+                player->SendPlaySpellVisual(KIT_HOLY_WRATH_HIT);
+                break;
+            }
+        }
+
+        for (auto itr = _prisonCarried.begin(); itr != _prisonCarried.end();)
+        {
+            Player* carrier = ObjectAccessor::GetPlayer(*me, itr->first);
+            Creature* light = me->GetMap()->GetCreature(itr->second);
+            // A carrier fallen: the light goes out with them
+            if (!carrier || !carrier->IsAlive())
+            {
+                ShrinkAway(light);
+                itr = _prisonCarried.erase(itr);
+                continue;
+            }
+            if (carrier->GetExactDist2d(&altar) > PrayerAltarRadius)
+            {
+                ++itr;
+                continue;
+            }
+            ShrinkAway(light);
+            carrier->RemoveAurasDueToSpell(SPELL_CARRY_LIGHT);
+            AddTimedAura(carrier, SPELL_BLESSING, 20000);
+            demon->SendPlaySpellVisual(KIT_HOLY_WRATH_HIT);
+            _prisonLaid.insert(itr->first);
+            itr = _prisonCarried.erase(itr);
+        }
+
+        bool const broken = !players.empty() && std::ranges::all_of(players, [this](Player* player)
+            {
+                return _prisonLaid.contains(player->GetGUID());
             });
+        if (broken)
+        {
+            Resolved("Aldric's Last Prayer", true, Acore::StringFormat("lights laid={}", _prisonLaid.size()));
+            BreakPrison();
+            return;
+        }
+
+        // The bots: the one carrying to the altar, the others to the nearest light no other bot is going to
+        std::set<std::size_t> claimed;
+        for (Player* player : players)
+        {
+            if (!player->GetSession() || !player->GetSession()->IsBot())
+                continue;
+            if (_prisonLaid.contains(player->GetGUID()))
+            {
+                GroundIndicators::EndUnitSpot(Caster(), player);
+                continue;
+            }
+            if (_prisonCarried.contains(player->GetGUID()))
+            {
+                GroundIndicators::SetUnitSpot(Caster(), player, altar, PrayerAltarRadius - 2.0f, 1000);
+                continue;
+            }
+            std::size_t best = _prisonLights.size();
+            for (std::size_t index = 0; index < _prisonLights.size(); ++index)
+                if (_prisonLights[index] && !claimed.contains(index) && (best == _prisonLights.size() ||
+                    player->GetExactDist2d(&_prisonSpots[index]) < player->GetExactDist2d(&_prisonSpots[best])))
+                    best = index;
+            if (best == _prisonLights.size())
+                continue;
+            claimed.insert(best);
+            GroundIndicators::SetUnitSpot(Caster(), player, _prisonSpots[best], PrayerLightRadius - 1.0f, 1000);
         }
     }
 
-    // A light's sigil faded out and its soak ended, as it is taken or the prayer ends
-    void TakePrayerLight(std::size_t index)
+    // A light's sigil faded out as it is taken
+    void FadePrayerSigil(std::size_t index)
     {
-        if (index < _prisonSigils.size())
+        if (index >= _prisonSigils.size())
+            return;
+        if (Creature* sigil = _prisonSigils[index] ? me->GetMap()->GetCreature(_prisonSigils[index]) : nullptr)
+            FadeLook(sigil);
+        _prisonSigils[index] = ObjectGuid::Empty;
+    }
+
+    // Everything of the prayer taken off the floor and the players: the lights left, the sigils, the altar, the bots'
+    // spots, the carried lights
+    void ClearPrayer()
+    {
+        for (std::size_t index = 0; index < _prisonLights.size(); ++index)
         {
-            if (Creature* sigil = _prisonSigils[index] ? me->GetMap()->GetCreature(_prisonSigils[index]) : nullptr)
-                FadeLook(sigil);
-            _prisonSigils[index] = ObjectGuid::Empty;
+            if (Creature* light = _prisonLights[index] ? me->GetMap()->GetCreature(_prisonLights[index]) : nullptr)
+                ShrinkAway(light);
+            FadePrayerSigil(index);
         }
-        if (index < _prisonSpots.size())
-            GroundIndicators::EndSoak(Caster(), _prisonSpots[index]);
+        for (auto const& [carrierGuid, lightGuid] : _prisonCarried)
+        {
+            ShrinkAway(me->GetMap()->GetCreature(lightGuid));
+            if (Player* carrier = ObjectAccessor::GetPlayer(*me, carrierGuid))
+                carrier->RemoveAurasDueToSpell(SPELL_CARRY_LIGHT);
+        }
+        if (Creature* altar = _prisonAltar ? me->GetMap()->GetCreature(_prisonAltar) : nullptr)
+            FadeLook(altar);
+        for (Player* player : ArenaPlayers())
+            GroundIndicators::EndUnitSpot(Caster(), player);
+        _prisonLights.clear();
+        _prisonSigils.clear();
+        _prisonSpots.clear();
+        _prisonCarried.clear();
+        _prisonLaid.clear();
+        _prisonAltar.Clear();
     }
 
     // A look (Look) faded out now rather than at its end: its fading twin, then gone
@@ -3573,21 +3667,24 @@ private:
         for (auto const& [auraId, application] : stalker->GetAppliedAuras())
             if (uint32 const twin = GroundIndicators::FadingTwinOf(auraId))
             {
-                stalker->RemoveAurasDueToSpell(auraId);
+                uint32 const shown = auraId;
+                stalker->RemoveAurasDueToSpell(shown);
                 stalker->AddAura(twin, stalker);
                 break;
             }
         stalker->DespawnOrUnsummon(Milliseconds(GroundIndicators::FadingTwinMs));
     }
 
-    // The prison broken before the climax: he fights on, the lights' carriers blessed
+    // The prison broken: he fights on
     void BreakPrison()
     {
         Creature* demon = Velthazar();
+        ClearPrayer();
         if (!demon)
             return;
         VelthazarAI()->_imprisoned = false;
         demon->RemoveAurasDueToSpell(SPELL_PRISON_AURA);
+        demon->RemoveAurasDueToSpell(SPELL_PRISON_SHIELD);
         GroundIndicators::Burst(me, Ground(demon->GetPosition()), GroundIndicators::Theme::Holy);
         HoldDemon(false);
     }
@@ -3595,26 +3692,31 @@ private:
     void EndLastPrayer()
     {
         Creature* demon = Velthazar();
-        uint32 const left = PrayerLights - std::min(_prisonCracks, PrayerLights);
-        Resolved("Aldric's Last Prayer", left == 0, Acore::StringFormat("lights carried={}", _prisonCracks));
-        for (std::size_t index = 0; index < _prisonLights.size(); ++index)
+        if (!demon || !VelthazarAI()->_imprisoned)
+            return;
+        // Not broken: the void bursts out of the prison, and the group dies. Who had not laid theirs, and where
+        std::string missing;
+        Position const altar = Ground(demon->GetPosition());
+        for (Player* player : ArenaPlayers())
         {
-            if (Creature* light = _prisonLights[index] ? me->GetMap()->GetCreature(_prisonLights[index]) : nullptr)
-                ShrinkAway(light);
-            TakePrayerLight(index);
+            if (_prisonLaid.contains(player->GetGUID()))
+                continue;
+            float nearest = 999.0f;
+            for (std::size_t index = 0; index < _prisonLights.size(); ++index)
+                if (_prisonLights[index])
+                    nearest = std::min(nearest, player->GetExactDist2d(&_prisonSpots[index]));
+            missing += Acore::StringFormat(" {}({}{}altar {:.0f} light {:.0f})", player->GetName(),
+                IsGroupTank(player) ? "tank " : "", _prisonCarried.contains(player->GetGUID()) ? "carrying " : "",
+                player->GetExactDist2d(&altar), nearest);
         }
-        _prisonLights.clear();
-        _prisonSigils.clear();
-        _prisonSpots.clear();
-        if (demon && VelthazarAI()->_imprisoned)
-        {
-            // Not broken: the void bursts out, once for each light left
-            Sound(SOUND_VOICE_OF_RUIN);
-            Impact(true);
-            demon->SendPlaySpellVisual(KIT_SHADOW_NOVA_CAST);
-            HitEveryone(SPELL_HOLLOW_PULSE, PrayerFailPct * float(left));
-            BreakPrison();
-        }
+        Resolved("Aldric's Last Prayer", false, Acore::StringFormat("lights laid={} of {}, missing:{}",
+            _prisonLaid.size(), _prisonLaid.size() + std::count_if(missing.begin(), missing.end(),
+                [](char c) { return c == '('; }), missing));
+        Sound(SOUND_VOICE_OF_RUIN);
+        Impact(true);
+        demon->SendPlaySpellVisual(KIT_SHADOW_NOVA_CAST);
+        HitEveryone(SPELL_HOLLOW_PULSE, PrayerFailPct);
+        BreakPrison();
     }
 
     // Crosses of void through where he stands, two waves, the second turned 45 degrees
@@ -3837,7 +3939,6 @@ private:
     uint32 _blasts = 0;
     uint32 _nextPulseMs = 0;
     uint32 _lastKillYellMs = 0;
-    uint32 _prisonCracks = 0;
     float _poolRadius = 0.0f;
     std::vector<Position> _pools;
     std::set<ObjectGuid> _caughtByLastLight;
@@ -3847,9 +3948,12 @@ private:
         uint32 last = 0;
     };
     std::map<std::pair<ObjectGuid, std::string>, Exposure> _exposure;   // a tank's, by mechanic (Expose)   // outside every pool at a pulse of this Last Light: no Fervour
-    std::vector<ObjectGuid> _prisonLights;
+    std::vector<ObjectGuid> _prisonLights;      // the lights still waiting (Empty once taken)
     std::vector<ObjectGuid> _prisonSigils;      // each light's sigil (Look), faded as it is taken
     std::vector<Position> _prisonSpots;
+    std::map<ObjectGuid, ObjectGuid> _prisonCarried;    // carrier -> the light following them
+    std::set<ObjectGuid> _prisonLaid;           // the players who laid theirs in the altar
+    ObjectGuid _prisonAltar;
     GroundIndicators::Area _inhaleCore;
     GroundIndicators::Area _edgeArea;
     std::set<ObjectGuid> _fightListeners;

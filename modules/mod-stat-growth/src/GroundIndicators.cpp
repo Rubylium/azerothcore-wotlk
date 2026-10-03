@@ -1077,7 +1077,8 @@ struct Goal
         Soak,
         OffTank,
         Tank,                                   // the spot of the tank the owner is hitting (SetTankSpot)
-        Holder                                  // the tank to hold the owner (SetBossHolder)
+        Holder,                                 // the tank to hold the owner (SetBossHolder)
+        Unit                                    // a spot for one unit (SetUnitSpot), named in `tank`
     };
 
     Kind kind = Kind::Soak;
@@ -1826,6 +1827,39 @@ void ShowSoak(Unit* owner, Position const& center, float radius, uint32 duration
         ShowParticles(owner, MakeArea(Area::Kind::Circle, center, 0.0f, radius), theme, durationMs);
 }
 
+void SetUnitSpot(Unit* owner, Unit* unit, Position const& spot, float radius, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || !unit || durationMs == 0)
+        return;
+
+    Goal goal;
+    goal.kind = Goal::Kind::Unit;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = spot;
+    goal.radius = radius;
+    goal.tank = unit->GetGUID();
+    goal.endMs = NowMs() + durationMs;
+    std::lock_guard<std::mutex> guard(GoalLock);
+    Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [&goal](Goal const& entry)
+        {
+            return entry.kind == Goal::Kind::Unit && entry.owner == goal.owner && entry.tank == goal.tank;
+        }), Goals.end());
+    Goals.push_back(goal);
+}
+
+void EndUnitSpot(Unit* owner, Unit* unit)
+{
+    if (!owner || !unit)
+        return;
+    std::lock_guard<std::mutex> guard(GoalLock);
+    Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [owner, unit](Goal const& goal)
+        {
+            return goal.kind == Goal::Kind::Unit && goal.owner == owner->GetGUID() && goal.tank == unit->GetGUID();
+        }), Goals.end());
+}
+
 void EndSoak(Unit* owner, Position const& center)
 {
     if (!owner)
@@ -1942,6 +1976,15 @@ bool FindGoal(Unit* unit, Position& spot, bool tank)
         Unit* owner = ObjectAccessor::GetUnit(*unit, goal.owner);
         if (!owner || !owner->IsAlive())
             continue;
+
+        // A spot of its own comes first: a fight that names one for a bot needs it there whatever its role
+        if (goal.kind == Goal::Kind::Unit)
+        {
+            if (goal.tank != unit->GetGUID() || unit->GetExactDist2d(&goal.center) <= goal.radius)
+                continue;
+            spot = goal.center;
+            return true;
+        }
 
         if (goal.kind == Goal::Kind::OffTank)
         {
