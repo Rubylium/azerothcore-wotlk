@@ -24,6 +24,9 @@
 #include "Random.h"
 #include "ParagonSystem.h"
 #include "Player.h"
+#include "PowerScaling.h"
+#include "StatGrowthSystem.h"
+#include "VitalityBoostSystem.h"
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
@@ -1094,9 +1097,11 @@ public:
         return commands;
     }
 
-    // .testprofile <item level|infini> [paragon]: the selected player (or yourself) in a full set of that item level
-    // and with the paragon the game expects at it (TestProfileParagon), unless given. "infini": L'Infini's own gear at
-    // its cap (460), touched by it, with the Hollow Voice's 650.
+    // .testprofile <item level|infini> [paragon]: the selected player (or yourself) in a full set of that item level,
+    // with the paragon the game expects at it (TestProfileParagon), unless given, and the essences that progress
+    // comes with (the power model's player, PowerScaling.h: EssenceGrowthPerKey of each stat and
+    // EssenceVitalityPerKey Vitality a key of ProgressKeys; never lowered). "infini": L'Infini's own gear at its cap
+    // (460), touched by it, with the Hollow Voice's 650.
     static bool HandleTestProfile(ChatHandler* handler, std::string profile, Optional<uint32> paragon)
     {
         Player* player = handler->getSelectedPlayerOrSelf();
@@ -1129,9 +1134,22 @@ public:
 
         uint32 const equipped = EquipTestGear(player, itemLevel, infinite);
         bool const boarded = SetParagonForTest(player, points);
-        handler->PSendSysMessage("{}: {} slots in item level {}{} gear, paragon {} ({}).", player->GetName(),
-            equipped, itemLevel, infinite ? " L'Infini" : "", points,
-            boarded ? "board spent as a bot of that role would" : "board unchanged");
+
+        // The essences of that progress
+        float const keys = Power::ProgressKeys(float(itemLevel));
+        uint32 const growth = uint32(Power::EssenceGrowthPerKey * keys + 0.5f);
+        uint32 const vitality = uint32(Power::EssenceVitalityPerKey * keys + 0.5f);
+        RaiseStatGrowthTo(player, growth);
+        uint32 const storedVitality = GetStoredVitalityPoints(player);
+        uint32 vitalityTotal = 0;
+        if (storedVitality < vitality)
+            GrantVitalityBoost(player, vitality - storedVitality, vitalityTotal);
+        player->UpdateAllStats();
+
+        handler->PSendSysMessage("{}: {} slots in item level {}{} gear, paragon {} ({}), essences of {:.0f} keys: {} "
+            "Growth a stat, {} Vitality (at least).", player->GetName(), equipped, itemLevel,
+            infinite ? " L'Infini" : "", points, boarded ? "board spent as a bot of that role would" : "board unchanged",
+            keys, growth, vitality);
         return true;
     }
 };

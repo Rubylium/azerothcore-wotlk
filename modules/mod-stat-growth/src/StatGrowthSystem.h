@@ -33,6 +33,9 @@ uint32 GetStoredStatGrowthTotal(Player* player);
 uint32 GetStoredStatGrowth(Player* player, PermanentStat stat);
 uint32 GetEffectiveStatGrowthTotal(Player* player);
 bool GrantRandomStatGrowth(Player* player, uint32 amount, std::string_view& statName);
+// For testing (.testprofile): every stat the class's Essences of Growth give brought up to that many saved points
+// (never down). Returns the points added.
+uint32 RaiseStatGrowthTo(Player* player, uint32 points);
 void TryAddStatGrowthLoot(Player* player, Creature* killed);
 
 #endif

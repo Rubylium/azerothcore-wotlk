@@ -232,6 +232,26 @@ bool GrantRandomStatGrowth(Player* player, uint32 amount, std::string_view& stat
     return true;
 }
 
+uint32 RaiseStatGrowthTo(Player* player, uint32 points)
+{
+    uint32 added = 0;
+    for (PermanentStat stat : GetClassStats(player->getClass()))
+    {
+        uint32 const stored = GetStoredStatGrowth(player, stat);
+        if (stored >= points)
+            continue;
+        uint32 const before = EssenceTuning::Diminished(stored, EssenceTuning::GrowthCeiling);
+        if (!SaveStatGrowth(player, stat, points - stored))
+            continue;
+        uint32 const after = EssenceTuning::Diminished(GetStoredStatGrowth(player, stat),
+            EssenceTuning::GrowthCeiling);
+        if (after > before)
+            ApplyStatGrowth(player, stat, after - before);
+        added += points - stored;
+    }
+    return added;
+}
+
 void TryAddStatGrowthLoot(Player* player, Creature* killed)
 {
     if (!statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::Enabled) || !player || !killed)
