@@ -459,11 +459,21 @@ class OathbladePlayerScript : public PlayerScript
 {
 public:
     OathbladePlayerScript() : PlayerScript("OathbladePlayerScript", {
-        PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LEVEL_CHANGED
+        PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LEVEL_CHANGED, PLAYERHOOK_ON_PLAYER_ENTER_COMBAT
     }) { }
 
     void OnPlayerLogin(Player* player) override
     {
+        RestoreEquipmentTraining(player);
+        LearnUnlockedAbilities(player);
+    }
+
+    // A bot re-rolled at its own level (PlayerbotFactory::Randomize) loses every spell and gets no level change: a
+    // level 80 bench bot fought with its sword alone. Its kit comes back as it starts a fight.
+    void OnPlayerEnterCombat(Player* player, Unit* /*enemy*/) override
+    {
+        if (!IsOathblade(player))
+            return;
         RestoreEquipmentTraining(player);
         LearnUnlockedAbilities(player);
     }
