@@ -236,6 +236,10 @@ constexpr uint32 SwarmWarningMs = 2500;
 // degrees: 300 of the circle, one place left), and the warning a little longer a cone to reach the gap
 constexpr std::array<uint32, 9> SwarmCones = { 1, 1, 2, 2, 3, 3, 4, 5, 6 };
 constexpr uint32 SwarmWarningPerConeMs = 600;
+// Between its cones, a gap is none (side by side) or at least this wide (degrees): a place to stand in
+constexpr float SwarmMinGap = 25.0f;
+// Inhale of the Void: the spiral at his feet turns once in this long
+constexpr uint32 InhaleSpinMs = 3000;
 constexpr uint32 WhisperCarriers = 3;
 constexpr uint32 WhisperMs = 6000;
 constexpr float WhisperRadius = 8.0f;
@@ -1083,6 +1087,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         DoZoneInCombat(me, ArenaReach);
         _pullMs = getMSTime();
         _phase = Phase::Aldric;
+        _aldricHealth = me->GetMaxHealth();
         _stats.clear();
         _timeline = BuildTimeline();
         _next = 0;
@@ -1094,6 +1099,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
             _revealArmed = false;
             _pullMs -= RevealTestStartMs;
             me->SetHealth(HoldHealth());
+            _aldricHealth = HoldHealth();
             track = MUSIC_FIGHT_FROM_REVEAL;
             while (_next < _timeline.size() && _timeline[_next].at <= RevealTestStartMs)
             {
@@ -1186,12 +1192,24 @@ struct boss_hollow_voice_aldric : public ScriptedAI
             if (!_absolutionShield)
                 BreakAbsolution();
         }
+        // His true health takes the hit (down to 1%); what is shown never goes under the pace (ShownHealth)
         uint32 const floor = HoldHealth();
+        _aldricHealth = _aldricHealth > uint64(floor) + damage ? _aldricHealth - damage : floor;
         uint32 const health = uint32(me->GetHealth());
-        if (health <= floor)
-            damage = 0;
-        else if (damage >= health - floor)
-            damage = health - floor;
+        uint32 const shown = ShownHealth();
+        damage = health > shown ? health - shown : 0;
+    }
+
+    // A group ahead of the fight sees the Archbishop's health come down at the fight's pace and reach 1% on the
+    // verdict (1:57.5), rather than stand at 1% for half the phase: what is shown is his true health, or the pace -
+    // from full at the pull to 1% at the verdict, straight - when that is higher. The verdict reads his true health.
+    uint32 ShownHealth() const
+    {
+        uint64 const max = me->GetMaxHealth();
+        uint64 const floor = HoldHealth();
+        uint32 const elapsed = std::min(Elapsed(), AtLastRites);
+        uint64 const pace = floor + (max - floor) * uint64(AtLastRites - elapsed) / AtLastRites;
+        return uint32(std::max<uint64>(_aldricHealth, pace));
     }
 
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType type, SpellSchoolMask /*mask*/) override
@@ -1784,17 +1802,23 @@ private:
     {
         Impact();
         uint32 const warning = hitLook - 1;
+        if (Creature* stalker = FindPainted(area, warning))
+        {
+            stalker->RemoveAurasDueToSpell(warning);
+            stalker->AddAura(hitLook, stalker);
+        }
+    }
+
+    // A painted area's carrier, by place, look and size: the Pulpit's rings share a middle, two of them a look
+    Creature* FindPainted(GroundIndicators::Area const& area, uint32 look) const
+    {
         std::list<Creature*> stalkers;
         me->GetCreatureListWithEntryInGrid(stalkers, NPC_STALKER, 60.0f);
         for (Creature* stalker : stalkers)
-            // By place, look and size: the Pulpit's rings share a middle, two of them a look
-            if (stalker->HasAura(warning) && stalker->GetExactDist2d(&area.origin) < 0.5f &&
+            if (stalker->HasAura(look) && stalker->GetExactDist2d(&area.origin) < 0.5f &&
                 std::fabs(stalker->GetObjectScale() - area.radius) < 0.05f)
-            {
-                stalker->RemoveAurasDueToSpell(warning);
-                stalker->AddAura(hitLook, stalker);
-                return;
-            }
+                return stalker;
+        return nullptr;
     }
 
     // A cone's two edges, their light standing up from the floor (EDGE_*: built to the cones' 40 yards, never scaled),
@@ -2252,7 +2276,10 @@ private:
     void UpdateClock(bool skipping)
     {
         uint32 const elapsed = Elapsed();
-        if (_phase == Phase::Aldric && elapsed >= AtLastRites && me->GetHealth() > HoldHealth())
+        // The shown health follows the pace down between hits (ShownHealth)
+        if (_phase == Phase::Aldric && me->IsAlive() && me->GetHealth() > ShownHealth())
+            me->SetHealth(ShownHealth());
+        if (_phase == Phase::Aldric && elapsed >= AtLastRites && _aldricHealth > HoldHealth())
             LastRites();
         if (_phase == Phase::Aldric && elapsed >= AtFall)
             Judge();
@@ -2974,7 +3001,7 @@ private:
     // ended it: this is a safeguard)
     void Judge()
     {
-        if (me->GetHealth() > HoldHealth())
+        if (_aldricHealth > HoldHealth())
         {
             LastRites();
             return;
@@ -3086,6 +3113,38 @@ private:
     }
 
     // Carrion Swarm: a cone of swarming void at someone who is no tank
+    // The Carrion Swarm's cones: the first at its target, the others round the circle after it. Between two cones a
+    // gap is none or at least SwarmMinGap wide; how many gaps open, and how wide, drawn each cast: one gap, the cones
+    // side by side (a fan to follow); more, the cones spread round him. Six cones (300 degrees) leave one place or two.
+    static std::vector<float> SwarmFacings(float facing, uint32 cones)
+    {
+        float const free = 360.0f - SwarmArc * float(cones);
+        uint32 const fits = std::max<uint32>(1, std::min<uint32>(cones, uint32(free / SwarmMinGap)));
+        uint32 const open = urand(1, fits);
+        std::vector<uint32> slots(cones);
+        for (uint32 index = 0; index < cones; ++index)
+            slots[index] = index;
+        Acore::Containers::RandomShuffle(slots);
+        // Each open gap its minimum, the rest shared out at random
+        std::vector<float> weights(open);
+        float total = 0.0f;
+        for (float& weight : weights)
+            total += (weight = frand(0.1f, 1.0f));
+        std::vector<float> gaps(cones, 0.0f);
+        float const spare = free - SwarmMinGap * float(open);
+        for (uint32 index = 0; index < open; ++index)
+            gaps[slots[index]] = SwarmMinGap + spare * weights[index] / total;
+
+        std::vector<float> facings;
+        float at = facing;
+        for (uint32 cone = 0; cone < cones; ++cone)
+        {
+            facings.push_back(Position::NormalizeOrientation(at));
+            at += (SwarmArc + gaps[cone]) * float(M_PI) / 180.0f;
+        }
+        return facings;
+    }
+
     void CarrionSwarm()
     {
         Creature* demon = Velthazar();
@@ -3100,13 +3159,10 @@ private:
         BeginWindup(facing);
         CastBar(demon, CAST_CARRION, warning);
         demon->SendPlaySpellVisual(KIT_CARRION_CAST);
-        // The first at someone, the next ones on either side of it in turn
-        float const step = SwarmArc * float(M_PI) / 180.0f;
         std::vector<GroundIndicators::Area> areas;
-        for (uint32 cone = 0; cone < cones; ++cone)
+        for (float const direction : SwarmFacings(facing, cones))
         {
-            float const side = (cone % 2 ? 1.0f : -1.0f) * float((cone + 1) / 2);
-            GroundIndicators::Area const area = Paint(ConeArea(apex, facing + side * step, SwarmRadius, SwarmArc),
+            GroundIndicators::Area const area = Paint(ConeArea(apex, direction, SwarmRadius, SwarmArc),
                 PAINT_CARRION, warning, GroundIndicators::Theme::Shadow);
             ConeEdges(area, EDGE_CARRION, warning);
             areas.push_back(area);
@@ -3343,6 +3399,17 @@ private:
         uint32 const lasts = AtTrueForm - AtInhale;
         _inhaleCore = Paint(CircleArea(center, InhaleBlastRadius), PAINT_INHALE, lasts,
             GroundIndicators::Theme::Shadow);
+        // The spiral turns: its carrier turned, a full turn every InhaleSpinMs, for as long as it lasts
+        if (Creature* spiral = FindPainted(_inhaleCore, PAINT_INHALE))
+        {
+            ObjectGuid const spiralGuid = spiral->GetGUID();
+            for (uint32 at = 0; at < lasts; at += InhaleSpinMs)
+                scheduler.Schedule(Milliseconds(at), [this, spiralGuid](TaskContext)
+                {
+                    if (Creature* carrier = me->GetMap()->GetCreature(spiralGuid))
+                        carrier->GetMotionMaster()->MoveRotate(InhaleSpinMs, ROTATE_DIRECTION_LEFT);
+                });
+        }
         for (uint32 at = 1000; at < lasts; at += 1000)
             scheduler.Schedule(Milliseconds(at), [this, center](TaskContext)
             {
@@ -3924,6 +3991,7 @@ private:
     uint32 _nextReachSample = 0;
     uint32 _nextTauntCueMs = 0;
     uint32 _swarmCasts = 0;                     // the Carrion Swarm's casts this fight (SwarmCones)
+    uint64 _aldricHealth = 0;                   // the Archbishop's true health (what is shown: ShownHealth)
     ObjectGuid _holder;                         // the tank last named to hold the boss (UpdateTauntCue)
     uint32 _lastMechanic = 0;                   // the Litany: when the last mechanic began (fight time)...
     uint32 _nextLitany = 0;                     // ... the earliest the next may fall...
