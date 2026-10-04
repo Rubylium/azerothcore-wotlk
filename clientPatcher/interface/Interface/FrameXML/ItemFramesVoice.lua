@@ -1,8 +1,12 @@
 -- The Hollow Voice's touched gear (one piece in four: Ailes du Séraphin, Égide d'Aldric, Murmure de Vel'thazar): a
--- pale gold bezel, the void's violet light behind it and four holy sparks at its corners - Aldric's light around the
--- demon's shadow. L'Infini's is cyan and starry (ItemFramesInfinite.lua).
+-- painted frame of Aldric's white gold, cracked by the demon's void (localTools/interface/buildItemFrameArt.py), and
+-- the void's violet breathing behind it.
 local api = EvolutionsItemFrames
 local layout = EvolutionsTooltip
+
+local FRAME = "Interface\\ItemFrames\\ItemFrame-Voice"
+local OPENING = 0.5872  -- the frame's empty middle, as a share of its texture (buildItemFrameArt.py prints it)
+local INSET = 4         -- how far the frame's inner edge sits inside the icon: its bars lie on the icon's rim
 
 api.registerResolver(function(tooltip)
     if not tooltip:GetName() then return end
@@ -15,22 +19,41 @@ api.registerStyle("hollowVoice", {
         local art = CreateFrame("Frame", nil, parent)
         art:SetAllPoints(parent)
         art:EnableMouse(false)
-        art:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-        art:SetBackdropBorderColor(1, 0.86, 0.55, 0.95)
+
         local glow = art:CreateTexture(nil, "BACKGROUND")
         glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        glow:SetPoint("TOPLEFT", -10, 10)
-        glow:SetPoint("BOTTOMRIGHT", 10, -10)
         glow:SetBlendMode("ADD")
-        glow:SetVertexColor(0.55, 0.12, 0.85, 0.75)
-        for _, corner in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
-            local spark = art:CreateTexture(nil, "OVERLAY")
-            spark:SetTexture("Interface\\Cooldown\\star4")
-            spark:SetBlendMode("ADD")
-            spark:SetSize(14, 14)
-            spark:SetPoint("CENTER", art, corner)
-            spark:SetVertexColor(1, 0.85, 0.5, 0.95)
+        glow:SetVertexColor(0.55, 0.12, 0.85, 0.5)
+
+        local frame = art:CreateTexture(nil, "OVERLAY")
+        frame:SetTexture(FRAME)
+
+        -- The texture is laid so its opening lands just inside the icon, whatever the button's size
+        local function Layout(self)
+            local width, height = self:GetWidth(), self:GetHeight()
+            if width <= 0 or height <= 0 then return end
+            local outX = ((width - 2 * INSET) / OPENING - width) / 2
+            local outY = ((height - 2 * INSET) / OPENING - height) / 2
+            frame:ClearAllPoints()
+            frame:SetPoint("TOPLEFT", -outX, outY)
+            frame:SetPoint("BOTTOMRIGHT", outX, -outY)
+            glow:ClearAllPoints()
+            glow:SetPoint("TOPLEFT", -outX - 6, outY + 6)
+            glow:SetPoint("BOTTOMRIGHT", outX + 6, -outY - 6)
         end
+        art:SetScript("OnSizeChanged", Layout)
+        Layout(art)
+
+        local breathe = glow:CreateAnimationGroup()
+        breathe:SetLooping("BOUNCE")
+        local fade = breathe:CreateAnimation("Alpha")
+        fade:SetChange(-0.6)
+        fade:SetDuration(1.8)
+        fade:SetSmoothing("IN_OUT")
+        breathe:Play()
+        -- A hidden frame's animation stops with it
+        art:SetScript("OnShow", function() breathe:Play() end)
+
         return art
     end,
 })
