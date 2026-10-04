@@ -21,10 +21,39 @@
 #include <limits>
 #include <vector>
 
+// mod-custom-classes (TalentTree.cpp): the specialization as an index among the class's spec trees
+int8 GetTalentSpecializationIndex(Player* player);
+
 namespace
 {
 std::vector<ItemTemplate const*> equipmentCatalog;
 bool catalogBuilt = false;
+
+// The specializations on the talent trees (mod-custom-classes) that fight with a one-hander and a shield
+constexpr int8 WarriorProtectionSpec = 2;
+constexpr int8 WarriorGladiatorSpec = 3;    // the Gladiateur (mod-warrior): a damage dealer
+constexpr int8 PaladinProtectionSpec = 1;
+
+int8 SpecIndex(Player const* player)
+{
+    return GetTalentSpecializationIndex(const_cast<Player*>(player));
+}
+
+// A one-hander and a shield is how this player fights, whatever it holds right now (a Warrior just moved from Arms to
+// the Gladiateur still wields its two-hander)
+bool FightsWithShield(Player const* player)
+{
+    int8 const spec = SpecIndex(player);
+    switch (player->getClass())
+    {
+        case CLASS_WARRIOR:
+            return spec == WarriorProtectionSpec || spec == WarriorGladiatorSpec;
+        case CLASS_PALADIN:
+            return spec == PaladinProtectionSpec;
+        default:
+            return false;
+    }
+}
 
 bool IsEquipmentInventoryType(uint32 inventoryType)
 {
@@ -206,9 +235,27 @@ bool IsCasterClass(uint8 classId)
     return baseClass == CLASS_MAGE || baseClass == CLASS_PRIEST || baseClass == CLASS_WARLOCK;
 }
 
+// What a shield fighter's defensive stats are worth: a tank's on every piece; the Gladiateur's on its shield only,
+// whose defense, dodge, parry and block ratings become critical strike rating and whose block value its weapon blows
+// share (mod-warrior)
+int32 GetShieldStatScore(ItemTemplate const& itemTemplate, Player const* player)
+{
+    if (!FightsWithShield(player))
+        return 0;
+    bool const gladiator = player->getClass() == CLASS_WARRIOR && SpecIndex(player) == WarriorGladiatorSpec;
+    if (gladiator && itemTemplate.InventoryType != INVTYPE_SHIELD)
+        return 0;
+    int32 const ratings = GetStatValue(itemTemplate, ITEM_MOD_DEFENSE_SKILL_RATING) +
+        GetStatValue(itemTemplate, ITEM_MOD_DODGE_RATING) + GetStatValue(itemTemplate, ITEM_MOD_PARRY_RATING) +
+        GetStatValue(itemTemplate, ITEM_MOD_BLOCK_RATING);
+    return ratings * 3 + GetStatValue(itemTemplate, ITEM_MOD_BLOCK_VALUE) +
+        (itemTemplate.InventoryType == INVTYPE_SHIELD ? int32(itemTemplate.Block) : 0);
+}
+
 int32 GetClassStatScore(ItemTemplate const& itemTemplate, Player const* player)
 {
-    int32 const physicalScore = GetPhysicalStatScore(itemTemplate, player->getClass());
+    int32 const physicalScore = GetPhysicalStatScore(itemTemplate, player->getClass()) +
+        GetShieldStatScore(itemTemplate, player);
     int32 const casterScore = GetCasterStatScore(itemTemplate);
 
     if (IsPhysicalClass(player->getClass()))
@@ -315,6 +362,9 @@ bool FitsWeaponStyle(Player const* player, ItemTemplate const& candidate)
             candidate.SubClass == ITEM_SUBCLASS_WEAPON_SWORD && IsOneHandWeapon(type);
     if (!IsHandHeld(type))
         return true;
+    // A shield fighter: one-handers and shields, whatever it holds now
+    if (FightsWithShield(player))
+        return type == INVTYPE_WEAPON || type == INVTYPE_WEAPONMAINHAND || type == INVTYPE_SHIELD;
 
     Item const* mainHand = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
     if (!mainHand)
@@ -445,9 +495,11 @@ std::vector<SlotGroup> BuildSlotGroups(Player const* player)
         { "Ranged", { EQUIPMENT_SLOT_RANGED, NULL_SLOT }, 0 },
     };
 
-    // No off hand beside a two-hander, unless Titan's Grip wields a second one (as FitsWeaponStyle)
+    // No off hand beside a two-hander, unless Titan's Grip wields a second one (as FitsWeaponStyle), or the player
+    // fights with a shield (its shield is still to come)
     Item const* mainHand = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
-    if (!mainHand || mainHand->GetTemplate()->InventoryType != INVTYPE_2HWEAPON || player->CanTitanGrip())
+    if (!mainHand || mainHand->GetTemplate()->InventoryType != INVTYPE_2HWEAPON || player->CanTitanGrip() ||
+        FightsWithShield(player))
         groups.push_back({ "Off hand", { EQUIPMENT_SLOT_OFFHAND, NULL_SLOT }, 0 });
 
     for (SlotGroup& group : groups)
@@ -474,6 +526,9 @@ bool GroupTakes(Player const* player, SlotGroup const& group, uint32 inventoryTy
             return inventoryType == INVTYPE_WEAPON || inventoryType == INVTYPE_WEAPONMAINHAND ||
                 inventoryType == INVTYPE_2HWEAPON;
         case EQUIPMENT_SLOT_OFFHAND:
+            // A shield fighter's off hand takes a shield only
+            if (FightsWithShield(player))
+                return inventoryType == INVTYPE_SHIELD;
             return inventoryType == INVTYPE_WEAPONOFFHAND || inventoryType == INVTYPE_SHIELD ||
                 inventoryType == INVTYPE_HOLDABLE || (inventoryType == INVTYPE_WEAPON && player->CanDualWield()) ||
                 (inventoryType == INVTYPE_2HWEAPON && player->CanTitanGrip());
@@ -728,8 +783,9 @@ SlotPick SelectMythicLoot(Player* player, uint32 itemLevel, uint32 givenItemLeve
 
 using namespace Acore::ChatCommands;
 
-// .lootdebug [item level]: the selected player's (else your own) slot groups, the furthest behind first, and what a
-// Mythic+ reward of that item level (the game's best by default) would give them, without giving it
+// .lootdebug [item level] [name] [slot]: the named player's (else the selected one's, else your own) slot groups, the
+// furthest behind first, and what a Mythic+ reward of that item level (the game's best by default) would give them -
+// for that equipment slot when one is given (15 main hand, 16 off hand), as .testprofile picks - without giving it
 class SmartLootCommandScript : public CommandScript
 {
 public:
@@ -744,9 +800,10 @@ public:
         return commandTable;
     }
 
-    static bool HandleLootDebug(ChatHandler* handler, Optional<uint32> rewardItemLevel)
+    static bool HandleLootDebug(ChatHandler* handler, Optional<uint32> rewardItemLevel,
+                                Optional<PlayerIdentifier> target, Optional<uint8> equipmentSlot)
     {
-        Player* player = handler->getSelectedPlayerOrSelf();
+        Player* player = target ? target->GetConnectedPlayer() : handler->getSelectedPlayerOrSelf();
         if (!player)
             return false;
 
@@ -758,7 +815,9 @@ public:
 
         std::vector<SlotGroup> groups;
         std::vector<size_t> order;
-        SlotPick const pick = SelectMythicLoot(player, itemLevel, given, groups, order);
+        SlotPick const pick = equipmentSlot ?
+            SelectMythicLoot(player, itemLevel, given, groups, order, *equipmentSlot) :
+            SelectMythicLoot(player, itemLevel, given, groups, order);
 
         uint32 const reference = given ? given : itemLevel;
         handler->PSendSysMessage("Loot debug for {}: reward item level {} (catalog up to {}, given at {}).",
