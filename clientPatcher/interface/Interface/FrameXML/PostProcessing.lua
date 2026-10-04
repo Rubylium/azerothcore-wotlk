@@ -11,16 +11,20 @@ local french = GetLocale() == "frFR"
 local TEXT = french and {
     category = "Rendu avancé",
     title = "Rendu avancé",
-    subtext = "Ombres de contact, lueur, netteté et étalonnage des couleurs, appliqués au monde seulement : l'interface reste intacte.",
+    subtext = "Ombres de contact, rayons de soleil, brume, lueur et étalonnage des couleurs, appliqués au "
+        .. "monde seulement : l'interface reste intacte.",
     enable = "Activer le rendu avancé",
+    antiAlias = "Anticrénelage",
     presets = "Ambiances",
     natural = "Naturel",
     vivid = "Vivant",
     cinema = "Cinéma",
-    note = "Les ombres de contact demandent le multi-échantillonnage (MSAA) désactivé dans Résolution. /rendu active ou coupe le rendu.",
+    note = "Ombres, rayons et brume : MSAA à désactiver, l'anticrénelage le remplace. /rendu l'active ou le coupe.",
     on = "Rendu avancé activé.",
     off = "Rendu avancé désactivé.",
     ao = "Ombres de contact",
+    shafts = "Rayons de soleil",
+    haze = "Brume",
     bloom = "Lueur",
     sharpen = "Netteté",
     contrast = "Contraste",
@@ -33,16 +37,20 @@ local TEXT = french and {
 } or {
     category = "Enhanced Rendering",
     title = "Enhanced Rendering",
-    subtext = "Contact shadows, glow, sharpening and colour grading, applied to the world only: the interface stays untouched.",
+    subtext = "Contact shadows, sun shafts, haze, glow and colour grading, applied to the world only: the "
+        .. "interface stays untouched.",
     enable = "Enable enhanced rendering",
+    antiAlias = "Anti-aliasing",
     presets = "Moods",
     natural = "Natural",
     vivid = "Vivid",
     cinema = "Cinematic",
-    note = "Contact shadows need multisampling (MSAA) turned off under Resolution. /rendu turns the rendering on or off.",
+    note = "Shadows, shafts and haze: turn MSAA off, the anti-aliasing replaces it. /rendu toggles it all.",
     on = "Enhanced rendering on.",
     off = "Enhanced rendering off.",
     ao = "Contact shadows",
+    shafts = "Sun shafts",
+    haze = "Haze",
     bloom = "Glow",
     sharpen = "Sharpness",
     contrast = "Contrast",
@@ -57,10 +65,12 @@ local TEXT = french and {
 -- The sliders, in two columns, with their CVar and range
 local SETTINGS = {
     { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
+    { key = "shafts", cvar = "postFxShafts", min = 0, max = 100 },
+    { key = "haze", cvar = "postFxHaze", min = 0, max = 100 },
     { key = "bloom", cvar = "postFxBloom", min = 0, max = 100 },
     { key = "sharpen", cvar = "postFxSharpen", min = 0, max = 100 },
-    { key = "contrast", cvar = "postFxContrast", min = 0, max = 100 },
     { key = "exposure", cvar = "postFxExposure", min = 50, max = 150 },
+    { key = "contrast", cvar = "postFxContrast", min = 0, max = 100 },
     { key = "vibrance", cvar = "postFxVibrance", min = 0, max = 100 },
     { key = "saturation", cvar = "postFxSaturation", min = 0, max = 200 },
     { key = "warmth", cvar = "postFxWarmth", min = -100, max = 100 },
@@ -69,11 +79,14 @@ local SETTINGS = {
 }
 
 local PRESETS = {
-    natural = { postFxAO = 50, postFxBloom = 25, postFxSharpen = 35, postFxContrast = 15, postFxExposure = 100,
+    natural = { postFxAO = 50, postFxShafts = 35, postFxHaze = 25, postFxBloom = 25, postFxSharpen = 35,
+        postFxContrast = 15, postFxExposure = 100,
         postFxVibrance = 15, postFxSaturation = 100, postFxWarmth = 0, postFxTone = 0, postFxVignette = 15 },
-    vivid = { postFxAO = 60, postFxBloom = 40, postFxSharpen = 50, postFxContrast = 30, postFxExposure = 100,
+    vivid = { postFxAO = 60, postFxShafts = 50, postFxHaze = 30, postFxBloom = 40, postFxSharpen = 50,
+        postFxContrast = 30, postFxExposure = 100,
         postFxVibrance = 35, postFxSaturation = 105, postFxWarmth = 5, postFxTone = 20, postFxVignette = 20 },
-    cinema = { postFxAO = 70, postFxBloom = 55, postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100,
+    cinema = { postFxAO = 70, postFxShafts = 70, postFxHaze = 45, postFxBloom = 55, postFxSharpen = 40,
+        postFxContrast = 40, postFxExposure = 100,
         postFxVibrance = 20, postFxSaturation = 95, postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
 local DEFAULT_PRESET = "natural"
@@ -98,6 +111,10 @@ local enable = CreateFrame("CheckButton", "PostProcessingPanelEnable", panel, "O
 enable:SetPoint("TOPLEFT", subtext, "BOTTOMLEFT", -2, -8)
 _G[enable:GetName() .. "Text"]:SetText(TEXT.enable)
 
+local antiAlias = CreateFrame("CheckButton", "PostProcessingPanelAntiAlias", panel, "OptionsCheckButtonTemplate")
+antiAlias:SetPoint("LEFT", enable, "LEFT", 196, 0)
+_G[antiAlias:GetName() .. "Text"]:SetText(TEXT.antiAlias)
+
 local presetLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 presetLabel:SetPoint("TOPLEFT", enable, "BOTTOMLEFT", 2, -16)
 presetLabel:SetText(TEXT.presets)
@@ -116,6 +133,7 @@ end
 local function refresh()
     refreshing = true
     enable:SetChecked(GetCVar("postFx") == "1")
+    antiAlias:SetChecked(GetCVar("postFxAA") == "1")
     for _, slider in ipairs(sliders) do
         local value = tonumber(GetCVar(slider.setting.cvar)) or 0
         slider:SetValue(value)
@@ -133,7 +151,7 @@ end
 
 local previous = nil
 local function remember()
-    previous = { postFx = GetCVar("postFx") }
+    previous = { postFx = GetCVar("postFx"), postFxAA = GetCVar("postFxAA") }
     for _, setting in ipairs(SETTINGS) do
         previous[setting.cvar] = GetCVar(setting.cvar)
     end
@@ -156,11 +174,11 @@ for _, name in ipairs({ "natural", "vivid", "cinema" }) do
 end
 
 for index, setting in ipairs(SETTINGS) do
-    local column, row = (index - 1) >= 5 and 1 or 0, (index - 1) % 5
+    local column, row = (index - 1) >= 6 and 1 or 0, (index - 1) % 6
     local slider = CreateFrame("Slider", "PostProcessingPanelSlider" .. index, panel, "OptionsSliderTemplate")
     slider.setting = setting
     slider:SetWidth(150)
-    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -38 - row * 46)
+    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -36 - row * 39)
     slider:SetMinMaxValues(setting.min, setting.max)
     slider:SetValueStep(1)
     _G[slider:GetName() .. "Low"]:SetText(setting.min)
@@ -176,15 +194,18 @@ for index, setting in ipairs(SETTINGS) do
 end
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-note:SetPoint("TOPLEFT", sliders[5], "BOTTOMLEFT", -8, -24)
+note:SetPoint("TOPLEFT", sliders[6], "BOTTOMLEFT", -8, -16)
 note:SetPoint("RIGHT", -32, 0)
-note:SetHeight(28)
+note:SetHeight(40)
 note:SetJustifyH("LEFT")
 note:SetJustifyV("TOP")
 note:SetText(TEXT.note)
 
 enable:SetScript("OnClick", function(self)
     setCVar("postFx", self:GetChecked() and 1 or 0)
+end)
+antiAlias:SetScript("OnClick", function(self)
+    setCVar("postFxAA", self:GetChecked() and 1 or 0)
 end)
 
 panel.refresh = refresh
@@ -201,6 +222,7 @@ panel.cancel = function()
 end
 panel.default = function()
     setCVar("postFx", 0)
+    setCVar("postFxAA", 1)
     applyPreset(DEFAULT_PRESET)
 end
 panel:SetScript("OnShow", function()
