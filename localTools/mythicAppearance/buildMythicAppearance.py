@@ -185,6 +185,21 @@ WEAPONS = [
     (A, SHIELD, (SHIELD_SLOT,), [19349, 30314, 45587, 32375, 50729, 23043, None]),        # Phaseshift ... Face of Death
     (A, ARMOR_MISC, (HOLDABLE,), [19366, 29923, 45617, 34179, 50635, 23049, None]),       # ... Sapphiron's Left Eye
 ]
+# Shields between the tiers. One look per tier left whole spans on the same shield (the base item's look up to 299,
+# The Face of Death from 400 to the Hollow Voice and past it), and a shield fighter (Protection, the Gladiateur) has
+# nothing else in its off hand to look at: a shield of its own every 10 to 20 item levels, iconic ones of every era.
+SHIELD_STEPS = [
+    (285, 19862),   # Aegis of the Blood God (Zul'Gurub)
+    (310, 19348),   # Red Dragonscale Protector (Blackwing Lair)
+    (330, 28606),   # Shield of Impenetrable Darkness (Karazhan)
+    (350, 34011),   # Illidari Runeshield (Black Temple)
+    (370, 34185),   # Sword Breaker's Bulwark (Sunwell Plateau)
+    (390, 49976),   # Bulwark of Smouldering Steel (Icecrown Citadel)
+    (420, 22819),   # Shield of Condemnation (Naxxramas 40)
+    (440, 43085),   # Royal Crest of Lordaeron (Culling of Stratholme)
+    (460, 34231),   # Aegis of Angelic Fortune (Sunwell Plateau)
+    (477, 30889),   # Kaz'rogal's Hardened Heart (Mount Hyjal): the Hollow Voice's
+]
 # The inventory types an appearance may have for each role
 ROLE_TYPES = {MAIN_HAND: (WEAPON_ONE_HAND, MAIN_HAND), OFF_HAND: (WEAPON_ONE_HAND, OFF_HAND, MAIN_HAND),
               TWO_HAND: (TWO_HAND,), RANGED: (RANGED,), RANGED_RIGHT: (RANGED_RIGHT,),
@@ -452,6 +467,12 @@ def main():
                         sys.exit("weapon %d is not in item_template" % entry)
                     add(item_class, subclass, role, player_class, tier, items[entry], ROLE_TYPES[role],
                         "Weapon tier %d" % tier.min_item_level)
+
+    remember(load_items("entry IN (%s)" % ",".join(str(entry) for _, entry in SHIELD_STEPS)))
+    for level, entry in SHIELD_STEPS:
+        if entry not in items:
+            sys.exit("shield %d is not in item_template" % entry)
+        add(A, SHIELD, SHIELD_SLOT, 0, level, items[entry], ROLE_TYPES[SHIELD_SLOT], "Shield step %d" % level)
 
     for _, enchant, _ in GLOWS:
         checker.check_glow(enchant)

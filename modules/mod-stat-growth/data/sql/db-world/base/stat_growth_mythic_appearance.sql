@@ -1288,12 +1288,22 @@ INSERT INTO `mythic_appearance_tier` (`item_class`, `item_subclass`, `inventory_
 (4, 4, 10, 12, 380, 51226, 'Tier 10 heroic - Icecrown Citadel 25: Sanctified Ymirjar Lord''s Gauntlets (Pestifere)'),
 (4, 4, 10, 12, 400, 22421, 'Tier 3 - Naxxramas 40: Dreadnaught Gauntlets (Pestifere)'),
 (4, 4, 10, 12, 477, 16132, 'The Hollow Voice - Tomb of Sargeras sets, Mythic: Hollow Voice look: Death Knight gloves (Pestifere, the Death Knight''s set)'),
+(4, 6, 14, 0, 285, 19862, 'Shield step 285: Aegis of the Blood God (any class)'),
 (4, 6, 14, 0, 300, 19349, 'Weapon tier 300: Elementium Reinforced Bulwark (any class)'),
+(4, 6, 14, 0, 310, 19348, 'Shield step 310: Red Dragonscale Protector (any class)'),
 (4, 6, 14, 0, 320, 30314, 'Weapon tier 320: Phaseshift Bulwark (any class)'),
+(4, 6, 14, 0, 330, 28606, 'Shield step 330: Shield of Impenetrable Darkness (any class)'),
 (4, 6, 14, 0, 340, 45587, 'Weapon tier 340: Bulwark of Algalon (any class)'),
+(4, 6, 14, 0, 350, 34011, 'Shield step 350: Illidari Runeshield (any class)'),
 (4, 6, 14, 0, 360, 32375, 'Weapon tier 360: Bulwark of Azzinoth (any class)'),
+(4, 6, 14, 0, 370, 34185, 'Shield step 370: Sword Breaker''s Bulwark (any class)'),
 (4, 6, 14, 0, 380, 50729, 'Weapon tier 380: Icecrown Glacial Wall (any class)'),
-(4, 6, 14, 0, 400, 23043, 'Weapon tier 400: The Face of Death (any class)');
+(4, 6, 14, 0, 390, 49976, 'Shield step 390: Bulwark of Smouldering Steel (any class)'),
+(4, 6, 14, 0, 400, 23043, 'Weapon tier 400: The Face of Death (any class)'),
+(4, 6, 14, 0, 420, 22819, 'Shield step 420: Shield of Condemnation (any class)'),
+(4, 6, 14, 0, 440, 43085, 'Shield step 440: Royal Crest of Lordaeron (any class)'),
+(4, 6, 14, 0, 460, 34231, 'Shield step 460: Aegis of Angelic Fortune (any class)'),
+(4, 6, 14, 0, 477, 30889, 'Shield step 477: Kaz''rogal''s Hardened Heart (any class)');
 
 DELETE FROM `mythic_appearance_glow`;
 INSERT INTO `mythic_appearance_glow` (`min_item_level`, `enchantment`, `comment`) VALUES
