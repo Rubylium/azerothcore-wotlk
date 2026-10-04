@@ -28,6 +28,7 @@ local TEXT = french and {
     haze = "Brume",
     water = "Reflets de l'eau",
     lights = "Lumières des flammes",
+    night = "Nuits sombres",
     focus = "Profondeur de champ",
     bloom = "Lueur",
     sharpen = "Netteté",
@@ -57,6 +58,7 @@ local TEXT = french and {
     haze = "Haze",
     water = "Water reflections",
     lights = "Firelight",
+    night = "Darker nights",
     focus = "Depth of field",
     bloom = "Glow",
     sharpen = "Sharpness",
@@ -74,6 +76,7 @@ local TEXT = french and {
 local SETTINGS = {
     { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
     { key = "lights", cvar = "postFxLights", min = 0, max = 100 },
+    { key = "night", cvar = "postFxNight", min = 0, max = 100 },
     { key = "shafts", cvar = "postFxShafts", min = 0, max = 100 },
     { key = "haze", cvar = "postFxHaze", min = 0, max = 100 },
     { key = "water", cvar = "postFxWater", min = 0, max = 100 },
@@ -91,15 +94,15 @@ local SETTINGS = {
 
 local PRESETS = {
     natural = { postFxAO = 50, postFxLights = 60, postFxShafts = 35, postFxHaze = 25, postFxWater = 60,
-        postFxDoF = 60, postFxBloom = 25,
+        postFxDoF = 60, postFxNight = 40, postFxBloom = 25,
         postFxSharpen = 35, postFxContrast = 15, postFxExposure = 100, postFxVibrance = 15, postFxSaturation = 100,
         postFxWarmth = 0, postFxTone = 0, postFxVignette = 15 },
     vivid = { postFxAO = 60, postFxLights = 75, postFxShafts = 50, postFxHaze = 30, postFxWater = 70,
-        postFxDoF = 60, postFxBloom = 40,
+        postFxDoF = 60, postFxNight = 45, postFxBloom = 40,
         postFxSharpen = 50, postFxContrast = 30, postFxExposure = 100, postFxVibrance = 35, postFxSaturation = 105,
         postFxWarmth = 5, postFxTone = 20, postFxVignette = 20 },
     cinema = { postFxAO = 70, postFxLights = 85, postFxShafts = 70, postFxHaze = 45, postFxWater = 80,
-        postFxDoF = 80, postFxBloom = 55,
+        postFxDoF = 80, postFxNight = 60, postFxBloom = 55,
         postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100, postFxVibrance = 20, postFxSaturation = 95,
         postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
