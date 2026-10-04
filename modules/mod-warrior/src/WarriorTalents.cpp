@@ -107,6 +107,11 @@ enum Talents : uint32
     TALENT_ARENA_THIRST_2           = 95244,
     TALENT_MORITURI                 = 95245,    // Morituri te salutant
     TALENT_PANEM                    = 95246,    // Panem et circenses
+    TALENT_DOUBLE_OPENING_1         = 95247,    // Double ouverture
+    TALENT_DOUBLE_OPENING_2         = 95248,
+    TALENT_SWEAT_AND_BLOOD_1        = 95249,    // Sueur et sang
+    TALENT_SWEAT_AND_BLOOD_2        = 95250,
+    TALENT_CHAMPIONS_FURY           = 95253,    // Fureur du champion
 };
 
 // The abilities and auras of localTools/warrior/Spells.ps1
@@ -195,6 +200,8 @@ enum Spells : uint32
 
 // The duel flag two players fight under: Duel's arena, for as long as it lasts
 constexpr uint32 GO_DUEL_FLAG = 21680;
+// A stock arena crowd's cheer (SoundEntries), when the Gladiateur's Execute kills
+constexpr uint32 SOUND_ARENA_CROWD_CHEER = 14999;
 
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Rage a builder gives (in rage points)
@@ -249,11 +256,13 @@ LiveTuning::KnobInt const RageGladiatorDevastate("warrior.glad_rage_devastate", 
 // Plaie du gladiateur: the share of a hit that goes into the bleed, by what put it there
 LiveTuning::Knob const WoundRevengeShare("warrior.glad_wound_revenge", 0.4f);
 LiveTuning::Knob const WoundThrowShare("warrior.glad_wound_throw", 0.4f);
-LiveTuning::Knob const WoundStormShare("warrior.glad_wound_storm", 0.3f);
+LiveTuning::Knob const WoundStormShare("warrior.glad_wound_storm", 0.5f);
+// Écrasement: of Thunder Clap's hit, a rank (combat bench 2026-10-04: its hit is small, the bleed carries the packs)
+LiveTuning::Knob const CrushShare("warrior.glad_crush_share", 1.0f);
 LiveTuning::KnobInt const WoundResetChance("warrior.glad_wound_reset_chance", 6);    // a tick's, per cent
 LiveTuning::KnobUInt const WoundResetGapMs("warrior.glad_wound_reset_gap_ms", 900);  // one roll per tick, not per enemy
 LiveTuning::KnobInt const BrokenGuardPct("warrior.glad_broken_guard_pct", 20);
-LiveTuning::Knob const ShieldEdgeShare("warrior.glad_shield_edge_share", 0.2f);     // of block value, a rank
+LiveTuning::Knob const ShieldEdgeShare("warrior.glad_shield_edge_share", 0.1f);     // of block value, a rank
 LiveTuning::Knob const ThumbsDownFactor("warrior.glad_thumbs_down_factor", 1.5f);
 LiveTuning::Knob const ContagionShare("warrior.glad_contagion_share", 0.5f);
 LiveTuning::Knob const ContagionRange("warrior.glad_contagion_range", 8.0f);
@@ -342,6 +351,7 @@ struct WarriorState : public DataMap::Base
     uint32 duelUntilMs = 0;
     uint32 woundRollMs = 0;
     int32 shieldCritRating = 0;
+    bool secondOpening = false;     // Double ouverture: Ouverture again after the next Revenge
 };
 
 constexpr char const* StateKey = "WarriorTalentState";
@@ -854,10 +864,18 @@ void ConsumeWound(Player* player, Unit* target)
             AddWound(player, enemy, consumed * ContagionShare, false);
 }
 
-// A tick of the bleed: maybe Shield Slam back (one roll per tick, however many enemies bleed), and Frères d'armes'
-// heal on Duel's ally
+// A tick of the bleed: maybe Shield Slam back (one roll per tick, however many enemies bleed), Sueur et sang's heal
+// on the Warrior, and Frères d'armes' on Duel's ally
 void WoundTick(Player* player, uint32 damage)
 {
+    SpellInfo const* wound = sSpellMgr->GetSpellInfo(SPELL_WOUND);
+    if (uint8 const sweat = Rank(player, TALENT_SWEAT_AND_BLOOD_1, TALENT_SWEAT_AND_BLOOD_2))
+        if (wound && player->IsAlive())
+        {
+            HealInfo selfHeal(player, player, uint32(CalculatePct(damage, 5 * sweat)), wound, wound->GetSchoolMask());
+            player->HealBySpell(selfHeal);
+        }
+
     WarriorState* state = GetState(player);
     uint32 const now = Now();
     if (now - state->woundRollMs >= WoundResetGapMs)
@@ -873,7 +891,6 @@ void WoundTick(Player* player, uint32 damage)
     if (!brothers || !state->duelUntilMs || now > state->duelUntilMs)
         return;
     Unit* ally = ObjectAccessor::GetUnit(*player, state->duelPartner);
-    SpellInfo const* wound = sSpellMgr->GetSpellInfo(SPELL_WOUND);
     if (!ally || !ally->IsAlive() || !wound)
         return;
     HealInfo healInfo(player, ally, uint32(CalculatePct(damage, 10 * brothers)), wound, wound->GetSchoolMask());
@@ -1093,7 +1110,8 @@ public:
                 result = SPELL_FAILED_CASTER_AURASTATE;
                 return;
             }
-            state->revengeTarget = target ? target->GetGUID() : ObjectGuid::Empty;
+            // Revenge is a cone: no unit target of its own, the Warrior's selection then
+            state->revengeTarget = target ? target->GetGUID() : player->GetTarget();
         }
     }
 
@@ -1256,7 +1274,11 @@ public:
                 // The Gladiateur: Revenge opens, and under Shield Block the bleed rolls on
                 if (gladiator)
                 {
-                    player->AddAura(SPELL_OPENING, player);
+                    player->CastSpell(player, SPELL_OPENING, true);
+                    // Double ouverture: a second Revenge after this one
+                    if (uint8 const twice = Rank(player, TALENT_DOUBLE_OPENING_1, TALENT_DOUBLE_OPENING_2))
+                        if (roll_chance_i(15 * twice))
+                            state->secondOpening = true;
                     if (player->HasAura(SPELL_SHIELD_BLOCK))
                         RefreshWound(player, target);
                 }
@@ -1279,6 +1301,11 @@ public:
                 // Both were in its damage (its bleed laid in OnSpellDamageDone): spent now
                 player->RemoveAurasDueToSpell(SPELL_OPENING);
                 player->RemoveAurasDueToSpell(SPELL_BROKEN_GUARD);
+                if (state->secondOpening)
+                {
+                    state->secondOpening = false;
+                    player->CastSpell(player, SPELL_OPENING, true);
+                }
                 break;
             default:
                 break;
@@ -1293,6 +1320,9 @@ private:
         state->executeArmed = false;
         if (target)
             ConsumeWound(player, target);
+        // The arena's crowd roars at a kill
+        if (target && !target->IsAlive())
+            player->PlayDirectSound(SOUND_ARENA_CROWD_CHEER);
         if (uint8 const crowd = Rank(player, TALENT_CROWD_1, TALENT_CROWD_2, TALENT_CROWD_3))
         {
             static constexpr std::array<int32, 4> Haste = { 0, 3, 6, 10 };
@@ -1304,6 +1334,9 @@ private:
         if (uint8 const thirst = Rank(player, TALENT_ARENA_THIRST_1, TALENT_ARENA_THIRST_2))
             if (roll_chance_i(25 * thirst))
                 ClearChainCooldown(player, SPELL_SHIELD_SLAM_R1);
+        // Fureur du champion: the loop starts over at once
+        if (player->HasAura(TALENT_CHAMPIONS_FURY))
+            player->CastSpell(player, SPELL_OPENING, true);
         player->RemoveAurasDueToSpell(SPELL_COUP_DE_GRACE);
     }
 
@@ -1486,7 +1519,7 @@ public:
         // Écrasement: Thunder Clap lays or feeds the bleed on each enemy it hits
         if (firstRank == SPELL_THUNDER_CLAP_R1)
             if (uint8 const crush = Rank(player, TALENT_CRUSH_1, TALENT_CRUSH_2, TALENT_CRUSH_3))
-                AddWound(player, victim, float(damage) * 0.1f * float(crush));
+                AddWound(player, victim, float(damage) * CrushShare * float(crush));
     }
 
 private:

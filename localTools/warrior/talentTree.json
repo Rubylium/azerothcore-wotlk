@@ -2986,6 +2986,7 @@
         503,
         504,
         507,
+        524,
         509,
         512,
         "510:2",
@@ -3003,7 +3004,10 @@
         513,
         515,
         518,
-        519
+        519,
+        525,
+        526,
+        527
       ],
       "nodes": [
         {
@@ -3114,9 +3118,9 @@
           ],
           "text": "Vos attaques avec votre arme infligent des dégâts supplémentaires égaux à {0}% de la valeur de blocage de votre bouclier.",
           "values": [
+            10,
             20,
-            40,
-            60
+            30
           ],
           "parents": [
             502
@@ -3157,6 +3161,27 @@
           "parents": [
             503,
             504
+          ]
+        },
+        {
+          "id": 524,
+          "row": 3,
+          "col": 3,
+          "kind": "passive",
+          "name": "Double ouverture",
+          "icon": "Gladiator_DoubleOpening",
+          "spells": [
+            95247,
+            95248
+          ],
+          "text": "Heurt de bouclier a {0}% de chances d'ouvrir deux Vengeances au lieu d'une.",
+          "values": [
+            15,
+            30
+          ],
+          "parents": [
+            504,
+            505
           ]
         },
         {
@@ -3214,7 +3239,8 @@
           ],
           "parents": [
             507,
-            508
+            508,
+            524
           ]
         },
         {
@@ -3245,6 +3271,59 @@
           "text": "Heurt de bouclier prolonge de 1 s votre Maîtrise du blocage.",
           "parents": [
             509
+          ]
+        },
+        {
+          "id": 525,
+          "row": 5,
+          "col": 2,
+          "kind": "passive",
+          "name": "Sueur et sang",
+          "icon": "Gladiator_SweatAndBlood",
+          "spells": [
+            95249,
+            95250
+          ],
+          "text": "Plaie du gladiateur vous rend {0}% des dégâts qu'elle inflige en points de vie.",
+          "values": [
+            5,
+            10
+          ],
+          "parents": [
+            510
+          ]
+        },
+        {
+          "id": 526,
+          "row": 5,
+          "col": 4,
+          "kind": "passive",
+          "name": "Jeux du cirque",
+          "icon": "Gladiator_Circus",
+          "spells": [
+            95251,
+            95252
+          ],
+          "text": "Réduit de {0} s le temps de recharge de Tempête de l'arène et de Coup de grâce.",
+          "values": [
+            15,
+            30
+          ],
+          "aura": {
+            "type": 107,
+            "misc": 11,
+            "classMask": [
+              0,
+              0,
+              1310720
+            ]
+          },
+          "auraValues": [
+            -15000,
+            -30000
+          ],
+          "parents": [
+            510
           ]
         },
         {
@@ -3342,6 +3421,22 @@
           ]
         },
         {
+          "id": 527,
+          "row": 6,
+          "col": 3,
+          "kind": "passive",
+          "name": "Fureur du champion",
+          "icon": "Gladiator_ChampionsFury",
+          "spells": [
+            95253
+          ],
+          "text": "Exécution vous confère Ouverture : Vengeance est aussitôt utilisable, sans coût.",
+          "parents": [
+            525,
+            526
+          ]
+        },
+        {
           "id": 515,
           "row": 6,
           "col": 5,
@@ -3355,9 +3450,9 @@
           ],
           "text": "Coup de tonnerre prolonge la Plaie du gladiateur de chaque ennemi touché et y ajoute {0}% de ses dégâts.",
           "values": [
-            10,
-            20,
-            30
+            100,
+            200,
+            300
           ],
           "parents": [
             513
@@ -3418,7 +3513,8 @@
             20
           ],
           "parents": [
-            514
+            514,
+            527
           ]
         },
         {
@@ -3454,7 +3550,8 @@
             3000
           ],
           "parents": [
-            515
+            515,
+            527
           ]
         },
         {
@@ -3849,20 +3946,19 @@
         "502": 3,
         "503": 3,
         "504": 3,
-        "505": 1,
         "506": 3,
         "507": 3,
         "508": 1,
         "509": 1,
         "510": 2,
-        "511": 1,
         "512": 1,
         "514": 2,
         "516": 3,
         "517": 3,
         "520": 2,
         "521": 2,
-        "523": 1
+        "523": 1,
+        "524": 2
       }
     },
     {
@@ -3889,7 +3985,7 @@
         "501": 1,
         "502": 3,
         "503": 3,
-        "504": 3,
+        "504": 1,
         "505": 1,
         "506": 3,
         "507": 1,
@@ -3902,7 +3998,8 @@
         "519": 3,
         "521": 2,
         "522": 2,
-        "523": 2
+        "523": 2,
+        "526": 2
       }
     }
   ]

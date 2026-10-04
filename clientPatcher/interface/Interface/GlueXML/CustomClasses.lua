@@ -7,3 +7,6 @@ CustomClasses = {
     [10] = { token = "OATHBLADE", name = "Oathblade", color = { 0.160, 0.560, 1.000 }, iconCell = { 0, 3 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 0, 3 } },
     [14] = { token = "BARBARIAN", name = "Barbare", color = { 0.860, 0.380, 0.170 }, iconCell = { 1, 3 }, roles = { tank = false, healer = false, damage = true }, detailsCell = { 3, 2, 1 }, specCells = { { 2, 4 }, { 3, 4 }, { 4, 4 } }, supportSpells = { 97222, 97224, 97225, 97226 } },
 }
+CustomStockSpecs = {
+    [1] = { [3] = { 5, 4 } },
+}

@@ -213,8 +213,11 @@ bool IsMaxed(TreeNode const& node, uint8 value)
     return node.kind == NodeKind::Choice ? value > 0 : std::size_t(value) >= node.spells.size();
 }
 
+// A character above the level cap (a game master's test character, levelled past it) has the cap's points: the
+// recommended builds and every check are made for them
 uint32 PointsAt(Tree const& tree, uint8 level)
 {
+    level = uint8(std::min<uint32>(level, sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL)));
     return level < tree.firstLevel ? 0 : uint32(level - tree.firstLevel) / tree.levelStep + 1;
 }
 

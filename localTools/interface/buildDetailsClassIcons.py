@@ -92,7 +92,8 @@ def main():
         print(f'Details is not installed in {args.client}: nothing to paint.')
         return 0
 
-    definitions = json.load(open(DEFINITIONS, encoding='utf8'))['classes']
+    root = json.load(open(DEFINITIONS, encoding='utf8'))
+    definitions = root['classes']
     painted = [d for d in definitions if d.get('detailsCell') and d.get('classIcon')]
     cells = [tuple(d['detailsCell']) for d in painted]
     assert all(cell[:2] in FREE_CELLS and (len(cell) == 2 or cell[2] in range(4)) for cell in cells), \
@@ -122,7 +123,8 @@ def main():
 
     names = ', '.join(f"{d['name']} {d['detailsCell']}" for d in painted)
     print(f'Details class icons painted: {names}')
-    paint_specs(definitions, source_dir)
+    # The stock classes' specializations past their three talent tabs (the Warrior's Gladiateur) too
+    paint_specs(definitions + root.get('stockTalentTrees', []), source_dir)
     return 0
 
 
@@ -137,7 +139,7 @@ def rounded_mask(size, inset=3, radius=10):
 
 
 def paint_specs(definitions, source_dir):
-    specs = [(d['name'], spec) for d in definitions for spec in d.get('detailsSpecs', [])]
+    specs = [(d.get('name', d.get('token')), spec) for d in definitions for spec in d.get('detailsSpecs', [])]
     cells = [tuple(spec['cell']) for _, spec in specs]
     assert all(cell in SPEC_FREE for cell in cells), f'a detailsSpecs cell is not free: {cells}'
     assert len(set(cells)) == len(cells), 'two specializations claim the same Details spec cell'

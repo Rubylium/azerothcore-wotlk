@@ -329,7 +329,9 @@ local function IsMaxed(node, value)
     return value >= node.max
 end
 
+-- Above the level cap (a game master's test character) the cap's points, as the server counts them
 local function PointsAt(tree, level)
+    level = min(level, MAX_LEVEL)
     if level < tree.def.firstLevel then
         return 0
     end

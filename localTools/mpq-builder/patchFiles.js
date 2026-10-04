@@ -127,6 +127,9 @@ function getPatchFiles(repoRoot) {
     const archiveFolders = fs.readdirSync(modulesRoot).sort().flatMap((module) => [
         path.join(modulesRoot, module, 'client-assets', 'files'),
         path.join(modulesRoot, module, 'client-assets', 'imported', 'files')]);
+    // Two modules' imports can bring the same Ascension file (a model or a sound both looks use): packed once, the
+    // first module's copy (the same file)
+    const moduleArchives = new Set();
     for (const importedRoot of archiveFolders) {
         if (!fs.existsSync(importedRoot)) {
             continue;
@@ -138,7 +141,12 @@ function getPatchFiles(repoRoot) {
                     addImported(source);
                     continue;
                 }
-                files.push({ source, archive: path.relative(importedRoot, source).split(path.sep).join('\\') });
+                const archive = path.relative(importedRoot, source).split(path.sep).join('\\');
+                if (moduleArchives.has(archive.toLowerCase())) {
+                    continue;
+                }
+                moduleArchives.add(archive.toLowerCase());
+                files.push({ source, archive });
             }
         };
         addImported(importedRoot);

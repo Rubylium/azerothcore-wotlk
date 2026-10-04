@@ -89,6 +89,11 @@ rounds each, the Fire Mage in the same runs; the warrior words are `arms`, `fury
 | pack of 5 (AoE build) | 11.4k | 11.4k (100%) | 12.7k (111%) |
 | pack of 12 (AoE build) | 26.4k | 20.1k (76%) | 18.2k (69%) |
 
+The Gladiateur (2026-10-04, same profile, 60 s, two runs each, `warrior gladiator single|aoe`): 120% of the Fire
+mage on a single target (5.25k against 4.36k), 77% on a pack of five with its AoE build (9.6k against 12.5k; Arms
+about 76% in the same runs). Its bleed only rolls if the bots let it: they Execute on it as it runs out or at full
+rage (mod-playerbots `GladiatorExecuteWorth`), never as soon as it is laid.
+
 The other reworked melee measured in the same session: Retribution 174% / 134% / 75%, Frost Death Knight 114% / 181% /
 80%. Bench a tank on its own (`tank`, `tankpack` layouts): a tank bot in the run drags the damage dealers' numbers down
 (their threat strategy holds their abilities back). Protection, alone: about 2.6k damage and 790 damage taken a second

@@ -112,6 +112,13 @@ local function addSpecs(specCoords)
             specCoords[classId * 100 + index] = { left, left + 1 / 8, top, top + 1 / 8 }
         end
     end
+    -- A stock class's specializations past its three tabs (the Warrior's Gladiateur, tab 3): the same ids
+    for classId, specs in pairs(CustomStockSpecs or {}) do
+        for tab, cell in pairs(specs) do
+            local left, top = cell[1] / 8, cell[2] / 8
+            specCoords[classId * 100 + tab + 1] = { left, left + 1 / 8, top, top + 1 / 8 }
+        end
+    end
 end
 
 -- The tables Details reads at runtime, whatever profile they came from
@@ -142,6 +149,16 @@ if CustomClasses then
             for index in ipairs(class.specCells or {}) do
                 _detalhes.SpecIDToClass[classId * 100 + index] = class.token
             end
+        end
+    end
+end
+-- A stock class's extra specializations keep the stock class
+local STOCK_TOKENS = { [1] = "WARRIOR", [2] = "PALADIN", [3] = "HUNTER", [4] = "ROGUE", [5] = "PRIEST",
+    [6] = "DEATHKNIGHT", [7] = "SHAMAN", [8] = "MAGE", [9] = "WARLOCK", [11] = "DRUID" }
+if _detalhes.SpecIDToClass then
+    for classId, specs in pairs(CustomStockSpecs or {}) do
+        for tab in pairs(specs) do
+            _detalhes.SpecIDToClass[classId * 100 + tab + 1] = STOCK_TOKENS[classId]
         end
     end
 end
@@ -241,6 +258,11 @@ local function SpecIdOf(classId, tab)
     end
     if token == "DRUID" then
         return DRUID_SPECS[tab + 1]
+    end
+    -- A tab past the stock three (the Warrior's Gladiateur) has a spec of ours
+    local extra = CustomStockSpecs and CustomStockSpecs[classId]
+    if extra and extra[tab] then
+        return classId * 100 + tab + 1
     end
     local specId = framework and framework.GetSpecializationID and framework.GetSpecializationID(token, tab + 1)
     return specId ~= 0 and specId or nil

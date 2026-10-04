@@ -79,6 +79,24 @@ $whirl = 1680
 $clap = 6343
 $selfBuff = 2983
 
+# The Gladiateur's looks imported from the Ascension client (localTools/warrior/ascensionVisuals.json, through
+# localTools/ascensionImport/importVisuals.py): field 131 names an imported SpellVisual by its key; LookKit gives one of
+# its kits (by SpellVisual field: 2 cast, 3 impact, 4 state) for a stock visual's slot, a look mixed from both.
+$imported = Get-Content -LiteralPath (Join-Path $repoRoot 'modules\mod-warrior\client-assets\imported\visuals.json') `
+    -Raw -Encoding UTF8 | ConvertFrom-Json
+function Look([string]$key) {
+    $id = $imported.ids.$key
+    if (-not $id) { throw "No imported Warrior look '$key' (localTools\warrior\ascensionVisuals.json)." }
+    return [uint32]$id
+}
+function LookKit([string]$key, [int]$field) {
+    $id = Look $key
+    $visual = @($imported.tables.SpellVisual | Where-Object { [uint32]$_.id -eq $id })[0]
+    $kit = [uint32]$visual.fields[$field]
+    if (-not $kit -or $kit -eq [uint32]::MaxValue) { throw "The imported Warrior look '$key' has no kit in field $field." }
+    return $kit
+}
+
 # A weapon strike's effects: flat bonus, then the weapon percentage
 function Strike($flat, $percent, $target = 6) {
     return @(
@@ -314,27 +332,36 @@ $spells = @(
     # (95163) on the ally
     @{ Id = 95150; Clone = 3411; Name = 'Duel'; Icon = 'Gladiator_Duel'; FallbackIconSpell = 3411; Cost = 0; Cooldown = 120000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
        Description = "Vous chargez un allié à 25 m et descendez tous deux dans l'arène pendant 15 s : votre puissance d'attaque et la sienne augmentent de 15%, ainsi que vos dégâts et soins des sorts, et vous subissez 30% des dégâts qu'il reçoit tant que vous êtes au-dessus de 35% de vos points de vie."
-       Fields = (Own $flagDuel @{ 46 = 34; 72 = 0; 81 = 0; 87 = 0; 96 = 0; 205 = 0; 206 = 0 }) },
+       Fields = (Own $flagDuel @{ 46 = 34; 72 = 0; 81 = 0; 87 = 0; 96 = 0; 205 = 0; 206 = 0 })
+       # Intervene's charge; on arrival the arena horn and its shout (stock kit 11611, Scourge_Horn), the crowd's
+       # cheer on the ally (stock kit 12798, CrowdCheerAlliance)
+       Visual = @{ Clone = 9107; CasterImpact = 11611; Impact = 12798 } },
     # Lancer de bouclier: Avenger's Shield's bounce (4 enemies, more with Ricochet), physical, from the Warrior's
     # attack power (warrior_spells.sql); mod-warrior leaves Sunder Armor and the bleed on each enemy it hits
     @{ Id = 95151; Clone = 48827; Name = 'Lancer de bouclier'; Icon = 'Gladiator_ShieldThrow'; FallbackIconSpell = 48827; Cost = 0; Cooldown = 15000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
        Description = "Lance votre bouclier sur l'ennemi à 30 m : il rebondit sur jusqu'à 3 autres ennemis proches et laisse Fracasser armure et Plaie du gladiateur sur chacun."
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 1 })
-       Fields = (Own $flagShieldThrow @{ 41 = 1; 72 = 0; 84 = 0; 96 = 0; 104 = 4; 105 = 0; 204 = 0; 213 = 2; 225 = 1 }) },
+       Fields = (Own $flagShieldThrow @{ 41 = 1; 72 = 0; 84 = 0; 96 = 0; 104 = 4; 105 = 0; 204 = 0; 213 = 2; 225 = 1 })
+       # The stock Throw Shield's missile (the thrower's own shield, spun as a boomerang), cast with Shield Toss's
+       # shield bash and clang, striking with its sparks and metal shield clang
+       Visual = @{ Clone = 14714; Precast = 0; Cast = (LookKit 'ShieldThrow' 2); Impact = (LookKit 'ShieldThrow' 3)
+                   State = 0 } },
     # Tempête de l'arène: Bladestorm's spin, its whirls (95157) refresh the bleed of what they hit (mod-warrior)
     @{ Id = 95152; Clone = 46924; Name = "Tempête de l'arène"; Icon = 'Gladiator_ArenaStorm'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
        Description = "Vous tournoyez bouclier en avant pendant 6 s : chaque seconde, vous frappez les ennemis proches et prolongez leur Plaie du gladiateur."
-       Fields = (Own $flagArenaStorm @{ 116 = 95157 }) },
+       Fields = (Own $flagArenaStorm @{ 116 = 95157; 131 = (Look 'ArenaStorm') }) },
     # Coup de grâce: the next Execute within 10 s costs nothing and strikes as with 100 rage (mod-warrior)
     @{ Id = 95153; Clone = $selfBuff; Name = 'Coup de grâce'; Icon = 'Gladiator_CoupDeGrace'; FallbackIconSpell = 5308; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask; NoEquipment = $true
        Description = "Votre prochaine Exécution dans les 10 s ne coûte pas de rage et frappe comme si elle en dépensait 100."
        AuraDescription = 'Votre prochaine Exécution frappe comme avec 100 points de rage, sans coût.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -100; Misc = $SPELLMOD_COST })
-       Fields = (Own $flagCoupDeGrace @{ 40 = 1; 41 = 1; 122 = $maskExecute; 123 = 0; 124 = 0; 131 = 0; 205 = 0; 206 = 0; 225 = 1 }) },
+       Fields = (Own $flagCoupDeGrace @{ 40 = 1; 41 = 1; 122 = $maskExecute; 123 = 0; 124 = 0; 131 = (Look 'CoupDeGrace'); 205 = 0; 206 = 0; 225 = 1 }) },
     # Clameur de la foule: haste for 10 s after Execute, its amount set by mod-warrior
     @{ Id = 95154; Clone = 2983; Name = 'Clameur de la foule'; Icon = 'Gladiator_Crowd'; FallbackIconSpell = 1719; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Hâte augmentée.'; AuraDescription = 'Hâte en mêlée augmentée.'
-       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModMeleeHaste; TargetA = 1; Value = 3 }); Fields = @{ 40 = 1 } },
+       # The crowd's cheer as it goes up (stock Bested... visual 13758: CrowdCheerAlliance)
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_ModMeleeHaste; TargetA = 1; Value = 3 })
+       Fields = @{ 40 = 1; 131 = 13758 } },
     # Duel, on the Warrior and the ally: 15% attack power, 15% spell damage and healing, 15 s (longer with
     # Amphithéâtre, mod-warrior)
     @{ Id = 95155; Clone = 2983; Name = 'Duel'; Icon = 'Gladiator_Duel'; FallbackIconSpell = 3411; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
@@ -343,33 +370,39 @@ $spells = @(
            @{ Index = 0; Effect = 6; Aura = 166; TargetA = 1; Value = 15 },
            @{ Index = 1; Effect = 6; Aura = $A_ModDamagePercentDone; TargetA = 1; Value = 15; Misc = 126 },
            @{ Index = 2; Effect = 6; Aura = 136; TargetA = 1; Value = 15 })
-       Fields = @{ 40 = 8 } },
-    # Tempête de l'arène's whirl: Bladestorm's, 160% weapon damage within 8 yd (combat bench, 2026-10-04: the AoE build
-    # at the Fire mage's 90% on five), its off-hand blow gone
+       Fields = @{ 40 = 8; 131 = (Look 'DuelState') } },
+    # Tempête de l'arène's whirl: Bladestorm's, 200% weapon damage within 8 yd (combat bench, 2026-10-04), its off-hand
+    # blow gone
     @{ Id = 95157; Clone = 50622; Name = "Tempête de l'arène"; Icon = 'Gladiator_ArenaStorm'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = "160% des dégâts de l'arme aux ennemis proches."; Effects = (Strike 1 160 22)
-       Fields = (Own $flagArenaStorm @{ 89 = 15; 90 = 15; 92 = 14; 93 = 14; 117 = 0 }) },
+       Description = "200% des dégâts de l'arme aux ennemis proches."; Effects = (Strike 1 200 22)
+       Fields = (Own $flagArenaStorm @{ 89 = 15; 90 = 15; 92 = 14; 93 = 14; 117 = 0
+                                        131 = (Look 'ArenaStormWhirl') }) },
     # Plaie du gladiateur: Rend's bleed, a tick every second for 6 s (longer with Arène sanglante). mod-warrior rolls
     # it (each Revenge adds to what is left, as Ignite) and sets each tick already final: no caster bonus (attributes
     # ex 3 0x20000000), no damage class
     @{ Id = 95158; Clone = 772; Name = 'Plaie du gladiateur'; Icon = 'Gladiator_Wound'; FallbackIconSpell = 772; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Saigne.'; AuraDescription = 'Saigne chaque seconde.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_PeriodicDamage; TargetA = 6; Value = 1 })
-       Fields = (Own $flagWound @{ 7 = 0x20000400; 40 = 32; 41 = 1; 42 = 0; 46 = 13; 98 = 1000; 205 = 0; 206 = 0; 213 = 0 }) },
+       Fields = (Own $flagWound @{ 7 = 0x20000400; 40 = 32; 41 = 1; 42 = 0; 46 = 13; 98 = 1000; 205 = 0; 206 = 0; 213 = 0 })
+       # Rend's, its swing gone (Revenge swings already): Blood Strike's wet blood hit, then its bleeding chest
+       Visual = @{ Clone = 372; Cast = 0; Impact = (LookKit 'Wound' 3); State = (LookKit 'Wound' 4) } },
     # What is left of the bleed at once, when Execute consumes it (an amount already final, as Meat Cleaver's relay)
     @{ Id = 95159; Clone = $computed; Name = 'Plaie du gladiateur'; Icon = 'Gladiator_Wound'; FallbackIconSpell = 772; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Dégâts physiques.'; Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 1 })
-       Fields = (Own $flagWoundBurst @{ 7 = 0x60000200; 21 = 0; 46 = 13; 131 = 372; 213 = 0 }) },
+       Fields = (Own $flagWoundBurst @{ 7 = 0x60000200; 21 = 0; 46 = 13; 131 = (Look 'WoundBurst'); 213 = 0 }) },
     # Ouverture: Shield Slam opens Revenge, free (word 0 0x400), for 8 s
     @{ Id = 95160; Clone = 2983; Name = 'Ouverture'; IconPath = 'Interface\Icons\Ability_Warrior_Revenge'; FallbackIconSpell = 6572; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Vengeance utilisable.'; AuraDescription = 'Vengeance est utilisable, sans coût.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -100; Misc = $SPELLMOD_COST })
-       Fields = @{ 40 = 31; 122 = $maskRevenge; 123 = 0; 124 = 0; 208 = 4 } },
+       Fields = @{ 40 = 31; 122 = $maskRevenge; 123 = 0; 124 = 0; 208 = 4 }
+       # Sword and Board's, with a sword's flash and a steel ring as it comes (only when cast: mod-warrior adds the aura
+       # without a cast), then blood rage on the hands while it lasts
+       Visual = @{ Clone = 345; Impact = (LookKit 'OpeningRing' 3); State = (LookKit 'Opening' 4) } },
     # Garde brisée: Devastate makes the next Revenge (word 0 0x400) stronger, its amount set by mod-warrior
     @{ Id = 95161; Clone = 2983; Name = 'Garde brisée'; Icon = 'Gladiator_ShatteredGuard'; FallbackIconSpell = 20243; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Vengeance renforcée.'; AuraDescription = 'Votre prochaine Vengeance inflige plus de dégâts.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 20; Misc = $SPELLMOD_DAMAGE })
-       Fields = @{ 40 = 8; 122 = $maskRevenge; 123 = 0; 124 = 0; 208 = 4 } },
+       Fields = @{ 40 = 8; 122 = $maskRevenge; 123 = 0; 124 = 0; 131 = (Look 'BrokenGuard'); 208 = 4 } },
     # Bouclier du gladiateur: the shield's defense, dodge, parry and block ratings as melee and ranged critical strike
     # rating (combat ratings 8 and 9), its amount set by mod-warrior from the shield worn
     @{ Id = 95162; Clone = 2983; Name = 'Bouclier du gladiateur'; Icon = 'Gladiator_Spec'; FallbackIconSpell = 71; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true

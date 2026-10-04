@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "The Gladiateur's looks, imported from the Ascension client by localTools/ascensionImport/importVisuals.py:",
+    "key -> the SpellVisual id of the Ascension spell whose look it takes. Spells.ps1 names a look by the id the",
+    "import gives its key, or one of its kits (LookKit) in a stock visual's slot.",
+    "ShieldThrow: Shield Toss (cast and impact: shield bash, metal shield clangs); DuelState: Counter Stance (state:",
+    "shout ring and swords about the arms); Wound: Blood Strike (impact: wet blood hit; state: bleeding chest);",
+    "WoundBurst: Centurion Strike (gushing wound, blood burst); Opening: Ancestor's Fury (state: blood rage on the",
+    "hands); OpeningRing: Iron Will Fierce Smash (impact: sword flash, steel ring); BrokenGuard: Shield Block Fierce",
+    "Smash (impact: shield emblem, metal shield crunch); ArenaStorm and ArenaStormWhirl: retail Bladestorm's aura and",
+    "whirl (dust whirlwind); CoupDeGrace: Juggernaut (roar, blood rage on the weapons, a mark on the chest)."
+  ],
+  "output": "modules/mod-warrior/client-assets/imported",
+  "idBase": 76000,
+  "visuals": {
+    "ShieldThrow": 1336,
+    "DuelState": 1335,
+    "Wound": 278981,
+    "WoundBurst": 999800,
+    "Opening": 989999,
+    "OpeningRing": 21871,
+    "BrokenGuard": 21867,
+    "ArenaStorm": 278006,
+    "ArenaStormWhirl": 278002,
+    "CoupDeGrace": 817
+  }
+}
