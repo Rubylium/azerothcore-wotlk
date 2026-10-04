@@ -354,9 +354,19 @@ void SetSpell(Player* player, uint32 spellId, bool wanted)
         player->removeSpell(spellId, SPEC_MASK_ALL, false);
 }
 
+// Every spell of the trees, and whether anything in the build still wants it: one tree or node wanting a spell keeps
+// it, whatever another says
+using WantedSpells = std::unordered_map<uint32, bool>;
+
+void WantSpell(WantedSpells& spells, uint32 spellId, bool wanted)
+{
+    bool& entry = spells[spellId];
+    entry = entry || wanted;
+}
+
 // An ability and its ranks: wanted, every rank up to the highest the character's level allows (as a trainer teaches
 // them, one after the other), none above; not wanted, none at all
-void SetAbility(Player* player, uint32 spellId, bool wanted)
+void WantAbility(Player* player, WantedSpells& spells, uint32 spellId, bool wanted)
 {
     uint32 const first = sSpellMgr->GetFirstSpellInChain(spellId);
     bool reachable = wanted;
@@ -365,41 +375,47 @@ void SetAbility(Player* player, uint32 spellId, bool wanted)
         SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(rank);
         if (rank != first && (!spellInfo || spellInfo->SpellLevel > player->GetLevel()))
             reachable = false;
-        SetSpell(player, rank, reachable);
+        WantSpell(spells, rank, reachable);
     }
 }
 
 // Makes the character's spells match a build: each node's current rank (or chosen option) learned, every other
 // spell of the trees removed, so a lower rank, a refunded node or the other option never lingers. Only the class tree
 // and the chosen spec tree count; the other spec trees keep their picks in the build, unlearned.
+//
+// What the build wants is settled first, then only the difference is applied. Removing a spell and learning it again
+// takes it off the player's action bars: Protection and the Gladiateur share Shield Slam and Devastate, and the two
+// left the bar at every level and every talent point while Protection's copy was removed before the Gladiateur's was
+// learned back.
 void Reconcile(Player* player, ClassTrees const& data, std::string const& build, uint8 specialization)
 {
-    // The chosen tree's spells last: one spell granted by two trees stays learned
-    for (bool const wanted : { false, true })
-        for (Tree const& tree : data.trees)
-            if (tree.spec && (tree.id == specialization) == wanted)
-                for (uint32 spellId : tree.specSpells)
-                    SetAbility(player, spellId, wanted);
+    WantedSpells spells;
+    for (Tree const& tree : data.trees)
+        if (tree.spec)
+            for (uint32 spellId : tree.specSpells)
+                WantAbility(player, spells, spellId, tree.id == specialization);
 
-    // Every rank taken off first, then the wanted ones learned: two nodes may teach the same ability (a choice's
-    // option and another node), and the one wanting it has the last word
-    for (bool const wanted : { false, true })
-        for (std::size_t position = 0; position < data.nodes.size(); ++position)
+    for (std::size_t position = 0; position < data.nodes.size(); ++position)
+    {
+        TreeNode const& node = data.nodes[position];
+        Tree const* tree = FindTree(data, node.tree);
+        bool const counts = !tree || !tree->spec || tree->id == specialization;
+        uint8 const value = !counts || node.minLevel > player->GetLevel() ? 0 : Value(build, position);
+        for (std::size_t index = 0; index < node.spells.size(); ++index)
         {
-            TreeNode const& node = data.nodes[position];
-            Tree const* tree = FindTree(data, node.tree);
-            bool const counts = !tree || !tree->spec || tree->id == specialization;
-            uint8 const value = !counts || node.minLevel > player->GetLevel() ? 0 : Value(build, position);
-            for (std::size_t index = 0; index < node.spells.size(); ++index)
-            {
-                if ((std::size_t(value) == index + 1) != wanted)
-                    continue;
-                if (node.kind == NodeKind::Active)
-                    SetAbility(player, node.spells[index], wanted);
-                else
-                    SetSpell(player, node.spells[index], wanted);
-            }
+            bool const wanted = std::size_t(value) == index + 1;
+            if (node.kind == NodeKind::Active)
+                WantAbility(player, spells, node.spells[index], wanted);
+            else
+                WantSpell(spells, node.spells[index], wanted);
         }
+    }
+
+    // What goes first, then what comes: a lower rank is gone before the higher one is taught
+    for (bool const learn : { false, true })
+        for (auto const& [spellId, wanted] : spells)
+            if (wanted == learn)
+                SetSpell(player, spellId, wanted);
 }
 
 // The trees reuse WotLK talent ranks as nodes (Deep Wounds, Flurry, Ignite...). Reconcile takes a rank off with the
