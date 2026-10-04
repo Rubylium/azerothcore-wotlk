@@ -35,6 +35,23 @@ no cooldown and no target cap (Bladestorm's whirls neither).
   up by each cast up to 30% of maximum health, 12 s), Shield Block (6 s, 2 charges on 16 s), Last Stand, Shield Wall (3
   min), Shield Charge (a charge with the shield up to 25 yd, 150% weapon damage on the target and 4 enemies near it, 20
   rage, 45 s), the Ravager, Disrupting Shout or Spell Block.
+- **Gladiateur** (95283: half the threat, Shield Slam recharges in 12 s; the fourth tree, a damage dealer with a
+  one-handed weapon and a shield, no talent tab of its own: the stock systems and the bots see it as index 3). Shield
+  Slam gives 20 rage and Ouverture (95160, 8 s): Revenge needs it, and costs nothing under it. Revenge leaves Plaie du
+  gladiateur (95158) on its target (every enemy it hits with Revers): a bleed of a second's ticks for 6 s that rolls
+  like Ignite (each one adds 40% of the hit to what is left and starts over), each tick with a 6% chance (9% more with
+  Sang et sable, one roll per tick however many enemies bleed) to bring Shield Slam back. Devastate gives 5 rage and
+  Garde brisée (95161: the next Revenge 20% stronger, more with Garde fracassée). Shield Slam under Shield Block keeps
+  the bleed rolling. Execute is usable on any target bleeding of it, spends all rage up to 100 (each rage worth what
+  the core's 30 are) and consumes the bleed: what is left of it at once (95159; 50% more with Pouce baissé, half with
+  Panem et circenses, the other half bleeding on; Hémorragie contagieuse spreads half of it within 8 yd). The shield's
+  defense, dodge, parry and block ratings become critical strike rating (95162); Tranchant du bouclier adds a share of
+  its block value to every weapon blow. Duel (95150, Intervene's charge to an ally): both gain 15% attack power and
+  spell damage and healing (95155) for 15 s under the duel flag, and the Warrior takes 30% of what the ally takes
+  (95163, a split) until it falls under 35% health. Lancer de bouclier (Avenger's Shield's bounce, Sunder Armor and
+  the bleed on each enemy), Tempête de l'arène (Bladestorm's spin, its whirls feed the bleed) or Coup de grâce (the
+  next Execute free and as with 100 rage). The tree is an arena: the sword wall (single target) and the shield wall
+  (AoE) down either side, the Duel talents at its exit.
 - **Class tree** (Guerrier): Heroic Leap (to a spot 8-40 yd away, weapon damage within 8 yd of the landing, 45 s),
   Rallying Cry (15% maximum health to the raid for 10 s, 3 min), Storm Bolt or Shockwave, Avatar (20% damage for 20 s,
   1 min 30 s), Thunderous Roar (physical damage within 12 yd and an 8 s bleed, 1 min 30 s), Champion's Spear or Heroic

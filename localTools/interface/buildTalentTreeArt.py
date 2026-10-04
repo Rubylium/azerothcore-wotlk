@@ -234,12 +234,18 @@ def shade(image, left, right, vignette):
 
 
 def compiled_icon(name):
-    """A class's own icon (Necromancer_*, PestifereTalent_*...), compiled to TGA by its module's asset build and
-    packed into patch-Z: read from the module, so a client with an older patch still gets the new one."""
+    """A class's own icon (Necromancer_*, PestifereTalent_*, Gladiator_*...), compiled to TGA by its module's asset
+    build and packed into patch-Z: read from the module, so a client with an older patch still gets the new one."""
     for root, _, files in os.walk(os.path.join(REPO, 'modules')):
-        if os.path.basename(root) in ('icons', 'compiled') and name + '.tga' in files:
+        if os.path.basename(root).lower() in ('icons', 'compiled') and name + '.tga' in files:
             return os.path.join(root, name + '.tga')
     return None
+
+
+# A class's own icons still to be painted (their module's asset build lists them): a question mark stands in until
+# they are, so the window builds meanwhile
+PENDING_ICON_PREFIXES = ('Gladiator_',)
+PLACEHOLDER_ICON = 'INV_Misc_QuestionMark'
 
 
 def client_icons(names, client):
@@ -249,7 +255,12 @@ def client_icons(names, client):
         path = compiled_icon(name)
         if path:
             icons[name] = Image.open(path).convert('RGBA')
-    stock = sorted(name for name in names if name not in icons)
+    pending = sorted(name for name in names if name not in icons and name.startswith(PENDING_ICON_PREFIXES))
+    if pending:
+        print('icons not painted yet, a question mark meanwhile: %s' % ', '.join(pending))
+    stock = sorted(name for name in names if name not in icons and name not in pending)
+    if pending:
+        stock.append(PLACEHOLDER_ICON)
     if not stock:
         return icons
 
@@ -264,6 +275,8 @@ def client_icons(names, client):
         raise SystemExit('Icons not in the client: %s' % ', '.join(missing))
     for name in stock:
         icons[name] = Image.open(os.path.join(work, 'Interface', 'Icons', name + '.blp')).convert('RGBA')
+    for name in pending:
+        icons[name] = icons[PLACEHOLDER_ICON]
     return icons
 
 
@@ -393,6 +406,10 @@ def main():
 
     def painting(style):
         """A background: a painting of the class's own, or a retail background recoloured to it."""
+        # A painting not made yet: its `placeholder` (a retail background) meanwhile
+        if style.get('file') and not os.path.exists(os.path.join(REPO, style['file'])) and style.get('placeholder'):
+            print('%s not painted yet, %s meanwhile' % (style['file'], style['placeholder']))
+            style = style['placeholder']
         if style.get('file'):
             # The window shows it cut to 1.6:1 from its right edge, so the figure belongs in the right third; it
             # is scaled to retail's 1612 texels wide

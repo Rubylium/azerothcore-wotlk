@@ -17,6 +17,7 @@ $clientDbcRoot = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK\Data\DBFilesClient'
 $compiledIconRoot = Join-Path $repoRoot 'modules\mod-stat-growth\client-assets\compiled'
 $pestifereCompiledIconRoot = Join-Path $repoRoot 'modules\mod-pestifere\client-assets\compiled\icons'
 $necromancerCompiledIconRoot = Join-Path $repoRoot 'modules\mod-necromancer\client-assets\compiled\icons'
+$warriorIconRoot = Join-Path $repoRoot 'modules\mod-warrior\client-assets\files\Interface\Icons'
 $serverSpellPath = Join-Path $serverDbcRoot 'Spell.dbc'
 $spellBackupPath = Join-Path $serverDbcRoot 'Spell.before-sinister-strike.dbc'
 $serverSkillPath = Join-Path $serverDbcRoot 'SkillLineAbility.dbc'
@@ -1816,7 +1817,8 @@ function Get-IconIdForPath([string]$path) {
 function Resolve-IconId($spec, [uint32]$fallbackIconId) {
     if ($spec.IconPath) { return Get-IconIdForPath $spec.IconPath }
     if ($spec.Icon) {
-        foreach ($iconRoot in @($compiledIconRoot, $pestifereCompiledIconRoot, $necromancerCompiledIconRoot)) {
+        foreach ($iconRoot in @($compiledIconRoot, $pestifereCompiledIconRoot, $necromancerCompiledIconRoot,
+            $warriorIconRoot)) {
             if (Test-Path -LiteralPath (Join-Path $iconRoot "$($spec.Icon).tga")) {
                 return Get-IconIdForPath "Interface\Icons\$($spec.Icon)"
             }

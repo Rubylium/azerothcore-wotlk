@@ -3,7 +3,9 @@
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "Item.h"
 #include "LiveTuning.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerScript.h"
 #include "Random.h"
@@ -70,6 +72,41 @@ enum Talents : uint32
     TALENT_BOLSTER                  = 95062,    // Renfort
     TALENT_IMMOVABLE_OBJECT         = 95065,    // Objet inamovible
     TALENT_UNSTOPPABLE_FORCE        = 95066,    // Force imparable
+
+    // Gladiateur (the ranks its tree's spell data cannot carry)
+    TALENT_GAPING_WOUNDS_1          = 95200,    // Plaies béantes
+    TALENT_GAPING_WOUNDS_2          = 95201,
+    TALENT_GAPING_WOUNDS_3          = 95202,
+    TALENT_BLOOD_AND_SAND_1         = 95203,    // Sang et sable
+    TALENT_BLOOD_AND_SAND_2         = 95204,
+    TALENT_BLOOD_AND_SAND_3         = 95205,
+    TALENT_SHATTERED_GUARD_1        = 95206,    // Garde fracassée
+    TALENT_SHATTERED_GUARD_2        = 95207,
+    TALENT_SHATTERED_GUARD_3        = 95208,
+    TALENT_BACKHAND                 = 95209,    // Revers
+    TALENT_SHIELD_EDGE_1            = 95210,    // Tranchant du bouclier
+    TALENT_SHIELD_EDGE_2            = 95211,
+    TALENT_SHIELD_EDGE_3            = 95212,
+    TALENT_THUMBS_DOWN              = 95216,    // Pouce baissé
+    TALENT_CONTAGION                = 95217,    // Hémorragie contagieuse
+    TALENT_HEAVY_REPERCUSSIONS_GLAD = 95218,    // Lourdes répercussions
+    TALENT_CRUSH_1                  = 95224,    // Écrasement
+    TALENT_CRUSH_2                  = 95225,
+    TALENT_CRUSH_3                  = 95226,
+    TALENT_CROWD_1                  = 95227,    // Clameur de la foule
+    TALENT_CROWD_2                  = 95228,
+    TALENT_CROWD_3                  = 95229,
+    TALENT_RAISED_SHIELD_1          = 95236,    // Bouclier levé
+    TALENT_RAISED_SHIELD_2          = 95237,
+    TALENT_RAISED_SHIELD_3          = 95238,
+    TALENT_BROTHERS_IN_ARMS_1       = 95239,    // Frères d'armes
+    TALENT_BROTHERS_IN_ARMS_2       = 95240,
+    TALENT_AMPHITHEATER_1           = 95241,    // Amphithéâtre
+    TALENT_AMPHITHEATER_2           = 95242,
+    TALENT_ARENA_THIRST_1           = 95243,    // Soif de l'arène
+    TALENT_ARENA_THIRST_2           = 95244,
+    TALENT_MORITURI                 = 95245,    // Morituri te salutant
+    TALENT_PANEM                    = 95246,    // Panem et circenses
 };
 
 // The abilities and auras of localTools/warrior/Spells.ps1
@@ -112,11 +149,26 @@ enum Spells : uint32
     SPELL_REVENGE_PROC              = 95146,
     SPELL_SHIELD_BLOCK_CHARGES      = 95147,
     SPELL_OVERPOWER_CHARGES         = 95148,
+    // Gladiateur
+    SPELL_DUEL                      = 95150,
+    SPELL_SHIELD_THROW              = 95151,
+    SPELL_ARENA_STORM               = 95152,
+    SPELL_COUP_DE_GRACE             = 95153,
+    SPELL_CROWD_HASTE               = 95154,
+    SPELL_DUEL_ARENA                = 95155,
+    SPELL_ARENA_STORM_WHIRL         = 95157,
+    SPELL_WOUND                     = 95158,
+    SPELL_WOUND_BURST               = 95159,
+    SPELL_OPENING                   = 95160,
+    SPELL_BROKEN_GUARD              = 95161,
+    SPELL_GLADIATOR_SHIELD          = 95162,
+    SPELL_DUEL_SHARE                = 95163,
 
     // The specializations' passives
     SPELL_SPEC_ARMS                 = 95280,
     SPELL_SPEC_FURY                 = 95281,
     SPELL_SPEC_PROTECTION           = 95282,
+    SPELL_SPEC_GLADIATOR            = 95283,
 
     // Stock (first ranks)
     SPELL_THUNDER_CLAP_R1           = 6343,
@@ -131,6 +183,8 @@ enum Spells : uint32
     SPELL_LAST_STAND                = 12975,
     SPELL_MORTAL_STRIKE_R1          = 12294,
     SPELL_SHIELD_SLAM_R1            = 23922,
+    SPELL_DEVASTATE_R1              = 20243,
+    SPELL_SUNDER_ARMOR_DEVASTATE    = 58567,
     SPELL_BLOODTHIRST               = 23881,
     SPELL_WHIRLWIND_OFFHAND         = 44949,
     SPELL_BLADESTORM                = 46924,
@@ -138,6 +192,9 @@ enum Spells : uint32
     SPELL_BLADESTORM_WHIRL          = 50622,
     SPELL_SUDDEN_DEATH              = 52437,
 };
+
+// The duel flag two players fight under: Duel's arena, for as long as it lasts
+constexpr uint32 GO_DUEL_FLAG = 21680;
 
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Rage a builder gives (in rage points)
@@ -186,6 +243,25 @@ LiveTuning::Knob const UnstoppableForceFactor("warrior.unstoppable_force_factor"
 LiveTuning::KnobInt const UnstoppableForceCooldownMs("warrior.unstoppable_force_cooldown_ms", 3000);
 LiveTuning::Knob const ShieldChargeRange("warrior.shield_charge_range", 8.0f);
 LiveTuning::KnobInt const ShieldChargeTargets("warrior.shield_charge_targets", 5);
+// Gladiateur
+LiveTuning::KnobInt const RageGladiatorShieldSlam("warrior.glad_rage_shield_slam", 20);
+LiveTuning::KnobInt const RageGladiatorDevastate("warrior.glad_rage_devastate", 5);
+// Plaie du gladiateur: the share of a hit that goes into the bleed, by what put it there
+LiveTuning::Knob const WoundRevengeShare("warrior.glad_wound_revenge", 0.4f);
+LiveTuning::Knob const WoundThrowShare("warrior.glad_wound_throw", 0.4f);
+LiveTuning::Knob const WoundStormShare("warrior.glad_wound_storm", 0.3f);
+LiveTuning::KnobInt const WoundResetChance("warrior.glad_wound_reset_chance", 6);    // a tick's, per cent
+LiveTuning::KnobUInt const WoundResetGapMs("warrior.glad_wound_reset_gap_ms", 900);  // one roll per tick, not per enemy
+LiveTuning::KnobInt const BrokenGuardPct("warrior.glad_broken_guard_pct", 20);
+LiveTuning::Knob const ShieldEdgeShare("warrior.glad_shield_edge_share", 0.2f);     // of block value, a rank
+LiveTuning::Knob const ThumbsDownFactor("warrior.glad_thumbs_down_factor", 1.5f);
+LiveTuning::Knob const ContagionShare("warrior.glad_contagion_share", 0.5f);
+LiveTuning::Knob const ContagionRange("warrior.glad_contagion_range", 8.0f);
+LiveTuning::KnobInt const ExecuteMaxRage("warrior.glad_execute_max_rage", 100);
+LiveTuning::KnobInt const DuelMs("warrior.glad_duel_ms", 15000);
+LiveTuning::KnobInt const DuelSharePct("warrior.glad_duel_share_pct", 30);
+LiveTuning::Knob const DuelStopPct("warrior.glad_duel_stop_pct", 35.0f);
+LiveTuning::KnobInt const MorituriMs("warrior.glad_morituri_ms", 10000);
 // Class tree
 LiveTuning::Knob const SecondWindPct("warrior.second_wind_pct", 35.0f);
 LiveTuning::KnobUInt const SecondWindPeriodMs("warrior.second_wind_period_ms", 1000);
@@ -257,6 +333,15 @@ struct WarriorState : public DataMap::Base
     uint32 areaSpell = 0;
     uint32 areaStamp = 0;
     uint8 areaCount = 1;
+    // Gladiateur: Revenge's chosen target, the rage Execute was cast with, Duel's ally and its end, the last bleed
+    // tick that rolled for Shield Slam, and the critical strike rating the shield gives
+    ObjectGuid revengeTarget;
+    int32 executeRage = 0;
+    bool executeArmed = false;
+    ObjectGuid duelPartner;
+    uint32 duelUntilMs = 0;
+    uint32 woundRollMs = 0;
+    int32 shieldCritRating = 0;
 };
 
 constexpr char const* StateKey = "WarriorTalentState";
@@ -297,10 +382,21 @@ bool IsProtection(Unit const* unit)
     return unit->HasAura(SPELL_SPEC_PROTECTION);
 }
 
+bool IsGladiator(Unit const* unit)
+{
+    return unit->HasAura(SPELL_SPEC_GLADIATOR);
+}
+
 // A two-rank talent's rank: 2, 1 or 0
 uint8 Rank(Unit const* unit, uint32 first, uint32 second)
 {
     return unit->HasAura(second) ? 2 : unit->HasAura(first) ? 1 : 0;
+}
+
+// A three-rank talent's rank: 3 to 0
+uint8 Rank(Unit const* unit, uint32 first, uint32 second, uint32 third)
+{
+    return unit->HasAura(third) ? 3 : Rank(unit, first, second);
 }
 
 uint8 Stacks(Unit const* unit, uint32 spellId, ObjectGuid caster = ObjectGuid::Empty)
@@ -686,6 +782,257 @@ void GrantAvatar(Player* player, int32 durationMs)
     Lengthen(avatar, durationMs);
 }
 
+// --- Gladiateur ------------------------------------------------------------------------------------------------------
+
+// The bleed's whole length, Arène sanglante's included
+int32 WoundDurationMs(Player* player)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_WOUND);
+    int32 duration = spellInfo ? spellInfo->GetMaxDuration() : 6000;
+    player->ApplySpellMod(SPELL_WOUND, SPELLMOD_DURATION, duration);
+    return std::max(duration, 1000);
+}
+
+// What the Warrior's bleed on target has still to deal, and the bleed
+float WoundLeft(Player* player, Unit* target, Aura*& wound)
+{
+    wound = target ? target->GetAura(SPELL_WOUND, player->GetGUID()) : nullptr;
+    AuraEffect* effect = wound ? wound->GetEffect(EFFECT_0) : nullptr;
+    if (!effect)
+        return 0.0f;
+    int32 const period = std::max<int32>(effect->GetAmplitude(), 1);
+    int32 const ticks = std::max<int32>(0, (wound->GetDuration() + period - 1) / period);
+    return float(effect->GetAmount()) * float(ticks);
+}
+
+// The bleed on target with amount more to deal, spread over its whole length again (Ignite's rolling): what it
+// still had plus amount (Plaies béantes' bonus on the part added, unless it carries it already)
+void AddWound(Player* player, Unit* target, float amount, bool withTalents = true)
+{
+    if (!target || !target->IsAlive() || amount < 1.0f)
+        return;
+    if (withTalents)
+        amount *= 1.0f + 0.1f * float(Rank(player, TALENT_GAPING_WOUNDS_1, TALENT_GAPING_WOUNDS_2,
+            TALENT_GAPING_WOUNDS_3));
+    Aura* wound = nullptr;
+    float const total = WoundLeft(player, target, wound) + amount;
+    int32 const ticks = std::max(1, WoundDurationMs(player) / 1000);
+    int32 const perTick = Amount(total / float(ticks));
+    if (wound)
+        target->RemoveAurasDueToSpell(SPELL_WOUND, player->GetGUID());
+    player->CastCustomSpell(target, SPELL_WOUND, &perTick, nullptr, nullptr, true);
+}
+
+// Shield Slam under Shield Block: the bleed keeps rolling, as long again as it was laid
+void RefreshWound(Player* player, Unit* target)
+{
+    if (Aura* wound = target ? target->GetAura(SPELL_WOUND, player->GetGUID()) : nullptr)
+        wound->RefreshDuration();
+}
+
+// Execute: what is left of the bleed at once (half of it with Panem et circenses, the other half bleeding on),
+// 50% more with Pouce baissé; Hémorragie contagieuse spreads half of it to the enemies around
+void ConsumeWound(Player* player, Unit* target)
+{
+    Aura* wound = nullptr;
+    float const left = WoundLeft(player, target, wound);
+    if (!wound || left < 1.0f)
+        return;
+    float consumed = left;
+    if (player->HasAura(TALENT_PANEM))
+    {
+        consumed = left * 0.5f;
+        if (AuraEffect* effect = wound->GetEffect(EFFECT_0))
+            effect->ChangeAmount(std::max(1, effect->GetAmount() / 2));
+    }
+    else
+        target->RemoveAurasDueToSpell(SPELL_WOUND, player->GetGUID());
+    float const burst = consumed * (player->HasAura(TALENT_THUMBS_DOWN) ? ThumbsDownFactor : 1.0f);
+    Strike(player, target, SPELL_WOUND_BURST, burst);
+    if (player->HasAura(TALENT_CONTAGION))
+        for (Unit* enemy : EnemiesNear(player, target, ContagionRange))
+            AddWound(player, enemy, consumed * ContagionShare, false);
+}
+
+// A tick of the bleed: maybe Shield Slam back (one roll per tick, however many enemies bleed), and Frères d'armes'
+// heal on Duel's ally
+void WoundTick(Player* player, uint32 damage)
+{
+    WarriorState* state = GetState(player);
+    uint32 const now = Now();
+    if (now - state->woundRollMs >= WoundResetGapMs)
+    {
+        state->woundRollMs = now;
+        int32 const chance = WoundResetChance + 3 * int32(Rank(player, TALENT_BLOOD_AND_SAND_1, TALENT_BLOOD_AND_SAND_2,
+            TALENT_BLOOD_AND_SAND_3));
+        if (roll_chance_i(chance))
+            ClearChainCooldown(player, SPELL_SHIELD_SLAM_R1);
+    }
+
+    uint8 const brothers = Rank(player, TALENT_BROTHERS_IN_ARMS_1, TALENT_BROTHERS_IN_ARMS_2);
+    if (!brothers || !state->duelUntilMs || now > state->duelUntilMs)
+        return;
+    Unit* ally = ObjectAccessor::GetUnit(*player, state->duelPartner);
+    SpellInfo const* wound = sSpellMgr->GetSpellInfo(SPELL_WOUND);
+    if (!ally || !ally->IsAlive() || !wound)
+        return;
+    HealInfo healInfo(player, ally, uint32(CalculatePct(damage, 10 * brothers)), wound, wound->GetSchoolMask());
+    player->HealBySpell(healInfo);
+}
+
+// Devastate: Garde brisée on the next Revenge, more with Garde fracassée
+void BreakGuard(Player* player)
+{
+    // A custom base point still gets the effect's one die point: one less
+    int32 const bonus = BrokenGuardPct + 10 * int32(Rank(player, TALENT_SHATTERED_GUARD_1, TALENT_SHATTERED_GUARD_2,
+        TALENT_SHATTERED_GUARD_3)) - 1;
+    player->RemoveAurasDueToSpell(SPELL_BROKEN_GUARD);
+    player->CastCustomSpell(player, SPELL_BROKEN_GUARD, &bonus, nullptr, nullptr, true);
+}
+
+// Execute's rage past the core's (it takes up to 30): all of it up to ExecuteMaxRage, each tenth worth what the
+// core's are, the Warrior's damage modifiers included; Coup de grâce strikes as with ExecuteMaxRage and spends none
+float ExecuteRageBonus(Player* player, float damage)
+{
+    WarriorState* state = GetState(player);
+    if (!state->executeArmed)
+        return 0.0f;
+    state->executeArmed = false;
+    SpellInfo const* execute = sSpellMgr->GetSpellInfo(KnownRank(player, SPELL_EXECUTE_R1));
+    if (!execute)
+        return 0.0f;
+    int32 const cost = execute->CalcPowerCost(player, execute->GetSchoolMask());
+    int32 const before = state->executeRage;
+    int32 const now = int32(player->GetPower(POWER_RAGE));
+    int32 const coreTenths = std::max(0, std::min(300 - cost, before - cost));
+    int32 const cap = ExecuteMaxRage * 10;
+    int32 extra = 0;
+    if (player->HasAura(SPELL_COUP_DE_GRACE))
+    {
+        extra = std::max(0, cap - std::max(0, before - now));
+        player->SetPower(POWER_RAGE, uint32(before));
+    }
+    else
+    {
+        extra = std::clamp(cap - std::max(0, before - now), 0, now);
+        player->SetPower(POWER_RAGE, uint32(now - extra));
+    }
+    float const perTenth = execute->Effects[EFFECT_0].DamageMultiplier;
+    float const coreBase = float(execute->Effects[EFFECT_0].CalcValue(player)) + float(coreTenths) * perTenth +
+        player->GetTotalAttackPowerValue(BASE_ATTACK) * 0.2f;
+    if (coreBase <= 0.0f)
+        return 0.0f;
+    return damage * float(extra) * perTenth / coreBase;
+}
+
+// Bouclier du gladiateur: the shield's defensive ratings
+int32 ShieldDefenseRating(Player* player)
+{
+    Item* shield = player->GetShield();
+    ItemTemplate const* proto = shield && !shield->IsBroken() ? shield->GetTemplate() : nullptr;
+    if (!proto)
+        return 0;
+    int32 rating = 0;
+    for (uint8 index = 0; index < proto->StatsCount && index < MAX_ITEM_PROTO_STATS; ++index)
+    {
+        switch (proto->ItemStat[index].ItemStatType)
+        {
+            case ITEM_MOD_DEFENSE_SKILL_RATING:
+            case ITEM_MOD_DODGE_RATING:
+            case ITEM_MOD_PARRY_RATING:
+            case ITEM_MOD_BLOCK_RATING:
+                rating += proto->ItemStat[index].ItemStatValue;
+                break;
+            default:
+                break;
+        }
+    }
+    return std::max(rating, 0);
+}
+
+void UpdateGladiatorShield(Player* player, WarriorState* state)
+{
+    int32 const rating = IsGladiator(player) ? ShieldDefenseRating(player) : 0;
+    Aura* aura = player->GetAura(SPELL_GLADIATOR_SHIELD);
+    if (!rating)
+    {
+        if (aura)
+            player->RemoveAura(aura);
+        state->shieldCritRating = 0;
+        return;
+    }
+    if (aura && state->shieldCritRating == rating)
+        return;
+    state->shieldCritRating = rating;
+    if (AuraEffect* effect = aura ? aura->GetEffect(EFFECT_0) : nullptr)
+    {
+        effect->ChangeAmount(rating);
+        return;
+    }
+    // A custom base point still gets the effect's one die point: one less
+    int32 const amount = rating - 1;
+    player->CastCustomSpell(player, SPELL_GLADIATOR_SHIELD, &amount, nullptr, nullptr, true);
+}
+
+// Tranchant du bouclier: a share of the shield's block value on every weapon blow
+float ShieldEdge(Player* player)
+{
+    uint8 const rank = Rank(player, TALENT_SHIELD_EDGE_1, TALENT_SHIELD_EDGE_2, TALENT_SHIELD_EDGE_3);
+    if (!rank || !player->GetShield())
+        return 0.0f;
+    return float(player->GetShieldBlockValue()) * ShieldEdgeShare * float(rank);
+}
+
+// Bouclier levé: less damage taken while Shield Block is up
+float RaisedShieldFactor(Unit* target)
+{
+    Player* player = target ? target->ToPlayer() : nullptr;
+    if (!player || player->getClass() != CLASS_WARRIOR || !player->HasAura(SPELL_SHIELD_BLOCK))
+        return 1.0f;
+    static constexpr std::array<float, 4> Reduction = { 0.0f, 0.04f, 0.07f, 0.10f };
+    return 1.0f - Reduction[Rank(player, TALENT_RAISED_SHIELD_1, TALENT_RAISED_SHIELD_2, TALENT_RAISED_SHIELD_3)];
+}
+
+// Duel: the Warrior and its ally in the arena, both stronger, the Warrior taking part of what the ally takes
+void StartDuel(Player* player, WarriorState* state, Unit* ally)
+{
+    if (!ally || ally == player || !ally->IsAlive())
+        return;
+    int32 const duration = DuelMs + 3000 * int32(Rank(player, TALENT_AMPHITHEATER_1, TALENT_AMPHITHEATER_2));
+    for (Unit* duelist : { static_cast<Unit*>(player), ally })
+        Lengthen(player->AddAura(SPELL_DUEL_ARENA, duelist), duration);
+    ally->RemoveAurasDueToSpell(SPELL_DUEL_SHARE, player->GetGUID());
+    Lengthen(player->AddAura(SPELL_DUEL_SHARE, ally), duration);
+    if (player->HasAura(TALENT_MORITURI))
+        GrantAvatar(player, MorituriMs);
+    state->duelPartner = ally->GetGUID();
+    state->duelUntilMs = Now() + uint32(duration);
+    // The duel flag where the charge ends, at the ally's side
+    player->SummonGameObject(GO_DUEL_FLAG, ally->GetPositionX(), ally->GetPositionY(), ally->GetPositionZ(),
+        ally->GetOrientation(), 0.0f, 0.0f, 0.0f, 0.0f, uint32(duration / 1000));
+}
+
+// Duel's share stops while the Warrior is low (35%, 30% or 25% with Amphithéâtre), so it never kills them
+void UpdateDuel(Player* player, WarriorState* state, uint32 now)
+{
+    if (!state->duelUntilMs)
+        return;
+    Unit* ally = ObjectAccessor::GetUnit(*player, state->duelPartner);
+    if (now > state->duelUntilMs || !ally)
+    {
+        state->duelUntilMs = 0;
+        state->duelPartner.Clear();
+        return;
+    }
+    AuraEffect* share = ally->GetAuraEffect(SPELL_DUEL_SHARE, EFFECT_0, player->GetGUID());
+    if (!share)
+        return;
+    float const stop = DuelStopPct - 5.0f * float(Rank(player, TALENT_AMPHITHEATER_1, TALENT_AMPHITHEATER_2));
+    int32 const amount = player->IsAlive() && player->GetHealthPct() > stop ? int32(DuelSharePct) : 0;
+    if (share->GetAmount() != amount)
+        share->ChangeAmount(amount);
+}
+
 // --- Spell casts -----------------------------------------------------------------------------------------------------
 
 class WarriorTalentSpellScript : public AllSpellScript
@@ -718,11 +1065,35 @@ public:
             }
         }
 
+        Unit* target = spell->m_targets.GetUnitTarget();
+        bool const gladiator = IsGladiator(player);
         if (firstRank == SPELL_EXECUTE_R1)
         {
-            Unit* target = spell->m_targets.GetUnitTarget();
-            if (target && target->GetHealthPct() >= ExecuteThreshold(player) && !player->HasAura(SPELL_SUDDEN_DEATH))
+            // The Gladiateur's executes whatever bleeds of its Plaie
+            bool const bleeding = gladiator && target && target->HasAura(SPELL_WOUND, player->GetGUID());
+            if (target && target->GetHealthPct() >= ExecuteThreshold(player) && !player->HasAura(SPELL_SUDDEN_DEATH) &&
+                !bleeding)
+            {
                 result = SPELL_FAILED_TARGET_AURASTATE;
+                return;
+            }
+            // Its rage before the core takes its share: Execute spends the rest (ExecuteRageBonus)
+            if (gladiator)
+            {
+                state->executeRage = int32(player->GetPower(POWER_RAGE));
+                state->executeArmed = true;
+            }
+        }
+
+        // The Gladiateur's Revenge needs Shield Slam's Ouverture; its bleed goes on the target chosen
+        if (gladiator && firstRank == SPELL_REVENGE_R1)
+        {
+            if (!player->HasAura(SPELL_OPENING))
+            {
+                result = SPELL_FAILED_CASTER_AURASTATE;
+                return;
+            }
+            state->revengeTarget = target ? target->GetGUID() : ObjectGuid::Empty;
         }
     }
 
@@ -847,9 +1218,15 @@ public:
                 if (player->HasAura(TALENT_BOLSTER))
                     player->AddAura(SPELL_SHIELD_BLOCK, player);
                 return;
+            // Gladiateur
+            case SPELL_DUEL:
+                StartDuel(player, state, target);
+                return;
             default:
                 break;
         }
+
+        bool const gladiator = IsGladiator(player);
 
         switch (firstRank)
         {
@@ -860,19 +1237,36 @@ public:
                     target->RemoveAurasDueToSpell(SPELL_EXECUTIONERS_PRECISION, player->GetGUID());
                 break;
             case SPELL_EXECUTE_R1:
-                // Above the threshold it was Sudden Death's: spent
-                if (target && target->GetHealthPct() >= ExecuteThreshold(player))
+                // Above the threshold it was Sudden Death's: spent (not on the Gladiateur's bleeding target)
+                if (target && target->GetHealthPct() >= ExecuteThreshold(player) &&
+                    !(gladiator && target->HasAura(SPELL_WOUND, player->GetGUID())))
                     player->RemoveAurasDueToSpell(SPELL_SUDDEN_DEATH);
                 if (player->HasAura(TALENT_EXECUTIONERS_PRECISION) && target && target->IsAlive())
                     AddStack(player, target, SPELL_EXECUTIONERS_PRECISION, ExecutionersPrecisionMax);
                 ConsumeCleaver(player);
+                if (gladiator)
+                    GladiatorExecute(player, state, target);
                 break;
             case SPELL_SHIELD_SLAM_R1:
-                AddRage(player, RageShieldSlam);
+                AddRage(player, gladiator ? RageGladiatorShieldSlam : RageShieldSlam);
                 // Lourdes répercussions
-                if (player->HasAura(TALENT_HEAVY_REPERCUSSIONS))
+                if (player->HasAura(TALENT_HEAVY_REPERCUSSIONS) || player->HasAura(TALENT_HEAVY_REPERCUSSIONS_GLAD))
                     if (Aura* block = player->GetAura(SPELL_SHIELD_BLOCK))
                         Lengthen(block, block->GetDuration() + HeavyRepercussionsMs);
+                // The Gladiateur: Revenge opens, and under Shield Block the bleed rolls on
+                if (gladiator)
+                {
+                    player->AddAura(SPELL_OPENING, player);
+                    if (player->HasAura(SPELL_SHIELD_BLOCK))
+                        RefreshWound(player, target);
+                }
+                break;
+            case SPELL_DEVASTATE_R1:
+                if (gladiator)
+                {
+                    AddRage(player, RageGladiatorDevastate);
+                    BreakGuard(player);
+                }
                 break;
             case SPELL_THUNDER_CLAP_R1:
                 AddRage(player, RageThunderClap);
@@ -882,6 +1276,9 @@ public:
                 break;
             case SPELL_REVENGE_R1:
                 player->RemoveAurasDueToSpell(SPELL_REVENGE_PROC);
+                // Both were in its damage (its bleed laid in OnSpellDamageDone): spent now
+                player->RemoveAurasDueToSpell(SPELL_OPENING);
+                player->RemoveAurasDueToSpell(SPELL_BROKEN_GUARD);
                 break;
             default:
                 break;
@@ -889,6 +1286,27 @@ public:
     }
 
 private:
+    // The Gladiateur's Execute (its rage spent in ExecuteRageBonus, with its damage): the bleed consumed, Clameur de
+    // la foule's haste, Soif de l'arène's chance at Shield Slam, Coup de grâce spent
+    static void GladiatorExecute(Player* player, WarriorState* state, Unit* target)
+    {
+        state->executeArmed = false;
+        if (target)
+            ConsumeWound(player, target);
+        if (uint8 const crowd = Rank(player, TALENT_CROWD_1, TALENT_CROWD_2, TALENT_CROWD_3))
+        {
+            static constexpr std::array<int32, 4> Haste = { 0, 3, 6, 10 };
+            // A custom base point still gets the effect's one die point: one less
+            int32 const haste = Haste[crowd] - 1;
+            player->RemoveAurasDueToSpell(SPELL_CROWD_HASTE);
+            player->CastCustomSpell(player, SPELL_CROWD_HASTE, &haste, nullptr, nullptr, true);
+        }
+        if (uint8 const thirst = Rank(player, TALENT_ARENA_THIRST_1, TALENT_ARENA_THIRST_2))
+            if (roll_chance_i(25 * thirst))
+                ClearChainCooldown(player, SPELL_SHIELD_SLAM_R1);
+        player->RemoveAurasDueToSpell(SPELL_COUP_DE_GRACE);
+    }
+
     // Rampage: its three other blows, main hand and off hand in turn, then the Enrage; Meat Cleaver carries each of
     // them (OnSpellDamageDone), and is spent once
     static void Rampage(Player* player, Unit* target)
@@ -942,6 +1360,7 @@ bool IsAreaSpell(SpellInfo const* spellInfo)
         case SPELL_HEROIC_LEAP_LANDING:
         case SPELL_RAVAGER_BLADES:
         case SPELL_SHOCKWAVE:
+        case SPELL_ARENA_STORM_WHIRL:
             return true;
         default:
             break;
@@ -960,23 +1379,36 @@ public:
         UNITHOOK_ON_SPELL_DAMAGE_DONE
     }) { }
 
-    // Colossus Smash's mark on white hits
+    // White hits: Colossus Smash's mark, Tranchant du bouclier; Bouclier levé on the Warrior hit
     void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
     {
+        if (!target || !damage)
+            return;
+        damage = uint32(float(damage) * RaisedShieldFactor(target));
         Player* player = Warrior(attacker);
-        if (!player || !target || !damage)
+        if (!player)
             return;
         if (target->HasAura(SPELL_COLOSSUS_MARK, player->GetGUID()))
             damage = uint32(float(damage) * ColossusFactor);
+        damage += uint32(ShieldEdge(player));
     }
 
     void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
     {
         if (!target || !spellInfo || damage <= 0)
             return;
+        damage = int32(float(damage) * RaisedShieldFactor(target));
         Player* player = Warrior(attacker);
         if (!player)
             return;
+        // The Gladiateur: Execute's rage past the core's, Tranchant du bouclier on each weapon blow
+        if (IsGladiator(player))
+        {
+            if (spellInfo->Id == SPELL_EXECUTE_DAMAGE)
+                damage += int32(ExecuteRageBonus(player, float(damage)));
+            if (spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE)
+                damage += int32(ShieldEdge(player));
+        }
         float factor = 1.0f;
         if (target->HasAura(SPELL_COLOSSUS_MARK, player->GetGUID()))
             factor *= ColossusFactor;
@@ -1001,6 +1433,7 @@ public:
     {
         if (!target || !spellInfo || !damage)
             return;
+        damage = uint32(float(damage) * RaisedShieldFactor(target));
         Player* player = Warrior(attacker);
         if (!player)
             return;
@@ -1011,6 +1444,8 @@ public:
             factor *= AreaFalloff(AreaCount(player, spellInfo, target));
         if (factor != 1.0f)
             damage = uint32(float(damage) * factor);
+        if (spellInfo->Id == SPELL_WOUND)
+            WoundTick(player, damage);
     }
 
     void OnSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage,
@@ -1028,11 +1463,30 @@ public:
                 if (IsFury(player) && (critical || roll_chance_i(BloodthirstEnrageChance)))
                     Enrage(player);
                 break;
+            // Gladiateur: what lays its bleed
+            case SPELL_SHIELD_THROW:
+                player->CastSpell(victim, SPELL_SUNDER_ARMOR_DEVASTATE, true);
+                AddWound(player, victim, float(damage) * WoundThrowShare);
+                return;
+            case SPELL_ARENA_STORM_WHIRL:
+                AddWound(player, victim, float(damage) * WoundStormShare);
+                return;
             default:
                 break;
         }
         if (IsCleaverAttack(spellInfo->Id))
             MeatCleaver(player, victim, damage);
+        if (!IsGladiator(player))
+            return;
+        uint32 const firstRank = FirstRank(spellInfo);
+        // Revenge: its target, or every enemy it hits with Revers
+        if (firstRank == SPELL_REVENGE_R1 &&
+            (victim->GetGUID() == GetState(player)->revengeTarget || player->HasAura(TALENT_BACKHAND)))
+            AddWound(player, victim, float(damage) * WoundRevengeShare);
+        // Écrasement: Thunder Clap lays or feeds the bleed on each enemy it hits
+        if (firstRank == SPELL_THUNDER_CLAP_R1)
+            if (uint8 const crush = Rank(player, TALENT_CRUSH_1, TALENT_CRUSH_2, TALENT_CRUSH_3))
+                AddWound(player, victim, float(damage) * 0.1f * float(crush));
     }
 
 private:
@@ -1113,6 +1567,8 @@ public:
         state->holdTimer = 0;
         UpdateRevengeProc(player, state, now);
         UpdateSecondWind(player, state, now);
+        UpdateDuel(player, state, now);
+        UpdateGladiatorShield(player, state);
     }
 
 private:
