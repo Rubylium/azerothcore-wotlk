@@ -65,7 +65,9 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // The client extension's post-processing, a category of the Video options (needs VideoOptionsFrame)
     'PostProcessing.lua',
     // The action buttons' spell states (greyed out of the server's rules, proc glows); needs TalentTree.lua
-    'SpellStates.lua'];
+    'SpellStates.lua',
+    // The Effects panel's view distance, objects' detail and grass past the stock limits, with the game's memory
+    'WorldDetailUI.lua'];
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);

@@ -127,7 +127,8 @@ end
 
 -- The spell alert: retail's two flipbooks, 30 frames each, laid out 8 by 4 - the ring closing onto the button once,
 -- then the border's running shine for as long as the proc lasts. Sized on the button as retail's (the start 3.3
--- times it, the loop 1.4). The burst is added to what is under it; the loop is laid over, as added it bleached the icon.
+-- times it, the loop 1.4). The burst is added to what is under it; the loop is laid over: added, it bleached the
+-- icon.
 local START_TIME, LOOP_TIME, FRAMES = 0.7, 1.0, 30
 
 local function SetFrame(texture, index)
