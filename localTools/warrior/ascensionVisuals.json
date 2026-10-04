@@ -8,7 +8,8 @@
     "WoundBurst: Centurion Strike (gushing wound, blood burst); Opening: Ancestor's Fury (state: blood rage on the",
     "hands); OpeningRing: Iron Will Fierce Smash (impact: sword flash, steel ring); BrokenGuard: Shield Block Fierce",
     "Smash (impact: shield emblem, metal shield crunch); ArenaStorm and ArenaStormWhirl: retail Bladestorm's aura and",
-    "whirl (dust whirlwind); CoupDeGrace: Juggernaut (roar, blood rage on the weapons, a mark on the chest)."
+    "whirl (dust whirlwind); CoupDeGrace: Juggernaut (roar, blood rage on the weapons, a mark on the chest).",
+    "ChampionsSpear: Champion's Spear (DF spear missile, spear planted in a dust burst while its area lasts); RavagerCast: Maximum Carnage (the retail Ravager axe spun at the feet, Whirlwind); RavagerVortex: Blade Vortex (its area kit: the Fury Bladestorm blade ring with WhirlwindLoop, no animation, used as a state)."
   ],
   "output": "modules/mod-warrior/client-assets/imported",
   "idBase": 76000,
@@ -22,6 +23,9 @@
     "BrokenGuard": 21867,
     "ArenaStorm": 278006,
     "ArenaStormWhirl": 278002,
-    "CoupDeGrace": 817
+    "CoupDeGrace": 817,
+    "ChampionsSpear": 22310,
+    "RavagerCast": 1000065,
+    "RavagerVortex": 21835
   }
 }

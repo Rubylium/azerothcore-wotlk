@@ -4474,7 +4474,7 @@ TalentTreeData = {
                 { id = 217, row = 5, col = 3, kind = "choice", level = 0, parents = { 213, 214 },
                   options = {
                     { spell = 46924, name = "Tempête de lames", icon = "Interface\\Icons\\Ability_Warrior_Bladestorm", text = "Vous tournoyez pendant 6 s, frappant chaque seconde les ennemis proches, immunisé aux contrôles. 1 min 30 s de recharge." },
-                    { spell = 95113, name = "Ravageur", icon = "Interface\\Icons\\INV_Axe_68", text = "Lance un ravageur tournoyant à l'endroit visé : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge." },
+                    { spell = 95113, name = "Ravageur", icon = "Interface\\Icons\\INV_Axe_68", text = "Un ravageur tournoie autour de vous : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge." },
                   } },
                 { id = 218, row = 5, col = 5, kind = "passive", level = 0, parents = { 214, 215 },
                   name = "Précision de l'exécuteur", icon = "Interface\\Icons\\INV_Sword_62",
@@ -4682,7 +4682,7 @@ TalentTreeData = {
                 { id = 410, row = 3, col = 3, kind = "active", level = 0, parents = { 406, 407 },
                   name = "Ravageur", icon = "Interface\\Icons\\INV_Axe_68",
                   spells = { 95141 },
-                  texts = { "Lance un ravageur tournoyant à l'endroit visé : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge." } },
+                  texts = { "Un ravageur tournoie autour de vous : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge." } },
                 { id = 411, row = 3, col = 5, kind = "passive", level = 0, parents = { 407, 408 },
                   name = "Posture défensive améliorée", icon = "Interface\\Icons\\Ability_Warrior_DefensiveStance",
                   spells = { 29593, 29594 },

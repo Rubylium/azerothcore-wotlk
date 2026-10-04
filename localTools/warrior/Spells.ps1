@@ -80,6 +80,8 @@ $computed = 20647
 $whirl = 1680
 $clap = 6343
 $selfBuff = 2983
+# Lance du champion's flight (missile speed, a float in its field)
+$spearSpeed = [BitConverter]::ToUInt32([BitConverter]::GetBytes([single]25), 0)
 
 # The Gladiateur's looks imported from the Ascension client (localTools/warrior/ascensionVisuals.json, through
 # localTools/ascensionImport/importVisuals.py): field 131 names an imported SpellVisual by its key; LookKit gives one of
@@ -160,8 +162,11 @@ $spells = @(
        AuraDescription = 'Immobilisé.'
        Effects = @(
            @{ Index = 0; Effect = 2; TargetA = 16; Value = 200 },
-           @{ Index = 1; Effect = 6; Aura = 26; TargetA = 16 })
-       Fields = (Own $flagSpear @{ 31 = 0; 40 = 35; 41 = 1; 84 = 7; 92 = 14; 93 = 14; 131 = 13222; 204 = 0; 205 = 133; 206 = 1500; 213 = 2; 225 = 1 }) },
+           @{ Index = 1; Effect = 6; Aura = 26; TargetA = 16 },
+           @{ Index = 2; Effect = 27; Aura = $A_Dummy; TargetA = 87 })
+       # The spear flies to the spot (speed 25, the damage on landing) and stays planted there 4 s (the ground area of
+       # effect 3, whose look is the planted spear)
+       Fields = (Own $flagSpear @{ 31 = 0; 40 = 35; 41 = 1; 47 = $spearSpeed; 84 = 7; 92 = 14; 93 = 14; 94 = 14; 131 = (Look 'ChampionsSpear'); 204 = 0; 205 = 133; 206 = 1500; 213 = 2; 225 = 1 }) },
 
     # --- Armes ------------------------------------------------------------------------------------------------------
     # Frappe du colosse (Colossus Smash): 175% weapon damage; mod-warrior marks the target (95115)
@@ -179,12 +184,16 @@ $spells = @(
        Description = "Fend le crâne de la cible (200% des dégâts de l'arme) et vous rend 20 points de rage."
        Effects = (Strike 1 200)
        Fields = (Own $flagSkullsplitter @{ 131 = 1165 }) },
-    # Ravageur (Ravager, Arms): a dummy on the chosen spot; mod-warrior whirls the blades there (95124) every second
-    # for 7 s, 5 rage a blow
-    @{ Id = 95113; Clone = 47847; Name = 'Ravageur'; IconPath = 'Interface\Icons\INV_Axe_68'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $arms; ClassMask = $classMask
-       Description = "Lance un ravageur tournoyant à l'endroit visé : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage."
-       Effects = @(@{ Index = 0; Effect = 3; TargetA = 87 })
-       Fields = (Own $flagRavager @{ 31 = 0; 40 = 0; 41 = 1; 131 = 13222; 204 = 0; 205 = 133; 206 = 1500; 213 = 2; 225 = 1 }) },
+    # Ravageur (Ravager, Arms): an aura on the Warrior; mod-warrior whirls the blades (95124) around the Warrior, where
+    # it goes, every second for 7 s, 5 rage a blow
+    @{ Id = 95113; Clone = $selfBuff; Name = 'Ravageur'; IconPath = 'Interface\Icons\INV_Axe_68'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $arms; ClassMask = $classMask
+       Description = "Un ravageur tournoie autour de vous : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage."
+       AuraDescription = 'Un ravageur tournoie autour de vous.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 })
+       Fields = (Own $flagRavager @{ 16 = 0; 31 = 0; 40 = 31; 41 = 1; 46 = 1; 204 = 0; 205 = 133; 206 = 1500; 213 = 2; 225 = 1 })
+       # A spin with the retail Ravager axe at the feet as it goes, then the Fury Bladestorm's blade ring around the
+       # Warrior, whirling (WhirlwindLoop), for as long as its aura lasts
+       Visual = @{ Clone = 10704; Cast = (LookKit 'RavagerCast' 2); State = (LookKit 'RavagerVortex' 25) } },
     # Par le fil de l'épée (Die by the Sword): 100% parry and 30% less damage for 8 s, off the global cooldown
     @{ Id = 95114; Clone = $selfBuff; Name = "Par le fil de l'épée"; IconPath = 'Interface\Icons\Ability_Parry'; FallbackIconSpell = 20230; Cost = 0; Cooldown = 120000; Level = 1; Spellbook = $true; SkillLine = $arms; ClassMask = $classMask; NoEquipment = $true
        Description = 'Pendant 8 s, vos chances de parer augmentent de 100% et vous subissez 30% de dégâts en moins.'
@@ -218,7 +227,9 @@ $spells = @(
     # The Ravager's blades, both specializations' (amount from the attack power coefficient in the SQL)
     @{ Id = 95124; Clone = $computed; Name = 'Ravageur'; IconPath = 'Interface\Icons\INV_Axe_68'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Dégâts physiques.'; Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 50 })
-       Fields = (Own $flagRavager @{ 21 = 0; 46 = 13; 131 = 11756 }) },
+       Fields = (Own $flagRavager @{ 21 = 0; 46 = 13; 131 = 11756 })
+       # Whirlwind's blade hit and Bladestorm's whoosh on each enemy, not its spin on the Warrior every second
+       Visual = @{ Clone = 11756; Cast = 0 } },
     # Fulgurance's charges (Arms), shown as stacks
     @{ Id = 95148; Clone = 2983; Name = 'Charges de Fulgurance'; IconPath = 'Interface\Icons\Ability_MeleeDamage'; FallbackIconSpell = 7384; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 2; Spellbook = $false
        Description = 'Charges de Fulgurance.'; AuraDescription = 'Charges de Fulgurance disponibles.'; Fields = @{ 40 = 21 } },
@@ -296,10 +307,14 @@ $spells = @(
        Description = "Charge un ennemi à 25 m au plus, bouclier en avant : 150% des dégâts de l'arme à la cible et aux ennemis à 8 m, et 20 points de rage."
        Fields = (Own $flagShieldCharge @{ 46 = 34; 68 = 4; 69 = 64; 70 = 0; 72 = 0; 87 = 0; 117 = 0 }) },
     # Ravageur (Ravager, Protection): as the Arms one
-    @{ Id = 95141; Clone = 47847; Name = 'Ravageur'; IconPath = 'Interface\Icons\INV_Axe_68'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
-       Description = "Lance un ravageur tournoyant à l'endroit visé : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage."
-       Effects = @(@{ Index = 0; Effect = 3; TargetA = 87 })
-       Fields = (Own $flagRavager @{ 31 = 0; 40 = 0; 41 = 1; 131 = 13222; 204 = 0; 205 = 133; 206 = 1500; 213 = 2; 225 = 1 }) },
+    @{ Id = 95141; Clone = $selfBuff; Name = 'Ravageur'; IconPath = 'Interface\Icons\INV_Axe_68'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
+       Description = "Un ravageur tournoie autour de vous : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage."
+       AuraDescription = 'Un ravageur tournoie autour de vous.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 })
+       Fields = (Own $flagRavager @{ 16 = 0; 31 = 0; 40 = 31; 41 = 1; 46 = 1; 204 = 0; 205 = 133; 206 = 1500; 213 = 2; 225 = 1 })
+       # A spin with the retail Ravager axe at the feet as it goes, then the Fury Bladestorm's blade ring around the
+       # Warrior, whirling (WhirlwindLoop), for as long as its aura lasts
+       Visual = @{ Clone = 10704; Cast = (LookKit 'RavagerCast' 2); State = (LookKit 'RavagerVortex' 25) } },
     # Cri perturbateur (Disrupting Shout): Pummel's interrupt on every enemy within 10 yd
     @{ Id = 95142; Clone = 6552; Name = 'Cri perturbateur'; IconPath = 'Interface\Icons\Ability_Warrior_Challange'; FallbackIconSpell = 1161; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
        Description = "Un cri qui interrompt les sorts des ennemis à 10 m et les empêche d'en lancer pendant 4 s."

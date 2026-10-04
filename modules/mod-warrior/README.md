@@ -18,8 +18,8 @@ no cooldown and no target cap (Bladestorm's whirls neither).
   Cleave +30%): Mortal Strike, Overpower on 2 charges (12 s), Execute below 20% (35% with Massacre, or any time on Sudden
   Death's proc), Colossus Smash (175% weapon damage, the target takes 20% more from the Warrior for 10 s, 45 s) or
   Warbreaker (150% and the same mark on every enemy within 8 yd), Skullsplitter (200%, 20 rage, 21 s), Sweeping Strikes,
-  Bladestorm or the Ravager (a whirling axe thrown at a spot: a blow every second for 7 s within 8 yd, 5 rage each), Die
-  by the Sword. Deep Wounds is the first node. Talents: Martial Prowess and Battlelord (Overpower feeds Mortal Strike),
+  Bladestorm or the Ravager (axes whirling around the Warrior, wherever it goes: a blow every second for 7 s within 8
+  yd, 5 rage each), Die by the Sword. Deep Wounds is the first node. Talents: Martial Prowess and Battlelord (Overpower feeds Mortal Strike),
   Executioner's Precision, Tactician (every 10 rage spent may bring an Overpower charge back), In for the Kill,
   Unhinged (free Mortal Strikes while whirling) or Merciless Bonegrinder (Whirlwind and Cleave +50% after it).
 - **Fureur** (95281: Whirlwind +30%, off hand +10%, 60% less rage from auto attacks so the builders feed Rampage):

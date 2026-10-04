@@ -1174,7 +1174,7 @@
               "spell": 95113,
               "name": "Ravageur",
               "icon": "INV_Axe_68",
-              "text": "Lance un ravageur tournoyant à l'endroit visé : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge.",
+              "text": "Un ravageur tournoie autour de vous : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge.",
               "existing": true
             }
           ],
@@ -2459,7 +2459,7 @@
           "spells": [
             95141
           ],
-          "text": "Lance un ravageur tournoyant à l'endroit visé : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge.",
+          "text": "Un ravageur tournoie autour de vous : chaque seconde pendant 7 s, il frappe les ennemis à 8 m et vous rend 5 points de rage. 1 min 30 s de recharge.",
           "parents": [
             406,
             407

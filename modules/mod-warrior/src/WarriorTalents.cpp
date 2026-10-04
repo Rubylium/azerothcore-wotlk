@@ -277,7 +277,7 @@ LiveTuning::KnobInt const MorituriMs("warrior.glad_morituri_ms", 10000);
 LiveTuning::Knob const SecondWindPct("warrior.second_wind_pct", 35.0f);
 LiveTuning::KnobUInt const SecondWindPeriodMs("warrior.second_wind_period_ms", 1000);
 constexpr float LeapSpeed = 28.0f;                  // yards a second (Spell::CalculateJumpSpeeds for a player)
-// The Ravager: a blow every second for 7 s within 8 yd of its spot
+// The Ravager: a blow every second for 7 s within 8 yd of the Warrior
 LiveTuning::KnobUInt const RavagerMs("warrior.ravager_ms", 7000);
 LiveTuning::KnobUInt const RavagerPeriodMs("warrior.ravager_period_ms", 1000);
 LiveTuning::Knob const RavagerRadius("warrior.ravager_radius", 8.0f);
@@ -325,12 +325,9 @@ struct WarriorState : public DataMap::Base
     // Heroic Leap: where and when the Warrior lands
     bool leapPending = false;
     uint32 leapLandMs = 0;
-    // The Ravager's spot and clock
+    // The Ravager's clock (it whirls around the Warrior)
     uint32 ravagerUntilMs = 0;
     uint32 ravagerNextMs = 0;
-    float ravagerX = 0.0f;
-    float ravagerY = 0.0f;
-    float ravagerZ = 0.0f;
     // Bladestorm or the Ravager whirling (Désaxé)
     uint32 whirlUntilMs = 0;
     uint32 unhingedNextMs = 0;
@@ -1167,11 +1164,7 @@ public:
             case SPELL_RAVAGER_ARMS:
             case SPELL_RAVAGER_PROTECTION:
             {
-                Position const spot = spell->m_targets.HasDst() ? Position(*spell->m_targets.GetDstPos()) :
-                    Position(target ? *target : *player);
-                state->ravagerX = spot.GetPositionX();
-                state->ravagerY = spot.GetPositionY();
-                state->ravagerZ = spot.GetPositionZ();
+                // It whirls around the Warrior, wherever the Warrior goes (UpdateRavager)
                 state->ravagerUntilMs = Now() + RavagerMs;
                 state->ravagerNextMs = Now() + RavagerPeriodMs / 2;
                 StartWhirl(player, state, RavagerMs);
@@ -1617,7 +1610,8 @@ public:
     }
 
 private:
-    // The Ravager's blades on every enemy near its spot, a blow a second, 5 rage each
+    // The Ravager's blades on every enemy around the Warrior, a blow a second, 5 rage each; its aura (the whirling
+    // look) goes with its last blow
     static void UpdateRavager(Player* player, WarriorState* state, uint32 now)
     {
         if (!state->ravagerUntilMs)
@@ -1625,19 +1619,19 @@ private:
         if (now > state->ravagerUntilMs || !player->IsAlive())
         {
             state->ravagerUntilMs = 0;
+            player->RemoveAurasDueToSpell(SPELL_RAVAGER_ARMS);
+            player->RemoveAurasDueToSpell(SPELL_RAVAGER_PROTECTION);
             return;
         }
         if (now < state->ravagerNextMs)
             return;
         state->ravagerNextMs += RavagerPeriodMs;
-        Position const spot(state->ravagerX, state->ravagerY, state->ravagerZ);
-        float const reach = player->GetExactDist(&spot) + RavagerRadius;
         uint8 hit = 0;
-        for (Unit* enemy : EnemiesNear(player, player, reach))
+        for (Unit* enemy : EnemiesNear(player, player, RavagerRadius + 5.0f))
         {
             if (hit >= AreaMaxTargets)
                 break;
-            if (enemy->GetExactDist(&spot) > RavagerRadius + enemy->GetCombatReach())
+            if (player->GetExactDist(enemy) > RavagerRadius + enemy->GetCombatReach())
                 continue;
             player->CastSpell(enemy, SPELL_RAVAGER_BLADES, true);
             ++hit;
