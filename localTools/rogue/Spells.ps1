@@ -9,6 +9,9 @@
 # index (13 10 yd), 131 visual, 205-206 global cooldown category and time, 208 family (8 Rogue), 209-211 family flags,
 # 213 damage class (0 none: it cannot miss), 225 school.
 
+# Finesse's retail looks (localTools/rogue/ascensionVisuals.json): Look gives an imported look's id for field 131
+. (Join-Path $repoRoot 'localTools\rogue\Looks.ps1')
+
 $classMask = 8
 $assassination = 253
 $combat = 38
@@ -84,11 +87,12 @@ $spells = @(
        Fields = @{ 1 = 0; 3 = 0; 131 = 250; 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0 } },
 
     # Tempête cramoisie: a finisher on the target (it spends the combo points there), a dummy mod-rogue turns into a slash
-    # and a bleed on every enemy within 10 yd, longer with every combo point
+    # and a bleed on every enemy within 10 yd, longer with every combo point; the stock Eviscerate's look (671: its
+    # clone would take the retail one StockSpells.ps1 gives Eviscerate)
     @{ Id = 92330; Clone = 48668; Name = 'Tempête cramoisie'; IconPath = 'Interface\Icons\Ability_Rogue_BloodSplatter'; FallbackIconSpell = 48672; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $assassination; ClassMask = $classMask
        Description = "Coup de grâce qui propage la Rupture et le Garrot de votre cible à tous les ennemis à 10 m, puis les entaille et les fait saigner pendant 2 s de plus par point de combo, jusqu'à 12 s."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
-       Fields = @{ 209 = 0; 210 = 0; 211 = 0 } },
+       Fields = @{ 131 = 671; 209 = 0; 210 = 0; 211 = 0 } },
     # Its bleed: amount and length set by mod-rogue for the combo points spent; one tick every 2 s
     @{ Id = 92331; Clone = 48672; Name = 'Tempête cramoisie'; IconPath = 'Interface\Icons\Ability_Rogue_BloodSplatter'; FallbackIconSpell = 48672; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Saigne.'; AuraDescription = 'Saigne.'
@@ -100,35 +104,42 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; Aura = 79; TargetA = 1; Value = 2; Misc = 127 }); Fields = @{ 40 = 21 } },
 
     # --- Finesse --------------------------------------------------------------------------------------------------
-    # Symboles de mort: 15% damage for 10 s and 40 Energy, Cold Blood's look. Pure data.
+    # Symboles de mort: 15% damage for 10 s and 40 Energy; the deathmark on the chest, red symbols at the hands while it
+    # lasts. Pure data.
     @{ Id = 92320; Clone = 14177; Name = 'Symboles de mort'; IconPath = 'Interface\Icons\Spell_Shadow_DeathScream'; FallbackIconSpell = 14177; Cost = 0; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask
        Description = "Vos dégâts augmentent de 15% pendant 10 s et vous récupérez 40 points d'énergie."
        AuraDescription = 'Dégâts augmentés de 15%.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = 79; TargetA = 1; Value = 15; Misc = 127 }, @{ Index = 1; Effect = 30; TargetA = 1; Value = 40; Misc = 3 })
-       Fields = @{ 34 = 0; 35 = 0; 36 = 0; 40 = 1; 41 = 3; 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
+       Fields = @{ 34 = 0; 35 = 0; 36 = 0; 40 = 1; 41 = 3; 131 = (Look 'SymbolsOfDeath'); 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
     # Tempête de shurikens: Fan of Knives at 10 yd for 35 Energy; mod-rogue sets its hit to 180% of the attack power (40% of it on fewer than 3 enemies), adds a combo point for the first enemy hit and
-    # two for every other one, up to 5 (Shadow Blades: one more)
+    # two for every other one, up to 5 (Shadow Blades: one more). Retail's storm and shuriken tosses.
     @{ Id = 92321; Clone = 51723; Name = 'Tempête de shurikens'; IconPath = 'Interface\Icons\Ability_Rogue_FanOfKnives'; FallbackIconSpell = 51723; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask; NoEquipment = $true
        Description = "Projette des shurikens sur tous les ennemis à 10 m : dégâts physiques égaux à 180% de la puissance d'attaque (40% contre moins de 3 ennemis), 1 point de combo pour le premier ennemi touché et 2 pour chacun des suivants, jusqu'à 5."
-       Fields = @{ 92 = 13; 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
-    # Lames de l'ombre: a 10 s dummy buff with Shadow Dance's look, every 30 s; mod-rogue adds the damage and combo points
+       Fields = @{ 92 = 13; 131 = (Look 'ShurikenStorm'); 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
+    # Lames de l'ombre: a 10 s dummy buff, shadow on both weapons while it lasts, every 30 s; mod-rogue adds the damage
+    # and combo points
     @{ Id = 92322; Clone = 51713; Name = "Lames de l'ombre"; IconPath = 'Interface\Icons\Spell_Shadow_ShadowWordDominate'; FallbackIconSpell = 51713; Cost = 0; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask
        Description = "Pendant 10 s, vos attaques automatiques infligent 50% de dégâts en plus et vos techniques génèrent 1 point de combo de plus."
        AuraDescription = "Attaques automatiques : 50% de dégâts en plus. Techniques : 1 point de combo de plus."
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 })
-       Fields = @{ 40 = 1; 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
+       Fields = @{ 40 = 1; 131 = (Look 'ShadowBlades'); 208 = 8; 209 = 0; 210 = 0; 211 = 0 } },
     # Poudre noire: a finisher on the target; mod-rogue deals shadow damage to every enemy within 10 yd, more for every
-    # enemy beyond the first (up to two) and in Shadow Dance, and gives energy back for the enemies beyond the first
+    # enemy beyond the first (up to two) and in Shadow Dance, and gives energy back for the enemies beyond the first; a
+    # shadow nova around the rogue (mod-rogue plays the hit on every enemy)
     @{ Id = 92340; Clone = 48668; Name = 'Poudre noire'; IconPath = 'Interface\Icons\Spell_Shadow_Shadowfury'; FallbackIconSpell = 30283; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask
        Description = "Coup de grâce qui inflige des dégâts d'Ombre à tous les ennemis à 10 m, plus par point de combo : 25% de plus par ennemi touché au-delà du premier, jusqu'à 50%, et 25% de plus pendant Danse de l'ombre. Vous rend 6 points d'énergie par ennemi touché au-delà du premier, jusqu'à 18."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
-       Fields = @{ 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
-    # Technique secrète: a finisher every 30 s; mod-rogue strikes every enemy within 10 yd three times, the rogue and two
-    # shadows of it
+       Fields = @{ 131 = (Look 'BlackPowder'); 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
+    # Technique secrète: a finisher every 30 s; mod-rogue strikes every enemy within 10 yd three times, the rogue (Goremaw's
+    # Bite's look) and two shadows of it, summoned beside the target
     @{ Id = 92341; Clone = 48668; Name = 'Technique secrète'; IconPath = 'Interface\Icons\Ability_Rogue_ShadowStrikes'; FallbackIconSpell = 51713; Cost = 30; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $subtlety; ClassMask = $classMask
        Description = "Coup de grâce : vous et deux ombres de vous frappez tous les ennemis à 10 m, plus fort par point de combo."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
-       Fields = @{ 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
+       Fields = @{ 131 = (Look 'SecretTechnique'); 209 = 0; 210 = 0; 211 = 0; 225 = 32 } },
+    # Ombre: Technique secrète's shadows wear it (mod-rogue), Shadowform's dark see-through skin over a mist
+    @{ Id = 92327; Clone = 2983; Name = 'Ombre'; IconPath = 'Interface\Icons\Ability_Rogue_ShadowStrikes'; FallbackIconSpell = 51713; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une ombre du voleur.'; AuraDescription = 'Une ombre du voleur.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 }); Fields = @{ 40 = 21; 131 = (Look 'ShadowClone') } },
     # Coup dans le noir: the next Cheap Shot costs nothing (one charge, spent by the cast)
     @{ Id = 92323; Clone = 2983; Name = 'Coup dans le noir'; IconPath = 'Interface\Icons\Ability_CheapShot'; FallbackIconSpell = 1833; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Votre prochain Coup bas ne coûte pas d''énergie.'; AuraDescription = 'Prochain Coup bas gratuit.'

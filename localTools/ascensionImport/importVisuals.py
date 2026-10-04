@@ -6,7 +6,20 @@ file they need that the stock 3.3.5 client lacks.
 config.json (see localTools/barbarian/ascensionVisuals.json):
     output    folder, relative to the repository, for visuals.json and files/
     idBase    first id of every table's imported rows (each table numbers its own from there)
-    visuals   { "<key>": <Ascension SpellVisual id>, ... } - the looks to bring over
+    visuals   { "<key>": <Ascension SpellVisual id>, ... } - the looks to bring over as they are
+    looks     { "<key>": { "from": <Ascension SpellVisual id>, "<slot>": <kit>, ... } } - looks put together: the
+              visual named by from, each slot given replaced (a slot given null is emptied). Slots: precast, cast,
+              impact, state, statedone, channel, casterimpact, targetimpact, missiletarget, instantarea, impactarea,
+              persistentarea; "missile" replaces the missile's model (an effect, below)
+    kits      { "<key>": <kit> } - kits of their own, for a server to play on a unit (SMSG_PLAY_SPELL_VISUAL);
+              each one carries its "id", which the module's code names
+
+A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>, "anim": <animation id>,
+"effects": { "<attachment>": <effect> }, "sound": <sound>, "id": <its own id> }: the kit named by from (none: an
+empty one) with what is given replaced, an effect given null removed. Attachments: head, chest, base, lefthand,
+righthand, hands (both), breath, leftweapon, rightweapon, weapons (both), special1-3, world. An effect is an Ascension
+SpellVisualEffectName id or a model's file name without its folder and extension (the row at scale 1 if there is
+one); a sound an Ascension SoundEntries id or name.
 
 Ascension's data is stock-layout 3.3.5 (its tables load as ours do, its models are version 264), and the effects it
 plays are mostly retail ones it converted; the import keeps them as they are. Written:
@@ -59,9 +72,16 @@ KIT_ANIMATIONS = (1, 2)
 KIT_EFFECTS = tuple(range(3, 15))
 KIT_SOUND = 15
 KIT_SHAKE = 16
+KIT_CHAR_PROCS = (17, 18, 19, 20)
+KIT_FIELDS = 38
 # SoundEntries: its advanced settings row
 SOUND_ADVANCED = 29
 NONE = 0xFFFFFFFF
+SLOTS = {'precast': 1, 'cast': 2, 'impact': 3, 'state': 4, 'statedone': 5, 'channel': 6, 'casterimpact': 14,
+         'targetimpact': 15, 'missiletarget': 22, 'instantarea': 23, 'impactarea': 24, 'persistentarea': 25}
+ATTACHMENTS = {'head': (3,), 'chest': (4,), 'base': (5,), 'lefthand': (6,), 'righthand': (7,), 'hands': (6, 7),
+               'breath': (8,), 'leftweapon': (9,), 'rightweapon': (10,), 'weapons': (9, 10), 'special1': (11,),
+               'special2': (12,), 'special3': (13,), 'world': (14,)}
 
 
 class Dbc:
@@ -184,20 +204,98 @@ class Importer:
     def kit(self, source_id):
         if not source_id or source_id == NONE:
             return source_id
+        return self.add_row('SpellVisualKit', source_id, lambda entry: self.rewrite_kit(entry, source_id))
 
-        def rewrite(entry):
-            fields = entry['fields']
-            for field in KIT_ANIMATIONS:
-                if fields[field] != NONE and fields[field] > self.stock_max['AnimationData']:
-                    fields[field] = NONE
-            for field in KIT_EFFECTS:
-                fields[field] = self.effect(fields[field])
-            fields[KIT_SOUND] = self.sound(fields[KIT_SOUND])
-            if fields[KIT_SHAKE] > self.stock_max['CameraShakes']:
-                fields[KIT_SHAKE] = 0
-            for attach in self.attach_by_kit.get(source_id, []):
-                self.add_row('SpellVisualKitModelAttach', attach, self.attach_rewriter(entry['id']))
-        return self.add_row('SpellVisualKit', source_id, rewrite)
+    def rewrite_kit(self, entry, source_id):
+        """a kit's references renumbered to the imported rows, what the 3.3.5 client lacks cleared"""
+        fields = entry['fields']
+        for field in KIT_ANIMATIONS:
+            if fields[field] != NONE and fields[field] > self.stock_max['AnimationData']:
+                fields[field] = NONE
+        for field in KIT_EFFECTS:
+            fields[field] = self.effect(fields[field])
+        fields[KIT_SOUND] = self.sound(fields[KIT_SOUND])
+        if fields[KIT_SHAKE] > self.stock_max['CameraShakes']:
+            fields[KIT_SHAKE] = 0
+        for attach in self.attach_by_kit.get(source_id, []):
+            self.add_row('SpellVisualKitModelAttach', attach, self.attach_rewriter(entry['id']))
+
+    def find_effect(self, spec):
+        """an effect named by id or by its model's file name: the row at scale 1, else the first"""
+        if spec is None or isinstance(spec, int):
+            return spec or 0
+        table = self.source['SpellVisualEffectName']
+        found = sorted(row for row in table.rows.values()
+                       if ntpath.splitext(ntpath.basename(table.string(row[2])))[0].lower() == spec.lower())
+        if not found:
+            raise SystemExit(f'No effect model named {spec} in the Ascension client')
+        at_scale = [row for row in found if struct.unpack('<f', struct.pack('<I', row[4]))[0] == 1.0]
+        return (at_scale or found)[0][0]
+
+    def find_sound(self, spec):
+        if spec is None or isinstance(spec, int):
+            return spec or 0
+        table = self.source['SoundEntries']
+        found = sorted(row[0] for row in table.rows.values() if table.string(row[2]).lower() == spec.lower())
+        if not found:
+            raise SystemExit(f'No sound named {spec} in the Ascension client')
+        return found[0]
+
+    def new_row(self, table, fields, own_id=None):
+        """a row of the import's own (no Ascension row behind it), numbered next or with the id it asks for"""
+        if own_id is None:
+            own_id = self.next_id[table]
+            self.next_id[table] += 1
+        fields = list(fields)
+        fields[0] = own_id
+        entry = {'id': own_id, 'source': None, 'fields': fields, 'strings': {}}
+        self.rows[table].append(entry)
+        return entry
+
+    def composed_kit(self, spec):
+        """a kit as the config gives it: an Ascension kit id, null, or one put together (see the module's doc)"""
+        if spec is None:
+            return 0
+        if isinstance(spec, int):
+            return self.kit(spec)
+        source_id = spec.get('from')
+        if source_id:
+            if source_id not in self.source['SpellVisualKit'].rows:
+                raise SystemExit(f'SpellVisualKit {source_id} is not in the Ascension client')
+            fields = list(self.source['SpellVisualKit'].rows[source_id])
+        else:
+            fields = [0] * KIT_FIELDS
+            for field in KIT_ANIMATIONS + KIT_CHAR_PROCS:
+                fields[field] = NONE
+        if 'anim' in spec:
+            fields[KIT_ANIMATIONS[1]] = NONE if spec['anim'] is None else spec['anim']
+        for attachment, effect in spec.get('effects', {}).items():
+            for field in ATTACHMENTS[attachment]:
+                fields[field] = self.find_effect(effect)
+        if 'sound' in spec:
+            fields[KIT_SOUND] = self.find_sound(spec['sound'])
+        entry = self.new_row('SpellVisualKit', fields, spec.get('id'))
+        self.rewrite_kit(entry, source_id)
+        return entry['id']
+
+    def composed_visual(self, spec):
+        source_id = spec['from']
+        if source_id not in self.source['SpellVisual'].rows:
+            raise SystemExit(f'SpellVisual {source_id} is not in the Ascension client')
+        source = self.source['SpellVisual'].rows[source_id]
+        unknown = set(spec) - set(SLOTS) - {'from', 'missile'}
+        if unknown:
+            raise SystemExit(f'Unknown look slots {sorted(unknown)}')
+        entry = self.new_row('SpellVisual', source)
+        fields = entry['fields']
+        for name, field in SLOTS.items():
+            fields[field] = self.composed_kit(spec[name]) if name in spec else self.kit(source[field])
+        missile = self.find_effect(spec['missile']) if 'missile' in spec else source[VISUAL_MISSILE_MODEL]
+        fields[VISUAL_MISSILE_MODEL] = self.effect(missile)
+        for field in VISUAL_SOUNDS:
+            fields[field] = self.sound(source[field])
+        fields[VISUAL_MOTION] = self.motion(source[VISUAL_MOTION])
+        return entry['id']
 
     def attach_rewriter(self, kit_id):
         def rewrite(entry):
@@ -282,7 +380,13 @@ def main(config_path):
     output = os.path.join(REPO, config['output'])
     with tempfile.TemporaryDirectory() as work:
         importer = Importer(config, work)
-        ids = {key: importer.visual(source_id) for key, source_id in config['visuals'].items()}
+        ids = {key: importer.visual(source_id) for key, source_id in config.get('visuals', {}).items()}
+        ids.update({key: importer.composed_visual(spec) for key, spec in config.get('looks', {}).items()})
+        kits = {key: importer.composed_kit(spec) for key, spec in config.get('kits', {}).items()}
+        for table, rows in importer.rows.items():
+            numbers = [row['id'] for row in rows]
+            if len(numbers) != len(set(numbers)):
+                raise SystemExit(f"{table}: a kit's own id is one the import numbered too; give it a higher one")
         models, missing_models = importer.model_files()
         sounds, missing_sounds = importer.sound_files()
 
@@ -309,12 +413,12 @@ def main(config_path):
                     file.write(data)
             shipped += 1
 
-        result = {'ids': ids, 'tables': {table: importer.rows[table] for table in TABLES}}
+        result = {'ids': ids, 'kits': kits, 'tables': {table: importer.rows[table] for table in TABLES}}
         with open(os.path.join(output, 'visuals.json'), 'w', encoding='utf-8') as file:
             json.dump(result, file, indent=1, ensure_ascii=False)
             file.write('\n')
     counts = ', '.join(f'{len(rows)} {table}' for table, rows in result['tables'].items())
-    print(f'{len(ids)} visuals: {counts}; {shipped} files shipped, {len(stock)} already stock')
+    print(f'{len(ids)} visuals, {len(kits)} kits: {counts}; {shipped} files shipped, {len(stock)} already stock')
     for name in sorted(missing_models | missing_sounds):
         print(f'  missing from the Ascension client: {name}')
 

@@ -933,16 +933,19 @@ $mageFreeReagents = @(17020, 17031, 17032, 17056)
 # shocks without a shared cooldown and Chain Lightning without one (localTools/shaman/StockSpells.ps1); the Warlock's
 # summons and spells without a Soul Shard item, Chaos Bolt and Shadowburn on Soul Shards (localTools/warlock/StockSpells.ps1);
 # the Druid's Shred from any side, Tiger's Fury in percent, Force of Nature and Tranquility on retail cooldowns
-# (localTools/druid/StockSpells.ps1).
+# (localTools/druid/StockSpells.ps1); the Rogue's retail looks on Backstab, Ambush, Eviscerate, Hemorrhage and Shadow
+# Dance (localTools/rogue/StockSpells.ps1).
 $hunterStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hunter\StockSpells.ps1') -Raw -Encoding UTF8
 $priestStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\priest\StockSpells.ps1') -Raw -Encoding UTF8
 $warriorStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\warrior\StockSpells.ps1') -Raw -Encoding UTF8
 $shamanStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\shaman\StockSpells.ps1') -Raw -Encoding UTF8
 $warlockStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\warlock\StockSpells.ps1') -Raw -Encoding UTF8
 $druidStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\druid\StockSpells.ps1') -Raw -Encoding UTF8
+$rogueStockSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\rogue\StockSpells.ps1') -Raw -Encoding UTF8
 $stockSpellEdits = @(& ([ScriptBlock]::Create($hunterStockSource))) + @(& ([ScriptBlock]::Create($priestStockSource))) +
     @(& ([ScriptBlock]::Create($warriorStockSource))) + @(& ([ScriptBlock]::Create($shamanStockSource))) +
-    @(& ([ScriptBlock]::Create($warlockStockSource))) + @(& ([ScriptBlock]::Create($druidStockSource)))
+    @(& ([ScriptBlock]::Create($warlockStockSource))) + @(& ([ScriptBlock]::Create($druidStockSource))) +
+    @(& ([ScriptBlock]::Create($rogueStockSource)))
 $stockEditsById = @{}
 $stockEditsByName = @{}
 $stockEditFamilies = [Collections.Generic.HashSet[int]]::new()
@@ -2646,7 +2649,7 @@ Write-Host "Installed $($visualIdsBySpell.Count) custom spell visuals ($newVisua
 Write-Host "Oathblade: $($blueEffectIds.Count) blue effect models of its own, used by its $($oathbladeKits.Count) kits."
 Write-Host "Installed $($customSounds.Count) custom sound entry with $($customSounds[0].Files.Count) quiet impact variations."
 $pestifereTalentRanks = ($pestifereTalents | ForEach-Object { $_.Ids.Count } | Measure-Object -Sum).Sum
-Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1, localTools\priest\StockSpells.ps1, localTools\warrior\StockSpells.ps1, localTools\shaman\StockSpells.ps1, localTools\warlock\StockSpells.ps1, localTools\druid\StockSpells.ps1)."
+Write-Host "Changed $stockEditCount stock spells in place (localTools\hunter\StockSpells.ps1, localTools\priest\StockSpells.ps1, localTools\warrior\StockSpells.ps1, localTools\shaman\StockSpells.ps1, localTools\warlock\StockSpells.ps1, localTools\druid\StockSpells.ps1, localTools\rogue\StockSpells.ps1)."
 Write-Host "Swapped the range of $stockRangeRemapCount stock spells (no ranged dead zone, localTools\hunter\StockSpells.ps1)."
 Write-Host "Installed $($customSpells.Count) custom spells ($($spellbookSpells.Count) in the spellbook) and $($foundTalentRanks.Count) Combat talent ranks."
 Write-Host "Pestiféré talent trees: $($pestifereTalents.Count) talents, $pestifereTalentRanks ranks (run buildCustomClasses.py next for the grid)."

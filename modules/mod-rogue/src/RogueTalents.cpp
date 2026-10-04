@@ -16,12 +16,14 @@
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "TemporarySummon.h"
 #include "UnitScript.h"
 
 #include <algorithm>
 #include <array>
 #include <limits>
 #include <list>
+#include <memory>
 #include <vector>
 
 // The Rogue's talents on the retail-style trees (localTools/rogue/talentTree.json) that spell data cannot carry, and
@@ -80,6 +82,7 @@ enum Spells : uint32
     SPELL_DEEPER_DAGGERS        = 92324,
     SPELL_NIGHT_TERRORS         = 92325,
     SPELL_SHADOW_FOCUS          = 92326,
+    SPELL_SHADOW_CLONE          = 92327,
     SPELL_ASSASSINATION_PASSIVE = 92192,
     SPELL_SUBTLETY_PASSIVE      = 92193,
     SPELL_CRIMSON_TEMPEST       = 92330,
@@ -93,7 +96,19 @@ enum Spells : uint32
     SPELL_MUTILATE              = 1329,
     SPELL_SHADOW_DANCE          = 51713,
     SPELL_FAN_OF_KNIVES         = 51723,
+    SPELL_CLONE_ME              = 45204,
 };
+
+// The kits localTools/rogue/ascensionVisuals.json gives an id of their own, played here on a unit
+enum Kits : uint32
+{
+    KIT_BLACK_POWDER_HIT        = 77900,
+    KIT_SECRET_TECHNIQUE_HIT    = 77901,
+    KIT_SHADOW_CLONE_STRIKE     = 77902,
+};
+
+// Technique secrète's shadows (modules/mod-rogue/data/sql/db-world/base/rogue_shadow_clone.sql)
+constexpr uint32 NPC_SHADOW_CLONE = 910300;
 
 // Rogue family flags of the stock spells the talents watch (SpellFamilyFlags words 0 and 1)
 constexpr uint32 FLAG0_BACKSTAB = 0x00000004;
@@ -153,6 +168,10 @@ LiveTuning::KnobInt const ShurikenStormFewEnemiesPct("rogue.shuriken_storm_few_e
 LiveTuning::Knob const SecretTechniquePerPoint("rogue.secret_technique_per_point", 0.10f);  // each of its three strikes
 LiveTuning::KnobUInt const SecretTechniqueFlatPerPoint("rogue.secret_technique_flat_per_point", 150);
 LiveTuning::KnobUInt const SecretTechniqueStrikes("rogue.secret_technique_strikes", 3);
+// Its strikes, one after the other; each shadow shows up this long before its own and stays this long in all
+constexpr uint32 SecretTechniqueStrikeGapMs = 300;
+constexpr uint32 ShadowLeadMs = 150;
+constexpr uint32 ShadowLifeMs = 800;
 // Finesse's own damage (its passive, Danseur des ombres): Eviscerate and the dagger builders
 LiveTuning::KnobInt const SubtletyEviscerateBonusPct("rogue.subtlety_eviscerate_bonus_pct", 120);
 LiveTuning::KnobInt const SubtletyBuilderBonusPct("rogue.subtlety_builder_bonus_pct", 50);
@@ -359,6 +378,7 @@ void BlackPowder(Player* player, uint8 comboPoints)
     bool const terrors = player->HasAura(TALENT_NIGHT_TERRORS);
     for (Unit* enemy : enemies)
     {
+        enemy->SendPlaySpellVisual(KIT_BLACK_POWDER_HIT);
         DealAbility(player, enemy, SPELL_BLACK_POWDER, damage);
         if (terrors && enemy->IsAlive())
             player->AddAura(SPELL_NIGHT_TERRORS, enemy);
@@ -368,18 +388,63 @@ void BlackPowder(Player* player, uint8 comboPoints)
         Energize(player, SPELL_BLACK_POWDER, energy);
 }
 
-// Technique secrète: the rogue and two shadows of it strike every enemy around, one after the other
-void SecretTechnique(Player* player, uint8 comboPoints)
+// A shadow of the rogue beside the enemy, on the side given (radians from the rogue), facing it: the rogue's look and
+// weapons (Mirror Image's Clone Me!) under a dark see-through skin (SPELL_SHADOW_CLONE's look), gone soon after
+ObjectGuid SummonShadow(Player* player, Unit* enemy, float side)
+{
+    float x, y, z;
+    enemy->GetNearPoint(enemy, x, y, z, 0.0f, enemy->GetCombatReach() + 0.5f, enemy->GetAngle(player) + side);
+    float const facing = Position::NormalizeOrientation(
+        std::atan2(enemy->GetPositionY() - y, enemy->GetPositionX() - x));
+    TempSummon* shadow = player->SummonCreature(NPC_SHADOW_CLONE, x, y, z, facing, TEMPSUMMON_TIMED_DESPAWN,
+        ShadowLifeMs);
+    if (!shadow)
+        return ObjectGuid::Empty;
+
+    shadow->SetFaction(player->GetFaction());
+    shadow->SetReactState(REACT_PASSIVE);
+    player->CastSpell(shadow, SPELL_CLONE_ME, true);
+    for (uint8 hand = 0; hand < 2; ++hand)
+        if (Item* weapon = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND + hand))
+            shadow->SetVirtualItem(hand, weapon->GetEntry());
+    shadow->AddAura(SPELL_SHADOW_CLONE, shadow);
+    return shadow->GetGUID();
+}
+
+// Technique secrète: the rogue strikes every enemy around, then two shadows of it, one on each side of its target,
+// one after the other
+void SecretTechnique(Player* player, Unit* target, uint8 comboPoints)
 {
     uint32 const damage = PerPoint(player, SecretTechniquePerPoint, SecretTechniqueFlatPerPoint, comboPoints);
+    ObjectGuid const targetGuid = target ? target->GetGUID() : ObjectGuid::Empty;
     for (uint32 strike = 0; strike < SecretTechniqueStrikes; ++strike)
-        player->m_Events.AddEventAtOffset([player, damage]()
+    {
+        // Each shadow comes a moment before its strike, so the players see it before it plays its stab
+        auto shadowGuid = std::make_shared<ObjectGuid>();
+        if (strike > 0)
+            player->m_Events.AddEventAtOffset([player, targetGuid, shadowGuid, strike]()
+            {
+                if (!player->IsAlive() || !player->IsInWorld())
+                    return;
+                Unit* enemy = ObjectAccessor::GetUnit(*player, targetGuid);
+                if (!enemy || !enemy->IsAlive())
+                    return;
+                *shadowGuid = SummonShadow(player, enemy, strike % 2 ? 2.2f : -2.2f);
+            }, Milliseconds(SecretTechniqueStrikeGapMs * strike - ShadowLeadMs));
+
+        player->m_Events.AddEventAtOffset([player, damage, shadowGuid]()
         {
             if (!player->IsAlive() || !player->IsInWorld())
                 return;
+            if (Creature* shadow = ObjectAccessor::GetCreature(*player, *shadowGuid))
+                shadow->SendPlaySpellVisual(KIT_SHADOW_CLONE_STRIKE);
             for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+            {
+                enemy->SendPlaySpellVisual(KIT_SECRET_TECHNIQUE_HIT);
                 DealAbility(player, enemy, SPELL_SECRET_TECHNIQUE, damage);
-        }, Milliseconds(300 * strike));
+            }
+        }, Milliseconds(SecretTechniqueStrikeGapMs * strike));
+    }
 }
 
 // Assassinat: Envenom and Crimson Tempest carry the target's bleeds to the enemies around (around the target for
@@ -711,7 +776,7 @@ public:
                 break;
             case SPELL_SECRET_TECHNIQUE:
                 if (points)
-                    SecretTechnique(player, points);
+                    SecretTechnique(player, target, points);
                 break;
             case SPELL_FAN_OF_KNIVES:
                 if (!IsAssassination(player))

@@ -11,3 +11,16 @@ Every rogue also gets two changes:
 
 The Combat tree is the Crimson Duelist rework, scripted in mod-stat-growth (CombatRogue*.cpp). Its kit is only
 taught while Combat is the rogue's specialization.
+
+## Finesse's looks
+
+Finesse wears retail's looks, put together from the effects and sounds the Ascension client carries
+(localTools/rogue/ascensionVisuals.json, imported by localTools/ascensionImport/importVisuals.py into
+client-assets/imported): Backstab, Ambush (Shadowstrike), Eviscerate, Hemorrhage and Shadow Dance through
+localTools/rogue/StockSpells.ps1, the spec's own abilities through Spells.ps1. What spell data cannot show is played
+here, by kit id:
+
+- Poudre noire's hit on every enemy it reaches (kit 77900), Technique secrète's on every enemy at each strike (77901).
+- Technique secrète's two shadows: a creature (910300, data/sql/db-world/base/rogue_shadow_clone.sql) summoned on each
+  side of the target for a moment, wearing the rogue's look and weapons (Mirror Image's Clone Me!) under a dark
+  see-through skin (spell 92327), stabbing with its strike (kit 77902).

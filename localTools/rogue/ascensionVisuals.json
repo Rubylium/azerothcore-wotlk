@@ -1,0 +1,88 @@
+{
+  "_comment": [
+    "The Rogue's looks (Finesse first), put together by localTools/ascensionImport/importVisuals.py from the retail",
+    "effects and sounds the Ascension client carries: each look starts from a visual (its from) and replaces the",
+    "slots given. Spells.ps1 and StockSpells.ps1 name a look by the id the import gives its key; mod-rogue plays the",
+    "kits (by their id) on the enemies its finishers hit and on Technique secrète's shadows.",
+    "Backstab: the retail stab and its revamp sound, the backstab gash. Ambush: Shadowstrike's shadow flash on the rogue",
+    "and its strike. Eviscerate: the revamp flourish, retail's eviscerate slash. Hemorrhage: the garrote gash, a wet",
+    "mutilate hit. ShadowDance: a flicker of shadows at the feet, the stock swirl, a dark mist while it lasts.",
+    "SymbolsOfDeath: the deathmark on the chest with Vendetta's whisper, red symbols at the hands while it lasts.",
+    "ShurikenStorm: the retail storm at the feet and in the hands, shuriken tosses and their impacts. ShadowBlades: the",
+    "Shadow Blades revamp sound, enveloping shadows, shadow on both weapons while it lasts. BlackPowder: a shadow nova",
+    "around the rogue. SecretTechnique: Goremaw's Bite (the Legion Finesse artifact's strike) at the rogue.",
+    "ShadowClone: Technique secrète's shadows, Shadowform's dark see-through skin over a mist.",
+    "Kits: BlackPowderHit (a shadow strike on each enemy), SecretTechniqueHit (Nightblade's gash, each strike on each",
+    "enemy), ShadowCloneStrike (a shadow's stab with the Shadowstrike sound, a flicker at its feet)."
+  ],
+  "output": "modules/mod-rogue/client-assets/imported",
+  "idBase": 77000,
+  "looks": {
+    "Backstab": {
+      "from": 155,
+      "cast": { "from": 253, "sound": "spell_ro_backstab_cast_revamp_05" },
+      "impact": { "effects": { "chest": "cfx_rogue_backstab_impact" }, "sound": "BackStab_Impact_Chest" }
+    },
+    "Ambush": {
+      "from": 155,
+      "cast": { "from": 253, "effects": { "chest": "cfx_rogue_shadowstrike_precastworld" },
+        "sound": "spell_ro_ambush_cast_revamp_01" },
+      "impact": { "effects": { "chest": "cfx_rogue_shadowstrike_impact" }, "sound": "spell_ro_shadowstrike_cast_revamp_01" }
+    },
+    "Eviscerate": {
+      "from": 671,
+      "cast": { "from": 733, "sound": "spell_ro_eviscerate_cast_revamp_01" },
+      "targetimpact": { "from": 393, "effects": { "chest": "cfx_rogue_eviscerate_impact" } }
+    },
+    "Hemorrhage": {
+      "from": 5119,
+      "impact": { "from": 4490, "effects": { "chest": "cfx_rogue_garrote_impact" }, "sound": "spell_ro_mutilate_impact_01" }
+    },
+    "ShadowDance": {
+      "from": 11827,
+      "cast": { "effects": { "base": "7fx_rogue_flickeringshadows_castbase" }, "sound": "spell_ro_envelopingshadows_cast_03" },
+      "state": { "effects": { "base": "shadowdance_v2_state" } }
+    },
+    "SymbolsOfDeath": {
+      "from": 4371,
+      "cast": { "effects": { "chest": "cfx_rogue_deathmark_aura" }, "sound": "spell_ro_vendetta_state_01" },
+      "state": { "effects": { "hands": "cfx_rogue_deathmark_aura01" } }
+    },
+    "ShurikenStorm": {
+      "from": 12317,
+      "cast": { "from": 11409, "effects": { "base": "cfx_rogue_shurikenstorm_castbase", "hands": "cfx_rogue_shurikenstorm_casthand",
+        "weapons": null },
+        "sound": "spell_ro_shurikentoss_cast05" },
+      "impact": { "effects": { "chest": "cfx_rogue_shurikentoss_impact" }, "sound": "spell_ro_shurikentoss_impact_01" }
+    },
+    "ShadowBlades": {
+      "from": 11827,
+      "cast": { "effects": { "base": "cfx_rogue_envelopingshadows_state" }, "sound": "spell_ro_shadowblades_revamp_cast_01" },
+      "impact": null,
+      "state": { "effects": { "weapons": "shadow_precast_med_hand" } }
+    },
+    "BlackPowder": {
+      "from": 671,
+      "cast": { "anim": 54, "effects": { "world": "7fx_rogue_shadownova_castworld" }, "sound": "spell_ro_envelopingshadows_cast_01" },
+      "targetimpact": null
+    },
+    "SecretTechnique": {
+      "from": 671,
+      "cast": { "anim": 57, "effects": { "chest": "7fx_rogue_flickeringshadows_castbase", "base": "7fx_rogue_goremawsbite_castbase" },
+        "sound": "spell_ro_af_goremawsbite_01" },
+      "targetimpact": null
+    },
+    "ShadowClone": {
+      "from": 11827,
+      "impact": null,
+      "state": { "from": 3129, "effects": { "chest": "shadowdance_v2_state" } }
+    }
+  },
+  "kits": {
+    "BlackPowderHit": { "id": 77900, "effects": { "chest": "shadowstrike_impact_chest" }, "sound": "ShadowStrike_Impact_Chest" },
+    "SecretTechniqueHit": { "id": 77901, "effects": { "chest": "cfx_rogue_nightblade_impact" },
+      "sound": "spell_ro_nightblade_cast_revamp_01" },
+    "ShadowCloneStrike": { "id": 77902, "anim": 57, "effects": { "base": "7fx_rogue_flickeringshadows_castbase" },
+      "sound": "spell_ro_shadowstrike_cast_revamp_01" }
+  }
+}
