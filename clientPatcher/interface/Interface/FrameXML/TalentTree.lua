@@ -1698,7 +1698,15 @@ local function RoleCoords(role)
     local cell, size = ROLE_CELLS[token], 67 / 256
     return (cell[1] - 1) * size, cell[1] * size, (cell[2] - 1) * size, cell[2] * size
 end
-local CARD_WIDTH, CARD_HEIGHT, CARD_GAP = 340, 560, 70
+local CARD_HEIGHT = 560
+-- The cards' width and the gap between them: three at their full size, more narrowed to fit the window, never
+-- closer than CARD_GAP_MIN nor nearer its edges than CARD_MARGIN
+local CARD_WIDTH_MAX, CARD_GAP_MAX, CARD_GAP_MIN, CARD_MARGIN = 340, 70, 36, 48
+local function CardLayout(count)
+    local gap = count > 3 and CARD_GAP_MIN or CARD_GAP_MAX
+    local width = floor((WIDTH - 2 * CARD_MARGIN - (count - 1) * gap) / count)
+    return min(CARD_WIDTH_MAX, width), gap
+end
 
 local function ShowPage(name)
     if not specPage then
@@ -1742,6 +1750,7 @@ CreateSpecPage = function()
     hint:SetText(TEXT.specHint)
 
     local cards = {}
+    local CARD_WIDTH, CARD_GAP = CardLayout(#specs)
     local total = #specs * CARD_WIDTH + (#specs - 1) * CARD_GAP
     for index, tree in ipairs(specs) do
         local card = CreateFrame("Button", nil, specPage)
