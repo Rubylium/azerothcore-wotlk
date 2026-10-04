@@ -108,6 +108,9 @@
       "talentTree": "localTools/warrior/talentTree.json",
       "detailsSpecs": [
         { "tab": 3, "icon": "modules/mod-warrior/client-assets/source/icons/Gladiator_Spec.png", "cell": [5, 4] }
+      ],
+      "specSkills": [
+        { "id": 910, "name": "Gladiateur", "icon": "Gladiator_Spec", "copyFrom": 257 }
       ]
     },
     {

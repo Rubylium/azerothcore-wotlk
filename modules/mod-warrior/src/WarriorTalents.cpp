@@ -202,6 +202,8 @@ enum Spells : uint32
 constexpr uint32 GO_DUEL_FLAG = 21680;
 // A stock arena crowd's cheer (SoundEntries), when the Gladiateur's Execute kills
 constexpr uint32 SOUND_ARENA_CROWD_CHEER = 14999;
+// The Gladiateur's spellbook tab (SkillLine.dbc, localTools/customClasses/buildCustomClasses.py)
+constexpr uint16 SKILL_GLADIATOR = 910;
 
 // --- Tuning (README.md) ----------------------------------------------------------------------------------------------
 // Rage a builder gives (in rage points)
@@ -967,6 +969,15 @@ int32 ShieldDefenseRating(Player* player)
     return std::max(rating, 0);
 }
 
+// The Gladiateur's spellbook tab: its class skill line (localTools/customClasses/classes.json specSkills), the
+// character's while it is the specialization, so no other Warrior carries an empty tab
+void UpdateGladiatorSkill(Player* player)
+{
+    bool const gladiator = IsGladiator(player);
+    if (gladiator != player->HasSkill(SKILL_GLADIATOR))
+        player->SetSkill(SKILL_GLADIATOR, 0, gladiator ? 1 : 0, gladiator ? 1 : 0);
+}
+
 void UpdateGladiatorShield(Player* player, WarriorState* state)
 {
     int32 const rating = IsGladiator(player) ? ShieldDefenseRating(player) : 0;
@@ -1602,6 +1613,7 @@ public:
         UpdateSecondWind(player, state, now);
         UpdateDuel(player, state, now);
         UpdateGladiatorShield(player, state);
+        UpdateGladiatorSkill(player);
     }
 
 private:

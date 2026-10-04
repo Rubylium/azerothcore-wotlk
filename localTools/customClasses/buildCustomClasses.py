@@ -202,6 +202,48 @@ def stock_power_types(entries):
     return finish
 
 
+def stock_skill_lines(entries):
+    """A stock class's specialization past its three talent tabs (the Warrior's Gladiateur) has a spellbook tab of its
+    own: a class skill line (`specSkills` in its stockTalentTrees entry: id, name, icon), copied from one of the
+    class's own lines. Learning one of the line's spells gives a character the skill, and the tab with it."""
+    def finish(dbc):
+        for entry in entries:
+            for own_skill in entry.get('specSkills', []):
+                assert all(dbc.field(record, 0) != own_skill['id'] for record in dbc.records), \
+                    f"skill line id {own_skill['id']} already used"
+                source = next(record for record in dbc.records
+                              if dbc.field(record, 0) == own_skill.get('copyFrom', SKILL_CLASS_TEMPLATE))
+                row = bytearray(source)
+                dbc.set_field(row, 0, own_skill['id'])
+                dbc.set_field(row, 1, SKILL_CATEGORY_CLASS)
+                name = dbc.add_string(own_skill['name'])
+                for locale in range(16):
+                    dbc.set_field(row, SKILLLINE_NAME + locale, name)
+                    dbc.set_field(row, SKILLLINE_DESCRIPTION + locale, 0)
+                if own_skill.get('icon'):
+                    icon = find_spell_icon(own_skill['icon'])
+                    assert icon, f"spellbook tab icon {own_skill['icon']} is not in SpellIcon.dbc"
+                    dbc.set_field(row, SKILLLINE_ICON, icon)
+                dbc.records.append(row)
+    return finish
+
+
+def stock_skill_classes(entries):
+    """The extra skill lines' SkillRaceClassInfo row: every race of that class (stock_skill_lines)."""
+    def finish(dbc):
+        for entry in entries:
+            for own_skill in entry.get('specSkills', []):
+                source = next(record for record in dbc.records
+                              if dbc.field(record, 1) == own_skill.get('copyFrom', SKILL_CLASS_TEMPLATE))
+                row = bytearray(source)
+                dbc.set_field(row, 0, dbc.max_id() + 1)
+                dbc.set_field(row, 1, own_skill['id'])
+                dbc.set_field(row, 2, -1)
+                dbc.set_field(row, 3, 1 << (entry['id'] - 1))
+                dbc.records.append(row)
+    return finish
+
+
 def add_race_pairs(dbc, definition):
     existing = {(record[0], record[1]) for record in dbc.records}
     for race in definition['races']:
@@ -784,8 +826,8 @@ def main():
 
     builders = [('ChrClasses.dbc', add_class_row, stock_power_types(root.get('stockTalentTrees', []))),
                 ('CharBaseInfo.dbc', add_race_pairs),
-                ('SkillLine.dbc', add_class_skill_line),
-                ('SkillRaceClassInfo.dbc', add_skills),
+                ('SkillLine.dbc', add_class_skill_line, stock_skill_lines(root.get('stockTalentTrees', []))),
+                ('SkillRaceClassInfo.dbc', add_skills, stock_skill_classes(root.get('stockTalentTrees', []))),
                 ('CharStartOutfit.dbc', add_start_outfit, dress_stock_previews(root.get('stockPreviewOutfits', {})))]
     builders += [(name, extend_gt_table(block)) for name, block in GT_TABLES.items()]
     builders.append(('TalentTab.dbc', add_talent_tab))

@@ -29,6 +29,8 @@ $classMask = 1
 $arms = 26
 $fury = 256
 $protection = 257
+# The Gladiateur's own spellbook tab (localTools/customClasses/classes.json, the Warrior's specSkills)
+$gladiator = 910
 
 # The new abilities' own family flags, word 2 (free among the Warrior's spells; the core reads none of them). Words 0
 # and 1 stay clear on every clone: the core reads Devastate, Shield Slam, Victory Rush and the shouts from them.
@@ -330,7 +332,7 @@ $spells = @(
     # the bleed. Ids 95150-95179; its talent ranks 95200-95259.
     # Duel: Intervene's charge to an ally, its interception gone; mod-warrior puts Duel (95155) on both and the share
     # (95163) on the ally
-    @{ Id = 95150; Clone = 3411; Name = 'Duel'; Icon = 'Gladiator_Duel'; FallbackIconSpell = 3411; Cost = 0; Cooldown = 120000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
+    @{ Id = 95150; Clone = 3411; Name = 'Duel'; Icon = 'Gladiator_Duel'; FallbackIconSpell = 3411; Cost = 0; Cooldown = 120000; Level = 1; Spellbook = $true; SkillLine = $gladiator; ClassMask = $classMask
        Description = "Vous chargez un allié à 25 m et descendez tous deux dans l'arène pendant 15 s : votre puissance d'attaque et la sienne augmentent de 15%, ainsi que vos dégâts et soins des sorts, et vous subissez 30% des dégâts qu'il reçoit tant que vous êtes au-dessus de 35% de vos points de vie."
        Fields = (Own $flagDuel @{ 46 = 34; 72 = 0; 81 = 0; 87 = 0; 96 = 0; 205 = 0; 206 = 0 })
        # Intervene's charge; on arrival the arena horn and its shout (stock kit 11611, Scourge_Horn), the crowd's
@@ -338,7 +340,7 @@ $spells = @(
        Visual = @{ Clone = 9107; CasterImpact = 11611; Impact = 12798 } },
     # Lancer de bouclier: Avenger's Shield's bounce (4 enemies, more with Ricochet), physical, from the Warrior's
     # attack power (warrior_spells.sql); mod-warrior leaves Sunder Armor and the bleed on each enemy it hits
-    @{ Id = 95151; Clone = 48827; Name = 'Lancer de bouclier'; Icon = 'Gladiator_ShieldThrow'; FallbackIconSpell = 48827; Cost = 0; Cooldown = 15000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
+    @{ Id = 95151; Clone = 48827; Name = 'Lancer de bouclier'; Icon = 'Gladiator_ShieldThrow'; FallbackIconSpell = 48827; Cost = 0; Cooldown = 15000; Level = 1; Spellbook = $true; SkillLine = $gladiator; ClassMask = $classMask
        Description = "Lance votre bouclier sur l'ennemi à 30 m : il rebondit sur jusqu'à 3 autres ennemis proches et laisse Fracasser armure et Plaie du gladiateur sur chacun."
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 1 })
        Fields = (Own $flagShieldThrow @{ 41 = 1; 72 = 0; 84 = 0; 96 = 0; 104 = 4; 105 = 0; 204 = 0; 213 = 2; 225 = 1 })
@@ -347,11 +349,11 @@ $spells = @(
        Visual = @{ Clone = 14714; Precast = 0; Cast = (LookKit 'ShieldThrow' 2); Impact = (LookKit 'ShieldThrow' 3)
                    State = 0 } },
     # Tempête de l'arène: Bladestorm's spin, its whirls (95157) refresh the bleed of what they hit (mod-warrior)
-    @{ Id = 95152; Clone = 46924; Name = "Tempête de l'arène"; Icon = 'Gladiator_ArenaStorm'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask
+    @{ Id = 95152; Clone = 46924; Name = "Tempête de l'arène"; Icon = 'Gladiator_ArenaStorm'; FallbackIconSpell = 46924; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $gladiator; ClassMask = $classMask
        Description = "Vous tournoyez bouclier en avant pendant 6 s : chaque seconde, vous frappez les ennemis proches et prolongez leur Plaie du gladiateur."
        Fields = (Own $flagArenaStorm @{ 116 = 95157; 131 = (Look 'ArenaStorm') }) },
     # Coup de grâce: the next Execute within 10 s costs nothing and strikes as with 100 rage (mod-warrior)
-    @{ Id = 95153; Clone = $selfBuff; Name = 'Coup de grâce'; Icon = 'Gladiator_CoupDeGrace'; FallbackIconSpell = 5308; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $protection; ClassMask = $classMask; NoEquipment = $true
+    @{ Id = 95153; Clone = $selfBuff; Name = 'Coup de grâce'; Icon = 'Gladiator_CoupDeGrace'; FallbackIconSpell = 5308; Cost = 0; Cooldown = 90000; Level = 1; Spellbook = $true; SkillLine = $gladiator; ClassMask = $classMask; NoEquipment = $true
        Description = "Votre prochaine Exécution dans les 10 s ne coûte pas de rage et frappe comme si elle en dépensait 100."
        AuraDescription = 'Votre prochaine Exécution frappe comme avec 100 points de rage, sans coût.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = -100; Misc = $SPELLMOD_COST })
