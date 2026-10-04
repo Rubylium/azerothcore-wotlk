@@ -83,10 +83,74 @@ def build(name, folder, write):
           f"{1 / scale:.4f} of the texture (ItemFramesVoice.lua OPENING)")
 
 
+# The tooltip's frame (assets/<boss>/tooltip-frame.png): a rectangle of thin bars with four ornate corners and a crest
+# on its top and bottom edges. It is cut into pieces the client lays along any tooltip: each corner and crest a square
+# centred on where the bars cross (or on the bar's middle), and a short stretch of the bars to be drawn at any
+# length. One 256x128 atlas (ItemFramesVoice.lua TOOLTIP_*):
+#   y 0-64     the corners, top left, top right, bottom left, bottom right
+#   y 64-128   the top crest, the bottom crest, a horizontal bar (x 128-192, y 64-80), a vertical bar (x 192-208)
+TOOLTIP_CORNER = 160  # half a corner's square, in the painting's pixels
+TOOLTIP_CREST = 135   # half a crest's square
+TOOLTIP_BAR = 15      # half a bar's thickness, its soft edges included
+TOOLTIP_PIECE = 64
+
+
+def bar_lines(alpha):
+    """The bars' middles: left, top, right, bottom."""
+    height, width = alpha.shape
+
+    def runs(line):
+        found, start = [], None
+        for index, value in enumerate(line):
+            if value > 128 and start is None:
+                start = index
+            elif value <= 128 and start is not None:
+                found.append((start + index - 1) / 2)
+                start = None
+        return found
+
+    across, down = runs(alpha[height // 2]), runs(alpha[:, width // 3])
+    return across[0], down[0], across[-1], down[-1]
+
+
+def build_tooltip(name, folder, write):
+    path = os.path.join(ASSETS, folder, "tooltip-frame.png")
+    if not os.path.exists(path):
+        return
+    painting = defringe(Image.open(path).convert("RGBA"))
+    left, top, right, bottom = bar_lines(numpy.asarray(painting)[..., 3])
+    middle = (left + right) / 2
+
+    def square(x, y, half):
+        piece = painting.crop((round(x - half), round(y - half), round(x + half), round(y + half)))
+        return piece.resize((TOOLTIP_PIECE, TOOLTIP_PIECE), Image.Resampling.LANCZOS)
+
+    atlas = Image.new("RGBA", (256, 128), (0, 0, 0, 0))
+    for index, (x, y) in enumerate(((left, top), (right, top), (left, bottom), (right, bottom))):
+        atlas.paste(square(x, y, TOOLTIP_CORNER), (index * TOOLTIP_PIECE, 0))
+    atlas.paste(square(middle, top, TOOLTIP_CREST), (0, TOOLTIP_PIECE))
+    atlas.paste(square(middle, bottom, TOOLTIP_CREST), (TOOLTIP_PIECE, TOOLTIP_PIECE))
+    # The bars' stretches: between the top crest and the top right corner, and halfway down the left side
+    span_x = (middle + right) / 2
+    horizontal = painting.crop((round(span_x - 40), round(top - TOOLTIP_BAR), round(span_x + 40),
+                                round(top + TOOLTIP_BAR)))
+    atlas.paste(horizontal.resize((64, 16), Image.Resampling.LANCZOS), (128, TOOLTIP_PIECE))
+    span_y = (top + bottom) / 2
+    vertical = painting.crop((round(left - TOOLTIP_BAR), round(span_y - 40), round(left + TOOLTIP_BAR),
+                              round(span_y + 40)))
+    atlas.paste(vertical.resize((16, 64), Image.Resampling.LANCZOS), (192, TOOLTIP_PIECE))
+
+    atlas.save(os.path.join(OUT, f"Tooltip-{name}.png"))
+    write(atlas, os.path.join(OUT, f"Tooltip-{name}.blp"))
+    print(f"wrote Tooltip-{name}: bars {2 * TOOLTIP_BAR} px thick, a corner {2 * TOOLTIP_CORNER} px and a crest "
+          f"{2 * TOOLTIP_CREST} px wide in the painting (ItemFramesVoice.lua TOOLTIP_SCALE sizes them)")
+
+
 def main():
     write = load_blp_writer()
     for name, folder in FRAMES.items():
         build(name, folder, write)
+        build_tooltip(name, folder, write)
 
 
 if __name__ == "__main__":
