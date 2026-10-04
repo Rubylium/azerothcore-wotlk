@@ -830,6 +830,8 @@ public:
 // frontier/Frontier.cpp: Le Front du Nord, open-world content at level 80
 void AddFrontierScripts();
 void AddFrontierQuartermasterScripts();
+// DaytimeCommand.cpp: .daytime, the game master's client set to a time of day
+void AddDaytimeCommand();
 
 void AddStatGrowthScripts()
 {
@@ -846,6 +848,7 @@ void AddStatGrowthScripts()
     AddMythicDungeonScripts();
     AddGroundIndicatorScripts();
     AddExperienceRateCommand();
+    AddDaytimeCommand();
     AddOnyxiaReworkScripts();
     AddBronjahmReworkScripts();
     AddDevourerReworkScripts();
