@@ -11,7 +11,7 @@ local french = GetLocale() == "frFR"
 local TEXT = french and {
     category = "Rendu avancé",
     title = "Rendu avancé",
-    subtext = "Ombres, rayons de soleil, brume, reflets, lueur et couleurs, appliqués au monde seulement : "
+    subtext = "Ombres, lumières, soleil, brume, reflets, lueur et couleurs, appliqués au monde seulement : "
         .. "l'interface reste intacte.",
     enable = "Activer le rendu avancé",
     antiAlias = "Anticrénelage",
@@ -27,6 +27,8 @@ local TEXT = french and {
     shafts = "Rayons de soleil",
     haze = "Brume",
     water = "Reflets de l'eau",
+    lights = "Lumières des flammes",
+    focus = "Profondeur de champ",
     bloom = "Lueur",
     sharpen = "Netteté",
     contrast = "Contraste",
@@ -39,8 +41,8 @@ local TEXT = french and {
 } or {
     category = "Enhanced Rendering",
     title = "Enhanced Rendering",
-    subtext = "Shadows, sun shafts, haze, reflections, glow and colour, applied to the world only: the interface "
-        .. "stays untouched.",
+    subtext = "Shadows, lights, sun shafts, haze, reflections, glow and colour, applied to the world only: the "
+        .. "interface stays untouched.",
     enable = "Enable enhanced rendering",
     antiAlias = "Anti-aliasing",
     presets = "Moods",
@@ -54,6 +56,8 @@ local TEXT = french and {
     shafts = "Sun shafts",
     haze = "Haze",
     water = "Water reflections",
+    lights = "Firelight",
+    focus = "Depth of field",
     bloom = "Glow",
     sharpen = "Sharpness",
     contrast = "Contrast",
@@ -65,12 +69,15 @@ local TEXT = french and {
     exposure = "Exposure",
 }
 
--- The sliders, in two columns, with their CVar and range
+-- The sliders, in two columns (the world's effects, then the colours), with their CVar and range. The depth of field
+-- only shows with the camera zoomed in close on the character.
 local SETTINGS = {
     { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
+    { key = "lights", cvar = "postFxLights", min = 0, max = 100 },
     { key = "shafts", cvar = "postFxShafts", min = 0, max = 100 },
     { key = "haze", cvar = "postFxHaze", min = 0, max = 100 },
     { key = "water", cvar = "postFxWater", min = 0, max = 100 },
+    { key = "focus", cvar = "postFxDoF", min = 0, max = 100 },
     { key = "bloom", cvar = "postFxBloom", min = 0, max = 100 },
     { key = "sharpen", cvar = "postFxSharpen", min = 0, max = 100 },
     { key = "exposure", cvar = "postFxExposure", min = 50, max = 150 },
@@ -83,13 +90,16 @@ local SETTINGS = {
 }
 
 local PRESETS = {
-    natural = { postFxAO = 50, postFxShafts = 35, postFxHaze = 25, postFxWater = 60, postFxBloom = 25,
+    natural = { postFxAO = 50, postFxLights = 60, postFxShafts = 35, postFxHaze = 25, postFxWater = 60,
+        postFxDoF = 60, postFxBloom = 25,
         postFxSharpen = 35, postFxContrast = 15, postFxExposure = 100, postFxVibrance = 15, postFxSaturation = 100,
         postFxWarmth = 0, postFxTone = 0, postFxVignette = 15 },
-    vivid = { postFxAO = 60, postFxShafts = 50, postFxHaze = 30, postFxWater = 70, postFxBloom = 40,
+    vivid = { postFxAO = 60, postFxLights = 75, postFxShafts = 50, postFxHaze = 30, postFxWater = 70,
+        postFxDoF = 60, postFxBloom = 40,
         postFxSharpen = 50, postFxContrast = 30, postFxExposure = 100, postFxVibrance = 35, postFxSaturation = 105,
         postFxWarmth = 5, postFxTone = 20, postFxVignette = 20 },
-    cinema = { postFxAO = 70, postFxShafts = 70, postFxHaze = 45, postFxWater = 80, postFxBloom = 55,
+    cinema = { postFxAO = 70, postFxLights = 85, postFxShafts = 70, postFxHaze = 45, postFxWater = 80,
+        postFxDoF = 80, postFxBloom = 55,
         postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100, postFxVibrance = 20, postFxSaturation = 95,
         postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
@@ -177,12 +187,13 @@ for _, name in ipairs({ "natural", "vivid", "cinema" }) do
     lastButton = button
 end
 
+local ROWS = 8
 for index, setting in ipairs(SETTINGS) do
-    local column, row = (index - 1) >= 7 and 1 or 0, (index - 1) % 7
+    local column, row = (index - 1) >= ROWS and 1 or 0, (index - 1) % ROWS
     local slider = CreateFrame("Slider", "PostProcessingPanelSlider" .. index, panel, "OptionsSliderTemplate")
     slider.setting = setting
     slider:SetWidth(150)
-    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -36 - row * 35)
+    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -36 - row * 32)
     slider:SetMinMaxValues(setting.min, setting.max)
     slider:SetValueStep(1)
     _G[slider:GetName() .. "Low"]:SetText(setting.min)
@@ -198,7 +209,7 @@ for index, setting in ipairs(SETTINGS) do
 end
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-note:SetPoint("TOPLEFT", sliders[7], "BOTTOMLEFT", -8, -16)
+note:SetPoint("TOPLEFT", sliders[ROWS], "BOTTOMLEFT", -8, -16)
 note:SetPoint("RIGHT", -32, 0)
 note:SetHeight(40)
 note:SetJustifyH("LEFT")
