@@ -76,7 +76,7 @@ local PRESETS = {
     cinema = { postFxAO = 70, postFxBloom = 55, postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100,
         postFxVibrance = 20, postFxSaturation = 95, postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
-local DEFAULT_PRESET = "vivid"
+local DEFAULT_PRESET = "natural"
 
 local panel = CreateFrame("Frame", "PostProcessingPanel", VideoOptionsFramePanelContainer)
 panel:Hide()
@@ -89,11 +89,13 @@ title:SetText(TEXT.title)
 local subtext = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 subtext:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
 subtext:SetPoint("RIGHT", -32, 0)
+subtext:SetHeight(28)       -- two lines: a fixed height lets it wrap instead of cutting it off
 subtext:SetJustifyH("LEFT")
+subtext:SetJustifyV("TOP")
 subtext:SetText(TEXT.subtext)
 
 local enable = CreateFrame("CheckButton", "PostProcessingPanelEnable", panel, "OptionsCheckButtonTemplate")
-enable:SetPoint("TOPLEFT", subtext, "BOTTOMLEFT", -2, -14)
+enable:SetPoint("TOPLEFT", subtext, "BOTTOMLEFT", -2, -8)
 _G[enable:GetName() .. "Text"]:SetText(TEXT.enable)
 
 local presetLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -140,9 +142,9 @@ end
 local lastButton
 for _, name in ipairs({ "natural", "vivid", "cinema" }) do
     local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    button:SetSize(110, 22)
+    button:SetSize(80, 22)
     if lastButton then
-        button:SetPoint("LEFT", lastButton, "RIGHT", 8, 0)
+        button:SetPoint("LEFT", lastButton, "RIGHT", 6, 0)
     else
         button:SetPoint("LEFT", presetLabel, "RIGHT", 12, 0)
     end
@@ -157,8 +159,8 @@ for index, setting in ipairs(SETTINGS) do
     local column, row = (index - 1) >= 5 and 1 or 0, (index - 1) % 5
     local slider = CreateFrame("Slider", "PostProcessingPanelSlider" .. index, panel, "OptionsSliderTemplate")
     slider.setting = setting
-    slider:SetWidth(240)
-    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 290, -42 - row * 48)
+    slider:SetWidth(150)
+    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -38 - row * 46)
     slider:SetMinMaxValues(setting.min, setting.max)
     slider:SetValueStep(1)
     _G[slider:GetName() .. "Low"]:SetText(setting.min)
@@ -174,9 +176,11 @@ for index, setting in ipairs(SETTINGS) do
 end
 
 local note = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-note:SetPoint("TOPLEFT", sliders[5], "BOTTOMLEFT", -8, -28)
+note:SetPoint("TOPLEFT", sliders[5], "BOTTOMLEFT", -8, -24)
 note:SetPoint("RIGHT", -32, 0)
+note:SetHeight(28)
 note:SetJustifyH("LEFT")
+note:SetJustifyV("TOP")
 note:SetText(TEXT.note)
 
 enable:SetScript("OnClick", function(self)
