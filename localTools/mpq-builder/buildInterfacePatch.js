@@ -63,7 +63,9 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // The rotation's pause / resume panel (mod-playerbots .cheat rotation)
     'RotationControl.lua',
     // The client extension's post-processing, a category of the Video options (needs VideoOptionsFrame)
-    'PostProcessing.lua'];
+    'PostProcessing.lua',
+    // The action buttons' spell states (greyed out of the server's rules, proc glows); needs TalentTree.lua
+    'SpellStates.lua'];
 
 function readArchiveFile(archivePath, name) {
     const archive = Archive.open(archivePath);

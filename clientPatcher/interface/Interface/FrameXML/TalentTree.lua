@@ -2595,6 +2595,9 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
         local kind, a, b, c, d, e, f, g, h, i = strsplit("\t", message)
         if kind == "S" then
             OnState(a, b, c, d, e, f, g, h, i)
+            if TalentTree_OnStateChanged then
+                TalentTree_OnStateChanged()
+            end
         elseif kind == "E" then
             OnError(a, b)
         elseif kind == "LC" then
@@ -2644,3 +2647,30 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
         PaintBar()
     end
 end)
+
+-- For the rest of the interface (SpellStates.lua: which abilities may be pressed now): the active specialization's
+-- spec tree id (0 until the server has spoken), and whether the active build teaches a spell - a node of the class
+-- tree or of the active specialization's, at the rank or option taken. TalentTree_OnStateChanged, when defined, is
+-- called each time the server's state arrives.
+function TalentTree_GetSpecialization()
+    return state.specTrees[state.spec] or 0
+end
+
+function TalentTree_HasSpell(spellId)
+    if not HasTree() then
+        return false
+    end
+    local build = state.builds[state.spec]
+    local specTree = state.specTrees[state.spec]
+    for index, node in ipairs(nodes) do
+        local value = build[index] or 0
+        if value > 0 and (node.tree.def.kind == "class" or node.tree.def.id == specTree) then
+            local def = node.def
+            local option = def.options and def.options[value]
+            if (option and option.spell or def.spells and def.spells[value]) == spellId then
+                return true
+            end
+        end
+    end
+    return false
+end
