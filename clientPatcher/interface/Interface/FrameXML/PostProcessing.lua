@@ -324,3 +324,28 @@ SlashCmdList["POSTPROCESSING"] = function()
     SetCVar("postFx", on and "1" or "0")
     DEFAULT_CHAT_FRAME:AddMessage(on and TEXT.on or TEXT.off, 1, 0.82, 0)
 end
+
+-- Under a roof (a cave, a dungeon's halls) the sun lights nothing, whatever the hour: the client extension is told, so
+-- its lights shine there as they do at night (postFxIndoors, never saved). The client has no event for every change,
+-- so it is checked twice a second as well.
+local indoorsWatch = CreateFrame("Frame")
+local indoorsSent, indoorsWait = nil, 0
+local function sendIndoors()
+    local indoors = IsIndoors() and "1" or "0"
+    if indoors ~= indoorsSent and GetCVar("postFxIndoors") then
+        indoorsSent = indoors
+        SetCVar("postFxIndoors", indoors)
+    end
+end
+indoorsWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
+indoorsWatch:RegisterEvent("ZONE_CHANGED_INDOORS")
+indoorsWatch:RegisterEvent("ZONE_CHANGED")
+indoorsWatch:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+indoorsWatch:SetScript("OnEvent", sendIndoors)
+indoorsWatch:SetScript("OnUpdate", function(_, elapsed)
+    indoorsWait = indoorsWait - elapsed
+    if indoorsWait <= 0 then
+        indoorsWait = 0.5
+        sendIndoors()
+    end
+end)
