@@ -19,6 +19,13 @@ And, for the login screen (GlueXML/AccountLogin.lua), from clientPatcher/assets/
   corner of a 2048x1024 texture, the rest filled by repeating its right and bottom edges (so filtering and the
   smaller mip levels never pull in a foreign colour). Uncompressed, so the sky keeps its gradients.
   AccountLogin.lua knows the picture's size inside the texture (ART_WIDTH / ART_HEIGHT / ART_TEXTURE_*).
+- LoginForeground1/2.blp: the art's foreground (the terrace, the statues, the braziers and banners, the near trees
+  and side cliffs; the mask from buildLoginMask.py), cut like LoginBackdrop with the mask as its alpha: the login
+  screen draws it again over its clouds, mist and birds so they pass behind the statues.
+- LoginClouds.blp, LoginMist.blp: soft white wisps (512x256, 512x128), tiling across, faded at the top and bottom:
+  the clouds drifting over the sky and the mist rolling between the cliffs (tinted by the login screen).
+- LoginRays.blp: the sun's rays, white streaks fanning out from the middle of a 512x512 texture, fading outwards.
+- LoginBird.blp: a bird's silhouette in four frames of its wing beat (64x64 each, side by side in 256x64).
 - LoginVignette.blp: black, its alpha an ellipse that is clear in the middle and darkens the edges and corners;
   stretched over the whole screen.
 - LoginLogo.blp: the "World of Warcraft Evolution" logo (clientPatcher/assets/logo/WorldOfWarcraft-Evolution.png),
@@ -39,6 +46,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 OUTPUT = os.path.join(REPO_ROOT, 'clientPatcher', 'interface', 'Interface', 'Glues', 'Evolutions')
 LOGIN_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginBackdrop-source.png')
 LOGIN_WIDE_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginBackdropWide-source.png')
+LOGIN_MASK = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginForeground-mask.png')
 LOGO_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'logo', 'WorldOfWarcraft-Evolution.png')
 EXTRACTOR = os.path.join(REPO_ROOT, 'localTools', 'mpq-builder', 'extractClientFiles.js')
 
@@ -134,6 +142,112 @@ def login_backdrop():
     return tiles
 
 
+def login_foreground():
+    """The foreground's tiles: the art (as login_backdrop makes it) with the mask as its alpha, its edge softened by a
+    pixel"""
+    source = Image.open(LOGIN_WIDE_SOURCE).convert('RGB')
+    art = source.resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
+    art = art.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2)).convert('RGBA')
+    mask = Image.open(LOGIN_MASK).convert('L').resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
+    art.putalpha(mask.filter(ImageFilter.GaussianBlur(1.0)))
+    tiles = []
+    for index in range(2):
+        left = index * LOGIN_TILE_SIZE[0]
+        piece = art.crop((left, 0, min(left + LOGIN_TILE_SIZE[0], LOGIN_ART_SIZE[0]), LOGIN_ART_SIZE[1]))
+        tile = Image.new('RGBA', LOGIN_TILE_SIZE, (0, 0, 0, 0))
+        tile.paste(piece, (0, 0))
+        tiles.append(tile)
+    return tiles
+
+
+def tiling_noise(width, height, scales, seed):
+    """Smooth noise in 0-1 that tiles across (it wraps at the left and right edges): white noise blurred at a few
+    scales, summed with the larger scales weighing more"""
+    import numpy
+    from scipy.ndimage import gaussian_filter
+
+    random = numpy.random.default_rng(seed)
+    total = numpy.zeros((height, width))
+    weight = 0.0
+    for scale, amount in scales:
+        layer = gaussian_filter(random.random((height, width)), sigma=scale, mode='wrap')
+        layer = (layer - layer.min()) / max(layer.max() - layer.min(), 1e-6)
+        total += layer * amount
+        weight += amount
+    return total / weight
+
+
+def soft_wisps(width, height, scales, seed, threshold, top_fade, bottom_fade):
+    """White wisps, their alpha the noise above a threshold, faded to nothing toward the top and bottom edges"""
+    import numpy
+
+    noise = tiling_noise(width, height, scales, seed)
+    alpha = numpy.clip((noise - threshold) / (1 - threshold), 0, 1) ** 1.4
+    rows = (numpy.arange(height) + 0.5) / height
+    fade = numpy.clip(rows / top_fade, 0, 1) * numpy.clip((1 - rows) / bottom_fade, 0, 1)
+    alpha *= (fade * fade * (3 - 2 * fade))[:, None]
+    pixels = numpy.zeros((height, width, 4), numpy.uint8)
+    pixels[..., :3] = 255
+    pixels[..., 3] = (alpha * 255).astype(numpy.uint8)
+    return Image.fromarray(pixels, 'RGBA')
+
+
+def login_clouds():
+    return soft_wisps(512, 256, [(36, 1.0), (18, 0.45)], seed=7, threshold=0.45, top_fade=0.35, bottom_fade=0.35)
+
+
+def login_mist():
+    return soft_wisps(512, 128, [(30, 1.0), (14, 0.5), (6, 0.25)], seed=11, threshold=0.3, top_fade=0.5,
+                      bottom_fade=0.3)
+
+
+def login_rays():
+    """Streaks fanning out from the middle: each angle's brightness a few dozen narrow peaks of random widths and
+    strengths, fading with the distance from the middle (and right at it, where the sun's own glow takes over)"""
+    import numpy
+
+    size = 512
+    random = numpy.random.default_rng(5)
+    angles = numpy.linspace(0, 2 * numpy.pi, 2048, endpoint=False)
+    profile = numpy.zeros_like(angles)
+    for _ in range(36):
+        centre = random.uniform(0, 2 * numpy.pi)
+        width = random.uniform(0.01, 0.05)
+        strength = random.uniform(0.3, 1.0)
+        distance = numpy.angle(numpy.exp(1j * (angles - centre)))
+        profile += strength * numpy.exp(-(distance / width) ** 2)
+    profile = numpy.clip(profile / profile.max(), 0, 1)
+    y, x = numpy.mgrid[0:size, 0:size] + 0.5
+    dx, dy = x / size * 2 - 1, y / size * 2 - 1
+    radius = numpy.sqrt(dx * dx + dy * dy)
+    theta = numpy.mod(numpy.arctan2(dy, dx), 2 * numpy.pi)
+    streak = profile[(theta / (2 * numpy.pi) * len(profile)).astype(int) % len(profile)]
+    falloff = numpy.clip(1 - radius, 0, 1) ** 1.6 * numpy.clip(radius / 0.08, 0, 1)
+    pixels = numpy.zeros((size, size, 4), numpy.uint8)
+    pixels[..., :3] = 255
+    pixels[..., 3] = (numpy.clip(streak * falloff, 0, 1) * 255).astype(numpy.uint8)
+    return Image.fromarray(pixels, 'RGBA')
+
+
+def login_bird():
+    """A bird seen from below and behind as it flies: a slim body and two wings, raised, level, lowered and level
+    again over the four frames; drawn four times larger and scaled down for soft edges"""
+    frame, scale = 64, 4
+    sheet = Image.new('RGBA', (frame * 4 * scale, frame * scale), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(sheet)
+    for index, lift in enumerate((0.55, 0.1, -0.35, 0.1)):
+        cx, cy = (index * frame + frame / 2) * scale, frame / 2 * scale
+        draw.ellipse((cx - 3 * scale, cy - 2 * scale, cx + 3 * scale, cy + 3 * scale), fill=(20, 16, 14, 255))
+        for side in (-1, 1):
+            # Each wing: from the shoulder out to its tip, bent at the wrist
+            wrist = (cx + side * 12 * scale, cy - lift * 10 * scale)
+            tip = (cx + side * 26 * scale, cy - lift * 22 * scale + 4 * scale)
+            draw.polygon([(cx + side * 2 * scale, cy - 1 * scale), wrist, tip,
+                          (wrist[0] + side * 1 * scale, wrist[1] + 4 * scale),
+                          (cx + side * 2 * scale, cy + 2 * scale)], fill=(20, 16, 14, 255))
+    return sheet.resize((frame * 4, frame), Image.Resampling.LANCZOS)
+
+
 def login_vignette():
     size = 256
     mask = Image.new('L', (size, size), 0)
@@ -200,6 +314,12 @@ def login_logo():
 def build_login_art():
     for index, tile in enumerate(login_backdrop(), 1):
         writer.writeRawBlp(tile, os.path.join(OUTPUT, f'LoginBackdrop{index}.blp'))
+    for index, tile in enumerate(login_foreground(), 1):
+        writer.writeRawBlp(tile, os.path.join(OUTPUT, f'LoginForeground{index}.blp'))
+    writer.writeRawBlp(login_clouds(), os.path.join(OUTPUT, 'LoginClouds.blp'))
+    writer.writeRawBlp(login_mist(), os.path.join(OUTPUT, 'LoginMist.blp'))
+    writer.writeRawBlp(login_rays(), os.path.join(OUTPUT, 'LoginRays.blp'))
+    writer.writeRawBlp(login_bird(), os.path.join(OUTPUT, 'LoginBird.blp'))
     writer.writeRawBlp(login_vignette(), os.path.join(OUTPUT, 'LoginVignette.blp'))
     writer.writeRawBlp(login_logo(), os.path.join(OUTPUT, 'LoginLogo.blp'))
     print(f'Built the login screen art in {OUTPUT}')

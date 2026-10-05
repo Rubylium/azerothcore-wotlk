@@ -2,9 +2,12 @@
 -- Evolutions: the login screen. Based on Noa's login screen (retail glue package), redrawn.
 --
 -- The art (clientPatcher/assets/login, built into Interface\Glues\Evolutions\LoginBackdrop by
--- localTools/interface/buildGlueArt.py) fills the screen at any proportions without being stretched, drifting
--- and zooming very slowly and leaning a little away from the pointer. The braziers flicker and throw embers, the
--- city's beam breathes. Over it: the server's name at the top, the login card lower in the middle (account,
+-- localTools/interface/buildGlueArt.py) fills the screen at any proportions without being stretched, and stands
+-- still: a scene in layers. At the back the picture; over it, behind its foreground, the life of the sky - clouds
+-- drifting, mist rolling between the cliffs, the sun's slow rays and glow, the city's beam breathing, flocks of birds
+-- crossing; then the foreground itself (the terrace, the hooded statues, the braziers and banners, the near trees and
+-- cliffs, cut out by localTools/interface/buildLoginMask.py), which never moves; in front, the braziers' flicker and
+-- embers, and motes of dust drifting in the light. Over it: the server's name at the top, the login card lower in the middle (account,
 -- password, remember options, the gold login button), and the quiet actions along the bottom edge.
 --
 -- Everything the frames do (logging in, saving the account, auto-login, dialogs, cinematics, the PIN pad) is the
@@ -44,10 +47,29 @@ local ART_WIDTH, ART_HEIGHT = 3642, 1024
 local ART_TILE_WIDTH = 2048
 local ART_ASPECT = ART_WIDTH / ART_HEIGHT
 
--- Points of the picture, in its pixels: the two brazier flames and the foot of the city's beam
+-- Points of the picture, in its pixels: the two brazier flames, the foot of the city's beam, the sun
 local BRAZIERS = { { 1060, 612 }, { 2490, 612 } }
 local BEACON = { 1839, 360 }
+local SUN = { 2190, 429 }
 local EMBERS_PER_BRAZIER = 7
+
+-- The sky's life, in picture pixels and seconds: the cloud and mist layers (their middle's height, their height,
+-- the width of one copy of their tiling texture, their drift per second - negative: leftwards -, their tint and
+-- strength), the flocks (how often one sets out, how many birds, their size, speed and height), the motes of dust
+local CLOUDS = {
+    { y = 230, height = 420, width = 2800, speed = 7, tint = { 1, 0.8, 0.58 }, alpha = 0.16 },
+    { y = 340, height = 300, width = 2100, speed = 13, tint = { 1, 0.74, 0.5 }, alpha = 0.11 },
+}
+local MISTS = {
+    { y = 700, height = 230, width = 2800, speed = 11, tint = { 1, 0.93, 0.85 }, alpha = 0.32 },
+    { y = 770, height = 200, width = 2200, speed = -8, tint = { 1, 0.9, 0.8 }, alpha = 0.24 },
+}
+local FLOCK_EVERY = { 12, 24 }
+local FLOCK_BIRDS = { 4, 8 }
+local BIRD_SIZE = { 26, 40 }
+local BIRD_SPEED = { 70, 105 }
+local FLOCK_HEIGHT = { 230, 470 }
+local MOTES = 22
 
 -- The logo: its size in its texture (buildGlueArt.py), and how much of the screen's height it takes
 local LOGO_TEXTURE_SIZE = 1024
@@ -94,7 +116,7 @@ local fields = {}
 local links = {}
 local optionRows = {}
 local intro, clock = 0, 0
-local parallaxX, parallaxY = 0, 0
+local nextFlock = 4
 local layoutKey
 local cardHeight, cardTargetHeight
 
@@ -262,6 +284,39 @@ local function WindowAspect()
     end
 end
 
+-- A frame over the stage, a step above the one under it: the scene's layers
+local function Layer(stage, under)
+    local layer = CreateFrame("Frame", nil, stage)
+    layer:SetAllPoints(stage)
+    layer:SetFrameLevel(under:GetFrameLevel() + 1)
+    return layer
+end
+
+-- Three copies of a tiling texture side by side, which drift together and wrap: a cloud or mist layer (three cover
+-- the widest window's part of the picture whatever the drift)
+local function Band(layer, texture, spec)
+    local band = { spec = spec, copies = {} }
+    for copy = 1, 3 do
+        local piece = layer:CreateTexture(nil, "ARTWORK")
+        piece:SetTexture(texture)
+        piece:SetVertexColor(spec.tint[1], spec.tint[2], spec.tint[3])
+        band.copies[copy] = piece
+    end
+    return band
+end
+
+local function SpawnMote(mote, initial)
+    mote.life = 7 + math.random() * 6
+    mote.time = initial and math.random() * mote.life or 0
+    mote.x = 900 + math.random() * 1850
+    mote.y = 380 + math.random() * 520
+    mote.driftX = (math.random() - 0.5) * 14
+    mote.rise = 12 + math.random() * 22
+    mote.size = 8 + math.random() * 10
+    mote.phase = math.random() * 6.28
+    mote.texture:SetVertexColor(1, 0.85 + math.random() * 0.12, 0.6 + math.random() * 0.2)
+end
+
 local function BuildScene(owner)
     local self = CreateFrame("Frame", nil, owner)
     self:SetFrameLevel(owner:GetFrameLevel())
@@ -274,53 +329,132 @@ local function BuildScene(owner)
     scene.art2 = self:CreateTexture(nil, "BACKGROUND")
     scene.art2:SetTexture(ART .. "LoginBackdrop2")
 
-    -- Darker towards the edges and corners, and under the title and the card so they read over the bright sky
-    local vignette = self:CreateTexture(nil, "BORDER")
-    vignette:SetTexture(ART .. "LoginVignette")
-    vignette:SetAllPoints()
-    local top = Fade(self, "BORDER", "VERTICAL", 0, 0, 0, 0, 0.62)
-    top:SetPoint("TOPLEFT")
-    top:SetPoint("TOPRIGHT")
-    top:SetHeight(250)
-    local bottom = Fade(self, "BORDER", "VERTICAL", 0, 0, 0, 0.82, 0)
-    bottom:SetPoint("BOTTOMLEFT")
-    bottom:SetPoint("BOTTOMRIGHT")
-    bottom:SetHeight(320)
+    -- Behind the foreground: the sky's life
+    local sky = Layer(self, self)
+    scene.sky = sky
+    scene.rays = sky:CreateTexture(nil, "BORDER")
+    scene.rays:SetTexture(ART .. "LoginRays")
+    scene.rays:SetBlendMode("ADD")
+    scene.rays:SetVertexColor(1, 0.86, 0.6)
+    scene.sun = Piece(sky, "BORDER", GLOW)
+    scene.sun:SetBlendMode("ADD")
+    scene.sun:SetVertexColor(1, 0.85, 0.6)
+    scene.beacon = Piece(sky, "BORDER", GLOW)
+    scene.beacon:SetBlendMode("ADD")
+    scene.beacon:SetVertexColor(1, 0.85, 0.55)
+    scene.bands = {}
+    for _, spec in ipairs(CLOUDS) do
+        scene.bands[#scene.bands + 1] = Band(sky, ART .. "LoginClouds", spec)
+    end
+    for _, spec in ipairs(MISTS) do
+        scene.bands[#scene.bands + 1] = Band(sky, ART .. "LoginMist", spec)
+    end
+    scene.flocks = {}
+    scene.birdPool = {}     -- the textures of the birds that flew off, for the next flocks
 
-    -- The braziers' flicker and the beam's breath: the soft glow, added over the picture
+    -- The foreground, which never moves
+    local fore = Layer(self, sky)
+    scene.fore = fore
+    scene.fore1 = fore:CreateTexture(nil, "ARTWORK")
+    scene.fore1:SetTexture(ART .. "LoginForeground1")
+    scene.fore2 = fore:CreateTexture(nil, "ARTWORK")
+    scene.fore2:SetTexture(ART .. "LoginForeground2")
+
+    -- In front: the braziers, the motes, and the shade that lets the title and the card read over the bright sky
+    local front = Layer(self, fore)
+    scene.front = front
     scene.lights = {}
     for index, point in ipairs(BRAZIERS) do
-        local light = Piece(self, "ARTWORK", GLOW)
+        local light = Piece(front, "BACKGROUND", GLOW)
         light:SetBlendMode("ADD")
         light:SetVertexColor(1, 0.55, 0.22)
         scene.lights[#scene.lights + 1] = { texture = light, x = point[1], y = point[2], size = 300, seed = index * 1.7 }
     end
-    local beacon = Piece(self, "ARTWORK", GLOW)
-    beacon:SetBlendMode("ADD")
-    beacon:SetVertexColor(1, 0.85, 0.55)
-    scene.lights[#scene.lights + 1] = { texture = beacon, x = BEACON[1], y = BEACON[2], size = 230, beacon = true }
-
     scene.embers = {}
     for side = 1, #BRAZIERS do
         for _ = 1, EMBERS_PER_BRAZIER do
-            local ember = { side = side, texture = Piece(self, "OVERLAY", GLOW) }
+            local ember = { side = side, texture = Piece(front, "ARTWORK", GLOW) }
             ember.texture:SetBlendMode("ADD")
             SpawnEmber(ember, true)
             scene.embers[#scene.embers + 1] = ember
         end
     end
+    scene.motes = {}
+    for _ = 1, MOTES do
+        local mote = { texture = Piece(front, "ARTWORK", GLOW) }
+        mote.texture:SetBlendMode("ADD")
+        SpawnMote(mote, true)
+        scene.motes[#scene.motes + 1] = mote
+    end
+    local vignette = front:CreateTexture(nil, "OVERLAY")
+    vignette:SetTexture(ART .. "LoginVignette")
+    vignette:SetAllPoints()
+    local top = Fade(front, "OVERLAY", "VERTICAL", 0, 0, 0, 0, 0.62)
+    top:SetPoint("TOPLEFT")
+    top:SetPoint("TOPRIGHT")
+    top:SetHeight(250)
+    local bottom = Fade(front, "OVERLAY", "VERTICAL", 0, 0, 0, 0.82, 0)
+    bottom:SetPoint("BOTTOMLEFT")
+    bottom:SetPoint("BOTTOMRIGHT")
+    bottom:SetHeight(320)
 end
 
 -- The part of the picture on screen (Cover), to put things on points of the picture
 local view = {}
 
--- Centres a texture on a point of the picture (in its pixels), size in picture pixels too
-local function Place(texture, x, y, size)
+-- Centres a texture on a point of the picture (in its pixels), size in picture pixels too (height: as wide)
+local function Place(texture, x, y, size, height)
     texture:ClearAllPoints()
     texture:SetPoint("CENTER", view.frame, "TOPLEFT", (x / ART_WIDTH - view.left) / view.u * view.width,
         -(y / ART_HEIGHT - view.top) / view.v * view.height)
     texture:SetWidth(size * view.pixel)
-    texture:SetHeight(size * view.pixel)
+    texture:SetHeight((height or size) * view.pixel)
+end
+
+-- A texture turned by an angle about its middle (the client's textures have no rotation of their own: their corners'
+-- texture coordinates are turned instead)
+local function Turn(texture, angle)
+    local c, s = math.cos(angle) * 0.5, math.sin(angle) * 0.5
+    texture:SetTexCoord(0.5 - c + s, 0.5 - s - c, 0.5 - c - s, 0.5 - s + c, 0.5 + c + s, 0.5 + s - c,
+        0.5 + c - s, 0.5 + s + c)
+end
+
+local function Between(range)
+    return range[1] + math.random() * (range[2] - range[1])
+end
+
+-- A flock setting out across what the screen shows of the sky, from one side to the other, in a loose V
+local function LaunchFlock()
+    local visibleLeft = view.left * ART_WIDTH
+    local visibleRight = (view.left + view.u) * ART_WIDTH
+    local rightwards = math.random() < 0.5
+    local flock = {
+        x = rightwards and visibleLeft - 150 or visibleRight + 150,
+        y = Between(FLOCK_HEIGHT),
+        speed = Between(BIRD_SPEED) * (rightwards and 1 or -1),
+        climb = (math.random() - 0.5) * 10,
+        finish = rightwards and visibleRight + 250 or visibleLeft - 250,
+        birds = {},
+    }
+    local count = math.floor(Between(FLOCK_BIRDS) + 0.5)
+    for index = 1, count do
+        local row = math.floor(index / 2)
+        local side = (index % 2 == 0) and 1 or -1
+        local bird = {
+            dx = -row * 34 * (rightwards and 1 or -1) + (math.random() - 0.5) * 16,
+            dy = row * 18 * side + (math.random() - 0.5) * 12,
+            size = Between(BIRD_SIZE),
+            beat = 5.5 + math.random() * 3,
+            phase = math.random() * 4,
+            glide = math.random() * 6.28,
+            texture = table.remove(scene.birdPool) or scene.sky:CreateTexture(nil, "ARTWORK"),
+        }
+        bird.texture:SetTexture(ART .. "LoginBird")
+        bird.texture:SetVertexColor(0.2, 0.15, 0.12)
+        bird.texture:Show()
+        flock.birds[index] = bird
+    end
+    scene.flocks[#scene.flocks + 1] = flock
 end
 
 local function UpdateScene(owner, elapsed, brightness)
@@ -336,44 +470,79 @@ local function UpdateScene(owner, elapsed, brightness)
         self:SetHeight(height)
     end
 
-    -- A slow drift and zoom over 80 seconds, there and back, and a small lean away from the pointer
-    local phase = (clock / 40) % 2
-    phase = Smooth(phase < 1 and phase or 2 - phase)
-    local cursorX, cursorY = GetCursorPosition()
-    local scale = self:GetEffectiveScale()
-    if cursorX and scale and scale > 0 then
-        parallaxX = Approach(parallaxX, Clamp01(cursorX / scale / width) - 0.5, elapsed, 1.5)
-        parallaxY = Approach(parallaxY, Clamp01(cursorY / scale / height) - 0.5, elapsed, 1.5)
-    end
-    local zoom = 1.04 + 0.04 * phase
-    local left, top, u, v = Cover(width, height, zoom, 0.5 + 0.014 * (phase - 0.5) * 2 - 0.02 * parallaxX,
-        0.45 - 0.006 * (phase - 0.5) * 2 + 0.014 * parallaxY)
-    -- The picture laid at its size on screen, its two tiles side by side from its top left corner (which is off the
-    -- screen by the part cut away)
+    -- The picture, still: its part that fills the stage
+    local left, top, u, v = Cover(width, height, 1.0, 0.5, 0.45)
     local pixel = width / (u * ART_WIDTH)
+    view.frame, view.left, view.top, view.u, view.v, view.width, view.height = self, left, top, u, v, width, height
+    view.pixel = pixel
     local x, y = -left * ART_WIDTH * pixel, top * ART_HEIGHT * pixel
-    for index, tile in ipairs({ scene.art, scene.art2 }) do
-        tile:ClearAllPoints()
-        tile:SetPoint("TOPLEFT", self, "TOPLEFT", x + (index - 1) * ART_TILE_WIDTH * pixel, y)
-        tile:SetWidth(ART_TILE_WIDTH * pixel)
-        tile:SetHeight(ART_HEIGHT * pixel)
-        tile:SetVertexColor(brightness, brightness, brightness)
+    for index, pair in ipairs({ { scene.art, scene.fore1 }, { scene.art2, scene.fore2 } }) do
+        for _, tile in ipairs(pair) do
+            tile:ClearAllPoints()
+            tile:SetPoint("TOPLEFT", self, "TOPLEFT", x + (index - 1) * ART_TILE_WIDTH * pixel, y)
+            tile:SetWidth(ART_TILE_WIDTH * pixel)
+            tile:SetHeight(ART_HEIGHT * pixel)
+            tile:SetVertexColor(brightness, brightness, brightness)
+        end
     end
 
-    view.frame, view.left, view.top, view.u, view.v, view.width, view.height = self, left, top, u, v, width, height
-    view.pixel = width / (u * ART_WIDTH)
+    -- The sun: its glow breathing, its rays turning slowly
+    Place(scene.sun, SUN[1], SUN[2], 520)
+    scene.sun:SetAlpha((0.3 + 0.06 * math.sin(clock * 0.7)) * brightness)
+    Place(scene.rays, SUN[1], SUN[2], 1900)
+    Turn(scene.rays, clock * 0.012)
+    scene.rays:SetAlpha((0.16 + 0.05 * math.sin(clock * 0.45)) * brightness)
+    Place(scene.beacon, BEACON[1], BEACON[2], 230)
+    scene.beacon:SetAlpha((0.16 + 0.05 * math.sin(clock * 0.9)) * brightness)
 
-    for _, light in ipairs(scene.lights) do
-        local alpha
-        if light.beacon then
-            alpha = 0.16 + 0.05 * math.sin(clock * 0.9)
-        else
-            alpha = 0.24 + 0.06 * math.sin(clock * 7.3 + light.seed) + 0.04 * math.sin(clock * 13.1 + 2 * light.seed)
+    -- The clouds and the mist, drifting and wrapping round
+    for _, band in ipairs(scene.bands) do
+        local spec = band.spec
+        local offset = (clock * spec.speed) % spec.width
+        local start = view.left * ART_WIDTH - spec.width + offset
+        for copy, piece in ipairs(band.copies) do
+            local centre = start + (copy - 1) * spec.width + spec.width / 2
+            Place(piece, centre, spec.y, spec.width, spec.height)
+            piece:SetAlpha(spec.alpha * brightness)
         end
+    end
+
+    -- The flocks: a new one now and then, each bird beating its wings in its own time
+    nextFlock = nextFlock - elapsed
+    if nextFlock <= 0 and #scene.flocks < 2 then
+        LaunchFlock()
+        nextFlock = Between(FLOCK_EVERY)
+    end
+    for index = #scene.flocks, 1, -1 do
+        local flock = scene.flocks[index]
+        flock.x = flock.x + flock.speed * elapsed
+        flock.y = flock.y + flock.climb * elapsed
+        local done = (flock.speed > 0 and flock.x > flock.finish) or (flock.speed < 0 and flock.x < flock.finish)
+        for _, bird in ipairs(flock.birds) do
+            if done then
+                bird.texture:Hide()
+            else
+                local frame = math.floor((clock * bird.beat + bird.phase) % 4)
+                bird.texture:SetTexCoord(frame / 4, (frame + 1) / 4, 0, 1)
+                local bob = math.sin(clock * 1.3 + bird.glide) * 6
+                Place(bird.texture, flock.x + bird.dx, flock.y + bird.dy + bob, bird.size, bird.size * 0.5)
+                bird.texture:SetAlpha(0.85 * brightness)
+            end
+        end
+        if done then
+            for _, bird in ipairs(flock.birds) do
+                scene.birdPool[#scene.birdPool + 1] = bird.texture
+            end
+            table.remove(scene.flocks, index)
+        end
+    end
+
+    -- In front: the braziers' flicker, their embers, the motes of dust
+    for _, light in ipairs(scene.lights) do
+        local alpha = 0.24 + 0.06 * math.sin(clock * 7.3 + light.seed) + 0.04 * math.sin(clock * 13.1 + 2 * light.seed)
         Place(light.texture, light.x, light.y, light.size)
         light.texture:SetAlpha(alpha * brightness)
     end
-
     for _, ember in ipairs(scene.embers) do
         ember.time = ember.time + elapsed
         if ember.time >= ember.life then
@@ -381,11 +550,23 @@ local function UpdateScene(owner, elapsed, brightness)
         end
         local p = ember.time / ember.life
         local source = BRAZIERS[ember.side]
-        local x = source[1] + ember.offsetX + math.sin(ember.phase + ember.time * ember.frequency) * ember.sway * p
-        local y = source[2] - 20 + ember.offsetY - ember.rise * p
-        Place(ember.texture, x, y, ember.size)
+        local emberX = source[1] + ember.offsetX + math.sin(ember.phase + ember.time * ember.frequency) * ember.sway * p
+        local emberY = source[2] - 20 + ember.offsetY - ember.rise * p
+        Place(ember.texture, emberX, emberY, ember.size)
         local fade = (p < 0.15) and (p / 0.15) or ((1 - p) / 0.85)
         ember.texture:SetAlpha(0.9 * fade * brightness)
+    end
+    for _, mote in ipairs(scene.motes) do
+        mote.time = mote.time + elapsed
+        if mote.time >= mote.life then
+            SpawnMote(mote, false)
+        end
+        local p = mote.time / mote.life
+        local moteX = mote.x + mote.driftX * mote.time + math.sin(mote.phase + mote.time * 0.6) * 10
+        local moteY = mote.y - mote.rise * mote.time
+        Place(mote.texture, moteX, moteY, mote.size)
+        local fade = math.sin(p * math.pi)
+        mote.texture:SetAlpha(0.32 * fade * brightness)
     end
 end
 -- ============================================================================
