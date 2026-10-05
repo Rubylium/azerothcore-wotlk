@@ -30,6 +30,7 @@
 !/modules/mod-druid
 !/modules/mod-barbarian
 !/modules/mod-forge
+!/modules/mod-reaper
 /build*/
 # TACTTool's download cache of the game files, left at the root by the extractors
 /cache/

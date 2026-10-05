@@ -352,6 +352,56 @@
         "talents": []
       }],
       "startSpells": [6603, 9078, 9077, 8737, 196, 197, 198, 199, 200, 201, 202, 2567, 9116, 674, 3127, 107, 97100]
+    },
+    {
+      "id": 15,
+      "token": "REAPER",
+      "name": "Faucheur",
+      "comment": "Plate scythe-wielder who harvests souls: execution, shadowfrost duelling or a soul-fed tank (Ascension's Reaper)",
+      "templateClass": 6,
+      "startClass": 1,
+      "extraSkills": [293, 413, 136, 173],
+      "classSkill": { "id": 913, "name": "Faucheur", "icon": "Spell_Shadow_Haunting" },
+      "inheritSpells": false,
+      "powerType": 6,
+      "spellFamily": 21,
+      "roles": ["tank", "damage"],
+      "races": [1, 2, 3, 4, 5, 6, 7, 8, 10, 11],
+      "startLevel": 1,
+      "startOutfit": [4901],
+      "iconCell": [2, 3],
+      "classIcon": "localTools/interface/assets/classes/reaper.png",
+      "detailsCell": [3, 2, 2],
+      "detailsSpecs": [
+        { "icon": "localTools/interface/assets/specs/reaper-moisson.png", "cell": [6, 4] },
+        { "icon": "localTools/interface/assets/specs/reaper-ame.png", "cell": [7, 4] },
+        { "icon": "localTools/interface/assets/specs/reaper-domination.png", "cell": [0, 5] }
+      ],
+      "color": [0.33, 0.85, 0.75],
+      "talentTree": "localTools/reaper/talentTree.json",
+      "talentTabs": [{
+        "id": 914,
+        "name": "Moisson",
+        "background": "DeathKnightBlood",
+        "icon": "Spell_Deathknight_BloodPresence",
+        "tabPage": 0,
+        "talents": []
+      }, {
+        "id": 915,
+        "name": "Âme",
+        "background": "DeathKnightFrost",
+        "icon": "Spell_Deathknight_FrostPresence",
+        "tabPage": 1,
+        "talents": []
+      }, {
+        "id": 916,
+        "name": "Domination",
+        "background": "DeathKnightUnholy",
+        "icon": "Spell_Deathknight_UnholyPresence",
+        "tabPage": 2,
+        "talents": []
+      }],
+      "startSpells": [6603, 9078, 9077, 8737, 750, 196, 197, 198, 199, 200, 201, 202, 227, 1180, 674, 3127, 98000]
     }
   ]
 }

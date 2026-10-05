@@ -283,7 +283,11 @@ def add_skills(dbc, definition):
             continue
         source = next((record for record in dbc.records
                        if dbc.field(record, 1) == skill_id and dbc.field(record, 3) & (1 << 1)), None)
-        assert source, f'no Paladin skill row for {skill_id}'
+        # A skill no Paladin has (staves, daggers): the row of another class, the one open to the most races
+        if not source:
+            rows = [record for record in dbc.records if dbc.field(record, 1) == skill_id and dbc.field(record, 3)]
+            source = max(rows, key=lambda record: bin(dbc.field(record, 2) & 0xFFFFFFFF).count('1'), default=None)
+        assert source, f'no class skill row for {skill_id}'
         grant(source)
 
     if not own_skill:

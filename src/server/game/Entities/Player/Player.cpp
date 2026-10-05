@@ -1850,7 +1850,8 @@ void Player::RegenerateAll()
         }
 
         Regenerate(POWER_RAGE);
-        if (IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
+        // Any class whose power is runic power (the Faucheur's too, mod-reaper), not the Death Knight's alone
+        if (IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY) || getPowerType() == POWER_RUNIC_POWER)
             Regenerate(POWER_RUNIC_POWER);
 
         m_regenTimerCount -= 2000;

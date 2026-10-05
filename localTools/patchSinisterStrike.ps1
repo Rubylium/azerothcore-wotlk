@@ -871,6 +871,10 @@ $customSpells += & ([ScriptBlock]::Create($druidSpellSource))
 # Ascension client (localTools/barbarian/ascensionVisuals.json)
 $barbarianSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\barbarian\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($barbarianSpellSource))
+# The Faucheur (class 15, modules/mod-reaper): its abilities, soul resource, auras and talent ranks, its looks imported
+# from the Ascension client (localTools/reaper/ascensionVisuals.json)
+$reaperSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\reaper\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($reaperSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
@@ -2335,6 +2339,16 @@ foreach ($glyph in $glyphDisplays) {
 $frontierShard = @{ Item = 37711; Display = 70100; CloneOf = 32278; Icon = 'INV_Frontier_FrostShard' }
 if (-not $itemOffsets.ContainsKey($frontierShard.Item)) { throw "Item.dbc has no row $($frontierShard.Item) for the frost shard." }
 [BitConverter]::GetBytes([uint32]$frontierShard.Display).CopyTo($itemBytes, $itemOffsets[$frontierShard.Item] + 5 * 4)
+# The Faucheur's starting weapon, Faux usée (item 4901, mod-reaper's pending SQL): a two-hand polearm wearing the stock
+# scythe model (display 33086). The server enforces this row over its item_template, so the look lives here too.
+$reaperScythe = @{ Item = 4901; Display = 33086 }
+if (-not $itemOffsets.ContainsKey($reaperScythe.Item)) { throw "Item.dbc has no row $($reaperScythe.Item) for the Faucheur's scythe." }
+# ClassID 2 (weapon), SubclassID 6 (polearm), no sound override, Material 1 (metal), its display, InventoryType 17
+# (two-hand), SheatheType 1 (on the back)
+$reaperScytheValues = @(2, 6, -1, 1, $reaperScythe.Display, 17, 1)
+for ($field = 1; $field -le 7; ++$field) {
+    Write-Field $itemBytes $itemOffsets[$reaperScythe.Item] $field ([long]$reaperScytheValues[$field - 1])
+}
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
 #
