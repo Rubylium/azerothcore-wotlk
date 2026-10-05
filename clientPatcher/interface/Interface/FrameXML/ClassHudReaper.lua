@@ -19,8 +19,9 @@ local PIECES = {
     twoShards = { 302, 453, 405, 512 },
 }
 
--- The flipbook: 2048x2048, 8x8 frames of 256 pixels, played at 60 frames a second
-local FLIPBOOK_COLUMNS, FLIPBOOK_FRAMES, FLIPBOOK_FPS = 8, 64, 60
+-- The flipbook: 2048x2048, 8x8 frames of 256 pixels. Ascension's 60 frames a second read as frantic for a state that
+-- lasts: 20, a loop every 3.2 s
+local FLIPBOOK_COLUMNS, FLIPBOOK_FRAMES, FLIPBOOK_FPS = 8, 64, 20
 
 local SOUL_WIDTH, SOUL_HEIGHT = 50, 35
 local SOUL_SPACING = 38
@@ -130,7 +131,7 @@ local function create(frame)
     frame.glowPulse:SetLooping("BOUNCE")
     local pulse = frame.glowPulse:CreateAnimation("Alpha")
     pulse:SetChange(-0.45)
-    pulse:SetDuration(0.9)
+    pulse:SetDuration(1.6)
     pulse:SetSmoothing("IN_OUT")
 end
 

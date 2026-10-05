@@ -61,6 +61,6 @@ server module ──"PREFIX\tpayload" (addon whisper)──▶ ClassHud.lua ─�
 ## The Faucheur's HUD
 
 `ClassHudReaper.lua`, prefix `REAPER`, payload `souls:fragments:infused` (mod-reaper `SyncHud`). Ascension's Reaper
-art (`ReaperAtlas.blp`, 512², and `ReaperInfusedFlipbook.blp`, 2048² = 8×8 frames of 256, 60 fps): the crossed
+art (`ReaperAtlas.blp`, 512², and `ReaperInfusedFlipbook.blp`, 2048² = 8×8 frames of 256, played at 20 fps: Ascension's 60 felt frantic): the crossed
 scythes frame, three soul skulls (empty, one or two thirds filled with the fragments of the next soul, full green,
 infused purple), the purple glow and the infusion flipbook (additive, looping) while the Infusion d'âme lasts.
