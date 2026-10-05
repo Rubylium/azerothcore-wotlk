@@ -40,14 +40,13 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   flip as it jumps and its own landing 150 ms before touchdown, back to back (2026-10-05); one flip for the whole burst
   was heard after a landing on the Hollow Voice (2026-10-06).
 - Sparkles are `SpellVisualKit`s sent to the owner alone (`SMSG_PLAY_SPELL_VISUAL` by direct message), landing and
-  pickup. Sounds are played by the server to the owner alone, by SoundEntries id (`PlayDirectSound`, the gold's landing
-  `PlayDistanceSound` on its bag): a flip per drop, a landing per tier (item, epic, unique, legendary, gold), a pickup (item,
-  gold). A kit's own sound was never heard when the server played the kit (2026-10-05, v1.0.309): don't put the
-  sounds back in the kits. Each beam plays its quality's ambient loop for as long as it stands: its display's
-  `CreatureSoundData.LoopSoundID` (client DBC only). Levels: Diablo IV's loot sounds, mixed for its own engine, were
-  barely heard as they came (its loops 20 dB under the rest); every row is at volume 1, the import `normalize`s the
-  cues to -12 dBFS RMS and the loops to -16 (a limiter holds the peaks under -1 dBFS). Asked "so much louder" at
-  -24/-20 dBFS RMS and volume 0.45-0.9 (2026-10-05).
+  pickup. Sounds are our own sound engine's (`evolutions-audio.md`; the bank: `client-assets/audio/groundLoot.json`),
+  to the owner alone: on the bag, a flip as it jumps and a landing per tier (item, epic, unique, legendary, gold)
+  50 ms before touchdown, then its quality's loop for as long as it lies there (on the bag, not on the beam just
+  summoned: the client may not have that one yet; it stops with the bag); a pickup (item, gold) as an interface sound.
+  History: the game's SoundEntries way - kit sounds never heard, SMSG_PLAY_SOUND barely heard and late, creature
+  loops - was replaced (2026-10-06). Diablo IV mixes its loot sounds far quieter than the game: the bank brings them
+  to the game's level (-12 dBFS RMS, loops -16); "so much louder" was asked at -24/-20.
 - The tooltip: the server whispers `GLOOT\t<guid hex>\t<item link | gold:<copper> | ->` as each drop leaves the corpse;
   `clientPatcher/interface/Interface/FrameXML/GroundLoot.lua` swaps the unit tooltip for the item's (or the gold).
 
@@ -69,10 +68,11 @@ tooltips; picking them up plays everything and gives nothing.
 
 ## Assets
 
-- `localTools/groundLoot/ascensionVisuals.json`, imported by `localTools/ascensionImport/importVisuals.py` into
-  `modules/mod-stat-growth/client-assets/imported` (kits 81911, 81913; sounds 81920-81932). The importer's `models` (raw
-  models, optionally `tint`ed) and `sounds` (WAVs of our own, here Diablo IV's from `data/custom/diabloLootSounds`,
-  local, optionally `normalize`d) sections exist for it.
-- Displays, sound loops: `localTools/patchSinisterStrike.ps1` (`$ownDisplays`). Creatures:
+- Looks: `localTools/groundLoot/ascensionVisuals.json`, imported by `localTools/ascensionImport/importVisuals.py`
+  into `modules/mod-stat-growth/client-assets/imported` (kits 81911, 81913). The importer's `models` section (raw
+  models, optionally `tint`ed) exists for it.
+- Sounds: `modules/mod-stat-growth/client-assets/audio/groundLoot.json` (Diablo IV's, from
+  `data/custom/diabloLootSounds`, local), built by `localTools/audio/buildAudio.py`.
+- Displays: `localTools/patchSinisterStrike.ps1` (`$ownDisplays`). Creatures:
   `modules/mod-stat-growth/data/sql/db-world/base/stat_growth_ground_loot.sql`.
 - Not yet: name labels on the floor (the beam and the tooltip carry the item for now).

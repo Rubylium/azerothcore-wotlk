@@ -1,0 +1,105 @@
+{
+  "_comment": [
+    "The ground loot's sounds (GroundLoot.cpp), Diablo IV's, extracted to data/custom/diabloLootSounds (local): played by",
+    "our own sound engine (localTools/audio/buildAudio.py builds the bank). Flips and landings come from the drop, in",
+    "the world (its echo, muffled behind a wall); the pickups are interface sounds; each beam loops its quality's sound",
+    "for as long as it stands."
+  ],
+  "sounds": {
+    "GroundLoot.Flip": {
+      "kind": "world",
+      "files": [
+        "data/custom/diabloLootSounds/wav/inventoryAndOther/Play_UI_Item_Generic_Flippy_Media_01.wav"
+      ]
+    },
+    "GroundLoot.Land": {
+      "kind": "world",
+      "files": [
+        "data/custom/diabloLootSounds/wav/rare/Play_UI_Halo_Rare_Media_02.wav"
+      ]
+    },
+    "GroundLoot.LandEpic": {
+      "kind": "world",
+      "files": [
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_01.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_02.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_03.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_04.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_05.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_06.wav"
+      ]
+    },
+    "GroundLoot.LandUnique": {
+      "kind": "world",
+      "files": [
+        "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_03.wav"
+      ]
+    },
+    "GroundLoot.LandLegendary": {
+      "kind": "world",
+      "files": [
+        "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_03.wav"
+      ]
+    },
+    "GroundLoot.LandGold": {
+      "kind": "world",
+      "files": [
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_03.wav"
+      ]
+    },
+    "GroundLoot.Pickup": {
+      "kind": "ui",
+      "files": [
+        "data/custom/diabloLootSounds/wav/pickup/Play_UI_INV_Chest_Pickup_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/pickup/Play_UI_INV_Chest_Pickup_Media_02.wav"
+      ]
+    },
+    "GroundLoot.PickupGold": {
+      "kind": "ui",
+      "files": [
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_03.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_04.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_05.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_06.wav"
+      ]
+    },
+    "GroundLoot.Loop.Normal": {
+      "kind": "loop",
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Normal_Loop_Media_01.wav"
+      ]
+    },
+    "GroundLoot.Loop.Magic": {
+      "kind": "loop",
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Magic_Loop_Media_01.wav"
+      ]
+    },
+    "GroundLoot.Loop.Rare": {
+      "kind": "loop",
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Rare_Loop_Media_01.wav"
+      ]
+    },
+    "GroundLoot.Loop.Legendary": {
+      "kind": "loop",
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Legendary_Loop_Media_01.wav"
+      ]
+    },
+    "GroundLoot.Loop.Gold": {
+      "kind": "loop",
+      "files": [
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_Item_Gold_Loop_Media_01.wav"
+      ]
+    }
+  }
+}

@@ -1,4 +1,5 @@
 #include "GroundLoot.h"
+#include "EvolutionsAudio.h"
 #include "InfiniteDungeonSystem.h"
 #include "MythicDungeonSystem.h"
 
@@ -48,30 +49,34 @@ constexpr uint8 BeamGold = 5;
 // Their sparkles, landing and picked up (localTools/groundLoot/ascensionVisuals.json)
 constexpr uint32 KIT_LAND = 81911;
 constexpr uint32 KIT_PICKUP = 81913;
-// Diablo IV's loot sounds (SoundEntries, same file), played by the server to the owner alone: a kit's own sound was
-// never heard when the server played the kit. A drop flipping out of the corpse; a drop landing - an item, an epic,
-// an epic with a power of its own (touched by L'Infini or the Hollow Voice), a legendary, gold (on the drop, in the
-// world) - and picked up (an item, gold).
-constexpr uint32 SOUND_FLIP = 81920;
-constexpr uint32 SOUND_LAND = 81921;
-constexpr uint32 SOUND_LAND_EPIC = 81922;
-constexpr uint32 SOUND_LAND_UNIQUE = 81923;
-constexpr uint32 SOUND_LAND_LEGENDARY = 81924;
-constexpr uint32 SOUND_LAND_GOLD = 81925;
-constexpr uint32 SOUND_PICKUP = 81926;
-constexpr uint32 SOUND_PICKUP_GOLD = 81927;
+// Diablo IV's loot sounds, played by our own sound engine to the owner alone (EvolutionsAudio.h; the bank:
+// client-assets/audio/groundLoot.json): from the drop, a flip as it jumps and a landing - an item, an epic, an epic
+// with a power of its own (touched by L'Infini or the Hollow Voice), a legendary, gold - then its quality's loop as
+// long as it lies there; picked up, an item's or gold's, where the player is.
+constexpr char const* SoundFlip = "GroundLoot.Flip";
+constexpr char const* SoundLand = "GroundLoot.Land";
+constexpr char const* SoundLandEpic = "GroundLoot.LandEpic";
+constexpr char const* SoundLandUnique = "GroundLoot.LandUnique";
+constexpr char const* SoundLandLegendary = "GroundLoot.LandLegendary";
+constexpr char const* SoundLandGold = "GroundLoot.LandGold";
+constexpr char const* SoundPickup = "GroundLoot.Pickup";
+constexpr char const* SoundPickupGold = "GroundLoot.PickupGold";
+// By the beam's colour (BeamIndex): white, green, blue, purple, orange, gold
+constexpr char const* SoundLoops[] = { "GroundLoot.Loop.Normal", "GroundLoot.Loop.Magic", "GroundLoot.Loop.Rare",
+                                       "GroundLoot.Loop.Legendary", "GroundLoot.Loop.Legendary",
+                                       "GroundLoot.Loop.Gold" };
 
 // The burst: this long after the kill the first drop leaves the corpse, the next ones one after the other. Each
 // appears inside the corpse and jumps a moment later (the client has it by then), in an arc of that height, flying
 // about that long (the jump's own spline says how long exactly: the landing is timed on it), around the corpse past
 // its reach. Each drop flips out with its own sound as it jumps, and lands with its own that much ahead of the
-// touchdown (the client takes a moment to start a sound): every landing comes right after its own flip, never before.
+// touchdown (the sound reaches the client a moment after): every landing comes right after its own flip, never before.
 // (One flip for the whole burst, on the first jump, could be heard after a landing: 2026-10-06, the Hollow Voice.)
 constexpr uint64 BurstDelayMs = 2000;
 constexpr uint64 ThrowIntervalMs = 300;
 constexpr uint64 JumpDelayMs = 250;
 constexpr uint64 FlightMs = 900;
-constexpr uint64 LandSoundLeadMs = 150;
+constexpr uint64 LandSoundLeadMs = 50;
 constexpr float JumpSpeedZ = 10.0f;
 constexpr float OriginHeight = 1.0f;
 constexpr float MaxCorpseReach = 8.0f;
@@ -302,6 +307,8 @@ void Give(Player* player, Drop const& drop)
 
 void Despawn(Player* player, Drop const& drop)
 {
+    if (Creature* bag = drop.bag ? ObjectAccessor::GetCreature(*player, drop.bag) : nullptr)
+        EvolutionsAudio::StopOn(player, bag);
     for (ObjectGuid const& guid : { drop.bag, drop.beam })
         if (Creature* creature = guid ? ObjectAccessor::GetCreature(*player, guid) : nullptr)
             creature->DespawnOrUnsummon();
@@ -351,13 +358,15 @@ void Spawn(Player* player, GroundLootState& state, Drop& drop, uint64 now)
     SendTooltip(player, drop.bag, Describe(drop));
 }
 
-uint32 LandSound(Drop const& drop)
+char const* LandSound(Drop const& drop)
 {
+    if (drop.kind == DropKind::Gold)
+        return SoundLandGold;
     if (drop.quality >= ITEM_QUALITY_LEGENDARY)
-        return SOUND_LAND_LEGENDARY;
+        return SoundLandLegendary;
     if (drop.unique)
-        return SOUND_LAND_UNIQUE;
-    return drop.quality == ITEM_QUALITY_EPIC ? SOUND_LAND_EPIC : SOUND_LAND;
+        return SoundLandUnique;
+    return drop.quality == ITEM_QUALITY_EPIC ? SoundLandEpic : SoundLand;
 }
 
 void Land(Player* player, Creature* bag, Drop& drop, uint64 now)
@@ -371,14 +380,8 @@ void Land(Player* player, Creature* bag, Drop& drop, uint64 now)
         drop.beam = beam->GetGUID();
     }
     SendKit(player, bag->GetGUID(), KIT_LAND);
-}
-
-void PlayLandSound(Player* player, Creature* bag, Drop const& drop)
-{
-    if (drop.kind == DropKind::Gold)
-        bag->PlayDistanceSound(SOUND_LAND_GOLD, player);
-    else
-        player->PlayDirectSound(LandSound(drop), player);
+    // On the bag, under its beam: the bag was in the player's sight long before (the beam may not be yet)
+    EvolutionsAudio::PlayOn(player, SoundLoops[BeamIndex(drop)], bag);
 }
 
 bool HasRoomFor(Player* player, Drop const& drop)
@@ -405,7 +408,7 @@ bool PickUp(Player* player, GroundLootState& state, Drop const& drop)
     }
     Give(player, drop);
     SendKit(player, player->GetGUID(), KIT_PICKUP);
-    player->PlayDirectSound(drop.kind == DropKind::Gold ? SOUND_PICKUP_GOLD : SOUND_PICKUP, player);
+    EvolutionsAudio::Play(player, drop.kind == DropKind::Gold ? SoundPickupGold : SoundPickup);
     return true;
 }
 
@@ -463,12 +466,12 @@ void Update(Player* player, uint32 diff)
                                               JumpSpeedZ);
             int32 const flight = bag->movespline ? bag->movespline->Duration() : 0;
             drop.landAt = now + (flight > 0 ? uint64(flight) : FlightMs);
-            player->PlayDirectSound(SOUND_FLIP, player);
+            EvolutionsAudio::PlayOn(player, SoundFlip, bag);
         }
         if (drop.jumped && !drop.landSoundPlayed && now + LandSoundLeadMs >= drop.landAt)
         {
             drop.landSoundPlayed = true;
-            PlayLandSound(player, bag, drop);
+            EvolutionsAudio::PlayOn(player, LandSound(drop), bag);
         }
         if (drop.jumped && !drop.landed && now >= drop.landAt)
             Land(player, bag, drop, now);

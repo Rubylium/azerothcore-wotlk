@@ -69,6 +69,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // The Effects panel's view distance, objects' detail and grass past the stock limits, with the game's memory
     // The class HUD (a class's own resource, draggable; .agents/docs/systems/class-hud.md), then each class's own
     'ClassHud.lua', 'ClassHudReaper.lua',
+    // Our own sound engine (the client extension DLL's EvolutionsAudio): the server's sounds, the place's acoustics
+    'EvolutionsAudio.lua',
     // A boss's loot on the floor (mod-stat-growth GroundLoot.cpp): the item's tooltip over its bag; needs GameTooltip
     'GroundLoot.lua',
     'WorldDetailUI.lua'];

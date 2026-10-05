@@ -172,6 +172,9 @@ $sources = @(
     'Data\patch-Z.MPQ',
     'Interface\AddOns\DungeonBots',
     'Interface\AddOns\PersonalLoot',
+    # The sounds of our own sound engine (the client extension DLL's EvolutionsAudio), built by
+    # localTools/audio/buildAudio.py: the engine reads them from there, nothing in the folder loads as an addon
+    'Interface\AddOns\EvolutionsAudio',
     # Registers the custom classes with Details, which errors on every bar for a class it does not know
     'Interface\AddOns\DetailsCustomClasses',
     # The interface the server is played with: DragonUI, and Details with its plugins (as installed in the client)

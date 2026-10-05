@@ -1,0 +1,4 @@
+## Interface: 30300
+## Title: Evolutions Audio
+## Notes: The sounds of the Evolutions client's own sound engine (AwesomeWotlkLib), read by it: nothing to load.
+## Author: Evolutions

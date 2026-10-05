@@ -1,0 +1,14 @@
+# key	kind	volume	min distance	max distance	files (Sounds\) - written by localTools/audio/buildAudio.py
+GroundLoot.Flip	world	1	12	60	GroundLoot.Flip_1.wav
+GroundLoot.Land	world	1	12	60	GroundLoot.Land_1.wav
+GroundLoot.LandEpic	world	1	12	60	GroundLoot.LandEpic_1.wav;GroundLoot.LandEpic_2.wav;GroundLoot.LandEpic_3.wav;GroundLoot.LandEpic_4.wav;GroundLoot.LandEpic_5.wav;GroundLoot.LandEpic_6.wav
+GroundLoot.LandGold	world	1	12	60	GroundLoot.LandGold_1.wav;GroundLoot.LandGold_2.wav;GroundLoot.LandGold_3.wav
+GroundLoot.LandLegendary	world	1	12	60	GroundLoot.LandLegendary_1.wav;GroundLoot.LandLegendary_2.wav;GroundLoot.LandLegendary_3.wav
+GroundLoot.LandUnique	world	1	12	60	GroundLoot.LandUnique_1.wav;GroundLoot.LandUnique_2.wav;GroundLoot.LandUnique_3.wav
+GroundLoot.Loop.Gold	loop	1	3	25	GroundLoot.Loop.Gold_1.wav
+GroundLoot.Loop.Legendary	loop	1	3	25	GroundLoot.Loop.Legendary_1.wav
+GroundLoot.Loop.Magic	loop	1	3	25	GroundLoot.Loop.Magic_1.wav
+GroundLoot.Loop.Normal	loop	1	3	25	GroundLoot.Loop.Normal_1.wav
+GroundLoot.Loop.Rare	loop	1	3	25	GroundLoot.Loop.Rare_1.wav
+GroundLoot.Pickup	ui	1	0	0	GroundLoot.Pickup_1.wav;GroundLoot.Pickup_2.wav
+GroundLoot.PickupGold	ui	1	0	0	GroundLoot.PickupGold_1.wav;GroundLoot.PickupGold_2.wav;GroundLoot.PickupGold_3.wav;GroundLoot.PickupGold_4.wav;GroundLoot.PickupGold_5.wav;GroundLoot.PickupGold_6.wav

@@ -22,7 +22,8 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
               1453 WaterElementalLoop), playing one of the files at random, shipped in soundFolder (an archive
               folder), each file brought to that RMS level if normalize is given (its peaks limited under -1 dBFS:
               Diablo IV's loot sounds, mixed for its own engine, are barely heard in the game's); a kit names one
-              as "@<key>", and visuals.json lists every one's id under "sounds"
+              as "@<key>", and visuals.json lists every one's id under "sounds". A sound the server plays belongs
+              to our own sound engine instead (localTools/audio/buildAudio.py, .agents/docs/systems/evolutions-audio.md)
 
 A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>, "anim": <animation id>,
 "effects": { "<attachment>": <effect> }, "sound": <sound>, "shake": <stock CameraShakes id>, "fields": { "<field>":
