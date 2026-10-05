@@ -449,8 +449,9 @@ public:
         if (newlevel < 1)
             return false;                                       // invalid level
 
-        if (newlevel > DEFAULT_MAX_LEVEL)                         // hardcoded maximum level
-            newlevel = DEFAULT_MAX_LEVEL;
+        // Never past the realm's maximum level: a character above it broke the client (a level 159 Faucheur)
+        if (newlevel > int16(sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL)))
+            newlevel = int16(sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
 
         HandleCharacterLevel(player->GetConnectedPlayer(), player->GetGUID(), oldlevel, newlevel, handler);
 
@@ -777,8 +778,9 @@ public:
         if (newlevel < 1)
             newlevel = 1;
 
-        if (newlevel > STRONG_MAX_LEVEL)                         // hardcoded maximum level
-            newlevel = STRONG_MAX_LEVEL;
+        // Never past the realm's maximum level: a character above it broke the client (a level 159 Faucheur)
+        if (newlevel > int16(sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL)))
+            newlevel = int16(sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
 
         HandleCharacterLevel(player->GetConnectedPlayer(), player->GetGUID(), oldlevel, newlevel, handler);
 
