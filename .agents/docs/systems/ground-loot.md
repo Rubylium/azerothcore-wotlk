@@ -27,8 +27,10 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
 - Per player: each drop is a `TempSummon` the player summons with `visibleBySummonerOnly`, so only they see it.
   900120 a bag (display 60002, Ascension's `ashran_loot_state`), 900121 gold (60003, the treasure goblin's coin pile),
   900122 a light beam over it (60004-60009: Ascension's moonbeam tinted white, green, blue, purple, orange, gold).
-- The arc is `MoveJump` from inside the corpse (no missile spell): the bag appears, jumps 250 ms later, lands 900 ms
-  after that, past the corpse's reach (golden-angle spread, collision-checked). Drops leave 300 ms apart.
+- The arc is `MoveJump` from inside the corpse (no missile spell): the bag appears, jumps 250 ms later, lands about
+  900 ms after that, past the corpse's reach (golden-angle spread, collision-checked). Drops leave 300 ms apart. The
+  landing is timed on the jump's own spline (`movespline->Duration()`, what the client draws), the burst's sound goes
+  with the first jump and each landing's 150 ms before touchdown: the user wants them back to back (2026-10-05).
 - Sparkles are `SpellVisualKit`s sent to the owner alone (`SMSG_PLAY_SPELL_VISUAL` by direct message), landing and
   pickup. Sounds are played by the server to the owner alone, by SoundEntries id (`PlayDirectSound`, the gold's landing
   `PlayDistanceSound` on its bag): the burst, a landing per tier (item, epic, unique, legendary, gold), a pickup (item,

@@ -14,6 +14,7 @@
 #include "LootMgr.h"
 #include "Mail.h"
 #include "Map.h"
+#include "MoveSpline.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -58,12 +59,15 @@ constexpr uint32 SOUND_PICKUP = 81926;
 constexpr uint32 SOUND_PICKUP_GOLD = 81927;
 
 // The burst: this long after the kill the first drop leaves the corpse, the next ones one after the other. Each
-// appears inside the corpse and jumps a moment later (the client has it by then), in an arc of that height, landing
-// that long after, around the corpse past its reach.
+// appears inside the corpse and jumps a moment later (the client has it by then), in an arc of that height, flying
+// about that long (the jump's own spline says how long exactly: the landing is timed on it), around the corpse past
+// its reach. The burst's sound goes with the first jump, each landing's that much ahead of the touchdown (the client
+// takes a moment to start a sound), so the two come back to back.
 constexpr uint64 BurstDelayMs = 2000;
 constexpr uint64 ThrowIntervalMs = 300;
 constexpr uint64 JumpDelayMs = 250;
 constexpr uint64 FlightMs = 900;
+constexpr uint64 LandSoundLeadMs = 150;
 constexpr float JumpSpeedZ = 10.0f;
 constexpr float OriginHeight = 1.0f;
 constexpr float MaxCorpseReach = 8.0f;
@@ -79,7 +83,7 @@ constexpr float PickupHeight = 3.0f;
 constexpr uint64 LifetimeMs = 180000;
 // A mythic item given this long after a kill is thrown out with its loot
 constexpr uint64 ThrowWindowMs = 20000;
-constexpr uint32 UpdateIntervalMs = 100;
+constexpr uint32 UpdateIntervalMs = 50;
 constexpr uint64 FullBagsNoticeMs = 5000;
 
 constexpr char const* StateKey = "GroundLoot";
@@ -115,6 +119,7 @@ struct Drop
     ObjectGuid bag;
     ObjectGuid beam;
     bool jumped = false;
+    bool landSoundPlayed = false;
     bool landed = false;
 };
 
@@ -322,11 +327,6 @@ void Spawn(Player* player, GroundLootState& state, Drop& drop, uint64 now)
     drop.bag = bag->GetGUID();
     drop.jumpAt = now + JumpDelayMs;
     SendTooltip(player, drop.bag, Describe(drop));
-    if (!state.burstShown && drop.corpse == state.corpse)
-    {
-        state.burstShown = true;
-        player->PlayDirectSound(SOUND_BURST, player);
-    }
 }
 
 uint32 LandSound(Drop const& drop)
@@ -349,6 +349,10 @@ void Land(Player* player, Creature* bag, Drop& drop, uint64 now)
         drop.beam = beam->GetGUID();
     }
     SendKit(player, bag->GetGUID(), KIT_LAND);
+}
+
+void PlayLandSound(Player* player, Creature* bag, Drop const& drop)
+{
     if (drop.kind == DropKind::Gold)
         bag->PlayDistanceSound(SOUND_LAND_GOLD, player);
     else
@@ -432,12 +436,23 @@ void Update(Player* player, uint32 diff)
         if (!drop.jumped && now >= drop.jumpAt)
         {
             drop.jumped = true;
-            drop.landAt = now + FlightMs;
             float const distance = bag->GetExactDist2d(&drop.landing);
             bag->GetMotionMaster()->MoveJump(drop.landing, std::max(distance * 1000.0f / FlightMs, 1.0f),
                                               JumpSpeedZ);
+            int32 const flight = bag->movespline ? bag->movespline->Duration() : 0;
+            drop.landAt = now + (flight > 0 ? uint64(flight) : FlightMs);
+            if (!state->burstShown && drop.corpse == state->corpse)
+            {
+                state->burstShown = true;
+                player->PlayDirectSound(SOUND_BURST, player);
+            }
         }
-        else if (drop.jumped && !drop.landed && now >= drop.landAt)
+        if (drop.jumped && !drop.landSoundPlayed && now + LandSoundLeadMs >= drop.landAt)
+        {
+            drop.landSoundPlayed = true;
+            PlayLandSound(player, bag, drop);
+        }
+        if (drop.jumped && !drop.landed && now >= drop.landAt)
             Land(player, bag, drop, now);
 
         // Left too long on the floor it goes to the bags, else it waits for its owner to walk over it
