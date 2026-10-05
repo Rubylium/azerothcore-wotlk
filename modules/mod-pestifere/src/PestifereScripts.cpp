@@ -1008,6 +1008,7 @@ class PestifereContagionSpellScript : public SpellScript
             if (!spread.applied)
                 continue;
 
+            enemy->SendPlaySpellVisual(KIT_CONTAGION_HIT);
             caster->SetInCombatWith(enemy);
             float const perPlague = std::max(CONTAGION_THREAT_PER_PLAGUE.Get(),
                 caster->GetTotalAttackPowerValue(BASE_ATTACK) * CONTAGION_THREAT_AP_PER_PLAGUE);

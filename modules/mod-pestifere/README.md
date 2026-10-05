@@ -25,6 +25,17 @@ Self and enemy versions never share an id, so a plague spread onto an enemy is n
 plague is not part of Virulence: it is spread and detonated like the others, but it only exists while there is
 held-back damage to deal.
 
+## Looks
+
+Both trees wear retail's looks, put together from the effects and sounds the Ascension client carries
+(localTools/pestifere/ascensionVisuals.json, imported by localTools/ascensionImport/importVisuals.py into
+client-assets/imported; localTools/pestifere/Looks.ps1 hands the ids to the rows in patchSinisterStrike.ps1): retail
+Unholy and Blood Death Knight (Festering Strike and its wound, Outbreak, Bursting Sores, Clawing Shadows, Blighted
+Rune Weapon, the Apocalypse, the tombstone, Blood Plague, Blood Strike, the blood bolt), the Necrolords' flesh, Uldir's
+G'huun and the generic decay and blood kits of Battle for Azeroth. What spell data cannot show is played here, by kit
+id: the decay burst on every enemy Contagion infects (78900), and the healer's heal on every ally it reaches
+(78901-78910, `PestifereHealer.cpp`).
+
 ## Spell family
 
 Every Pestiféré spell is spell family **16** (no stock spell uses it), each ability with its own flag, and

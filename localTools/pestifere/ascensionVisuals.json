@@ -1,0 +1,258 @@
+{
+  "_comment": [
+    "The Pestiféré's looks, put together by localTools/ascensionImport/importVisuals.py from the retail effects and",
+    "sounds the Ascension client carries: retail Unholy and Blood Death Knight, the Necrolords, Uldir's G'huun and the",
+    "generic decay and blood kits of Battle for Azeroth. Each look starts from the stock visual the spell had (its",
+    "from) and replaces the slots given. localTools/pestifere/Looks.ps1 names a look by the id the import gives its",
+    "key; mod-pestifere plays the kits (by their id) on the enemies and allies its scripts reach.",
+    "Tank (Charnier): the festering strike and wound, Outbreak's contagion nova, bursting sores, a rotten stench, a",
+    "bile spit, a tombstone, Fleshcraft's flesh shield, a decay pool, a breath of decay, Blighted Rune Weapon, the",
+    "Apocalypse. Healer (Sangsue): blood plague and blood strike, a blood bolt, blood barriers, G'huun's blood.",
+    "Kits: ContagionHit (each enemy a plague reaches), the healer's heals on each ally (Transfusion, Sangsue, Don de",
+    "sang, Absorption morbide, Symbiote, Spores, Pustule, Essaim, Brume)."
+  ],
+  "output": "modules/mod-pestifere/client-assets/imported",
+  "idBase": 78000,
+  "looks": {
+    "FrappePutride": {
+      "from": 11624,
+      "cast": { "from": 10731, "sound": "spell_dk_festeringstrike01" },
+      "impact": { "effects": { "chest": "cfx_deathknight_festeringwound_impactchest" }, "sound": "spell_dk_necroticstrike_impact_01" },
+      "state": null
+    },
+    "Pourriture": {
+      "from": 14315,
+      "state": { "effects": { "chest": "cfx_deathknight_festeringwound_statechest" } }
+    },
+    "Contagion": {
+      "from": 11172,
+      "cast": { "from": 11041, "effects": { "hands": "8fx_generic_decay_casthand", "base": "8fx_uldir_bloodofghuun_contagion_novasmall" },
+        "sound": "spell_dk_outbreak_04" },
+      "impact": null,
+      "channel": null
+    },
+    "Detonation": {
+      "from": 15216,
+      "cast": { "from": 13575, "effects": { "hands": "8fx_generic_decay_casthand", "base": "8fx_volkaal_rapiddecay_novahigh" },
+        "sound": "spell_dk_necroticplague_impact_05" },
+      "impact": { "from": 14071, "effects": { "chest": "cfx_deathknight_burstingsores_impactchest" },
+        "sound": "spell_prison_dungeon_sewer_slime_impact_01" },
+      "state": null,
+      "missile": null
+    },
+    "DetonationChain": {
+      "from": 15216,
+      "cast": null,
+      "impact": { "from": 14071, "effects": { "chest": "cfx_deathknight_burstingsoressecondary_impactchest" },
+        "sound": "spell_prison_dungeon_sewer_slime_impact_01" },
+      "state": null,
+      "missile": null
+    },
+    "OdeurCharogne": {
+      "from": 34,
+      "cast": { "from": 259, "effects": { "breath": "8fx_trinket_poison_breath" }, "sound": "spell_rottenstench_impact_01" },
+      "impact": { "from": 255, "effects": { "chest": "8fx_generic_decay_impactlow_chest" } }
+    },
+    "CrachatBilieux": {
+      "from": 11154,
+      "precast": null,
+      "cast": { "from": 418, "effects": { "hands": null, "breath": "8fx_trinket_poison_breath" },
+        "sound": "spell_prison_dungeon_sewer_slime_impact_01" },
+      "impact": { "from": 10294, "effects": { "chest": "9fx_generic_slime_impactlow_chest" },
+        "sound": "spell_prison_dungeon_sewer_slime_impact_01" },
+      "state": { "effects": { "chest": "8fx_generic_decay_debuff" } }
+    },
+    "InoculationCarapace": {
+      "from": 14608,
+      "precast": null,
+      "cast": { "anim": 54, "effects": { "base": "cfx_deathknight_blightedruneweapon_castbase" }, "sound": "spell_dk_corpseshield_impact" }
+    },
+    "InoculationChair": {
+      "from": 14608,
+      "precast": null,
+      "cast": { "anim": 54, "effects": { "hands": "8fx_uldir_bloodofghuun_general_cast_hand" }, "sound": "fx_blood_magic_cast_medium_05" }
+    },
+    "InoculationPeste": {
+      "from": 14608,
+      "precast": null,
+      "cast": { "anim": 54, "effects": { "hands": "8fx_generic_decay_casthand" }, "sound": "fx_necromancy_cast_med_05" }
+    },
+    "CharnierAmbulant": {
+      "from": 14608,
+      "precast": null,
+      "cast": { "from": 13472, "effects": { "base": "8fx_uldir_bloodofghuun_contagion_novalarge" }, "sound": "spell_dk_defile_cast_01" },
+      "impact": { "effects": { "chest": "cfx_deathknight_festeringwound_impactchest" } }
+    },
+    "PurgeCathartique": {
+      "from": 11150,
+      "cast": { "from": 10801, "effects": { "weapons": null, "base": "8fx_uldir_bloodofghuun_liquify_cast" }, "sound": "spell_dk_runetap_impact" },
+      "casterimpact": { "effects": { "chest": "8fx_nazmir_bloodtroll_impacthigh_chest" }, "sound": "fx_blood_magic_impact_large_05" },
+      "targetimpact": null
+    },
+    "Sepulcre": {
+      "from": 11539,
+      "precast": null,
+      "cast": { "from": 218, "effects": { "hands": null }, "sound": "spell_dkboneshield_proc03" },
+      "state": { "effects": { "base": "cfx_deathknight_tombstone_statebase", "chest": "cfx_deathknight_deathchain_statechest" } }
+    },
+    "FlaqueDeBile": {
+      "from": 8964,
+      "cast": { "from": 726, "sound": "spell_dk_defile_cast_01" },
+      "persistentarea": { "effects": { "world": "9fx_maldraxxus_scunner_toxicdebuff_areaeffect" },
+        "sound": "spell_dk_defile_revamp_persistant" }
+    },
+    "MorsureFetide": {
+      "from": 11624,
+      "cast": { "from": 10731, "effects": { "base": null }, "sound": "spell_dk_scourgestrike_cast01" },
+      "impact": { "effects": { "chest": "cfx_deathknight_clawingshadows_impact" }, "sound": "spell_npc_bite_eat_flesh_01" },
+      "state": null
+    },
+    "RipostePurulente": {
+      "from": 342,
+      "impact": { "effects": { "chest": "cfx_deathknight_virulenteruption_impactchest" }, "sound": "spell_dk_necroticplague_impact_01" }
+    },
+    "CarapaceSuintante": {
+      "from": 11869,
+      "precast": null,
+      "cast": { "from": 10960, "effects": { "hands": "cfx_necrolord_racial_precasthands" }, "sound": "spell_dk_corpseshield_impact" },
+      "state": { "effects": { "chest": "cfx_necrolord_racial_shieldchest" } }
+    },
+    "Excroissance": {
+      "from": 11869,
+      "precast": null,
+      "cast": null,
+      "state": { "effects": { "base": "8fx_generic_necromancy_playershield_statebase" } }
+    },
+    "BondPutride": {
+      "from": 29,
+      "impact": { "effects": { "base": "8fx_generic_decay_novalow_impact" }, "sound": "spell_dk_deathanddecay_revamp_impact01" }
+    },
+    "Puanteur": {
+      "from": 209,
+      "cast": { "from": 350, "effects": { "base": "8fx_volkaal_rapiddecay_novalow" }, "sound": "spell_rottenstench_impact_01" },
+      "impact": { "from": 749, "sound": null }
+    },
+    "Pandemie": {
+      "from": 11095,
+      "impact": null,
+      "missile": null,
+      "cast": { "anim": 54, "effects": { "base": "cfx_deathknight_blightedruneweapon_castbase",
+        "hands": "cfx_deathknight_blightedruneweapon_casthand" }, "sound": "spell_dk_empowerruneweapon_cast" },
+      "state": { "from": 10822, "effects": { "weapons": "8fx_generic_decay_precasthand" } }
+    },
+    "Vomissure": {
+      "from": 1007,
+      "precast": null,
+      "cast": { "from": 1027, "effects": { "breath": "7fx_pestilencedragon_decaybreath" },
+        "sound": "spell_prison_dungeon_sewer_slime_impact_01" },
+      "impact": { "effects": { "chest": "9fx_generic_slime_impactlow_chest" } },
+      "state": null
+    },
+    "AvatarPeste": {
+      "from": 11095,
+      "impact": null,
+      "missile": null,
+      "cast": { "anim": 54, "effects": { "base": "7fx_deathknight_apocalypse_areaimpact" }, "sound": "spell_dk_consumption_cast01" },
+      "state": { "effects": { "chest": "7fx_deathknight_umbilicuseternus_statechest",
+        "base": "8fx_uldir_bloodofghuun_mutagenicpathogen_aura" } }
+    },
+    "Fievre": {
+      "from": 13575,
+      "state": { "effects": { "weapons": "8fx_generic_decay_precasthand" } }
+    },
+    "Miasme": {
+      "from": 210,
+      "cast": { "from": 351, "effects": { "base": "7fx_miasma_green" }, "sound": "spell_rottenstench_impact_01" },
+      "impact": { "from": 693, "effects": { "head": null, "chest": "8fx_generic_decay_debuff" }, "sound": null }
+    },
+    "Sangsue": {
+      "from": 11624,
+      "cast": { "from": 10731, "effects": { "base": null }, "sound": "spell_dk_bloodstrike_cast01" },
+      "impact": { "effects": { "chest": "cfx_deathknight_bloodplague_impactchest" }, "sound": "fx_blood_impact01" },
+      "state": { "effects": { "chest": "cfx_deathknight_bloodplague_statechest" } }
+    },
+    "Saignee": {
+      "from": 11831,
+      "cast": { "from": 10971, "effects": { "hands": null }, "sound": "spell_dk_bloodstrike_cast01" },
+      "targetimpact": { "effects": { "chest": "cfx_deathknight_bloodstrike_impact" }, "sound": "fx_blood_impact_heavy01" }
+    },
+    "AbsorptionMorbide": {
+      "from": 15006,
+      "missile": null,
+      "cast": { "from": 7921, "effects": { "lefthand": null, "hands": "8fx_generic_necromancy_casthand" }, "sound": "fx_necromancy_cast_med_05" },
+      "impact": null
+    },
+    "DonDeSang": {
+      "from": 11150,
+      "cast": { "from": 10801, "effects": { "weapons": null, "hands": "cfx_deathknight_blood_precasthand" },
+        "sound": "fx_blood_magic_cast_medium_05" },
+      "casterimpact": { "effects": { "chest": "8fx_nazmir_bloodtroll_damagestate_statechest" } },
+      "targetimpact": null
+    },
+    "Symbiote": {
+      "from": 15224,
+      "cast": { "from": 14078, "anim": 54, "effects": { "hands": "cfx_necrolord_racial_precasthands" }, "sound": "fx_necromancy_cast_small_05" },
+      "impact": null
+    },
+    "SymbioteAura": {
+      "from": 14858,
+      "cast": null,
+      "impact": null,
+      "state": { "effects": { "chest": "cfx_necrolord_druid_buff" } }
+    },
+    "PestilenceSalvatrice": {
+      "from": 11095,
+      "impact": null,
+      "missile": null,
+      "cast": { "anim": 54, "effects": { "base": "8fx_nazmir_bloodtroll_novahigh_impactworld",
+        "hands": "8fx_uldir_bloodofghuun_general_cast_hand" }, "sound": "spell_dk_consumption_cast01" },
+      "state": { "effects": { "hands": "8fx_uldir_bloodofghuun_general_cast_hand" } }
+    },
+    "Brume": {
+      "from": 15079,
+      "cast": { "anim": 54, "effects": { "base": "8fx_generic_decay_novalow_impact" }, "sound": "fx_necromancy_cast_med_05" },
+      "impact": null,
+      "state": null
+    },
+    "JetDeSang": {
+      "from": 10755,
+      "precast": { "from": 9954, "effects": { "righthand": "cfx_deathknight_blood_precasthand" } },
+      "cast": { "from": 9909, "effects": { "righthand": "cfx_deathknight_blood_precasthand" }, "sound": "fx_blood_cast01" },
+      "missile": "cfx_deathknight_bloodbolt_missile",
+      "impact": { "effects": { "chest": "8fx_nazmir_bloodtroll_impacthigh_chest" }, "sound": "fx_blood_impact_heavy01" }
+    },
+    "PousseeDeSang": {
+      "from": 11512,
+      "precast": null,
+      "cast": { "from": 218, "effects": { "hands": "cfx_deathknight_blood_precasthand" }, "sound": "fx_blood_magic_cast_medium_05" },
+      "impact": { "effects": { "base": "8fx_nazmir_bloodtroll_novalow_impactworld" }, "sound": "spell_dk_runetap_impact" }
+    },
+    "Caillot": {
+      "from": 11539,
+      "precast": null,
+      "cast": null,
+      "state": { "effects": { "base": "8fx_nazmir_bloodtroll_bloodbarrier" } }
+    },
+    "Hemostase": {
+      "from": 11149,
+      "precast": null,
+      "cast": null,
+      "impact": null,
+      "state": { "effects": { "weapons": "cfx_deathknight_blood_precasthand" } }
+    }
+  },
+  "kits": {
+    "ContagionHit": { "id": 78900, "effects": { "chest": "8fx_generic_decay_impactlow_chest" } },
+    "TransfusionHeal": { "id": 78901, "effects": { "chest": "cfx_deathknight_deathstrike_impact" }, "sound": "fx_blood_magic_impact_small_05" },
+    "SangsueHeal": { "id": 78902, "effects": { "chest": "cfx_deathknight_bloodplague_impactchest" }, "sound": "fx_blood_impact01" },
+    "DonDeSangHeal": { "id": 78903, "effects": { "chest": "8fx_nazmir_bloodtroll_impacthigh_chest" }, "sound": "fx_blood_magic_impact_large_05" },
+    "AbsorptionHeal": { "id": 78904, "effects": { "chest": "8fx_generic_necromancy_impactlow_chest" }, "sound": "fx_necromancy_impact_med_01" },
+    "SymbioteBind": { "id": 78905, "effects": { "chest": "8fx_generic_decay_impacthigh_chest" }, "sound": "fx_necromancy_cast_small_05" },
+    "SporesHeal": { "id": 78906, "effects": { "chest": "cfx_necrolord_druid_buff" }, "sound": "fx_necromancy_cast_small_05" },
+    "PustuleHeal": { "id": 78907, "effects": { "chest": "cfx_deathknight_burstingsores_impactchest" },
+      "sound": "spell_prison_dungeon_sewer_slime_impact_01" },
+    "PustuleSplash": { "id": 78908, "effects": { "chest": "cfx_deathknight_burstingsoressecondary_impactchest" } },
+    "EssaimHeal": { "id": 78909, "effects": { "chest": "cfx_druid_adaptiveswarm_impact" }, "sound": "fx_necromancy_impact_med_01" },
+    "BrumeHeal": { "id": 78910, "effects": { "chest": "9fx_generic_slime_impactlow_chest" }, "sound": "fx_blood_magic_impact_small_05" }
+  }
+}

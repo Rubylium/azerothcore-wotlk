@@ -128,18 +128,19 @@ LiveTuning::KnobUInt const DON_DE_SANG_EMERGENCY_HEAL_PCT("pestifere.don_de_sang
 constexpr std::size_t ANY_NUMBER_OF_ALLIES = 40;
 
 // SpellVisualKit ids played on the ally a proc heals (the procs are never cast, so they carry no visual of their own).
-// All plague and ooze kits from Icecrown Citadel's Plagueworks (Festergut, Rotface, Putricide): nothing holy.
-constexpr uint32 KIT_SPORES = 13730;         // Festergut's Gaseous Blight spore burst
-constexpr uint32 KIT_PUSTULE = 14119;        // Festergut's Gastric Explosion gas nova
-constexpr uint32 KIT_PUSTULE_SPLASH = 14079; // Rotface's Expunged Gas impact
-constexpr uint32 KIT_ESSAIM = 276;           // Hell Rot's disease cloud, as the swarm lands
-constexpr uint32 KIT_BRUME = 13933;          // Putricide's Choking Gas spore impact
+// Retail blood and plague kits imported from the Ascension client (localTools/pestifere/ascensionVisuals.json, kits):
+// nothing holy.
+constexpr uint32 KIT_SPORES = 78906;         // a Necrolord's sickly glow
+constexpr uint32 KIT_PUSTULE = 78907;        // Bursting Sores
+constexpr uint32 KIT_PUSTULE_SPLASH = 78908; // Bursting Sores' splash
+constexpr uint32 KIT_ESSAIM = 78909;         // Adaptive Swarm landing
+constexpr uint32 KIT_BRUME = 78910;          // a splash of slime
 // The same for the healing that comes from hits and actives: every heal is heard where it lands
-constexpr uint32 KIT_TRANSFUSION = 14045;    // Putricide's Slime Puddle spore impact (low volume: it plays often)
-constexpr uint32 KIT_SANGSUE = 13595;        // Rotface's Weak Radiating Ooze impact (low volume)
-constexpr uint32 KIT_DON_DE_SANG = 10287;    // Death Pact's target burst
-constexpr uint32 KIT_ABSORPTION = 3031;      // Malleable Goo's poison cloud
-constexpr uint32 KIT_SYMBIOTE = 14148;       // Putricide's Mutated Plague impact
+constexpr uint32 KIT_TRANSFUSION = 78901;    // Death Strike's blood, a small blood impact (it plays often)
+constexpr uint32 KIT_SANGSUE = 78902;        // Blood Plague's impact
+constexpr uint32 KIT_DON_DE_SANG = 78903;    // a blood troll's heavy blood burst
+constexpr uint32 KIT_ABSORPTION = 78904;     // necromancy drawn out
+constexpr uint32 KIT_SYMBIOTE = 78905;       // a decay burst as the symbiote binds
 // Transfusion trades on every hit (two weapons, Pandémie's echoes): its kit plays at most this often per healer
 constexpr uint32 TRANSFUSION_KIT_INTERVAL_MS = 800;
 

@@ -224,6 +224,10 @@ constexpr uint8 POURRITURE_MAX_STACKS = 6;
 // Rage is stored in tenths of a point
 constexpr uint32 RAGE_UNIT = 10;
 
+// SpellVisualKit played on each enemy Contagion hands a plague to: a retail decay burst imported from the Ascension
+// client (localTools/pestifere/ascensionVisuals.json, kits). Silent: Contagion's cast is heard once, not per enemy.
+constexpr uint32 KIT_CONTAGION_HIT = 78900;
+
 // The class has no trainer: its kit is granted by level
 struct AbilityUnlock
 {
