@@ -1,11 +1,13 @@
 -- Our own sound engine (the client extension DLL's EvolutionsAudio, AwesomeWotlkLib): what the server asks it to play,
--- the place's acoustics fed to it, and /eva to try its sounds. The server whispers (mod-stat-growth EvolutionsAudio.h):
+-- the place's acoustics, the zone (its ambience) and the time of day fed to it, and /eva to try its sounds. The
+-- server whispers (mod-stat-growth EvolutionsAudio.h):
 --   EVA <tab> P <tab> <key> [<tab> G<guid, 16 hex digits> | X<x>,<y>,<z>]   play (on that object, or at that point)
 --   EVA <tab> S <tab> <guid>                                               the sounds on that object fade out
 -- /eva play <key> [target]   plays a sound of the bank on you (or your target) - /eva list, /eva reload (the bank and
 -- its files read again: tune the client copy of Interface\AddOns\EvolutionsAudio\sounds.txt without restarting).
 local PREFIX = "EVA"
 local ENVIRONMENT_INTERVAL = 0.25
+local DAY_START, DAY_END = 6, 21
 
 local function Available()
     return EvolutionsAudio_Play ~= nil
@@ -48,6 +50,12 @@ frame:SetScript("OnUpdate", function(self, delta)
     end
     elapsed = 0
     EvolutionsAudio_SetEnvironment(IsIndoors() and 1 or 0, Underwater() and 1 or 0)
+    -- The zone's ambience (its emitters name it as GetRealZoneText does), by day 6:00-21:00 server time
+    if EvolutionsAudio_SetZone then
+        EvolutionsAudio_SetZone(GetRealZoneText() or "")
+        local hour = GetGameTime()
+        EvolutionsAudio_SetDaytime((hour >= DAY_START and hour < DAY_END) and 1 or 0)
+    end
 end)
 
 SLASH_EVOLUTIONSAUDIO1 = "/eva"

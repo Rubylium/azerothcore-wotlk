@@ -1,0 +1,2077 @@
+{
+  "_comment": [
+    "Stormwind's ambience, played by our own sound engine (.agents/docs/systems/evolutions-audio.md) while the",
+    "player is in the city: the Trade District's square as its loud heart (crowds, people talking and laughing,",
+    "children, pigeons overhead), the bank, the taverns, Cathedral Square, the Dwarven District's forge at work,",
+    "the harbour (creaking ships, gulls circling, a far fog horn), the park's birds, Old Town's dogs and",
+    "cats. Voices are the client's own (its language), the rest the game's or Ascension's (retail). The city's own",
+    "fountains, lamps, banners and hourly bells already have their sounds: none here."
+  ],
+  "sounds": {
+    "Stormwind.Crowd": {
+      "kind": "loop",
+      "files": [
+        "asc:sound\\ambience\\zoneambience\\amb_walla_alliance_tavern_medium.ogg"
+      ],
+      "minDistance": 12,
+      "maxDistance": 60,
+      "loudness": -16
+    },
+    "Stormwind.TavernCrowded": {
+      "kind": "loop",
+      "files": [
+        "client:Sound\\Ambience\\WMOAmbience\\TavernCrowded.wav"
+      ],
+      "minDistance": 3,
+      "maxDistance": 20,
+      "loudness": -18
+    },
+    "Stormwind.Tavern": {
+      "kind": "loop",
+      "files": [
+        "client:Sound\\Ambience\\WMOAmbience\\Tavern.wav"
+      ],
+      "minDistance": 3,
+      "maxDistance": 18,
+      "loudness": -18
+    },
+    "Stormwind.VoicesMale": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings01.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings02.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings03.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings04.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings05.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings06.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCFarewell01.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCFarewell02.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCFarewell03.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCFarewell04.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCVendor01.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCVendor02.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings01.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings02.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings03.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings04.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings05.wav",
+        "client:Sound\\Creature\\HumanMaleStandardNPC\\HumanMaleStandardNPCGreetings06.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting06.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCFarewell01.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCFarewell02.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCFarewell03.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCFarewell04.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCVendor01.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCVendor02.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCVendor03.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCVendor04.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanMaleOfficialNPC\\HumanMaleOfficialNPCGreeting06.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCFarewell01.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCFarewell02.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCFarewell03.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCFarewell04.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCFarewell05.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCVendor01.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCVendor02.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCVendor03.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCVendor04.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanMaleWarriorNPC\\HumanMaleWarriorNPCGreeting05.wav"
+      ],
+      "minDistance": 4,
+      "maxDistance": 28,
+      "loudness": -16
+    },
+    "Stormwind.VoicesFemale": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCFarewell01.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCFarewell02.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCFarewell03.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCFarewell04.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCVendor01.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCVendor02.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCVendor03.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCVendor04.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCVendor05.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanFemaleStandardNPC\\HumanFemaleStandardNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting06.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCFarewell01.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCFarewell02.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCFarewell03.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCFarewell04.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCFarewell05.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCVendor01.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCVendor02.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCVendor03.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCVendor04.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanFemaleOfficialNPC\\HumanFemaleOfficialNPCGreeting06.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting06.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCFarewell01.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCFarewell02.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCFarewell03.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCFarewell04.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCFarewell05.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCVendor01.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCVendor02.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCVendor03.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCVendor04.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting01.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting02.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting03.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting04.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting05.wav",
+        "client:Sound\\Creature\\HumanFemaleWarriorNPC\\HumanFemaleWarriorNPCGreeting06.wav"
+      ],
+      "minDistance": 4,
+      "maxDistance": 28,
+      "loudness": -16
+    },
+    "Stormwind.VoicesDwarfGnome": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting01.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting02.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting03.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting04.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting05.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting06.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCFarewell01.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCFarewell02.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCFarewell03.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCFarewell04.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCVendor01.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCVendor02.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting01.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting02.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting03.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting04.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting05.wav",
+        "client:Sound\\Creature\\DwarfMaleStandardNPC\\DwarfMaleStandardNPCGreeting06.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting01.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting02.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting03.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting04.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting05.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting06.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCFarewell01.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCFarewell02.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCFarewell03.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCFarewell04.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCFarewell05.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCVendor01.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCVendor02.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting01.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting02.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting03.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting04.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting05.wav",
+        "client:Sound\\Creature\\GnomeFemaleHappyNPC\\GnomeFemaleHappyNPCGreeting06.wav"
+      ],
+      "minDistance": 4,
+      "maxDistance": 28,
+      "loudness": -16
+    },
+    "Stormwind.Laughs": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Character\\Human\\Female\\HumanFemaleLaugh01.wav",
+        "client:Sound\\Character\\Human\\Male\\HumanMaleLaugh01.wav",
+        "client:Sound\\Character\\Dwarf\\DwarfMale\\DwarfMaleLaugh01.wav",
+        "client:Sound\\Character\\Dwarf\\DwarfFemale\\DwarfFemaleLaugh01.wav",
+        "client:Sound\\Character\\Gnome\\GnomeFemaleLaugh01.wav",
+        "client:Sound\\Character\\Gnome\\GnomeMaleLaugh01.wav"
+      ],
+      "minDistance": 4,
+      "maxDistance": 30,
+      "loudness": -16
+    },
+    "Stormwind.KidsLaugh": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Creature\\HumanFemaleKid\\HumanFemaleKidLaugh1.wav",
+        "client:Sound\\Creature\\HumanFemaleKid\\HumanFemaleKidLaugh2.wav",
+        "client:Sound\\Creature\\HumanFemaleKid\\HumanFemaleKidLaugh3.wav",
+        "client:Sound\\Creature\\HumanFemaleKid\\HumanFemaleKidLaugh4.wav",
+        "client:Sound\\Creature\\HumanMAleKid\\HumanMaleKidLaugh1.wav",
+        "client:Sound\\Creature\\HumanMAleKid\\HumanMaleKidLaugh2.wav",
+        "client:Sound\\Creature\\HumanMAleKid\\HumanMaleKidLaugh3.wav",
+        "client:Sound\\Creature\\HumanMAleKid\\HumanMaleKidLaugh4.wav"
+      ],
+      "minDistance": 4,
+      "maxDistance": 35,
+      "loudness": -16
+    },
+    "Stormwind.Birds": {
+      "kind": "world",
+      "files": [
+        "asc:sound\\doodad\\fx_birdchirps_small_01.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_02.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_03.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_04.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_05.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_06.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_07.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_08.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_09.ogg",
+        "asc:sound\\doodad\\fx_birdchirps_small_10.ogg"
+      ],
+      "minDistance": 5,
+      "maxDistance": 40,
+      "loudness": -17
+    },
+    "Stormwind.Gulls": {
+      "kind": "world",
+      "files": [
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_01.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_02.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_03.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_04.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_05.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_06.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_07.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_08.ogg",
+        "asc:sound\\ambience\\zoneambience\\amb_boralus_harbor_seacritters_flavorkit_09.ogg"
+      ],
+      "minDistance": 15,
+      "maxDistance": 110,
+      "loudness": -15
+    },
+    "Stormwind.ShipCreak": {
+      "kind": "loop",
+      "files": [
+        "client:Sound\\Ambience\\WMOAmbience\\ShipExterior.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 40,
+      "loudness": -18
+    },
+    "Stormwind.FogHorn": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Doodad\\LightHouseFogHorn.wav"
+      ],
+      "minDistance": 80,
+      "maxDistance": 600,
+      "loudness": -14
+    },
+    "Stormwind.ForgeFire": {
+      "kind": "loop",
+      "files": [
+        "client:Sound\\Doodad\\BU_Forge_01.wav"
+      ],
+      "minDistance": 3,
+      "maxDistance": 18,
+      "loudness": -20
+    },
+    "Stormwind.ForgeHammer": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer1.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer2.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer3.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer4.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer5.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer6.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer7.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer8.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer9.wav",
+        "client:Sound\\Doodad\\DalaranForgeArmsHammer10.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 55,
+      "loudness": -14
+    },
+    "Stormwind.Bellows": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Doodad\\BellowIn.wav",
+        "client:Sound\\Doodad\\BellowOut.wav"
+      ],
+      "minDistance": 3,
+      "maxDistance": 18,
+      "loudness": -18
+    },
+    "Stormwind.DogBark": {
+      "kind": "world",
+      "files": [
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4566515.ogg",
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4566517.ogg",
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4566519.ogg",
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4566521.ogg",
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4566525.ogg",
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4566635.ogg",
+        "asc:sound\\creature\\dogprimal\\dogprimal_fidget_4576689.ogg"
+      ],
+      "minDistance": 8,
+      "maxDistance": 60,
+      "loudness": -16
+    },
+    "Stormwind.Cat": {
+      "kind": "world",
+      "files": [
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_01.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_02.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_03.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_04.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_05.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_06.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_07.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_09.wav",
+        "client:Sound\\Emitters\\Emitter_Dalaran_Petstore_Cat_08.wav"
+      ],
+      "minDistance": 4,
+      "maxDistance": 28,
+      "loudness": -18
+    }
+  },
+  "emitters": [
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Crowd",
+      "points": [
+        [
+          -8835,
+          645,
+          96.5
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Crowd",
+      "points": [
+        [
+          -8810,
+          625,
+          96.5
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 0.9
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Crowd",
+      "points": [
+        [
+          -8855,
+          662,
+          97.5
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 0.8
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Crowd",
+      "points": [
+        [
+          -8830,
+          640,
+          96.5
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "night",
+      "volume": 0.45
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesMale",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        1.2,
+        3.5
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesFemale",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        1.2,
+        3.5
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesMale",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        5,
+        12
+      ],
+      "speed": 0,
+      "time": "night",
+      "volume": 0.8
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesFemale",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        5,
+        12
+      ],
+      "speed": 0,
+      "time": "night",
+      "volume": 0.8
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesDwarfGnome",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        5,
+        12
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Laughs",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        4,
+        10
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Laughs",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        10,
+        25
+      ],
+      "speed": 0,
+      "time": "night",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.KidsLaugh",
+      "points": [
+        [
+          -8845,
+          630,
+          96
+        ],
+        [
+          -8830,
+          615,
+          96
+        ],
+        [
+          -8815,
+          640,
+          95.5
+        ],
+        [
+          -8800,
+          655,
+          95.5
+        ],
+        [
+          -8825,
+          660,
+          97
+        ],
+        [
+          -8850,
+          650,
+          96.5
+        ],
+        [
+          -8860,
+          640,
+          96.5
+        ],
+        [
+          -8805,
+          620,
+          96
+        ],
+        [
+          -8790,
+          640,
+          97
+        ],
+        [
+          -8840,
+          672,
+          98
+        ],
+        [
+          -8870,
+          625,
+          95.5
+        ],
+        [
+          -8820,
+          600,
+          96
+        ]
+      ],
+      "interval": [
+        9,
+        22
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Birds",
+      "points": [
+        [
+          -8880,
+          620,
+          120
+        ],
+        [
+          -8800,
+          700,
+          124
+        ],
+        [
+          -8760,
+          640,
+          122
+        ],
+        [
+          -8840,
+          580,
+          118
+        ]
+      ],
+      "interval": [
+        3,
+        7
+      ],
+      "speed": 6,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Birds",
+      "points": [
+        [
+          -8790,
+          600,
+          115
+        ],
+        [
+          -8860,
+          690,
+          121
+        ],
+        [
+          -8900,
+          630,
+          117
+        ]
+      ],
+      "interval": [
+        4,
+        9
+      ],
+      "speed": 5,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Crowd",
+      "points": [
+        [
+          -8920,
+          628,
+          99.6
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 0.7
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesMale",
+      "points": [
+        [
+          -8925,
+          630,
+          99.6
+        ],
+        [
+          -8935,
+          613,
+          99.6
+        ],
+        [
+          -8910,
+          650,
+          99.6
+        ],
+        [
+          -8900,
+          610,
+          96
+        ]
+      ],
+      "interval": [
+        4,
+        9
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesFemale",
+      "points": [
+        [
+          -8925,
+          630,
+          99.6
+        ],
+        [
+          -8935,
+          613,
+          99.6
+        ],
+        [
+          -8910,
+          650,
+          99.6
+        ],
+        [
+          -8900,
+          610,
+          96
+        ]
+      ],
+      "interval": [
+        4,
+        9
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.TavernCrowded",
+      "points": [
+        [
+          -8867.8,
+          673.7,
+          98
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Tavern",
+      "points": [
+        [
+          -9086,
+          829,
+          108.6
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Tavern",
+      "points": [
+        [
+          -8954,
+          993.7,
+          122.2
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Crowd",
+      "points": [
+        [
+          -8625,
+          770,
+          98
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 0.6
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesMale",
+      "points": [
+        [
+          -8620,
+          760,
+          97.5
+        ],
+        [
+          -8640,
+          780,
+          99
+        ],
+        [
+          -8600,
+          775,
+          98
+        ],
+        [
+          -8615,
+          745,
+          100
+        ],
+        [
+          -8650,
+          765,
+          99
+        ]
+      ],
+      "interval": [
+        4,
+        10
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesFemale",
+      "points": [
+        [
+          -8620,
+          760,
+          97.5
+        ],
+        [
+          -8640,
+          780,
+          99
+        ],
+        [
+          -8600,
+          775,
+          98
+        ],
+        [
+          -8615,
+          745,
+          100
+        ],
+        [
+          -8650,
+          765,
+          99
+        ]
+      ],
+      "interval": [
+        4,
+        10
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.KidsLaugh",
+      "points": [
+        [
+          -8620,
+          760,
+          97.5
+        ],
+        [
+          -8640,
+          780,
+          99
+        ],
+        [
+          -8600,
+          775,
+          98
+        ],
+        [
+          -8615,
+          745,
+          100
+        ],
+        [
+          -8650,
+          765,
+          99
+        ]
+      ],
+      "interval": [
+        12,
+        30
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Birds",
+      "points": [
+        [
+          -8620,
+          760,
+          97.5
+        ],
+        [
+          -8640,
+          780,
+          99
+        ],
+        [
+          -8600,
+          775,
+          98
+        ],
+        [
+          -8615,
+          745,
+          100
+        ],
+        [
+          -8650,
+          765,
+          99
+        ]
+      ],
+      "interval": [
+        5,
+        11
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ForgeFire",
+      "points": [
+        [
+          -8424,
+          624,
+          95.5
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ForgeFire",
+      "points": [
+        [
+          -8427,
+          631,
+          95.6
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 0.7
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ForgeHammer",
+      "points": [
+        [
+          -8425.1,
+          614.5,
+          95.2
+        ],
+        [
+          -8420.8,
+          616.4,
+          95.5
+        ]
+      ],
+      "interval": [
+        0.8,
+        2.6
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ForgeHammer",
+      "points": [
+        [
+          -8388,
+          684,
+          95.3
+        ]
+      ],
+      "interval": [
+        1.5,
+        4
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ForgeHammer",
+      "points": [
+        [
+          -8425.1,
+          614.5,
+          95.2
+        ]
+      ],
+      "interval": [
+        6,
+        15
+      ],
+      "speed": 0,
+      "time": "night",
+      "volume": 0.8
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Bellows",
+      "points": [
+        [
+          -8427,
+          631,
+          95.6
+        ],
+        [
+          -8420,
+          633.5,
+          95.7
+        ]
+      ],
+      "interval": [
+        5,
+        12
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesDwarfGnome",
+      "points": [
+        [
+          -8430,
+          640,
+          96
+        ],
+        [
+          -8410,
+          650,
+          96
+        ],
+        [
+          -8440,
+          610,
+          96
+        ],
+        [
+          -8400,
+          620,
+          96
+        ]
+      ],
+      "interval": [
+        5,
+        12
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ShipCreak",
+      "points": [
+        [
+          -8480,
+          1250,
+          6
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ShipCreak",
+      "points": [
+        [
+          -8370,
+          1290,
+          6
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 0.9
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.ShipCreak",
+      "points": [
+        [
+          -8303,
+          1393,
+          6
+        ]
+      ],
+      "interval": [
+        0,
+        0
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 0.9
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesMale",
+      "points": [
+        [
+          -8480,
+          1250,
+          6
+        ],
+        [
+          -8461,
+          1294,
+          6
+        ],
+        [
+          -8370,
+          1290,
+          6
+        ],
+        [
+          -8395,
+          1250,
+          6
+        ],
+        [
+          -8303,
+          1393,
+          6
+        ],
+        [
+          -8487,
+          1350,
+          6
+        ],
+        [
+          -8550,
+          1245,
+          6
+        ]
+      ],
+      "interval": [
+        6,
+        14
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Gulls",
+      "points": [
+        [
+          -8600,
+          1200,
+          30
+        ],
+        [
+          -8500,
+          1330,
+          28
+        ],
+        [
+          -8380,
+          1370,
+          32
+        ],
+        [
+          -8320,
+          1260,
+          30
+        ],
+        [
+          -8420,
+          1180,
+          26
+        ]
+      ],
+      "interval": [
+        2,
+        6
+      ],
+      "speed": 8,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Gulls",
+      "points": [
+        [
+          -8550,
+          1380,
+          40
+        ],
+        [
+          -8350,
+          1420,
+          38
+        ],
+        [
+          -8280,
+          1320,
+          42
+        ],
+        [
+          -8450,
+          1280,
+          36
+        ]
+      ],
+      "interval": [
+        3,
+        7
+      ],
+      "speed": 10,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Gulls",
+      "points": [
+        [
+          -8760,
+          760,
+          112
+        ],
+        [
+          -8700,
+          820,
+          115
+        ],
+        [
+          -8650,
+          760,
+          110
+        ],
+        [
+          -8720,
+          700,
+          113
+        ]
+      ],
+      "interval": [
+        5,
+        11
+      ],
+      "speed": 7,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.FogHorn",
+      "points": [
+        [
+          -8200,
+          1450,
+          25
+        ]
+      ],
+      "interval": [
+        150,
+        300
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Birds",
+      "points": [
+        [
+          -8740,
+          1070,
+          90.5
+        ],
+        [
+          -8760,
+          980,
+          98.5
+        ],
+        [
+          -8730,
+          1040,
+          92
+        ],
+        [
+          -8770,
+          1060,
+          91
+        ]
+      ],
+      "interval": [
+        2,
+        6
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.DogBark",
+      "points": [
+        [
+          -8680,
+          450,
+          100
+        ],
+        [
+          -8570,
+          540,
+          101.5
+        ],
+        [
+          -8530,
+          450,
+          105
+        ],
+        [
+          -8620,
+          500,
+          100
+        ]
+      ],
+      "interval": [
+        18,
+        45
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.Cat",
+      "points": [
+        [
+          -8680,
+          450,
+          100
+        ],
+        [
+          -8570,
+          540,
+          101.5
+        ],
+        [
+          -8530,
+          450,
+          105
+        ],
+        [
+          -8620,
+          500,
+          100
+        ],
+        [
+          -8760,
+          1080,
+          91
+        ]
+      ],
+      "interval": [
+        25,
+        60
+      ],
+      "speed": 0,
+      "time": "any",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesMale",
+      "points": [
+        [
+          -8680,
+          450,
+          100
+        ],
+        [
+          -8570,
+          540,
+          101.5
+        ],
+        [
+          -8530,
+          450,
+          105
+        ],
+        [
+          -8620,
+          500,
+          100
+        ]
+      ],
+      "interval": [
+        6,
+        14
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    },
+    {
+      "zones": [
+        "Stormwind City",
+        "Hurlevent"
+      ],
+      "sound": "Stormwind.VoicesFemale",
+      "points": [
+        [
+          -8680,
+          450,
+          100
+        ],
+        [
+          -8570,
+          540,
+          101.5
+        ],
+        [
+          -8530,
+          450,
+          105
+        ],
+        [
+          -8620,
+          500,
+          100
+        ]
+      ],
+      "interval": [
+        6,
+        14
+      ],
+      "speed": 0,
+      "time": "day",
+      "volume": 1.0
+    }
+  ]
+}
