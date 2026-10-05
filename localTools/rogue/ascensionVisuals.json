@@ -13,7 +13,12 @@
     "around the rogue. SecretTechnique: Goremaw's Bite (the Legion Finesse artifact's strike) at the rogue.",
     "ShadowClone: Technique secrète's shadows, Shadowform's dark see-through skin over a mist.",
     "Kits: BlackPowderHit (a shadow strike on each enemy), SecretTechniqueHit (Nightblade's gash, each strike on each",
-    "enemy), ShadowCloneStrike (a shadow's stab with the Shadowstrike sound, a flicker at its feet)."
+    "enemy), ShadowCloneStrike (a shadow's stab with the Shadowstrike sound, a flicker at its feet).",
+    "Assassinat: Mutilate's twin stab with its revamp sounds and Blood Plague's wound (Ascension's Mutilate), Envenom's",
+    "revamp cast and retail impact with Sepsis poison on the hands while it lasts, Garrote's retail gash, Rupture's",
+    "Venthyr blood (Ascension's Rupture), retail Fan of Knives, Cold Blood's Coup de Grace hands, Vendetta's deathmark on",
+    "the target, Exsanguinate's greed burst, Crimson Tempest's rupturing slam (CrimsonBleed: a sabre slash on each enemy",
+    "it bleeds), Marked for Death's reprimand over the head, the poisons' retail sting (Deadly and Instant Poison procs)."
   ],
   "output": "modules/mod-rogue/client-assets/imported",
   "idBase": 77000,
@@ -76,6 +81,72 @@
       "from": 11827,
       "impact": null,
       "state": { "from": 3129, "effects": { "chest": "shadowdance_v2_state" } }
+    },
+    "Mutilate": {
+      "from": 7913,
+      "cast": { "from": 7637, "sound": "spell_ro_mutilate_cast_01" },
+      "impact": { "from": 6770, "effects": { "chest": "cfx_deathknight_bloodplague_impactchest" }, "sound": "spell_ro_mutilate_impact_05" }
+    },
+    "Envenom": {
+      "from": 8144,
+      "cast": { "from": 6964, "effects": { "chest": null }, "sound": "spell_ro_envenom_cast_01" },
+      "targetimpact": { "from": 6963, "effects": { "base": null, "chest": "cfx_rogue_envenom_impact" }, "sound": "spell_ro_envenom_impact_01" },
+      "state": { "effects": { "hands": "cfx_rogue_sepsis_aura" } }
+    },
+    "Garrote": {
+      "from": 757,
+      "cast": { "from": 822, "sound": "spell_ro_nightblade_cast_revamp_01" },
+      "impact": { "from": 220, "effects": { "chest": "cfx_rogue_garrote_impact" }, "sound": "spell_ro_mutilate_impact_01" }
+    },
+    "Rupture": {
+      "from": 250,
+      "cast": { "from": 394, "effects": { "hands": null }, "sound": "spell_ro_saberslash_cast_01" },
+      "targetimpact": { "from": 220, "effects": { "chest": "cfx_venthyr_rogue_impact_chest" }, "sound": "spell_ro_mutilate_impact_05" }
+    },
+    "FanOfKnives": {
+      "from": 12317,
+      "cast": { "from": 11409, "effects": { "base": "cfx_rogue_fanofknives_castbase", "hands": "cfx_rogue_fanofknives_casthand",
+        "weapons": null }, "sound": "spell_ro_fanofknives_cast_01" },
+      "impact": { "effects": { "chest": "cfx_rogue_throwknife_impact" } }
+    },
+    "ColdBlood": {
+      "from": 4371,
+      "cast": { "from": 3770, "effects": { "righthand": null, "hands": "cfx_rogue_coupdegrace_cast" }, "sound": "spell_ro_vendetta_state_01" },
+      "state": { "from": 3771, "effects": { "righthand": null, "hands": "cfx_venthyr_rogue_buff_spellhandslow" } }
+    },
+    "Vendetta": {
+      "from": 3239,
+      "precast": null,
+      "cast": { "from": 7538, "sound": null },
+      "impact": { "effects": { "chest": "cfx_rogue_deathmark_aura" }, "sound": "spell_ro_vendetta_state_01" },
+      "state": { "effects": { "chest": "cfx_venthyr_rogue_debuff_chest" } }
+    },
+    "Exsanguinate": {
+      "from": 250,
+      "cast": { "from": 394, "effects": { "hands": null }, "sound": "spell_ro_envenom_cast_01" },
+      "targetimpact": { "effects": { "chest": "7fx_rogue_greed_impactchest" }, "sound": "fx_blood_magic_impact_explosion_01" }
+    },
+    "CrimsonTempest": {
+      "from": 671,
+      "cast": { "from": 733, "effects": { "hands": null, "base": "7fx_soulengine_rupturingslam_impact_areasplash" },
+        "sound": "spell_ro_runthrough_cast_01" },
+      "targetimpact": null
+    },
+    "CrimsonBleed": {
+      "from": 250,
+      "cast": null,
+      "targetimpact": { "effects": { "chest": "cfx_rogue_sabreslash_impact" } }
+    },
+    "MarkedForDeath": {
+      "from": 3239,
+      "precast": null,
+      "cast": { "from": 7538, "sound": "spell_ro_redirect_impact_01" },
+      "impact": { "effects": { "head": "cfx_kyrian_rogue_impacthead", "chest": null } },
+      "state": null
+    },
+    "PoisonSting": {
+      "from": 5100,
+      "impact": { "from": 3031, "effects": { "chest": "cfx_rogue_sepsis_cast01" }, "sound": "spell_ro_poison_impact01" }
     }
   },
   "kits": {

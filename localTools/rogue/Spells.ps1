@@ -52,7 +52,7 @@ $spells = @(
     @{ Id = 92311; Clone = 1766; Name = 'Marqué pour la mort'; IconPath = 'Interface\Icons\Ability_Hunter_Assassinate'; FallbackIconSpell = 1130; Cost = 0; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $assassination; ClassMask = $classMask
        Description = 'Marque la cible et lui ajoute 5 points de combo. Si elle meurt dans la minute, le temps de recharge est réinitialisé.'
        Effects = @(@{ Index = 0; Effect = 80; TargetA = 6; Value = 5 })
-       Fields = @{ 1 = 0; 3 = 0; 46 = 4; 131 = 3239; 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0 } },
+       Fields = @{ 1 = 0; 3 = 0; 46 = 4; 131 = (Look 'MarkedForDeath'); 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0 } },
     @{ Id = 92300; Clone = 2983; Name = 'Feinte esquive'; IconPath = 'Interface\Icons\Ability_Rogue_Feint'; FallbackIconSpell = 1966; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Dégâts subis réduits de 25%.'; AuraDescription = 'Dégâts subis réduits de 25%.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = 87; TargetA = 1; Value = -25; Misc = 127 }); Fields = @{ 40 = 32 } },
@@ -79,25 +79,25 @@ $spells = @(
        Description = "Marque la cible pendant 10 s : vos attaques lui infligent 20% de dégâts en plus, et vous récupérez 40 points d'énergie."
        AuraDescription = 'Subit 20% de dégâts en plus du voleur.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 6 }, @{ Index = 1; Effect = 30; TargetA = 1; Value = 40; Misc = 3 })
-       Fields = @{ 2 = 0; 40 = 1; 41 = 3; 46 = 4; 131 = 250; 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0; 225 = 1 } },
+       Fields = @{ 2 = 0; 40 = 1; 41 = 3; 46 = 4; 131 = (Look 'Vendetta'); 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0; 225 = 1 } },
     # Exsanguiner: a melee-range dummy; mod-rogue deals the rest of the caster's Rupture and Garrote at once
     @{ Id = 92313; Clone = 1766; Name = 'Exsanguiner'; IconPath = 'Interface\Icons\Spell_DeathKnight_BloodBoil'; FallbackIconSpell = 1943; Cost = 25; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $assassination; ClassMask = $classMask
        Description = 'Vos Rupture et Garrot sur la cible lui infligent sur-le-champ tous leurs dégâts restants.'
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
-       Fields = @{ 1 = 0; 3 = 0; 131 = 250; 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0 } },
+       Fields = @{ 1 = 0; 3 = 0; 131 = (Look 'Exsanguinate'); 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0 } },
 
     # Tempête cramoisie: a finisher on the target (it spends the combo points there), a dummy mod-rogue turns into a slash
-    # and a bleed on every enemy within 10 yd, longer with every combo point; the stock Eviscerate's look (671: its
-    # clone would take the retail one StockSpells.ps1 gives Eviscerate)
+    # and a bleed on every enemy within 10 yd, longer with every combo point; a rupturing slam around the rogue
     @{ Id = 92330; Clone = 48668; Name = 'Tempête cramoisie'; IconPath = 'Interface\Icons\Ability_Rogue_BloodSplatter'; FallbackIconSpell = 48672; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $assassination; ClassMask = $classMask
        Description = "Coup de grâce qui propage la Rupture et le Garrot de votre cible à tous les ennemis à 10 m, puis les entaille et les fait saigner pendant 2 s de plus par point de combo, jusqu'à 12 s."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
-       Fields = @{ 131 = 671; 209 = 0; 210 = 0; 211 = 0 } },
-    # Its bleed: amount and length set by mod-rogue for the combo points spent; one tick every 2 s
+       Fields = @{ 131 = (Look 'CrimsonTempest'); 209 = 0; 210 = 0; 211 = 0 } },
+    # Its bleed: amount and length set by mod-rogue for the combo points spent; one tick every 2 s. A slash on each enemy
+    # it lands on, without Rupture's swing (the rogue would swing again for every enemy)
     @{ Id = 92331; Clone = 48672; Name = 'Tempête cramoisie'; IconPath = 'Interface\Icons\Ability_Rogue_BloodSplatter'; FallbackIconSpell = 48672; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Saigne.'; AuraDescription = 'Saigne.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_PeriodicDamage; TargetA = 6; BasePoints = 0 })
-       Fields = @{ 40 = 8; 98 = 2000; 209 = 0; 210 = 0; 211 = 0 } },
+       Fields = @{ 40 = 8; 98 = 2000; 131 = (Look 'CrimsonBleed'); 209 = 0; 210 = 0; 211 = 0 } },
     # Virulence: 2% damage per affliction of the rogue on its enemies, up to 15 (mod-rogue keeps the count)
     @{ Id = 92332; Clone = 2983; Name = 'Virulence'; IconPath = 'Interface\Icons\Ability_Rogue_DeviousPoisons'; FallbackIconSpell = 2818; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 15; Spellbook = $false
        Description = 'Dégâts augmentés.'; AuraDescription = 'Dégâts augmentés de 2% par saignement ou poison que vous entretenez sur vos ennemis.'
