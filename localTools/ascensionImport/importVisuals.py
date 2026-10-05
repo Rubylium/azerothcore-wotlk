@@ -20,8 +20,8 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
               "volume": v, "minDistance": d, "cutoff": d, "normalize": <dBFS>, "id": <its own id> } } - sounds of
               our own (not Ascension's): a SoundEntries row copying clone's (its type: a creature's loop is 27, as
               1453 WaterElementalLoop), playing one of the files at random, shipped in soundFolder (an archive
-              folder), each file brought to that RMS level if normalize is given (its peaks kept under -1 dBFS: a
-              bed mixed far under the rest, as Diablo IV's loot loops, is lost in the game's mix); a kit names one
+              folder), each file brought to that RMS level if normalize is given (its peaks limited under -1 dBFS:
+              Diablo IV's loot sounds, mixed for its own engine, are barely heard in the game's); a kit names one
               as "@<key>", and visuals.json lists every one's id under "sounds"
 
 A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>, "anim": <animation id>,
@@ -543,18 +543,34 @@ def write_sound(target, data, name):
     soundfile.write(target[:-4] + '.wav', samples, rate, subtype='PCM_16')
 
 
+LIMIT_CEILING = 10 ** (-1.0 / 20)
+LIMIT_LOOKAHEAD = 0.003
+LIMIT_RELEASE = 0.060
+
+
 def normalize_sound(source, target, level):
-    """the WAV at source written to target at that RMS level (dBFS), its peaks kept under -1 dBFS"""
+    """the WAV at source written to target at that RMS level (dBFS): raised as a whole, then its peaks held under
+    -1 dBFS by a look-ahead limiter (the gain each sample needs, taken over the next 3 ms and released over 60 ms) -
+    so a quiet sound with sharp transients still gets loud, not merely as loud as its loudest peak allowed"""
     import numpy
     import soundfile
-    samples, rate = soundfile.read(source, dtype='float32')
+    from scipy.ndimage import maximum_filter1d, minimum_filter1d, uniform_filter1d
+    samples, rate = soundfile.read(source, dtype='float32', always_2d=True)
     rms = float(numpy.sqrt(numpy.mean(samples ** 2)))
-    peak = float(numpy.max(numpy.abs(samples)))
-    if rms <= 0.0 or peak <= 0.0:
+    if rms <= 0.0:
         shutil.copyfile(source, target)
         return
-    gain = min(level - 20 * numpy.log10(rms), -1.0 - 20 * numpy.log10(peak))
-    soundfile.write(target, samples * 10 ** (gain / 20), rate, subtype='PCM_16')
+    for _ in range(3):
+        samples = samples * 10 ** ((level - 20 * numpy.log10(float(numpy.sqrt(numpy.mean(samples ** 2))))) / 20)
+        envelope = numpy.max(numpy.abs(samples), axis=1)
+        lookahead = max(1, int(rate * LIMIT_LOOKAHEAD))
+        envelope = maximum_filter1d(envelope, size=2 * lookahead + 1)
+        gain = numpy.minimum(1.0, LIMIT_CEILING / numpy.maximum(envelope, 1e-9))
+        release = max(1, int(rate * LIMIT_RELEASE))
+        gain = uniform_filter1d(minimum_filter1d(gain, size=release), size=release)
+        samples = samples * gain[:, None]
+    samples = numpy.clip(samples, -LIMIT_CEILING, LIMIT_CEILING)
+    soundfile.write(target, samples if samples.shape[1] > 1 else samples[:, 0], rate, subtype='PCM_16')
 
 
 def main(config_path):

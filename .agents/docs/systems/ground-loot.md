@@ -34,8 +34,10 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   `PlayDistanceSound` on its bag): the burst, a landing per tier (item, epic, unique, legendary, gold), a pickup (item,
   gold). A kit's own sound was never heard when the server played the kit (2026-10-05, v1.0.309): don't put the
   sounds back in the kits. Each beam plays its quality's ambient loop for as long as it stands: its display's
-  `CreatureSoundData.LoopSoundID` (client DBC only). Diablo IV mixes those loops about 20 dB under its other loot
-  sounds: the import normalizes them (`normalize`), or they cannot be heard in WoW's mix.
+  `CreatureSoundData.LoopSoundID` (client DBC only). Levels: Diablo IV's loot sounds, mixed for its own engine, were
+  barely heard as they came (its loops 20 dB under the rest); every row is at volume 1, the import `normalize`s the
+  cues to -12 dBFS RMS and the loops to -16 (a limiter holds the peaks under -1 dBFS). Asked "so much louder" at
+  -24/-20 dBFS RMS and volume 0.45-0.9 (2026-10-05).
 - The tooltip: the server whispers `GLOOT\t<guid hex>\t<item link | gold:<copper> | ->` as each drop leaves the corpse;
   `clientPatcher/interface/Interface/FrameXML/GroundLoot.lua` swaps the unit tooltip for the item's (or the gold).
 
