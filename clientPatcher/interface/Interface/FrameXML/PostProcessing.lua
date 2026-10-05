@@ -29,6 +29,8 @@ local TEXT = french and {
     water = "Reflets de l'eau",
     lights = "Lumières des flammes",
     night = "Nuits sombres",
+    shadows = "Ombres du soleil",
+    fog = "Brume et halos",
     focus = "Profondeur de champ",
     bloom = "Lueur",
     sharpen = "Netteté",
@@ -59,6 +61,8 @@ local TEXT = french and {
     water = "Water reflections",
     lights = "Firelight",
     night = "Darker nights",
+    shadows = "Sun shadows",
+    fog = "Mist and halos",
     focus = "Depth of field",
     bloom = "Glow",
     sharpen = "Sharpness",
@@ -77,6 +81,8 @@ local SETTINGS = {
     { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
     { key = "lights", cvar = "postFxLights", min = 0, max = 100 },
     { key = "night", cvar = "postFxNight", min = 0, max = 100 },
+    { key = "shadows", cvar = "postFxSunShadows", min = 0, max = 100 },
+    { key = "fog", cvar = "postFxFog", min = 0, max = 100 },
     { key = "shafts", cvar = "postFxShafts", min = 0, max = 100 },
     { key = "haze", cvar = "postFxHaze", min = 0, max = 100 },
     { key = "water", cvar = "postFxWater", min = 0, max = 100 },
@@ -94,15 +100,15 @@ local SETTINGS = {
 
 local PRESETS = {
     natural = { postFxAO = 50, postFxLights = 60, postFxShafts = 35, postFxHaze = 25, postFxWater = 60,
-        postFxDoF = 60, postFxNight = 40, postFxBloom = 25,
+        postFxDoF = 60, postFxNight = 40, postFxSunShadows = 60, postFxFog = 45, postFxBloom = 25,
         postFxSharpen = 35, postFxContrast = 15, postFxExposure = 100, postFxVibrance = 15, postFxSaturation = 100,
         postFxWarmth = 0, postFxTone = 0, postFxVignette = 15 },
     vivid = { postFxAO = 60, postFxLights = 75, postFxShafts = 50, postFxHaze = 30, postFxWater = 70,
-        postFxDoF = 60, postFxNight = 45, postFxBloom = 40,
+        postFxDoF = 60, postFxNight = 45, postFxSunShadows = 70, postFxFog = 50, postFxBloom = 40,
         postFxSharpen = 50, postFxContrast = 30, postFxExposure = 100, postFxVibrance = 35, postFxSaturation = 105,
         postFxWarmth = 5, postFxTone = 20, postFxVignette = 20 },
     cinema = { postFxAO = 70, postFxLights = 85, postFxShafts = 70, postFxHaze = 45, postFxWater = 80,
-        postFxDoF = 80, postFxNight = 60, postFxBloom = 55,
+        postFxDoF = 80, postFxNight = 60, postFxSunShadows = 80, postFxFog = 65, postFxBloom = 55,
         postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100, postFxVibrance = 20, postFxSaturation = 95,
         postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
@@ -190,13 +196,13 @@ for _, name in ipairs({ "natural", "vivid", "cinema" }) do
     lastButton = button
 end
 
-local ROWS = 8
+local ROWS = 9
 for index, setting in ipairs(SETTINGS) do
     local column, row = (index - 1) >= ROWS and 1 or 0, (index - 1) % ROWS
     local slider = CreateFrame("Slider", "PostProcessingPanelSlider" .. index, panel, "OptionsSliderTemplate")
     slider.setting = setting
     slider:SetWidth(150)
-    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -36 - row * 32)
+    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -34 - row * 30)
     slider:SetMinMaxValues(setting.min, setting.max)
     slider:SetValueStep(1)
     _G[slider:GetName() .. "Low"]:SetText(setting.min)
