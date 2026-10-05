@@ -1,8 +1,9 @@
 {
   "_comment": [
     "Stormwind's ambience, played by our own sound engine (.agents/docs/systems/evolutions-audio.md) while the",
-    "player is in the city: the Trade District's square as its loud heart (crowds, people talking and laughing,",
-    "children, pigeons overhead), the bank, the taverns, Cathedral Square, the Dwarven District's forge at work,",
+    "player is in the city: the Trade District's square as its loud heart (an open-air murmur, a voice or a",
+    "laugh now and then, children, pigeons overhead), the bank, the taverns (inside only: glasses clink there),",
+    "Cathedral Square, the Dwarven District's forge at work,",
     "the harbour (creaking ships, gulls circling, a far fog horn), the park's birds, Old Town's dogs and",
     "cats. Voices are the client's own (its language), the rest the game's or Ascension's (retail). The city's own",
     "fountains, lamps, banners and hourly bells already have their sounds: none here."
@@ -11,11 +12,20 @@
     "Stormwind.Crowd": {
       "kind": "loop",
       "files": [
-        "asc:sound\\ambience\\zoneambience\\amb_walla_alliance_tavern_medium.ogg"
+        "client:Sound\\Ambience\\ZoneAmbience\\DalaranCityDay.wav"
       ],
       "minDistance": 12,
       "maxDistance": 60,
       "loudness": -16
+    },
+    "Stormwind.CrowdNight": {
+      "kind": "loop",
+      "files": [
+        "client:Sound\\Ambience\\ZoneAmbience\\DalaranCityNight.wav"
+      ],
+      "minDistance": 12,
+      "maxDistance": 55,
+      "loudness": -18
     },
     "Stormwind.TavernCrowded": {
       "kind": "loop",
@@ -23,7 +33,7 @@
         "client:Sound\\Ambience\\WMOAmbience\\TavernCrowded.wav"
       ],
       "minDistance": 3,
-      "maxDistance": 20,
+      "maxDistance": 14,
       "loudness": -18
     },
     "Stormwind.Tavern": {
@@ -32,7 +42,7 @@
         "client:Sound\\Ambience\\WMOAmbience\\Tavern.wav"
       ],
       "minDistance": 3,
-      "maxDistance": 18,
+      "maxDistance": 14,
       "loudness": -18
     },
     "Stormwind.VoicesMale": {
@@ -387,7 +397,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -408,7 +419,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 0.9
+      "volume": 0.9,
+      "place": "any"
     },
     {
       "zones": [
@@ -429,14 +441,15 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 0.8
+      "volume": 0.8,
+      "place": "any"
     },
     {
       "zones": [
         "Stormwind City",
         "Hurlevent"
       ],
-      "sound": "Stormwind.Crowd",
+      "sound": "Stormwind.CrowdNight",
       "points": [
         [
           -8830,
@@ -450,7 +463,8 @@
       ],
       "speed": 0,
       "time": "night",
-      "volume": 0.45
+      "volume": 0.8,
+      "place": "any"
     },
     {
       "zones": [
@@ -521,12 +535,13 @@
         ]
       ],
       "interval": [
-        1.2,
-        3.5
+        8,
+        18
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -597,12 +612,13 @@
         ]
       ],
       "interval": [
-        1.2,
-        3.5
+        8,
+        18
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -673,12 +689,13 @@
         ]
       ],
       "interval": [
-        5,
-        12
+        25,
+        50
       ],
       "speed": 0,
       "time": "night",
-      "volume": 0.8
+      "volume": 0.6,
+      "place": "any"
     },
     {
       "zones": [
@@ -749,12 +766,13 @@
         ]
       ],
       "interval": [
-        5,
-        12
+        25,
+        50
       ],
       "speed": 0,
       "time": "night",
-      "volume": 0.8
+      "volume": 0.6,
+      "place": "any"
     },
     {
       "zones": [
@@ -825,12 +843,13 @@
         ]
       ],
       "interval": [
-        5,
-        12
+        30,
+        60
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -901,12 +920,13 @@
         ]
       ],
       "interval": [
-        4,
-        10
+        20,
+        40
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -977,12 +997,13 @@
         ]
       ],
       "interval": [
-        10,
-        25
+        40,
+        80
       ],
       "speed": 0,
       "time": "night",
-      "volume": 1.0
+      "volume": 0.6,
+      "place": "any"
     },
     {
       "zones": [
@@ -1053,12 +1074,13 @@
         ]
       ],
       "interval": [
-        9,
-        22
+        30,
+        60
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1094,7 +1116,8 @@
       ],
       "speed": 6,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1125,7 +1148,8 @@
       ],
       "speed": 5,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1146,7 +1170,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 0.7
+      "volume": 0.7,
+      "place": "any"
     },
     {
       "zones": [
@@ -1177,12 +1202,13 @@
         ]
       ],
       "interval": [
-        4,
-        9
+        15,
+        30
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1213,12 +1239,13 @@
         ]
       ],
       "interval": [
-        4,
-        9
+        15,
+        30
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1239,7 +1266,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "indoors"
     },
     {
       "zones": [
@@ -1260,7 +1288,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "indoors"
     },
     {
       "zones": [
@@ -1281,7 +1310,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "indoors"
     },
     {
       "zones": [
@@ -1302,7 +1332,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 0.6
+      "volume": 0.6,
+      "place": "any"
     },
     {
       "zones": [
@@ -1338,12 +1369,13 @@
         ]
       ],
       "interval": [
-        4,
-        10
+        15,
+        30
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1379,12 +1411,13 @@
         ]
       ],
       "interval": [
-        4,
-        10
+        15,
+        30
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1420,12 +1453,13 @@
         ]
       ],
       "interval": [
-        12,
-        30
+        40,
+        80
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1466,7 +1500,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1487,7 +1522,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1508,7 +1544,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 0.7
+      "volume": 0.7,
+      "place": "any"
     },
     {
       "zones": [
@@ -1534,7 +1571,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1555,7 +1593,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1576,7 +1615,8 @@
       ],
       "speed": 0,
       "time": "night",
-      "volume": 0.8
+      "volume": 0.8,
+      "place": "any"
     },
     {
       "zones": [
@@ -1602,7 +1642,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1633,12 +1674,13 @@
         ]
       ],
       "interval": [
-        5,
-        12
+        20,
+        40
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1659,7 +1701,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1680,7 +1723,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 0.9
+      "volume": 0.9,
+      "place": "any"
     },
     {
       "zones": [
@@ -1701,7 +1745,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 0.9
+      "volume": 0.9,
+      "place": "any"
     },
     {
       "zones": [
@@ -1747,12 +1792,13 @@
         ]
       ],
       "interval": [
-        6,
-        14
+        25,
+        50
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -1793,7 +1839,8 @@
       ],
       "speed": 8,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1829,7 +1876,8 @@
       ],
       "speed": 10,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1865,7 +1913,8 @@
       ],
       "speed": 7,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1886,7 +1935,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1922,7 +1972,8 @@
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1958,7 +2009,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -1999,7 +2051,8 @@
       ],
       "speed": 0,
       "time": "any",
-      "volume": 1.0
+      "volume": 1.0,
+      "place": "any"
     },
     {
       "zones": [
@@ -2030,12 +2083,13 @@
         ]
       ],
       "interval": [
-        6,
-        14
+        25,
+        50
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     },
     {
       "zones": [
@@ -2066,12 +2120,13 @@
         ]
       ],
       "interval": [
-        6,
-        14
+        25,
+        50
       ],
       "speed": 0,
       "time": "day",
-      "volume": 1.0
+      "volume": 0.75,
+      "place": "any"
     }
   ]
 }

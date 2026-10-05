@@ -7,13 +7,16 @@ Every modules/*/client-assets/audio/*.json is read:
     { "sounds": { "<key>": { "kind": "ui" | "world" | "loop", "files": [ "<file>", ... ],
                               "volume": 1.0, "minDistance": 5, "maxDistance": 40, "loudness": <dBFS RMS> } },
       "emitters": [ { "zones": [ "<zone name, each locale's>", ... ], "sound": "<key>", "points": [ [x, y, z], ... ],
-                      "interval": [min, max], "speed": 0, "time": "any" | "day" | "night", "volume": 1.0 } ] }
+                      "interval": [min, max], "speed": 0, "time": "any" | "day" | "night", "volume": 1.0,
+                      "place": "any" | "indoors" | "outdoors" } ] }
 - a file: a WAV/OGG relative to the repository, "client:<archive path>" (the game client's own, from its archives -
   voices in its language: CLIENT below), or "asc:<archive path>" (the Ascension client's, ASCENSION_ROOT).
 - emitters: the zone's ambience, the engine playing it while the player is there (its name as GetRealZoneText gives
   it, in every locale played). A loop sound plays from the first point while within reach; another sound every min
   to max seconds from one point at random; with a speed (yards a second) the emitter flies round its points, its
-  sounds following it. time: by day (6:00-21:00 server time), by night, or always. Written to ambience.txt.
+  sounds following it. time: by day (6:00-21:00 server time), by night, or always. place: only with the player
+  indoors (an inn's room: its glasses are not for the street), outdoors, or anywhere. Written to ambience.txt.
+  Emitters follow the game's ambience volume and switch, the other sounds its sound effects'.
 - kind: ui is heard as an interface sound (no position, no room); world from where the server says (a point, or an
   object it follows), with the place's echo and muffled behind walls; loop the same, repeating until stopped or its
   object gone.
@@ -166,14 +169,15 @@ def main():
                                 ';'.join(names)]))
     with open(os.path.join(OUTPUT, 'sounds.txt'), 'w', encoding='utf-8', newline='\n') as manifest:
         manifest.write('\n'.join(lines) + '\n')
-    ambience = ['# zones\tkey\tmin interval\tmax interval\tspeed\ttime\tvolume\tpoints'
+    ambience = ['# zones\tkey\tmin interval\tmax interval\tspeed\ttime\tvolume\tpoints\tplace'
                 ' - written by localTools/audio/buildAudio.py']
     for emitter in emitters:
         interval = emitter.get('interval', [0, 0])
         points = ';'.join(','.join(f'{float(c):g}' for c in point) for point in emitter['points'])
         ambience.append('\t'.join(['|'.join(emitter['zones']), emitter['sound'], f'{float(interval[0]):g}',
                                     f'{float(interval[1]):g}', f'{float(emitter.get("speed", 0)):g}',
-                                    emitter.get('time', 'any'), f'{float(emitter.get("volume", 1.0)):g}', points]))
+                                    emitter.get('time', 'any'), f'{float(emitter.get("volume", 1.0)):g}', points,
+                                    emitter.get('place', 'any')]))
     with open(os.path.join(OUTPUT, 'ambience.txt'), 'w', encoding='utf-8', newline='\n') as file:
         file.write('\n'.join(ambience) + '\n')
     with open(os.path.join(OUTPUT, 'EvolutionsAudio.toc'), 'w', encoding='utf-8', newline='\n') as toc:

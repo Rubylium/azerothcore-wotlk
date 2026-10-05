@@ -1,46 +1,46 @@
-# zones	key	min interval	max interval	speed	time	volume	points - written by localTools/audio/buildAudio.py
-Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	1	-8835,645,96.5
-Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.9	-8810,625,96.5
-Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.8	-8855,662,97.5
-Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	night	0.45	-8830,640,96.5
-Stormwind City|Hurlevent	Stormwind.VoicesMale	1.2	3.5	0	day	1	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.VoicesFemale	1.2	3.5	0	day	1	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.VoicesMale	5	12	0	night	0.8	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.VoicesFemale	5	12	0	night	0.8	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.VoicesDwarfGnome	5	12	0	day	1	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.Laughs	4	10	0	day	1	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.Laughs	10	25	0	night	1	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.KidsLaugh	9	22	0	day	1	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96
-Stormwind City|Hurlevent	Stormwind.Birds	3	7	6	day	1	-8880,620,120;-8800,700,124;-8760,640,122;-8840,580,118
-Stormwind City|Hurlevent	Stormwind.Birds	4	9	5	day	1	-8790,600,115;-8860,690,121;-8900,630,117
-Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.7	-8920,628,99.6
-Stormwind City|Hurlevent	Stormwind.VoicesMale	4	9	0	day	1	-8925,630,99.6;-8935,613,99.6;-8910,650,99.6;-8900,610,96
-Stormwind City|Hurlevent	Stormwind.VoicesFemale	4	9	0	day	1	-8925,630,99.6;-8935,613,99.6;-8910,650,99.6;-8900,610,96
-Stormwind City|Hurlevent	Stormwind.TavernCrowded	0	0	0	any	1	-8867.8,673.7,98
-Stormwind City|Hurlevent	Stormwind.Tavern	0	0	0	any	1	-9086,829,108.6
-Stormwind City|Hurlevent	Stormwind.Tavern	0	0	0	any	1	-8954,993.7,122.2
-Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.6	-8625,770,98
-Stormwind City|Hurlevent	Stormwind.VoicesMale	4	10	0	day	1	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99
-Stormwind City|Hurlevent	Stormwind.VoicesFemale	4	10	0	day	1	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99
-Stormwind City|Hurlevent	Stormwind.KidsLaugh	12	30	0	day	1	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99
-Stormwind City|Hurlevent	Stormwind.Birds	5	11	0	day	1	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99
-Stormwind City|Hurlevent	Stormwind.ForgeFire	0	0	0	any	1	-8424,624,95.5
-Stormwind City|Hurlevent	Stormwind.ForgeFire	0	0	0	any	0.7	-8427,631,95.6
-Stormwind City|Hurlevent	Stormwind.ForgeHammer	0.8	2.6	0	day	1	-8425.1,614.5,95.2;-8420.8,616.4,95.5
-Stormwind City|Hurlevent	Stormwind.ForgeHammer	1.5	4	0	day	1	-8388,684,95.3
-Stormwind City|Hurlevent	Stormwind.ForgeHammer	6	15	0	night	0.8	-8425.1,614.5,95.2
-Stormwind City|Hurlevent	Stormwind.Bellows	5	12	0	any	1	-8427,631,95.6;-8420,633.5,95.7
-Stormwind City|Hurlevent	Stormwind.VoicesDwarfGnome	5	12	0	day	1	-8430,640,96;-8410,650,96;-8440,610,96;-8400,620,96
-Stormwind City|Hurlevent	Stormwind.ShipCreak	0	0	0	any	1	-8480,1250,6
-Stormwind City|Hurlevent	Stormwind.ShipCreak	0	0	0	any	0.9	-8370,1290,6
-Stormwind City|Hurlevent	Stormwind.ShipCreak	0	0	0	any	0.9	-8303,1393,6
-Stormwind City|Hurlevent	Stormwind.VoicesMale	6	14	0	day	1	-8480,1250,6;-8461,1294,6;-8370,1290,6;-8395,1250,6;-8303,1393,6;-8487,1350,6;-8550,1245,6
-Stormwind City|Hurlevent	Stormwind.Gulls	2	6	8	any	1	-8600,1200,30;-8500,1330,28;-8380,1370,32;-8320,1260,30;-8420,1180,26
-Stormwind City|Hurlevent	Stormwind.Gulls	3	7	10	any	1	-8550,1380,40;-8350,1420,38;-8280,1320,42;-8450,1280,36
-Stormwind City|Hurlevent	Stormwind.Gulls	5	11	7	day	1	-8760,760,112;-8700,820,115;-8650,760,110;-8720,700,113
-Stormwind City|Hurlevent	Stormwind.FogHorn	150	300	0	any	1	-8200,1450,25
-Stormwind City|Hurlevent	Stormwind.Birds	2	6	0	day	1	-8740,1070,90.5;-8760,980,98.5;-8730,1040,92;-8770,1060,91
-Stormwind City|Hurlevent	Stormwind.DogBark	18	45	0	any	1	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100
-Stormwind City|Hurlevent	Stormwind.Cat	25	60	0	any	1	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100;-8760,1080,91
-Stormwind City|Hurlevent	Stormwind.VoicesMale	6	14	0	day	1	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100
-Stormwind City|Hurlevent	Stormwind.VoicesFemale	6	14	0	day	1	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100
+# zones	key	min interval	max interval	speed	time	volume	points	place - written by localTools/audio/buildAudio.py
+Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	1	-8835,645,96.5	any
+Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.9	-8810,625,96.5	any
+Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.8	-8855,662,97.5	any
+Stormwind City|Hurlevent	Stormwind.CrowdNight	0	0	0	night	0.8	-8830,640,96.5	any
+Stormwind City|Hurlevent	Stormwind.VoicesMale	8	18	0	day	0.75	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.VoicesFemale	8	18	0	day	0.75	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.VoicesMale	25	50	0	night	0.6	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.VoicesFemale	25	50	0	night	0.6	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.VoicesDwarfGnome	30	60	0	day	0.75	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.Laughs	20	40	0	day	0.75	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.Laughs	40	80	0	night	0.6	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.KidsLaugh	30	60	0	day	0.75	-8845,630,96;-8830,615,96;-8815,640,95.5;-8800,655,95.5;-8825,660,97;-8850,650,96.5;-8860,640,96.5;-8805,620,96;-8790,640,97;-8840,672,98;-8870,625,95.5;-8820,600,96	any
+Stormwind City|Hurlevent	Stormwind.Birds	3	7	6	day	1	-8880,620,120;-8800,700,124;-8760,640,122;-8840,580,118	any
+Stormwind City|Hurlevent	Stormwind.Birds	4	9	5	day	1	-8790,600,115;-8860,690,121;-8900,630,117	any
+Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.7	-8920,628,99.6	any
+Stormwind City|Hurlevent	Stormwind.VoicesMale	15	30	0	day	0.75	-8925,630,99.6;-8935,613,99.6;-8910,650,99.6;-8900,610,96	any
+Stormwind City|Hurlevent	Stormwind.VoicesFemale	15	30	0	day	0.75	-8925,630,99.6;-8935,613,99.6;-8910,650,99.6;-8900,610,96	any
+Stormwind City|Hurlevent	Stormwind.TavernCrowded	0	0	0	any	1	-8867.8,673.7,98	indoors
+Stormwind City|Hurlevent	Stormwind.Tavern	0	0	0	any	1	-9086,829,108.6	indoors
+Stormwind City|Hurlevent	Stormwind.Tavern	0	0	0	any	1	-8954,993.7,122.2	indoors
+Stormwind City|Hurlevent	Stormwind.Crowd	0	0	0	day	0.6	-8625,770,98	any
+Stormwind City|Hurlevent	Stormwind.VoicesMale	15	30	0	day	0.75	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99	any
+Stormwind City|Hurlevent	Stormwind.VoicesFemale	15	30	0	day	0.75	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99	any
+Stormwind City|Hurlevent	Stormwind.KidsLaugh	40	80	0	day	0.75	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99	any
+Stormwind City|Hurlevent	Stormwind.Birds	5	11	0	day	1	-8620,760,97.5;-8640,780,99;-8600,775,98;-8615,745,100;-8650,765,99	any
+Stormwind City|Hurlevent	Stormwind.ForgeFire	0	0	0	any	1	-8424,624,95.5	any
+Stormwind City|Hurlevent	Stormwind.ForgeFire	0	0	0	any	0.7	-8427,631,95.6	any
+Stormwind City|Hurlevent	Stormwind.ForgeHammer	0.8	2.6	0	day	1	-8425.1,614.5,95.2;-8420.8,616.4,95.5	any
+Stormwind City|Hurlevent	Stormwind.ForgeHammer	1.5	4	0	day	1	-8388,684,95.3	any
+Stormwind City|Hurlevent	Stormwind.ForgeHammer	6	15	0	night	0.8	-8425.1,614.5,95.2	any
+Stormwind City|Hurlevent	Stormwind.Bellows	5	12	0	any	1	-8427,631,95.6;-8420,633.5,95.7	any
+Stormwind City|Hurlevent	Stormwind.VoicesDwarfGnome	20	40	0	day	0.75	-8430,640,96;-8410,650,96;-8440,610,96;-8400,620,96	any
+Stormwind City|Hurlevent	Stormwind.ShipCreak	0	0	0	any	1	-8480,1250,6	any
+Stormwind City|Hurlevent	Stormwind.ShipCreak	0	0	0	any	0.9	-8370,1290,6	any
+Stormwind City|Hurlevent	Stormwind.ShipCreak	0	0	0	any	0.9	-8303,1393,6	any
+Stormwind City|Hurlevent	Stormwind.VoicesMale	25	50	0	day	0.75	-8480,1250,6;-8461,1294,6;-8370,1290,6;-8395,1250,6;-8303,1393,6;-8487,1350,6;-8550,1245,6	any
+Stormwind City|Hurlevent	Stormwind.Gulls	2	6	8	any	1	-8600,1200,30;-8500,1330,28;-8380,1370,32;-8320,1260,30;-8420,1180,26	any
+Stormwind City|Hurlevent	Stormwind.Gulls	3	7	10	any	1	-8550,1380,40;-8350,1420,38;-8280,1320,42;-8450,1280,36	any
+Stormwind City|Hurlevent	Stormwind.Gulls	5	11	7	day	1	-8760,760,112;-8700,820,115;-8650,760,110;-8720,700,113	any
+Stormwind City|Hurlevent	Stormwind.FogHorn	150	300	0	any	1	-8200,1450,25	any
+Stormwind City|Hurlevent	Stormwind.Birds	2	6	0	day	1	-8740,1070,90.5;-8760,980,98.5;-8730,1040,92;-8770,1060,91	any
+Stormwind City|Hurlevent	Stormwind.DogBark	18	45	0	any	1	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100	any
+Stormwind City|Hurlevent	Stormwind.Cat	25	60	0	any	1	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100;-8760,1080,91	any
+Stormwind City|Hurlevent	Stormwind.VoicesMale	25	50	0	day	0.75	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100	any
+Stormwind City|Hurlevent	Stormwind.VoicesFemale	25	50	0	day	0.75	-8680,450,100;-8570,540,101.5;-8530,450,105;-8620,500,100	any
