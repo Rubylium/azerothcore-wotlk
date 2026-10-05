@@ -31,9 +31,9 @@ function getPatchFiles(repoRoot) {
         source: path.join(dbcRoot, name),
         archive: `DBFilesClient\\${name}`,
     }));
-    // L'Infini's display (localTools/infiniteBoss): the client's own copies, built on Patch-D's rather than the
-    // server's (patchSinisterStrike.ps1)
-    for (const name of ['CreatureModelData.dbc', 'CreatureDisplayInfo.dbc']) {
+    // Our creature displays (L'Infini's, the ground loot's) and the ground loot beams' sound loops: the client's own
+    // copies, built on Patch-D's rather than the server's (patchSinisterStrike.ps1)
+    for (const name of ['CreatureModelData.dbc', 'CreatureDisplayInfo.dbc', 'CreatureSoundData.dbc']) {
         files.push({ source: path.join(dbcRoot, 'client-only', name), archive: `DBFilesClient\\${name}` });
     }
 

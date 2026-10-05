@@ -3,10 +3,14 @@
 
 #include "Define.h"
 
+#include <functional>
+
 class Creature;
+class Item;
 class Player;
 class SpellInfo;
 class Unit;
+struct ItemTemplate;
 
 // The factor a creature spell's damage is multiplied by in a mythic dungeon (the key's scaling, the spell's level
 // catch-up and its tuning multiplier); 1 outside one
@@ -42,6 +46,13 @@ void GivePinnacleLootItem(Player* player, uint32 itemLevel);
 // Every generated item the player carries, its record sent to the client again (at login: their stats may have
 // changed since the client cached them)
 void SendGeneratedItemRecords(Player* player);
+
+// For the ground loot (GroundLoot.cpp): a boss whose kill gives the mythic items (a dungeon boss, a world boss rank, a
+// listed one); a generated item's record sent to the client (before it sees the item: its tooltip on the floor); an
+// item into the bags (the mailbox when full) as it is given, never thrown on the floor
+bool IsMythicDungeonBoss(Creature const* creature);
+void SendMythicItemRecord(Player* player, uint32 entry);
+void StoreMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch);
 
 // The combat bench's dummies (mod-playerbots Script/CombatBench.cpp, which declares it itself): a creature outside any
 // mythic instance brought to what a creature of its template is in a Mythic+ key of that level (0: Mythique 0), in

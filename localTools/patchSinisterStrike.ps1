@@ -2435,34 +2435,60 @@ $displayOutput = Get-StringDbcOutput $displayDbc
 Write-Host ("Installed $(@($retailItems.displays).Count) retail item looks (ItemDisplayInfo.dbc) and " +
     "$(@($retailItems.items).Count) test items (Item.dbc).")
 
-# --- L'Infini's display (CreatureModelData.dbc, CreatureDisplayInfo.dbc) --------------------------------------
+# --- Creature displays of our own: L'Infini, the ground loot (CreatureModelData.dbc, CreatureDisplayInfo.dbc) --------
 #
 # The Défi board's god (modules/mod-stat-growth/src/InfiniteGod.cpp) is Algalon recoloured: a copy of his model at its
 # own path (localTools\infiniteBoss\buildInfiniModel.py, shipped by patchFiles.js). A CreatureModelData row copying
 # Algalon's (3064) points at it, and a CreatureDisplayInfo row copying his display (28641) at that model; both 60001.
-# The server's copies and the client's differ: the client reads Patch-D's (HD creature remakes), the server its stock
-# ones, and each keeps its own. The client's go to server\Data\dbc\client-only, which patchFiles.js ships in patch-Z.
-$infiniDisplay = @{ Id = 60001; CloneModel = 3064; CloneDisplay = 28641; Model = 'Creature\Evolutions\Infini\Infini.mdx' }
+# The ground loot (modules/mod-stat-growth/src/GroundLoot.cpp) is a bag or a pile of gold under a light beam of the
+# item's quality, models imported from Ascension (localTools\groundLoot\ascensionVisuals.json): each a copy of the
+# sparkle's rows (2816, 25334, a spell effect worn as a creature), drawn at its own scale; 60002 on, model and display
+# alike. Each beam plays its quality's sound loop as long as it stands (Diablo IV's): a CreatureSoundData row of its
+# own (the display's id), only its LoopSoundID set, at the sound the import made (visuals.json "sounds"); the client's
+# alone, the server reads none. The server's copies and the client's differ: the client reads Patch-D's (HD creature
+# remakes), the server its stock ones, and each keeps its own. The client's go to server\Data\dbc\client-only, which
+# patchFiles.js ships in patch-Z.
+$tintedBeam = 'Spells\Evolutions\Tint\moonbeam_impact_base_beams_{0}.mdx'
+$ownDisplays = @(
+    @{ Id = 60001; CloneModel = 3064; CloneDisplay = 28641; Model = 'Creature\Evolutions\Infini\Infini.mdx' }
+    @{ Id = 60002; CloneModel = 2816; CloneDisplay = 25334; Model = 'Spells\ashran_loot_state.mdx'; Scale = 1.0 }
+    @{ Id = 60003; CloneModel = 2816; CloneDisplay = 25334; Model = 'Spells\treasuregoblin_coinpile.mdx'; Scale = 2.5 }
+)
+$beamColours = @('ffffff', '1eff00', '0070dd', 'a335ee', 'ff8000', 'ffd100')
+$beamLoops = @('Normal', 'Magic', 'Rare', 'Legendary', 'Legendary', 'Gold')
+$groundLootSounds = (Get-Content -LiteralPath (Join-Path $repoRoot `
+    'modules\mod-stat-growth\client-assets\imported\visuals.json') -Raw -Encoding UTF8 | ConvertFrom-Json).sounds
+for ($index = 0; $index -lt $beamColours.Count; ++$index) {
+    $loop = $groundLootSounds."GroundLootLoop$($beamLoops[$index])"
+    if (-not $loop) { throw "The ground loot import has no GroundLootLoop$($beamLoops[$index]) sound." }
+    $ownDisplays += @{ Id = 60004 + $index; CloneModel = 2816; CloneDisplay = 25334
+                       Model = ($tintedBeam -f $beamColours[$index]); Scale = 0.45; Loop = [uint32]$loop }
+}
 $clientOnlyDbcRoot = Join-Path $serverDbcRoot 'client-only'
 New-Item -ItemType Directory -Path $clientOnlyDbcRoot -Force | Out-Null
 
-function Add-InfiniDisplay([string]$modelSource, [string]$displaySource, [string[]]$modelTargets, [string[]]$displayTargets) {
+function Add-OwnDisplays([string]$modelSource, [string]$displaySource, [string[]]$modelTargets,
+                         [string[]]$displayTargets, [bool]$withSounds = $false) {
     $modelDbc = Read-StringDbc $modelSource 'CreatureModelData.dbc' 28
     $displayDbc = Read-StringDbc $displaySource 'CreatureDisplayInfo.dbc' 16
-    foreach ($check in @(@($modelDbc, $infiniDisplay.CloneModel), @($displayDbc, $infiniDisplay.CloneDisplay))) {
-        if (-not $check[0].Offsets.ContainsKey([int]$check[1])) { throw "$($check[0].Name) has no row $($check[1]) to copy." }
-        if ($check[0].Offsets.ContainsKey([int]$infiniDisplay.Id)) { throw "$($check[0].Name) already has a row $($infiniDisplay.Id)." }
+    foreach ($own in $ownDisplays) {
+        foreach ($check in @(@($modelDbc, $own.CloneModel), @($displayDbc, $own.CloneDisplay))) {
+            if (-not $check[0].Offsets.ContainsKey([int]$check[1])) { throw "$($check[0].Name) has no row $($check[1]) to copy." }
+            if ($check[0].Offsets.ContainsKey([int]$own.Id)) { throw "$($check[0].Name) already has a row $($own.Id)." }
+        }
+        $model = [byte[]]::new($modelDbc.RecordSize)
+        [Array]::Copy($modelDbc.Data, $modelDbc.Offsets[[int]$own.CloneModel], $model, 0, $modelDbc.RecordSize)
+        Set-Field $model 0 ([uint32]$own.Id)
+        Set-Field $model 2 (Add-DbcString $modelDbc.Strings $own.Model)
+        $modelDbc.NewRecords.AddRange($model)
+        $display = [byte[]]::new($displayDbc.RecordSize)
+        [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[[int]$own.CloneDisplay], $display, 0, $displayDbc.RecordSize)
+        Set-Field $display 0 ([uint32]$own.Id)
+        Set-Field $display 1 ([uint32]$own.Id)
+        if ($own.ContainsKey('Scale')) { Set-Field $display 4 (Get-FloatBits $own.Scale) }
+        if ($withSounds -and $own.ContainsKey('Loop')) { Set-Field $display 2 ([uint32]$own.Id) }
+        $displayDbc.NewRecords.AddRange($display)
     }
-    $model = [byte[]]::new($modelDbc.RecordSize)
-    [Array]::Copy($modelDbc.Data, $modelDbc.Offsets[[int]$infiniDisplay.CloneModel], $model, 0, $modelDbc.RecordSize)
-    Set-Field $model 0 ([uint32]$infiniDisplay.Id)
-    Set-Field $model 2 (Add-DbcString $modelDbc.Strings $infiniDisplay.Model)
-    $modelDbc.NewRecords.AddRange($model)
-    $display = [byte[]]::new($displayDbc.RecordSize)
-    [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[[int]$infiniDisplay.CloneDisplay], $display, 0, $displayDbc.RecordSize)
-    Set-Field $display 0 ([uint32]$infiniDisplay.Id)
-    Set-Field $display 1 ([uint32]$infiniDisplay.Id)
-    $displayDbc.NewRecords.AddRange($display)
     $modelOutput = Get-StringDbcOutput $modelDbc
     $displayOutput = Get-StringDbcOutput $displayDbc
     foreach ($target in $modelTargets) { [IO.File]::WriteAllBytes($target, $modelOutput) }
@@ -2486,12 +2512,29 @@ foreach ($pair in @(@('DBFilesClient\CreatureModelData.dbc', $clientModelBackup)
         if ($LASTEXITCODE -ne 0) { throw "Could not extract the client's $($pair[0])." }
     }
 }
-Add-InfiniDisplay $serverModelBackup $serverDisplayBackup @(Join-Path $serverDbcRoot 'CreatureModelData.dbc') `
+Add-OwnDisplays $serverModelBackup $serverDisplayBackup @(Join-Path $serverDbcRoot 'CreatureModelData.dbc') `
     @(Join-Path $serverDbcRoot 'CreatureDisplayInfo.dbc')
-Add-InfiniDisplay $clientModelBackup $clientDisplayBackup `
+Add-OwnDisplays $clientModelBackup $clientDisplayBackup `
     @((Join-Path $clientOnlyDbcRoot 'CreatureModelData.dbc'), (Join-Path $clientDbcRoot 'CreatureModelData.dbc')) `
-    @((Join-Path $clientOnlyDbcRoot 'CreatureDisplayInfo.dbc'), (Join-Path $clientDbcRoot 'CreatureDisplayInfo.dbc'))
-Write-Host "Installed L'Infini's display $($infiniDisplay.Id) (CreatureModelData.dbc, CreatureDisplayInfo.dbc)."
+    @((Join-Path $clientOnlyDbcRoot 'CreatureDisplayInfo.dbc'), (Join-Path $clientDbcRoot 'CreatureDisplayInfo.dbc')) `
+    $true
+$clientSoundDataBackup = Join-Path $serverDbcRoot 'CreatureSoundData.client-before-ground-loot.dbc'
+if (-not (Test-Path -LiteralPath $clientSoundDataBackup)) {
+    & node (Join-Path $repoRoot 'localTools\mpq-builder\extractEffectiveClientFile.js') `
+        'DBFilesClient\CreatureSoundData.dbc' $clientSoundDataBackup
+    if ($LASTEXITCODE -ne 0) { throw "Could not extract the client's CreatureSoundData.dbc." }
+}
+$soundDataDbc = Read-Dbc $clientSoundDataBackup 'CreatureSoundData.dbc' 38
+foreach ($own in @($ownDisplays | Where-Object { $_.ContainsKey('Loop') })) {
+    if ($soundDataDbc.Offsets.ContainsKey([int]$own.Id)) { throw "CreatureSoundData.dbc already has a row $($own.Id)." }
+    $record = [byte[]]::new($soundDataDbc.RecordSize)
+    Set-Field $record 0 ([uint32]$own.Id)
+    Set-Field $record 24 $own.Loop
+    $soundDataDbc.NewRecords.AddRange($record)
+}
+[IO.File]::WriteAllBytes((Join-Path $clientOnlyDbcRoot 'CreatureSoundData.dbc'), (Get-DbcOutput $soundDataDbc))
+Write-Host ("Installed $($ownDisplays.Count) creature displays of our own, $($ownDisplays[0].Id) on " +
+    '(CreatureModelData.dbc, CreatureDisplayInfo.dbc).')
 
 # The Celestial Planetarium's own music: L'Infini's room music (SoundEntries 30102 above), in a ZoneMusic row of its own
 # (a copy of 514 Zone-UlduarRaidCelestialHallWalk, the hall leading to it) with 2 s of silence between two plays

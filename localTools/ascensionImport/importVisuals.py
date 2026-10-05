@@ -13,6 +13,14 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
               persistentarea; "missile" replaces the missile's model (an effect, below)
     kits      { "<key>": <kit> } - kits of their own, for a server to play on a unit (SMSG_PLAY_SPELL_VISUAL);
               each one carries its "id", which the module's code names
+    models    [ "<archive path of a model>" or { "model": <that>, "tint": "#rrggbb" }, ... ] - models shipped with
+              their skins and textures and no row behind them (a creature's look, which creature displays name), as
+              they are or as a tinted copy (see below)
+    sounds    { "<key>": { "clone": <Ascension SoundEntries id>, "files": [ "<wav, relative to the repository>" ],
+              "volume": v, "minDistance": d, "cutoff": d, "id": <its own id> } } - sounds of our own (not
+              Ascension's): a SoundEntries row copying clone's (its type: a creature's loop is 27, as 1453
+              WaterElementalLoop), playing one of the files at random, shipped in soundFolder (an archive folder);
+              a kit names one as "@<key>", and visuals.json lists every one's id under "sounds"
 
 A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>, "anim": <animation id>,
 "effects": { "<attachment>": <effect> }, "sound": <sound>, "shake": <stock CameraShakes id>, "fields": { "<field>":
@@ -21,8 +29,10 @@ given null removed; fields sets raw SpellVisualKit fields (a decimal value is wr
 parameters, 21-36). Attachments: head, chest, base, lefthand,
 righthand, hands (both), breath, leftweapon, rightweapon, weapons (both), special1-3, world. An effect is an Ascension
 SpellVisualEffectName id or a model's file name without its folder and extension (the row at scale 1 if there is
-one), or { "model": <that>, "scale": <factor> } for a copy of it drawn that much larger or smaller (an effect made for
-a raid boss, shrunk to a player's spell); a sound an Ascension SoundEntries id or name.
+one), or { "model": <that>, "scale": <factor>, "tint": "#rrggbb" } for a copy of it drawn that much larger or smaller
+(an effect made for a raid boss, shrunk to a player's spell) and/or coloured: tinted, the model gets its own copy
+(Spells/Evolutions/Tint/<name>_<rrggbb>) whose animated colours and textures all take that hue, whites included, each
+keeping its brightness (a white light beam made a rarity's colour); a sound an Ascension SoundEntries id or name.
 
 Ascension's data is stock-layout 3.3.5 (its tables load as ours do, its models are version 264), and the effects it
 plays are mostly retail ones it converted; the import keeps them as they are. Written:
@@ -38,6 +48,7 @@ plays are mostly retail ones it converted; the import keeps them as they are. Wr
 The Ascension client is read where ASCENSION_ROOT points (default D:\\ascension-live), the stock one at
 STOCK_CLIENT (default the CleanWOTLK folder). Run it again after changing the config: the output is rebuilt whole.
 """
+import colorsys
 import importlib.util
 import json
 import ntpath
@@ -55,6 +66,14 @@ STOCK_DBC = os.path.join(REPO, 'server', 'Data', 'dbc')
 spec = importlib.util.spec_from_file_location('m2', os.path.join(REPO, 'localTools', 'oathblade', 'm2.py'))
 m2 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m2)
+# The BLP reader and writer the Oathblade's blue effects use, for the tinted textures
+spec = importlib.util.spec_from_file_location('blp', os.path.join(REPO, 'localTools', 'interface', 'spike', 'blp.py'))
+BLP = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(BLP)
+spec = importlib.util.spec_from_file_location('blp_writer', os.path.join(REPO, 'localTools', 'interface',
+                                                                          'buildParagonArt.py'))
+BLP_WRITER = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(BLP_WRITER)
 
 TABLES = ['SpellVisual', 'SpellVisualKit', 'SpellVisualEffectName', 'SoundEntries', 'SpellVisualKitModelAttach',
           'SpellMissileMotion']
@@ -152,6 +171,11 @@ class Importer:
         self.rows = {name: [] for name in TABLES}
         self.models = set()
         self.sounds = set()
+        # Tinted copies to make once the models are read: {copy's model path: (source model path, rgb)}
+        self.tints = {}
+        # Sounds of our own: {key: SoundEntries id}, and their files {archive path: source path}
+        self.own_sounds = {}
+        self.own_files = {}
         self.attach_by_kit = {}
         for row in self.source['SpellVisualKitModelAttach'].rows.values():
             self.attach_by_kit.setdefault(row[1], []).append(row[0])
@@ -244,6 +268,38 @@ class Importer:
             raise SystemExit(f'No sound named {spec} in the Ascension client')
         return found[0]
 
+    def own_sound(self, key):
+        """the SoundEntries row of one of the config's own sounds (see the module's doc), made once"""
+        if key in self.own_sounds:
+            return self.own_sounds[key]
+        spec = self.config.get('sounds', {}).get(key)
+        if spec is None:
+            raise SystemExit(f'No sound {key} in the config\'s sounds')
+        table = self.source['SoundEntries']
+        if spec['clone'] not in table.rows:
+            raise SystemExit(f'SoundEntries {spec["clone"]} is not in the Ascension client')
+        files = spec['files']
+        if not 1 <= len(files) <= 10:
+            raise SystemExit(f'Sound {key}: one to ten files')
+        entry = self.new_row('SoundEntries', table.rows[spec['clone']], spec.get('id'))
+        fields = entry['fields']
+        fields[SOUND_ADVANCED] = 0
+        folder = archive_path(self.config['soundFolder'])
+        entry['strings'] = {'2': key, '23': folder}
+        for index in range(10):
+            fields[13 + index] = 1 if index < len(files) else 0
+            entry['strings'][str(3 + index)] = ntpath.basename(archive_path(files[index])) if index < len(files) else ''
+        for index, source in enumerate(files):
+            path = os.path.join(REPO, source)
+            if not os.path.isfile(path):
+                raise SystemExit(f'Sound {key}: {source} not found')
+            self.own_files[f'{folder}\\{ntpath.basename(archive_path(source))}'] = path
+        for name, field in (('volume', 24), ('minDistance', 26), ('cutoff', 27)):
+            if name in spec:
+                fields[field] = struct.unpack('<I', struct.pack('<f', float(spec[name])))[0]
+        self.own_sounds[key] = entry['id']
+        return entry['id']
+
     def new_row(self, table, fields, own_id=None):
         """a row of the import's own (no Ascension row behind it), numbered next or with the id it asks for"""
         if own_id is None:
@@ -281,7 +337,10 @@ class Importer:
                     scaled[field] = effect
                 else:
                     fields[field] = self.find_effect(effect)
-        if 'sound' in spec:
+        own_sound = spec.get('sound') if str(spec.get('sound', '')).startswith('@') else None
+        if own_sound:
+            fields[KIT_SOUND] = 0
+        elif 'sound' in spec:
             fields[KIT_SOUND] = self.find_sound(spec['sound'])
         if 'shake' in spec:
             fields[KIT_SHAKE] = spec['shake'] or 0
@@ -289,31 +348,74 @@ class Importer:
             fields[int(field)] = struct.unpack('<I', struct.pack('<f', value))[0] if isinstance(value, float) else value
         entry = self.new_row('SpellVisualKit', fields, spec.get('id'))
         self.rewrite_kit(entry, source_id)
+        if own_sound:
+            entry['fields'][KIT_SOUND] = self.own_sound(own_sound[1:])
         for field, effect in scaled.items():
             entry['fields'][field] = self.scaled_effect(effect)
         return entry['id']
 
     def scaled_effect(self, spec):
         """a copy of an imported effect row drawn `scale` times its size (SpellVisualEffectName's scale and the range it
-        is clamped to)"""
+        is clamped to), and/or pointing at a `tint`ed copy of its model"""
         base_id = self.effect(self.find_effect(spec['model']))
         base = next(row for row in self.rows['SpellVisualEffectName'] if row['id'] == base_id)
         fields = list(base['fields'])
-        scale = float(spec['scale'])
-        bits = struct.unpack('<I', struct.pack('<f', scale))[0]
-        fields[4] = bits
-        fields[5] = struct.unpack('<I', struct.pack('<f', min(scale, 0.01)))[0]
-        fields[6] = struct.unpack('<I', struct.pack('<f', max(scale, 10.0)))[0]
+        if 'scale' in spec:
+            scale = float(spec['scale'])
+            bits = struct.unpack('<I', struct.pack('<f', scale))[0]
+            fields[4] = bits
+            fields[5] = struct.unpack('<I', struct.pack('<f', min(scale, 0.01)))[0]
+            fields[6] = struct.unpack('<I', struct.pack('<f', max(scale, 10.0)))[0]
         entry = self.new_row('SpellVisualEffectName', fields)
         entry['strings'] = dict(base['strings'])
+        if 'tint' in spec:
+            source = archive_path(base['strings']['2'])
+            entry['strings']['2'] = self.tinted_model(source, spec['tint'])[:-3] + ntpath.splitext(source)[1]
         return entry['id']
+
+    def tinted_model(self, source, tint):
+        """the path of a model's copy coloured `tint` (#rrggbb), made once the models are read"""
+        colour = tint.lstrip('#').lower()
+        rgb = tuple(int(colour[index:index + 2], 16) / 255 for index in (0, 2, 4))
+        stem = ntpath.splitext(ntpath.basename(archive_path(source)))[0]
+        copy = f'Spells\\Evolutions\\Tint\\{stem}_{colour}.m2'
+        self.models.add(model_path(source))
+        self.tints[copy] = (model_path(source), rgb, colour)
+        return copy
+
+    def tinted_files(self, models):
+        """the tinted copies: each model with its animated colours and its textures coloured, its skins renamed"""
+        files = {}
+        for copy, (source, rgb, colour) in sorted(self.tints.items()):
+            if source not in models:
+                raise SystemExit(f'{source} was not read: it cannot be tinted')
+            model = m2.M2(bytearray(models[source]))
+            for name in model.particle_models():
+                print(f'  warning: {source} particles draw {name}, which keeps its own colours')
+            for offset, scale in model.colour_slots():
+                model.set_colour(offset, tint_colour(tuple(c / scale for c in model.colour(offset)), rgb, scale))
+            for record, kind, name in model.textures():
+                if kind != 0 or not name:
+                    continue
+                texture = archive_path(name)
+                if texture not in models:
+                    raise SystemExit(f'{texture} (named by {source}) was not read: it cannot be tinted')
+                tinted = f'Spells\\Evolutions\\Tint\\{ntpath.splitext(ntpath.basename(texture))[0]}_{colour}.blp'
+                if tinted not in files:
+                    files[tinted] = tint_texture(models[texture], rgb)
+                model.rename_texture(record, tinted)
+            files[copy] = bytes(model.data)
+            for index in range(model.skin_count):
+                skin = f'{source[:-3]}{index:02d}.skin'
+                files[f'{copy[:-3]}{index:02d}.skin'] = models[skin]
+        return files
 
     def composed_visual(self, spec):
         source_id = spec['from']
         if source_id not in self.source['SpellVisual'].rows:
             raise SystemExit(f'SpellVisual {source_id} is not in the Ascension client')
         source = self.source['SpellVisual'].rows[source_id]
-        unknown = set(spec) - set(SLOTS) - {'from', 'missile'}
+        unknown = set(spec) - set(SLOTS) - {'from', 'missile', 'motion'}
         if unknown:
             raise SystemExit(f'Unknown look slots {sorted(unknown)}')
         entry = self.new_row('SpellVisual', source)
@@ -324,7 +426,8 @@ class Importer:
         fields[VISUAL_MISSILE_MODEL] = self.effect(missile)
         for field in VISUAL_SOUNDS:
             fields[field] = self.sound(source[field])
-        fields[VISUAL_MOTION] = self.motion(source[VISUAL_MOTION])
+        # The missile's path: the source's, or a SpellMissileMotion row named by id (a stock arc: 40 Fountain)
+        fields[VISUAL_MOTION] = self.motion(spec['motion'] if 'motion' in spec else source[VISUAL_MOTION])
         return entry['id']
 
     def attach_rewriter(self, kit_id):
@@ -391,6 +494,40 @@ class Importer:
         return {name: open(local(directory, name), 'rb').read() for name in self.sounds - missing}, missing
 
 
+def tint_colour(rgb, target, scale=1.0):
+    """an M2 colour (0-1 once divided by scale) given the target's hue and saturation, keeping its brightness"""
+    hue, saturation, _ = colorsys.rgb_to_hsv(*target)
+    value = min(1.0, max(rgb))
+    return tuple(c * scale for c in colorsys.hsv_to_rgb(hue, saturation, value))
+
+
+def tint_texture(data, target):
+    """a texture coloured with the target's hue: brightness and alpha kept, the brightest pixels a little paler so a
+    beam keeps a light core"""
+    import numpy
+    from PIL import Image
+    with tempfile.TemporaryDirectory() as work:
+        source = os.path.join(work, 'in.blp')
+        with open(source, 'wb') as file:
+            file.write(data)
+        image = BLP.read_blp(source).convert('RGBA')
+        hue, saturation, _ = colorsys.rgb_to_hsv(*target)
+        alpha = image.getchannel('A')
+        hsv = numpy.asarray(image.convert('RGB').convert('HSV')).astype(numpy.float32) / 255
+        value = hsv[..., 2]
+        hsv[..., 0] = hue
+        hsv[..., 1] = saturation * (1.0 - 0.45 * value ** 3)
+        result = Image.fromarray(numpy.round(hsv * 255).astype(numpy.uint8), 'HSV').convert('RGB')
+        result.putalpha(alpha)
+        target_path = os.path.join(work, 'out.blp')
+        if result.width * result.height <= 256 * 256:
+            BLP_WRITER.writeRawBlp(result, target_path)
+        else:
+            BLP_WRITER.writeDxt3Blp(result, target_path)
+        with open(target_path, 'rb') as file:
+            return file.read()
+
+
 def write_sound(target, data, name):
     if not name.lower().endswith('.ogg'):
         with open(target, 'wb') as output:
@@ -413,11 +550,18 @@ def main(config_path):
         ids = {key: importer.visual(source_id) for key, source_id in config.get('visuals', {}).items()}
         ids.update({key: importer.composed_visual(spec) for key, spec in config.get('looks', {}).items()})
         kits = {key: importer.composed_kit(spec) for key, spec in config.get('kits', {}).items()}
+        own_sounds = {key: importer.own_sound(key) for key in config.get('sounds', {})}
+        for spec in config.get('models', []):
+            if isinstance(spec, dict):
+                importer.tinted_model(spec['model'], spec['tint'])
+            else:
+                importer.models.add(model_path(spec))
         for table, rows in importer.rows.items():
             numbers = [row['id'] for row in rows]
             if len(numbers) != len(set(numbers)):
                 raise SystemExit(f"{table}: a kit's own id is one the import numbered too; give it a higher one")
         models, missing_models = importer.model_files()
+        models.update(importer.tinted_files(models))
         sounds, missing_sounds = importer.sound_files()
 
         stock_list = os.path.join(work, 'stock-list.json')
@@ -442,8 +586,14 @@ def main(config_path):
                 with open(target, 'wb') as file:
                     file.write(data)
             shipped += 1
+        for name, source in sorted(importer.own_files.items()):
+            target = local(files_root, name)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copyfile(source, target)
+            shipped += 1
 
-        result = {'ids': ids, 'kits': kits, 'tables': {table: importer.rows[table] for table in TABLES}}
+        result = {'ids': ids, 'kits': kits, 'sounds': own_sounds,
+                  'tables': {table: importer.rows[table] for table in TABLES}}
         with open(os.path.join(output, 'visuals.json'), 'w', encoding='utf-8') as file:
             json.dump(result, file, indent=1, ensure_ascii=False)
             file.write('\n')

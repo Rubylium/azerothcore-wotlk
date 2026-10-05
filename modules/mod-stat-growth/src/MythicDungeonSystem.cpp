@@ -1,4 +1,5 @@
 #include "MythicDungeonSystem.h"
+#include "GroundLoot.h"
 #include "InfiniteGodLoot.h"
 
 #include "EssenceTierSystem.h"
@@ -514,7 +515,7 @@ ItemTemplate const* SelectMythicItem(Player* player, uint32 itemLevel, uint8 equ
 
 // That item, straight into the player's bags (their mailbox when full); touch, if given, marks it before it is shown
 // to them
-void GiveSelectedMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
+void StoreSelectedMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
 {
     ItemPosCountVec destination;
     if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, itemTemplate->ItemId, 1) != EQUIP_ERR_OK)
@@ -532,6 +533,13 @@ void GiveSelectedMythicItem(Player* player, ItemTemplate const* itemTemplate, st
         player->SendNewItem(item, 1, true, false, true);
         TryRollPersonalLoot(player, item);
     }
+}
+
+// The same, thrown out on the floor with its loot when a boss of the player's just died (GroundLoot.cpp)
+void GiveSelectedMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
+{
+    if (!GroundLoot::Throw(player, itemTemplate, touch))
+        StoreSelectedMythicItem(player, itemTemplate, touch);
 }
 
 // One epic of the run's item level, fitted to the player's class, straight into their bags; touch, if given, marks it
@@ -638,6 +646,8 @@ public:
         if (data->lootGiven)
             return;
         data->lootGiven = true;
+        // Its loot thrown out on the floor, this item with it
+        GroundLoot::Open(creature);
 
         uint32 const itemLevel = Mythic::BaseItemLevel;
         creature->GetMap()->DoForAllPlayers([itemLevel](Player* player)
@@ -659,7 +669,7 @@ public:
         GLOBALHOOK_ON_AFTER_UPDATE_ENCOUNTER_STATE
     }) { }
 
-    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* /*source*/,
+    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source,
         Difficulty /*difficulty*/, std::list<DungeonEncounter const*> const* /*encounters*/, uint32 dungeonCompleted,
         bool /*updated*/) override
     {
@@ -667,6 +677,9 @@ public:
         if (!dungeonCompleted || level <= 0 || !rewardedInstances.insert(map->GetInstanceId()).second)
             return;
 
+        // The key's item thrown out on the floor by the last boss, with its loot
+        if (Creature* boss = source ? source->ToCreature() : nullptr)
+            GroundLoot::Open(boss);
         uint32 const itemLevel = Mythic::GetItemLevel(level);
         uint32 const essenceRolls = 1 + static_cast<uint32>(level) / EssenceRollLevels;
         uint32 const essences = GetMythicEssenceReward(static_cast<uint32>(level));
@@ -964,15 +977,31 @@ void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)
         GiveMythicItem(player, std::min(itemLevel, Mythic::MaxRaidItemLevel), TouchByInfiniteGod);
 }
 
-// The Hollow Voice's loot: one piece in four touched by it (TouchByHollowVoice), its bonus, frame and tooltip its own
+// The Hollow Voice's loot: one piece in four touched by it (TouchByHollowVoice), its bonus, frame and tooltip its own.
+// Rolled before the piece is made: thrown on the floor, a touched one lands with its own sound (GroundLoot.cpp).
 void GivePinnacleLootItem(Player* player, uint32 itemLevel)
 {
-    if (player)
-        GiveMythicItem(player, std::min(itemLevel, Mythic::MaxPinnacleItemLevel), [](Item* item)
-        {
-            if (roll_chance_f(InfiniteGodLoot::HollowVoice::BonusChancePct))
-                TouchByHollowVoice(item);
-        });
+    if (!player)
+        return;
+    std::function<void(Item*)> touch;
+    if (roll_chance_f(InfiniteGodLoot::HollowVoice::BonusChancePct))
+        touch = TouchByHollowVoice;
+    GiveMythicItem(player, std::min(itemLevel, Mythic::MaxPinnacleItemLevel), touch);
+}
+
+bool IsMythicDungeonBoss(Creature const* creature)
+{
+    return IsMythicBoss(creature);
+}
+
+void SendMythicItemRecord(Player* player, uint32 entry)
+{
+    SendGeneratedItemRecord(player, entry);
+}
+
+void StoreMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
+{
+    StoreSelectedMythicItem(player, itemTemplate, touch);
 }
 
 bool IsMythicLootless(Creature const* creature)

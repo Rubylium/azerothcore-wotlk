@@ -13,6 +13,7 @@
 #include "FortuneBoostSystem.h"
 #include "GladiatorStanceSystem.h"
 #include "GroundIndicators.h"
+#include "GroundLoot.h"
 #include "InfiniteDungeonSystem.h"
 #include "MythicAppearance.h"
 #include "MythicDungeonSystem.h"
@@ -847,6 +848,7 @@ void AddStatGrowthScripts()
     AddDungeonFinderLockScripts();
     AddMythicDungeonScripts();
     AddGroundIndicatorScripts();
+    AddGroundLootScripts();
     AddExperienceRateCommand();
     AddDaytimeCommand();
     AddOnyxiaReworkScripts();
