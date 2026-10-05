@@ -1,6 +1,9 @@
--- The world's post-processing (the client extension's PostFx: ambient occlusion, glow, sharpening, colour grading),
--- set from its own category of the Video options. Every setting is a CVar the DLL reads each frame, so a slider shows
--- its effect at once; Cancel puts back what was there when the window opened. /rendu switches it on and off.
+-- The world's post-processing (the client extension's PostFx: lights, shadows, fog, reflections, glow, colour), set
+-- from its own category of the Video options. Every setting is a CVar the DLL reads each frame, so a slider shows its
+-- effect at once; Cancel puts back what was there when the window opened. /rendu switches it on and off.
+--
+-- The sliders stand in four sections (light and shadow, atmosphere, image, colour) inside a scrolling area: the
+-- window's own buttons stay clear of them however many there are.
 
 -- Without the client extension there is nothing to set
 if not GetCVar("postFx") then
@@ -11,108 +14,127 @@ local french = GetLocale() == "frFR"
 local TEXT = french and {
     category = "Rendu avancé",
     title = "Rendu avancé",
-    subtext = "Ombres, lumières, soleil, brume, reflets, lueur et couleurs, appliqués au monde seulement : "
-        .. "l'interface reste intacte.",
+    subtext = "Appliqué au monde seulement : l'interface reste intacte.",
     enable = "Activer le rendu avancé",
     antiAlias = "Anticrénelage",
     presets = "Ambiances",
     natural = "Naturel",
     vivid = "Vivant",
     cinema = "Cinéma",
-    note = "Ombres, rayons, brume et eau : MSAA à désactiver, l'anticrénelage le remplace. "
-        .. "/rendu l'active ou le coupe.",
+    lightSection = "Lumière et ombres",
+    airSection = "Atmosphère",
+    imageSection = "Image",
+    colourSection = "Couleurs",
+    note = "Les ombres, la brume et l'eau ont besoin du MSAA désactivé : l'anticrénelage le remplace. "
+        .. "/rendu active ou coupe le rendu avancé.",
     on = "Rendu avancé activé.",
     off = "Rendu avancé désactivé.",
+    shadows = "Ombres du soleil",
     ao = "Ombres de contact",
-    shafts = "Rayons de soleil",
-    haze = "Brume",
-    water = "Reflets de l'eau",
     lights = "Lumières des flammes",
     night = "Nuits sombres",
-    shadows = "Ombres du soleil",
-    fog = "Brume et halos",
+    fog = "Brouillard et halos",
+    haze = "Brume lointaine",
+    shafts = "Rayons de soleil",
+    water = "Reflets de l'eau",
     focus = "Profondeur de champ",
     bloom = "Lueur",
     sharpen = "Netteté",
+    exposure = "Exposition",
     contrast = "Contraste",
     vibrance = "Éclat des couleurs",
     saturation = "Saturation",
     warmth = "Température",
     tone = "Teinte cinéma",
     vignette = "Vignettage",
-    exposure = "Exposition",
 } or {
     category = "Enhanced Rendering",
     title = "Enhanced Rendering",
-    subtext = "Shadows, lights, sun shafts, haze, reflections, glow and colour, applied to the world only: the "
-        .. "interface stays untouched.",
+    subtext = "Applied to the world only: the interface stays untouched.",
     enable = "Enable enhanced rendering",
     antiAlias = "Anti-aliasing",
     presets = "Moods",
     natural = "Natural",
     vivid = "Vivid",
     cinema = "Cinematic",
-    note = "Shadows, shafts, haze and water: turn MSAA off, the anti-aliasing replaces it. /rendu toggles it all.",
+    lightSection = "Light and shadow",
+    airSection = "Atmosphere",
+    imageSection = "Image",
+    colourSection = "Colour",
+    note = "Shadows, mist and water need MSAA off: the anti-aliasing replaces it. /rendu toggles enhanced rendering.",
     on = "Enhanced rendering on.",
     off = "Enhanced rendering off.",
+    shadows = "Sun shadows",
     ao = "Contact shadows",
-    shafts = "Sun shafts",
-    haze = "Haze",
-    water = "Water reflections",
     lights = "Firelight",
     night = "Darker nights",
-    shadows = "Sun shadows",
     fog = "Mist and halos",
+    haze = "Distant haze",
+    shafts = "Sun shafts",
+    water = "Water reflections",
     focus = "Depth of field",
     bloom = "Glow",
     sharpen = "Sharpness",
+    exposure = "Exposure",
     contrast = "Contrast",
     vibrance = "Colour vibrance",
     saturation = "Saturation",
     warmth = "Temperature",
     tone = "Cinematic tone",
     vignette = "Vignette",
-    exposure = "Exposure",
 }
 
--- The sliders, in two columns (the world's effects, then the colours), with their CVar and range. The depth of field
--- only shows with the camera zoomed in close on the character.
-local SETTINGS = {
-    { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
-    { key = "lights", cvar = "postFxLights", min = 0, max = 100 },
-    { key = "night", cvar = "postFxNight", min = 0, max = 100 },
-    { key = "shadows", cvar = "postFxSunShadows", min = 0, max = 100 },
-    { key = "fog", cvar = "postFxFog", min = 0, max = 100 },
-    { key = "shafts", cvar = "postFxShafts", min = 0, max = 100 },
-    { key = "haze", cvar = "postFxHaze", min = 0, max = 100 },
-    { key = "water", cvar = "postFxWater", min = 0, max = 100 },
-    { key = "focus", cvar = "postFxDoF", min = 0, max = 100 },
-    { key = "bloom", cvar = "postFxBloom", min = 0, max = 100 },
-    { key = "sharpen", cvar = "postFxSharpen", min = 0, max = 100 },
-    { key = "exposure", cvar = "postFxExposure", min = 50, max = 150 },
-    { key = "contrast", cvar = "postFxContrast", min = 0, max = 100 },
-    { key = "vibrance", cvar = "postFxVibrance", min = 0, max = 100 },
-    { key = "saturation", cvar = "postFxSaturation", min = 0, max = 200 },
-    { key = "warmth", cvar = "postFxWarmth", min = -100, max = 100 },
-    { key = "tone", cvar = "postFxTone", min = 0, max = 100 },
-    { key = "vignette", cvar = "postFxVignette", min = 0, max = 100 },
+-- The sections and their sliders, with their CVar and range. The depth of field only shows with the camera zoomed in
+-- close on the character.
+local SECTIONS = {
+    { title = "lightSection", settings = {
+        { key = "shadows", cvar = "postFxSunShadows", min = 0, max = 100 },
+        { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
+        { key = "lights", cvar = "postFxLights", min = 0, max = 100 },
+        { key = "night", cvar = "postFxNight", min = 0, max = 100 },
+    } },
+    { title = "airSection", settings = {
+        { key = "fog", cvar = "postFxFog", min = 0, max = 100 },
+        { key = "haze", cvar = "postFxHaze", min = 0, max = 100 },
+        { key = "shafts", cvar = "postFxShafts", min = 0, max = 100 },
+        { key = "water", cvar = "postFxWater", min = 0, max = 100 },
+    } },
+    { title = "imageSection", settings = {
+        { key = "focus", cvar = "postFxDoF", min = 0, max = 100 },
+        { key = "bloom", cvar = "postFxBloom", min = 0, max = 100 },
+        { key = "sharpen", cvar = "postFxSharpen", min = 0, max = 100 },
+    } },
+    { title = "colourSection", settings = {
+        { key = "exposure", cvar = "postFxExposure", min = 50, max = 150 },
+        { key = "contrast", cvar = "postFxContrast", min = 0, max = 100 },
+        { key = "vibrance", cvar = "postFxVibrance", min = 0, max = 100 },
+        { key = "saturation", cvar = "postFxSaturation", min = 0, max = 200 },
+        { key = "warmth", cvar = "postFxWarmth", min = -100, max = 100 },
+        { key = "tone", cvar = "postFxTone", min = 0, max = 100 },
+        { key = "vignette", cvar = "postFxVignette", min = 0, max = 100 },
+    } },
 }
 
 local PRESETS = {
     natural = { postFxAO = 50, postFxLights = 60, postFxShafts = 35, postFxHaze = 25, postFxWater = 60,
-        postFxDoF = 60, postFxNight = 40, postFxSunShadows = 60, postFxFog = 45, postFxBloom = 25,
+        postFxDoF = 60, postFxNight = 40, postFxSunShadows = 60, postFxFog = 40, postFxBloom = 25,
         postFxSharpen = 35, postFxContrast = 15, postFxExposure = 100, postFxVibrance = 15, postFxSaturation = 100,
         postFxWarmth = 0, postFxTone = 0, postFxVignette = 15 },
     vivid = { postFxAO = 60, postFxLights = 75, postFxShafts = 50, postFxHaze = 30, postFxWater = 70,
-        postFxDoF = 60, postFxNight = 45, postFxSunShadows = 70, postFxFog = 50, postFxBloom = 40,
+        postFxDoF = 60, postFxNight = 45, postFxSunShadows = 70, postFxFog = 45, postFxBloom = 40,
         postFxSharpen = 50, postFxContrast = 30, postFxExposure = 100, postFxVibrance = 35, postFxSaturation = 105,
         postFxWarmth = 5, postFxTone = 20, postFxVignette = 20 },
     cinema = { postFxAO = 70, postFxLights = 85, postFxShafts = 70, postFxHaze = 45, postFxWater = 80,
-        postFxDoF = 80, postFxNight = 60, postFxSunShadows = 80, postFxFog = 65, postFxBloom = 55,
+        postFxDoF = 80, postFxNight = 60, postFxSunShadows = 80, postFxFog = 60, postFxBloom = 55,
         postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100, postFxVibrance = 20, postFxSaturation = 95,
         postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
 local DEFAULT_PRESET = "natural"
+
+-- The layout: two columns of sliders sharing the scrolling area's width (measured when the panel shows: the options
+-- window is narrower than it looks), each row tall enough for its label above and its range below
+local ROW_HEIGHT = 48
+local HEADER_HEIGHT = 30
 
 local panel = CreateFrame("Frame", "PostProcessingPanel", VideoOptionsFramePanelContainer)
 panel:Hide()
@@ -125,9 +147,7 @@ title:SetText(TEXT.title)
 local subtext = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 subtext:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
 subtext:SetPoint("RIGHT", -32, 0)
-subtext:SetHeight(28)       -- two lines: a fixed height lets it wrap instead of cutting it off
 subtext:SetJustifyH("LEFT")
-subtext:SetJustifyV("TOP")
 subtext:SetText(TEXT.subtext)
 
 local enable = CreateFrame("CheckButton", "PostProcessingPanelEnable", panel, "OptionsCheckButtonTemplate")
@@ -135,12 +155,20 @@ enable:SetPoint("TOPLEFT", subtext, "BOTTOMLEFT", -2, -8)
 _G[enable:GetName() .. "Text"]:SetText(TEXT.enable)
 
 local antiAlias = CreateFrame("CheckButton", "PostProcessingPanelAntiAlias", panel, "OptionsCheckButtonTemplate")
-antiAlias:SetPoint("LEFT", enable, "LEFT", 196, 0)
+antiAlias:SetPoint("LEFT", enable, "LEFT", 270, 0)
 _G[antiAlias:GetName() .. "Text"]:SetText(TEXT.antiAlias)
 
 local presetLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-presetLabel:SetPoint("TOPLEFT", enable, "BOTTOMLEFT", 2, -16)
+presetLabel:SetPoint("TOPLEFT", enable, "BOTTOMLEFT", 2, -14)
 presetLabel:SetText(TEXT.presets)
+
+-- The scrolling area under the presets, down to just above the window's buttons
+local scroll = CreateFrame("ScrollFrame", "PostProcessingPanelScroll", panel, "UIPanelScrollFrameTemplate")
+scroll:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", -6, -14)
+scroll:SetPoint("BOTTOMRIGHT", -30, 10)
+local content = CreateFrame("Frame", nil, scroll)
+content:SetSize(300, 10)
+scroll:SetScrollChild(content)
 
 local sliders = {}
 local refreshing = false
@@ -175,15 +203,15 @@ end
 local previous = nil
 local function remember()
     previous = { postFx = GetCVar("postFx"), postFxAA = GetCVar("postFxAA") }
-    for _, setting in ipairs(SETTINGS) do
-        previous[setting.cvar] = GetCVar(setting.cvar)
+    for _, slider in ipairs(sliders) do
+        previous[slider.setting.cvar] = GetCVar(slider.setting.cvar)
     end
 end
 
 local lastButton
 for _, name in ipairs({ "natural", "vivid", "cinema" }) do
     local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    button:SetSize(80, 22)
+    button:SetSize(90, 22)
     if lastButton then
         button:SetPoint("LEFT", lastButton, "RIGHT", 6, 0)
     else
@@ -196,34 +224,66 @@ for _, name in ipairs({ "natural", "vivid", "cinema" }) do
     lastButton = button
 end
 
-local ROWS = 9
-for index, setting in ipairs(SETTINGS) do
-    local column, row = (index - 1) >= ROWS and 1 or 0, (index - 1) % ROWS
-    local slider = CreateFrame("Slider", "PostProcessingPanelSlider" .. index, panel, "OptionsSliderTemplate")
-    slider.setting = setting
-    slider:SetWidth(150)
-    slider:SetPoint("TOPLEFT", presetLabel, "BOTTOMLEFT", 8 + column * 180, -34 - row * 30)
-    slider:SetMinMaxValues(setting.min, setting.max)
-    slider:SetValueStep(1)
-    _G[slider:GetName() .. "Low"]:SetText(setting.min)
-    _G[slider:GetName() .. "High"]:SetText(setting.max)
-    slider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value + 0.5)
-        sliderLabel(self, value)
-        if not refreshing then
-            setCVar(setting.cvar, value)
-        end
-    end)
-    sliders[index] = slider
+-- The sections, one under the other: a heading with a rule, then the sliders two by two (placed by layout())
+local headings = {}
+for _, section in ipairs(SECTIONS) do
+    local heading = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    heading:SetText(TEXT[section.title])
+    local rule = content:CreateTexture(nil, "ARTWORK")
+    rule:SetTexture(1, 0.82, 0, 0.25)
+    rule:SetHeight(1)
+    rule:SetPoint("LEFT", heading, "RIGHT", 8, 0)
+    rule:SetPoint("RIGHT", content, "RIGHT", -6, 0)
+    headings[#headings + 1] = heading
+    section.sliders = {}
+    for _, setting in ipairs(section.settings) do
+        local slider = CreateFrame("Slider", "PostProcessingPanelSlider" .. (#sliders + 1), content,
+            "OptionsSliderTemplate")
+        slider.setting = setting
+        slider:SetMinMaxValues(setting.min, setting.max)
+        slider:SetValueStep(1)
+        _G[slider:GetName() .. "Low"]:SetText(setting.min)
+        _G[slider:GetName() .. "High"]:SetText(setting.max)
+        slider:SetScript("OnValueChanged", function(self, value)
+            value = math.floor(value + 0.5)
+            sliderLabel(self, value)
+            if not refreshing then
+                setCVar(setting.cvar, value)
+            end
+        end)
+        sliders[#sliders + 1] = slider
+        section.sliders[#section.sliders + 1] = slider
+    end
 end
 
-local note = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-note:SetPoint("TOPLEFT", sliders[ROWS], "BOTTOMLEFT", -8, -16)
-note:SetPoint("RIGHT", -32, 0)
-note:SetHeight(40)
+local note = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 note:SetJustifyH("LEFT")
 note:SetJustifyV("TOP")
 note:SetText(TEXT.note)
+
+-- Everything placed for the scrolling area's width: two columns, a slider filling most of its column
+local function layout()
+    local width = math.max(scroll:GetWidth(), 260)
+    content:SetWidth(width)
+    local column = (width - 12) / 2
+    local y = -4
+    for s, section in ipairs(SECTIONS) do
+        headings[s]:ClearAllPoints()
+        headings[s]:SetPoint("TOPLEFT", 6, y)
+        y = y - HEADER_HEIGHT
+        for index, slider in ipairs(section.sliders) do
+            local col, row = (index - 1) % 2, math.floor((index - 1) / 2)
+            slider:ClearAllPoints()
+            slider:SetWidth(column - 24)
+            slider:SetPoint("TOPLEFT", 12 + col * column, y - 14 - row * ROW_HEIGHT)
+        end
+        y = y - math.ceil(#section.sliders / 2) * ROW_HEIGHT - 10
+    end
+    note:ClearAllPoints()
+    note:SetPoint("TOPLEFT", 6, y - 4)
+    note:SetWidth(width - 12)
+    content:SetHeight(-y + note:GetHeight() + 24)
+end
 
 enable:SetScript("OnClick", function(self)
     setCVar("postFx", self:GetChecked() and 1 or 0)
@@ -253,6 +313,7 @@ panel:SetScript("OnShow", function()
     if not previous then
         remember()
     end
+    layout()
     refresh()
 end)
 
