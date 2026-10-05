@@ -67,6 +67,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // The action buttons' spell states (greyed out of the server's rules, proc glows); needs TalentTree.lua
     'SpellStates.lua',
     // The Effects panel's view distance, objects' detail and grass past the stock limits, with the game's memory
+    // The class HUD (a class's own resource, draggable; .agents/docs/systems/class-hud.md), then each class's own
+    'ClassHud.lua', 'ClassHudReaper.lua',
     'WorldDetailUI.lua'];
 
 function readArchiveFile(archivePath, name) {
