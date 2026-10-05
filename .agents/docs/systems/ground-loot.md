@@ -36,11 +36,12 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   900122 a light beam over it (60004-60009: Ascension's moonbeam tinted white, green, blue, purple, orange, gold).
 - The arc is `MoveJump` from inside the corpse (no missile spell): the bag appears, jumps 250 ms later, lands about
   900 ms after that, past the corpse's reach (golden-angle spread, collision-checked). Drops leave 300 ms apart. The
-  landing is timed on the jump's own spline (`movespline->Duration()`, what the client draws), the burst's sound goes
-  with the first jump and each landing's 150 ms before touchdown: the user wants them back to back (2026-10-05).
+  landing is timed on the jump's own spline (`movespline->Duration()`, what the client draws). Each drop plays its own
+  flip as it jumps and its own landing 150 ms before touchdown, back to back (2026-10-05); one flip for the whole burst
+  was heard after a landing on the Hollow Voice (2026-10-06).
 - Sparkles are `SpellVisualKit`s sent to the owner alone (`SMSG_PLAY_SPELL_VISUAL` by direct message), landing and
   pickup. Sounds are played by the server to the owner alone, by SoundEntries id (`PlayDirectSound`, the gold's landing
-  `PlayDistanceSound` on its bag): the burst, a landing per tier (item, epic, unique, legendary, gold), a pickup (item,
+  `PlayDistanceSound` on its bag): a flip per drop, a landing per tier (item, epic, unique, legendary, gold), a pickup (item,
   gold). A kit's own sound was never heard when the server played the kit (2026-10-05, v1.0.309): don't put the
   sounds back in the kits. Each beam plays its quality's ambient loop for as long as it stands: its display's
   `CreatureSoundData.LoopSoundID` (client DBC only). Levels: Diablo IV's loot sounds, mixed for its own engine, were
@@ -59,6 +60,12 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   the bags, the mailbox when full.
 - The Défi waits for it (`RaidFinder.cpp` `UpdateChallengeLoot`): the way home starts once no player has any loot
   pending (at least 3 s after the kill), or 60 s after the kill whatever is left.
+
+## Testing
+
+`.groundloot [count]` (game master): a burst thrown out of yourself, past where you stand - with no count one drop of
+each kind (white, green, blue, epic, unique epic, legendary, two gold piles), else that many at random. Real items'
+tooltips; picking them up plays everything and gives nothing.
 
 ## Assets
 

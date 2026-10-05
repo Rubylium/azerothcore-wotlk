@@ -3,6 +3,8 @@
 #include "MythicDungeonSystem.h"
 
 #include "Chat.h"
+#include "ChatCommand.h"
+#include "CommandScript.h"
 #include "Containers.h"
 #include "Creature.h"
 #include "CreatureScript.h"
@@ -47,10 +49,10 @@ constexpr uint8 BeamGold = 5;
 constexpr uint32 KIT_LAND = 81911;
 constexpr uint32 KIT_PICKUP = 81913;
 // Diablo IV's loot sounds (SoundEntries, same file), played by the server to the owner alone: a kit's own sound was
-// never heard when the server played the kit. The loot flipping out of the corpse; a drop landing - an item, an epic,
+// never heard when the server played the kit. A drop flipping out of the corpse; a drop landing - an item, an epic,
 // an epic with a power of its own (touched by L'Infini or the Hollow Voice), a legendary, gold (on the drop, in the
 // world) - and picked up (an item, gold).
-constexpr uint32 SOUND_BURST = 81920;
+constexpr uint32 SOUND_FLIP = 81920;
 constexpr uint32 SOUND_LAND = 81921;
 constexpr uint32 SOUND_LAND_EPIC = 81922;
 constexpr uint32 SOUND_LAND_UNIQUE = 81923;
@@ -62,8 +64,9 @@ constexpr uint32 SOUND_PICKUP_GOLD = 81927;
 // The burst: this long after the kill the first drop leaves the corpse, the next ones one after the other. Each
 // appears inside the corpse and jumps a moment later (the client has it by then), in an arc of that height, flying
 // about that long (the jump's own spline says how long exactly: the landing is timed on it), around the corpse past
-// its reach. The burst's sound goes with the first jump, each landing's that much ahead of the touchdown (the client
-// takes a moment to start a sound), so the two come back to back.
+// its reach. Each drop flips out with its own sound as it jumps, and lands with its own that much ahead of the
+// touchdown (the client takes a moment to start a sound): every landing comes right after its own flip, never before.
+// (One flip for the whole burst, on the first jump, could be heard after a landing: 2026-10-06, the Hollow Voice.)
 constexpr uint64 BurstDelayMs = 2000;
 constexpr uint64 ThrowIntervalMs = 300;
 constexpr uint64 JumpDelayMs = 250;
@@ -123,6 +126,7 @@ struct Drop
     uint8 quality = 0;
     bool unique = false;  // a mythic item touched as it is made: a power of its own
     bool fromCorpse = false;  // one of the corpse's: picked up as looting it would (the loot hooks told)
+    bool test = false;  // .groundloot's: looks, sounds and picks up as any, gives nothing
     ObjectGuid corpse;
     Position origin;
     Position landing;
@@ -148,7 +152,6 @@ struct GroundLootState : public DataMap::Base
     uint64 openedAt = 0;
     uint64 nextThrowAt = 0;
     uint32 thrown = 0;
-    bool burstShown = false;
     uint32 updateTimer = 0;
     uint64 fullNoticeAt = 0;
     std::vector<Drop> drops;
@@ -255,6 +258,8 @@ void MailCorpseItem(Player* player, Drop const& drop)
 // told (the essences consumed, the personal loot bonuses rolled), the gold with the "You loot" line
 void Give(Player* player, Drop const& drop)
 {
+    if (drop.test)
+        return;
     switch (drop.kind)
     {
         case DropKind::Gold:
@@ -378,7 +383,7 @@ void PlayLandSound(Player* player, Creature* bag, Drop const& drop)
 
 bool HasRoomFor(Player* player, Drop const& drop)
 {
-    if (drop.kind == DropKind::Gold)
+    if (drop.kind == DropKind::Gold || drop.test)
         return true;
     ItemPosCountVec destination;
     return player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, DropItemId(drop),
@@ -458,11 +463,7 @@ void Update(Player* player, uint32 diff)
                                               JumpSpeedZ);
             int32 const flight = bag->movespline ? bag->movespline->Duration() : 0;
             drop.landAt = now + (flight > 0 ? uint64(flight) : FlightMs);
-            if (!state->burstShown && drop.corpse == state->corpse)
-            {
-                state->burstShown = true;
-                player->PlayDirectSound(SOUND_BURST, player);
-            }
+            player->PlayDirectSound(SOUND_FLIP, player);
         }
         if (drop.jumped && !drop.landSoundPlayed && now + LandSoundLeadMs >= drop.landAt)
         {
@@ -713,7 +714,6 @@ bool Open(Creature* corpse)
         state->openedAt = now;
         state->nextThrowAt = now + BurstDelayMs;
         state->thrown = 0;
-        state->burstShown = false;
     }
     ShareCorpseLoot(corpse, players);
     for (Player* player : players)
@@ -776,8 +776,102 @@ bool HasPending(ObjectGuid guid)
 }
 }
 
+namespace
+{
+using namespace Acore::ChatCommands;
+
+// .groundloot [count]: a boss's burst thrown out of the game master, for testing its looks and sounds. With no count,
+// one drop of each kind - a white, a green, a blue, an epic, an epic with a power of its own, a legendary, two piles
+// of gold - else that many at random. Real items' tooltips, but picking them up gives nothing.
+class GroundLootCommandScript : public CommandScript
+{
+public:
+    GroundLootCommandScript() : CommandScript("GroundLootCommandScript") { }
+
+    ChatCommandTable GetCommands() const override
+    {
+        static ChatCommandTable commandTable =
+        {
+            { "groundloot", HandleGroundLoot, SEC_GAMEMASTER, Console::No },
+        };
+        return commandTable;
+    }
+
+    // Equipment of each quality, at or above the level-80 dungeons' item level, to show on the floor
+    static ItemTemplate const* SampleItem(uint8 quality)
+    {
+        uint32 const minimumLevel = quality >= ITEM_QUALITY_EPIC ? 200 : quality >= ITEM_QUALITY_UNCOMMON ? 150 : 0;
+        std::vector<ItemTemplate const*> found;
+        for (auto const& [entry, itemTemplate] : *sObjectMgr->GetItemTemplateStore())
+            if (itemTemplate.Quality == quality && itemTemplate.ItemLevel >= minimumLevel && entry < 0x10000 &&
+                (itemTemplate.Class == ITEM_CLASS_WEAPON || itemTemplate.Class == ITEM_CLASS_ARMOR))
+                found.push_back(&itemTemplate);
+        return found.empty() ? nullptr : Acore::Containers::SelectRandomContainerElement(found);
+    }
+
+    static Drop TestDrop(uint8 kind)
+    {
+        Drop drop;
+        drop.test = true;
+        if (kind >= 6)
+        {
+            drop.kind = DropKind::Gold;
+            drop.gold = urand(5 * GOLD, 25 * GOLD);
+            return drop;
+        }
+        uint8 const quality = kind == 0 ? ITEM_QUALITY_NORMAL : kind == 1 ? ITEM_QUALITY_UNCOMMON :
+            kind == 2 ? ITEM_QUALITY_RARE : kind <= 4 ? ITEM_QUALITY_EPIC : ITEM_QUALITY_LEGENDARY;
+        if (ItemTemplate const* itemTemplate = SampleItem(quality))
+        {
+            drop.itemId = itemTemplate->ItemId;
+            drop.quality = quality;
+            drop.unique = kind == 4;
+        }
+        else
+        {
+            drop.kind = DropKind::Gold;
+            drop.gold = urand(5 * GOLD, 25 * GOLD);
+        }
+        return drop;
+    }
+
+    static bool HandleGroundLoot(ChatHandler* handler, Optional<uint32> count)
+    {
+        Player* player = handler->GetPlayer();
+        if (!player || !player->IsInWorld())
+            return false;
+        Map* map = player->GetMap();
+        GroundLootState* state = player->CustomData.GetDefault<GroundLootState>(StateKey);
+        uint64 const now = NowMs();
+        state->mapId = map->GetId();
+        state->instanceId = map->GetInstanceId();
+        state->corpse = player->GetGUID();
+        state->origin = player->GetPosition();
+        state->origin.m_positionZ += OriginHeight;
+        // Thrown past where the game master stands, so they do not pick them up as they land
+        state->reach = 3.0f;
+        state->openedAt = now - BurstDelayMs;
+        state->nextThrowAt = now;
+        state->thrown = 0;
+
+        std::vector<uint8> kinds;
+        if (count)
+            for (uint32 index = 0; index < std::min<uint32>(*count, 30); ++index)
+                kinds.push_back(uint8(urand(0, 7)));
+        else
+            kinds = { 0, 1, 2, 3, 4, 5, 6, 7 };
+        for (uint8 kind : kinds)
+            Queue(*state, TestDrop(kind));
+        handler->PSendSysMessage("Ground loot: {} drops thrown (a test: picking them up gives nothing).",
+                                 kinds.size());
+        return true;
+    }
+};
+}
+
 void AddGroundLootScripts()
 {
+    new GroundLootCommandScript();
     new GroundLootUnitScript();
     new GroundLootPlayerScript();
     new npc_ground_loot();
