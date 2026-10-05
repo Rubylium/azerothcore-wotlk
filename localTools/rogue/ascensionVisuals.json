@@ -17,8 +17,9 @@
     "Assassinat: Mutilate's twin stab with its revamp sounds and Blood Plague's wound (Ascension's Mutilate), Envenom's",
     "revamp cast and retail impact with Sepsis poison on the hands while it lasts, Garrote's retail gash, Rupture's",
     "Venthyr blood (Ascension's Rupture), retail Fan of Knives, Cold Blood's Coup de Grace hands, Vendetta's deathmark on",
-    "the target, Exsanguinate's greed burst, Crimson Tempest's rupturing slam (CrimsonBleed: a sabre slash on each enemy",
-    "it bleeds), Marked for Death's reprimand over the head, the poisons' retail sting (Deadly and Instant Poison procs)."
+    "the target, Exsanguinate's greed burst, retail's Crimson Tempest spin as Ascension plays it (CrimsonBleed: a sabre",
+    "slash on each enemy it bleeds), Marked for Death's reprimand over the head, the poisons' retail sting (Deadly and",
+    "Instant Poison procs)."
   ],
   "output": "modules/mod-rogue/client-assets/imported",
   "idBase": 77000,
@@ -127,9 +128,9 @@
       "targetimpact": { "effects": { "chest": "7fx_rogue_greed_impactchest" }, "sound": "fx_blood_magic_impact_explosion_01" }
     },
     "CrimsonTempest": {
-      "from": 671,
-      "cast": { "from": 733, "effects": { "hands": null, "base": "7fx_soulengine_rupturingslam_impact_areasplash" },
-        "sound": "spell_ro_runthrough_cast_01" },
+      "from": 126687,
+      "precast": null,
+      "cast": 127384,
       "targetimpact": null
     },
     "CrimsonBleed": {

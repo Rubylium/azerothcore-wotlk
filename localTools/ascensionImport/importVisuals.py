@@ -19,7 +19,8 @@ A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>
 empty one) with what is given replaced, an effect given null removed. Attachments: head, chest, base, lefthand,
 righthand, hands (both), breath, leftweapon, rightweapon, weapons (both), special1-3, world. An effect is an Ascension
 SpellVisualEffectName id or a model's file name without its folder and extension (the row at scale 1 if there is
-one); a sound an Ascension SoundEntries id or name.
+one), or { "model": <that>, "scale": <factor> } for a copy of it drawn that much larger or smaller (an effect made for
+a raid boss, shrunk to a player's spell); a sound an Ascension SoundEntries id or name.
 
 Ascension's data is stock-layout 3.3.5 (its tables load as ours do, its models are version 264), and the effects it
 plays are mostly retail ones it converted; the import keeps them as they are. Written:
@@ -269,13 +270,36 @@ class Importer:
                 fields[field] = NONE
         if 'anim' in spec:
             fields[KIT_ANIMATIONS[1]] = NONE if spec['anim'] is None else spec['anim']
+        scaled = {}
         for attachment, effect in spec.get('effects', {}).items():
             for field in ATTACHMENTS[attachment]:
-                fields[field] = self.find_effect(effect)
+                if isinstance(effect, dict):
+                    # Imported after the others: the kit's fields hold Ascension ids until rewrite_kit renumbers them
+                    fields[field] = 0
+                    scaled[field] = effect
+                else:
+                    fields[field] = self.find_effect(effect)
         if 'sound' in spec:
             fields[KIT_SOUND] = self.find_sound(spec['sound'])
         entry = self.new_row('SpellVisualKit', fields, spec.get('id'))
         self.rewrite_kit(entry, source_id)
+        for field, effect in scaled.items():
+            entry['fields'][field] = self.scaled_effect(effect)
+        return entry['id']
+
+    def scaled_effect(self, spec):
+        """a copy of an imported effect row drawn `scale` times its size (SpellVisualEffectName's scale and the range it
+        is clamped to)"""
+        base_id = self.effect(self.find_effect(spec['model']))
+        base = next(row for row in self.rows['SpellVisualEffectName'] if row['id'] == base_id)
+        fields = list(base['fields'])
+        scale = float(spec['scale'])
+        bits = struct.unpack('<I', struct.pack('<f', scale))[0]
+        fields[4] = bits
+        fields[5] = struct.unpack('<I', struct.pack('<f', min(scale, 0.01)))[0]
+        fields[6] = struct.unpack('<I', struct.pack('<f', max(scale, 10.0)))[0]
+        entry = self.new_row('SpellVisualEffectName', fields)
+        entry['strings'] = dict(base['strings'])
         return entry['id']
 
     def composed_visual(self, spec):

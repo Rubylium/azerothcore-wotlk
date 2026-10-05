@@ -87,7 +87,7 @@ $spells = @(
        Fields = @{ 1 = 0; 3 = 0; 131 = (Look 'Exsanguinate'); 205 = 133; 206 = 1000; 208 = 8; 209 = 0; 210 = 0; 211 = 0; 213 = 0 } },
 
     # Tempête cramoisie: a finisher on the target (it spends the combo points there), a dummy mod-rogue turns into a slash
-    # and a bleed on every enemy within 10 yd, longer with every combo point; a rupturing slam around the rogue
+    # and a bleed on every enemy within 10 yd, longer with every combo point; retail's crimson spin around the rogue
     @{ Id = 92330; Clone = 48668; Name = 'Tempête cramoisie'; IconPath = 'Interface\Icons\Ability_Rogue_BloodSplatter'; FallbackIconSpell = 48672; Cost = 35; Cooldown = 0; Level = 1; Spellbook = $true; SkillLine = $assassination; ClassMask = $classMask
        Description = "Coup de grâce qui propage la Rupture et le Garrot de votre cible à tous les ennemis à 10 m, puis les entaille et les fait saigner pendant 2 s de plus par point de combo, jusqu'à 12 s."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 6 })
