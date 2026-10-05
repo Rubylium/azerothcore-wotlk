@@ -41,17 +41,21 @@ constexpr uint32 NPC_GROUND_LOOT_BEAM = 900122;
 constexpr uint32 DISPLAY_BEAM_FIRST = 60004;
 constexpr uint8 BeamGold = 5;
 
-// Their looks and Diablo IV's sounds (localTools/groundLoot/ascensionVisuals.json): the loot flipping out of the
-// corpse; a drop landing - gold, an item, an epic, an epic with a power of its own (touched by L'Infini or the Hollow
-// Voice), a legendary - and picked up (an item, gold)
-constexpr uint32 KIT_BURST = 81910;
+// Their sparkles, landing and picked up (localTools/groundLoot/ascensionVisuals.json)
 constexpr uint32 KIT_LAND = 81911;
-constexpr uint32 KIT_LAND_GOLD = 81912;
 constexpr uint32 KIT_PICKUP = 81913;
-constexpr uint32 KIT_PICKUP_GOLD = 81914;
-constexpr uint32 KIT_LAND_EPIC = 81915;
-constexpr uint32 KIT_LAND_UNIQUE = 81916;
-constexpr uint32 KIT_LAND_LEGENDARY = 81917;
+// Diablo IV's loot sounds (SoundEntries, same file), played by the server to the owner alone: a kit's own sound was
+// never heard when the server played the kit. The loot flipping out of the corpse; a drop landing - an item, an epic,
+// an epic with a power of its own (touched by L'Infini or the Hollow Voice), a legendary, gold (on the drop, in the
+// world) - and picked up (an item, gold).
+constexpr uint32 SOUND_BURST = 81920;
+constexpr uint32 SOUND_LAND = 81921;
+constexpr uint32 SOUND_LAND_EPIC = 81922;
+constexpr uint32 SOUND_LAND_UNIQUE = 81923;
+constexpr uint32 SOUND_LAND_LEGENDARY = 81924;
+constexpr uint32 SOUND_LAND_GOLD = 81925;
+constexpr uint32 SOUND_PICKUP = 81926;
+constexpr uint32 SOUND_PICKUP_GOLD = 81927;
 
 // The burst: this long after the kill the first drop leaves the corpse, the next ones one after the other. Each
 // appears inside the corpse and jumps a moment later (the client has it by then), in an arc of that height, landing
@@ -321,19 +325,17 @@ void Spawn(Player* player, GroundLootState& state, Drop& drop, uint64 now)
     if (!state.burstShown && drop.corpse == state.corpse)
     {
         state.burstShown = true;
-        SendKit(player, drop.corpse, KIT_BURST);
+        player->PlayDirectSound(SOUND_BURST, player);
     }
 }
 
-uint32 LandKit(Drop const& drop)
+uint32 LandSound(Drop const& drop)
 {
-    if (drop.kind == DropKind::Gold)
-        return KIT_LAND_GOLD;
     if (drop.quality >= ITEM_QUALITY_LEGENDARY)
-        return KIT_LAND_LEGENDARY;
+        return SOUND_LAND_LEGENDARY;
     if (drop.unique)
-        return KIT_LAND_UNIQUE;
-    return drop.quality == ITEM_QUALITY_EPIC ? KIT_LAND_EPIC : KIT_LAND;
+        return SOUND_LAND_UNIQUE;
+    return drop.quality == ITEM_QUALITY_EPIC ? SOUND_LAND_EPIC : SOUND_LAND;
 }
 
 void Land(Player* player, Creature* bag, Drop& drop, uint64 now)
@@ -346,7 +348,11 @@ void Land(Player* player, Creature* bag, Drop& drop, uint64 now)
         beam->SetDisplayId(DISPLAY_BEAM_FIRST + BeamIndex(drop));
         drop.beam = beam->GetGUID();
     }
-    SendKit(player, bag->GetGUID(), LandKit(drop));
+    SendKit(player, bag->GetGUID(), KIT_LAND);
+    if (drop.kind == DropKind::Gold)
+        bag->PlayDistanceSound(SOUND_LAND_GOLD, player);
+    else
+        player->PlayDirectSound(LandSound(drop), player);
 }
 
 bool HasRoomFor(Player* player, Drop const& drop)
@@ -372,7 +378,8 @@ bool PickUp(Player* player, GroundLootState& state, Drop const& drop)
         return false;
     }
     Give(player, drop);
-    SendKit(player, player->GetGUID(), drop.kind == DropKind::Gold ? KIT_PICKUP_GOLD : KIT_PICKUP);
+    SendKit(player, player->GetGUID(), KIT_PICKUP);
+    player->PlayDirectSound(drop.kind == DropKind::Gold ? SOUND_PICKUP_GOLD : SOUND_PICKUP, player);
     return true;
 }
 

@@ -29,10 +29,13 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   900122 a light beam over it (60004-60009: Ascension's moonbeam tinted white, green, blue, purple, orange, gold).
 - The arc is `MoveJump` from inside the corpse (no missile spell): the bag appears, jumps 250 ms later, lands 900 ms
   after that, past the corpse's reach (golden-angle spread, collision-checked). Drops leave 300 ms apart.
-- Sounds and sparkles are `SpellVisualKit`s sent to the owner alone (`SMSG_PLAY_SPELL_VISUAL` by direct message): the
-  burst on the corpse, a landing per tier (item, epic, unique, legendary, gold), a pickup (item, gold). Each beam
-  plays its quality's ambient loop for as long as it stands: its display's `CreatureSoundData.LoopSoundID` (client
-  DBC only).
+- Sparkles are `SpellVisualKit`s sent to the owner alone (`SMSG_PLAY_SPELL_VISUAL` by direct message), landing and
+  pickup. Sounds are played by the server to the owner alone, by SoundEntries id (`PlayDirectSound`, the gold's landing
+  `PlayDistanceSound` on its bag): the burst, a landing per tier (item, epic, unique, legendary, gold), a pickup (item,
+  gold). A kit's own sound was never heard when the server played the kit (2026-10-05, v1.0.309): don't put the
+  sounds back in the kits. Each beam plays its quality's ambient loop for as long as it stands: its display's
+  `CreatureSoundData.LoopSoundID` (client DBC only). Diablo IV mixes those loops about 20 dB under its other loot
+  sounds: the import normalizes them (`normalize`), or they cannot be heard in WoW's mix.
 - The tooltip: the server whispers `GLOOT\t<guid hex>\t<item link | gold:<copper> | ->` as each drop leaves the corpse;
   `clientPatcher/interface/Interface/FrameXML/GroundLoot.lua` swaps the unit tooltip for the item's (or the gold).
 
@@ -49,9 +52,9 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
 ## Assets
 
 - `localTools/groundLoot/ascensionVisuals.json`, imported by `localTools/ascensionImport/importVisuals.py` into
-  `modules/mod-stat-growth/client-assets/imported` (kits 81910-81917, sounds 81000+). The importer's `models` (raw
+  `modules/mod-stat-growth/client-assets/imported` (kits 81911, 81913; sounds 81920-81932). The importer's `models` (raw
   models, optionally `tint`ed) and `sounds` (WAVs of our own, here Diablo IV's from `data/custom/diabloLootSounds`,
-  local) sections exist for it.
+  local, optionally `normalize`d) sections exist for it.
 - Displays, sound loops: `localTools/patchSinisterStrike.ps1` (`$ownDisplays`). Creatures:
   `modules/mod-stat-growth/data/sql/db-world/base/stat_growth_ground_loot.sql`.
 - Not yet: name labels on the floor (the beam and the tooltip carry the item for now).

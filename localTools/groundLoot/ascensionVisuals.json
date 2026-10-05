@@ -4,8 +4,10 @@
     "floor for each player, Diablo-style. Imported by localTools/ascensionImport/importVisuals.py: the models from",
     "Ascension - creature looks (the bag on the floor, the gold, the light beam tinted to each item quality), which",
     "localTools/patchSinisterStrike.ps1 gives creature displays - and the sounds Diablo IV's loot makes, extracted to",
-    "data/custom/diabloLootSounds (local). The kits the server plays on a drop or a player (SMSG_PLAY_SPELL_VISUAL), by",
-    "the id given here; the Loop* sounds are the beams' own, played as long as one stands (CreatureSoundData)."
+    "data/custom/diabloLootSounds (local). The server plays the sounds itself, by the ids given here, to the drop's",
+    "owner alone (SMSG_PLAY_SOUND, SMSG_PLAY_OBJECT_SOUND): a kit's own sound was never heard when the server played",
+    "the kit, so the kits only sparkle. The Loop* sounds are the beams' own, played as long as one stands",
+    "(CreatureSoundData), brought up to the game's level: Diablo IV mixes them far under the rest."
   ],
   "output": "modules/mod-stat-growth/client-assets/imported",
   "idBase": 81000,
@@ -13,67 +15,181 @@
   "models": [
     "Spells/ashran_loot_state.m2",
     "Spells/treasuregoblin_coinpile.m2",
-    { "model": "Spells/moonbeam_impact_base_beams.m2", "tint": "#ffffff" },
-    { "model": "Spells/moonbeam_impact_base_beams.m2", "tint": "#1eff00" },
-    { "model": "Spells/moonbeam_impact_base_beams.m2", "tint": "#0070dd" },
-    { "model": "Spells/moonbeam_impact_base_beams.m2", "tint": "#a335ee" },
-    { "model": "Spells/moonbeam_impact_base_beams.m2", "tint": "#ff8000" },
-    { "model": "Spells/moonbeam_impact_base_beams.m2", "tint": "#ffd100" }
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#ffffff"
+    },
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#1eff00"
+    },
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#0070dd"
+    },
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#a335ee"
+    },
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#ff8000"
+    },
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#ffd100"
+    }
   ],
   "sounds": {
-    "GroundLootBurst": { "clone": 1183, "volume": 0.9,
-      "files": ["data/custom/diabloLootSounds/wav/inventoryAndOther/Play_UI_Item_Generic_Flippy_Media_01.wav"] },
-    "GroundLootLand": { "clone": 1183, "volume": 0.7,
-      "files": ["data/custom/diabloLootSounds/wav/rare/Play_UI_Halo_Rare_Media_02.wav"] },
-    "GroundLootLandEpic": { "clone": 1183, "volume": 0.8, "files": [
-      "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_01.wav",
-      "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_02.wav",
-      "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_03.wav",
-      "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_04.wav",
-      "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_05.wav",
-      "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_06.wav"] },
-    "GroundLootLandUnique": { "clone": 1183, "volume": 0.8, "files": [
-      "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_01.wav",
-      "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_02.wav",
-      "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_03.wav"] },
-    "GroundLootLandLegendary": { "clone": 1183, "volume": 0.85, "files": [
-      "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_01.wav",
-      "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_02.wav",
-      "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_03.wav"] },
-    "GroundLootLandGold": { "clone": 1183, "volume": 0.7, "files": [
-      "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_01.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_02.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_03.wav"] },
-    "GroundLootPickup": { "clone": 1183, "volume": 0.7, "files": [
-      "data/custom/diabloLootSounds/wav/pickup/Play_UI_INV_Chest_Pickup_Media_01.wav",
-      "data/custom/diabloLootSounds/wav/pickup/Play_UI_INV_Chest_Pickup_Media_02.wav"] },
-    "GroundLootPickupGold": { "clone": 1183, "volume": 0.7, "files": [
-      "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_01.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_02.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_03.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_04.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_05.wav",
-      "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_06.wav"] },
-    "GroundLootLoopNormal": { "clone": 1453, "volume": 0.45, "minDistance": 3, "cutoff": 18,
-      "files": ["data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Normal_Loop_Media_01.wav"] },
-    "GroundLootLoopMagic": { "clone": 1453, "volume": 0.45, "minDistance": 3, "cutoff": 18,
-      "files": ["data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Magic_Loop_Media_01.wav"] },
-    "GroundLootLoopRare": { "clone": 1453, "volume": 0.45, "minDistance": 3, "cutoff": 18,
-      "files": ["data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Rare_Loop_Media_01.wav"] },
-    "GroundLootLoopLegendary": { "clone": 1453, "volume": 0.5, "minDistance": 3, "cutoff": 20,
-      "files": ["data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Legendary_Loop_Media_01.wav"] },
-    "GroundLootLoopGold": { "clone": 1453, "volume": 0.4, "minDistance": 3, "cutoff": 16,
-      "files": ["data/custom/diabloLootSounds/wav/gold/Play_UI_Item_Gold_Loop_Media_01.wav"] }
+    "GroundLootBurst": {
+      "clone": 124,
+      "volume": 0.9,
+      "files": [
+        "data/custom/diabloLootSounds/wav/inventoryAndOther/Play_UI_Item_Generic_Flippy_Media_01.wav"
+      ],
+      "id": 81920
+    },
+    "GroundLootLand": {
+      "clone": 124,
+      "volume": 0.7,
+      "files": [
+        "data/custom/diabloLootSounds/wav/rare/Play_UI_Halo_Rare_Media_02.wav"
+      ],
+      "id": 81921
+    },
+    "GroundLootLandEpic": {
+      "clone": 124,
+      "volume": 0.8,
+      "files": [
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_01.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_02.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_03.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_04.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_05.wav",
+        "data/custom/diabloLootSounds/wav/legendaryShared/Play_UI_Halo_SetItem_MediaShared_06.wav"
+      ],
+      "id": 81922
+    },
+    "GroundLootLandUnique": {
+      "clone": 124,
+      "volume": 0.8,
+      "files": [
+        "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/unique/Play_UI_Halo_Unique_Media_03.wav"
+      ],
+      "id": 81923
+    },
+    "GroundLootLandLegendary": {
+      "clone": 124,
+      "volume": 0.85,
+      "files": [
+        "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/mythic/Play_UI_Halo_UberUnique_Media_03.wav"
+      ],
+      "id": 81924
+    },
+    "GroundLootLandGold": {
+      "clone": 15034,
+      "volume": 0.7,
+      "files": [
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_INV_Gold_Small_Landing_Media_03.wav"
+      ],
+      "id": 81925
+    },
+    "GroundLootPickup": {
+      "clone": 124,
+      "volume": 0.7,
+      "files": [
+        "data/custom/diabloLootSounds/wav/pickup/Play_UI_INV_Chest_Pickup_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/pickup/Play_UI_INV_Chest_Pickup_Media_02.wav"
+      ],
+      "id": 81926
+    },
+    "GroundLootPickupGold": {
+      "clone": 124,
+      "volume": 0.7,
+      "files": [
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_01.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_02.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_03.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_04.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_05.wav",
+        "data/custom/diabloLootSounds/wav/gold/Play_OBJ_Gold_Pickup_Media_06.wav"
+      ],
+      "id": 81927
+    },
+    "GroundLootLoopNormal": {
+      "clone": 1453,
+      "volume": 0.8,
+      "minDistance": 4,
+      "cutoff": 20,
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Normal_Loop_Media_01.wav"
+      ],
+      "id": 81928,
+      "normalize": -24
+    },
+    "GroundLootLoopMagic": {
+      "clone": 1453,
+      "volume": 0.8,
+      "minDistance": 4,
+      "cutoff": 20,
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Magic_Loop_Media_01.wav"
+      ],
+      "id": 81929,
+      "normalize": -24
+    },
+    "GroundLootLoopRare": {
+      "clone": 1453,
+      "volume": 0.8,
+      "minDistance": 4,
+      "cutoff": 20,
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Rare_Loop_Media_01.wav"
+      ],
+      "id": 81930,
+      "normalize": -24
+    },
+    "GroundLootLoopLegendary": {
+      "clone": 1453,
+      "volume": 0.8,
+      "minDistance": 4,
+      "cutoff": 20,
+      "files": [
+        "data/custom/diabloLootSounds/wav/ambientLoops/Play_UI_Item_Rarity_Legendary_Loop_Media_01.wav"
+      ],
+      "id": 81931,
+      "normalize": -24
+    },
+    "GroundLootLoopGold": {
+      "clone": 1453,
+      "volume": 0.8,
+      "minDistance": 4,
+      "cutoff": 20,
+      "files": [
+        "data/custom/diabloLootSounds/wav/gold/Play_UI_Item_Gold_Loop_Media_01.wav"
+      ],
+      "id": 81932,
+      "normalize": -24
+    }
   },
   "kits": {
-    "Burst": { "sound": "@GroundLootBurst", "id": 81910 },
-    "Land": { "effects": { "base": "11fx_lootsparkles01" }, "sound": "@GroundLootLand", "id": 81911 },
-    "LandGold": { "effects": { "base": "11fx_lootsparkles01" }, "sound": "@GroundLootLandGold", "id": 81912 },
-    "Pickup": { "effects": { "chest": "11fx_lootsparkles01" }, "sound": "@GroundLootPickup", "id": 81913 },
-    "PickupGold": { "effects": { "chest": "11fx_lootsparkles01" }, "sound": "@GroundLootPickupGold", "id": 81914 },
-    "LandEpic": { "effects": { "base": "11fx_lootsparkles01" }, "sound": "@GroundLootLandEpic", "id": 81915 },
-    "LandUnique": { "effects": { "base": "11fx_lootsparkles01" }, "sound": "@GroundLootLandUnique", "id": 81916 },
-    "LandLegendary": { "effects": { "base": "11fx_lootsparkles01" }, "sound": "@GroundLootLandLegendary",
-      "id": 81917 }
+    "Land": {
+      "effects": {
+        "base": "11fx_lootsparkles01"
+      },
+      "id": 81911
+    },
+    "Pickup": {
+      "effects": {
+        "chest": "11fx_lootsparkles01"
+      },
+      "id": 81913
+    }
   }
 }

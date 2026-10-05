@@ -17,10 +17,12 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
               their skins and textures and no row behind them (a creature's look, which creature displays name), as
               they are or as a tinted copy (see below)
     sounds    { "<key>": { "clone": <Ascension SoundEntries id>, "files": [ "<wav, relative to the repository>" ],
-              "volume": v, "minDistance": d, "cutoff": d, "id": <its own id> } } - sounds of our own (not
-              Ascension's): a SoundEntries row copying clone's (its type: a creature's loop is 27, as 1453
-              WaterElementalLoop), playing one of the files at random, shipped in soundFolder (an archive folder);
-              a kit names one as "@<key>", and visuals.json lists every one's id under "sounds"
+              "volume": v, "minDistance": d, "cutoff": d, "normalize": <dBFS>, "id": <its own id> } } - sounds of
+              our own (not Ascension's): a SoundEntries row copying clone's (its type: a creature's loop is 27, as
+              1453 WaterElementalLoop), playing one of the files at random, shipped in soundFolder (an archive
+              folder), each file brought to that RMS level if normalize is given (its peaks kept under -1 dBFS: a
+              bed mixed far under the rest, as Diablo IV's loot loops, is lost in the game's mix); a kit names one
+              as "@<key>", and visuals.json lists every one's id under "sounds"
 
 A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>, "anim": <animation id>,
 "effects": { "<attachment>": <effect> }, "sound": <sound>, "shake": <stock CameraShakes id>, "fields": { "<field>":
@@ -293,7 +295,7 @@ class Importer:
             path = os.path.join(REPO, source)
             if not os.path.isfile(path):
                 raise SystemExit(f'Sound {key}: {source} not found')
-            self.own_files[f'{folder}\\{ntpath.basename(archive_path(source))}'] = path
+            self.own_files[f'{folder}\\{ntpath.basename(archive_path(source))}'] = (path, spec.get('normalize'))
         for name, field in (('volume', 24), ('minDistance', 26), ('cutoff', 27)):
             if name in spec:
                 fields[field] = struct.unpack('<I', struct.pack('<f', float(spec[name])))[0]
@@ -541,6 +543,20 @@ def write_sound(target, data, name):
     soundfile.write(target[:-4] + '.wav', samples, rate, subtype='PCM_16')
 
 
+def normalize_sound(source, target, level):
+    """the WAV at source written to target at that RMS level (dBFS), its peaks kept under -1 dBFS"""
+    import numpy
+    import soundfile
+    samples, rate = soundfile.read(source, dtype='float32')
+    rms = float(numpy.sqrt(numpy.mean(samples ** 2)))
+    peak = float(numpy.max(numpy.abs(samples)))
+    if rms <= 0.0 or peak <= 0.0:
+        shutil.copyfile(source, target)
+        return
+    gain = min(level - 20 * numpy.log10(rms), -1.0 - 20 * numpy.log10(peak))
+    soundfile.write(target, samples * 10 ** (gain / 20), rate, subtype='PCM_16')
+
+
 def main(config_path):
     with open(config_path, encoding='utf-8') as source:
         config = json.load(source)
@@ -586,10 +602,13 @@ def main(config_path):
                 with open(target, 'wb') as file:
                     file.write(data)
             shipped += 1
-        for name, source in sorted(importer.own_files.items()):
+        for name, (source, level) in sorted(importer.own_files.items()):
             target = local(files_root, name)
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            shutil.copyfile(source, target)
+            if level is None:
+                shutil.copyfile(source, target)
+            else:
+                normalize_sound(source, target, float(level))
             shipped += 1
 
         result = {'ids': ids, 'kits': kits, 'sounds': own_sounds,
