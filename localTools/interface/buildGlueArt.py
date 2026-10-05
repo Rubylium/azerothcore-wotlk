@@ -15,17 +15,21 @@ GlueXML/RealmList.lua knows those proportions and sizes (BACKDROP_ASPECT, CARD_A
 CARD_GLOW_MARGIN); change them together.
 
 And, for the login screen (GlueXML/AccountLogin.lua), from clientPatcher/assets/login:
-- LoginBackdrop.blp: the login art (LoginBackdrop-source.png, 1672x941) at its own pixels, unscaled, in the top-left
-  corner of a 2048x1024 texture, the rest filled by repeating its right and bottom edges (so filtering and the
-  smaller mip levels never pull in a foreign colour). Uncompressed, so the sky keeps its gradients.
-  AccountLogin.lua knows the picture's size inside the texture (ART_WIDTH / ART_HEIGHT / ART_TEXTURE_*).
-- LoginForeground1/2.blp: the art's foreground (the terrace, the statues, the braziers and banners, the near trees
-  and side cliffs; the mask from buildLoginMask.py), cut like LoginBackdrop with the mask as its alpha: the login
-  screen draws it again over its clouds, mist and birds so they pass behind the statues.
+- LoginBackdrop1/2.blp: the far layer of the ultrawide login art (LoginBackdropWide-source.png, upscaled to
+  3642x1024 and cut into two 2048x1024 tiles): the sky, the far city, the mist. Where the near layer and the
+  banners' cloth stand (LoginLayers-mask.png, from buildLoginMask.py) it is painted in from around them, so the far
+  layer can slide behind them; the birds painted near the sun are painted out (the login screen flies its own).
+  Uncompressed, so the sky keeps its gradients.
+- LoginForeground1/2.blp: the near layer (the terrace, the statues, the braziers, the banners' poles, the trees and
+  the side cliffs), cut the same way with the mask as its alpha: it never moves.
+- LoginBanners.blp: the two banners' cloth, each in a 128x512 column of a 256x512 texture, the colour under its
+  transparent pixels spread from its edge; the login screen waves it in strips (AccountLogin.lua BANNERS).
+- LoginFalls.blp: the waterfalls' flow, white streaks scrolling down within each fall's own shape, 16 frames of a
+  loop side by side per fall, at half the art's resolution (AccountLogin.lua FALLS, where each fall's frames are).
 - LoginClouds.blp, LoginMist.blp: soft white wisps (512x256, 512x128), tiling across, faded at the top and bottom:
   the clouds drifting over the sky and the mist rolling between the cliffs (tinted by the login screen).
 - LoginRays.blp: the sun's rays, white streaks fanning out from the middle of a 512x512 texture, fading outwards.
-- LoginBird.blp: a bird's silhouette in four frames of its wing beat (64x64 each, side by side in 256x64).
+- LoginBird.blp: a bird seen from ahead, in eight frames of its wing beat (64x64 each, side by side in 512x64).
 - LoginVignette.blp: black, its alpha an ellipse that is clear in the middle and darkens the edges and corners;
   stretched over the whole screen.
 - LoginLogo.blp: the "World of Warcraft Evolution" logo (clientPatcher/assets/logo/WorldOfWarcraft-Evolution.png),
@@ -46,7 +50,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 OUTPUT = os.path.join(REPO_ROOT, 'clientPatcher', 'interface', 'Interface', 'Glues', 'Evolutions')
 LOGIN_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginBackdrop-source.png')
 LOGIN_WIDE_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginBackdropWide-source.png')
-LOGIN_MASK = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginForeground-mask.png')
+LOGIN_MASK = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'login', 'LoginLayers-mask.png')
 LOGO_SOURCE = os.path.join(REPO_ROOT, 'clientPatcher', 'assets', 'logo', 'WorldOfWarcraft-Evolution.png')
 EXTRACTOR = os.path.join(REPO_ROOT, 'localTools', 'mpq-builder', 'extractClientFiles.js')
 
@@ -123,41 +127,165 @@ LOGIN_TILE_SIZE = (2048, 1024)      # AccountLogin.lua ART_TILE_WIDTH, ART_HEIGH
 LOGIN_ART_SIZE = (3642, 1024)       # AccountLogin.lua ART_WIDTH, ART_HEIGHT
 
 
-def login_backdrop():
+# The birds painted in the sky near the sun (art pixels): painted out of the far layer
+PAINTED_BIRDS = (2040, 215, 2240, 325)
+# The waterfalls (art pixels; buildLoginMask.py WATERFALLS, which says which are in the near layer)
+WATERFALLS = [
+    (125, 416, 177, 568), (233, 160, 279, 326), (340, 146, 376, 303), (439, 480, 513, 687), (1437, 576, 1481, 678),
+    (1501, 614, 1525, 690), (1657, 422, 1702, 520), (1762, 454, 1845, 574),
+    (2174, 477, 2228, 574), (2852, 428, 2912, 584), (2995, 442, 3029, 539), (3251, 556, 3339, 704),
+    (3348, 260, 3414, 436),
+]
+FALL_FRAMES = 16                    # AccountLogin.lua FALL_FRAMES
+FALL_PERIOD = 64                    # art pixels the streaks scroll down over one loop (AccountLogin.lua FALL_PERIOD)
+BANNER_COLUMN = (128, 512)          # AccountLogin.lua BANNER_COLUMN
+
+
+def login_art():
     """The ultrawide art (32:9, so a 21:9 or 32:9 window shows it whole and a 16:9 one its middle), upscaled to
-    1024 pixels high and cut into two 2048x1024 tiles side by side, the second padded by repeating its last column"""
+    1024 pixels high"""
     source = Image.open(LOGIN_WIDE_SOURCE).convert('RGB')
     art = source.resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
-    art = art.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2)).convert('RGBA')
-    tiles = []
-    for index in range(2):
-        left = index * LOGIN_TILE_SIZE[0]
-        piece = art.crop((left, 0, min(left + LOGIN_TILE_SIZE[0], LOGIN_ART_SIZE[0]), LOGIN_ART_SIZE[1]))
-        tile = Image.new('RGBA', LOGIN_TILE_SIZE)
-        tile.paste(piece, (0, 0))
-        if piece.width < LOGIN_TILE_SIZE[0]:
-            edge = piece.crop((piece.width - 1, 0, piece.width, piece.height))
-            tile.paste(edge.resize((LOGIN_TILE_SIZE[0] - piece.width, piece.height)), (piece.width, 0))
-        tiles.append(tile)
-    return tiles
+    return art.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
 
 
-def login_foreground():
-    """The foreground's tiles: the art (as login_backdrop makes it) with the mask as its alpha, its edge softened by a
-    pixel"""
-    source = Image.open(LOGIN_WIDE_SOURCE).convert('RGB')
-    art = source.resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
-    art = art.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2)).convert('RGBA')
-    mask = Image.open(LOGIN_MASK).convert('L').resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
-    art.putalpha(mask.filter(ImageFilter.GaussianBlur(1.0)))
+def login_layers():
+    """The near layer's and the cloth's masks (0-255 numpy arrays) at the art's size"""
+    import numpy
+
+    layers = Image.open(LOGIN_MASK).convert('RGB').resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
+    pixels = numpy.asarray(layers)
+    return pixels[..., 0], pixels[..., 2]
+
+
+def art_tiles(art, pad):
+    """The art cut into two 2048x1024 tiles side by side; pad: the second filled out by repeating its last column
+    (else left clear)"""
     tiles = []
     for index in range(2):
         left = index * LOGIN_TILE_SIZE[0]
         piece = art.crop((left, 0, min(left + LOGIN_TILE_SIZE[0], LOGIN_ART_SIZE[0]), LOGIN_ART_SIZE[1]))
         tile = Image.new('RGBA', LOGIN_TILE_SIZE, (0, 0, 0, 0))
         tile.paste(piece, (0, 0))
+        if pad and piece.width < LOGIN_TILE_SIZE[0]:
+            edge = piece.crop((piece.width - 1, 0, piece.width, piece.height))
+            tile.paste(edge.resize((LOGIN_TILE_SIZE[0] - piece.width, piece.height)), (piece.width, 0))
         tiles.append(tile)
     return tiles
+
+
+def login_backdrop():
+    """The far layer: the art, painted in (OpenCV's inpainting, at the source's size) where the near layer and the
+    cloth stand - a few pixels wider, so no edge of theirs is left on it - and where the painted birds fly"""
+    import cv2
+    import numpy
+
+    source = Image.open(LOGIN_WIDE_SOURCE).convert('RGB')
+    pixels = cv2.cvtColor(numpy.asarray(source), cv2.COLOR_RGB2BGR)
+    height, width = pixels.shape[:2]
+    layers = cv2.imread(LOGIN_MASK)
+    hole = numpy.where((layers[..., 2] > 0) | (layers[..., 0] > 0), 255, 0).astype(numpy.uint8)
+    hole = cv2.dilate(hole, numpy.ones((7, 7), numpy.uint8))
+    # The painted birds: what is clearly darker than the sky around it
+    scale = width / LOGIN_ART_SIZE[0]
+    x0, y0, x1, y1 = (int(value * scale) for value in PAINTED_BIRDS)
+    patch = cv2.cvtColor(pixels[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(numpy.int32)
+    sky = cv2.medianBlur(pixels[y0:y1, x0:x1], 15)
+    dark = (cv2.cvtColor(sky, cv2.COLOR_BGR2GRAY).astype(numpy.int32) - patch) > 22
+    birds = cv2.dilate(numpy.where(dark, 255, 0).astype(numpy.uint8), numpy.ones((5, 5), numpy.uint8))
+    hole[y0:y1, x0:x1] = numpy.maximum(hole[y0:y1, x0:x1], birds)
+    filled = cv2.inpaint(pixels, hole, 6, cv2.INPAINT_TELEA)
+    # Inside the larger holes the painting-in streaks: soften it there (only its edge ever shows)
+    depth = cv2.distanceTransform(hole, cv2.DIST_L2, 5)
+    softened = cv2.GaussianBlur(filled, (0, 0), 6)
+    blend = numpy.clip((depth - 6) / 20, 0, 1)[..., None]
+    filled = (filled * (1 - blend) + softened * blend).astype(numpy.uint8)
+    far = Image.fromarray(cv2.cvtColor(filled, cv2.COLOR_BGR2RGB)).resize(LOGIN_ART_SIZE, Image.Resampling.LANCZOS)
+    far = far.filter(ImageFilter.UnsharpMask(radius=1.2, percent=60, threshold=2))
+    return art_tiles(far.convert('RGBA'), pad=True)
+
+
+def login_foreground():
+    """The near layer's tiles: the art with the near mask as its alpha, its edge softened by a pixel"""
+    near, _ = login_layers()
+    art = login_art().convert('RGBA')
+    art.putalpha(Image.fromarray(near).filter(ImageFilter.GaussianBlur(1.0)))
+    return art_tiles(bleed_colour(art), pad=False)
+
+
+def login_banners():
+    """The two banners' cloth (left to right), each at the top left of its 128x512 column, the art with the cloth
+    mask as its alpha; prints where each sits in the art, for AccountLogin.lua BANNERS"""
+    import cv2
+
+    _, cloth = login_layers()
+    art = login_art().convert('RGBA')
+    art.putalpha(Image.fromarray(cloth).filter(ImageFilter.GaussianBlur(0.7)))
+    count, _, stats, _ = cv2.connectedComponentsWithStats((cloth > 127).astype('uint8'))
+    pieces = sorted((stats[index] for index in range(1, count)), key=lambda stat: -stat[cv2.CC_STAT_AREA])[:2]
+    sheet = Image.new('RGBA', (BANNER_COLUMN[0] * 2, BANNER_COLUMN[1]), (0, 0, 0, 0))
+    print('BANNERS:')
+    for column, stat in enumerate(sorted(pieces, key=lambda stat: stat[cv2.CC_STAT_LEFT])):
+        left, top = int(stat[cv2.CC_STAT_LEFT]) - 2, int(stat[cv2.CC_STAT_TOP]) - 2
+        width, height = int(stat[cv2.CC_STAT_WIDTH]) + 4, int(stat[cv2.CC_STAT_HEIGHT]) + 4
+        assert width <= BANNER_COLUMN[0] and height <= BANNER_COLUMN[1], (width, height)
+        sheet.paste(art.crop((left, top, left + width, top + height)), (column * BANNER_COLUMN[0], 0))
+        print(f'    {{ x = {left}, y = {top}, width = {width}, height = {height} }},')
+    return bleed_colour(sheet)
+
+
+def login_falls():
+    """Each waterfall's flow: its shape (the bright, pale, vertically streaked pixels of its box), filled with white
+    streaks - noise stretched downwards, tiling every FALL_PERIOD pixels - that scroll one period down over the loop's
+    frames. At half the art's resolution, the frames of a fall side by side, the falls packed in rows; prints each
+    fall's place in the texture, for AccountLogin.lua FALLS."""
+    import cv2
+    import numpy
+    from scipy.ndimage import gaussian_filter
+
+    art = numpy.asarray(login_art()).astype(numpy.float32) / 255
+    near, _ = login_layers()
+    hls = cv2.cvtColor(art, cv2.COLOR_RGB2HLS)
+    gray = cv2.cvtColor(art, cv2.COLOR_RGB2GRAY)
+    across = numpy.abs(cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3))
+    down = numpy.abs(cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3))
+    streaked = cv2.GaussianBlur(across, (0, 0), 3) / (cv2.GaussianBlur(down, (0, 0), 3) + 0.02)
+    water = ((hls[..., 1] > 0.5) & (hls[..., 2] < 0.4) & (streaked > 1.2)).astype(numpy.float32)
+    random = numpy.random.default_rng(3)
+    half = FALL_PERIOD // 2
+    texture_width, cursor_x, cursor_y, row_height = 1024, 0, 0, 0
+    cells = []
+    for x0, y0, x1, y1 in WATERFALLS:
+        width, height = (x1 - x0 + 1) // 2, (y1 - y0 + 1) // 2
+        shape = cv2.resize(water[y0:y1, x0:x1], (width, height), interpolation=cv2.INTER_AREA)
+        shape = cv2.morphologyEx(shape, cv2.MORPH_CLOSE, numpy.ones((7, 3), numpy.uint8))
+        shape = numpy.clip(cv2.GaussianBlur(shape, (0, 0), 1.2) * 1.6, 0, 1)
+        # Fade in at the top and out at the bottom, so the box's edges never show
+        rows = (numpy.arange(height) + 0.5) / height
+        shape *= (numpy.clip(rows / 0.12, 0, 1) * numpy.clip((1 - rows) / 0.18, 0, 1))[:, None]
+        streaks = gaussian_filter(random.random((half, width)), sigma=(8, 0.6), mode='wrap')
+        streaks = (streaks - streaks.min()) / max(streaks.max() - streaks.min(), 1e-6)
+        streaks = numpy.clip((streaks - 0.45) / 0.4, 0, 1) ** 1.5
+        if cursor_x + width * FALL_FRAMES > texture_width:
+            cursor_x, cursor_y, row_height = 0, cursor_y + row_height + 1, 0
+        cells.append((cursor_x, cursor_y, width, height, shape, streaks))
+        cursor_x += width * FALL_FRAMES + 1
+        row_height = max(row_height, height)
+    texture_height = 1 << (cursor_y + row_height - 1).bit_length()
+    assert texture_height <= 1024, texture_height
+    sheet = numpy.zeros((texture_height, texture_width, 4), numpy.uint8)
+    sheet[..., :3] = 255
+    print(f'FALLS ({texture_width}x{texture_height}: left, top, width, height in the texture):')
+    for (x0, y0, x1, y1), (left, top, width, height, shape, streaks) in zip(WATERFALLS, cells):
+        for frame in range(FALL_FRAMES):
+            shift = frame * half // FALL_FRAMES
+            rows = (numpy.arange(height) - shift) % half
+            alpha = streaks[rows] * shape
+            sheet[top:top + height, left + frame * width:left + (frame + 1) * width, 3] = (alpha * 255).astype(
+                numpy.uint8)
+        in_near = bool(near[(y0 + y1) // 2, (x0 + x1) // 2] > 127)
+        print(f'    {{ {x0}, {y0}, {x1}, {y1}, {left}, {top}, {width}, {height}, {str(in_near).lower()} }},')
+    return Image.fromarray(sheet, 'RGBA')
 
 
 def tiling_noise(width, height, scales, seed):
@@ -230,22 +358,41 @@ def login_rays():
 
 
 def login_bird():
-    """A bird seen from below and behind as it flies: a slim body and two wings, raised, level, lowered and level
-    again over the four frames; drawn four times larger and scaled down for soft edges"""
-    frame, scale = 64, 4
-    sheet = Image.new('RGBA', (frame * 4 * scale, frame * scale), (0, 0, 0, 0))
+    """A bird seen from ahead as it flies, in eight frames of one wing beat: a small body and two long wings, each
+    bent at the wrist, the hand lagging the arm (so the tips flick down after the wrists and up after them); the
+    wings' leading edge a smooth curve, their trailing edge thinner toward the tip. Drawn eight times larger and
+    scaled down, white (the login screen tints it)."""
+    import math
+
+    frame, scale = 64, 8
+    sheet = Image.new('L', (frame * 8 * scale, frame * scale), 0)
     draw = ImageDraw.Draw(sheet)
-    for index, lift in enumerate((0.55, 0.1, -0.35, 0.1)):
-        cx, cy = (index * frame + frame / 2) * scale, frame / 2 * scale
-        draw.ellipse((cx - 3 * scale, cy - 2 * scale, cx + 3 * scale, cy + 3 * scale), fill=(20, 16, 14, 255))
+
+    def point(cx, cy, x, y):
+        return cx + x * scale, cy + y * scale
+
+    for index in range(8):
+        phase = index / 8 * 2 * math.pi
+        cx, cy = (index * frame + frame / 2) * scale, (frame / 2 + 2) * scale
+        arm = math.sin(phase)                       # 1: wings up, -1: down
+        hand = math.sin(phase - 0.9)
         for side in (-1, 1):
-            # Each wing: from the shoulder out to its tip, bent at the wrist
-            wrist = (cx + side * 12 * scale, cy - lift * 10 * scale)
-            tip = (cx + side * 26 * scale, cy - lift * 22 * scale + 4 * scale)
-            draw.polygon([(cx + side * 2 * scale, cy - 1 * scale), wrist, tip,
-                          (wrist[0] + side * 1 * scale, wrist[1] + 4 * scale),
-                          (cx + side * 2 * scale, cy + 2 * scale)], fill=(20, 16, 14, 255))
-    return sheet.resize((frame * 4, frame), Image.Resampling.LANCZOS)
+            shoulder = (side * 2.5, -0.5)
+            wrist = (side * 12.5, -arm * 8.5 - 1.5)
+            tip = (wrist[0] + side * 13.5 * math.cos(hand * 0.5), wrist[1] - hand * 9.0 + 2.5)
+            # Leading edge out to the tip, trailing edge back, a little below, thinner toward the tip
+            lead = [shoulder, ((shoulder[0] + wrist[0]) / 2, (shoulder[1] + wrist[1]) / 2 - 1.2), wrist,
+                    ((wrist[0] + tip[0]) / 2, (wrist[1] + tip[1]) / 2 - 0.6), tip]
+            trail = [((wrist[0] + tip[0]) / 2 - side * 0.8, (wrist[1] + tip[1]) / 2 + 2.4),
+                     (wrist[0] - side * 1.2, wrist[1] + 4.4),
+                     ((shoulder[0] + wrist[0]) / 2, (shoulder[1] + wrist[1]) / 2 + 4.2), (side * 2.0, 3.0)]
+            draw.polygon([point(cx, cy, x, y) for x, y in lead + trail], fill=255)
+        draw.ellipse((cx - 3.2 * scale, cy - 2.4 * scale, cx + 3.2 * scale, cy + 3.4 * scale), fill=255)
+        draw.ellipse((cx - 1.8 * scale, cy - 4.0 * scale, cx + 1.8 * scale, cy - 0.6 * scale), fill=255)
+    alpha = sheet.resize((frame * 8, frame), Image.Resampling.LANCZOS)
+    bird = Image.new('RGBA', alpha.size, (255, 255, 255, 0))
+    bird.putalpha(alpha)
+    return bird
 
 
 def login_vignette():
@@ -316,6 +463,8 @@ def build_login_art():
         writer.writeRawBlp(tile, os.path.join(OUTPUT, f'LoginBackdrop{index}.blp'))
     for index, tile in enumerate(login_foreground(), 1):
         writer.writeRawBlp(tile, os.path.join(OUTPUT, f'LoginForeground{index}.blp'))
+    writer.writeRawBlp(login_banners(), os.path.join(OUTPUT, 'LoginBanners.blp'))
+    writer.writeRawBlp(login_falls(), os.path.join(OUTPUT, 'LoginFalls.blp'))
     writer.writeRawBlp(login_clouds(), os.path.join(OUTPUT, 'LoginClouds.blp'))
     writer.writeRawBlp(login_mist(), os.path.join(OUTPUT, 'LoginMist.blp'))
     writer.writeRawBlp(login_rays(), os.path.join(OUTPUT, 'LoginRays.blp'))

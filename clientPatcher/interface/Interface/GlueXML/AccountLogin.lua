@@ -57,19 +57,62 @@ local EMBERS_PER_BRAZIER = 7
 -- the width of one copy of their tiling texture, their drift per second - negative: leftwards -, their tint and
 -- strength), the flocks (how often one sets out, how many birds, their size, speed and height), the motes of dust
 local CLOUDS = {
-    { y = 230, height = 420, width = 2800, speed = 7, tint = { 1, 0.8, 0.58 }, alpha = 0.16 },
-    { y = 340, height = 300, width = 2100, speed = 13, tint = { 1, 0.74, 0.5 }, alpha = 0.11 },
+    { y = 230, height = 420, width = 2800, speed = 12, tint = { 1, 0.8, 0.58 }, alpha = 0.2 },
+    { y = 340, height = 300, width = 2100, speed = 21, tint = { 1, 0.74, 0.5 }, alpha = 0.14 },
 }
 local MISTS = {
-    { y = 700, height = 230, width = 2800, speed = 11, tint = { 1, 0.93, 0.85 }, alpha = 0.32 },
-    { y = 770, height = 200, width = 2200, speed = -8, tint = { 1, 0.9, 0.8 }, alpha = 0.24 },
+    { y = 690, height = 240, width = 2800, speed = 17, tint = { 1, 0.93, 0.85 }, alpha = 0.36 },
+    { y = 770, height = 200, width = 2200, speed = -12, tint = { 1, 0.9, 0.8 }, alpha = 0.28 },
 }
-local FLOCK_EVERY = { 12, 24 }
-local FLOCK_BIRDS = { 4, 8 }
-local BIRD_SIZE = { 26, 40 }
+local FLOCK_EVERY = { 9, 18 }
+local FLOCK_BIRDS = { 3, 7 }
+local BIRD_SIZE = { 30, 46 }        -- a frame of LoginBird, square (the wings span most of it)
 local BIRD_SPEED = { 70, 105 }
+local BIRD_BEAT = { 1.6, 2.3 }      -- wing beats a second
 local FLOCK_HEIGHT = { 230, 470 }
 local MOTES = 22
+
+-- Depth, in picture pixels: the far layer leans away from the pointer by up to PARALLAX and sways on its own by up
+-- to SWAY (one sway every SWAY_PERIOD seconds), the clouds further (CLOUD_DEPTH times), the mist less; the near
+-- layer never moves. The picture is drawn OVERSCAN larger than what just covers the screen, so no lean or sway ever
+-- shows its edge.
+local PARALLAX = { 18, 7 }
+local SWAY = { 7, 2.5 }
+local SWAY_PERIOD = 26
+local CLOUD_DEPTH, MIST_DEPTH = 1.5, 0.75
+local OVERSCAN = 1.035
+
+-- The banners' cloth (buildGlueArt.py login_banners): where each sits in the picture, each at the top left of its
+-- BANNER_COLUMN of LoginBanners. Waved in strips across, each pushed sideways by waves running down the cloth:
+-- nothing at the crossbar, up to BANNER_SWING picture pixels at the tatters.
+local BANNER_COLUMN = { 128, 512 }
+local BANNER_STRIPS = 40
+local BANNER_SWING = 6
+local BANNERS = {
+    { x = 774, y = 446, width = 120, height = 315 },
+    { x = 2704, y = 434, width = 119, height = 335 },
+}
+
+-- The waterfalls' flow (buildGlueArt.py login_falls): each fall's box in the picture, where its FALL_FRAMES frames
+-- start in LoginFalls (side by side, each width x height texture pixels), and whether it is in the near layer. Two
+-- frames at once, crossfaded, so the streaks slide down smoothly, FALL_RATE frames a second.
+local FALLS_TEXTURE = 1024
+local FALL_FRAMES, FALL_RATE, FALL_ALPHA = 16, 15, 0.5
+local FALLS = {
+    { 125, 416, 177, 568, 0, 0, 26, 76, false },
+    { 233, 160, 279, 326, 417, 0, 23, 83, false },
+    { 340, 146, 376, 303, 0, 84, 18, 79, false },
+    { 439, 480, 513, 687, 289, 84, 37, 104, false },
+    { 1437, 576, 1481, 678, 0, 189, 22, 51, false },
+    { 1501, 614, 1525, 690, 353, 189, 12, 38, false },
+    { 1657, 422, 1702, 520, 546, 189, 23, 49, false },
+    { 1762, 454, 1845, 574, 0, 241, 42, 60, false },
+    { 2174, 477, 2228, 574, 0, 302, 27, 49, false },
+    { 2852, 428, 2912, 584, 433, 302, 30, 78, false },
+    { 2995, 442, 3029, 539, 0, 381, 17, 49, false },
+    { 3251, 556, 3339, 704, 273, 381, 44, 74, false },
+    { 3348, 260, 3414, 436, 0, 456, 33, 88, false },
+}
 
 -- The logo: its size in its texture (buildGlueArt.py), and how much of the screen's height it takes
 local LOGO_TEXTURE_SIZE = 1024
@@ -116,7 +159,8 @@ local fields = {}
 local links = {}
 local optionRows = {}
 local intro, clock = 0, 0
-local nextFlock = 4
+local nextFlock = 3
+local leanX, leanY = 0, 0      -- the pointer's place, eased: -0.5 to 0.5 across and up
 local layoutKey
 local cardHeight, cardTargetHeight
 
@@ -328,6 +372,7 @@ local function BuildScene(owner)
     scene.art:SetTexture(ART .. "LoginBackdrop1")
     scene.art2 = self:CreateTexture(nil, "BACKGROUND")
     scene.art2:SetTexture(ART .. "LoginBackdrop2")
+    scene.falls = {}
 
     -- Behind the foreground: the sky's life
     local sky = Layer(self, self)
@@ -360,8 +405,39 @@ local function BuildScene(owner)
     scene.fore2 = fore:CreateTexture(nil, "ARTWORK")
     scene.fore2:SetTexture(ART .. "LoginForeground2")
 
+    -- The waterfalls' flow, over the layer each fall is in
+    for _, spec in ipairs(FALLS) do
+        local fall = { spec = spec, frames = {} }
+        for index = 1, 2 do
+            local frame = (spec[9] and fore or self):CreateTexture(nil, spec[9] and "OVERLAY" or "BORDER")
+            frame:SetTexture(ART .. "LoginFalls")
+            frame:SetBlendMode("ADD")
+            frame:SetVertexColor(1, 0.95, 0.88)
+            fall.frames[index] = frame
+        end
+        scene.falls[#scene.falls + 1] = fall
+    end
+
+    -- The banners' cloth, in front of their poles, in strips
+    local cloth = Layer(self, fore)
+    scene.banners = {}
+    for column, spec in ipairs(BANNERS) do
+        local banner = { spec = spec, strips = {}, seed = column * 2.3 }
+        for index = 1, BANNER_STRIPS do
+            local strip = cloth:CreateTexture(nil, "ARTWORK")
+            strip:SetTexture(ART .. "LoginBanners")
+            local top = (index - 1) / BANNER_STRIPS * spec.height
+            local bottom = math.min(index / BANNER_STRIPS * spec.height + 1, spec.height)
+            strip:SetTexCoord(((column - 1) * BANNER_COLUMN[1]) / (2 * BANNER_COLUMN[1]),
+                ((column - 1) * BANNER_COLUMN[1] + spec.width) / (2 * BANNER_COLUMN[1]),
+                top / BANNER_COLUMN[2], bottom / BANNER_COLUMN[2])
+            banner.strips[index] = { texture = strip, top = top, height = bottom - top }
+        end
+        scene.banners[column] = banner
+    end
+
     -- In front: the braziers, the motes, and the shade that lets the title and the card read over the bright sky
-    local front = Layer(self, fore)
+    local front = Layer(self, cloth)
     scene.front = front
     scene.lights = {}
     for index, point in ipairs(BRAZIERS) do
@@ -402,8 +478,10 @@ end
 -- The part of the picture on screen (Cover), to put things on points of the picture
 local view = {}
 
--- Centres a texture on a point of the picture (in its pixels), size in picture pixels too (height: as wide)
-local function Place(texture, x, y, size, height)
+-- Centres a texture on a point of the picture (in its pixels), size in picture pixels too (height: as wide). depth:
+-- how much of the far layer's lean it takes (none: it stands with the near layer)
+local function Place(texture, x, y, size, height, depth)
+    x, y = x + view.shiftX * (depth or 0), y + view.shiftY * (depth or 0)
     texture:ClearAllPoints()
     texture:SetPoint("CENTER", view.frame, "TOPLEFT", (x / ART_WIDTH - view.left) / view.u * view.width,
         -(y / ART_HEIGHT - view.top) / view.v * view.height)
@@ -441,16 +519,16 @@ local function LaunchFlock()
         local row = math.floor(index / 2)
         local side = (index % 2 == 0) and 1 or -1
         local bird = {
-            dx = -row * 34 * (rightwards and 1 or -1) + (math.random() - 0.5) * 16,
-            dy = row * 18 * side + (math.random() - 0.5) * 12,
+            dx = -row * 40 * (rightwards and 1 or -1) + (math.random() - 0.5) * 18,
+            dy = row * 20 * side + (math.random() - 0.5) * 12,
             size = Between(BIRD_SIZE),
-            beat = 5.5 + math.random() * 3,
-            phase = math.random() * 4,
+            beat = Between(BIRD_BEAT),
+            phase = math.random(),
             glide = math.random() * 6.28,
             texture = table.remove(scene.birdPool) or scene.sky:CreateTexture(nil, "ARTWORK"),
         }
         bird.texture:SetTexture(ART .. "LoginBird")
-        bird.texture:SetVertexColor(0.2, 0.15, 0.12)
+        bird.texture:SetVertexColor(0.17, 0.12, 0.1)
         bird.texture:Show()
         flock.birds[index] = bird
     end
@@ -470,39 +548,87 @@ local function UpdateScene(owner, elapsed, brightness)
         self:SetHeight(height)
     end
 
-    -- The picture, still: its part that fills the stage
-    local left, top, u, v = Cover(width, height, 1.0, 0.5, 0.45)
+    -- The picture: its part that fills the stage, a little larger than that (OVERSCAN), the near layer still
+    local left, top, u, v = Cover(width, height, OVERSCAN, 0.5, 0.5)
     local pixel = width / (u * ART_WIDTH)
     view.frame, view.left, view.top, view.u, view.v, view.width, view.height = self, left, top, u, v, width, height
     view.pixel = pixel
+
+    -- The far layer's lean: away from the pointer (eased), and a slow sway of its own
+    local cursorX, cursorY = GetCursorPosition()
+    local scale = self:GetEffectiveScale()
+    if cursorX and scale and scale > 0 then
+        leanX = Approach(leanX, Clamp01(cursorX / scale / width) - 0.5, elapsed, 1.2)
+        leanY = Approach(leanY, Clamp01(cursorY / scale / height) - 0.5, elapsed, 1.2)
+    end
+    local swing = clock / SWAY_PERIOD * 2 * math.pi
+    view.shiftX = -leanX * 2 * PARALLAX[1] + math.sin(swing) * SWAY[1]
+    view.shiftY = leanY * 2 * PARALLAX[2] + math.sin(swing * 2 + 0.7) * SWAY[2]
+
     local x, y = -left * ART_WIDTH * pixel, top * ART_HEIGHT * pixel
     for index, pair in ipairs({ { scene.art, scene.fore1 }, { scene.art2, scene.fore2 } }) do
-        for _, tile in ipairs(pair) do
+        for depth, tile in ipairs(pair) do
+            local far = depth == 1 and 1 or 0
             tile:ClearAllPoints()
-            tile:SetPoint("TOPLEFT", self, "TOPLEFT", x + (index - 1) * ART_TILE_WIDTH * pixel, y)
+            tile:SetPoint("TOPLEFT", self, "TOPLEFT", x + ((index - 1) * ART_TILE_WIDTH + view.shiftX * far) * pixel,
+                y - view.shiftY * far * pixel)
             tile:SetWidth(ART_TILE_WIDTH * pixel)
             tile:SetHeight(ART_HEIGHT * pixel)
             tile:SetVertexColor(brightness, brightness, brightness)
         end
     end
 
+    -- The waterfalls, flowing: two frames of the loop crossfaded
+    local flow = (clock * FALL_RATE) % FALL_FRAMES
+    local frame, blend = math.floor(flow), flow - math.floor(flow)
+    for _, fall in ipairs(scene.falls) do
+        local spec = fall.spec
+        for index, texture in ipairs(fall.frames) do
+            local cell = (frame + index - 1) % FALL_FRAMES
+            local cellLeft = spec[5] + cell * spec[7]
+            texture:SetTexCoord(cellLeft / FALLS_TEXTURE, (cellLeft + spec[7]) / FALLS_TEXTURE, spec[6] / FALLS_TEXTURE,
+                (spec[6] + spec[8]) / FALLS_TEXTURE)
+            Place(texture, (spec[1] + spec[3]) / 2, (spec[2] + spec[4]) / 2, spec[3] - spec[1], spec[4] - spec[2],
+                spec[9] and 0 or 1)
+            texture:SetAlpha(FALL_ALPHA * (index == 1 and 1 - blend or blend) * brightness)
+        end
+    end
+
+    -- The banners, waving: each strip pushed sideways by two waves running down the cloth, stronger toward the
+    -- tatters, with gusts; its fold shaded by the waves' slope
+    for _, banner in ipairs(scene.banners) do
+        local spec = banner.spec
+        local gust = 0.7 + 0.3 * math.sin(clock * 0.37 + banner.seed)
+        for _, strip in ipairs(banner.strips) do
+            local down = (strip.top + strip.height / 2) / spec.height
+            local reach = BANNER_SWING * gust * down ^ 1.3
+            local wave = clock * 1.8 - down * 4.5 + banner.seed
+            local ripple = clock * 3.1 - down * 8 + banner.seed * 1.7
+            local offset = reach * (math.sin(wave) + 0.35 * math.sin(ripple))
+            Place(strip.texture, spec.x + spec.width / 2 + offset, spec.y + strip.top + strip.height / 2,
+                spec.width, strip.height)
+            local shade = brightness * (1 - 0.14 * down * gust * math.cos(wave))
+            strip.texture:SetVertexColor(shade, shade, shade)
+        end
+    end
+
     -- The sun: its glow breathing, its rays turning slowly
-    Place(scene.sun, SUN[1], SUN[2], 520)
+    Place(scene.sun, SUN[1], SUN[2], 520, nil, 1)
     scene.sun:SetAlpha((0.3 + 0.06 * math.sin(clock * 0.7)) * brightness)
-    Place(scene.rays, SUN[1], SUN[2], 1900)
+    Place(scene.rays, SUN[1], SUN[2], 1900, nil, 1)
     Turn(scene.rays, clock * 0.012)
     scene.rays:SetAlpha((0.16 + 0.05 * math.sin(clock * 0.45)) * brightness)
-    Place(scene.beacon, BEACON[1], BEACON[2], 230)
+    Place(scene.beacon, BEACON[1], BEACON[2], 230, nil, 1)
     scene.beacon:SetAlpha((0.16 + 0.05 * math.sin(clock * 0.9)) * brightness)
 
-    -- The clouds and the mist, drifting and wrapping round
-    for _, band in ipairs(scene.bands) do
+    -- The clouds and the mist, drifting and wrapping round, leaning more and less than the far layer
+    for index, band in ipairs(scene.bands) do
         local spec = band.spec
         local offset = (clock * spec.speed) % spec.width
         local start = view.left * ART_WIDTH - spec.width + offset
         for copy, piece in ipairs(band.copies) do
             local centre = start + (copy - 1) * spec.width + spec.width / 2
-            Place(piece, centre, spec.y, spec.width, spec.height)
+            Place(piece, centre, spec.y, spec.width, spec.height, index <= #CLOUDS and CLOUD_DEPTH or MIST_DEPTH)
             piece:SetAlpha(spec.alpha * brightness)
         end
     end
@@ -522,10 +648,14 @@ local function UpdateScene(owner, elapsed, brightness)
             if done then
                 bird.texture:Hide()
             else
-                local frame = math.floor((clock * bird.beat + bird.phase) % 4)
-                bird.texture:SetTexCoord(frame / 4, (frame + 1) / 4, 0, 1)
+                -- Beating, or now and then gliding on level wings (the first frame)
+                local pose = math.floor(((clock * bird.beat + bird.phase) % 1) * 8)
+                if math.sin(clock * 0.45 + bird.glide) > 0.55 then
+                    pose = 0
+                end
+                bird.texture:SetTexCoord(pose / 8, (pose + 1) / 8, 0, 1)
                 local bob = math.sin(clock * 1.3 + bird.glide) * 6
-                Place(bird.texture, flock.x + bird.dx, flock.y + bird.dy + bob, bird.size, bird.size * 0.5)
+                Place(bird.texture, flock.x + bird.dx, flock.y + bird.dy + bob, bird.size, nil, 1)
                 bird.texture:SetAlpha(0.85 * brightness)
             end
         end
