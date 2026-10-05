@@ -25,11 +25,11 @@ local TEXT = french and {
     airSection = "Atmosphère",
     imageSection = "Image",
     colourSection = "Couleurs",
-    note = "Les ombres, la brume et l'eau ont besoin du MSAA désactivé : l'anticrénelage le remplace. "
+    note = "Les ombres, la brume et l'eau ont besoin du MSAA désactivé : l'anticrénelage le remplace. Le "
+        .. "brouillard ne monte que la nuit. "
         .. "/rendu active ou coupe le rendu avancé.",
     on = "Rendu avancé activé.",
     off = "Rendu avancé désactivé.",
-    shadows = "Ombres du soleil",
     ao = "Ombres de contact",
     lights = "Lumières des flammes",
     night = "Nuits sombres",
@@ -61,10 +61,10 @@ local TEXT = french and {
     airSection = "Atmosphere",
     imageSection = "Image",
     colourSection = "Colour",
-    note = "Shadows, mist and water need MSAA off: the anti-aliasing replaces it. /rendu toggles enhanced rendering.",
+    note = "Shadows, mist and water need MSAA off: the anti-aliasing replaces it. The mist only rises at night. "
+        .. "/rendu toggles enhanced rendering.",
     on = "Enhanced rendering on.",
     off = "Enhanced rendering off.",
-    shadows = "Sun shadows",
     ao = "Contact shadows",
     lights = "Firelight",
     night = "Darker nights",
@@ -88,7 +88,6 @@ local TEXT = french and {
 -- close on the character.
 local SECTIONS = {
     { title = "lightSection", settings = {
-        { key = "shadows", cvar = "postFxSunShadows", min = 0, max = 100 },
         { key = "ao", cvar = "postFxAO", min = 0, max = 100 },
         { key = "lights", cvar = "postFxLights", min = 0, max = 100 },
         { key = "night", cvar = "postFxNight", min = 0, max = 100 },
@@ -117,15 +116,15 @@ local SECTIONS = {
 
 local PRESETS = {
     natural = { postFxAO = 50, postFxLights = 60, postFxShafts = 35, postFxHaze = 25, postFxWater = 60,
-        postFxDoF = 60, postFxNight = 40, postFxSunShadows = 60, postFxFog = 40, postFxBloom = 25,
+        postFxDoF = 60, postFxNight = 40, postFxFog = 40, postFxBloom = 25,
         postFxSharpen = 35, postFxContrast = 15, postFxExposure = 100, postFxVibrance = 15, postFxSaturation = 100,
         postFxWarmth = 0, postFxTone = 0, postFxVignette = 15 },
     vivid = { postFxAO = 60, postFxLights = 75, postFxShafts = 50, postFxHaze = 30, postFxWater = 70,
-        postFxDoF = 60, postFxNight = 45, postFxSunShadows = 70, postFxFog = 45, postFxBloom = 40,
+        postFxDoF = 60, postFxNight = 45, postFxFog = 45, postFxBloom = 40,
         postFxSharpen = 50, postFxContrast = 30, postFxExposure = 100, postFxVibrance = 35, postFxSaturation = 105,
         postFxWarmth = 5, postFxTone = 20, postFxVignette = 20 },
     cinema = { postFxAO = 70, postFxLights = 85, postFxShafts = 70, postFxHaze = 45, postFxWater = 80,
-        postFxDoF = 80, postFxNight = 60, postFxSunShadows = 80, postFxFog = 60, postFxBloom = 55,
+        postFxDoF = 80, postFxNight = 60, postFxFog = 60, postFxBloom = 55,
         postFxSharpen = 40, postFxContrast = 40, postFxExposure = 100, postFxVibrance = 20, postFxSaturation = 95,
         postFxWarmth = 0, postFxTone = 60, postFxVignette = 40 },
 }
