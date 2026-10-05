@@ -32,19 +32,21 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
 - `speed` (yards a second): the emitter flies round its points as a closed path, its sounds following it (gulls
   circling the harbour, pigeons over a square).
 - `time`: day is 6:00-21:00 server time (`GetGameTime`, the glue). `place`: `indoors` plays only with the player
-  inside (`IsIndoors()`): an inn's room - glasses clinking - heard from the street "doesn't make sense" (user,
-  2026-10-06). A street's crowd bed must be an open-air one (Dalaran's city day / night), never a tavern's walla.
+  inside (`IsIndoors()`): an inn's sounds - glasses clinking - heard from the street "don't make sense" (user,
+  2026-10-06); never a tavern's recording outdoors.
 - Volumes: emitters follow the game's Ambience volume and switch, every other sound its Sound Effects'; all of them
   the master volume, and keep playing in the background when `Sound_EnableSoundWhenGameIsInBG` is on (3.3.5's
   name: `...InBackground` does not exist).
 - Positions: from the world database (creatures, gameobjects of the place: `creature`, `gameobject` - their
   `zoneId` is not filled, select by coordinates), heights from creatures standing there. A city's fountains, lamps,
   banners and hourly bells already have the game's own sounds: don't double them.
-- A place's life comes from layering: several crowd beds (loops at different points), a voice or a laugh now and
-  then over them from many points, birds overhead. Sparingly: one voice every 1-4 s on the square was "way too much,
-  weird" (2026-10-06); about one every 4-9 s (two emitters at 8-18 s) at 0.75 volume, much less at night.
-- First zone: Stormwind (`modules/mod-stat-growth/client-assets/audio/stormwind.json`): the Trade District square as
-  its heart, the bank, taverns, Cathedral Square, the Dwarven District forge, the harbour, the park, Old Town.
+- Passing sounds only, never a constant bed: looping ambience (crowd murmurs, an inn's room, a forge's fire, ships
+  creaking) "feels bad" - the user wants sounds that come and go (2026-10-06). A place's life is a voice or a laugh
+  now and then from many points, birds overhead, a hammer at the forge. Sparingly: one voice every 1-4 s on the
+  square was "way too much, weird"; about one every 4-9 s (two emitters at 8-18 s) at 0.75, much less at night.
+  The engine still plays `loop` emitters - don't use them for ambience without asking.
+- First zone: Stormwind (`modules/mod-stat-growth/client-assets/audio/stormwind.json`): the Trade District square,
+  the bank, Cathedral Square, the Dwarven District forge, the harbour, the park, Old Town.
 
 ## Adding sounds
 
