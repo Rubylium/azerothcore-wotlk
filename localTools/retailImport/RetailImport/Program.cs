@@ -49,6 +49,10 @@ switch (positional[0])
         foreach (var text in positional.Skip(1))
             Probe.Look(retail, text);
         return 0;
+    case "atlas":
+        foreach (var text in positional.Skip(1))
+            Probe.Atlas(retail, text);
+        return 0;
     case "probe-texture":
         foreach (var texture in positional.Skip(1))
             Probe.Texture(retail, uint.Parse(texture));

@@ -215,4 +215,24 @@ public static class Probe
             yield return (fdid, component);
         }
     }
+
+    /// <summary>The UI atlases whose name holds a text: the texture file and the pixel rectangle of each</summary>
+    public static void Atlas(Retail retail, string text)
+    {
+        var atlases = retail.Table("UiTextureAtlas");
+        var elements = retail.Table("UiTextureAtlasElement");
+        foreach (var member in retail.Table("UiTextureAtlasMember").Values)
+        {
+            if (!elements.TryGetValue(Convert.ToInt32(member["UiTextureAtlasElementID"]), out var element))
+                continue;
+            var name = (string)element["Name"];
+            if (!name.Contains(text, StringComparison.OrdinalIgnoreCase))
+                continue;
+            atlases.TryGetValue(Convert.ToInt32(member["UiTextureAtlasID"]), out var atlas);
+            var file = atlas != null ? Convert.ToUInt32(atlas["FileDataID"]) : 0;
+            Console.WriteLine($"  {name} file {file} {retail.NameOf(file)} rect {member["CommittedLeft"]},"
+                              + $"{member["CommittedTop"]}-{member["CommittedRight"]},{member["CommittedBottom"]}"
+                              + (atlas != null ? $" of {atlas["AtlasWidth"]}x{atlas["AtlasHeight"]}" : ""));
+        }
+    }
 }
