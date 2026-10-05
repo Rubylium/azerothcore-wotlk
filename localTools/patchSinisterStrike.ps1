@@ -206,11 +206,11 @@ $customSpells = @(
        Description = 'La chair de la cible se putréfie.'
        AuraDescription = 'Subit toutes les 3 sec des dégâts de Nature égaux à 1% de ses points de vie maximum par charge. Enfle à chaque charge.'
        # 20 sec, up to 6 stacks, and the target visibly swells: 2% model scale per stack
-       Fields = @{ 131 = (PestifereLook 'Pourriture'); 40 = 18; 49 = 6; 74 = 0; 72 = 6; 75 = 0; 81 = 2; 87 = 6; 96 = 61 } },
+       Fields = @{ 2 = 0; 131 = (PestifereLook 'Pourriture'); 40 = 18; 49 = 6; 74 = 0; 72 = 6; 75 = 0; 81 = 2; 87 = 6; 96 = 61 } },
 
     @{ Id = 90201; Clone = 50842; Name = 'Contagion'; Icon = 'Pestifere_Contagion'; FallbackIconSpell = 50842; Cost = 200; Cooldown = 6000; Level = 6; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Transmet chaque fléau que vous portez aux ennemis dans un rayon de 10 mètres et prolonge la Pourriture qu''ils portent déjà. Génère de la menace pour chaque fléau transmis.'
-       Fields = @{ 131 = (PestifereLook 'Contagion') } },
+       Fields = @{ 2 = 0; 131 = (PestifereLook 'Contagion') } },
     @{ Id = 90202; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 250; Cooldown = 0; Level = 10; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Fait exploser la moitié de la Pourriture des ennemis proches et consomme les fléaux qu''ils portent : plus un ennemi porte de charges et de fléaux, plus l''explosion est violente. Au-delà de 4 ennemis pourrissants, les dégâts de zone sont répartis. Vous rend 2% de vos points de vie maximum pour chaque ennemi touché ; ce que vous ne pouvez pas soigner devient une Excroissance qui absorbe les dégâts.'
        Fields = @{ 131 = (PestifereLook 'Detonation'); 72 = 0; 75 = 0; 81 = 0; 87 = 0; 96 = 0; 74 = 0; 80 = 1 } },
@@ -220,7 +220,7 @@ $customSpells = @(
     @{ Id = 90204; Clone = 47476; Name = 'Crachat bilieux'; Icon = 'Pestifere_CrachatBilieux'; FallbackIconSpell = 47476; Cost = 100; Cooldown = 20000; Level = 20; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Crache de la bile sur un ennemi situé à 30 mètres au plus et le réduit au silence pendant 5 sec.'
        # The tank's interrupt: off the global cooldown (Strangulate, its clone, is on it)
-       Fields = @{ 131 = (PestifereLook 'CrachatBilieux'); 205 = 0; 206 = 0 } },
+       Fields = @{ 2 = 0; 131 = (PestifereLook 'CrachatBilieux'); 205 = 0; 206 = 0 } },
     # Détonation en chaîne: the blast jumping to an enemy outside it. mod-pestifere computes the damage (the same
     # formula as Détonation, on that enemy's own rot) and casts this with it; no damage class, so it cannot miss.
     @{ Id = 90206; Clone = 6343; Name = 'Détonation'; Icon = 'Pestifere_Detonation'; FallbackIconSpell = 49158; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
@@ -254,16 +254,17 @@ $customSpells = @(
        Fields = @{ 40 = 21; 95 = 79; 74 = 0; 80 = 10; 110 = 127; 72 = 6; 75 = 0; 81 = 15; 87 = 1; 96 = 3;
                    99 = 3000 } },
 
-    # The enemy versions, handed out by Contagion and consumed by Détonation
+    # The enemy versions, handed out by Contagion and consumed by Détonation. Like every debuff of the class (field 2,
+    # dispel type 0), nothing can dispel them: their clone's disease type let other players' cures take them off.
     @{ Id = 90220; Clone = 55078; Name = 'Carapace nécrosée'; Icon = 'Pestifere_CarapaceNecrosee'; FallbackIconSpell = 49222; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        AuraDescription = 'Dégâts infligés réduits de 5%.'
-       Fields = @{ 40 = 18; 95 = 79; 74 = 0; 80 = -5; 110 = 127 } },
+       Fields = @{ 2 = 0; 40 = 18; 95 = 79; 74 = 0; 80 = -5; 110 = 127 } },
     @{ Id = 90221; Clone = 55078; Name = 'Chair putride'; Icon = 'Pestifere_ChairPutride'; FallbackIconSpell = 50536; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        AuraDescription = 'Soins reçus réduits de 20%.'
-       Fields = @{ 40 = 18 } },
+       Fields = @{ 2 = 0; 40 = 18 } },
     @{ Id = 90222; Clone = 55078; Name = 'Peste virulente'; Icon = 'Pestifere_PesteVirulente'; FallbackIconSpell = 69674; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        AuraDescription = 'Subit toutes les 3 sec des dégâts de Nature égaux à 1% de ses points de vie maximum.'
-       Fields = @{ 40 = 18 } },
+       Fields = @{ 2 = 0; 40 = 18 } },
 
     # Sépulcre's stored plague: the damage it held back, dealt over 12 sec. mod-pestifere deals every tick itself
     # (the amount is exact: it was already mitigated once), and Contagion hands the enemy version out. Physical,
@@ -462,7 +463,7 @@ $customSpells = @(
        Description = 'Vomit un flot de bile devant vous : inflige de lourds dégâts de Nature aux ennemis dans un cône de 10 mètres et leur applique 2 charges de Pourriture.'
        # Cone of Cold's cone, one damage effect, no damage class: it cannot miss
        Effects = @(@{ Index = 0; Effect = 2; TargetA = 104; BasePoints = 0 })
-       Fields = @{ 131 = (PestifereLook 'Vomissure'); 92 = 13; 213 = 0; 225 = 8 } },
+       Fields = @{ 2 = 0; 131 = (PestifereLook 'Vomissure'); 92 = 13; 213 = 0; 225 = 8 } },
     @{ Id = 90287; Clone = 12975; Name = 'Avatar de la peste'; Icon = 'PestifereTalent_AvatarPeste'; FallbackIconSpell = 49206; Cost = 0; Cooldown = 180000; Level = 0; Spellbook = $true; SkillLine = 900; ClassMask = 2048
        Description = 'Vous devenez un avatar de la peste pendant 20 sec : vous grandissez, vos fléaux comptent pour un fléau de plus et Détonation ne consomme plus les charges de Pourriture.'
        AuraDescription = 'Vos fléaux comptent pour un fléau de plus. Détonation ne consomme plus la Pourriture.'
