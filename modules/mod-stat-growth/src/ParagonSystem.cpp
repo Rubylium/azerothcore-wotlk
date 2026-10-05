@@ -1,4 +1,5 @@
 #include "ParagonSystem.h"
+#include "GroundLoot.h"
 
 #include "Chat.h"
 #include "ScriptMgr.h"
@@ -2329,13 +2330,15 @@ void GiveGlyph(Player* player, ParagonGlyph const& glyph)
         return;
     }
 
+    // Dropped by a boss just killed: on the floor with its loot, as a legendary (GroundLoot.cpp)
+    bool const thrown = GroundLoot::ThrowItem(player, glyph.item, 1, ITEM_QUALITY_LEGENDARY);
     ItemPosCountVec destination;
-    if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, glyph.item, 1) == EQUIP_ERR_OK)
+    if (!thrown && player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, glyph.item, 1) == EQUIP_ERR_OK)
     {
         if (Item* item = player->StoreNewItem(destination, glyph.item, true))
             player->SendNewItem(item, 1, true, false, true);
     }
-    else
+    else if (!thrown)
     {
         CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
         MailDraft draft(IsFrench(player) ? "Glyphe de parangon" : "Paragon glyph",
@@ -2519,6 +2522,8 @@ void OnParagonCreatureDeath(Creature* creature)
         !statGrowthConfig.GetConfigValue<bool>(StatGrowthConfigKey::ParagonEnabled))
         return;
 
+    // A glyph lands on the floor with the boss's loot (whatever order the death hooks run in)
+    GroundLoot::Open(creature);
     map->DoForAllPlayers([](Player* player)
     {
         if (!IsRealPlayer(player))

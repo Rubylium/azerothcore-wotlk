@@ -19,6 +19,13 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
 - Mythic items given within 20 s of the kill (`GiveSelectedMythicItem` asks `GroundLoot::Throw` first): the Mythique 0
   item, the Mythic+ end-of-key item (the last boss throws it), the Défi's god / pinnacle gear (given at the Killed event
   now, not at Won). Anything given that way later, or with no kill behind it, goes straight to the bags.
+- Any other item a boss kill gives goes through `GroundLoot::ThrowItem` (shown at least of the quality it asks): the
+  paragon glyph (`ParagonSystem.cpp` `GiveGlyph`, thrown as a legendary). A new kill reward must use `Throw` /
+  `ThrowItem` too - "ALL drops should be on the ground" (user, 2026-10-06). Hooks giving loot at the kill call
+  `GroundLoot::Open(corpse)` first (`OnParagonCreatureDeath`, the mythic rewards): the death hooks run in no set order.
+- A boss that drops little still throws a handful: each player with fewer than 6 drops (Défi) or 4 (dungeon) from the
+  corpse gets piles of gold for the rest, their corpse gold share plus 10 g + 5 g a tier (Défi) or 4 g + 1 g a key
+  level (dungeon), split unevenly (`TopUpWithGold`). The gear thrown later comes on top.
 - A touch decided before the item exists marks the drop "unique" (its own landing sound): `GivePinnacleLootItem`
   rolls the Hollow Voice's chance first and passes a touch only when it hits.
 

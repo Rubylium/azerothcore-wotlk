@@ -29,8 +29,9 @@
 #include <cmath>
 #include <vector>
 
-// mod-playerbots (RaidFinder.cpp): the boss entry a Défi's instance is against, 0 when map is no Défi's
+// mod-playerbots (RaidFinder.cpp): the boss entry a Défi's instance is against, 0 when map is no Défi's, and its tier
 uint32 GetChallengeBossOf(Map const* map);
+uint8 GetChallengeTierOf(Map const* map);
 
 namespace
 {
@@ -77,6 +78,18 @@ constexpr float MaxThrowDistance = 5.5f;
 constexpr float ThrowAngleStep = 2.39996f;
 constexpr float ThrowAngleJitter = 0.35f;
 
+// A boss that drops little still throws a handful: a player with fewer drops than this from the corpse gets the rest in
+// piles of gold, their share of its gold and some more - a Défi's (more at its higher tiers), a dungeon's (more at
+// higher keys) - shared out unevenly among the piles
+constexpr uint32 MinDropsDefi = 6;
+constexpr uint32 MinDropsDungeon = 4;
+constexpr uint32 DefiBaseGold = 10 * GOLD;
+constexpr uint32 DefiTierGold = 5 * GOLD;
+constexpr uint32 DungeonBaseGold = 4 * GOLD;
+constexpr uint32 DungeonKeyGold = 1 * GOLD;
+constexpr float PileWeightMin = 0.5f;
+constexpr float PileWeightMax = 1.5f;
+
 // Walked over within this distance, a drop is picked up; left this long on the floor, it goes to the bags
 constexpr float PickupRange = 2.5f;
 constexpr float PickupHeight = 3.0f;
@@ -109,6 +122,7 @@ struct Drop
     uint32 gold = 0;
     uint8 quality = 0;
     bool unique = false;  // a mythic item touched as it is made: a power of its own
+    bool fromCorpse = false;  // one of the corpse's: picked up as looting it would (the loot hooks told)
     ObjectGuid corpse;
     Position origin;
     Position landing;
@@ -270,8 +284,11 @@ void Give(Player* player, Drop const& drop)
             if (Item* item = player->StoreNewItem(destination, drop.itemId, true, drop.randomPropertyId))
             {
                 player->SendNewItem(item, drop.count, false, false, true);
-                player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM, drop.itemId, drop.count);
-                sScriptMgr->OnPlayerLootItem(player, item, drop.count, drop.corpse);
+                if (drop.fromCorpse)
+                {
+                    player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM, drop.itemId, drop.count);
+                    sScriptMgr->OnPlayerLootItem(player, item, drop.count, drop.corpse);
+                }
             }
             break;
         }
@@ -518,6 +535,7 @@ void ShareCorpseLoot(Creature* corpse, std::vector<Player*> const& players)
         {
             Drop drop;
             drop.kind = DropKind::Item;
+            drop.fromCorpse = true;
             drop.itemId = item.itemid;
             drop.count = item.count;
             drop.randomPropertyId = item.randomPropertyId;
@@ -548,6 +566,55 @@ void ShareCorpseLoot(Creature* corpse, std::vector<Player*> const& players)
     {
         loot.clear();
         corpse->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
+    }
+}
+
+uint32 BonusGold(Map const* map)
+{
+    if (uint8 const tier = GetChallengeTierOf(map))
+        return DefiBaseGold + DefiTierGold * tier;
+    return DungeonBaseGold + DungeonKeyGold * uint32(std::max(map->GetMythicLevel(), 0));
+}
+
+// A player left with fewer drops than the boss's minimum: piles of gold make up the rest (see MinDropsDefi), their
+// corpse gold share melted into them
+void TopUpWithGold(Creature* corpse, Player* player)
+{
+    GroundLootState* state = player->CustomData.Get<GroundLootState>(StateKey);
+    if (!state)
+        return;
+    uint32 const minimum = GetChallengeBossOf(corpse->GetMap()) ? MinDropsDefi : MinDropsDungeon;
+    uint32 gold = BonusGold(corpse->GetMap());
+    uint32 others = 0;
+    for (auto itr = state->drops.begin(); itr != state->drops.end();)
+    {
+        if (itr->corpse != corpse->GetGUID() || itr->bag)
+            ++itr;
+        else if (itr->kind == DropKind::Gold)
+        {
+            gold += itr->gold;
+            itr = state->drops.erase(itr);
+        }
+        else
+        {
+            ++others;
+            ++itr;
+        }
+    }
+    uint32 const piles = others < minimum ? minimum - others : 1;
+    std::vector<float> weights(piles);
+    float total = 0.0f;
+    for (float& weight : weights)
+        total += weight = frand(PileWeightMin, PileWeightMax);
+    uint32 given = 0;
+    for (uint32 index = 0; index < piles; ++index)
+    {
+        Drop drop;
+        drop.kind = DropKind::Gold;
+        drop.gold = index + 1 == piles ? gold - given : uint32(gold * weights[index] / total);
+        given += drop.gold;
+        if (drop.gold)
+            Queue(*state, std::move(drop));
     }
 }
 
@@ -649,17 +716,28 @@ bool Open(Creature* corpse)
         state->burstShown = false;
     }
     ShareCorpseLoot(corpse, players);
+    for (Player* player : players)
+        TopUpWithGold(corpse, player);
     LOG_DEBUG("module", "ground loot: {} thrown for {} players", corpse->GetName(), players.size());
     return true;
 }
 
-bool Throw(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
+// The player's loot of a kill just made, still taking more (ThrowWindowMs), nullptr when there is none
+GroundLootState* OpenBurst(Player* player)
 {
-    if (!IsRealPlayer(player) || !itemTemplate || !player->IsInWorld())
-        return false;
+    if (!IsRealPlayer(player) || !player->IsInWorld())
+        return nullptr;
     GroundLootState* state = player->CustomData.Get<GroundLootState>(StateKey);
     if (!state || !state->openedAt || NowMs() > state->openedAt + ThrowWindowMs ||
         player->GetMapId() != state->mapId || player->GetInstanceId() != state->instanceId)
+        return nullptr;
+    return state;
+}
+
+bool Throw(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch)
+{
+    GroundLootState* state = itemTemplate ? OpenBurst(player) : nullptr;
+    if (!state)
         return false;
 
     Drop drop;
@@ -670,6 +748,22 @@ bool Throw(Player* player, ItemTemplate const* itemTemplate, std::function<void(
     drop.quality = itemTemplate->Quality;
     // Its record now, for its tooltip on the floor
     SendMythicItemRecord(player, itemTemplate->ItemId);
+    Queue(*state, std::move(drop));
+    return true;
+}
+
+bool ThrowItem(Player* player, uint32 itemId, uint32 count, uint8 quality)
+{
+    ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(itemId);
+    GroundLootState* state = itemTemplate ? OpenBurst(player) : nullptr;
+    if (!state)
+        return false;
+
+    Drop drop;
+    drop.kind = DropKind::Item;
+    drop.itemId = itemId;
+    drop.count = count;
+    drop.quality = std::max<uint8>(quality, uint8(itemTemplate->Quality));
     Queue(*state, std::move(drop));
     return true;
 }
