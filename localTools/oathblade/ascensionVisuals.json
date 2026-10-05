@@ -1,0 +1,137 @@
+{
+  "_comment": [
+    "The Oathblade's looks and sounds, put together by localTools/ascensionImport/importVisuals.py from the retail",
+    "effects and sounds the Ascension client carries: a noble fencer in blue and white, Bastion's light (the Kyrian",
+    "covenant), arcane and frost blue, retail steel. Each look starts from the stock visual the spell cloned (its from,",
+    "for the swing animations and Frost Strike's blue weapon trail) and replaces the slots given; every sound is retail's.",
+    "localTools/oathblade/Spells.ps1 names a look by the id the import gives its key.",
+    "Strikes: Swift Cut (a Kyrian strike, Crusader Strike's revamp), Precise Thrust (an arcane blast, Chaos Strike's",
+    "thrust), Zeal Strike (retail Frost Strike), Noble Verdict (Bastion light in the hands and on the target, Templar's",
+    "Verdict), Final Edict (Azureblade's arcane cleave, Final Verdict, a light shake), Reversal (Overpower, a parry's",
+    "clash), Pommel Strike (Rebuke, Shield Bash). Areas: Sweeping Arc (retail whirlwind, Blade Dance), Crescent Sweep",
+    "(an arcane ring), Blade Dance (the Windlord's blades), Grand Flourish (an arcane explosion); each carrier's hit on",
+    "every enemy is silent (the ability was heard once). Noble Advance (retail charge, Fel Rush), Blade Ward (Shield",
+    "Wall's ring, arcane blades while it holds, Die by the Sword), Flourish, Rally (retail battle shout), Flawless Form",
+    "(a Bastion nova, the body lit and tinted blue with arcane blades, an arcane surge as it ends; Avatar's roar), its",
+    "echo on every technique (an arcane blast)."
+  ],
+  "output": "modules/mod-oathblade/client-assets/imported",
+  "idBase": 79000,
+  "looks": {
+    "SwiftCut": {
+      "from": 253,
+      "cast": { "from": 10723, "anim": 17, "effects": { "base": null }, "sound": "spell_pa_crusaderstrike_revamp_cast_01" },
+      "impact": { "effects": { "chest": "cfx_kyrian_rogue_impacthead" }, "sound": "spell_pa_crusaderstrike_revamp_impact_01" }
+    },
+    "PreciseThrust": {
+      "from": 7660,
+      "cast": { "from": 11860, "effects": { "hands": null, "breath": null }, "sound": "spell_dh_chaos_strike_cast_01" },
+      "impact": { "effects": { "chest": "cfx_mage_arcaneblast1_impact" }, "sound": "1h_sword_crithit_armor_plate_01" }
+    },
+    "ZealStrike": {
+      "from": 11612,
+      "cast": { "from": 10723, "effects": { "base": null }, "sound": "spell_wr_ragingblow_revamp_cast_01" },
+      "impact": { "from": 10724, "effects": { "base": null, "chest": "cfx_deathknight_froststrike_impact" },
+        "sound": "spell_dk_froststrike_impact01" }
+    },
+    "NobleVerdict": {
+      "from": 11613,
+      "cast": { "from": 10722, "effects": { "base": null, "hands": "cfx_kyrian_warrior_casthand" },
+        "sound": "spell_pa_templarsverdict_revamp_cast_04" },
+      "impact": { "effects": { "chest": "cfx_kyrian_warlock_impactchest" }, "sound": "spell_pa_templarsverdict_revamp_impact_04" }
+    },
+    "FinalEdict": {
+      "from": 11613,
+      "cast": { "from": 10722, "effects": { "base": null, "hands": "cfx_kyrian_warrior_casthand" },
+        "sound": "spell_pa_finalverdict_cast_01", "shake": 3 },
+      "impact": { "effects": { "chest": "10fx_azurevault_azureblade_arcanecleave_impact" },
+        "sound": "spell_wr_execute_revamp_impact_01" }
+    },
+    "Reversal": {
+      "from": 8316,
+      "cast": { "from": 324, "sound": "spell_wr_revenge_cast_01" },
+      "impact": { "from": 437, "effects": { "chest": "cfx_warrior_overpower_impact" }, "sound": "1h_sword_crithit_metal_parry_01" }
+    },
+    "PommelStrike": {
+      "from": 8316,
+      "cast": { "from": 324, "sound": "spell_wr_shield_bash_revamp_cast_01" },
+      "impact": { "from": 437, "effects": { "chest": "cfx_paladin_rebuke_impact" }, "sound": "spell_wr_heroicstrike_impact_01" }
+    },
+    "SweepingArc": {
+      "from": 12006,
+      "cast": { "from": 11088, "effects": { "base": "cfx_warrior_whirlwind_castbase" }, "sound": "spell_dh_bladedance_cast_04" },
+      "impact": null
+    },
+    "SweepingArcHit": {
+      "from": 12006,
+      "cast": null,
+      "impact": { "effects": { "chest": "cfx_warrior_cleave_impact" }, "sound": null }
+    },
+    "CrescentSweep": {
+      "from": 12006,
+      "cast": { "from": 11088, "effects": { "base": "cfx_mage_arcaneexplosion_castbase" }, "sound": "spell_wr_cleave_cast_revamp_01" },
+      "impact": null
+    },
+    "CrescentSweepHit": {
+      "from": 12006,
+      "cast": null,
+      "impact": { "effects": { "chest": "cfx_mage_arcanesplinter_impact01" }, "sound": null }
+    },
+    "BladeDance": {
+      "from": 12006,
+      "cast": { "from": 11088, "effects": { "base": null, "world": "7fx_monk_strikeofthewindlord_castworld" },
+        "sound": "spell_dh_bladedance_cast_04" },
+      "impact": null
+    },
+    "BladeDanceHit": {
+      "from": 12006,
+      "cast": null,
+      "impact": { "effects": { "chest": "cfx_rogue_sabreslash_impact" }, "sound": null }
+    },
+    "GrandFlourish": {
+      "from": 12006,
+      "cast": { "from": 11088, "effects": { "base": "cfx_mage_arcaneexplosionlow_castworld" }, "sound": "spell_wr_ravager_cast_01" },
+      "impact": null
+    },
+    "GrandFlourishHit": {
+      "from": 12006,
+      "cast": null,
+      "impact": { "effects": { "chest": "cfx_mage_arcanesurge_impact01" }, "sound": null }
+    },
+    "NobleAdvance": {
+      "from": 29,
+      "cast": { "from": 44, "effects": { "chest": "cfx_warrior_charge_state", "base": null }, "sound": "spell_dh_felrush_cast_01" },
+      "impact": { "effects": { "chest": "cfx_warrior_charge_impact" }, "sound": "1h_sword_crithit_flesh_01" }
+    },
+    "BladeWard": {
+      "from": 253,
+      "cast": { "from": 399, "effects": { "base": "cfx_warrior_shieldwall_impactbase" }, "sound": "spell_wr_diebythesword_cast_01" },
+      "impact": null,
+      "state": { "effects": { "weapons": "7fx_weaponenchant_arcane" } }
+    },
+    "Flourish": {
+      "from": 253,
+      "cast": { "from": 399, "effects": { "hands": "cfx_kyrian_demonhunter_casthand" }, "sound": "spell_mk_swish_fast_01" },
+      "impact": null
+    },
+    "Rally": {
+      "from": 253,
+      "cast": { "anim": 55, "effects": { "base": "cfx_warrior_battleshout_castbase" }, "sound": "spell_wr_commandingshout_cast_revamp_01" },
+      "impact": null
+    },
+    "FlawlessForm": {
+      "from": 11706,
+      "precast": null,
+      "impact": null,
+      "cast": { "from": 10810, "effects": { "base": "cfx_kyrian_shaman_nova" }, "sound": "spell_wr_avatar_cast", "shake": 3 },
+      "state": { "from": 10991, "effects": { "weapons": "7fx_weaponenchant_arcane", "chest": "cfx_kyrian_monk_statechest" },
+        "fields": { "17": 1, "21": 6711039.0, "25": 0, "29": 1.0, "33": 0.5 } },
+      "statedone": { "effects": { "chest": "cfx_mage_arcanesurge_impact" }, "sound": "spell_ma_arcaneorb_impact_01" }
+    },
+    "Echo": {
+      "from": 253,
+      "cast": null,
+      "impact": { "effects": { "chest": "cfx_mage_arcaneblast0_impact" }, "sound": "spell_ma_arcaneorb_impact_01" }
+    }
+  }
+}

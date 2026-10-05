@@ -15,8 +15,10 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
               each one carries its "id", which the module's code names
 
 A kit is an Ascension SpellVisualKit id (brought as it is) or { "from": <kit id>, "anim": <animation id>,
-"effects": { "<attachment>": <effect> }, "sound": <sound>, "id": <its own id> }: the kit named by from (none: an
-empty one) with what is given replaced, an effect given null removed. Attachments: head, chest, base, lefthand,
+"effects": { "<attachment>": <effect> }, "sound": <sound>, "shake": <stock CameraShakes id>, "fields": { "<field>":
+<value> }, "id": <its own id> }: the kit named by from (none: an empty one) with what is given replaced, an effect
+given null removed; fields sets raw SpellVisualKit fields (a decimal value is written as a float: the CharProc
+parameters, 21-36). Attachments: head, chest, base, lefthand,
 righthand, hands (both), breath, leftweapon, rightweapon, weapons (both), special1-3, world. An effect is an Ascension
 SpellVisualEffectName id or a model's file name without its folder and extension (the row at scale 1 if there is
 one), or { "model": <that>, "scale": <factor> } for a copy of it drawn that much larger or smaller (an effect made for
@@ -281,6 +283,10 @@ class Importer:
                     fields[field] = self.find_effect(effect)
         if 'sound' in spec:
             fields[KIT_SOUND] = self.find_sound(spec['sound'])
+        if 'shake' in spec:
+            fields[KIT_SHAKE] = spec['shake'] or 0
+        for field, value in spec.get('fields', {}).items():
+            fields[int(field)] = struct.unpack('<I', struct.pack('<f', value))[0] if isinstance(value, float) else value
         entry = self.new_row('SpellVisualKit', fields, spec.get('id'))
         self.rewrite_kit(entry, source_id)
         for field, effect in scaled.items():

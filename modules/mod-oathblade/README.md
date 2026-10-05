@@ -22,6 +22,8 @@ make the same loop work in dungeons. Baseline abilities unlock through level 70 
 trainer, and downleveling removes abilities above the new level.
 
 Only the class creation icon is custom art. Spell and talent icons deliberately use stock WotLK icons.
-The supplied OGGs are packaged under `Sound/Spells/Custom/Oathblade`: quick 1H hits for builders, metal hits
-for Reversal, heavier 2H hits for ordinary finishers, one AoE sound per cast, and the
-`finished_big_hit` variants for Final Edict / Grand Flourish.
+Every ability wears retail's looks and sounds, put together from the effects and sounds the Ascension client carries
+(localTools/oathblade/ascensionVisuals.json, imported by localTools/ascensionImport/importVisuals.py into
+client-assets/imported; localTools/oathblade/Looks.ps1 hands the ids to Spells.ps1): a noble fencer in blue and white,
+Bastion's light, arcane and frost blue, retail steel and blade sounds. The area abilities' hits on each enemy are
+silent: the ability is heard once.
