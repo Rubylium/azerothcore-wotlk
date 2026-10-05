@@ -30,6 +30,18 @@
    ],
    "nodes": [
     {
+     "id": 104,
+     "row": 0,
+     "col": 1,
+     "kind": "active",
+     "name": "Pas du voile",
+     "icon": "_Diablo3_Thunderclap_Warlock",
+     "spells": [
+      98033
+     ],
+     "text": "Déplacez-vous avec une agilité spectrale : votre vitesse de déplacement augmente de 60% pendant 4 s et les effets de ralentissement sont dissipés. Utilisable camouflé. 30 s de recharge."
+    },
+    {
      "id": 101,
      "row": 0,
      "col": 3,
@@ -42,9 +54,21 @@
      "text": "Foncez sur un ennemi entre 8 et 25 m et générez 15 points de puissance runique. 15 s de recharge."
     },
     {
+     "id": 103,
+     "row": 0,
+     "col": 5,
+     "kind": "active",
+     "name": "Lame spectrale",
+     "icon": "inv_archaeology_orcclans_tattooknife",
+     "spells": [
+      98040
+     ],
+     "text": "Génère 3 Âmes moissonnées. Frappe pour 150% des dégâts de l'arme plus des dégâts d'Ombre, en ignorant résistances et absorptions. Coûte 40 points de puissance runique. 30 s de recharge."
+    },
+    {
      "id": 102,
      "row": 1,
-     "col": 1,
+     "col": 0,
      "kind": "passive",
      "name": "Force spectrale",
      "icon": "achievement_zone_ghostlands",
@@ -62,43 +86,13 @@
       "misc": 0
      },
      "parents": [
-      101
-     ]
-    },
-    {
-     "id": 103,
-     "row": 1,
-     "col": 3,
-     "kind": "active",
-     "name": "Lame spectrale",
-     "icon": "inv_archaeology_orcclans_tattooknife",
-     "spells": [
-      98040
-     ],
-     "text": "Génère 3 Âmes moissonnées. Frappe pour 150% des dégâts de l'arme plus des dégâts d'Ombre, en ignorant résistances et absorptions. Coûte 40 points de puissance runique. 30 s de recharge.",
-     "parents": [
-      101
-     ]
-    },
-    {
-     "id": 104,
-     "row": 1,
-     "col": 5,
-     "kind": "active",
-     "name": "Pas du voile",
-     "icon": "_Diablo3_Thunderclap_Warlock",
-     "spells": [
-      98033
-     ],
-     "text": "Déplacez-vous avec une agilité spectrale : votre vitesse de déplacement augmente de 60% pendant 4 s et les effets de ralentissement sont dissipés. Utilisable camouflé. 30 s de recharge.",
-     "parents": [
-      101
+      104
      ]
     },
     {
      "id": 105,
-     "row": 2,
-     "col": 0,
+     "row": 1,
+     "col": 2,
      "kind": "passive",
      "name": "Protecteur d'âme",
      "icon": "inv_helmet_146",
@@ -123,13 +117,14 @@
       }
      ],
      "parents": [
-      102
+      104,
+      101
      ]
     },
     {
      "id": 106,
-     "row": 2,
-     "col": 2,
+     "row": 1,
+     "col": 4,
      "kind": "passive",
      "name": "Contrecoup",
      "icon": "novart_magicspell_32_Border",
@@ -141,41 +136,13 @@
       5
      ],
      "parents": [
-      102,
+      101,
       103
      ]
     },
     {
-     "id": 107,
-     "row": 2,
-     "col": 4,
-     "kind": "passive",
-     "name": "Arpenteur d'âmes",
-     "icon": "spell_shaman_spiritwalkersgrace",
-     "spells": [
-      98404
-     ],
-     "text": "Augmente de {0}% la vitesse de déplacement conférée par Pas du voile.",
-     "values": [
-      20
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 3,
-      "classMask": [
-       16384,
-       0,
-       0
-      ]
-     },
-     "parents": [
-      103,
-      104
-     ]
-    },
-    {
      "id": 108,
-     "row": 2,
+     "row": 1,
      "col": 6,
      "kind": "passive",
      "name": "Avancée spectrale",
@@ -218,28 +185,40 @@
       }
      ],
      "parents": [
-      104
+      103
      ]
     },
     {
-     "id": 109,
-     "row": 3,
+     "id": 107,
+     "row": 2,
      "col": 1,
-     "kind": "active",
-     "name": "Toucher flétrissant",
-     "icon": "_D3spiritbarrage",
+     "kind": "passive",
+     "name": "Arpenteur d'âmes",
+     "icon": "spell_shaman_spiritwalkersgrace",
      "spells": [
-      98045
+      98404
      ],
-     "text": "Votre toucher pourrit l'armure et la volonté de la cible : son armure est réduite de 20% et les dégâts magiques qu'elle subit augmentent de 10% pendant 12 s. Génère 10 points de puissance runique. 15 s de recharge.",
+     "text": "Augmente de {0}% la vitesse de déplacement conférée par Pas du voile.",
+     "values": [
+      20
+     ],
+     "aura": {
+      "type": 107,
+      "misc": 3,
+      "classMask": [
+       16384,
+       0,
+       0
+      ]
+     },
      "parents": [
-      105,
-      106
+      102,
+      105
      ]
     },
     {
      "id": 110,
-     "row": 3,
+     "row": 2,
      "col": 3,
      "kind": "active",
      "name": "Litanie sinistre",
@@ -249,32 +228,29 @@
      ],
      "text": "Embrassez vos pensées sinistres et générez instantanément 3 Âmes moissonnées. 90 s de recharge.",
      "parents": [
-      106,
-      107
+      105,
+      106
      ]
     },
     {
-     "id": 111,
-     "row": 3,
+     "id": 109,
+     "row": 2,
      "col": 5,
-     "kind": "passive",
-     "name": "Entre les ombres",
-     "icon": "5_shadowworld_Border",
+     "kind": "active",
+     "name": "Toucher flétrissant",
+     "icon": "_D3spiritbarrage",
      "spells": [
-      98407
+      98045
      ],
-     "text": "Foulée spectrale génère {0} Âme moissonnée.",
-     "values": [
-      1
-     ],
+     "text": "Votre toucher pourrit l'armure et la volonté de la cible : son armure est réduite de 20% et les dégâts magiques qu'elle subit augmentent de 10% pendant 12 s. Génère 10 points de puissance runique. 15 s de recharge.",
      "parents": [
-      107,
+      106,
       108
      ]
     },
     {
      "id": 112,
-     "row": 4,
+     "row": 3,
      "col": 0,
      "kind": "passive",
      "name": "Gardien d'âme",
@@ -296,28 +272,31 @@
       50
      ],
      "parents": [
-      109
+      107
      ]
     },
     {
-     "id": 113,
-     "row": 4,
+     "id": 111,
+     "row": 3,
      "col": 2,
-     "kind": "active",
-     "name": "Ponction d'âme",
-     "icon": "_D3soulharvest",
+     "kind": "passive",
+     "name": "Entre les ombres",
+     "icon": "5_shadowworld_Border",
      "spells": [
-      98039
+      98407
      ],
-     "text": "Arrachez une part de l'essence de votre propre âme : génère 50 points de puissance runique. Utilisable camouflé. 30 s de recharge.",
+     "text": "Foulée spectrale génère {0} Âme moissonnée.",
+     "values": [
+      1
+     ],
      "parents": [
-      109,
+      107,
       110
      ]
     },
     {
      "id": 114,
-     "row": 4,
+     "row": 3,
      "col": 4,
      "kind": "passive",
      "name": "Fantôme",
@@ -331,12 +310,12 @@
      ],
      "parents": [
       110,
-      111
+      109
      ]
     },
     {
      "id": 115,
-     "row": 4,
+     "row": 3,
      "col": 6,
      "kind": "passive",
      "name": "Forme spectrale",
@@ -349,13 +328,29 @@
       33
      ],
      "parents": [
+      109
+     ]
+    },
+    {
+     "id": 113,
+     "row": 4,
+     "col": 1,
+     "kind": "active",
+     "name": "Ponction d'âme",
+     "icon": "_D3soulharvest",
+     "spells": [
+      98039
+     ],
+     "text": "Arrachez une part de l'essence de votre propre âme : génère 50 points de puissance runique. Utilisable camouflé. 30 s de recharge.",
+     "parents": [
+      112,
       111
      ]
     },
     {
      "id": 116,
-     "row": 5,
-     "col": 1,
+     "row": 4,
+     "col": 3,
      "kind": "active",
      "name": "Âmes tourmentées",
      "icon": "_SoulsDevourer_Blue",
@@ -364,32 +359,13 @@
      ],
      "text": "Consomme vos Âmes moissonnées : chacune devient une Âme tourmentée et génère 10 points de puissance runique. Tant qu'il vous en reste, vous subissez 10% de dégâts directs en moins, et chaque attaque directe subie en consomme une et vous soigne. Dure 18 s. 20 s de recharge.",
      "parents": [
-      112,
-      113
-     ]
-    },
-    {
-     "id": 117,
-     "row": 5,
-     "col": 3,
-     "kind": "passive",
-     "name": "Moisson d'âme",
-     "icon": "nhi_spiritfire_Border",
-     "spells": [
-      98412
-     ],
-     "text": "Générer une Âme moissonnée déchaîne Moisson d'âme sur votre cible : des dégâts d'Ombre, et vous récupérez {0}% des dégâts infligés.",
-     "values": [
-      100
-     ],
-     "parents": [
-      113,
+      111,
       114
      ]
     },
     {
      "id": 118,
-     "row": 5,
+     "row": 4,
      "col": 5,
      "kind": "active",
      "name": "Hurlement spectral",
@@ -405,7 +381,7 @@
     },
     {
      "id": 119,
-     "row": 6,
+     "row": 5,
      "col": 0,
      "kind": "passive",
      "name": "Constitution infusée",
@@ -418,13 +394,32 @@
       1
      ],
      "parents": [
+      113
+     ]
+    },
+    {
+     "id": 117,
+     "row": 5,
+     "col": 2,
+     "kind": "passive",
+     "name": "Moisson d'âme",
+     "icon": "nhi_spiritfire_Border",
+     "spells": [
+      98412
+     ],
+     "text": "Générer une Âme moissonnée déchaîne Moisson d'âme sur votre cible : des dégâts d'Ombre, et vous récupérez {0}% des dégâts infligés.",
+     "values": [
+      100
+     ],
+     "parents": [
+      113,
       116
      ]
     },
     {
      "id": 120,
-     "row": 6,
-     "col": 2,
+     "row": 5,
+     "col": 4,
      "kind": "passive",
      "name": "Fourneau d'âmes",
      "icon": "nhi_spiritamulet_Border",
@@ -437,13 +432,13 @@
      ],
      "parents": [
       116,
-      117
+      118
      ]
     },
     {
      "id": 121,
-     "row": 6,
-     "col": 4,
+     "row": 5,
+     "col": 6,
      "kind": "passive",
      "name": "Présage mystérieux",
      "icon": "nhi_frozenghost_Border",
@@ -464,14 +459,13 @@
       ]
      },
      "parents": [
-      117,
       118
      ]
     },
     {
      "id": 122,
      "row": 6,
-     "col": 6,
+     "col": 1,
      "kind": "passive",
      "name": "Né de la Gueule",
      "icon": "Warlock_siphonlife",
@@ -500,28 +494,13 @@
       -20
      ],
      "parents": [
-      118
-     ]
-    },
-    {
-     "id": 123,
-     "row": 7,
-     "col": 1,
-     "kind": "active",
-     "name": "Rage masochiste",
-     "icon": "ability_rogue_vendetta",
-     "spells": [
-      98043
-     ],
-     "text": "Après 1 s, vous subissez des dégâts égaux à 36% de votre puissance d'attaque et la rage vous gagne : vos dégâts augmentent de 20% pendant 15 s. 90 s de recharge.",
-     "parents": [
       119,
-      120
+      117
      ]
     },
     {
      "id": 124,
-     "row": 7,
+     "row": 6,
      "col": 3,
      "kind": "active",
      "name": "Limbes",
@@ -531,84 +510,14 @@
      ],
      "text": "Arrachez-vous à votre enveloppe mortelle : vous êtes insensible aux sorts néfastes pendant 5 s et récupérez 30% de vos points de vie et de votre puissance runique maximum. Utilisable étourdi, apeuré ou métamorphosé. 3 min de recharge.",
      "parents": [
-      120,
-      121
-     ]
-    },
-    {
-     "id": 125,
-     "row": 7,
-     "col": 5,
-     "kind": "active",
-     "name": "Pacte du Geôlier",
-     "icon": "nhi_spiritarmor_Border",
-     "spells": [
-      98036
-     ],
-     "text": "Invoquez le Geôlier : un bouclier absorbe des dégâts égaux à 30% de vos points de vie maximum pendant 10 s, et vous êtes insensible à la peur et au charme. 2 min de recharge.",
-     "parents": [
-      121,
-      122
-     ]
-    },
-    {
-     "id": 126,
-     "row": 8,
-     "col": 0,
-     "kind": "passive",
-     "name": "Porte-douleur",
-     "icon": "nhi_reaperscythe_Border",
-     "spells": [
-      98417
-     ],
-     "text": "Générer une Âme moissonnée a {0}% de chances de déclencher Rage masochiste pendant 5 s, ou de la prolonger de 3 s si elle est déjà active.",
-     "values": [
-      15
-     ],
-     "parents": [
-      123
-     ]
-    },
-    {
-     "id": 127,
-     "row": 8,
-     "col": 2,
-     "kind": "passive",
-     "name": "Faux du moissonneur",
-     "icon": "ability_rogue_restlessblades",
-     "spells": [
-      98418
-     ],
-     "text": "Augmente de {0}% les soins de Frappe d'âme.",
-     "values": [
-      15
-     ],
-     "parents": [
-      123
-     ]
-    },
-    {
-     "id": 128,
-     "row": 8,
-     "col": 3,
-     "kind": "passive",
-     "name": "Passage obscur",
-     "icon": "inv_artifact_stolenpower",
-     "spells": [
-      98419
-     ],
-     "text": "Vos coups critiques directs d'Ombre réduisent de {0} s la recharge de Limbes.",
-     "values": [
-      2
-     ],
-     "parents": [
-      124
+      117,
+      120
      ]
     },
     {
      "id": 129,
-     "row": 8,
-     "col": 4,
+     "row": 6,
+     "col": 5,
      "kind": "passive",
      "name": "Dans le royaume des ombres",
      "icon": "5_spirit_Border",
@@ -632,14 +541,101 @@
       -25
      ],
      "parents": [
+      120,
+      121
+     ]
+    },
+    {
+     "id": 126,
+     "row": 7,
+     "col": 0,
+     "kind": "passive",
+     "name": "Porte-douleur",
+     "icon": "nhi_reaperscythe_Border",
+     "spells": [
+      98417
+     ],
+     "text": "Générer une Âme moissonnée a {0}% de chances de déclencher Rage masochiste pendant 5 s, ou de la prolonger de 3 s si elle est déjà active.",
+     "values": [
+      15
+     ],
+     "parents": [
+      122
+     ]
+    },
+    {
+     "id": 123,
+     "row": 7,
+     "col": 2,
+     "kind": "active",
+     "name": "Rage masochiste",
+     "icon": "ability_rogue_vendetta",
+     "spells": [
+      98043
+     ],
+     "text": "Après 1 s, vous subissez des dégâts égaux à 36% de votre puissance d'attaque et la rage vous gagne : vos dégâts augmentent de 20% pendant 15 s. 90 s de recharge.",
+     "parents": [
+      122,
+      124
+     ]
+    },
+    {
+     "id": 125,
+     "row": 7,
+     "col": 4,
+     "kind": "active",
+     "name": "Pacte du Geôlier",
+     "icon": "nhi_spiritarmor_Border",
+     "spells": [
+      98036
+     ],
+     "text": "Invoquez le Geôlier : un bouclier absorbe des dégâts égaux à 30% de vos points de vie maximum pendant 10 s, et vous êtes insensible à la peur et au charme. 2 min de recharge.",
+     "parents": [
       124,
-      125
+      129
+     ]
+    },
+    {
+     "id": 128,
+     "row": 7,
+     "col": 6,
+     "kind": "passive",
+     "name": "Passage obscur",
+     "icon": "inv_artifact_stolenpower",
+     "spells": [
+      98419
+     ],
+     "text": "Vos coups critiques directs d'Ombre réduisent de {0} s la recharge de Limbes.",
+     "values": [
+      2
+     ],
+     "parents": [
+      129
+     ]
+    },
+    {
+     "id": 127,
+     "row": 8,
+     "col": 1,
+     "kind": "passive",
+     "name": "Faux du moissonneur",
+     "icon": "ability_rogue_restlessblades",
+     "spells": [
+      98418
+     ],
+     "text": "Augmente de {0}% les soins de Frappe d'âme.",
+     "values": [
+      15
+     ],
+     "parents": [
+      126,
+      123
      ]
     },
     {
      "id": 130,
      "row": 8,
-     "col": 6,
+     "col": 3,
      "kind": "passive",
      "name": "Revigoration d'essence",
      "icon": "inv_misc_lesseressence",
@@ -651,13 +647,14 @@
       25
      ],
      "parents": [
+      123,
       125
      ]
     },
     {
      "id": 131,
-     "row": 9,
-     "col": 0,
+     "row": 8,
+     "col": 5,
      "kind": "passive",
      "name": "Domination",
      "icon": "spell_warlock_demonwrath",
@@ -669,13 +666,14 @@
       15
      ],
      "parents": [
-      126
+      125,
+      128
      ]
     },
     {
      "id": 132,
      "row": 9,
-     "col": 2,
+     "col": 0,
      "kind": "passive",
      "name": "Damné",
      "icon": "novart_magicspell_12_Border",
@@ -693,7 +691,7 @@
     {
      "id": 133,
      "row": 9,
-     "col": 3,
+     "col": 2,
      "kind": "passive",
      "name": "Récolteur d'âmes",
      "icon": "ability_deathknight_soulreaper",
@@ -705,7 +703,8 @@
       1
      ],
      "parents": [
-      128
+      127,
+      130
      ]
     },
     {
@@ -723,7 +722,8 @@
       10
      ],
      "parents": [
-      129
+      130,
+      131
      ]
     },
     {
@@ -745,40 +745,40 @@
       "misc": 127
      },
      "parents": [
-      130
+      131
      ]
     }
    ],
    "botBuild": [
+    104,
     101,
     103,
-    104,
     102,
     105,
     106,
-    107,
     108,
-    109,
     110,
-    111,
-    113,
+    109,
+    107,
     112,
+    111,
     114,
     115,
+    113,
     116,
     118,
-    117,
     119,
+    117,
     120,
     121,
-    122,
-    123,
     124,
+    122,
+    129,
+    123,
     125,
     126,
-    127,
     128,
-    129,
+    127,
     130,
     131,
     132,
@@ -913,27 +913,46 @@
      "id": 206,
      "row": 1,
      "col": 4,
-     "kind": "passive",
-     "name": "Hanteur",
-     "icon": "ability_demonhunter_vengefulretreat",
-     "spells": [
-      98431
-     ],
-     "text": "Augmente de {0} s la durée de Déchirure d'âme sur la cible.",
-     "values": [
-      10
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 1,
-      "classMask": [
-       134217728,
-       0,
-       0
-      ]
-     },
-     "auraValues": [
-      10000
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Hanteur",
+       "icon": "ability_demonhunter_vengefulretreat",
+       "text": "Augmente de 10 s la durée de Déchirure d'âme sur la cible.",
+       "spell": 98431,
+       "aura": {
+        "type": 107,
+        "misc": 1,
+        "classMask": [
+         134217728,
+         0,
+         0
+        ],
+        "values": [
+         10000
+        ],
+        "value": 10000
+       }
+      },
+      {
+       "name": "Âme impitoyable",
+       "icon": "spell_animarevendreth_orb",
+       "text": "Augmente de 50% l'effet de Déchirure d'âme sur la cible.",
+       "spell": 98432,
+       "aura": {
+        "type": 108,
+        "misc": 3,
+        "classMask": [
+         134217728,
+         0,
+         0
+        ],
+        "values": [
+         50
+        ],
+        "value": 50
+       }
+      }
      ],
      "parents": [
       202,
@@ -941,98 +960,8 @@
      ]
     },
     {
-     "id": 207,
-     "row": 1,
-     "col": 6,
-     "kind": "passive",
-     "name": "Âme impitoyable",
-     "icon": "spell_animarevendreth_orb",
-     "spells": [
-      98432
-     ],
-     "text": "Augmente de {0}% l'effet de Déchirure d'âme sur la cible.",
-     "values": [
-      50
-     ],
-     "aura": {
-      "type": 108,
-      "misc": 3,
-      "classMask": [
-       134217728,
-       0,
-       0
-      ]
-     },
-     "parents": [
-      203
-     ]
-    },
-    {
-     "id": 208,
-     "row": 2,
-     "col": 0,
-     "kind": "active",
-     "name": "Sectionner",
-     "icon": "_Virus_Red",
-     "spells": [
-      98105
-     ],
-     "text": "Drainez les forces vitales d'un ennemi : vous lui volez des points de vie, interrompez son incantation et l'empêchez de lancer un sort de cette école pendant 4 s. Coûte 10 points de puissance runique. 15 s de recharge.",
-     "parents": [
-      204
-     ]
-    },
-    {
-     "id": 209,
-     "row": 2,
-     "col": 2,
-     "kind": "passive",
-     "name": "Hémorragie",
-     "icon": "ability_rogue_bloodsplatter",
-     "spells": [
-      98433
-     ],
-     "text": "Augmente de {0}% les dégâts de vos techniques contre les ennemis sous 35% de leurs points de vie.",
-     "values": [
-      10
-     ],
-     "parents": [
-      205
-     ]
-    },
-    {
-     "id": 210,
-     "row": 2,
-     "col": 4,
-     "kind": "passive",
-     "name": "Faux affamée",
-     "icon": "inv_artifact_thalkielsdiscord",
-     "spells": [
-      98434
-     ],
-     "text": "Augmente de {0} s la durée de Vent de mort, et Moisson des corbeaux inflige 15% de dégâts supplémentaires aux ennemis qui s'y trouvent.",
-     "values": [
-      4
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 1,
-      "classMask": [
-       512,
-       0,
-       0
-      ]
-     },
-     "auraValues": [
-      4000
-     ],
-     "parents": [
-      206
-     ]
-    },
-    {
      "id": 211,
-     "row": 2,
+     "row": 1,
      "col": 6,
      "kind": "passive",
      "name": "Chevalier de la Gueule",
@@ -1056,13 +985,48 @@
       ]
      },
      "parents": [
-      207
+      203
+     ]
+    },
+    {
+     "id": 208,
+     "row": 2,
+     "col": 1,
+     "kind": "active",
+     "name": "Sectionner",
+     "icon": "_Virus_Red",
+     "spells": [
+      98105
+     ],
+     "text": "Drainez les forces vitales d'un ennemi : vous lui volez des points de vie, interrompez son incantation et l'empêchez de lancer un sort de cette école pendant 4 s. Coûte 10 points de puissance runique. 15 s de recharge.",
+     "parents": [
+      204,
+      205
+     ]
+    },
+    {
+     "id": 209,
+     "row": 2,
+     "col": 3,
+     "kind": "passive",
+     "name": "Hémorragie",
+     "icon": "ability_rogue_bloodsplatter",
+     "spells": [
+      98433
+     ],
+     "text": "Augmente de {0}% les dégâts de vos techniques contre les ennemis sous 35% de leurs points de vie.",
+     "values": [
+      10
+     ],
+     "parents": [
+      205,
+      206
      ]
     },
     {
      "id": 212,
-     "row": 3,
-     "col": 0,
+     "row": 2,
+     "col": 5,
      "kind": "passive",
      "name": "Chevalier de sang",
      "icon": "nhi_bloodstrike_Border",
@@ -1074,13 +1038,14 @@
       1
      ],
      "parents": [
-      208
+      206,
+      211
      ]
     },
     {
      "id": 213,
      "row": 3,
-     "col": 2,
+     "col": 0,
      "kind": "passive",
      "name": "Porteur de mort",
      "icon": "nhi_bloodsword_Border",
@@ -1101,28 +1066,63 @@
       ]
      },
      "parents": [
-      209
+      208
      ]
     },
     {
-     "id": 214,
+     "id": 210,
      "row": 3,
-     "col": 4,
-     "kind": "active",
-     "name": "Champ de moisson",
-     "icon": "inv_shoulder_plate_raiddeathknightmythic_s_01",
-     "spells": [
-      98106
+     "col": 2,
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Faux affamée",
+       "icon": "inv_artifact_thalkielsdiscord",
+       "text": "Augmente de 4 s la durée de Vent de mort, et Moisson des corbeaux inflige 15% de dégâts supplémentaires aux ennemis qui s'y trouvent.",
+       "spell": 98434,
+       "aura": {
+        "type": 107,
+        "misc": 1,
+        "classMask": [
+         512,
+         0,
+         0
+        ],
+        "values": [
+         4000
+        ],
+        "value": 4000
+       }
+      },
+      {
+       "name": "Destin sombre",
+       "icon": "uico_blood_spell_10_Border",
+       "text": "Réduit de 10 points le coût en puissance runique de Moisson des corbeaux.",
+       "spell": 98459,
+       "aura": {
+        "type": 107,
+        "misc": 14,
+        "classMask": [
+         0,
+         2,
+         0
+        ],
+        "values": [
+         -100
+        ],
+        "value": -100
+       }
+      }
      ],
-     "text": "Créez un champ de moisson à l'endroit ciblé pendant 10 s : la hâte et la vitesse de déplacement des ennemis qui s'y trouvent sont réduites de 20%, et ceux qui tentent d'en sortir sont ramenés en son centre. 2 min de recharge.",
      "parents": [
-      210
+      208,
+      209
      ]
     },
     {
      "id": 215,
      "row": 3,
-     "col": 6,
+     "col": 4,
      "kind": "passive",
      "name": "Mon domaine",
      "icon": "ability_rogue_bloodsplatter",
@@ -1134,13 +1134,14 @@
       10
      ],
      "parents": [
-      211
+      209,
+      212
      ]
     },
     {
      "id": 216,
-     "row": 4,
-     "col": 0,
+     "row": 3,
+     "col": 6,
      "kind": "passive",
      "name": "Soif cramoisie",
      "icon": "5_engineerskill03_Border",
@@ -1158,7 +1159,7 @@
     {
      "id": 217,
      "row": 4,
-     "col": 2,
+     "col": 1,
      "kind": "active",
      "name": "L'heure de la moisson",
      "icon": "inv_mace_1h_revendreth_d_01",
@@ -1167,13 +1168,30 @@
      ],
      "text": "Vos dégâts et vos chances de coup critique augmentent de 15% pendant 15 s, et vos techniques qui consomment des Âmes moissonnées ont 50% de chances de ne pas les consommer. 3 min de recharge.",
      "parents": [
-      213
+      213,
+      210
+     ]
+    },
+    {
+     "id": 214,
+     "row": 4,
+     "col": 3,
+     "kind": "active",
+     "name": "Champ de moisson",
+     "icon": "inv_shoulder_plate_raiddeathknightmythic_s_01",
+     "spells": [
+      98106
+     ],
+     "text": "Créez un champ de moisson à l'endroit ciblé pendant 10 s : la hâte et la vitesse de déplacement des ennemis qui s'y trouvent sont réduites de 20%, et ceux qui tentent d'en sortir sont ramenés en son centre. 2 min de recharge.",
+     "parents": [
+      210,
+      215
      ]
     },
     {
      "id": 218,
      "row": 4,
-     "col": 4,
+     "col": 5,
      "kind": "passive",
      "name": "Extinction",
      "icon": "inv_sword_2h_revendreth_d_01",
@@ -1185,25 +1203,8 @@
       5
      ],
      "parents": [
-      214
-     ]
-    },
-    {
-     "id": 219,
-     "row": 4,
-     "col": 6,
-     "kind": "passive",
-     "name": "Âmes pour le massacre",
-     "icon": "novart_helmet_7_Border",
-     "spells": [
-      98442
-     ],
-     "text": "Les coups critiques de Massacre font infliger à vos attaques automatiques {0}% de leurs dégâts en dégâts d'Ombre supplémentaires pendant 10 s.",
-     "values": [
-      85
-     ],
-     "parents": [
-      215
+      215,
+      216
      ]
     },
     {
@@ -1221,7 +1222,7 @@
       5
      ],
      "parents": [
-      216
+      217
      ]
     },
     {
@@ -1239,7 +1240,8 @@
       25
      ],
      "parents": [
-      217
+      217,
+      214
      ]
     },
     {
@@ -1266,13 +1268,37 @@
       ]
      },
      "parents": [
+      214,
+      218
+     ]
+    },
+    {
+     "id": 219,
+     "row": 5,
+     "col": 6,
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Âmes pour le massacre",
+       "icon": "novart_helmet_7_Border",
+       "text": "Les coups critiques de Massacre font infliger à vos attaques automatiques 85% de leurs dégâts en dégâts d'Ombre supplémentaires pendant 10 s.",
+       "spell": 98442
+      },
+      {
+       "name": "Mort cramoisie",
+       "icon": "ability_revendreth_rogue",
+       "text": "Massacre a 20% de chances de frapper une seconde fois sans coût.",
+       "spell": 98447
+      }
+     ],
+     "parents": [
       218
      ]
     },
     {
      "id": 223,
-     "row": 5,
-     "col": 6,
+     "row": 6,
+     "col": 1,
      "kind": "passive",
      "name": "Écarlatine",
      "icon": "inv_sword_2h_blood_c_02",
@@ -1284,31 +1310,14 @@
       110
      ],
      "parents": [
-      219
-     ]
-    },
-    {
-     "id": 224,
-     "row": 6,
-     "col": 0,
-     "kind": "passive",
-     "name": "Mort cramoisie",
-     "icon": "ability_revendreth_rogue",
-     "spells": [
-      98447
-     ],
-     "text": "Massacre a {0}% de chances de frapper une seconde fois sans coût.",
-     "values": [
-      20
-     ],
-     "parents": [
-      220
+      220,
+      221
      ]
     },
     {
      "id": 225,
      "row": 6,
-     "col": 2,
+     "col": 3,
      "kind": "passive",
      "name": "Génocide",
      "icon": "novart_physical_ability_2_Border",
@@ -1340,13 +1349,14 @@
       }
      ],
      "parents": [
-      221
+      221,
+      222
      ]
     },
     {
      "id": 226,
      "row": 6,
-     "col": 4,
+     "col": 5,
      "kind": "passive",
      "name": "Spectre de sang",
      "icon": "ability_deathwing_bloodcorruption_death",
@@ -1384,13 +1394,14 @@
       }
      ],
      "parents": [
-      222
+      222,
+      219
      ]
     },
     {
      "id": 227,
-     "row": 6,
-     "col": 6,
+     "row": 7,
+     "col": 0,
      "kind": "passive",
      "name": "Soif dévorante",
      "icon": "_SoulHarvest2__Red",
@@ -1420,7 +1431,7 @@
     {
      "id": 228,
      "row": 7,
-     "col": 0,
+     "col": 2,
      "kind": "passive",
      "name": "Moissonneur sanglant",
      "icon": "ability_ironmaidens_whirlofblood",
@@ -1432,13 +1443,14 @@
       3
      ],
      "parents": [
-      224
+      223,
+      225
      ]
     },
     {
      "id": 229,
      "row": 7,
-     "col": 2,
+     "col": 4,
      "kind": "passive",
      "name": "Frénésie sanglante",
      "icon": "_D3mantraofretribution",
@@ -1450,13 +1462,14 @@
       1
      ],
      "parents": [
-      225
+      225,
+      226
      ]
     },
     {
      "id": 230,
      "row": 7,
-     "col": 4,
+     "col": 6,
      "kind": "passive",
      "name": "Nourri de sang",
      "icon": "Spell_DeathKnight_BloodTap",
@@ -1482,8 +1495,8 @@
     },
     {
      "id": 231,
-     "row": 7,
-     "col": 6,
+     "row": 8,
+     "col": 1,
      "kind": "passive",
      "name": "Le moment est venu",
      "icon": "Spell_DeathKnight_Subversion",
@@ -1495,12 +1508,51 @@
       10
      ],
      "parents": [
-      227
+      227,
+      228
+     ]
+    },
+    {
+     "id": 233,
+     "row": 8,
+     "col": 3,
+     "kind": "passive",
+     "name": "Fin des mortels",
+     "icon": "ability_hunter_murderofcrows",
+     "spells": [
+      98457
+     ],
+     "text": "Extinction se cumule {0} fois de plus, et Lame spectrale vous donne Extinction.",
+     "values": [
+      1
+     ],
+     "parents": [
+      228,
+      229
+     ]
+    },
+    {
+     "id": 234,
+     "row": 8,
+     "col": 5,
+     "kind": "passive",
+     "name": "Sans entraves",
+     "icon": "novart_magicspell_2_Border",
+     "spells": [
+      98458
+     ],
+     "text": "Les Traits d'âme de Reliquaire des perdus réussissent toujours un coup critique contre les ennemis sous 20% de leurs points de vie, et ces coups critiques infligent {0}% de dégâts supplémentaires.",
+     "values": [
+      25
+     ],
+     "parents": [
+      229,
+      230
      ]
     },
     {
      "id": 232,
-     "row": 8,
+     "row": 9,
      "col": 0,
      "kind": "passive",
      "name": "Spectre cramoisi",
@@ -1519,79 +1571,13 @@
       "misc": 127
      },
      "parents": [
-      228
-     ]
-    },
-    {
-     "id": 233,
-     "row": 8,
-     "col": 2,
-     "kind": "passive",
-     "name": "Fin des mortels",
-     "icon": "ability_hunter_murderofcrows",
-     "spells": [
-      98457
-     ],
-     "text": "Extinction se cumule {0} fois de plus, et Lame spectrale vous donne Extinction.",
-     "values": [
-      1
-     ],
-     "parents": [
-      229
-     ]
-    },
-    {
-     "id": 234,
-     "row": 8,
-     "col": 4,
-     "kind": "passive",
-     "name": "Sans entraves",
-     "icon": "novart_magicspell_2_Border",
-     "spells": [
-      98458
-     ],
-     "text": "Les Traits d'âme de Reliquaire des perdus réussissent toujours un coup critique contre les ennemis sous 20% de leurs points de vie, et ces coups critiques infligent {0}% de dégâts supplémentaires.",
-     "values": [
-      25
-     ],
-     "parents": [
-      230
-     ]
-    },
-    {
-     "id": 235,
-     "row": 8,
-     "col": 6,
-     "kind": "passive",
-     "name": "Destin sombre",
-     "icon": "uico_blood_spell_10_Border",
-     "spells": [
-      98459
-     ],
-     "text": "Réduit de {0} points le coût en puissance runique de Moisson des corbeaux.",
-     "values": [
-      10
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 14,
-      "classMask": [
-       0,
-       2,
-       0
-      ]
-     },
-     "auraValues": [
-      -100
-     ],
-     "parents": [
       231
      ]
     },
     {
      "id": 236,
      "row": 9,
-     "col": 1,
+     "col": 2,
      "kind": "passive",
      "name": "La Grande Faucheuse",
      "icon": "nhi_bloodrage_Border",
@@ -1615,14 +1601,14 @@
       -50
      ],
      "parents": [
-      232,
+      231,
       233
      ]
     },
     {
      "id": 237,
      "row": 9,
-     "col": 3,
+     "col": 4,
      "kind": "passive",
      "name": "Bourreau",
      "icon": "INV_Sword_2H_Blood_C_01",
@@ -1644,7 +1630,7 @@
     {
      "id": 238,
      "row": 9,
-     "col": 5,
+     "col": 6,
      "kind": "active",
      "name": "Faux frémissante",
      "icon": "ability_xavius_crushingshadows",
@@ -1653,8 +1639,7 @@
      ],
      "text": "Frappez un ennemi 5 fois en 1,5 s : 30% des dégâts de l'arme par coup, chacun générant un Fragment d'âme. Coûte 40 points de puissance runique. 10 s de recharge.",
      "parents": [
-      234,
-      235
+      234
      ]
     }
    ],
@@ -1664,25 +1649,23 @@
     203,
     204,
     205,
-    206,
-    207,
+    "206:1",
+    211,
     208,
     209,
-    210,
-    211,
-    214,
     212,
     213,
+    "210:1",
     215,
-    217,
     216,
+    217,
+    214,
     218,
-    219,
     220,
     221,
     222,
+    "219:1",
     223,
-    224,
     225,
     226,
     227,
@@ -1690,11 +1673,10 @@
     229,
     230,
     231,
-    232,
     233,
     234,
-    235,
     238,
+    232,
     236,
     237
    ]
@@ -1903,7 +1885,7 @@
     {
      "id": 308,
      "row": 2,
-     "col": 0,
+     "col": 1,
      "kind": "passive",
      "name": "Âmes brisées",
      "icon": "custom_T_Nhance_RPG_Icons_RagedSpirit_Border",
@@ -1915,13 +1897,14 @@
       100
      ],
      "parents": [
-      304
+      304,
+      305
      ]
     },
     {
      "id": 309,
      "row": 2,
-     "col": 2,
+     "col": 3,
      "kind": "active",
      "name": "Porteur de fin",
      "icon": "nhi_frozenghost_Border",
@@ -1930,13 +1913,14 @@
      ],
      "text": "Devenez un Porteur de fin pendant 15 s : Complainte inflige 30% de dégâts en plus, sa portée augmente de 5 m, elle vous soigne de 75% des dégâts infligés et génère une Âme moissonnée. 3 min de recharge.",
      "parents": [
-      305
+      305,
+      306
      ]
     },
     {
      "id": 310,
      "row": 2,
-     "col": 4,
+     "col": 5,
      "kind": "passive",
      "name": "Chasseur d'esprits",
      "icon": "nhi_spiritwraith_Border",
@@ -1968,13 +1952,14 @@
       }
      ],
      "parents": [
-      306
+      306,
+      307
      ]
     },
     {
      "id": 311,
-     "row": 2,
-     "col": 6,
+     "row": 3,
+     "col": 0,
      "kind": "passive",
      "name": "Pourriture d'âme",
      "icon": "nhi_souldrain_Border",
@@ -1986,13 +1971,13 @@
       20
      ],
      "parents": [
-      307
+      308
      ]
     },
     {
      "id": 312,
      "row": 3,
-     "col": 0,
+     "col": 2,
      "kind": "passive",
      "name": "Essence moissonnée",
      "icon": "inv_alchemist_81_spiritedalchemiststone",
@@ -2013,13 +1998,14 @@
       ]
      },
      "parents": [
-      308
+      308,
+      309
      ]
     },
     {
      "id": 313,
      "row": 3,
-     "col": 2,
+     "col": 4,
      "kind": "passive",
      "name": "Lamentation",
      "icon": "Spell_Shadow_PsychicScream",
@@ -2031,13 +2017,14 @@
       50
      ],
      "parents": [
-      309
+      309,
+      310
      ]
     },
     {
      "id": 314,
      "row": 3,
-     "col": 4,
+     "col": 6,
      "kind": "passive",
      "name": "Générateur d'âmes",
      "icon": "item_icecrownringd",
@@ -2054,8 +2041,8 @@
     },
     {
      "id": 315,
-     "row": 3,
-     "col": 6,
+     "row": 4,
+     "col": 1,
      "kind": "passive",
      "name": "Purgatoire",
      "icon": "ability_warlock_improvedsoulleech",
@@ -2067,13 +2054,14 @@
       20
      ],
      "parents": [
-      311
+      311,
+      312
      ]
     },
     {
      "id": 316,
      "row": 4,
-     "col": 0,
+     "col": 3,
      "kind": "active",
      "name": "Ombre",
      "icon": "_Shadow_LightBlue",
@@ -2082,13 +2070,14 @@
      ],
      "text": "Devenez une ombre : vous entrez en Marche funèbre, même en combat, et les effets de ralentissement sont dissipés. 3 min de recharge.",
      "parents": [
-      312
+      312,
+      313
      ]
     },
     {
      "id": 317,
      "row": 4,
-     "col": 2,
+     "col": 5,
      "kind": "passive",
      "name": "Spectre",
      "icon": "Spell_Nature_WispSplode",
@@ -2112,13 +2101,14 @@
       -15000
      ],
      "parents": [
-      313
+      313,
+      314
      ]
     },
     {
      "id": 318,
-     "row": 4,
-     "col": 4,
+     "row": 5,
+     "col": 0,
      "kind": "passive",
      "name": "Au-delà du voile",
      "icon": "_SoulHarvest2_Blue",
@@ -2130,13 +2120,13 @@
       30
      ],
      "parents": [
-      314
+      315
      ]
     },
     {
      "id": 319,
-     "row": 4,
-     "col": 6,
+     "row": 5,
+     "col": 2,
      "kind": "passive",
      "name": "Déchireur d'esprits",
      "icon": "inv_trinket_mawraid_01_blue",
@@ -2155,13 +2145,14 @@
       -50
      ],
      "parents": [
-      315
+      315,
+      316
      ]
     },
     {
      "id": 320,
      "row": 5,
-     "col": 0,
+     "col": 4,
      "kind": "passive",
      "name": "Réflexes spirituels",
      "icon": "nhi_curseweak_Border",
@@ -2173,61 +2164,50 @@
       25
      ],
      "parents": [
-      316
+      316,
+      317
      ]
     },
     {
      "id": 321,
      "row": 5,
-     "col": 2,
-     "kind": "passive",
-     "name": "Âme fugace",
-     "icon": "Spell_Magic_LesserInvisibilty",
-     "spells": [
-      98481
-     ],
-     "text": "Réduit de {0} s la recharge de Fracas d'âmes.",
-     "values": [
-      15
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 11,
-      "classMask": [
-       1024,
-       0,
-       0
-      ]
-     },
-     "auraValues": [
-      -15000
+     "col": 6,
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Âme fugace",
+       "icon": "Spell_Magic_LesserInvisibilty",
+       "text": "Réduit de 15 s la recharge de Fracas d'âmes.",
+       "spell": 98481,
+       "aura": {
+        "type": 107,
+        "misc": 11,
+        "classMask": [
+         1024,
+         0,
+         0
+        ],
+        "values": [
+         -15000
+        ],
+        "value": -15000
+       }
+      },
+      {
+       "name": "Perce-âme",
+       "icon": "nhi_soulbats_Border",
+       "text": "Toucher au moins 1 ennemi avec Fracas d'âmes vous rend les Âmes moissonnées qu'il a consommées.",
+       "spell": 98482
+      }
      ],
      "parents": [
       317
      ]
     },
     {
-     "id": 322,
-     "row": 5,
-     "col": 4,
-     "kind": "passive",
-     "name": "Perce-âme",
-     "icon": "nhi_soulbats_Border",
-     "spells": [
-      98482
-     ],
-     "text": "Toucher au moins {0} ennemi avec Fracas d'âmes vous rend les Âmes moissonnées qu'il a consommées.",
-     "values": [
-      1
-     ],
-     "parents": [
-      318
-     ]
-    },
-    {
      "id": 323,
-     "row": 5,
-     "col": 6,
+     "row": 6,
+     "col": 1,
      "kind": "passive",
      "name": "Lame hurlante",
      "icon": "5_spirit_Border",
@@ -2251,13 +2231,14 @@
       -50
      ],
      "parents": [
+      318,
       319
      ]
     },
     {
      "id": 324,
      "row": 6,
-     "col": 0,
+     "col": 3,
      "kind": "passive",
      "name": "Embusqué d'anima",
      "icon": "ability_warlock_darkarts",
@@ -2269,13 +2250,14 @@
       25
      ],
      "parents": [
+      319,
       320
      ]
     },
     {
      "id": 325,
      "row": 6,
-     "col": 2,
+     "col": 5,
      "kind": "passive",
      "name": "Apparition",
      "icon": "Spell_Shadow_NightOfTheDead",
@@ -2304,13 +2286,14 @@
       }
      ],
      "parents": [
+      320,
       321
      ]
     },
     {
      "id": 326,
-     "row": 6,
-     "col": 4,
+     "row": 7,
+     "col": 0,
      "kind": "passive",
      "name": "Appel du Geôlier",
      "icon": "inv_mawrat",
@@ -2322,13 +2305,13 @@
       18
      ],
      "parents": [
-      322
+      323
      ]
     },
     {
      "id": 327,
-     "row": 6,
-     "col": 6,
+     "row": 7,
+     "col": 2,
      "kind": "passive",
      "name": "Seigneur de la mort",
      "icon": "inv_helm_cloth_raidpriest_r_01",
@@ -2340,13 +2323,14 @@
       25
      ],
      "parents": [
-      323
+      323,
+      324
      ]
     },
     {
      "id": 328,
      "row": 7,
-     "col": 0,
+     "col": 4,
      "kind": "passive",
      "name": "Garde fantomatique",
      "icon": "inv_qiraj_hiltornate",
@@ -2358,13 +2342,14 @@
       2
      ],
      "parents": [
-      324
+      324,
+      325
      ]
     },
     {
      "id": 329,
      "row": 7,
-     "col": 2,
+     "col": 6,
      "kind": "passive",
      "name": "Présence de la mort",
      "icon": "nhi_spiritamulet_Border",
@@ -2381,8 +2366,8 @@
     },
     {
      "id": 330,
-     "row": 7,
-     "col": 4,
+     "row": 8,
+     "col": 1,
      "kind": "active",
      "name": "Renouveau sépulcral",
      "icon": "nhi_soulblessing_Border",
@@ -2391,13 +2376,14 @@
      ],
      "text": "Réinitialise la recharge de Limbes, de Fracas d'âmes et d'Ombre. Utilisable camouflé. 8 min de recharge.",
      "parents": [
-      326
+      326,
+      327
      ]
     },
     {
      "id": 331,
-     "row": 7,
-     "col": 6,
+     "row": 8,
+     "col": 3,
      "kind": "passive",
      "name": "Lieu de sépulture",
      "icon": "nhi_soulgrave_Border",
@@ -2409,13 +2395,14 @@
       36
      ],
      "parents": [
-      327
+      327,
+      328
      ]
     },
     {
      "id": 332,
      "row": 8,
-     "col": 0,
+     "col": 5,
      "kind": "passive",
      "name": "La fin est proche",
      "icon": "ability_warlock_soullink",
@@ -2427,52 +2414,41 @@
       15
      ],
      "parents": [
-      328
-     ]
-    },
-    {
-     "id": 333,
-     "row": 8,
-     "col": 2,
-     "kind": "passive",
-     "name": "Au-delà de la mort",
-     "icon": "nhi_shadowentagle_Border",
-     "spells": [
-      98492
-     ],
-     "text": "Les dégâts de Reliquaire des perdus ont {0}% de chances de lancer un Trait d'âme supplémentaire.",
-     "values": [
-      8
-     ],
-     "parents": [
+      328,
       329
      ]
     },
     {
-     "id": 334,
-     "row": 8,
-     "col": 4,
-     "kind": "passive",
-     "name": "Fléau de l'âme",
-     "icon": "spell_shadow_detectlesserinvisibility",
-     "spells": [
-      98493
-     ],
-     "text": "Réduit de {0} s la recharge de Reliquaire des perdus.",
-     "values": [
-      5
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 11,
-      "classMask": [
-       32,
-       0,
-       0
-      ]
-     },
-     "auraValues": [
-      -5000
+     "id": 333,
+     "row": 9,
+     "col": 0,
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Au-delà de la mort",
+       "icon": "nhi_shadowentagle_Border",
+       "text": "Les dégâts de Reliquaire des perdus ont 8% de chances de lancer un Trait d'âme supplémentaire.",
+       "spell": 98492
+      },
+      {
+       "name": "Fléau de l'âme",
+       "icon": "spell_shadow_detectlesserinvisibility",
+       "text": "Réduit de 5 s la recharge de Reliquaire des perdus.",
+       "spell": 98493,
+       "aura": {
+        "type": 107,
+        "misc": 11,
+        "classMask": [
+         32,
+         0,
+         0
+        ],
+        "values": [
+         -5000
+        ],
+        "value": -5000
+       }
+      }
      ],
      "parents": [
       330
@@ -2480,8 +2456,8 @@
     },
     {
      "id": 335,
-     "row": 8,
-     "col": 6,
+     "row": 9,
+     "col": 2,
      "kind": "passive",
      "name": "Ravageur",
      "icon": "nhi_spiritualsummoning_Border",
@@ -2505,13 +2481,14 @@
       -25
      ],
      "parents": [
+      330,
       331
      ]
     },
     {
      "id": 336,
      "row": 9,
-     "col": 2,
+     "col": 4,
      "kind": "passive",
      "name": "Mort poursuivante",
      "icon": "Spell_Ice_Lament",
@@ -2523,13 +2500,14 @@
       30
      ],
      "parents": [
-      333
+      331,
+      332
      ]
     },
     {
      "id": 337,
      "row": 9,
-     "col": 4,
+     "col": 6,
      "kind": "passive",
      "name": "Messager de mort",
      "icon": "Spell_Shadow_TwistedFaith",
@@ -2553,7 +2531,7 @@
       5000
      ],
      "parents": [
-      334
+      332
      ]
     }
    ],
@@ -2572,26 +2550,24 @@
     312,
     313,
     314,
-    315,
     316,
+    315,
     317,
     318,
     319,
     320,
-    321,
-    322,
+    "321:1",
     323,
     324,
     325,
     326,
     327,
-    330,
     328,
     329,
+    330,
     331,
     332,
-    333,
-    334,
+    "333:1",
     335,
     336,
     337
@@ -2777,7 +2753,7 @@
     {
      "id": 408,
      "row": 2,
-     "col": 0,
+     "col": 1,
      "kind": "passive",
      "name": "Béhémoth",
      "icon": "_D3spectralblade",
@@ -2793,13 +2769,14 @@
       "misc": 2
      },
      "parents": [
-      404
+      404,
+      405
      ]
     },
     {
      "id": 409,
      "row": 2,
-     "col": 2,
+     "col": 3,
      "kind": "active",
      "name": "Faux spectrale",
      "icon": "inv_archaeology_80_witch_bonescythe",
@@ -2808,13 +2785,14 @@
      ],
      "text": "Consomme vos Âmes moissonnées : chacune invoque une Faux spectrale qui frappe votre cible pendant 15 s. Frappe d'âme fait frapper vos Faux spectrales la cible et 5 ennemis proches. La menace qu'elles génèrent vous revient. 45 s de recharge.",
      "parents": [
-      405
+      405,
+      406
      ]
     },
     {
      "id": 410,
      "row": 2,
-     "col": 4,
+     "col": 5,
      "kind": "passive",
      "name": "Voleur de vie",
      "icon": "Spell_Shadow_Metamorphosis",
@@ -2826,13 +2804,14 @@
       3
      ],
      "parents": [
-      406
+      406,
+      407
      ]
     },
     {
      "id": 411,
-     "row": 2,
-     "col": 6,
+     "row": 3,
+     "col": 0,
      "kind": "passive",
      "name": "Volonté du Geôlier",
      "icon": "achievement_dungeon_soulboundgoliath",
@@ -2844,13 +2823,13 @@
       30
      ],
      "parents": [
-      407
+      408
      ]
     },
     {
      "id": 412,
      "row": 3,
-     "col": 0,
+     "col": 2,
      "kind": "passive",
      "name": "Dominateur",
      "icon": "5_archerskill33_Border",
@@ -2874,54 +2853,44 @@
       -100
      ],
      "parents": [
-      408
+      408,
+      409
      ]
     },
     {
      "id": 413,
      "row": 3,
-     "col": 2,
-     "kind": "passive",
-     "name": "Puits des âmes",
-     "icon": "novart_magicspell_22_Border",
-     "spells": [
-      98507
-     ],
-     "text": "Les dégâts de Frappe d'âme et de Meurtre réduisent de {0} s la recharge de Faux spectrale.",
-     "values": [
-      1
-     ],
-     "parents": [
-      409
-     ]
-    },
-    {
-     "id": 414,
-     "row": 3,
      "col": 4,
-     "kind": "passive",
-     "name": "Puits d'éternité",
-     "icon": "nhi_reaperscythe_Border",
-     "spells": [
-      98508
-     ],
-     "text": "Augmente de {0} s la durée de vos Faux spectrales.",
-     "values": [
-      5
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 1,
-      "classMask": [
-       0,
-       0,
-       2
-      ]
-     },
-     "auraValues": [
-      5000
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Puits des âmes",
+       "icon": "novart_magicspell_22_Border",
+       "text": "Les dégâts de Frappe d'âme et de Meurtre réduisent de 1 s la recharge de Faux spectrale.",
+       "spell": 98507
+      },
+      {
+       "name": "Puits d'éternité",
+       "icon": "nhi_reaperscythe_Border",
+       "text": "Augmente de 5 s la durée de vos Faux spectrales.",
+       "spell": 98508,
+       "aura": {
+        "type": 107,
+        "misc": 1,
+        "classMask": [
+         0,
+         0,
+         2
+        ],
+        "values": [
+         5000
+        ],
+        "value": 5000
+       }
+      }
      ],
      "parents": [
+      409,
       410
      ]
     },
@@ -2940,46 +2909,13 @@
       5
      ],
      "parents": [
-      411
-     ]
-    },
-    {
-     "id": 416,
-     "row": 4,
-     "col": 0,
-     "kind": "active",
-     "name": "Gardien spectral",
-     "icon": "custom_T_SpiritualArmor_Border",
-     "spells": [
-      98303
-     ],
-     "text": "Invoquez un gardien spectral qui frappe votre cible pendant 15 s et placez sur 5 alliés à 15 m un bouclier qui absorbe des dégâts. La menace qu'il génère vous revient. Coûte 20 points de puissance runique. 3 min de recharge.",
-     "parents": [
-      412
-     ]
-    },
-    {
-     "id": 417,
-     "row": 4,
-     "col": 2,
-     "kind": "passive",
-     "name": "Cotte de douleur",
-     "icon": "inv_shoulder_armor_maw_c_14",
-     "spells": [
-      98510
-     ],
-     "text": "Infliger des dégâts avec Faucher, Sillage d'effroi et Frappe d'âme vous donne Cotte de douleur (15 s, 8 fois, sans renouveler la durée). À son expiration, chaque application vous rend {0}% de vos points de vie maximum et réduit de 5 s la recharge de Forme renforcée.",
-     "values": [
-      2
-     ],
-     "parents": [
-      413
+      410
      ]
     },
     {
      "id": 418,
      "row": 4,
-     "col": 4,
+     "col": 1,
      "kind": "passive",
      "name": "Liant d'essence",
      "icon": "novart_magicspell_53_Border",
@@ -2991,31 +2927,72 @@
       15
      ],
      "parents": [
-      414
+      411,
+      412
+     ]
+    },
+    {
+     "id": 416,
+     "row": 4,
+     "col": 3,
+     "kind": "active",
+     "name": "Gardien spectral",
+     "icon": "custom_T_SpiritualArmor_Border",
+     "spells": [
+      98303
+     ],
+     "text": "Invoquez un gardien spectral qui frappe votre cible pendant 15 s et placez sur 5 alliés à 15 m un bouclier qui absorbe des dégâts. La menace qu'il génère vous revient. Coûte 20 points de puissance runique. 3 min de recharge.",
+     "parents": [
+      412,
+      413
+     ]
+    },
+    {
+     "id": 417,
+     "row": 4,
+     "col": 5,
+     "kind": "passive",
+     "name": "Cotte de douleur",
+     "icon": "inv_shoulder_armor_maw_c_14",
+     "spells": [
+      98510
+     ],
+     "text": "Infliger des dégâts avec Faucher, Sillage d'effroi et Frappe d'âme vous donne Cotte de douleur (15 s, 8 fois, sans renouveler la durée). À son expiration, chaque application vous rend {0}% de vos points de vie maximum et réduit de 5 s la recharge de Forme renforcée.",
+     "values": [
+      2
+     ],
+     "parents": [
+      413,
+      415
      ]
     },
     {
      "id": 419,
-     "row": 4,
-     "col": 6,
-     "kind": "passive",
-     "name": "Vie domptée",
-     "icon": "nhi_scrollofsouls_Border",
-     "spells": [
-      98512
-     ],
-     "text": "Âmes tourmentées a {0}% de chances de ne pas perdre d'Âme tourmentée quand vous subissez des dégâts.",
-     "values": [
-      25
+     "row": 5,
+     "col": 0,
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Vie domptée",
+       "icon": "nhi_scrollofsouls_Border",
+       "text": "Âmes tourmentées a 25% de chances de ne pas perdre d'Âme tourmentée quand vous subissez des dégâts.",
+       "spell": 98512
+      },
+      {
+       "name": "Preneur d'âmes",
+       "icon": "inv_soulbarrier",
+       "text": "Les dégâts de Sillage d'effroi réduisent de 1 s la recharge d'Âmes tourmentées.",
+       "spell": 98516
+      }
      ],
      "parents": [
-      415
+      418
      ]
     },
     {
      "id": 420,
      "row": 5,
-     "col": 0,
+     "col": 2,
      "kind": "passive",
      "name": "Requiem final",
      "icon": "ability_argus_soulbombdebuffsmall",
@@ -3029,13 +3006,14 @@
       20
      ],
      "parents": [
+      418,
       416
      ]
     },
     {
      "id": 421,
      "row": 5,
-     "col": 2,
+     "col": 4,
      "kind": "passive",
      "name": "Garde éthérée",
      "icon": "ability_racial_etherealconnection",
@@ -3053,25 +3031,8 @@
       ]
      },
      "parents": [
+      416,
       417
-     ]
-    },
-    {
-     "id": 422,
-     "row": 5,
-     "col": 4,
-     "kind": "passive",
-     "name": "Preneur d'âmes",
-     "icon": "inv_soulbarrier",
-     "spells": [
-      98516
-     ],
-     "text": "Les dégâts de Sillage d'effroi réduisent de {0} s la recharge d'Âmes tourmentées.",
-     "values": [
-      1
-     ],
-     "parents": [
-      418
      ]
     },
     {
@@ -3089,13 +3050,13 @@
       30
      ],
      "parents": [
-      419
+      417
      ]
     },
     {
      "id": 424,
      "row": 6,
-     "col": 0,
+     "col": 1,
      "kind": "passive",
      "name": "Décimation",
      "icon": "inv_plate_raiddeathknight_o_01buckle",
@@ -3107,13 +3068,14 @@
       6
      ],
      "parents": [
+      419,
       420
      ]
     },
     {
      "id": 425,
      "row": 6,
-     "col": 2,
+     "col": 3,
      "kind": "passive",
      "name": "Tempête d'âmes",
      "icon": "spell_shadow_soulleech_2",
@@ -3125,13 +3087,14 @@
       40
      ],
      "parents": [
+      420,
       421
      ]
     },
     {
      "id": 426,
      "row": 6,
-     "col": 4,
+     "col": 5,
      "kind": "passive",
      "name": "Échardes d'âme",
      "icon": "oshugun_crystalfragments",
@@ -3143,13 +3106,14 @@
       6
      ],
      "parents": [
-      422
+      421,
+      423
      ]
     },
     {
      "id": 427,
-     "row": 6,
-     "col": 6,
+     "row": 7,
+     "col": 0,
      "kind": "passive",
      "name": "Dévoreur d'âmes",
      "icon": "Spell_Shadow_DevouringPlague",
@@ -3161,13 +3125,13 @@
       10
      ],
      "parents": [
-      423
+      424
      ]
     },
     {
      "id": 428,
      "row": 7,
-     "col": 0,
+     "col": 2,
      "kind": "passive",
      "name": "Chevalier d'âme",
      "icon": "inv_sword_2h_artifactashbringerlightning_d_03",
@@ -3179,43 +3143,51 @@
       2
      ],
      "parents": [
-      424
+      424,
+      425
      ]
     },
     {
      "id": 429,
      "row": 7,
-     "col": 2,
-     "kind": "passive",
-     "name": "Ponction de vie",
-     "icon": "novart_physical_ability_41_Border",
-     "spells": [
-      98523
-     ],
-     "text": "Réduit de {0} s la recharge de Gardien spectral, et ses coups vous soignent de 200% des dégâts qu'ils infligent.",
-     "values": [
-      60
-     ],
-     "aura": {
-      "type": 107,
-      "misc": 11,
-      "classMask": [
-       0,
-       0,
-       8
-      ]
-     },
-     "auraValues": [
-      -60000
+     "col": 4,
+     "kind": "choice",
+     "options": [
+      {
+       "name": "Ponction de vie",
+       "icon": "novart_physical_ability_41_Border",
+       "text": "Réduit de 60 s la recharge de Gardien spectral, et ses coups vous soignent de 200% des dégâts qu'ils infligent.",
+       "spell": 98523,
+       "aura": {
+        "type": 107,
+        "misc": 11,
+        "classMask": [
+         0,
+         0,
+         8
+        ],
+        "values": [
+         -60000
+        ],
+        "value": -60000
+       }
+      },
+      {
+       "name": "Garde des perdus",
+       "icon": "nhi_spiritualskull_Border",
+       "text": "Les coups de vos Faux spectrales et de vos Gardiens spectraux réduisent de 1 s la recharge de Gardien spectral.",
+       "spell": 98525
+      }
      ],
      "parents": [
-      425
+      425,
+      426
      ]
     },
     {
      "id": 430,
      "row": 7,
-     "col": 4,
+     "col": 6,
      "kind": "passive",
      "name": "Armée des esprits",
      "icon": "epic_rpg_icon_pack_death_icon_0000s_0000_spirits_Border",
@@ -3231,27 +3203,9 @@
      ]
     },
     {
-     "id": 431,
-     "row": 7,
-     "col": 6,
-     "kind": "passive",
-     "name": "Garde des perdus",
-     "icon": "nhi_spiritualskull_Border",
-     "spells": [
-      98525
-     ],
-     "text": "Les coups de vos Faux spectrales et de vos Gardiens spectraux réduisent de {0} s la recharge de Gardien spectral.",
-     "values": [
-      1
-     ],
-     "parents": [
-      427
-     ]
-    },
-    {
      "id": 432,
      "row": 8,
-     "col": 0,
+     "col": 1,
      "kind": "passive",
      "name": "Scelle-destin",
      "icon": "ability_deathknight_hungeringruneblade",
@@ -3263,13 +3217,14 @@
       2
      ],
      "parents": [
+      427,
       428
      ]
     },
     {
      "id": 433,
      "row": 8,
-     "col": 2,
+     "col": 3,
      "kind": "passive",
      "name": "Royaume des esprits",
      "icon": "Spell_Shadow_ShadowEmbrace",
@@ -3281,13 +3236,14 @@
       10
      ],
      "parents": [
+      428,
       429
      ]
     },
     {
      "id": 434,
      "row": 8,
-     "col": 4,
+     "col": 5,
      "kind": "passive",
      "name": "Présence intimidante",
      "icon": "nhi_soulgrave_Border",
@@ -3299,13 +3255,14 @@
       15
      ],
      "parents": [
+      429,
       430
      ]
     },
     {
      "id": 435,
-     "row": 8,
-     "col": 6,
+     "row": 9,
+     "col": 0,
      "kind": "passive",
      "name": "Âme sombre",
      "icon": "novart_physical_ability_26_Border",
@@ -3325,13 +3282,13 @@
       }
      ],
      "parents": [
-      431
+      432
      ]
     },
     {
      "id": 436,
      "row": 9,
-     "col": 1,
+     "col": 2,
      "kind": "passive",
      "name": "Vers l'Ombreterre",
      "icon": "Spell_Shadow_NightOfTheDead",
@@ -3362,7 +3319,7 @@
     {
      "id": 437,
      "row": 9,
-     "col": 3,
+     "col": 4,
      "kind": "passive",
      "name": "Moisson spirituelle",
      "icon": "Spell_Shadow_Haunting",
@@ -3381,7 +3338,7 @@
     {
      "id": 438,
      "row": 9,
-     "col": 5,
+     "col": 6,
      "kind": "passive",
      "name": "Vue de l'âme",
      "icon": "custom_eyes_02_Border",
@@ -3393,8 +3350,7 @@
       3
      ],
      "parents": [
-      434,
-      435
+      434
      ]
     }
    ],
@@ -3411,25 +3367,22 @@
     410,
     411,
     412,
-    413,
-    414,
+    "413:1",
     415,
     416,
-    417,
     418,
-    419,
+    417,
+    "419:1",
     420,
     421,
-    422,
     423,
     424,
     425,
     426,
     427,
     428,
-    429,
+    "429:1",
     430,
-    431,
     432,
     433,
     434,
@@ -3445,35 +3398,35 @@
    "spec": 2,
    "kind": "single",
    "nodes": {
+    "104": 1,
     "101": 1,
     "103": 1,
-    "104": 1,
     "102": 2,
     "105": 1,
     "106": 1,
-    "107": 1,
     "108": 2,
-    "109": 1,
     "110": 1,
-    "111": 1,
-    "113": 1,
+    "109": 1,
+    "107": 1,
     "112": 2,
+    "111": 1,
     "114": 1,
     "115": 1,
+    "113": 1,
     "116": 1,
     "118": 1,
-    "117": 1,
     "119": 1,
+    "117": 1,
     "120": 1,
     "121": 1,
-    "122": 1,
-    "123": 1,
     "124": 1,
+    "122": 1,
+    "129": 1,
+    "123": 1,
     "125": 1,
     "126": 1,
-    "127": 1,
     "128": 1,
-    "129": 1,
+    "127": 1,
     "130": 1,
     "131": 1,
     "132": 1,
@@ -3484,24 +3437,22 @@
     "204": 2,
     "205": 1,
     "206": 1,
-    "207": 1,
+    "211": 2,
     "208": 1,
     "209": 1,
-    "210": 1,
-    "211": 2,
-    "214": 1,
     "212": 1,
     "213": 1,
+    "210": 1,
     "215": 1,
-    "217": 1,
     "216": 1,
+    "217": 1,
+    "214": 1,
     "218": 1,
-    "219": 1,
     "220": 1,
     "221": 1,
     "222": 1,
+    "219": 1,
     "223": 1,
-    "224": 1,
     "225": 1,
     "226": 1,
     "227": 1,
@@ -3509,42 +3460,45 @@
     "229": 1,
     "230": 1,
     "231": 1,
-    "232": 2
+    "233": 1,
+    "234": 1,
+    "238": 1,
+    "232": 1
    }
   },
   {
    "spec": 2,
    "kind": "aoe",
    "nodes": {
+    "104": 1,
     "101": 1,
     "103": 1,
-    "104": 1,
     "102": 2,
     "105": 1,
     "106": 1,
-    "107": 1,
     "108": 2,
-    "109": 1,
     "110": 1,
-    "111": 1,
-    "113": 1,
+    "109": 1,
+    "107": 1,
     "112": 2,
+    "111": 1,
     "114": 1,
     "115": 1,
+    "113": 1,
     "116": 1,
     "118": 1,
-    "117": 1,
     "119": 1,
+    "117": 1,
     "120": 1,
     "121": 1,
-    "122": 1,
-    "123": 1,
     "124": 1,
+    "122": 1,
+    "129": 1,
+    "123": 1,
     "125": 1,
     "126": 1,
-    "127": 1,
     "128": 1,
-    "129": 1,
+    "127": 1,
     "130": 1,
     "131": 1,
     "132": 1,
@@ -3555,24 +3509,22 @@
     "204": 2,
     "205": 1,
     "206": 1,
-    "207": 1,
+    "211": 2,
     "208": 1,
     "209": 1,
-    "210": 1,
-    "211": 2,
-    "214": 1,
     "212": 1,
     "213": 1,
+    "210": 1,
     "215": 1,
-    "217": 1,
     "216": 1,
+    "217": 1,
+    "214": 1,
     "218": 1,
-    "219": 1,
     "220": 1,
     "221": 1,
     "222": 1,
+    "219": 1,
     "223": 1,
-    "224": 1,
     "225": 1,
     "226": 1,
     "227": 1,
@@ -3580,42 +3532,45 @@
     "229": 1,
     "230": 1,
     "231": 1,
-    "232": 2
+    "233": 1,
+    "234": 1,
+    "238": 1,
+    "232": 1
    }
   },
   {
    "spec": 3,
    "kind": "single",
    "nodes": {
+    "104": 1,
     "101": 1,
     "103": 1,
-    "104": 1,
     "102": 2,
     "105": 1,
     "106": 1,
-    "107": 1,
     "108": 2,
-    "109": 1,
     "110": 1,
-    "111": 1,
-    "113": 1,
+    "109": 1,
+    "107": 1,
     "112": 2,
+    "111": 1,
     "114": 1,
     "115": 1,
+    "113": 1,
     "116": 1,
     "118": 1,
-    "117": 1,
     "119": 1,
+    "117": 1,
     "120": 1,
     "121": 1,
-    "122": 1,
-    "123": 1,
     "124": 1,
+    "122": 1,
+    "129": 1,
+    "123": 1,
     "125": 1,
     "126": 1,
-    "127": 1,
     "128": 1,
-    "129": 1,
+    "127": 1,
     "130": 1,
     "131": 1,
     "132": 1,
@@ -3634,59 +3589,59 @@
     "312": 1,
     "313": 1,
     "314": 1,
-    "315": 1,
     "316": 1,
+    "315": 1,
     "317": 1,
     "318": 1,
     "319": 1,
     "320": 1,
     "321": 1,
-    "322": 1,
     "323": 1,
     "324": 1,
     "325": 1,
     "326": 1,
     "327": 1,
-    "330": 1,
     "328": 1,
     "329": 1,
+    "330": 1,
     "331": 1,
-    "332": 1
+    "332": 1,
+    "333": 1
    }
   },
   {
    "spec": 3,
    "kind": "aoe",
    "nodes": {
+    "104": 1,
     "101": 1,
     "103": 1,
-    "104": 1,
     "102": 2,
     "105": 1,
     "106": 1,
-    "107": 1,
     "108": 2,
-    "109": 1,
     "110": 1,
-    "111": 1,
-    "113": 1,
+    "109": 1,
+    "107": 1,
     "112": 2,
+    "111": 1,
     "114": 1,
     "115": 1,
+    "113": 1,
     "116": 1,
     "118": 1,
-    "117": 1,
     "119": 1,
+    "117": 1,
     "120": 1,
     "121": 1,
-    "122": 1,
-    "123": 1,
     "124": 1,
+    "122": 1,
+    "129": 1,
+    "123": 1,
     "125": 1,
     "126": 1,
-    "127": 1,
     "128": 1,
-    "129": 1,
+    "127": 1,
     "130": 1,
     "131": 1,
     "132": 1,
@@ -3705,59 +3660,59 @@
     "312": 1,
     "313": 1,
     "314": 1,
-    "315": 1,
     "316": 1,
+    "315": 1,
     "317": 1,
     "318": 1,
     "319": 1,
     "320": 1,
     "321": 1,
-    "322": 1,
     "323": 1,
     "324": 1,
     "325": 1,
     "326": 1,
     "327": 1,
-    "330": 1,
     "328": 1,
     "329": 1,
+    "330": 1,
     "331": 1,
-    "332": 1
+    "332": 1,
+    "333": 1
    }
   },
   {
    "spec": 4,
    "kind": "single",
    "nodes": {
+    "104": 1,
     "101": 1,
     "103": 1,
-    "104": 1,
     "102": 2,
     "105": 1,
     "106": 1,
-    "107": 1,
     "108": 2,
-    "109": 1,
     "110": 1,
-    "111": 1,
-    "113": 1,
+    "109": 1,
+    "107": 1,
     "112": 2,
+    "111": 1,
     "114": 1,
     "115": 1,
+    "113": 1,
     "116": 1,
     "118": 1,
-    "117": 1,
     "119": 1,
+    "117": 1,
     "120": 1,
     "121": 1,
-    "122": 1,
-    "123": 1,
     "124": 1,
+    "122": 1,
+    "129": 1,
+    "123": 1,
     "125": 1,
     "126": 1,
-    "127": 1,
     "128": 1,
-    "129": 1,
+    "127": 1,
     "130": 1,
     "131": 1,
     "132": 1,
@@ -3775,15 +3730,13 @@
     "411": 1,
     "412": 1,
     "413": 1,
-    "414": 1,
     "415": 1,
     "416": 1,
-    "417": 1,
     "418": 1,
+    "417": 1,
     "419": 1,
     "420": 2,
     "421": 1,
-    "422": 1,
     "423": 1,
     "424": 1,
     "425": 1,
@@ -3792,43 +3745,45 @@
     "428": 1,
     "429": 1,
     "430": 1,
-    "431": 1,
-    "432": 1
+    "432": 1,
+    "433": 1,
+    "434": 1,
+    "435": 1
    }
   },
   {
    "spec": 4,
    "kind": "aoe",
    "nodes": {
+    "104": 1,
     "101": 1,
     "103": 1,
-    "104": 1,
     "102": 2,
     "105": 1,
     "106": 1,
-    "107": 1,
     "108": 2,
-    "109": 1,
     "110": 1,
-    "111": 1,
-    "113": 1,
+    "109": 1,
+    "107": 1,
     "112": 2,
+    "111": 1,
     "114": 1,
     "115": 1,
+    "113": 1,
     "116": 1,
     "118": 1,
-    "117": 1,
     "119": 1,
+    "117": 1,
     "120": 1,
     "121": 1,
-    "122": 1,
-    "123": 1,
     "124": 1,
+    "122": 1,
+    "129": 1,
+    "123": 1,
     "125": 1,
     "126": 1,
-    "127": 1,
     "128": 1,
-    "129": 1,
+    "127": 1,
     "130": 1,
     "131": 1,
     "132": 1,
@@ -3846,15 +3801,13 @@
     "411": 1,
     "412": 1,
     "413": 1,
-    "414": 1,
     "415": 1,
     "416": 1,
-    "417": 1,
     "418": 1,
+    "417": 1,
     "419": 1,
     "420": 2,
     "421": 1,
-    "422": 1,
     "423": 1,
     "424": 1,
     "425": 1,
@@ -3863,8 +3816,10 @@
     "428": 1,
     "429": 1,
     "430": 1,
-    "431": 1,
-    "432": 1
+    "432": 1,
+    "433": 1,
+    "434": 1,
+    "435": 1
    }
   }
  ]
