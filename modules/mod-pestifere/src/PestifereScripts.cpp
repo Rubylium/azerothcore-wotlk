@@ -195,9 +195,10 @@ struct ShieldEcho : public DataMap::Base
 };
 
 // The tank's class HUD (client: FrameXML ClassHudPestifere.lua), whispered when it changes, every HUD_SYNC_MS:
-//   PESTIFERE <tab> <carapace>:<chair>:<peste>:<pourriture>:<avatar>:<fievre>:<sepulcre>:<detonations>
+//   PESTIFERE <tab> <carapace>:<chair>:<peste>:<pourriture>:<avatar>:<riposte>:<sepulcre>:<detonations>
 // the three plagues carried, each the % of its time left (100 in combat, where they last as long as they are carried;
-// 0 not carried); pourriture the stacks of the Pestiféré's on its selected enemy; avatar and fievre 1 while they last;
+// 0 not carried); pourriture the stacks of the Pestiféré's on its selected enemy; avatar 1 while it lasts; riposte 1
+// while Riposte purulente can be cast (a dodge, parry or block just now, the spell known and ready);
 // sepulcre the damage it still owes, in % of its maximum health (steps of 5, capped at 100); detonations counts the
 // Détonations that blew something up (the HUD splashes when it goes up). A Sangsue healer gets "-": its HUD hides.
 constexpr char const* HUD_PREFIX = "PESTIFERE";
@@ -1729,6 +1730,14 @@ uint32 PlagueLeftPct(Player* player, uint32 selfSpellId)
     return std::clamp<uint32>(pct, 5, 100);
 }
 
+// Riposte purulente can be cast: its aura state (the spell data's: a dodge, parry or block, a few seconds),
+// known, ready
+bool RiposteReady(Player* player)
+{
+    return player->HasAuraState(AURA_STATE_DEFENSE) && player->HasSpell(SPELL_RIPOSTE_PURULENTE) &&
+        !player->HasSpellCooldown(SPELL_RIPOSTE_PURULENTE);
+}
+
 void SyncHud(Player* player)
 {
     WorldSession* session = player->GetSession();
@@ -1748,7 +1757,7 @@ void SyncHud(Player* player)
         payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}:{}", PlagueLeftPct(player, SPELL_CARAPACE_NECROSEE),
             PlagueLeftPct(player, SPELL_CHAIR_PUTRIDE), PlagueLeftPct(player, SPELL_PESTE_VIRULENTE),
             rot ? rot->GetStackAmount() : 0, player->HasAura(SPELL_AVATAR_DE_LA_PESTE) ? 1 : 0,
-            player->HasAura(SPELL_FIEVRE) ? 1 : 0, sepulcre, echo->detonations);
+            RiposteReady(player) ? 1 : 0, sepulcre, echo->detonations);
     }
     if (payload == echo->sent)
         return;

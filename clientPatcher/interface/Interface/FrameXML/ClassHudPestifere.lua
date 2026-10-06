@@ -3,9 +3,10 @@
 -- Chair putride flesh-red, Peste virulente bile-green, each one's liquid lowering as it runs out (out of combat only:
 -- in a fight they last as long as they are carried). The boil in the cleavers' knot is Pourriture on the target -
 -- flat, small, swollen, and ripe at 6, throbbing: Détonation now; it splashes when a Détonation blows something up.
--- Avatar de la peste: the flasks boil over, a toxic glow behind them. Fièvre (Morsure fétide free): bile drips from
--- the blades. Sépulcre (damage held back): a violet smoke behind, thicker as it owes more. Fed by the server's
--- "PESTIFERE\t<carapace %>:<chair %>:<peste %>:<pourriture>:<avatar>:<fievre>:<sepulcre %>:<detonations>"
+-- Avatar de la peste: the flasks boil over, a toxic glow behind them. Riposte purulente usable (a dodge, parry or
+-- block just now): bile drips from the blades. Sépulcre (damage held back): a violet smoke behind, thicker as it
+-- owes more. Fed by the server's
+-- "PESTIFERE\t<carapace %>:<chair %>:<peste %>:<pourriture>:<avatar>:<riposte>:<sepulcre %>:<detonations>"
 -- (modules/mod-pestifere SyncHud), or "PESTIFERE\t-" for a healer: the HUD hides. Art:
 -- clientPatcher/assets/pestifereHud (its assetManifest.json gives the boxes and placements below), painted from
 -- .agents/plans/pestifere-hud/pestifere-hud.ASSETS.md. Framework: ClassHud.lua.
@@ -177,7 +178,7 @@ local function create(frame)
     frame.border:SetSize(154, 63)
     setPiece(frame.border, "frame")
 
-    -- Fièvre: bile dripping from the blades
+    -- Riposte purulente usable: bile dripping from the blades
     frame.drips = frame:CreateTexture(nil, "ARTWORK")
     frame.drips:SetPoint("CENTER", 0, -8)
     frame.drips:SetSize(154, 63)
@@ -310,7 +311,7 @@ local function update(frame, state, previous)
     end
 
     showGlow(frame.glowToxic, frame.toxicPulse, state.avatar, was(before, before and before.avatar))
-    showGlow(frame.drips, frame.dripPulse, state.fievre, was(before, before and before.fievre))
+    showGlow(frame.drips, frame.dripPulse, state.riposte, was(before, before and before.riposte))
     showGlow(frame.glowSepulcre, frame.sepulcrePulse, state.sepulcre > 0, was(before, before and before.sepulcre > 0),
         0.35 + 0.65 * math.min(1, state.sepulcre / SEPULCRE_FULL))
 
@@ -343,7 +344,7 @@ local function parse(payload)
     if payload == "-" then
         return { hidden = true }
     end
-    local carapace, chair, peste, pourriture, avatar, fievre, sepulcre, detonations = strsplit(":", payload or "")
+    local carapace, chair, peste, pourriture, avatar, riposte, sepulcre, detonations = strsplit(":", payload or "")
     if not detonations then
         return nil
     end
@@ -356,7 +357,7 @@ local function parse(payload)
         peste = percent(peste),
         pourriture = math.max(0, math.min(POURRITURE_MAX, tonumber(pourriture) or 0)),
         avatar = avatar == "1",
-        fievre = fievre == "1",
+        riposte = riposte == "1",
         sepulcre = percent(sepulcre),
         detonations = tonumber(detonations) or 0,
     }
@@ -386,8 +387,8 @@ ClassHud_Register({
         if state.avatar then
             table.insert(lines, "|cffb8e02aAvatar de la peste : vos pestes comptent une de plus.|r")
         end
-        if state.fievre then
-            table.insert(lines, "|cffb8e02aFièvre : votre prochaine Morsure fétide est gratuite.|r")
+        if state.riposte then
+            table.insert(lines, "|cffb8e02aRiposte purulente est utilisable.|r")
         end
         if state.sepulcre > 0 then
             table.insert(lines, string.format("|cffa070c0Sépulcre : %d%% de votre vie encore à subir.|r",
@@ -404,6 +405,6 @@ ClassHud_Register({
     end,
     isEmpty = function(state)
         return state.hidden or (state.carapace == 0 and state.chair == 0 and state.peste == 0 and
-            state.pourriture == 0 and not state.avatar and not state.fievre and state.sepulcre == 0)
+            state.pourriture == 0 and not state.avatar and not state.riposte and state.sepulcre == 0)
     end,
 })

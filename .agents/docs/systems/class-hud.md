@@ -93,7 +93,7 @@ to the Faucheur's proportions (a small wide weapon frame, three sockets in a row
 
 `ClassHudPestifere.lua` (class token `PESTIFERE`, the tank only: a Sangsue healer - Transfusion learned, Carapace
 nécrosée not carried - gets `-`), prefix `PESTIFERE`, payload
-`carapace%:chair%:peste%:pourriture:avatar:fievre:sepulcre%:detonations` (mod-pestifere `SyncHud`, every 250 ms when it
+`carapace%:chair%:peste%:pourriture:avatar:riposte:sepulcre%:detonations` (mod-pestifere `SyncHud`, every 250 ms when it
 changed). On the Faucheur's model: two corroded cleavers, three flasks over them (`pestifereHudAtlas.blp`, 1024 x 512;
 art `clientPatcher/assets/pestifereHud`, built by `localTools/interface/buildPestifereHudArt.py` from the paintings of
 `.agents/plans/pestifere-hud/pestifere-hud.ASSETS.md`):
@@ -103,5 +103,6 @@ art `clientPatcher/assets/pestifereHud`, built by `localTools/interface/buildPes
   (`LIQUID_TOP`/`LIQUID_BOTTOM` in the Lua);
 - the boil in the knot is Pourriture on the selected enemy: flat, small (1-2), swollen (3-5), ripe and throbbing at 6;
   a bile splash out of it each time a Détonation blew something up (the count went up);
-- Avatar de la peste: the flasks boil over and a toxic glow pulses; Fièvre: bile drips from the blades; Sépulcre: a
-  violet smoke behind, thicker as it owes more (full at half the maximum health).
+- Avatar de la peste: the flasks boil over and a toxic glow pulses; Riposte purulente usable (its dodge / parry /
+  block aura state, the spell ready): bile drips from the blades; Sépulcre: a violet smoke behind, thicker as it owes
+  more (full at half the maximum health).
