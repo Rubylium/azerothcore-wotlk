@@ -270,12 +270,14 @@ uint32 EntryAbove(ForgeState const* state, Item const* item, uint32 ranks)
         nextTemplate->ItemLevel <= cap ? next : 0;
 }
 
-// Whether the Forge takes an item at all: gear, and a real item the generator made ranks for or a Mythic+ variant
+// Whether the Forge takes an item at all: gear, and a real item the generator made ranks for or a Mythic+ variant.
+// Never a legendary: too high a quality for the smith (the legendary system's items roll their own item level). The
+// ranks generated for the stock legendaries stay, so the ones already forged keep theirs.
 bool IsForgeable(Item const* item)
 {
     ItemTemplate const* proto = item->GetTemplate();
     if (!proto || (proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR) ||
-        proto->InventoryType == INVTYPE_NON_EQUIP)
+        proto->InventoryType == INVTYPE_NON_EQUIP || proto->Quality == ITEM_QUALITY_LEGENDARY)
         return false;
     return Mythic::IsMythicGeneratedItem(proto->ItemId) ||
         sObjectMgr->GetItemTemplate(Mythic::GetForgeItemEntry(Mythic::GetBaseItemEntry(proto->ItemId), 1));
@@ -319,14 +321,15 @@ void SendItem(Player* player, ForgeState const* state, Item* item)
         next ? GetCost(state, proto, rank) : 0, record != state->items.end() ? record->second.invested : 0));
 }
 
-// Every piece of the player's gear the Forge can take, worn first, then the bags
+// Every piece of the player's gear the Forge can take, worn first, then the bags: not one it could never raise (a
+// Mythic+ item already at its item level cap, never forged) - its rank bar would show ranks it cannot have
 void SendList(Player* player, bool open)
 {
     ForgeState* state = GetState(player);
     Send(player, "O");
     auto consider = [player, state](Item* item)
     {
-        if (item && IsForgeable(item))
+        if (item && IsForgeable(item) && (RankOf(state, item) || EntryAbove(state, item, 1)))
             SendItem(player, state, item);
     };
 

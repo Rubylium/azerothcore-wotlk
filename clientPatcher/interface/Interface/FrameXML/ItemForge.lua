@@ -325,6 +325,12 @@ local function CreateTrack(parent, width, height)
     return track
 end
 
+-- How many segments an item's track shows: every rank, or only the ones it has once it can go no further (a Mythic+
+-- item stopped by its item level cap short of the last rank) - never ranks it cannot have
+local function TrackLength(item)
+    return item.nextEntry == 0 and item.rank or state.maxRank
+end
+
 local function SetTrack(track, rank, maxRank)
     for index = 1, MAX_RANK do
         local cell = track[index]
@@ -492,7 +498,7 @@ local function RefreshList()
         row.name:SetTextColor(QualityColor(quality))
         row.detail:SetText(format("%s %d · %s", TEXT.itemLevel, item.itemLevel,
             IsWorn(item) and TEXT.worn or TEXT.bags))
-        SetTrack(row.track, item.rank, state.maxRank)
+        SetTrack(row.track, item.rank, TrackLength(item))
         SetShown(row.selectedGlow, key == state.selected)
         row:Show()
     end
@@ -531,8 +537,8 @@ function RefreshAnvil(animate)
     end
     anvil.name:SetText(name or "…")
     anvil.name:SetTextColor(QualityColor(quality))
-    SetTrack(anvil.track, item.rank, state.maxRank)
-    anvil.rank:SetText(format(TEXT.rank, item.rank, state.maxRank))
+    SetTrack(anvil.track, item.rank, TrackLength(item))
+    anvil.rank:SetText(format(TEXT.rank, item.rank, TrackLength(item)))
     anvil.money:SetText(GetCoinTextureString(GetMoney()))
     anvil.invested:SetText(item.invested > 0 and format(TEXT.invested, GetCoinTextureString(item.invested)) or "")
     anvil.masterGlow:SetAlpha(item.rank >= MAX_RANK and 0.55 or 0)
