@@ -362,3 +362,5 @@ Details live in the workflow files only:
 Day-to-day development and agent debugging should use a **local** stack + `e2e/local/` or the committed suites — not CI setup docs.
 
 Greppable failure prefixes: `precondition:`, `AC#N CONFIRMED BUG:`, `harness:`, `WARNING:`.
+
+Custom player rotation coverage: [rogue, mage, Frost DK and multi-dot regressions](suites/modules/playerbotRotation/README.md).
