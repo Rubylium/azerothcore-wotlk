@@ -25,11 +25,12 @@ constexpr uint32 CheckpointFloors = 10;
 constexpr uint32 GearFloors = 5;
 constexpr uint32 StepFloors = 5;
 
-// While levelling each floor adds 5% to the monsters' health and damage, up to +75% (floor 16 and deeper). The ladder
-// is climbed for hundreds of floors while a character levels (the monsters follow its level), so an uncapped 5% a
-// floor would make the deep floors impossible at any level; past the cap the gear the ladder gives makes it easier.
-constexpr float LevellingFloorGrowth = 0.05f;
-constexpr uint32 LevellingFloorCap = 15;
+// Levelling floors must work with ordinary quest gear and no essences. Monsters already follow the player's level;
+// depth adds only a small capped pressure increase rather than requiring gear upgrades to keep up.
+constexpr float LevellingEntryHealthFactor = 0.6f;
+constexpr float LevellingEntryDamageFactor = 0.45f;
+constexpr float LevellingFloorGrowth = 0.01f;
+constexpr uint32 LevellingFloorCap = 20;
 
 // Entry gearing for a fresh level 80. Neither health nor damage assumes paragon or accumulated essences.
 // Gear and difficulty reach their ceiling together at floor 100; deeper floors retain bonus rewards.
@@ -112,6 +113,17 @@ inline float GetFloorScaling(Ladder ladder, uint32 floor)
     return GearingEntryHealthFactor * gearRatio * gearRatio;
 }
 
+inline float GetFloorHealthScaling(Ladder ladder, uint32 floor)
+{
+    float const floorScaling = GetFloorScaling(ladder, floor);
+    return ladder == Ladder::Levelling ? LevellingEntryHealthFactor * floorScaling : floorScaling;
+}
+
+inline float GetFloorDamageScaling(Ladder ladder, uint32 floor)
+{
+    return ladder == Ladder::Levelling ? LevellingEntryDamageFactor * GetFloorScaling(ladder, floor) : 1.0f;
+}
+
 // A fresh level-80 damage dealer has roughly 12k health. Scale only the gear contribution, without Mythic+'s
 // personal affixes, essences, paragon or pressure. Role multipliers and healing hearts still apply.
 constexpr float TrashMeleeShare = 0.025f;
@@ -143,7 +155,7 @@ inline uint8 GetStatsExpansion(uint8 level)
 
 // Health and weapon damage of a floor's creature for one damage dealer, on top of the base stats of its level:
 // - health: about seven seconds of a solo damage dealer's damage for trash, three times that for an elite, ten for a
-//   boss. WotLK gear outgrows the base stats from 70 on, hence the level factor.
+//   boss. WotLK gear outgrows the base stats from 70 on, but only the gearing ladder assumes that gear.
 // - damage: a dungeon elite's (the modifier WotLK and older templates carry), trash lighter, bosses heavier.
 constexpr float TrashHealth[3] = { 0.8f, 1.0f, 1.2f };
 constexpr float EliteDamage[3] = { 2.0f, 3.0f, 6.0f };
@@ -152,8 +164,10 @@ constexpr float BossHealthRank = 10.0f;
 constexpr float TrashDamageRank = 0.6f;
 constexpr float BossDamageRank = 1.5f;
 
-inline float GetLevelHealthFactor(uint8 level)
+inline float GetLevelHealthFactor(Ladder ladder, uint8 level)
 {
+    if (ladder == Ladder::Levelling)
+        return 1.0f;
     return 1.0f + 1.5f * std::clamp((static_cast<float>(level) - 70.0f) / 10.0f, 0.0f, 1.0f);
 }
 

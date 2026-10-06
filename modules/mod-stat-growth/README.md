@@ -148,7 +148,9 @@ An endless ladder of short floors for one or two real players, from level 15 (de
   elite) and a boss, copies of the room's own creatures (920010-920299) at the players' level, with telegraphed
   abilities drawn by the ground indicators. The players arrive in a ring where nothing can attack them; stepping out
   starts the floor. The boss down, a portal leads down; every tenth floor is a checkpoint with a chest.
-- **Two ladders**: below the level cap floors add 5% up to +75%; at the cap a second ladder starts at floor 1 and
+- **Two ladders**: below the level cap, creatures start at 60% of the old health budget and 45% of the old damage
+  budget, with only 1% added per floor up to +20% (floor 21). This ladder assumes ordinary leveling gear and no
+  essences; it does not add the late-level WotLK gear health multiplier. At the cap a second ladder starts at floor 1 and
   provides entry gear from item level 200 to 310 at floor 100, without requiring paragon. Health and damage
   use a fresh level-80 baseline and stop growing at floor 100. Numbers in
   `InfiniteDungeonScaling.h`; the monsters' health follows the roles of the run (a tank counts 60%, a healer 40%),

@@ -279,7 +279,7 @@ struct Run
     float damageTaken = 0.0f;       // at the clear: the members' average damage taken, in maximum healths
     uint32 hardFightChance = 0;     // at the clear: the gear chance a long, hard floor earned (0: it was not one)
     std::optional<Position> portal; // where the way down opened, once cleared
-    float healthFactor = 1.0f;      // the roles' and the floor's
+    float healthFactor = 1.0f;      // roles, floor and ladder-specific level budget
     float damageFactor = 1.0f;
     float referenceHealth = 1.0f;
     bool meleeFromReference = false;    // the gearing ladder: melee a share of referenceHealth (ComputeFactors)
@@ -727,15 +727,14 @@ void ComputeFactors(Run& run)
         }
     }
 
-    float const floorScaling = GetFloorScaling(run.ladder, run.floor);
     float const damage = tank ? TankedDamage : run.members.size() > 1 ? UntankedDuoDamage : UntankedSoloDamage;
-    run.healthFactor = std::max(weight, HealerWeight) * floorScaling;
-    run.damageFactor = damage * floorScaling;
+    run.healthFactor = std::max(weight, HealerWeight) * GetFloorHealthScaling(run.ladder, run.floor) *
+        GetLevelHealthFactor(run.ladder, run.level);
+    run.damageFactor = damage * GetFloorDamageScaling(run.ladder, run.floor);
     run.referenceHealth = ReferenceHealthAt(run.level);
     // The gearing ladder uses a fresh level-80 baseline, with gear growth already included in its reference.
     if (run.ladder == Ladder::Gearing)
     {
-        run.damageFactor = damage;
         run.referenceHealth = GetGearingReferenceHealth(run.floor);
         run.meleeFromReference = true;
     }
@@ -752,7 +751,7 @@ void ApplyScaling(Creature* creature, MobRole role, uint8 level, float healthFac
 
     float const healthRank = role == MobRole::Boss ? BossHealthRank : role == MobRole::Elite ? EliteHealthRank : 1.0f;
     double const health = static_cast<double>(stats->BaseHealth[expansion]) * TrashHealth[expansion] *
-        GetLevelHealthFactor(level) * healthRank * healthFactor;
+        healthRank * healthFactor;
     uint32 const maxHealth = static_cast<uint32>(std::clamp<double>(health, 1.0, std::numeric_limits<int32>::max()));
     creature->SetCreateHealth(maxHealth);
     creature->SetMaxHealth(maxHealth);
