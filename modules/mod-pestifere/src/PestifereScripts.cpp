@@ -49,6 +49,7 @@
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
+#include "StringFormat.h"
 #include "Unit.h"
 #include "UnitScript.h"
 
@@ -192,6 +193,28 @@ struct ShieldEcho : public DataMap::Base
 {
     uint32 sent = 0;
 };
+
+// The tank's class HUD (client: FrameXML ClassHudPestifere.lua), whispered when it changes, every HUD_SYNC_MS:
+//   PESTIFERE <tab> <carapace>:<chair>:<peste>:<pourriture>:<avatar>:<fievre>:<sepulcre>:<detonations>
+// the three plagues carried, each the % of its time left (100 in combat, where they last as long as they are carried;
+// 0 not carried); pourriture the stacks of the Pestiféré's on its selected enemy; avatar and fievre 1 while they last;
+// sepulcre the damage it still owes, in % of its maximum health (steps of 5, capped at 100); detonations counts the
+// Détonations that blew something up (the HUD splashes when it goes up). A Sangsue healer gets "-": its HUD hides.
+constexpr char const* HUD_PREFIX = "PESTIFERE";
+constexpr char const* HudEchoKey = "PestifereHudEcho";
+constexpr uint32 HUD_SYNC_MS = 250;
+
+struct HudEcho : public DataMap::Base
+{
+    std::string sent;
+    uint32 timer = 0;
+    uint32 detonations = 0;
+};
+
+HudEcho* GetHudEcho(Player* player)
+{
+    return player->CustomData.GetDefault<HudEcho>(HudEchoKey);
+}
 
 
 // Peste virulente (90215): damage plague
@@ -1148,6 +1171,8 @@ class PestifereDetonationSpellScript : public SpellScript
         if (!_detonated)
             return;
 
+        ++GetHudEcho(caster)->detonations;
+
         // Detonating a ripe pack is the class's biggest self-heal: AoE threat and survival are one button
         SpellInfo const* spellInfo = GetSpellInfo();
         uint32 const healPerTarget =
@@ -1692,10 +1717,54 @@ private:
 // Levelling, talents and decay - the class has no trainer, and its plagues do not outlive the fight
 // -----------------------------------------------------------------------------------------------------------------
 
+// The time left of a plague the player carries, in steps of 5%: 100 while it does not run down, 0 without it
+uint32 PlagueLeftPct(Player* player, uint32 selfSpellId)
+{
+    Aura* plague = player->GetAura(selfSpellId, player->GetGUID());
+    if (!plague)
+        return 0;
+    if (plague->GetMaxDuration() <= 0 || plague->GetDuration() < 0)
+        return 100;
+    uint32 const pct = uint32(std::ceil(float(plague->GetDuration()) * 20.0f / float(plague->GetMaxDuration()))) * 5;
+    return std::clamp<uint32>(pct, 5, 100);
+}
+
+void SyncHud(Player* player)
+{
+    WorldSession* session = player->GetSession();
+    if (!session || session->IsBot())
+        return;
+
+    HudEcho* echo = GetHudEcho(player);
+    std::string payload = "-";
+    // A Sangsue healer (Transfusion learned, the tank plague not carried: PestifereHealer.cpp's rule) has no HUD yet
+    if (!GetTalentValue(player, TALENT_TRANSFUSION) || CarriesOwnPlague(player, SPELL_CARAPACE_NECROSEE))
+    {
+        Unit* target = player->GetSelectedUnit();
+        Aura* rot = target && target->IsAlive() ? target->GetAura(SPELL_POURRITURE, player->GetGUID()) : nullptr;
+        uint32 const owed = GetCarriedSepulcreOwed(player);
+        uint32 const sepulcre = owed ? std::clamp<uint32>(uint32(std::ceil(float(owed) * 20.0f /
+            float(std::max<uint32>(1, player->GetMaxHealth())))) * 5, 5, 100) : 0;
+        payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}:{}", PlagueLeftPct(player, SPELL_CARAPACE_NECROSEE),
+            PlagueLeftPct(player, SPELL_CHAIR_PUTRIDE), PlagueLeftPct(player, SPELL_PESTE_VIRULENTE),
+            rot ? rot->GetStackAmount() : 0, player->HasAura(SPELL_AVATAR_DE_LA_PESTE) ? 1 : 0,
+            player->HasAura(SPELL_FIEVRE) ? 1 : 0, sepulcre, echo->detonations);
+    }
+    if (payload == echo->sent)
+        return;
+    echo->sent = payload;
+
+    WorldPacket packet;
+    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player,
+        std::string(HUD_PREFIX) + "\t" + payload);
+    session->SendPacket(&packet);
+}
+
 class PestiferePlayerScript : public PlayerScript
 {
 public:
     PestiferePlayerScript() : PlayerScript("PestiferePlayerScript", {
+        PLAYERHOOK_ON_UPDATE,
         PLAYERHOOK_ON_LOGIN,
         PLAYERHOOK_ON_LEVEL_CHANGED,
         PLAYERHOOK_ON_PLAYER_ENTER_COMBAT,
@@ -1707,6 +1776,19 @@ public:
     void OnPlayerLogin(Player* player) override
     {
         LearnUnlockedAbilities(player);
+    }
+
+    // The class HUD, on every change
+    void OnPlayerUpdate(Player* player, uint32 diff) override
+    {
+        if (!IsPestifere(player))
+            return;
+        HudEcho* echo = GetHudEcho(player);
+        echo->timer += diff;
+        if (echo->timer < HUD_SYNC_MS)
+            return;
+        echo->timer = 0;
+        SyncHud(player);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel) override

@@ -88,3 +88,20 @@ with the Faucheur's HUD as the style reference):
 
 A first version - a big round shield, the bleed around its rim - read badly in game (too big, an awkward shape): keep
 to the Faucheur's proportions (a small wide weapon frame, three sockets in a row) for any class HUD.
+
+## The Pestiféré's HUD
+
+`ClassHudPestifere.lua` (class token `PESTIFERE`, the tank only: a Sangsue healer - Transfusion learned, Carapace
+nécrosée not carried - gets `-`), prefix `PESTIFERE`, payload
+`carapace%:chair%:peste%:pourriture:avatar:fievre:sepulcre%:detonations` (mod-pestifere `SyncHud`, every 250 ms when it
+changed). On the Faucheur's model: two corroded cleavers, three flasks over them (`pestifereHudAtlas.blp`, 1024 x 512;
+art `clientPatcher/assets/pestifereHud`, built by `localTools/interface/buildPestifereHudArt.py` from the paintings of
+`.agents/plans/pestifere-hud/pestifere-hud.ASSETS.md`):
+- the flasks are the plagues carried (Virulence), left to right Carapace nécrosée, Chair putride, Peste virulente;
+  their liquid lowers with the time left (only out of combat: in a fight they last as long as they are carried) -
+  the full painting cut from the top over the empty one, between the manifest's `flaskFillBounds`
+  (`LIQUID_TOP`/`LIQUID_BOTTOM` in the Lua);
+- the boil in the knot is Pourriture on the selected enemy: flat, small (1-2), swollen (3-5), ripe and throbbing at 6;
+  a bile splash out of it each time a Détonation blew something up (the count went up);
+- Avatar de la peste: the flasks boil over and a toxic glow pulses; Fièvre: bile drips from the blades; Sépulcre: a
+  violet smoke behind, thicker as it owes more (full at half the maximum health).

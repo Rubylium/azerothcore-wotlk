@@ -1,0 +1,222 @@
+{
+  "generator": "built-in image_gen",
+  "styleReferences": [
+    "../gladiatorHud/reference/reaperHud.png",
+    "../gladiatorHud/reference/reaperAtlas.png",
+    "../gladiatorHud/v2/gladiatorHudV2Atlas.png"
+  ],
+  "assets": [
+    {
+      "name": "frame",
+      "sourceFile": "source/frame.png",
+      "promptLines": [
+        "Use case: stylized-concept. Images 1/2 are Ascension Faucheur HUD style/proportion references;",
+        "Image3 is the APPROVED Gladiateur UI atlas. Match Image3's hand-painted Warcraft style exactly:",
+        "broad simple painted facets, chunky dark silhouette, soft upper-left light, restrained details,",
+        "legible at 162x70 game size. No photorealism, high-frequency scratches, tiny filigree, text,",
+        "numbers or scene. Pestifere palette: dark rusted iron, rotten brown leather, yellowed bone,",
+        "muted greenish glass. Liquids/effects ONLY bone-grey #b8b09a, pink-red #c04a5a, toxic",
+        "YELLOW-GREEN #b8e02a, DARK violet #4a2a5e. Never emerald green or bright purple. Generate ONLY a",
+        "horizontal weapon FRAME on genuine transparent alpha. Two identical broad BUTCHER CLEAVERS,",
+        "mirrored, blades outward to far left/right, tips slightly raised into a shallow symmetric V.",
+        "Chunky rectangular rusted pitted iron cleaver heads with blunt squared upper corners, cutting",
+        "edges below; not swords or scythes. A few dried dark bile traces, sparse large rust patches.",
+        "Rotten dark leather handles cross LOW in centre, bound with yellowed bones and leather around a",
+        "small EMPTY round central socket. Perfect bilateral mirror symmetry. Virtual canvas512x224:",
+        "outward heads span x8..180 and332..504, upper edges aroundy50, handles join near(256,155),",
+        "bottom of knot near200. Middle upper band x120..392,y12..118 left clear for three separate",
+        "flasks. Match the approved gladius frame's scale and placement, with broad cleaver heads visibly",
+        "protruding at sides. Entire frame inside canvas, 8px padding. NO flasks, no boil, no glowing",
+        "magic, no background."
+      ]
+    },
+    {
+      "name": "boilFlat",
+      "sourceFile": "source/boilFlat.png",
+      "promptLines": [
+        "Use case: stylized-concept. Images 1/2 are Ascension Faucheur HUD style/proportion references;",
+        "Image3 is the APPROVED Gladiateur UI atlas. Match Image3's hand-painted Warcraft style exactly:",
+        "broad simple painted facets, chunky dark silhouette, soft upper-left light, restrained details,",
+        "legible at 162x70 game size. No photorealism, high-frequency scratches, tiny filigree, text,",
+        "numbers or scene. Pestifere palette: dark rusted iron, rotten brown leather, yellowed bone,",
+        "muted greenish glass. Liquids/effects ONLY bone-grey #b8b09a, pink-red #c04a5a, toxic",
+        "YELLOW-GREEN #b8e02a, DARK violet #4a2a5e. Never emerald green or bright purple. Generate ONE",
+        "small round SOCKET of chunky yellowed BONE holding a FLAT blotch of diseased muted grey-green",
+        "skin. Simple uneven bone ring, not intricate skulls. Skin flat slightly wrinkled with a few",
+        "broad shaded patches; no pustule yet, no swelling, no glow. Target64x64 canvas, ring centred",
+        "with54px outerdiameter and5px transparent padding. Inside face about40px diameter, fixed front",
+        "view, upper-left light. Match approved jewel's simple painted weight. Genuine transparent alpha",
+        "outside ring, no text no background no extra objects."
+      ]
+    },
+    {
+      "name": "flaskEmpty",
+      "sourceFile": "source/flaskEmpty.png",
+      "promptLines": [
+        "EDIT the empty flask in Image1; other attached images are STYLE references. Make this flask much",
+        "SQUATTER and WIDER, a ROUND BELLIED socket: shorten the combined cork+neck to only 17% of total",
+        "flask height (currently much too long), widen the belly so total silhouette width is 1.08 times",
+        "total silhouette height. Single tiny thick cork above a short simple iron collar, no long",
+        "cylindrical neck section. Almost circular broad belly, slightly flat bottom. Preserve identical",
+        "painted greenish-glass rim materials, charcoal EMPTY hollow, broad painted facets, soft",
+        "upper-left light, dark outline, genuine transparent alpha. Target132x120: visible flask",
+        "width112px, height104px, centred with padding. NO liquid or glow, no labels, no straps. Match",
+        "the simple approved helmet atlas style, no photorealism. Keep same canvas aspect; subject is",
+        "deliberately wider than tall."
+      ]
+    },
+    {
+      "name": "flaskBone",
+      "sourceFile": "source/flaskBone.png",
+      "promptLines": [
+        "EDIT TARGET Image1: approved empty squat flask. Images2/3/4 are STYLE references. Fill EMPTY",
+        "hollow FULL up to the neck with faintly luminous CHALKY BONE-GREY liquid #b8b09a, a few large",
+        "pale stone-crust plates floating in swirling liquid. Solid neutral grey/beige, no yellow-green",
+        "bile, no red. Preserve EXACT original flask silhouette, position, dimensions, greenish glass",
+        "rim, dark iron collar, cork, paint facets, upper-left lighting and canvas. For liquid states",
+        "change ONLY the near-black hollow; retain ALL glass/metal/cork identically, genuine transparent",
+        "alpha outside same silhouette, no external halo. Same chunky hand-painted approved Gladiateur UI",
+        "style, not photorealistic, no text, no background scene."
+      ]
+    },
+    {
+      "name": "flaskFlesh",
+      "sourceFile": "source/flaskFlesh.png",
+      "promptLines": [
+        "EDIT TARGET Image1: approved empty squat flask. Images2/3/4 are STYLE references. Fill EMPTY",
+        "hollow FULL up to the neck with sickly PINK-RED liquid #c04a5a, darker maroon regions and broad",
+        "bright rose-red swirling currents like the reference liquid. Rotting-flesh colour, no yellow, no",
+        "green. Preserve EXACT original flask silhouette, position, dimensions, greenish glass rim, dark",
+        "iron collar, cork, paint facets, upper-left lighting and canvas. For liquid states change ONLY",
+        "the near-black hollow; retain ALL glass/metal/cork identically, genuine transparent alpha",
+        "outside same silhouette, no external halo. Same chunky hand-painted approved Gladiateur UI",
+        "style, not photorealistic, no text, no background scene."
+      ]
+    },
+    {
+      "name": "flaskBile",
+      "sourceFile": "source/flaskBile.png",
+      "promptLines": [
+        "EDIT TARGET Image1: approved empty squat flask. Images2/3/4 are STYLE references. Fill EMPTY",
+        "hollow FULL up to the neck with luminous TOXIC YELLOW-GREEN BILE #b8e02a. Broad swirling dark",
+        "olive patches and bright lemon-chartreuse liquid veins. Strong YELLOW component; never",
+        "emerald/cyan green, no purple. Preserve EXACT original flask silhouette, position, dimensions,",
+        "greenish glass rim, dark iron collar, cork, paint facets, upper-left lighting and canvas. For",
+        "liquid states change ONLY the near-black hollow; retain ALL glass/metal/cork identically,",
+        "genuine transparent alpha outside same silhouette, no external halo. Same chunky hand-painted",
+        "approved Gladiateur UI style, not photorealistic, no text, no background scene."
+      ]
+    },
+    {
+      "name": "boilSmall",
+      "sourceFile": "source/boilSmall.png",
+      "promptLines": [
+        "EDIT TARGET Image1: flat bone-ring skin socket. Remaining images STYLE references. A SMALL",
+        "raised yellow pustule in the centre of the diseased skin, about one third of inner face",
+        "diameter, with restrained upper-left light. No glow yet. Keep EXACT original bone ring pixels,",
+        "silhouette, canvas, position, outerdiameter, dark outline and upper-left lighting. Change ONLY",
+        "skin face inside ring; shared front view, genuine transparent alpha outside identical ring.",
+        "Match approved chunky painted Warcraft UI style, no text, no other objects."
+      ]
+    },
+    {
+      "name": "boilSwollen",
+      "sourceFile": "source/boilSwollen.png",
+      "promptLines": [
+        "EDIT TARGET Image1: flat bone-ring skin socket. Remaining images STYLE references. A LARGE taut",
+        "swollen yellow pustule covering most of inner face, tight shiny yellow skin, broad painted",
+        "highlights, diseased darker rim. No bright magic yet. Keep EXACT original bone ring pixels,",
+        "silhouette, canvas, position, outerdiameter, dark outline and upper-left lighting. Change ONLY",
+        "skin face inside ring; shared front view, genuine transparent alpha outside identical ring.",
+        "Match approved chunky painted Warcraft UI style, no text, no other objects."
+      ]
+    },
+    {
+      "name": "boilRipe",
+      "sourceFile": "source/boilRipe.png",
+      "promptLines": [
+        "EDIT TARGET Image1: flat bone-ring skin socket. Remaining images STYLE references. A HUGE tense",
+        "pustule filling inner face, glowing yellow-green #b8e02a from within, a few clear dark veins",
+        "crossing it, hot luminous yellow centre, about to burst. Keep glow within skin face and very",
+        "restrained, no external halo. Keep EXACT original bone ring pixels, silhouette, canvas,",
+        "position, outerdiameter, dark outline and upper-left lighting. Change ONLY skin face inside",
+        "ring; shared front view, genuine transparent alpha outside identical ring. Match approved chunky",
+        "painted Warcraft UI style, no text, no other objects."
+      ]
+    },
+    {
+      "name": "boiling",
+      "sourceFile": "source/boiling.png",
+      "promptLines": [
+        "EDIT TARGET Image1. Remove ALL solid flask material, including ALL glass, rim, cork and collar.",
+        "Retain ONLY existing bright yellow-green bubble rings and foam light inside the belly. Add a",
+        "small detached foam/bubble cluster immediately above where neck used to be. Background",
+        "everywhere else EXACT PURE BLACK #000000. Do not redraw any bottle outline. Same exact canvas",
+        "and bubble positions. This is an ADDITIVE light overlay, no solid objects whatsoever. Colours",
+        "#b8e02a and yellow highlights only, olive areas must remain black. Chunky painted Warcraft UI.",
+        "No text."
+      ]
+    },
+    {
+      "name": "bileDrips",
+      "sourceFile": "source/bileDrips.png",
+      "promptLines": [
+        "EDIT TARGET Image1: mirrored cleavers. Produce ONLY glowing toxic yellow-green #b8e02a BILE",
+        "coating exact cutting edges beneath both blade heads, with a few short hanging drops below the",
+        "cutting edges. Remove ALL original iron, leather, bone, knot and socket to pure black. SAME",
+        "canvas size/aspect, original blade edge geometry and positions, perfect mirror symmetry, light",
+        "precisely registered to blades. No whole blade surfaces, no bubbles or cloud, no text. Thick",
+        "luminous yellow-chartreuse slimy droplets, restrained glow fade to PURE BLACK #000000 at all",
+        "edges. Approved chunky hand-painted UI style."
+      ]
+    },
+    {
+      "name": "glowToxic",
+      "sourceFile": "source/glowToxic.png",
+      "promptLines": [
+        "Use case: stylized-concept. Images 1/2 are Ascension Faucheur HUD style/proportion references;",
+        "Image3 is the APPROVED Gladiateur UI atlas. Match Image3's hand-painted Warcraft style exactly:",
+        "broad simple painted facets, chunky dark silhouette, soft upper-left light, restrained details,",
+        "legible at 162x70 game size. No photorealism, high-frequency scratches, tiny filigree, text,",
+        "numbers or scene. Pestifere palette: dark rusted iron, rotten brown leather, yellowed bone,",
+        "muted greenish glass. Liquids/effects ONLY bone-grey #b8b09a, pink-red #c04a5a, toxic",
+        "YELLOW-GREEN #b8e02a, DARK violet #4a2a5e. Never emerald green or bright purple. ONLY SOFT TOXIC",
+        "YELLOW-GREEN #b8e02a light, on pure BLACK #000000. Soft horizontally wide aura shaped as a row",
+        "of THREE overlapping ROUND-BELLIED FLASKS, no solid bottles. Target212x108 canvas. Merge three",
+        "broad circular humps into diffuse painterly glow, gentle yellow highlights and olive soft outer",
+        "light, no emerald. Entire effect central85%width70%height, fades to exactly black at all edges.",
+        "No hard silhouettes, no text, no objects."
+      ]
+    },
+    {
+      "name": "splash",
+      "sourceFile": "source/splash.png",
+      "promptLines": [
+        "Use case: stylized-concept. Images 1/2 are Ascension Faucheur HUD style/proportion references;",
+        "Image3 is the APPROVED Gladiateur UI atlas. Match Image3's hand-painted Warcraft style exactly:",
+        "broad simple painted facets, chunky dark silhouette, soft upper-left light, restrained details,",
+        "legible at 162x70 game size. No photorealism, high-frequency scratches, tiny filigree, text,",
+        "numbers or scene. Pestifere palette: dark rusted iron, rotten brown leather, yellowed bone,",
+        "muted greenish glass. Liquids/effects ONLY bone-grey #b8b09a, pink-red #c04a5a, toxic",
+        "YELLOW-GREEN #b8e02a, DARK violet #4a2a5e. Never emerald green or bright purple. ONLY a BURST of",
+        "glowing toxic yellow-green #b8e02a BILE DROPLETS flying radially OUTWARD from exact centre, on",
+        "PURE BLACK #000000. Target128x128 square canvas. A handful of chunky bright painted droplets and",
+        "streaks with soft glow, separated by black gaps, radial motion readable as explosion, small",
+        "hollow centre. Entire burst occupies central80%canvas, black margin, no opaque liquid disk, no",
+        "bottle, no boil, no ring, no greenemerald, no text."
+      ]
+    },
+    {
+      "name": "glowSepulcre",
+      "sourceFile": "source/glowSepulcre.png",
+      "promptLines": [
+        "EDIT TARGET Image1. REMOVE ALL THREE BOTTLES completely: all glass, corks, bronze rings, straps,",
+        "reflections and silhouettes must disappear into PURE BLACK #000000. Keep ONLY dark violet",
+        "#4a2a5e wispy SMOKE LIGHT and its softly curling shapes, no solid objects at all. Low",
+        "luminosity, soft diffuse horizontal smoke aura, exact same 2:1 canvas and registration, no",
+        "bright purple/magenta. Black edges and all empty space. Images2/3/4 are painted-style references",
+        "only; never insert objects from them. Output additive smoke-only overlay."
+      ]
+    }
+  ]
+}

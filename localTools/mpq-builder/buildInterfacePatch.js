@@ -68,7 +68,7 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // The action buttons' spell states (greyed out of the server's rules, proc glows); needs TalentTree.lua
     'SpellStates.lua',
     // The class HUD (a class's own resource, draggable; .agents/docs/systems/class-hud.md), then each class's own
-    'ClassHud.lua', 'ClassHudReaper.lua', 'ClassHudWarrior.lua',
+    'ClassHud.lua', 'ClassHudReaper.lua', 'ClassHudWarrior.lua', 'ClassHudPestifere.lua',
     // Our own sound engine (the client extension DLL's EvolutionsAudio): the server's sounds, the place's acoustics
     'EvolutionsAudio.lua',
     // A boss's loot on the floor (mod-stat-growth GroundLoot.cpp): the item's tooltip over its bag; needs GameTooltip
