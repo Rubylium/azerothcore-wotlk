@@ -20,7 +20,10 @@ UPDATE `legendary_base` SET
     `spellid_1` = 0, `spellid_2` = 0, `spellid_3` = 0, `spellid_4` = 0, `spellid_5` = 0,
     `itemset` = 0, `SellPrice` = 0, `BuyPrice` = 0, `MaxDurability` = 0, `description` = '',
     `socketColor_1` = 0, `socketContent_1` = 0, `socketColor_2` = 0, `socketContent_2` = 0, `socketColor_3` = 0,
-    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0;
+    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0,
+    -- Nothing of the item it is made from may limit it: every class and race (a tier piece was its class's and
+    -- faction's), no flag (heroic, unique, refundable), no limit category (a ring's was the Ashen Verdict's)
+    `AllowableClass` = -1, `AllowableRace` = -1, `Flags` = 0, `FlagsExtra` = 0, `ItemLimitCategory` = 0;
 INSERT INTO `item_template` SELECT * FROM `legendary_base`;
 DROP TEMPORARY TABLE `legendary_base`;
 -- Its lore is written by the client (FrameXML Legendary.lua), under the copy's rolls
@@ -46,7 +49,10 @@ UPDATE `legendary_base` SET
     `spellid_1` = 0, `spellid_2` = 0, `spellid_3` = 0, `spellid_4` = 0, `spellid_5` = 0,
     `itemset` = 0, `SellPrice` = 0, `BuyPrice` = 0, `MaxDurability` = 0, `description` = '',
     `socketColor_1` = 0, `socketContent_1` = 0, `socketColor_2` = 0, `socketContent_2` = 0, `socketColor_3` = 0,
-    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0;
+    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0,
+    -- Nothing of the item it is made from may limit it: every class and race (a tier piece was its class's and
+    -- faction's), no flag (heroic, unique, refundable), no limit category (a ring's was the Ashen Verdict's)
+    `AllowableClass` = -1, `AllowableRace` = -1, `Flags` = 0, `FlagsExtra` = 0, `ItemLimitCategory` = 0;
 INSERT INTO `item_template` SELECT * FROM `legendary_base`;
 DROP TEMPORARY TABLE `legendary_base`;
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
@@ -72,7 +78,10 @@ UPDATE `legendary_base` SET
     `spellid_1` = 0, `spellid_2` = 0, `spellid_3` = 0, `spellid_4` = 0, `spellid_5` = 0,
     `itemset` = 0, `SellPrice` = 0, `BuyPrice` = 0, `MaxDurability` = 0, `description` = '',
     `socketColor_1` = 0, `socketContent_1` = 0, `socketColor_2` = 0, `socketContent_2` = 0, `socketColor_3` = 0,
-    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0;
+    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0,
+    -- Nothing of the item it is made from may limit it: every class and race (a tier piece was its class's and
+    -- faction's), no flag (heroic, unique, refundable), no limit category (a ring's was the Ashen Verdict's)
+    `AllowableClass` = -1, `AllowableRace` = -1, `Flags` = 0, `FlagsExtra` = 0, `ItemLimitCategory` = 0;
 INSERT INTO `item_template` SELECT * FROM `legendary_base`;
 DROP TEMPORARY TABLE `legendary_base`;
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
