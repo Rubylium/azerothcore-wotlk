@@ -1,0 +1,174 @@
+{
+  "generator": "built-in imagegen",
+  "styleReferences": [
+    "clientPatcher/assets/gladiatorHud/reference/reaperHud.png",
+    "clientPatcher/assets/gladiatorHud/reference/reaperAtlas.png",
+    "clientPatcher/assets/gladiatorHud/v2/gladiatorHudV2Atlas.png",
+    "clientPatcher/assets/pestifereHud/pestifereHudAtlas.png"
+  ],
+  "iconReferences": [
+    "reference/Spell_Holy_SearingLight.png",
+    "reference/Spell_Holy_HolySmite.png"
+  ],
+  "assets": [
+    {
+      "name": "itemFrame",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. A square ornamental ITEM FRAME: chunky gold bars with crimson ",
+        "enamel inlay, rounded inner corners, four small flame-rayed sun corner ornaments, larger flame-rayed sun ",
+        "on crimson disc at top centre, small white marble cabochon bottom centre. Empty transparent square central ",
+        "opening exactly about 64% of canvas width. Bilaterally symmetric. Whole frame fully visible with 5% ",
+        "margin, square front view, no perspective. 512x512 target. Genuine transparent background, including ",
+        "central hole."
+      ],
+      "sourcePath": "source/itemFrame.png",
+      "generatedFile": "exec-28ef2753-caea-4b86-9dd0-b416e5a8e3b9.png"
+    },
+    {
+      "name": "itemFrameGlow",
+      "promptLines": [
+        "Edit target: attached item frame. Keep EXACT canvas and registration. Replace all physical gold, enamel ",
+        "and marble of frame with pure black, remove frame entirely. Only soft gold and orange holy fire licking ",
+        "around its OUTSIDE silhouette, small flames above top crest. Transparent central opening becomes pure ",
+        "black too. Light only on pure #000000 black background. No visible frame, gold bars, discs, corners or ",
+        "other material. Bilaterally symmetric, soft broad glow rather than solid lines."
+      ],
+      "sourcePath": "source/itemFrameGlow.png",
+      "generatedFile": "exec-af8460b1-d501-41fd-9bd2-c4eab55b87bf.png"
+    },
+    {
+      "name": "tooltipCorner",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. TOP-LEFT TOOLTIP CORNER, 256x256 target. Two straight chunky gold ",
+        "bars with crimson enamel inlay meeting at right angle, corner capped by flame-rayed sun ornament with ",
+        "small WHITE MARBLE cabochon. Bars extend to right and bottom canvas edges, full thickness, cut straight ",
+        "with no caps. Interior bottom right completely transparent. Gold bar width 18% of canvas. Corner ornament ",
+        "centred near (18%,18%). Match item frame materials in last attached reference. No extra ornaments along ",
+        "bars."
+      ],
+      "sourcePath": "source/tooltipCorner.png",
+      "generatedFile": "exec-8e6b90a2-492f-4e06-ac55-8e09d42c62ee.png"
+    },
+    {
+      "name": "tooltipTopCrest",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. TOP-CENTRE TOOLTIP CREST, wide 384x192 target. Scarlet flame-rayed ",
+        "sun on crimson enamel disc framed in gold, two short gold wings sweep left and right along horizontal ",
+        "straight bar. Tiny gold-orange flames above rays. Bar crosses full canvas at EXACT vertical middle, ",
+        "uniform thickness 48/192 height, cut at both edges no caps. Bilateral symmetry. Transparent background. ",
+        "Match last attached item frame."
+      ],
+      "sourcePath": "source/tooltipTopCrest.png",
+      "generatedFile": "exec-3f8f4924-56e0-4fa7-ad97-9fd14a266add.png"
+    },
+    {
+      "name": "tooltipBottomCrest",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. BOTTOM-CENTRE TOOLTIP CREST, wide 384x192 target. Smaller quieter ",
+        "white marble cabochon in aged gold mount, two small crimson enamel leaves. Straight horizontal ",
+        "gold/crimson bar runs entire width at EXACT vertical middle, uniform thickness 48/192 height, cut at both ",
+        "edges no caps. Bilateral symmetry, much less ornamental than top crest. Transparent background. Match last ",
+        "attached item frame."
+      ],
+      "sourcePath": "source/tooltipBottomCrest.png",
+      "generatedFile": "exec-f1a5b4ee-a478-413d-b013-6a7a96ee0d0b.png"
+    },
+    {
+      "name": "tooltipBarHorizontal",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. ONLY a straight HORIZONTAL BORDER BAR: wide 256x48 target, gold ",
+        "bevel above/below deep crimson enamel centre, dark outline. Long thin bar runs edge-to-edge entire canvas ",
+        "width, seamless horizontal tiling, NO ornament, end caps, curves, tapered ends or extra objects. Uniform ",
+        "cross-section, subtle broad painted facets, lit above. Transparent padding only above/below. Same ",
+        "materials as last attached item frame."
+      ],
+      "sourcePath": "source/tooltipBarHorizontal.png",
+      "generatedFile": "exec-8ee2449e-090f-4444-af06-a715cd53b43d.png"
+    },
+    {
+      "name": "tooltipBarVertical",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. ONLY a straight VERTICAL BORDER BAR: narrow tall 48x256 target, ",
+        "gold bevel left/right deep crimson enamel centre, dark outline. Long thin bar runs edge-to-edge entire ",
+        "canvas height, seamless vertical tiling, NO ornament, end caps, curves, tapered ends or extra objects. ",
+        "Uniform cross-section, subtle broad painted facets, lit left. Transparent padding only left/right. Same ",
+        "materials as last attached item frame."
+      ],
+      "sourcePath": "source/tooltipBarVertical.png",
+      "generatedFile": "exec-7eb0ea52-4da2-4f1f-86d3-3f4571c90305.png"
+    },
+    {
+      "name": "tooltipTitlePlate",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the style of the ",
+        "four attached references (Ascension class resource HUDs): chunky readable silhouette, broad painted ",
+        "facets, soft light from upper left, dark outline, restrained detail readable at 50px. Theme Scarlet ",
+        "Crusade: aged warm gold, crimson enamel, white marble, gold and orange holy fire; motif stylised ",
+        "flame-rayed sun. No green, purple, blue, text, filigree, tiny scratches or photorealism. References are ",
+        "style only, do not copy their subjects. TITLE PLATE: very wide shallow 512x96 target. Faint dark crimson ",
+        "painted cloth/enamel band, softly fading to true transparent at both ends and all edges. Very soft ",
+        "restrained gold light down middle; tiny faint flame-rayed sun watermark at each end. Centre remains dark ",
+        "and calm for orange/white text legibility. No solid border, no crest, no text. Bilateral symmetry. ",
+        "Transparent background."
+      ],
+      "sourcePath": "source/tooltipTitlePlate.png",
+      "generatedFile": "exec-74b4e771-93cf-46a3-b523-ff418e0b5d3b.png"
+    },
+    {
+      "name": "itemIcon",
+      "promptLines": [
+        "Use case: stylized-concept. World of Warcraft Wrath of the Lich King spell/item icon, square256x256 ",
+        "target, hand-painted, broad bold shapes, dramatic lighting, saturated rich colours, dark vignette at ",
+        "edges, no border or text. Attached STOCK WotLK icons are icon style references only. Scarlet Crusade CLOAK ",
+        "hung in folds: deep crimson cloth, prominent gold embroidered flame-rayed sun, hem smouldering with ",
+        "gold/orange holy fire, gold clasps at shoulders. Entire cloak visible, fills square, dramatic upper-left ",
+        "golden light. No wearer. No green, purple or blue. Opaque full square background."
+      ],
+      "sourcePath": "source/itemIcon.png",
+      "generatedFile": "exec-06771626-1275-4119-a4ad-0df78d4261ed.png"
+    },
+    {
+      "name": "powerIcon",
+      "promptLines": [
+        "Use case: stylized-concept. World of Warcraft Wrath of the Lich King spell/item icon, square256x256 ",
+        "target, hand-painted, broad bold shapes, dramatic lighting, saturated rich colours, dark vignette at ",
+        "edges, no border or text. Attached STOCK WotLK icons are icon style references only. Glowing BRAND: gold ",
+        "and WHITE-HOT flame-rayed sun sigil seared into dark iron, gold/orange holy fire around it, sparks rising. ",
+        "Single large readable sun occupies centre of square, dark iron at corners. No green, purple or blue. ",
+        "Opaque full square background."
+      ],
+      "sourcePath": "source/powerIcon.png",
+      "generatedFile": "exec-204f7188-93ec-4264-85a0-311564dea468.png"
+    }
+  ]
+}

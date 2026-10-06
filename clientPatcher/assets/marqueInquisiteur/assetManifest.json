@@ -1,0 +1,85 @@
+{
+  "generator": "built-in imagegen",
+  "alpha": "straight",
+  "blend": {
+    "itemFrameGlow": "ADD"
+  },
+  "tooltipBarThickness": 40,
+  "cornerBarCenter": [
+    48,
+    48
+  ],
+  "crestBarCenterY": 96,
+  "assets": {
+    "itemFrame": {
+      "size": [
+        512,
+        512
+      ],
+      "mode": "RGBA"
+    },
+    "itemFrameGlow": {
+      "size": [
+        512,
+        512
+      ],
+      "mode": "RGB"
+    },
+    "tooltipCorner": {
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGBA"
+    },
+    "tooltipTopCrest": {
+      "size": [
+        384,
+        192
+      ],
+      "mode": "RGBA"
+    },
+    "tooltipBottomCrest": {
+      "size": [
+        384,
+        192
+      ],
+      "mode": "RGBA"
+    },
+    "tooltipBarHorizontal": {
+      "size": [
+        256,
+        48
+      ],
+      "mode": "RGBA"
+    },
+    "tooltipBarVertical": {
+      "size": [
+        48,
+        256
+      ],
+      "mode": "RGBA"
+    },
+    "tooltipTitlePlate": {
+      "size": [
+        512,
+        96
+      ],
+      "mode": "RGBA"
+    },
+    "itemIcon": {
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB"
+    },
+    "powerIcon": {
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB"
+    }
+  }
+}

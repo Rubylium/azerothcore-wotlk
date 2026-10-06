@@ -1,0 +1,13 @@
+{
+  "generator": "built-in imagegen",
+  "asset": "itemIcon",
+  "selectedSource": "source/itemIcon.png",
+  "promptLines": [
+    "Edit this WotLK cloak item icon. Keep cloak, composition, crimson folds, gold embroidered sun, clasps and ",
+    "smouldering hem unchanged. Only darken the BACKGROUND at the upper-left corner and other square edges to ",
+    "deep warm brown/black so all four corners form a dark vignette. Keep dramatic upper-left light ON the ",
+    "cloak. Broad hand-painted WoW icon finish, rich colours, no text or border. Full opaque square canvas, ",
+    "original registration."
+  ],
+  "generatedFile": "exec-7fb32995-e445-465f-9ce4-36c89f10df60.png"
+}

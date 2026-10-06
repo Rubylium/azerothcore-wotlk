@@ -878,6 +878,9 @@ $customSpells += & ([ScriptBlock]::Create($reaperSpellSource))
 # The Forge (modules/mod-forge): the embers of forged gear and the master smith's hammer
 $forgeSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\forge\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($forgeSpellSource))
+# The legendaries (modules/mod-legendary): their powers' spells
+$legendarySpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\legendary\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($legendarySpellSource))
 # L'Infini, the Défi board's god fight (modules/mod-stat-growth/src/InfiniteGod.cpp): its abilities' names in the log
 # and its two debuffs
 $infiniteBossSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\infiniteBoss\Spells.ps1') -Raw -Encoding UTF8
@@ -2349,6 +2352,12 @@ $reaperScytheValues = @(2, 6, -1, 1, $reaperScythe.Display, 17, 1)
 for ($field = 1; $field -le 7; ++$field) {
     Write-Field $itemBytes $itemOffsets[$reaperScythe.Item] $field ([long]$reaperScytheValues[$field - 1])
 }
+# Marque de l'Inquisiteur (modules/mod-legendary), the first legendary: a cloak, item 24567 - a cloth cloak row the client
+# had with no template on the server - wearing the Recovered Scarlet Onslaught Cape's Scarlet red: its own display (71000),
+# that cape's (64326) with the legendary's icon (localTools\interfaceuildLegendaryClientArt.py)
+$legendaryCloak = @{ Item = 24567; Display = 71000; CloneOf = 64326; Icon = 'INV_Legendary_MarqueInquisiteur' }
+if (-not $itemOffsets.ContainsKey($legendaryCloak.Item)) { throw "Item.dbc has no row $($legendaryCloak.Item) for Marque de l'Inquisiteur." }
+[BitConverter]::GetBytes([uint32]$legendaryCloak.Display).CopyTo($itemBytes, $itemOffsets[$legendaryCloak.Item] + 5 * 4)
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
 #
@@ -2428,6 +2437,13 @@ $record = [byte[]]::new($displayDbc.RecordSize)
 [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$frontierShard.CloneOf], $record, 0, $displayDbc.RecordSize)
 Set-Field $record 0 ([uint32]$frontierShard.Display)
 Set-Field $record 5 (Add-DbcString $displayDbc.Strings $frontierShard.Icon)
+$displayDbc.NewRecords.AddRange($record)
+# Marque de l'Inquisiteur's: the Scarlet Onslaught cape's, with its own icon
+if ($displayDbc.Offsets.ContainsKey($legendaryCloak.Display)) { throw "ItemDisplayInfo.dbc already has a row $($legendaryCloak.Display)." }
+$record = [byte[]]::new($displayDbc.RecordSize)
+[Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$legendaryCloak.CloneOf], $record, 0, $displayDbc.RecordSize)
+Set-Field $record 0 ([uint32]$legendaryCloak.Display)
+Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendaryCloak.Icon)
 $displayDbc.NewRecords.AddRange($record)
 $displayOutput = Get-StringDbcOutput $displayDbc
 [IO.File]::WriteAllBytes($serverDisplayPath, $displayOutput)

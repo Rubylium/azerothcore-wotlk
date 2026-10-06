@@ -31,6 +31,7 @@
 !/modules/mod-barbarian
 !/modules/mod-forge
 !/modules/mod-reaper
+!/modules/mod-legendary
 /build*/
 # TACTTool's download cache of the game files, left at the root by the extractors
 /cache/

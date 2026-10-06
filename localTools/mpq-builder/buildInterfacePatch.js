@@ -61,6 +61,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     // then their source tag; needs GameTooltip, so it loads at the end of FrameXML. Then their bag and slot frames.
     'ItemTooltipLayout.lua', 'MythicItemTag.lua', 'ItemFrames.lua', 'ItemFramesInfinite.lua', 'ItemFramesVoice.lua',
     'ItemFramesAdapters.lua',
+    // Legendary items' rolls in their tooltips (modules/mod-legendary)
+    'Legendary.lua', 'LegendaryFrames.lua',
     // The rotation's pause / resume panel (mod-playerbots .cheat rotation)
     'RotationControl.lua',
     // The client extension's post-processing, a category of the Video options (needs VideoOptionsFrame)
