@@ -1,0 +1,184 @@
+{
+  "generator": "built-in image_gen",
+  "assembly": [
+    "Scripted registration, 16 radial blood masks, seamless motion of painted ember sprites;",
+    "authorized by user."
+  ],
+  "assets": [
+    {
+      "name": "gladiatorFrame",
+      "sourceFile": "source/gladiatorFrame.png",
+      "promptLines": [
+        "Use case: stylized-concept. Production game UI asset, hand-painted World of Warcraft / Ascension",
+        "style, chunky silhouette readable at 130px, painterly texture, dark outline, soft upper-left",
+        "light, almost front-facing slight three-quarter view. Isolated on genuine transparent alpha, no",
+        "text. A round weathered dark bronze gladiator arena shield (parma), iron rivets, deep EMPTY",
+        "circular groove around the rim, EMPTY round recessed boss socket at exact centre, small EMPTY",
+        "round medallion socket at lower right rim. Straight Roman gladius diagonally BEHIND shield:",
+        "leather grip and bronze pommel at lower left, iron blade point upper right. No boss, no blood,",
+        "no coin, no magic. Square 512x512 canvas; shield centre (256,256), rim outer diameter 380",
+        "pixels; keep sword fully inside canvas. Circular rim must be a perfect circle for registered",
+        "overlay assets. Palette dark bronze, iron, sand #b08d3c. No green/purple, no background scene.",
+        "Deliver a single frame asset."
+      ]
+    },
+    {
+      "name": "gladiatorBossDark",
+      "sourceFile": "source/gladiatorBossDark.png",
+      "promptLines": [
+        "Hand-painted World of Warcraft / Ascension game UI, chunky readable silhouette, painterly",
+        "weathered bronze, soft upper-left lighting, dark outline, almost front-facing slight",
+        "three-quarter view. A single round domed bronze shield boss, unlit, dark weathered metal,",
+        "central convex dome with thick simple bronze lip, no symbols, no spikes, no rivets outside",
+        "circular silhouette. Isolated genuine transparent background. Square canvas, circular boss",
+        "exactly centred, occupying 88% width and height with transparent padding. No text, no letters,",
+        "no scene, no green or purple. Intended final canvas 128x128."
+      ]
+    },
+    {
+      "name": "gladiatorBossGold",
+      "sourceFile": "source/gladiatorBossGold.png",
+      "promptLines": [
+        "Edit the reference shield boss into its GOLD active state. Preserve EXACT silhouette, position,",
+        "size, camera, lip and surface geometry, identical square canvas and transparent background.",
+        "Change only metal illumination to polished warm gold #e8c25a with bright upper-left highlight,",
+        "warm magical light contained on the bronze surface and a very restrained edge glow. No cracks,",
+        "no other elements, no text, no green or purple. Same hand-painted World of Warcraft game UI",
+        "style. It must overlay the original without any shift."
+      ]
+    },
+    {
+      "name": "gladiatorBossCrack",
+      "sourceFile": "source/gladiatorBossCrack.png",
+      "promptLines": [
+        "A jagged glowing crimson-red crack for a round bronze shield boss. ONLY the crack and its soft",
+        "red light, no solid metal, no circle, no boss, transparent elsewhere. One thick branching",
+        "diagonal fracture across central 70% of square canvas, from upper left to lower right, contained",
+        "in an 88%-diameter circle. Hand-painted World of Warcraft UI effect, #8a0e0e to #ff2a1a molten",
+        "fissure, readable at 128x128. Exact centred square composition. Genuine transparent alpha, no",
+        "text."
+      ]
+    },
+    {
+      "name": "gladiatorMedallionDark",
+      "sourceFile": "source/gladiatorMedallionDark.png",
+      "promptLines": [
+        "Hand-painted World of Warcraft / Ascension UI element. One small round dark weathered bronze",
+        "coin medallion, thick chunky simple rim, a clearly readable THUMBS-DOWN hand sculpted in raised",
+        "bronze relief, thumb pointing DOWN at six o'clock, closed fist above the downward thumb. Almost",
+        "front-facing, painterly texture, dark outline, soft upper-left light. Centred circular",
+        "silhouette occupying 84% of square canvas, transparent padding. Unlit #b08d3c dark bronze and",
+        "iron. No text, no letters, no laurel, no magic, no green or purple. Transparent alpha. Intended",
+        "128x128."
+      ]
+    },
+    {
+      "name": "gladiatorDuelDark",
+      "sourceFile": "source/gladiatorDuelDark.png",
+      "promptLines": [
+        "Hand-painted World of Warcraft / Ascension UI element, two SMALL STRAIGHT Roman gladii crossed",
+        "in a symmetrical X, points at upper left and upper right, leather grips and bronze pommels lower",
+        "left and lower right. Short wide straight double-edged iron blades, simple bronze crossguards.",
+        "Unlit dark weathered iron and bronze, chunky readable silhouette, painterly texture, soft",
+        "upper-left lighting, dark outline, slight three-quarter front view. Isolated on genuine",
+        "transparent alpha. Landscape 2:1 canvas, entire crossed swords within centred 90% width and 80%",
+        "height, ample transparent padding. No shield, no text, no other objects, no green/purple. Final",
+        "128x64."
+      ]
+    },
+    {
+      "name": "gladiatorMedallionLit",
+      "sourceFile": "source/gladiatorMedallionLit.png",
+      "promptLines": [
+        "Edit this medallion into its usable state: warm glowing bronze #b08d3c and gold #e8c25a",
+        "highlights, brighter raised thumbs-down relief, gentle warm edge glow. Preserve EXACT hand",
+        "design, coin silhouette, position, dimensions, painterly texture, camera, and genuine",
+        "transparent alpha. Change lighting only, no fire, no text."
+      ]
+    },
+    {
+      "name": "gladiatorMedallionCoupDeGrace",
+      "sourceFile": "source/gladiatorMedallionCoupDeGrace.png",
+      "promptLines": [
+        "Edit this medallion into its ultimate Coup de grace state: burning crimson-gold magical",
+        "illumination across raised thumbs-down hand and rim, intense golden highlights, red #ff2a1a heat",
+        "in recesses, small restrained licking flame glow at rim. Preserve EXACT coin silhouette,",
+        "thumbs-down relief, position, dimensions and camera. Genuine transparent alpha, centred square",
+        "canvas. Same chunky hand-painted WoW UI. No text, no new symbols."
+      ]
+    },
+    {
+      "name": "gladiatorDuelLit",
+      "sourceFile": "source/gladiatorDuelLit.png",
+      "promptLines": [
+        "Edit these crossed Roman gladii into the Duel active state: polished warm glowing gold on blades",
+        "and bronze hilts, gentle gold edge glow. Preserve EXACT two swords, silhouette, crossing angle,",
+        "position, size and 2:1 canvas. Change only illumination. Same hand-painted World of Warcraft UI.",
+        "Genuine transparent alpha, no other elements, no text."
+      ]
+    },
+    {
+      "name": "gladiatorRimGlow",
+      "sourceFile": "source/gladiatorRimGlow.png",
+      "promptLines": [
+        "Hand-painted World of Warcraft game UI additive FX texture. ONLY a crimson circular rim glow,",
+        "perfectly circular, square 512x512 composition, exact centre (256,256), circle path diameter",
+        "380px (74.21875% canvas width). Bright narrow #ff2a1a core, deep #8a0e0e red soft falloff, no",
+        "spikes, no particles, no runes, no metal shield, empty pure black centre and pure black corners",
+        "#000000. No text, no other objects. Single ring on solid pure black; NOT transparent."
+      ]
+    },
+    {
+      "name": "gladiatorLaurelFlare",
+      "sourceFile": "source/gladiatorLaurelFlare.png",
+      "promptLines": [
+        "Hand-painted World of Warcraft / Ascension UI additive FX. One full circular GOLDEN LAUREL",
+        "WREATH MADE ONLY OF LIGHT, chunky readable paired leaves on circular stems, around an empty pure",
+        "black centre. Perfect circle, square canvas, exact centre, outer leaf diameter 420px on 512x512",
+        "canvas (82.03125% width), soft light fading outward. Warm gold #e8c25a, sand #b08d3c, no green",
+        "or purple. No solid metal, no shield, no coin, no text, no sparks, no other objects. Background",
+        "pure solid black #000000 all the way to edges."
+      ]
+    },
+    {
+      "name": "gladiatorShockwave",
+      "sourceFile": "source/gladiatorShockwave.png",
+      "promptLines": [
+        "Game UI additive FX, ONLY one perfectly circular thin bright golden shockwave ring with soft",
+        "outer falloff. Centred on square canvas, ring diameter 75% canvas width, thickness 1.5%, smooth",
+        "warm gold #e8c25a core and subtle soft amber bloom. Empty centre and generous outer margins PURE",
+        "BLACK #000000. No other rings, no particles, no metal, no symbols, no text. Final 256x256, on",
+        "solid black, not transparent."
+      ]
+    },
+    {
+      "name": "gladiatorEmberFlipbook",
+      "sourceFile": "source/gladiatorEmberFlipbook.png",
+      "promptLines": [
+        "Production game UI additive animation sprite sheet. EXACT 8x8 grid of equal square cells on",
+        "2048x2048 canvas, 64 frames, each cell 256x256. Read left to right, top to bottom. Seamlessly",
+        "looping sparse crimson and golden embers with fine sand rising and drifting from the edge of an",
+        "invisible circular shield. Each cell shows sparse individual glowing specks concentrated around",
+        "a circle centred in cell, radius 92 pixels, drifting gently upward, with empty black centre.",
+        "Continuous subtle progression of identical particle paths between frames, last wraps smoothly to",
+        "first. PURE BLACK #000000 background everywhere, including every cell edge; no grid lines, no",
+        "labels, no text, no shield, no fire cloud, no scene. Warm #e8c25a and #ff2a1a, no green or",
+        "purple. Texture only."
+      ]
+    },
+    {
+      "name": "gladiatorBlood15",
+      "sourceFile": "source/gladiatorBlood15.png",
+      "promptLines": [
+        "Hand-painted World of Warcraft UI overlay. ONLY thick dark-red blood filling a PERFECT CIRCULAR",
+        "narrow groove, full 100% closed ring. No shield, no metal, no background, genuine transparent",
+        "alpha outside and inside. Square canvas 512x512, circle exactly centred at (256,256), blood ring",
+        "centreline radius 171px, thickness 9px (diameter outer 351px, inner 333px). Wet painterly",
+        "#8a0e0e dark blood with subtle #c51a16 highlights, no bright fire, no drips beyond ring, no",
+        "splashes, no symbols, no text. Perfectly circular geometry viewed directly front on. Ring is",
+        "designed to fit the empty rim groove of a bronze shield whose outer diameter is 380px. Entire",
+        "ring occupies 68.55% canvas width. Only blood."
+      ]
+    }
+  ]
+}

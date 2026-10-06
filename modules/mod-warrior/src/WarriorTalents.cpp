@@ -1,5 +1,6 @@
 #include "AllSpellScript.h"
 #include "CellImpl.h"
+#include "Chat.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -16,13 +17,17 @@
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
+#include "StringFormat.h"
 #include "UnitScript.h"
+#include "WorldPacket.h"
+#include "WorldSession.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
 #include <list>
+#include <string>
 
 // The Warrior's talents and abilities on the retail-style trees (localTools/warrior/talentTree.json) that spell data
 // cannot carry. A talent is its rank spell's aura on the Warrior (learned by mod-custom-classes' TalentTree.cpp), read
@@ -266,6 +271,9 @@ LiveTuning::KnobUInt const WoundResetGapMs("warrior.glad_wound_reset_gap_ms", 90
 LiveTuning::KnobInt const BrokenGuardPct("warrior.glad_broken_guard_pct", 20);
 LiveTuning::Knob const ShieldEdgeShare("warrior.glad_shield_edge_share", 0.1f);     // of block value, a rank
 LiveTuning::Knob const ThumbsDownFactor("warrior.glad_thumbs_down_factor", 1.5f);
+// The class HUD's bleed gauge (FrameXML ClassHudWarrior.lua): full - "ripe", Execute worth cashing in - when what the
+// bleed still has to deal on the target reaches this many times the Warrior's attack power
+LiveTuning::Knob const HudRipeAttackPower("warrior.glad_hud_ripe_ap", 3.0f);
 LiveTuning::Knob const ContagionShare("warrior.glad_contagion_share", 0.5f);
 LiveTuning::Knob const ContagionRange("warrior.glad_contagion_range", 8.0f);
 LiveTuning::KnobInt const ExecuteMaxRage("warrior.glad_execute_max_rage", 100);
@@ -351,6 +359,9 @@ struct WarriorState : public DataMap::Base
     uint32 woundRollMs = 0;
     int32 shieldCritRating = 0;
     bool secondOpening = false;     // Double ouverture: Ouverture again after the next Revenge
+    // The class HUD: Shield Slam's resets counted (each one plays the HUD's shockwave), the last state whispered
+    uint32 shieldSlamResets = 0;
+    std::string sentHud;
 };
 
 constexpr char const* StateKey = "WarriorTalentState";
@@ -502,6 +513,13 @@ void ClearChainCooldown(Player* player, uint32 spellId)
     for (uint32 rank = sSpellMgr->GetFirstSpellInChain(spellId); rank; rank = sSpellMgr->GetNextSpellInChain(rank))
         if (player->HasSpellCooldown(rank))
             player->RemoveSpellCooldown(rank, true);
+}
+
+// The Gladiateur's Shield Slam back at once (a bleed tick, Soif de l'arène): its class HUD rings
+void ResetShieldSlam(Player* player)
+{
+    ClearChainCooldown(player, SPELL_SHIELD_SLAM_R1);
+    ++GetState(player)->shieldSlamResets;
 }
 
 void ModifyChainCooldown(Player* player, uint32 spellId, int32 delta)
@@ -883,7 +901,7 @@ void WoundTick(Player* player, uint32 damage)
         int32 const chance = WoundResetChance + 3 * int32(Rank(player, TALENT_BLOOD_AND_SAND_1, TALENT_BLOOD_AND_SAND_2,
             TALENT_BLOOD_AND_SAND_3));
         if (roll_chance_i(chance))
-            ClearChainCooldown(player, SPELL_SHIELD_SLAM_R1);
+            ResetShieldSlam(player);
     }
 
     uint8 const brothers = Rank(player, TALENT_BROTHERS_IN_ARMS_1, TALENT_BROTHERS_IN_ARMS_2);
@@ -1337,7 +1355,7 @@ private:
         }
         if (uint8 const thirst = Rank(player, TALENT_ARENA_THIRST_1, TALENT_ARENA_THIRST_2))
             if (roll_chance_i(25 * thirst))
-                ClearChainCooldown(player, SPELL_SHIELD_SLAM_R1);
+                ResetShieldSlam(player);
         // Fureur du champion: the loop starts over at once
         if (player->HasAura(TALENT_CHAMPIONS_FURY))
             player->CastSpell(player, SPELL_OPENING, true);
@@ -1607,9 +1625,41 @@ public:
         UpdateDuel(player, state, now);
         UpdateGladiatorShield(player, state);
         UpdateGladiatorSkill(player);
+        SyncGladiatorHud(player, state, now);
     }
 
 private:
+    // The Gladiateur's class HUD (client: FrameXML ClassHudWarrior.lua), whispered when it changes:
+    //   GLADIATOR <tab> <bleed %>:<opening>:<broken guard>:<execute>:<coup de grace>:<duel>:<shield slam resets>
+    // bleed % the gauge (100: ripe), on the selected enemy; execute 1 while it bleeds of the Warrior's Plaie. Any
+    // other Warrior gets "-": its HUD hides.
+    static void SyncGladiatorHud(Player* player, WarriorState* state, uint32 now)
+    {
+        if (!player->GetSession() || player->GetSession()->IsBot())
+            return;
+        std::string payload = "-";
+        if (IsGladiator(player))
+        {
+            Unit* target = player->GetSelectedUnit();
+            Aura* wound = nullptr;
+            float const left = target && target->IsAlive() ? WoundLeft(player, target, wound) : 0.0f;
+            float const attackPower = player->GetTotalAttackPowerValue(BASE_ATTACK);
+            float const ripe = std::max(1.0f, float(HudRipeAttackPower) * attackPower);
+            // In steps of 5%: the gauge's frames, without a message on every tick
+            int32 const bleed = std::clamp(int32(left / ripe * 20.0f) * 5, 0, 100);
+            payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}", bleed, player->HasAura(SPELL_OPENING) ? 1 : 0,
+                player->HasAura(SPELL_BROKEN_GUARD) ? 1 : 0, left >= 1.0f ? 1 : 0,
+                player->HasAura(SPELL_COUP_DE_GRACE) ? 1 : 0, state->duelUntilMs > now ? 1 : 0,
+                state->shieldSlamResets);
+        }
+        if (payload == state->sentHud)
+            return;
+        state->sentHud = payload;
+        WorldPacket packet;
+        ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player, "GLADIATOR\t" + payload);
+        player->GetSession()->SendPacket(&packet);
+    }
+
     // The Ravager's blades on every enemy around the Warrior, a blow a second, 5 rage each; its aura (the whirling
     // look) goes with its last blow
     static void UpdateRavager(Player* player, WarriorState* state, uint32 now)

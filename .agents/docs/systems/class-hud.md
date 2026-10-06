@@ -42,7 +42,9 @@ server module ──"PREFIX\tpayload" (addon whisper)──▶ ClassHud.lua ─�
    - `parse(payload)` → state table (nil to ignore), `fromAuras()` → state;
    - `update(frame, state, previous)`: draw; compare with `previous` to animate what changed (it is nil on the
      first draw);
-   - `isEmpty(state)` for the out-of-combat fade.
+   - `isEmpty(state)` for the out-of-combat fade;
+   - `isHidden(state)` (optional) when the HUD belongs to one specialization: not shown while it returns true (the
+     state is nil before the first message). The server sends a "not this spec" payload (the Warrior's `-`).
 3. Add the file to `frameXmlFiles`, after `ClassHud.lua`; ship the art.
 4. Document the class's resource in its module README.
 
@@ -61,6 +63,22 @@ server module ──"PREFIX\tpayload" (addon whisper)──▶ ClassHud.lua ─�
 ## The Faucheur's HUD
 
 `ClassHudReaper.lua`, prefix `REAPER`, payload `souls:fragments:infused` (mod-reaper `SyncHud`). Ascension's Reaper
-art (`ReaperAtlas.blp`, 512², and `ReaperInfusedFlipbook.blp`, 2048² = 8×8 frames of 256, played at 20 fps: Ascension's 60 felt frantic): the crossed
+art (`ReaperAtlas.blp`, 512², and `ReaperInfusedFlipbook.blp`, 2048² = 8×8 frames of 256, played at 20 fps:
+Ascension's 60 felt frantic): the crossed
 scythes frame, three soul skulls (empty, one or two thirds filled with the fragments of the next soul, full green,
 infused purple), the purple glow and the infusion flipbook (additive, looping) while the Infusion d'âme lasts.
+
+## The Gladiateur's HUD
+
+`ClassHudWarrior.lua` (class token `WARRIOR`, the Gladiateur spec only), prefix `GLADIATOR`, payload
+`bleed%:opening:brokenGuard:execute:coupDeGrace:duel:resets` or `-` (mod-warrior `SyncGladiatorHud`, every 250 ms when
+it changed). A bronze arena shield (120 px, the art's 512 canvas: `clientPatcher/assets/gladiatorHud`, its
+`assetManifest.json` for the placements; built by `localTools/interface/buildGladiatorHudArt.py`, AI-painted from
+`.agents/plans/gladiator-hud/gladiator-hud.ASSETS.md`):
+- the rim's blood (16 frames): Plaie du gladiateur on the selected enemy against `warrior.glad_hud_ripe_ap` times the
+  attack power (3 by default), in 5% steps; at 100% the rim glows and beats (ripe for Execute);
+- the boss: Revenge, gold under Ouverture (a pop as it comes), a red crack under Garde brisée;
+- the thumbs-down medallion: Execute, lit while the target bleeds, burning under Coup de grâce with a laurel of light
+  and the ember flipbook (64 frames, 20 fps);
+- a gold ring out of the boss each time Shield Slam comes back (the resets count went up);
+- the crossed gladii on top: Duel.

@@ -38,6 +38,8 @@ local L = {
 --   fromAuras()          the state read from the player's auras (used until the first message)
 --   update(frame, state, previous)   draws the state; previous is the last one drawn (nil at first)
 --   isEmpty(state)       true when there is nothing to show (the frame fades out of combat)
+--   isHidden(state)      optional: true when the HUD is not shown at all (state nil before the first message) - a
+--                        class whose HUD belongs to one specialization only (the Warrior's Gladiateur)
 function ClassHud_Register(definition)
     definitions[definition.token] = definition
 end
@@ -87,10 +89,19 @@ local function refreshAlpha()
     UIFrameFadeIn(hud, 0.3, hud:GetAlpha(), alpha)
 end
 
+local function refreshVisibility()
+    if active.isHidden and active.isHidden(state) then
+        hud:Hide()
+    else
+        hud:Show()
+    end
+end
+
 local function draw(newState)
     local previous = state
     state = newState
     active.update(hud.content, state, previous)
+    refreshVisibility()
     refreshAlpha()
 end
 
@@ -231,7 +242,7 @@ local function activate()
         state = nil
     end
     applySettings()
-    hud:Show()
+    refreshVisibility()
     if definition.fromAuras then
         draw(definition.fromAuras())
     end
