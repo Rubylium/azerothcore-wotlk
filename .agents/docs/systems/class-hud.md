@@ -106,7 +106,8 @@ art `clientPatcher/assets/pestifereHud`, built by `localTools/interface/buildPes
   a bile splash out of it each time a Détonation blew something up (the count went up);
 - Avatar de la peste: the liquid boils in every carried flask - a flipbook rendered by
   `localTools/interface/buildPestifereBoilFlipbook.py` (bubbles rising in the liquid hollow, popping at its surface,
-  `pestifereBoilFlipbook.blp`, 28 frames at 14 fps, colourless and tinted per plague) - and a toxic glow pulses; Riposte purulente usable (its dodge / parry /
+  `pestifereBoilFlipbook.blp`, 28 frames at 14 fps, colourless and tinted per plague) - and a toxic glow pulses;
+- Riposte purulente usable (its dodge / parry /
   block aura state, the spell ready): bile drips from the blades, and a burst of them on every cast (the rotation
   casts it too fast for "usable" to be seen); Sépulcre: a violet smoke behind, faint while it is up and holds nothing,
   thicker as it owes more (full at half the maximum health).
