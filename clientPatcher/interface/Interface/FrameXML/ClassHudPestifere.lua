@@ -45,6 +45,8 @@ local PLAGUES = {
 local BOIL_SIZE = 12
 local BOIL_Y = -17
 local POURRITURE_MAX = 6
+-- The ripe boil's throb: how much bigger at its peak, and how long a beat lasts (seconds)
+local THROB_SCALE, THROB_PERIOD = 0.18, 0.9
 -- Sépulcre's smoke at its thickest once it owes this share of the maximum health
 local SEPULCRE_FULL = 50
 
@@ -198,20 +200,15 @@ local function create(frame)
     frame.boil:SetSize(BOIL_SIZE, BOIL_SIZE)
     setPiece(frame.boil, "boilFlat")
     frame.boilPop = pop(frame.boil, 1.35)
-    -- Ripe: it throbs - a swell and its settle repeated: a Scale on "BOUNCE" flashed the boil huge for a frame at
-    -- every turn on this client
-    frame.boilThrob = frame.boil:CreateAnimationGroup()
-    frame.boilThrob:SetLooping("REPEAT")
-    local swell = frame.boilThrob:CreateAnimation("Scale")
-    swell:SetScale(1.18, 1.18)
-    swell:SetDuration(0.45)
-    swell:SetSmoothing("IN_OUT")
-    swell:SetOrder(1)
-    local settle = frame.boilThrob:CreateAnimation("Scale")
-    settle:SetScale(1 / 1.18, 1 / 1.18)
-    settle:SetDuration(0.45)
-    settle:SetSmoothing("IN_OUT")
-    settle:SetOrder(2)
+    -- Ripe: it throbs, resized by hand on every frame - a looping Scale animation flashed the boil huge for a frame
+    -- at each turn (BOUNCE) or each restart (REPEAT) on this client
+    frame.throbber = CreateFrame("Frame", nil, knot)
+    frame.throbber:Hide()
+    frame.throbber:SetScript("OnUpdate", function(self, elapsed)
+        self.time = (self.time or 0) + elapsed
+        local swell = 1 + THROB_SCALE * (1 - math.cos(self.time * 2 * math.pi / THROB_PERIOD)) / 2
+        frame.boil:SetSize(BOIL_SIZE * swell, BOIL_SIZE * swell)
+    end)
 
     -- Détonation: bile bursting out of the boil
     frame.splash = knot:CreateTexture(nil, "OVERLAY")
@@ -326,11 +323,13 @@ local function update(frame, state, previous)
         frame.boilPop:Stop()
         frame.boilPop:Play()
     end
-    if ripe and not frame.boilThrob:IsPlaying() then
+    if ripe and not frame.throbber:IsShown() then
         frame.boilPop:Stop()
-        frame.boilThrob:Play()
-    elseif not ripe and frame.boilThrob:IsPlaying() then
-        frame.boilThrob:Stop()
+        frame.throbber.time = 0
+        frame.throbber:Show()
+    elseif not ripe and frame.throbber:IsShown() then
+        frame.throbber:Hide()
+        frame.boil:SetSize(BOIL_SIZE, BOIL_SIZE)
     end
 
     -- Détonation blew something up since the last message
