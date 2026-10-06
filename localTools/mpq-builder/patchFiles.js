@@ -36,6 +36,11 @@ function getPatchFiles(repoRoot) {
     for (const name of ['CreatureModelData.dbc', 'CreatureDisplayInfo.dbc']) {
         files.push({ source: path.join(dbcRoot, 'client-only', name), archive: `DBFilesClient\\${name}` });
     }
+    // Hairstyles Patch-D flags as barber-only (buildCharSections.js). Creation reads this file, not the server's.
+    files.push({
+        source: path.join(dbcRoot, 'client-only', 'CharSections.dbc'),
+        archive: 'DBFilesClient\\CharSections.dbc',
+    });
 
     for (const name of fs.readdirSync(iconRoot).filter((file) => file.toLowerCase().endsWith('.tga')).sort()) {
         files.push({ source: path.join(iconRoot, name), archive: `Interface\\Icons\\${name}` });
