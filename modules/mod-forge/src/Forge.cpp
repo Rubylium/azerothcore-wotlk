@@ -6,6 +6,7 @@
 #include "Creature.h"
 #include "CreatureScript.h"
 #include "GlobalScript.h"
+#include "ForgeVisuals.h"
 #include "Item.h"
 #include "InfiniteGodLoot.h"
 #include "Log.h"
@@ -41,7 +42,7 @@
 //
 // It is meant to feel like an event. At the anvil, the smith strikes the piece three times, in time with the
 // window's hammer, and says a word when it comes out of the quench. Forged gear shows it: a weapon glows more with
-// every rank, and the ranks forged on everything worn make the character smoulder, then burn. And the gold feels well
+// every rank, and forged armour leaves occasional brief embers while moving. And the gold feels well
 // spent: every piece keeps what it cost, and the smith remembers his customers - the more gold he has been paid, the
 // better his price, and the likelier a masterwork (two ranks for the price of one).
 //
@@ -95,28 +96,6 @@ constexpr uint32 SPELL_HAMMER_STRIKE = 92403;
 constexpr std::array<Milliseconds, 3> HammerStrikes = { 250ms, 670ms, 1090ms };     // ItemForge.lua's hammer
 constexpr Milliseconds QuenchLine = 1450ms;
 constexpr float SmithReach = 40.0f;
-
-// Worn forged armour smoulders: the ranks forged on the armour and jewellery worn (fourteen slots, 112 ranks at most;
-// the weapons have their own glow and do not count), and the aura each count reaches. The first takes three
-// masterpieces' worth, the last all but one piece a masterpiece.
-struct Embers
-{
-    uint32 ranks;
-    uint32 spell;
-};
-constexpr std::array<Embers, 5> EmberTiers = { {
-    { 24, 92400 },      // embers at the feet
-    { 48, 92401 },      // and in the hands
-    { 72, 92402 },      // a molten heart and a ring of heat on the ground
-    { 88, 92404 },      // the head aflame
-    { 104, 92405 },     // Avatar of the Forge: lightning at the feet and in the hands
-} };
-
-// The Avatar of the Forge is struck by lightning every few seconds (a visual only), unless it is hiding
-constexpr uint32 SPELL_AVATAR_OF_THE_FORGE = 92405;
-constexpr uint32 SPELL_FORGE_LIGHTNING = 92406;
-constexpr uint32 LightningMinMs = 5000;
-constexpr uint32 LightningMaxMs = 9000;
 
 // A forged weapon glows more with every rank: the look of a stock enchantment, shown in the visible item's temporary
 // enchantment (a real temporary enchantment, a poison or an oil, keeps its own). Sharpened's shine, Fiery Weapon's
@@ -173,7 +152,7 @@ struct ForgeState : public DataMap::Base
     uint64 spent = 0;           // copper paid to the smith, in all
     ObjectGuid smith;           // the smith the window was opened at
     uint32 visualTimer = 0;
-    uint32 lightningTimer = LightningMinMs;
+    ForgeVisuals::State visuals;
 };
 
 constexpr char const* StateKey = "ForgeState";
@@ -388,8 +367,8 @@ void ShowGlow(Player* player, ForgeState const* state, uint8 slot, Item const* i
         player->SetUInt16Value(field, 1, glow);
 }
 
-// The weapons' glow, again (a poison or an oil wearing off clears it), and the embers the worn ranks reach
-void UpdateVisuals(Player* player, ForgeState const* state)
+// Keep the existing weapon glow and count armour ranks for the occasional movement trail.
+void UpdateVisuals(Player* player, ForgeState* state)
 {
     uint32 ranks = 0;
     for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
@@ -401,15 +380,7 @@ void UpdateVisuals(Player* player, ForgeState const* state)
                 ranks += RankOf(state, item);
         }
 
-    uint32 wanted = 0;
-    for (Embers const& tier : EmberTiers)
-        if (ranks >= tier.ranks)
-            wanted = tier.spell;
-    for (Embers const& tier : EmberTiers)
-        if (tier.spell != wanted && player->HasAura(tier.spell))
-            player->RemoveAurasDueToSpell(tier.spell);
-    if (wanted && !player->HasAura(wanted) && player->IsAlive())
-        player->AddAura(wanted, player);
+    ForgeVisuals::SetArmourRanks(player, state->visuals, ranks);
 }
 
 // --- The smith at work ---------------------------------------------------------------------------------------------
@@ -589,21 +560,14 @@ public:
     void OnPlayerLogin(Player* player) override
     {
         LoadState(player);
+        ForgeVisuals::Reset(player, GetState(player)->visuals);
         UpdateVisuals(player, GetState(player));
     }
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         ForgeState* state = GetState(player);
-        if (state->lightningTimer > diff)
-            state->lightningTimer -= diff;
-        else
-        {
-            state->lightningTimer = urand(LightningMinMs, LightningMaxMs);
-            if (player->HasAura(SPELL_AVATAR_OF_THE_FORGE) && player->IsAlive() && !player->IsInFlight() &&
-                !player->HasStealthAura() && !player->HasInvisibilityAura())
-                player->CastSpell(player, SPELL_FORGE_LIGHTNING, true);
-        }
+        ForgeVisuals::UpdateTrail(player, state->visuals, diff);
 
         if (state->visualTimer > diff)
         {
