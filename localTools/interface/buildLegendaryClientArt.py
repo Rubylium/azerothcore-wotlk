@@ -33,6 +33,10 @@ FRAMES = REPO / "clientPatcher" / "interface" / "Interface" / "ItemFrames"
 LEGENDARIES = [
     {"name": "MarqueInquisiteur", "folder": "marqueInquisiteur",
      "itemIcon": "INV_Legendary_MarqueInquisiteur", "powerIcon": "Legendary_MarqueInquisiteur"},
+    {"name": "SermentWhitemane", "folder": "sermentWhitemane",
+     "itemIcon": "INV_Legendary_SermentWhitemane", "powerIcon": "Legendary_SermentWhitemane"},
+    {"name": "ConsecrationMograine", "folder": "consecrationMograine",
+     "itemIcon": "INV_Legendary_ConsecrationMograine", "powerIcon": "Legendary_ConsecrationMograine"},
 ]
 
 TOOLTIP_PIECES = {
@@ -80,7 +84,9 @@ def build(legendary):
 
     atlas = Image.new("RGBA", (512, 256), 0)
     for name, position in TOOLTIP_PIECES.items():
-        atlas.paste(half(load(name)), position)
+        # The title plate was dropped after the first legendary (stretched behind the title, out of place)
+        if (png / f"{name}.png").exists():
+            atlas.paste(half(load(name)), position)
     atlas.save(png.parent / "tooltipAtlas.png")
     writeRawBlp(atlas, str(FRAMES / f"Legendary-{legendary['name']}-Tooltip.blp"))
     print(f"{legendary['name']}: icons, item frame and glow, tooltip atlas")

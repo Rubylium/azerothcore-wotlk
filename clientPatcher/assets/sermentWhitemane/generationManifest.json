@@ -1,0 +1,161 @@
+{
+  "generator": "built-in imagegen",
+  "styleReferences": [
+    "clientPatcher/assets/gladiatorHud/reference/reaperHud.png",
+    "clientPatcher/assets/gladiatorHud/reference/reaperAtlas.png",
+    "clientPatcher/assets/gladiatorHud/v2/gladiatorHudV2Atlas.png",
+    "clientPatcher/assets/pestifereHud/pestifereHudAtlas.png",
+    "clientPatcher/assets/marqueInquisiteur/png/itemFrame.png",
+    "clientPatcher/assets/marqueInquisiteur/png/tooltipCorner.png"
+  ],
+  "combinedReference": "../monasteryLegendaries/reference/inquisiteurPieces.png",
+  "iconReferences": [
+    "clientPatcher/assets/marqueInquisiteur/reference/Spell_Holy_SearingLight.png",
+    "clientPatcher/assets/marqueInquisiteur/reference/Spell_Holy_HolySmite.png"
+  ],
+  "assets": [
+    {
+      "name": "itemFrame",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme High Inquisitor Whitemane's oath: WHITE MARBLE and PALE ",
+        "GOLD, calm soft white-gold resurrection light, small halo and feathered wings, ONE small crimson enamel ",
+        "accent. ITEM FRAME 512x512 target. Square pale-gold frame with SLIM straight bars inlaid with white ",
+        "marble, compact small feathered wings at four corners, small radiant halo with TINY crimson Scarlet sun at ",
+        "top centre, white pearl bottom centre. Entire frame fully visible, 5% outside margin. Empty transparent ",
+        "SQUARE central opening about 60% canvas width. Frame is drawn at130% icon size: keep ornaments compact and ",
+        "bars slim, much quieter than reference Inquisiteur frame. Front view no perspective, actual transparent ",
+        "outer background and central opening."
+      ],
+      "sourcePath": "source/itemFrame.png",
+      "generatedFile": "exec-3e1d9c0c-620a-47da-b896-acd85f3e4515.png"
+    },
+    {
+      "name": "itemFrameGlow",
+      "promptLines": [
+        "Edit ONLY attached frame. Same exact canvas and registration. REMOVE all physical frame materials, leave ",
+        "pure black where marble/gold/wings/pearl/sun were. Only calm soft WHITE-GOLD resurrection glow around ",
+        "OUTSIDE silhouette, faint rising motes. No solid frame or objects. Central opening and backdrop pure ",
+        "#000000. Light only."
+      ],
+      "sourcePath": "source/itemFrameGlow.png",
+      "generatedFile": "exec-e45fdf56-a496-4ebc-b51c-9d4be363c859.png"
+    },
+    {
+      "name": "tooltipCorner",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme High Inquisitor Whitemane's oath: WHITE MARBLE and PALE ",
+        "GOLD, calm soft white-gold resurrection light, small halo and feathered wings, ONE small crimson enamel ",
+        "accent. TOP-LEFT TOOLTIP CORNER256x256. Two slim pale-gold/white-marble bars meet right angle, compact ",
+        "small feathered wing ornament around WHITE PEARL at corner. Bars run out to right and bottom canvas edges ",
+        "at full thickness cut straight, no caps. Inside bottom right empty and transparent. Bar centre at18% ",
+        "canvas, thickness12%. Directional corner, no crimson except tiny accent."
+      ],
+      "sourcePath": "source/tooltipCorner.png",
+      "generatedFile": "exec-6711095d-b59f-4ed9-9e0b-91e530b90d13.png"
+    },
+    {
+      "name": "tooltipTopCrest",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme High Inquisitor Whitemane's oath: WHITE MARBLE and PALE ",
+        "GOLD, calm soft white-gold resurrection light, small halo and feathered wings, ONE small crimson enamel ",
+        "accent. TOP-CENTRE CREST384x192. Small radiant halo around a small crimson Scarlet sun, two feathered ",
+        "wings sweep left/right. SLIM straight pale-gold white-marble horizontal bar crosses whole canvas at EXACT ",
+        "vertical middle, cut at both edges, no caps. Bar thickness15% height. Compact symmetric ornament, entire ",
+        "halo visible, transparent background."
+      ],
+      "sourcePath": "source/tooltipTopCrest.png",
+      "generatedFile": "exec-302699da-5998-4491-b912-286726e0f466.png"
+    },
+    {
+      "name": "tooltipBottomCrest",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme High Inquisitor Whitemane's oath: WHITE MARBLE and PALE ",
+        "GOLD, calm soft white-gold resurrection light, small halo and feathered wings, ONE small crimson enamel ",
+        "accent. BOTTOM-CENTRE CREST384x192. Small quiet WHITE PEARL in pale-gold mount with two small feathers. ",
+        "Same SLIM straight gold/white-marble bar across full canvas at EXACT vertical middle, cut edges, ",
+        "thickness15% height. Small symmetric ornament, transparent background."
+      ],
+      "sourcePath": "source/tooltipBottomCrest.png",
+      "generatedFile": "exec-0bb2aa17-cf5d-4657-92d9-249ea798fc22.png"
+    },
+    {
+      "name": "tooltipBarHorizontal",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme High Inquisitor Whitemane's oath: WHITE MARBLE and PALE ",
+        "GOLD, calm soft white-gold resurrection light, small halo and feathered wings, ONE small crimson enamel ",
+        "accent. HORIZONTAL STRAIGHT TILE BAR256x48: SLIM pale gold bevel with WHITE MARBLE inlay down middle, lit ",
+        "from above. Whole width edge-to-edge no end caps, no ornaments, seamless horizontal repeat. Uniform ",
+        "cross-section, painted bar occupies60% canvas height, transparent top/bottom padding. Final edit: Edit ",
+        "this horizontal painted marble/gold bar. REMOVE ALL five red diamond gemstones and their projecting gold ",
+        "mounts. Replace those areas with uninterrupted straight white marble inlay and parallel pale-gold bevel ",
+        "rails. Entire result a single uniform thin straight horizontal bar, NO gems, NO ornaments, NO red, NO ",
+        "diamonds, NO protrusions, NO endcaps. Keep original canvas and position, genuine transparent background, ",
+        "no glow. Seamless horizontal tile, lit from above."
+      ],
+      "sourcePath": "source/tooltipBarHorizontal.png",
+      "generatedFile": "exec-5f9825fa-6d13-400a-8bce-be47403ce3ae.png"
+    },
+    {
+      "name": "tooltipBarVertical",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme High Inquisitor Whitemane's oath: WHITE MARBLE and PALE ",
+        "GOLD, calm soft white-gold resurrection light, small halo and feathered wings, ONE small crimson enamel ",
+        "accent. VERTICAL STRAIGHT TILE BAR48x256: same SLIM pale gold bevel with WHITE MARBLE inlay down middle, ",
+        "lit from LEFT. Entire height edge-to-edge, no end caps/ornaments, seamless vertical repeat. Uniform ",
+        "cross-section occupies60% canvas width, transparent left/right padding."
+      ],
+      "sourcePath": "source/tooltipBarVertical.png",
+      "generatedFile": "exec-2a90abc1-b8b7-4a3b-82a1-f84c95363206.png"
+    },
+    {
+      "name": "itemIcon",
+      "promptLines": [
+        "Use case: stylized-concept. World of Warcraft Wrath of the Lich King spell/item icon. Attached stock WotLK ",
+        "icons are icon STYLE references only. Square256x256 target, PAINTED broad readable shapes, dramatic ",
+        "lighting, saturated rich colour, DARK VIGNETTE AT ALL FOUR CORNERS, no border, text or photorealism. Full ",
+        "opaque square. No green, blue or purple. A PALE GOLD RING set with glowing WHITE PEARL, small feathered ",
+        "wings wrap its band, faint tiny crimson sun engraved on it, calm white-gold resurrection light around it. ",
+        "Ring fills frame, visible circular band, no hand."
+      ],
+      "sourcePath": "source/itemIcon.png",
+      "generatedFile": "exec-672cb1d5-c49c-400b-97a0-8ea96596afd3.png"
+    },
+    {
+      "name": "powerIcon",
+      "promptLines": [
+        "Use case: stylized-concept. World of Warcraft Wrath of the Lich King spell/item icon. Attached stock WotLK ",
+        "icons are icon STYLE references only. Square256x256 target, PAINTED broad readable shapes, dramatic ",
+        "lighting, saturated rich colour, DARK VIGNETTE AT ALL FOUR CORNERS, no border, text or photorealism. Full ",
+        "opaque square. No green, blue or purple. A radiant humanoid figure RISING from ground in a column of ",
+        "WHITE-GOLD light, wings of light spreading behind, the fallen raised. Single readable rising figure ",
+        "silhouette centre, no crowd, dark warm background, peaceful sacred resurrection."
+      ],
+      "sourcePath": "source/powerIcon.png",
+      "generatedFile": "exec-14074247-ca4b-4457-9b88-1ebd9f03b467.png"
+    }
+  ]
+}

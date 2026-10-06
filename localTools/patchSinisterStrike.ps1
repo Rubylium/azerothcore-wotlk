@@ -2359,9 +2359,13 @@ $legendaryCloak = @{ Item = 24567; Display = 71000; CloneOf = 64326; Icon = 'INV
 if (-not $itemOffsets.ContainsKey($legendaryCloak.Item)) { throw "Item.dbc has no row $($legendaryCloak.Item) for Marque de l'Inquisiteur." }
 [BitConverter]::GetBytes([uint32]$legendaryCloak.Display).CopyTo($itemBytes, $itemOffsets[$legendaryCloak.Item] + 5 * 4)
 # Consécration de Mograine, the gloves: item 21428, a hands row of the "misc" armour subclass (every class wears it;
-# mod-legendary rolls its armour for the looter's own armour type), wearing Turalyon's red and gold gauntlets (62062).
-# Serment de Whitemane, the ring, keeps its row's look (item 996): a ring is only seen as its icon.
-$legendaryGloves = @{ Item = 21428; Display = 62062 }
+# mod-legendary rolls its armour for the looter's own armour type), wearing Turalyon's red and gold gauntlets: its own
+# display (71002), theirs (62062) with its icon. Serment de Whitemane, the ring (item 996): its own display (71001), its
+# row's (3453) with its icon.
+$legendaryGloves = @{ Item = 21428; Display = 71002; CloneOf = 62062; Icon = 'INV_Legendary_ConsecrationMograine' }
+$legendaryRing = @{ Item = 996; Display = 71001; CloneOf = 3453; Icon = 'INV_Legendary_SermentWhitemane' }
+if (-not $itemOffsets.ContainsKey($legendaryRing.Item)) { throw "Item.dbc has no row $($legendaryRing.Item) for Serment de Whitemane." }
+[BitConverter]::GetBytes([uint32]$legendaryRing.Display).CopyTo($itemBytes, $itemOffsets[$legendaryRing.Item] + 5 * 4)
 if (-not $itemOffsets.ContainsKey($legendaryGloves.Item)) { throw "Item.dbc has no row $($legendaryGloves.Item) for Consécration de Mograine." }
 [BitConverter]::GetBytes([uint32]$legendaryGloves.Display).CopyTo($itemBytes, $itemOffsets[$legendaryGloves.Item] + 5 * 4)
 
@@ -2444,13 +2448,15 @@ $record = [byte[]]::new($displayDbc.RecordSize)
 Set-Field $record 0 ([uint32]$frontierShard.Display)
 Set-Field $record 5 (Add-DbcString $displayDbc.Strings $frontierShard.Icon)
 $displayDbc.NewRecords.AddRange($record)
-# Marque de l'Inquisiteur's: the Scarlet Onslaught cape's, with its own icon
-if ($displayDbc.Offsets.ContainsKey($legendaryCloak.Display)) { throw "ItemDisplayInfo.dbc already has a row $($legendaryCloak.Display)." }
-$record = [byte[]]::new($displayDbc.RecordSize)
-[Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$legendaryCloak.CloneOf], $record, 0, $displayDbc.RecordSize)
-Set-Field $record 0 ([uint32]$legendaryCloak.Display)
-Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendaryCloak.Icon)
-$displayDbc.NewRecords.AddRange($record)
+# The legendaries' (modules/mod-legendary): each the look it is made from, with its own icon
+foreach ($legendary in @($legendaryCloak, $legendaryRing, $legendaryGloves)) {
+    if ($displayDbc.Offsets.ContainsKey($legendary.Display)) { throw "ItemDisplayInfo.dbc already has a row $($legendary.Display)." }
+    $record = [byte[]]::new($displayDbc.RecordSize)
+    [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$legendary.CloneOf], $record, 0, $displayDbc.RecordSize)
+    Set-Field $record 0 ([uint32]$legendary.Display)
+    Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendary.Icon)
+    $displayDbc.NewRecords.AddRange($record)
+}
 $displayOutput = Get-StringDbcOutput $displayDbc
 [IO.File]::WriteAllBytes($serverDisplayPath, $displayOutput)
 [IO.File]::WriteAllBytes($clientDisplayPath, $displayOutput)

@@ -12,6 +12,20 @@ local ART = {
         tooltip = "Interface\\ItemFrames\\Legendary-MarqueInquisiteur-Tooltip",
         glowColor = { 1, 0.62, 0.25 },
     },
+    [996] = {       -- Serment de Whitemane
+        key = "legendarySermentWhitemane",
+        frame = "Interface\\ItemFrames\\Legendary-SermentWhitemane-Frame",
+        glow = "Interface\\ItemFrames\\Legendary-SermentWhitemane-Glow",
+        tooltip = "Interface\\ItemFrames\\Legendary-SermentWhitemane-Tooltip",
+        glowColor = { 1, 0.93, 0.75 },
+    },
+    [21428] = {     -- Consécration de Mograine
+        key = "legendaryConsecrationMograine",
+        frame = "Interface\\ItemFrames\\Legendary-ConsecrationMograine-Frame",
+        glow = "Interface\\ItemFrames\\Legendary-ConsecrationMograine-Glow",
+        tooltip = "Interface\\ItemFrames\\Legendary-ConsecrationMograine-Tooltip",
+        glowColor = { 1, 0.78, 0.35 },
+    },
 }
 
 local function ItemOf(link)

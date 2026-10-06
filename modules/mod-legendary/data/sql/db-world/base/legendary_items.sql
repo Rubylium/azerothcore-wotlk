@@ -30,16 +30,16 @@ DROP TEMPORARY TABLE `legendary_base`;
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
 (24567, 'frFR', 'Marque de l''Inquisiteur', '', 0);
 
--- 996 Serment de Whitemane: the Scarlet Cathedral's second legendary, a ring: a
--- ring row the client's Item.dbc already has, with no template here, keeping its look (display 3453). Made from the
--- Ring of Phased Regeneration (53490), its stats stripped.
+-- 996 Serment de Whitemane: the Scarlet Cathedral's second legendary, a ring: a ring row the client's Item.dbc already
+-- has, with no template here, given its own display (71001): its row's look (3453) with its icon. Made from the Ring of
+-- Phased Regeneration (53490), its stats stripped.
 DELETE FROM `item_template` WHERE `entry` = 996;
 DELETE FROM `item_template_locale` WHERE `ID` = 996;
 DROP TEMPORARY TABLE IF EXISTS `legendary_base`;
 CREATE TEMPORARY TABLE `legendary_base` SELECT * FROM `item_template` WHERE `entry` = 53490;
 UPDATE `legendary_base` SET
     `entry` = 996, `name` = 'Serment de Whitemane', `Quality` = 5, `ItemLevel` = 227, `RequiredLevel` = 80,
-    `class` = 4, `subclass` = 0, `Material` = -1, `displayid` = 3453, `bonding` = 1, `armor` = 0,
+    `class` = 4, `subclass` = 0, `Material` = -1, `displayid` = 71001, `bonding` = 1, `armor` = 0,
     `ScalingStatDistribution` = 0,
     `ScalingStatValue` = 0,
     `stat_type1` = 0, `stat_value1` = 0, `stat_type2` = 0, `stat_value2` = 0, `stat_type3` = 0, `stat_value3` = 0,
@@ -60,15 +60,15 @@ INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `Veri
 
 -- 21428 Consécration de Mograine: the third, gloves: a hands row of the client's of the
 -- "misc" armour subclass, so every class wears them (mod-legendary rolls their armour for the looter's armour type);
--- localTools/patchSinisterStrike.ps1 gives it Turalyon's red and gold gauntlets (display 62062). Made from Turalyon's
--- Gauntlets of Triumph (48615), its stats stripped.
+-- localTools/patchSinisterStrike.ps1 gives it its own display (71002): Turalyon's red and gold gauntlets (62062) with
+-- its icon. Made from Turalyon's Gauntlets of Triumph (48615), its stats stripped.
 DELETE FROM `item_template` WHERE `entry` = 21428;
 DELETE FROM `item_template_locale` WHERE `ID` = 21428;
 DROP TEMPORARY TABLE IF EXISTS `legendary_base`;
 CREATE TEMPORARY TABLE `legendary_base` SELECT * FROM `item_template` WHERE `entry` = 48615;
 UPDATE `legendary_base` SET
     `entry` = 21428, `name` = 'Consécration de Mograine', `Quality` = 5, `ItemLevel` = 227, `RequiredLevel` = 80,
-    `class` = 4, `subclass` = 0, `Material` = 0, `displayid` = 62062, `bonding` = 1, `armor` = 0,
+    `class` = 4, `subclass` = 0, `Material` = 0, `displayid` = 71002, `bonding` = 1, `armor` = 0,
     `ScalingStatDistribution` = 0,
     `ScalingStatValue` = 0,
     `stat_type1` = 0, `stat_value1` = 0, `stat_type2` = 0, `stat_value2` = 0, `stat_type3` = 0, `stat_value3` = 0,

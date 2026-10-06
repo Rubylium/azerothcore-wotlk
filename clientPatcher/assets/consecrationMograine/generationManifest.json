@@ -1,0 +1,169 @@
+{
+  "generator": "built-in imagegen",
+  "styleReferences": [
+    "clientPatcher/assets/gladiatorHud/reference/reaperHud.png",
+    "clientPatcher/assets/gladiatorHud/reference/reaperAtlas.png",
+    "clientPatcher/assets/gladiatorHud/v2/gladiatorHudV2Atlas.png",
+    "clientPatcher/assets/pestifereHud/pestifereHudAtlas.png",
+    "clientPatcher/assets/marqueInquisiteur/png/itemFrame.png",
+    "clientPatcher/assets/marqueInquisiteur/png/tooltipCorner.png"
+  ],
+  "combinedReference": "../monasteryLegendaries/reference/inquisiteurPieces.png",
+  "iconReferences": [
+    "clientPatcher/assets/marqueInquisiteur/reference/Spell_Holy_SearingLight.png",
+    "clientPatcher/assets/marqueInquisiteur/reference/Spell_Holy_HolySmite.png"
+  ],
+  "assets": [
+    {
+      "name": "itemFrame",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme Scarlet Commander Mograine's consecrated ground: DARK ",
+        "STEEL and crimson enamel, burnished gold rivets, compact warhammer motif, golden holy light and abstract ",
+        "magical rune marks rising from below. ITEM FRAME512x512. Square ornamental frame, slim-profile DARK STEEL ",
+        "bars with crimson enamel inlay and small burnished gold rivets, compact small crossed-hammer ornaments at ",
+        "four corners. SMALL gold hammer head over crimson Scarlet sun at top centre, glowing golden rune stone ",
+        "bottom centre. Weighty martial materials but bars SLIM and ornaments COMPACT since drawn130% icon size. ",
+        "Empty transparent central SQUARE opening about60% width, fully visible entire frame with5% margin. ",
+        "Symmetric front view, no perspective, no protruding giant weapons. Genuine transparent outer background ",
+        "and hole."
+      ],
+      "sourcePath": "source/itemFrame.png",
+      "generatedFile": "exec-ac578412-f083-4476-8cd1-da6de60ff4ca.png"
+    },
+    {
+      "name": "itemFrameGlow",
+      "promptLines": [
+        "Edit ONLY attached frame, SAME exact canvas and registration. REMOVE physical steel, enamel, hammers and ",
+        "gold frame entirely, pure black where objects were. Only GOLDEN holy light rises from BOTTOM EDGE, licks ",
+        "up SIDES, a few luminous abstract sacred rune marks in the light. Restrained top glow. Light only pure ",
+        "#000000 backdrop and central opening. No solid frame."
+      ],
+      "sourcePath": "source/itemFrameGlow.png",
+      "generatedFile": "exec-f8ad7513-db4c-46b5-a64a-7100fd6314b6.png"
+    },
+    {
+      "name": "tooltipCorner",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme Scarlet Commander Mograine's consecrated ground: DARK ",
+        "STEEL and crimson enamel, burnished gold rivets, compact warhammer motif, golden holy light and abstract ",
+        "magical rune marks rising from below. TOP-LEFT TOOLTIP CORNER256x256. TWO dark-steel crimson-inlay bars ",
+        "meet at right angle, small gold rivets. Capped by compact crossed-hammer ornament on gold boss. Bars run ",
+        "ONLY RIGHT and DOWN to canvas edges at full thickness, cut straight. No upward extension, no left ",
+        "extension, not T-junction. Bar centre at18% canvas, thickness14%. Bottom-right inside empty transparent."
+      ],
+      "sourcePath": "source/tooltipCorner.png",
+      "generatedFile": "exec-08b5f7e9-5ed3-44b5-8103-4af7dd863a32.png"
+    },
+    {
+      "name": "tooltipTopCrest",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme Scarlet Commander Mograine's consecrated ground: DARK ",
+        "STEEL and crimson enamel, burnished gold rivets, compact warhammer motif, golden holy light and abstract ",
+        "magical rune marks rising from below. TOP-CENTRE CREST384x192: compact gold warhammer HEAD over crimson ",
+        "Scarlet SUN, golden rays fan upward. Straight dark-steel crimson-enamel bar with gold rivets runs whole ",
+        "width at EXACT vertical middle, no caps, cut at both edges. Bar thickness18% height, symmetric ornament, ",
+        "transparent backdrop."
+      ],
+      "sourcePath": "source/tooltipTopCrest.png",
+      "generatedFile": "exec-ef9204a0-00c7-4618-97a3-6a2f4f694b90.png"
+    },
+    {
+      "name": "tooltipBottomCrest",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme Scarlet Commander Mograine's consecrated ground: DARK ",
+        "STEEL and crimson enamel, burnished gold rivets, compact warhammer motif, golden holy light and abstract ",
+        "magical rune marks rising from below. BOTTOM-CENTRE CREST384x192: small quiet glowing golden RUNE STONE in ",
+        "dark-steel mount. Same straight dark-steel crimson-enamel bar with small gold rivets whole width at EXACT ",
+        "vertical middle, cut edges, no caps. Bar thickness18% height, small symmetric ornament, transparent ",
+        "backdrop. Final edit: Edit this bottom-centre border crest. REMOVE the entire large HAMMER above the ",
+        "central rune stone, and remove large surrounding luminous rays/swirls. Replace removed areas with ",
+        "transparent. Keep ONLY the small glowing golden rune stone in its dark-steel mount centred ON the straight ",
+        "horizontal steel/crimson bar at canvas vertical middle. Smaller quieter symmetric ornament, no hammer, no ",
+        "sun, no text. Keep canvas and horizontal bar registration. Ends straight cut, no caps. Genuine transparent ",
+        "background."
+      ],
+      "sourcePath": "source/tooltipBottomCrest.png",
+      "generatedFile": "exec-c86cad0c-86c8-41f2-af69-bd17619aab0f.png"
+    },
+    {
+      "name": "tooltipBarHorizontal",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme Scarlet Commander Mograine's consecrated ground: DARK ",
+        "STEEL and crimson enamel, burnished gold rivets, compact warhammer motif, golden holy light and abstract ",
+        "magical rune marks rising from below. HORIZONTAL STRAIGHT TILE BAR256x48: dark steel with deep crimson ",
+        "enamel inlay, small spaced gold rivets. Edge-to-edge full width, no end caps, NO DIAMOND GEMS OR HAMMERS ",
+        "OR CRESTS, uniform straight rails, lit above, seamless horizontal repeat. Painted thickness75% canvas ",
+        "height, genuine transparent top/bottom padding. Final edit: Edit this horizontal steel/crimson border bar. ",
+        "REMOVE all glowing GOLD RUNES, flame lines and holy swirls from crimson inlay. Replace with plain dark ",
+        "crimson enamel broad painted facets. Keep steel bevel rails and small spaced gold rivets unchanged, same ",
+        "canvas and registration. Uniform straight slim bar, no extra ornaments or caps, genuine transparent ",
+        "top/bottom backdrop, seamless tiling."
+      ],
+      "sourcePath": "source/tooltipBarHorizontal.png",
+      "generatedFile": "exec-0aec0587-63a3-42dc-8447-202d425543ac.png"
+    },
+    {
+      "name": "tooltipBarVertical",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft game UI element in exactly the attached ",
+        "Ascension HUD and approved Scarlet legendary UI style. Chunky readable silhouette, broad painted facets, ",
+        "restrained detail, soft upper-left light, dark outline, isolated, no text, no tiny scratches or filigree ",
+        "or photorealism. References are STYLE ONLY, match as one family. Bilaterally symmetric except directional ",
+        "top-left corner. No green, purple or blue. Theme Scarlet Commander Mograine's consecrated ground: DARK ",
+        "STEEL and crimson enamel, burnished gold rivets, compact warhammer motif, golden holy light and abstract ",
+        "magical rune marks rising from below. VERTICAL STRAIGHT TILE BAR48x256: same dark steel deep crimson ",
+        "enamel inlay, small spaced gold rivets. Edge-to-edge full height, no end caps, NO DIAMOND GEMS OR HAMMERS ",
+        "OR CRESTS, uniform rails, lit LEFT, seamless vertical repeat. Painted thickness75% canvas width, ",
+        "transparent left/right padding."
+      ],
+      "sourcePath": "source/tooltipBarVertical.png",
+      "generatedFile": "exec-f397c852-f171-480a-8e12-cd660e5bf644.png"
+    },
+    {
+      "name": "itemIcon",
+      "promptLines": [
+        "Use case: stylized-concept. World of Warcraft Wrath of the Lich King spell/item icon. Attached stock WotLK ",
+        "icons are icon STYLE references only. Square256x256 target, PAINTED broad readable shapes, dramatic ",
+        "lighting, saturated rich colour, DARK VIGNETTE AT ALL FOUR CORNERS, no border, text or photorealism. Full ",
+        "opaque square. No green, blue or purple. PAIR of heavy CRIMSON AND GOLD plate GAUNTLETS, Scarlet sun on ",
+        "back of hand, golden holy light between fingers, one FIST pressed onto glowing consecrated ground. Bold ",
+        "steel facets, two gauntlets clearly visible, dark warm background."
+      ],
+      "sourcePath": "source/itemIcon.png",
+      "generatedFile": "exec-51af3e72-38fa-48b2-a4fa-a5c824e325e6.png"
+    },
+    {
+      "name": "powerIcon",
+      "promptLines": [
+        "Use case: stylized-concept. World of Warcraft Wrath of the Lich King spell/item icon. Attached stock WotLK ",
+        "icons are icon STYLE references only. Square256x256 target, PAINTED broad readable shapes, dramatic ",
+        "lighting, saturated rich colour, DARK VIGNETTE AT ALL FOUR CORNERS, no border, text or photorealism. Full ",
+        "opaque square. No green, blue or purple. CONSECRATED GROUND seen TOP-DOWN: circle of glowing GOLDEN sacred ",
+        "rune marks on dark stone, holy light rises in rays, WARHAMMER IMPACT at centre, radial cracks lit gold. ",
+        "Readable circular ring fills square, no humanoid."
+      ],
+      "sourcePath": "source/powerIcon.png",
+      "generatedFile": "exec-c6253f45-26e8-40fc-842a-7e4da6ef749d.png"
+    }
+  ]
+}

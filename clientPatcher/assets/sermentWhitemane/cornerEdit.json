@@ -1,0 +1,12 @@
+{
+  "generator": "built-in imagegen",
+  "selectedSource": "source/tooltipCorner.png",
+  "generatedFile": "exec-96782e56-ca7c-4b6d-8976-fff4f0f309b3.png",
+  "promptLines": [
+    "Edit attached top-left tooltip corner. REMOVE only the vertical marble bar segment ABOVE wing-and-pearl ",
+    "ornament: it must not extend to TOP edge. Replace upward bar spur with actual TRANSPARENCY. This is an L ",
+    "corner, not T junction: bars extend ONLY to RIGHT canvas edge and DOWN bottom canvas edge. Preserve pearl, ",
+    "wing ornament, gold/marble materials, rest of bars, original position and full canvas. Also remove tiny ",
+    "crimson gem below pearl, replace with pale gold. No text or backdrop, genuine transparency."
+  ]
+}
