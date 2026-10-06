@@ -9,13 +9,18 @@ def solidBounds(image):
 
 
 def fitFamily(images, size, padding):
+    """Every state cropped to the first one's solid bounds and fitted into size at its own proportions, centred:
+    stretched to fill the slot, the painted helmet (about 1.1 wide for 1 tall) read 29% too wide in game"""
     bounds = solidBounds(images[0])
+    width, height = bounds[2] - bounds[0], bounds[3] - bounds[1]
+    scale = min((size[0] - padding * 2) / width, (size[1] - padding * 2) / height)
+    fittedSize = (max(1, round(width * scale)), max(1, round(height * scale)))
+    offset = ((size[0] - fittedSize[0]) // 2, (size[1] - fittedSize[1]) // 2)
     result = []
     for image in images:
-        fitted = image.crop(bounds).resize((size[0] - padding * 2, size[1] - padding * 2),
-                                           Image.Resampling.LANCZOS)
+        fitted = image.crop(bounds).resize(fittedSize, Image.Resampling.LANCZOS)
         canvas = Image.new("RGBA", size, 0)
-        canvas.paste(fitted, (padding, padding))
+        canvas.paste(fitted, offset)
         result.append(canvas)
     return result
 

@@ -28,8 +28,9 @@ local PIECES = {
     jewelCrack = { 568, 632, 340, 404 },
 }
 
-local HELMET_WIDTH, HELMET_HEIGHT = 50, 35
-local HELMET_OFFSETS = { -40, -2, 36 }
+-- The painted helmet keeps its own proportions (about 1.1 wide for 1 tall) inside its 152 x 108 slot
+local HELMET_WIDTH, HELMET_HEIGHT = 56, 40
+local HELMET_OFFSETS = { -35, -1, 33 }
 -- Each helmet a third of the way to ripe, filled by thirds: nine steps in all
 local THIRDS = 3
 

@@ -69,7 +69,7 @@ def composeState(assets, helmetNames, jewel="jewelDark", glow=None, energy=False
         scaledPlace(result, "jewelCrack", (81, 52), (10, 10))
     # Render right first, left last: the left socket owns overlaps, exactly as on ClassHudReaper.
     for index in (2, 1, 0):
-        scaledPlace(result, helmetNames[index], (41 + index * 38, 33), (50, 35))
+        scaledPlace(result, helmetNames[index], (46 + index * 34, 33), (56, 40))
     return result.convert("RGB")
 
 
@@ -130,7 +130,7 @@ def main():
         "pieceBoxes": pieceBoxes, "boxOrder": ["left", "right", "top", "bottom"],
         "additivePieces": ["glowCrimson", "glowGold", "bladeEnergy"],
         "hudSize": [162, 70], "frameSize": [154, 63], "frameOffset": [0, -8],
-        "helmetSize": [50, 35], "helmetOffsets": [[-40, 2], [-2, 2], [36, 2]],
+        "helmetSize": [56, 40], "helmetOffsets": [[-35, 2], [-1, 2], [33, 2]],
         "helmetOverlapOrder": ["left", "middle", "right"], "helmetFillBounds": fillBounds,
         "jewelSize": [10, 10], "jewelOffset": [0, -17], "glowSize": [146, 60], "glowOffset": [0, 2],
         "shockwave": "Interface\\ClassHud\\gladiatorShockwave", "integrationStatus": "assetsOnly",
