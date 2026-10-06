@@ -198,13 +198,20 @@ local function create(frame)
     frame.boil:SetSize(BOIL_SIZE, BOIL_SIZE)
     setPiece(frame.boil, "boilFlat")
     frame.boilPop = pop(frame.boil, 1.35)
-    -- Ripe: it throbs
+    -- Ripe: it throbs - a swell and its settle repeated: a Scale on "BOUNCE" flashed the boil huge for a frame at
+    -- every turn on this client
     frame.boilThrob = frame.boil:CreateAnimationGroup()
-    frame.boilThrob:SetLooping("BOUNCE")
-    local throb = frame.boilThrob:CreateAnimation("Scale")
-    throb:SetScale(1.18, 1.18)
-    throb:SetDuration(0.45)
-    throb:SetSmoothing("IN_OUT")
+    frame.boilThrob:SetLooping("REPEAT")
+    local swell = frame.boilThrob:CreateAnimation("Scale")
+    swell:SetScale(1.18, 1.18)
+    swell:SetDuration(0.45)
+    swell:SetSmoothing("IN_OUT")
+    swell:SetOrder(1)
+    local settle = frame.boilThrob:CreateAnimation("Scale")
+    settle:SetScale(1 / 1.18, 1 / 1.18)
+    settle:SetDuration(0.45)
+    settle:SetSmoothing("IN_OUT")
+    settle:SetOrder(2)
 
     -- Détonation: bile bursting out of the boil
     frame.splash = knot:CreateTexture(nil, "OVERLAY")
@@ -313,12 +320,14 @@ local function update(frame, state, previous)
     -- Pourriture on the target: the boil
     local piece = boilPiece(state.pourriture)
     setPiece(frame.boil, piece)
-    if before and piece ~= boilPiece(before.pourriture) and state.pourriture > before.pourriture then
+    local ripe = state.pourriture >= POURRITURE_MAX
+    -- Not when it ripens: the throb takes over, two scales at once on one texture compound
+    if before and not ripe and piece ~= boilPiece(before.pourriture) and state.pourriture > before.pourriture then
         frame.boilPop:Stop()
         frame.boilPop:Play()
     end
-    local ripe = state.pourriture >= POURRITURE_MAX
     if ripe and not frame.boilThrob:IsPlaying() then
+        frame.boilPop:Stop()
         frame.boilThrob:Play()
     elseif not ripe and frame.boilThrob:IsPlaying() then
         frame.boilThrob:Stop()

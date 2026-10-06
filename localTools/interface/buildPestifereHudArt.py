@@ -5,6 +5,8 @@ Requires Pillow and NumPy. No server build or client patch is performed.
 """
 
 import json
+
+import numpy as np
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -92,6 +94,21 @@ def makePreviews(assets, mask, bounds):
     boils.save(assetRoot / "boilPreview.png")
 
 
+ADDITIVE = ("boiling", "glowToxic", "glowSepulcre", "bileDrips", "splash")
+
+
+def atlasPiece(name, image):
+    """A light-only piece is transparent where it is black: opaque black next to the frame (and across the atlas's
+    wrap, the drips' right edge beside the frame's left one) bled into it in the client's smaller mip levels - a dark
+    line along the left cleaver in game. ADD blends by the source alpha, so lit pixels stay opaque."""
+    image = image.convert("RGBA")
+    if name not in ADDITIVE:
+        return image
+    pixels = np.asarray(image).copy()
+    pixels[:, :, 3] = np.where(pixels[:, :, :3].max(axis=2) > 0, 255, 0)
+    return Image.fromarray(pixels)
+
+
 def main():
     pngRoot.mkdir(parents=True, exist_ok=True)
     assets, mask, bounds, face = buildAssets(loadSource)
@@ -103,7 +120,7 @@ def main():
         if image.size != (right - left, bottom - top):
             raise ValueError(name + " does not fit atlas cell")
         image.save(pngRoot / (name + ".png"))
-        atlas.paste(image.convert("RGBA"), (left, top))
+        atlas.paste(atlasPiece(name, image), (left, top))
     atlas.save(assetRoot / "pestifereHudAtlas.png")
     writeRawBlp(atlas, str(blpPath))
     manifest = {
