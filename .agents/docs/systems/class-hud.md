@@ -77,8 +77,11 @@ over them (`gladiatorHudV2Atlas.blp`, 1024 x 512; art `clientPatcher/assets/glad
 `assetManifest.json` for the boxes and placements; AI-painted from `.agents/plans/gladiator-hud/gladiator-hud.ASSETS.md`
 with the Faucheur's HUD as the style reference):
 - the helmets fill with Plaie du gladiateur's blood on the selected enemy, in ninths (each helmet a third of the way,
-  the next one by thirds) against `warrior.glad_hud_ripe_ap` times the attack power (3 by default); three full: a
-  crimson glow beats behind them (ripe for Execute); a helmet filling pops and flashes, one emptied fades upwards;
+  the next one by thirds) against `warrior.glad_hud_ripe_ap` times the attack power (1: the bench's bleed peaks near
+  there - 3 was never reached); a helmet filling pops and flashes, one emptied fades upwards;
+- a crimson glow beats behind them when Execute is worth pressing: mod-warrior `GladiatorExecuteNow`, the payload's
+  8th field - the same rule the bots and `.cheat rotation` execute on (mod-playerbots `GladiatorExecuteWorth` calls
+  it), so the HUD and the rotation never disagree;
 - Coup de grâce: every helmet molten gold, a gold glow and energy along the blades;
 - the jewel in the boss: Revenge, gold under Ouverture (a pop as it comes), a red crack under Garde brisée;
 - a gold ring out of the jewel each time Shield Slam comes back (`gladiatorShockwave.blp`, the resets count went up).

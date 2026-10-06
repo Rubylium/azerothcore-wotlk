@@ -42,6 +42,8 @@
 // Cleaver spreads its single-target attacks over the pack; Protection turns rage into Ignore Pain's absorb and Shield
 // Block's charges, and every dodge, parry or block can make Revenge free. Overpower, Raging Blow and Shield Block have
 // charges kept here, shown as stacks.
+bool GladiatorExecuteNow(Player* player, Unit* target);
+
 namespace
 {
 // Talent ranks (dummies, read here)
@@ -271,9 +273,17 @@ LiveTuning::KnobUInt const WoundResetGapMs("warrior.glad_wound_reset_gap_ms", 90
 LiveTuning::KnobInt const BrokenGuardPct("warrior.glad_broken_guard_pct", 20);
 LiveTuning::Knob const ShieldEdgeShare("warrior.glad_shield_edge_share", 0.1f);     // of block value, a rank
 LiveTuning::Knob const ThumbsDownFactor("warrior.glad_thumbs_down_factor", 1.5f);
-// The class HUD's bleed gauge (FrameXML ClassHudWarrior.lua): full - "ripe", Execute worth cashing in - when what the
-// bleed still has to deal on the target reaches this many times the Warrior's attack power
-LiveTuning::Knob const HudRipeAttackPower("warrior.glad_hud_ripe_ap", 3.0f);
+// The bleed is ripe - Execute worth cashing it in - when what it still has to deal on the target reaches this many
+// times the Warrior's attack power: the class HUD's gauge full (FrameXML ClassHudWarrior.lua), and one of the
+// reasons the rotation executes. Measured on the combat bench (2026-10-06, ilvl 245): the bleed peaks near once the
+// attack power - the first value, 3, was never reached, the HUD never glowed.
+LiveTuning::Knob const RipeAttackPower("warrior.glad_hud_ripe_ap", 1.0f);
+// When Execute is worth pressing (GladiatorExecuteNow, the bots' and .cheat rotation's rule, the HUD's glow): on the
+// bleed with this much rage once it is ripe, it runs out (this close to its end) or the rage is full; under the
+// threshold or on Sudden Death with the low amount; Coup de grace always
+LiveTuning::KnobInt const ExecuteNowRage("warrior.glad_execute_now_rage", 80);
+LiveTuning::KnobInt const ExecuteNowLowRage("warrior.glad_execute_now_low_rage", 30);
+LiveTuning::KnobInt const ExecuteNowBleedEndMs("warrior.glad_execute_now_bleed_end_ms", 2000);
 LiveTuning::Knob const ContagionShare("warrior.glad_contagion_share", 0.5f);
 LiveTuning::Knob const ContagionRange("warrior.glad_contagion_range", 8.0f);
 LiveTuning::KnobInt const ExecuteMaxRage("warrior.glad_execute_max_rage", 100);
@@ -830,6 +840,12 @@ float WoundLeft(Player* player, Unit* target, Aura*& wound)
     int32 const period = std::max<int32>(effect->GetAmplitude(), 1);
     int32 const ticks = std::max<int32>(0, (wound->GetDuration() + period - 1) / period);
     return float(effect->GetAmount()) * float(ticks);
+}
+
+// What the bleed must still have to deal to be ripe (RipeAttackPower)
+float RipeAmount(Player* player)
+{
+    return std::max(1.0f, float(RipeAttackPower) * player->GetTotalAttackPowerValue(BASE_ATTACK));
 }
 
 // The bleed on target with amount more to deal, spread over its whole length again (Ignite's rolling): what it
@@ -1630,9 +1646,10 @@ public:
 
 private:
     // The Gladiateur's class HUD (client: FrameXML ClassHudWarrior.lua), whispered when it changes:
-    //   GLADIATOR <tab> <bleed %>:<opening>:<broken guard>:<execute>:<coup de grace>:<duel>:<shield slam resets>
-    // bleed % the gauge (100: ripe), on the selected enemy; execute 1 while it bleeds of the Warrior's Plaie. Any
-    // other Warrior gets "-": its HUD hides.
+    //   GLADIATOR <tab> <bleed %>:<opening>:<broken guard>:<execute>:<coup de grace>:<duel>:<shield slam resets>:<now>
+    // bleed % the gauge (100: ripe), on the selected enemy; execute 1 while it bleeds of the Warrior's Plaie; now 1
+    // when Execute is worth pressing (GladiatorExecuteNow: the rotation's rule, the HUD's glow). Any other Warrior gets
+    // "-": its HUD hides.
     static void SyncGladiatorHud(Player* player, WarriorState* state, uint32 now)
     {
         if (!player->GetSession() || player->GetSession()->IsBot())
@@ -1643,14 +1660,12 @@ private:
             Unit* target = player->GetSelectedUnit();
             Aura* wound = nullptr;
             float const left = target && target->IsAlive() ? WoundLeft(player, target, wound) : 0.0f;
-            float const attackPower = player->GetTotalAttackPowerValue(BASE_ATTACK);
-            float const ripe = std::max(1.0f, float(HudRipeAttackPower) * attackPower);
             // In steps of 5%: the gauge's frames, without a message on every tick
-            int32 const bleed = std::clamp(int32(left / ripe * 20.0f) * 5, 0, 100);
-            payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}", bleed, player->HasAura(SPELL_OPENING) ? 1 : 0,
+            int32 const bleed = std::clamp(int32(left / RipeAmount(player) * 20.0f) * 5, 0, 100);
+            payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}:{}", bleed, player->HasAura(SPELL_OPENING) ? 1 : 0,
                 player->HasAura(SPELL_BROKEN_GUARD) ? 1 : 0, left >= 1.0f ? 1 : 0,
                 player->HasAura(SPELL_COUP_DE_GRACE) ? 1 : 0, state->duelUntilMs > now ? 1 : 0,
-                state->shieldSlamResets);
+                state->shieldSlamResets, GladiatorExecuteNow(player, target) ? 1 : 0);
         }
         if (payload == state->sentHud)
             return;
@@ -1739,6 +1754,34 @@ private:
         player->HealBySpell(healInfo);
     }
 };
+}
+
+// Exported for mod-playerbots (its Gladiateur rotation declares them): whether the Warrior's bleed on target is ripe,
+// and whether Execute is worth pressing now - Coup de grace always; on its bleed with ExecuteNowRage once it is ripe,
+// within ExecuteNowBleedEndMs of its end, or at full rage; under the threshold or on Sudden Death with
+// ExecuteNowLowRage. The class HUD glows on the same rule.
+bool GladiatorBleedRipe(Player* player, Unit* target)
+{
+    Aura* wound = nullptr;
+    return player && target && WoundLeft(player, target, wound) >= RipeAmount(player);
+}
+
+bool GladiatorExecuteNow(Player* player, Unit* target)
+{
+    if (!player || !target || !target->IsAlive() || !IsGladiator(player) || !target->IsHostileTo(player))
+        return false;
+    Aura* wound = nullptr;
+    float const left = WoundLeft(player, target, wound);
+    bool const low = target->GetHealthPct() < ExecuteThreshold(player) || player->HasAura(SPELL_SUDDEN_DEATH);
+    if (!wound && !low)
+        return false;
+    if (player->HasAura(SPELL_COUP_DE_GRACE))
+        return true;
+    int32 const rage = int32(player->GetPower(POWER_RAGE) / 10);
+    if (wound && rage >= ExecuteNowRage &&
+        (left >= RipeAmount(player) || wound->GetDuration() <= ExecuteNowBleedEndMs || rage >= ExecuteMaxRage))
+        return true;
+    return low && rage >= ExecuteNowLowRage;
 }
 
 void AddWarriorTalentScripts()

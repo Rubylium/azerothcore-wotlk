@@ -1,10 +1,12 @@
 -- The Gladiateur's HUD (mod-warrior, the Warrior's fourth specialization), on the Faucheur's model: two gladii lying
 -- mirrored, three gladiator's helmets over them. The helmets fill with the blood of Plaie du gladiateur on the target -
--- each one a third of the way to "ripe", the next one by thirds - and at three full helmets a crimson glow beats behind
--- them: Execute is worth cashing the bleed in. Under Coup de grâce they turn molten gold, a gold glow and energy along
+-- each one a third of the way to "ripe", the next one by thirds; a crimson glow beats behind them when Execute is worth
+-- pressing (the server's rule, the rotation's: a ripe bleed and the rage for it, the bleed running out, full rage, the
+-- target under the threshold...). Under Coup de grâce they turn molten gold, a gold glow and energy along
 -- the blades. The jewel in the gladii's boss is Revenge: gold under Ouverture, cracked red with Garde brisée; Shield
 -- Slam coming back rings out of it. Fed by the server's
--- "GLADIATOR\t<bleed %>:<opening>:<broken guard>:<execute>:<coup de grace>:<duel>:<resets>" (modules/mod-warrior), or
+-- "GLADIATOR\t<bleed %>:<opening>:<broken guard>:<execute>:<coup de grace>:<duel>:<resets>:<now>"
+-- (modules/mod-warrior), or
 -- "GLADIATOR\t-" for any other Warrior: the HUD hides. Art: clientPatcher/assets/gladiatorHud/v2 (its
 -- assetManifest.json gives the boxes and placements below). Framework: ClassHud.lua.
 
@@ -245,9 +247,9 @@ local function update(frame, state, previous)
         end
     end
 
-    -- Ripe: three full helmets, the crimson glow beating; Coup de grâce: the gold glow and the blades' energy
-    local ripe = state.bleed >= 100 and not state.coupDeGrace
-    local wasRipe = before and (before.bleed >= 100 and not before.coupDeGrace)
+    -- Execute worth pressing: the crimson glow beating; Coup de grâce: the gold glow and the blades' energy
+    local ripe = state.now and not state.coupDeGrace
+    local wasRipe = before and (before.now and not before.coupDeGrace)
     local wasGold = before and before.coupDeGrace
     showGlow(frame.glowCrimson, frame.crimsonPulse, ripe, before and wasRipe or nil)
     showGlow(frame.glowGold, frame.goldPulse, state.coupDeGrace, before and wasGold or nil)
@@ -276,7 +278,7 @@ local function parse(payload)
     if payload == "-" then
         return { hidden = true }
     end
-    local bleed, opening, brokenGuard, execute, coupDeGrace, duel, resets = strsplit(":", payload or "")
+    local bleed, opening, brokenGuard, execute, coupDeGrace, duel, resets, now = strsplit(":", payload or "")
     if not resets then
         return nil
     end
@@ -288,6 +290,8 @@ local function parse(payload)
         coupDeGrace = coupDeGrace == "1",
         duel = duel == "1",
         resets = tonumber(resets) or 0,
+        -- Execute worth pressing (a server from before it: the bleed full)
+        now = now == "1" or (now == nil and (tonumber(bleed) or 0) >= 100),
     }
 end
 
@@ -301,7 +305,7 @@ ClassHud_Register({
     tooltip = function(state)
         local lines = {
             string.format("Plaie du gladiateur : %d%%%s", state.bleed,
-                state.bleed >= 100 and " - |cffff4030l'Exécution vaut d'être portée|r" or ""),
+                state.now and " - |cffff4030l'Exécution vaut d'être portée|r" or ""),
             "Les casques se remplissent du sang de votre cible ; pleins, votre Exécution en tire le plus.",
         }
         if state.opening then
