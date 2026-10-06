@@ -71,8 +71,8 @@ tooltips; picking them up plays everything and gives nothing.
 - Looks: `localTools/groundLoot/ascensionVisuals.json`, imported by `localTools/ascensionImport/importVisuals.py`
   into `modules/mod-stat-growth/client-assets/imported` (kits 81911, 81913). The importer's `models` section (raw
   models, optionally `tint`ed) exists for it.
-- Sounds: `modules/mod-stat-growth/client-assets/audio/groundLoot.json` (Diablo IV's, from
-  `data/custom/diabloLootSounds`, local), built by `localTools/audio/buildAudio.py`.
+- Sounds: `modules/mod-stat-growth/client-assets/audio/groundLoot.json` (Diablo IV's, kept in its
+  `sources/groundLoot`), built by `localTools/audio/buildAudio.py`.
 - Displays: `localTools/patchSinisterStrike.ps1` (`$ownDisplays`). Creatures:
   `modules/mod-stat-growth/data/sql/db-world/base/stat_growth_ground_loot.sql`.
 - Not yet: name labels on the floor (the beam and the tooltip carry the item for now).

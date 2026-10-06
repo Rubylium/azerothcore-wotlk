@@ -53,9 +53,13 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
 1. Describe them in `modules/<module>/client-assets/audio/<feature>.json`:
    `{ "sounds": { "<Feature.Name>": { "kind": "world", "files": [ "<wav>" ], "minDistance": 12, "maxDistance": 60,
    "volume": 1, "loudness": -12 } } }` - a key has no tab, `;`, slash nor space; several files play at random.
-   A file is a path in the repository, `client:<archive path>` (the game client's own, voices in its language - the
-   speech archives are read) or `asc:<archive path>` (the Ascension client's: retail sounds; some of its rows name
-   files it does not ship - the build stops on them). World and loop sounds are written mono (one point in the world).
+   Every file is kept in the repository, under the manifest's `sources/<manifest name>/` - the bank is built from
+   the repository alone, never from a client or a local folder (user, 2026-10-06). To bring one in, name it as
+   `client:<archive path>` (the game client's own, voices in its language - the speech archives are read),
+   `asc:<archive path>` (the Ascension client's: retail sounds; some of its rows name files it does not ship - it
+   stops on them) or any path on disk, then `python localTools/audio/buildAudio.py --vendor`: it copies each one into
+   the sources folder and rewrites the manifest. A plain build refuses a file kept elsewhere. Commit the sources.
+   World and loop sounds are written mono (one point in the world).
    `loudness` (dBFS RMS) defaults to the kind's (ui and world -12, loop -16: the game's own cues sit at -12 to -25);
    a limiter holds the peaks under -1 dBFS. Sounds from another game are often mixed far quieter: leave the default.
 2. `python localTools/audio/buildAudio.py`: writes `clientPatcher/addons/EvolutionsAudio` (`Sounds/`, `sounds.txt`,
@@ -80,6 +84,7 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
   Build: `localTools/buildClientDll.ps1` (or the deploy tool's `dll`).
 - Client glue: `clientPatcher/interface/Interface/FrameXML/EvolutionsAudio.lua` (the server's `EVA` whispers, the
   place, the zone and the time of day every 0.25 s, `/eva`).
-- Bank builder: `localTools/audio/buildAudio.py` (`clientFiles.js` reads the game client's archives).
+- Bank builder: `localTools/audio/buildAudio.py` (`--vendor`; `clientFiles.js` reads the game client's
+  archives). Sources: `modules/*/client-assets/audio/sources/`.
 - Server helper: `modules/mod-stat-growth/src/EvolutionsAudio.*`.
 - First user: the ground loot (`ground-loot.md`).

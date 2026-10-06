@@ -1,7 +1,8 @@
 """Builds the sound bank of our own sound engine (the client extension DLL's EvolutionsAudio, awesome_wotlk):
 clientPatcher/addons/EvolutionsAudio, which Build-FriendPatch.ps1 ships as Interface\\AddOns\\EvolutionsAudio.
 
-    python buildAudio.py
+    python buildAudio.py             the bank, from the sounds kept in the repository
+    python buildAudio.py --vendor    first brings every sound a manifest takes from elsewhere into the repository
 
 Every modules/*/client-assets/audio/*.json is read:
     { "sounds": { "<key>": { "kind": "ui" | "world" | "loop", "files": [ "<file>", ... ],
@@ -9,8 +10,11 @@ Every modules/*/client-assets/audio/*.json is read:
       "emitters": [ { "zones": [ "<zone name, each locale's>", ... ], "sound": "<key>", "points": [ [x, y, z], ... ],
                       "interval": [min, max], "speed": 0, "time": "any" | "day" | "night", "volume": 1.0,
                       "place": "any" | "indoors" | "outdoors" } ] }
-- a file: a WAV/OGG relative to the repository, "client:<archive path>" (the game client's own, from its archives -
-  voices in its language: CLIENT below), or "asc:<archive path>" (the Ascension client's, ASCENSION_ROOT).
+- a file: a WAV/OGG kept in the repository, under the manifest's sources/<manifest name>/ (client-assets/audio/
+  sources/...): the bank is built from the repository alone, never from a client. To bring a sound in, name it in the
+  manifest as "client:<archive path>" (the game client's own, from its archives - voices in its language: CLIENT in
+  clientFiles.js), "asc:<archive path>" (the Ascension client's, ASCENSION_ROOT) or any path on disk, then run
+  --vendor: the file is copied there (as it is: an OGG stays one) and the manifest rewritten to name the copy.
 - emitters: the zone's ambience, the engine playing it while the player is there (its name as GetRealZoneText gives
   it, in every locale played). A loop sound plays from the first point while within reach; another sound every min
   to max seconds from one point at random; with a speed (yards a second) the emitter flies round its points, its
@@ -118,10 +122,57 @@ def resolve_sources(sounds, work):
     return path
 
 
+def manifests():
+    return sorted(glob.glob(os.path.join(REPO, 'modules', '*', 'client-assets', 'audio', '*.json')))
+
+
+def kept(manifest, source):
+    """whether a manifest's file is one of its sources kept in the repository"""
+    folder = os.path.join(os.path.dirname(manifest), 'sources')
+    path = os.path.normpath(os.path.join(REPO, source))
+    return ':' not in source and path.startswith(folder + os.sep) and os.path.isfile(path)
+
+
+def vendor():
+    """every file a manifest takes from elsewhere copied to its sources/<manifest name>/, the manifest rewritten"""
+    work = tempfile.mkdtemp()
+    for manifest in manifests():
+        with open(manifest, encoding='utf-8') as source:
+            document = json.load(source)
+        sounds = document.get('sounds', {})
+        outside = {key: spec for key, spec in sounds.items() if any(not kept(manifest, f) for f in spec['files'])}
+        if not outside:
+            continue
+        source_path = resolve_sources(outside, os.path.join(work, os.path.basename(manifest)))
+        folder = os.path.join(os.path.dirname(manifest), 'sources', os.path.splitext(os.path.basename(manifest))[0])
+        os.makedirs(folder, exist_ok=True)
+        copied = 0
+        for spec in outside.values():
+            files = []
+            for source in spec['files']:
+                if kept(manifest, source):
+                    files.append(source)
+                    continue
+                origin = source_path(source)
+                name = os.path.basename(origin.replace('\\', os.sep))
+                target = os.path.join(folder, name)
+                if os.path.exists(target) and open(target, 'rb').read() != open(origin, 'rb').read():
+                    # Two files of one name from two folders: the second keeps its folder's name in front
+                    target = os.path.join(folder, f'{os.path.basename(os.path.dirname(origin))}_{name}')
+                shutil.copyfile(origin, target)
+                files.append(os.path.relpath(target, REPO).replace(os.sep, '/'))
+                copied += 1
+            spec['files'] = files
+        with open(manifest, 'w', encoding='utf-8', newline='\n') as output:
+            output.write(json.dumps(document, indent=2, ensure_ascii=False) + '\n')
+        print(f'{os.path.relpath(manifest, REPO)}: {copied} files brought into {os.path.relpath(folder, REPO)}')
+    shutil.rmtree(work, ignore_errors=True)
+
+
 def main():
     sounds = {}
     emitters = []
-    for path in sorted(glob.glob(os.path.join(REPO, 'modules', '*', 'client-assets', 'audio', '*.json'))):
+    for path in manifests():
         with open(path, encoding='utf-8') as source:
             for key, spec in json.load(source).get('sounds', {}).items():
                 if key in sounds:
@@ -130,6 +181,9 @@ def main():
                     raise SystemExit(f'{key}: kind must be one of {KINDS}')
                 if any(c in key for c in '\t;\\/ '):
                     raise SystemExit(f'{key}: a key has no tab, ;, slash nor space')
+                lost = [f for f in spec['files'] if not kept(path, f)]
+                if lost:
+                    raise SystemExit(f'{key}: {lost} not kept in the repository - run buildAudio.py --vendor')
                 sounds[key] = spec
             source.seek(0)
             for emitter in json.load(source).get('emitters', []):
@@ -139,9 +193,6 @@ def main():
     for emitter in emitters:
         if emitter['sound'] not in sounds:
             raise SystemExit(f'An emitter plays {emitter["sound"]}, which no manifest has ({emitter["manifest"]})')
-    work = tempfile.mkdtemp()
-    source_path = resolve_sources(sounds, work)
-
     shutil.rmtree(OUTPUT, ignore_errors=True)
     os.makedirs(os.path.join(OUTPUT, 'Sounds'))
     lines = ['# key\tkind\tvolume\tmin distance\tmax distance\tfiles (Sounds\\)'
@@ -154,7 +205,7 @@ def main():
         maximum = float(spec.get('maxDistance', maximum))
         names = []
         for index, source in enumerate(spec['files']):
-            samples, rate = soundfile.read(source_path(source), dtype='float32', always_2d=True)
+            samples, rate = soundfile.read(os.path.join(REPO, source), dtype='float32', always_2d=True)
             before = db(rms(samples))
             # A sound placed in the world is one point: mono (a stereo file does not sit at its place)
             if kind != 'ui' and samples.shape[1] > 1:
@@ -182,11 +233,12 @@ def main():
         file.write('\n'.join(ambience) + '\n')
     with open(os.path.join(OUTPUT, 'EvolutionsAudio.toc'), 'w', encoding='utf-8', newline='\n') as toc:
         toc.write(TOC)
-    shutil.rmtree(work, ignore_errors=True)
     print(f'{len(sounds)} sounds, {len(emitters)} emitters written to {os.path.relpath(OUTPUT, REPO)}')
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 1:
+    if sys.argv[1:] == ['--vendor']:
+        vendor()
+    elif sys.argv[1:]:
         raise SystemExit(__doc__)
     main()
