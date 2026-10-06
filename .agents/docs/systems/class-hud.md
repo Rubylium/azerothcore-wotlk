@@ -93,7 +93,8 @@ to the Faucheur's proportions (a small wide weapon frame, three sockets in a row
 
 `ClassHudPestifere.lua` (class token `PESTIFERE`, the tank only: a Sangsue healer - Transfusion learned, Carapace
 nécrosée not carried - gets `-`), prefix `PESTIFERE`, payload
-`carapace%:chair%:peste%:pourriture:avatar:riposte:sepulcre%:detonations:ripostes` (mod-pestifere `SyncHud`, every 250 ms when it
+`carapace%:chair%:peste%:pourriture:avatar:riposte:sepulcre%:detonations:ripostes`
+(mod-pestifere `SyncHud`, every 250 ms when it
 changed). On the Faucheur's model: two corroded cleavers, three flasks over them (`pestifereHudAtlas.blp`, 1024 x 512;
 art `clientPatcher/assets/pestifereHud`, built by `localTools/interface/buildPestifereHudArt.py` from the paintings of
 `.agents/plans/pestifere-hud/pestifere-hud.ASSETS.md`):
