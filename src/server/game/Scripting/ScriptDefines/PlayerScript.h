@@ -226,6 +226,7 @@ enum PlayerHook
     PLAYERHOOK_ON_LFG_ROLES,
     PLAYERHOOK_ON_ENUM_GUILD_ID,
     PLAYERHOOK_ON_MONEY_REWARD,
+    PLAYERHOOK_ON_AFTER_APPLY_ITEM_BONUSES,
     PLAYERHOOK_END
 };
 
@@ -599,6 +600,10 @@ public:
     virtual void OnPlayerCustomScalingStatValue(Player* /*player*/, ItemTemplate const* /*proto*/, uint32& /*statType*/, int32& /*val*/, uint8 /*itemProtoStatNumber*/, uint32 /*ScalingStatValue*/, ScalingStatValuesEntry const* /*ssv*/) { }
 
     virtual void OnPlayerApplyItemModsBefore(Player* /*player*/, uint8 /*slot*/, bool /*apply*/, uint8 /*itemProtoStatNumber*/, uint32 /*statType*/, int32& /*val*/) { }
+
+    // After an equipped item's template bonuses were applied or removed: a module's own per-copy bonuses go here
+    // (Player::ApplyItemStatMod), so they come and go with the item exactly as the template's do
+    virtual void OnPlayerAfterApplyItemBonuses(Player* /*player*/, Item* /*item*/, uint8 /*slot*/, bool /*apply*/) { }
 
     virtual void OnPlayerApplyEnchantmentItemModsBefore(Player* /*player*/, Item* /*item*/, EnchantmentSlot /*slot*/, bool /*apply*/, uint32 /*enchant_spell_id*/, uint32& /*enchant_amount*/) { }
 
