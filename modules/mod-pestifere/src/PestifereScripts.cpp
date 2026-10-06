@@ -195,12 +195,14 @@ struct ShieldEcho : public DataMap::Base
 };
 
 // The tank's class HUD (client: FrameXML ClassHudPestifere.lua), whispered when it changes, every HUD_SYNC_MS:
-//   PESTIFERE <tab> <carapace>:<chair>:<peste>:<pourriture>:<avatar>:<riposte>:<sepulcre>:<detonations>
+//   PESTIFERE <tab> <carapace>:<chair>:<peste>:<pourriture>:<avatar>:<riposte>:<sepulcre>:<detonations>:<ripostes>
 // the three plagues carried, each the % of its time left (100 in combat, where they last as long as they are carried;
 // 0 not carried); pourriture the stacks of the Pestiféré's on its selected enemy; avatar 1 while it lasts; riposte 1
 // while Riposte purulente can be cast (a dodge, parry or block just now, the spell known and ready);
-// sepulcre the damage it still owes, in % of its maximum health (steps of 5, capped at 100); detonations counts the
-// Détonations that blew something up (the HUD splashes when it goes up). A Sangsue healer gets "-": its HUD hides.
+// sepulcre the damage it still owes, in % of its maximum health (steps of 5, capped at 100; 5 at least while Sépulcre
+// is up, holding nothing yet); detonations counts the Détonations that blew something up (the HUD splashes when it
+// goes up), ripostes the Riposte purulente cast (bile bursts from the blades: the rotation casts it the moment it is
+// usable, too soon for the "usable" field to be seen). A Sangsue healer gets "-": its HUD hides.
 constexpr char const* HUD_PREFIX = "PESTIFERE";
 constexpr char const* HudEchoKey = "PestifereHudEcho";
 constexpr uint32 HUD_SYNC_MS = 250;
@@ -210,6 +212,7 @@ struct HudEcho : public DataMap::Base
     std::string sent;
     uint32 timer = 0;
     uint32 detonations = 0;
+    uint32 ripostes = 0;
 };
 
 HudEcho* GetHudEcho(Player* player)
@@ -760,6 +763,8 @@ class PestifereRipostePurulenteSpellScript : public SpellScript
 
         AddRot(caster, target, 1);
         AddTankThreat(caster, target, RIPOSTE_THREAT_AP, GetSpellInfo());
+        // The class HUD's bile burst
+        ++GetHudEcho(caster)->ripostes;
 
         uint32 const extraTargets = RIPOSTE_EXTRA_TARGETS + uint32(points);
         uint32 rotted = 0;
@@ -1752,12 +1757,14 @@ void SyncHud(Player* player)
         Unit* target = player->GetSelectedUnit();
         Aura* rot = target && target->IsAlive() ? target->GetAura(SPELL_POURRITURE, player->GetGUID()) : nullptr;
         uint32 const owed = GetCarriedSepulcreOwed(player);
-        uint32 const sepulcre = owed ? std::clamp<uint32>(uint32(std::ceil(float(owed) * 20.0f /
+        uint32 sepulcre = owed ? std::clamp<uint32>(uint32(std::ceil(float(owed) * 20.0f /
             float(std::max<uint32>(1, player->GetMaxHealth())))) * 5, 5, 100) : 0;
-        payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}:{}", PlagueLeftPct(player, SPELL_CARAPACE_NECROSEE),
+        if (!sepulcre && player->HasAura(SPELL_SEPULCRE))
+            sepulcre = 5;
+        payload = Acore::StringFormat("{}:{}:{}:{}:{}:{}:{}:{}:{}", PlagueLeftPct(player, SPELL_CARAPACE_NECROSEE),
             PlagueLeftPct(player, SPELL_CHAIR_PUTRIDE), PlagueLeftPct(player, SPELL_PESTE_VIRULENTE),
             rot ? rot->GetStackAmount() : 0, player->HasAura(SPELL_AVATAR_DE_LA_PESTE) ? 1 : 0,
-            RiposteReady(player) ? 1 : 0, sepulcre, echo->detonations);
+            RiposteReady(player) ? 1 : 0, sepulcre, echo->detonations, echo->ripostes);
     }
     if (payload == echo->sent)
         return;

@@ -6,7 +6,7 @@
 -- Avatar de la peste: the flasks boil over, a toxic glow behind them. Riposte purulente usable (a dodge, parry or
 -- block just now): bile drips from the blades. Sépulcre (damage held back): a violet smoke behind, thicker as it
 -- owes more. Fed by the server's
--- "PESTIFERE\t<carapace %>:<chair %>:<peste %>:<pourriture>:<avatar>:<riposte>:<sepulcre %>:<detonations>"
+-- "PESTIFERE\t<carapace %>:<chair %>:<peste %>:<pourriture>:<avatar>:<riposte>:<sepulcre %>:<detonations>:<ripostes>"
 -- (modules/mod-pestifere SyncHud), or "PESTIFERE\t-" for a healer: the HUD hides. Art:
 -- clientPatcher/assets/pestifereHud (its assetManifest.json gives the boxes and placements below), painted from
 -- .agents/plans/pestifere-hud/pestifere-hud.ASSETS.md. Framework: ClassHud.lua.
@@ -186,6 +186,27 @@ local function create(frame)
     frame.drips:SetBlendMode("ADD")
     frame.drips:SetAlpha(0)
     frame.dripPulse = pulse(frame.drips, -0.55, 0.8)
+    -- Riposte purulente cast (the rotation casts it the moment it is usable): a burst of bile, held, then dripping off
+    frame.dripBurst = frame:CreateTexture(nil, "ARTWORK")
+    frame.dripBurst:SetPoint("CENTER", 0, -8)
+    frame.dripBurst:SetSize(154, 63)
+    setPiece(frame.dripBurst, "bileDrips")
+    frame.dripBurst:SetBlendMode("ADD")
+    frame.dripBurst:SetAlpha(0)
+    frame.riposteBurst = frame.dripBurst:CreateAnimationGroup()
+    local rise = frame.riposteBurst:CreateAnimation("Alpha")
+    rise:SetChange(1)
+    rise:SetDuration(0.1)
+    rise:SetOrder(1)
+    local hold = frame.riposteBurst:CreateAnimation("Alpha")
+    hold:SetChange(0)
+    hold:SetDuration(0.5)
+    hold:SetOrder(2)
+    local drop = frame.riposteBurst:CreateAnimation("Alpha")
+    drop:SetChange(-1)
+    drop:SetDuration(0.8)
+    drop:SetSmoothing("IN")
+    drop:SetOrder(3)
 
     frame.flasks = {}
     for index = 1, 3 do
@@ -246,17 +267,20 @@ local function boilPiece(stacks)
     return "boilFlat"
 end
 
--- A glow and its pulse in or out; was: whether it was shown before (nil: the first draw)
+-- A glow and its pulse in or out; was: whether it was shown before (nil: the first draw); alpha its strength. The
+-- pulse owns the alpha: set first, then the pulse (re)started from it. A fade-in under a starting Alpha animation left
+-- the glow at the 0 it started from on this client - never seen in game.
 local function showGlow(texture, animation, show, was, alpha)
     alpha = alpha or 1
-    if show and not was then
-        UIFrameFadeIn(texture, 0.25, texture:GetAlpha(), alpha)
-        animation:Play()
-    elseif show then
+    if show and (not was or texture.strength ~= alpha) then
+        animation:Stop()
         texture:SetAlpha(alpha)
+        texture.strength = alpha
+        animation:Play()
     elseif not show and was ~= false then
         animation:Stop()
-        UIFrameFadeOut(texture, 0.3, texture:GetAlpha(), 0)
+        texture:SetAlpha(0)
+        texture.strength = nil
     end
 end
 
@@ -312,6 +336,10 @@ local function update(frame, state, previous)
 
     showGlow(frame.glowToxic, frame.toxicPulse, state.avatar, was(before, before and before.avatar))
     showGlow(frame.drips, frame.dripPulse, state.riposte, was(before, before and before.riposte))
+    if before and (state.ripostes > before.ripostes or (state.riposte and not before.riposte)) then
+        frame.riposteBurst:Stop()
+        frame.riposteBurst:Play()
+    end
     showGlow(frame.glowSepulcre, frame.sepulcrePulse, state.sepulcre > 0, was(before, before and before.sepulcre > 0),
         0.35 + 0.65 * math.min(1, state.sepulcre / SEPULCRE_FULL))
 
@@ -344,7 +372,8 @@ local function parse(payload)
     if payload == "-" then
         return { hidden = true }
     end
-    local carapace, chair, peste, pourriture, avatar, riposte, sepulcre, detonations = strsplit(":", payload or "")
+    local carapace, chair, peste, pourriture, avatar, riposte, sepulcre, detonations, ripostes =
+        strsplit(":", payload or "")
     if not detonations then
         return nil
     end
@@ -360,6 +389,7 @@ local function parse(payload)
         riposte = riposte == "1",
         sepulcre = percent(sepulcre),
         detonations = tonumber(detonations) or 0,
+        ripostes = tonumber(ripostes) or 0,
     }
 end
 

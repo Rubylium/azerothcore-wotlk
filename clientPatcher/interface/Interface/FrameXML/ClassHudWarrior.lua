@@ -209,14 +209,17 @@ local function helmetPiece(index, filled, gold)
     return "empty"
 end
 
--- A glow and its pulse in or out; was: whether it was shown before (nil: the first draw)
+-- A glow and its pulse in or out; was: whether it was shown before (nil: the first draw). The pulse owns the alpha:
+-- set first, then the pulse started from it. A fade-in under a starting Alpha animation left the glow at the 0 it
+-- started from on this client - never seen in game.
 local function showGlow(texture, animation, show, was)
     if show and not was then
-        UIFrameFadeIn(texture, 0.25, texture:GetAlpha(), 1)
+        animation:Stop()
+        texture:SetAlpha(1)
         animation:Play()
     elseif not show and was ~= false then
         animation:Stop()
-        UIFrameFadeOut(texture, 0.3, texture:GetAlpha(), 0)
+        texture:SetAlpha(0)
     end
 end
 
