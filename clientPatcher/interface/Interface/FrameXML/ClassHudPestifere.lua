@@ -13,6 +13,11 @@
 
 local ATLAS = "Interface\\ClassHud\\pestifereHudAtlas"
 local ATLAS_WIDTH, ATLAS_HEIGHT = 1024, 512
+-- Avatar de la peste: bubbles boiling up through the liquid (localTools/interface/buildPestifereBoilFlipbook.py),
+-- 28 frames of the flask's 132 x 120, 7 by 4 on a 1024 x 512 sheet; colourless, tinted per plague, drawn additive
+local BOIL_FLIPBOOK = "Interface\\ClassHud\\pestifereBoilFlipbook"
+local BOIL_COLUMNS, BOIL_FRAMES, BOIL_FPS = 7, 28, 14
+local BOIL_CELL_WIDTH, BOIL_CELL_HEIGHT = 132 / 1024, 120 / 512
 
 -- The atlas's pieces: their pixel boxes { left, right, top, bottom }
 local PIECES = {
@@ -39,9 +44,9 @@ local FLASK_OFFSETS = { -40, -2, 36 }
 local LIQUID_TOP, LIQUID_BOTTOM = 43 / 120, 102 / 120
 -- Left to right: the payload's order, the plagues' spell ids'
 local PLAGUES = {
-    { field = "carapace", piece = "flaskBone", name = "Carapace nécrosée" },
-    { field = "chair", piece = "flaskFlesh", name = "Chair putride" },
-    { field = "peste", piece = "flaskBile", name = "Peste virulente" },
+    { field = "carapace", piece = "flaskBone", name = "Carapace nécrosée", tint = { 1, 0.95, 0.78 } },
+    { field = "chair", piece = "flaskFlesh", name = "Chair putride", tint = { 1, 0.5, 0.45 } },
+    { field = "peste", piece = "flaskBile", name = "Peste virulente", tint = { 0.85, 1, 0.3 } },
 }
 local BOIL_SIZE = 12
 local BOIL_Y = -17
@@ -129,13 +134,15 @@ local function createFlask(parent, index)
     flask.flash:SetBlendMode("ADD")
     flask.burst = burst(flask.flash, 0.8, 0.4)
 
-    -- Avatar: boiling over
+    -- Avatar: its liquid boiling, the flipbook played by the frame's driver
     flask.boiling = flask:CreateTexture(nil, "OVERLAY")
     flask.boiling:SetAllPoints()
-    setPiece(flask.boiling, "boiling")
+    flask.boiling:SetTexture(BOIL_FLIPBOOK)
+    flask.boiling:SetTexCoord(0, BOIL_CELL_WIDTH, 0, BOIL_CELL_HEIGHT)
     flask.boiling:SetBlendMode("ADD")
-    flask.boiling:SetAlpha(0)
-    flask.boilPulse = pulse(flask.boiling, -0.5, 0.35)
+    local tint = PLAGUES[index].tint
+    flask.boiling:SetVertexColor(tint[1], tint[2], tint[3])
+    flask.boiling:Hide()
 
     -- Lost (spent by Détonation or Purge cathartique, or run out): its liquid fades upwards
     flask.ghost = flask:CreateTexture(nil, "OVERLAY")
@@ -212,6 +219,18 @@ local function create(frame)
     for index = 1, 3 do
         frame.flasks[index] = createFlask(frame, index)
     end
+    -- The boiling flipbook, one frame for every flask, while Avatar de la peste lasts
+    frame.boilDriver = CreateFrame("Frame", nil, frame)
+    frame.boilDriver:Hide()
+    frame.boilDriver:SetScript("OnUpdate", function(self, elapsed)
+        self.time = (self.time or 0) + elapsed
+        local index = math.floor(self.time * BOIL_FPS) % BOIL_FRAMES
+        local left = (index % BOIL_COLUMNS) * BOIL_CELL_WIDTH
+        local top = math.floor(index / BOIL_COLUMNS) * BOIL_CELL_HEIGHT
+        for _, flask in ipairs(frame.flasks) do
+            flask.boiling:SetTexCoord(left, left + BOIL_CELL_WIDTH, top, top + BOIL_CELL_HEIGHT)
+        end
+    end)
 
     -- The boil in the knot, over the flasks
     local knot = CreateFrame("Frame", nil, frame)
@@ -330,8 +349,17 @@ local function update(frame, state, previous)
                 flask.vanish:Play()
             end
         end
-        showGlow(flask.boiling, flask.boilPulse, state.avatar and left > 0,
-            was(before, before and before.avatar and leftBefore > 0))
+        if state.avatar and left > 0 then
+            flask.boiling:Show()
+        else
+            flask.boiling:Hide()
+        end
+    end
+    if state.avatar and not frame.boilDriver:IsShown() then
+        frame.boilDriver.time = 0
+        frame.boilDriver:Show()
+    elseif not state.avatar then
+        frame.boilDriver:Hide()
     end
 
     showGlow(frame.glowToxic, frame.toxicPulse, state.avatar, was(before, before and before.avatar))
