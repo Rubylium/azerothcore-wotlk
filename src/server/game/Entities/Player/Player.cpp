@@ -6792,7 +6792,6 @@ void Player::_ApplyItemMods(Item* item, uint8 slot, bool apply)
         CorrectMetaGemEnchants(slot, apply);
 
     _ApplyItemBonuses(proto, slot, apply);
-    sScriptMgr->OnPlayerAfterApplyItemBonuses(this, item, slot, apply);
 
     if (slot == EQUIPMENT_SLOT_RANGED)
         _ApplyAmmoBonuses();
@@ -7113,6 +7112,12 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
         if (feral_bonus)
             ApplyFeralAPBonus(feral_bonus, apply);
     }
+
+    // A module's per-copy bonuses, here so they come and go on every path the template's take: equipping
+    // (_ApplyItemMods) and the whole set at login, death or a stat rebuild (_ApplyAllItemMods, _RemoveAllItemMods)
+    if (!only_level_scale)
+        if (Item* item = m_items[slot]; item && item->GetTemplate() == proto)
+            sScriptMgr->OnPlayerAfterApplyItemBonuses(this, item, slot, apply);
 }
 
 void Player::_ApplyWeaponDamage(uint8 slot, ItemTemplate const* proto, ScalingStatValuesEntry const* ssv, bool apply)

@@ -90,10 +90,15 @@ local function Write(tooltip, copy)
     if not legendary then
         return
     end
-    local layout = EvolutionsTooltip
-    if layout and layout.SetSource then
-        layout.SetSource(tooltip, legendary.source, 1, 0.5, 0)
+    -- Added after the stock lines, never moved among them: the sell price's coins hang on their line and stayed
+    -- behind when lines moved. The sell price itself goes last, after the rolls.
+    local name = tooltip:GetName()
+    local money = name and _G[name .. "MoneyFrame1"]
+    local price = money and money:IsShown() and money.staticMoney
+    if price and GameTooltip_ClearMoney then
+        GameTooltip_ClearMoney(tooltip)
     end
+    tooltip:AddLine(legendary.source, 1, 0.5, 0)
     tooltip:AddLine(format(TEXT.itemLevel, copy.itemLevel), 1, 0.82, 0)
     if copy.armor > 0 then
         tooltip:AddLine(format(ARMOR_TEMPLATE, copy.armor), 1, 1, 1)
@@ -114,6 +119,9 @@ local function Write(tooltip, copy)
         1, 0.5, 0)
     tooltip:AddLine(format(TEXT.window, Percent(copy.low), Percent(copy.high)), 0.6, 0.6, 0.6)
     tooltip:AddLine(Wrapped(legendary.lore), 1, 0.82, 0)
+    if price and SetTooltipMoney then
+        SetTooltipMoney(tooltip, price, nil, format("%s:", SELL_PRICE))
+    end
 end
 
 -- Where a tooltip's item sits, as the server counts it: "bag:slot" (bag 255 the character's own slots: worn 0-18,

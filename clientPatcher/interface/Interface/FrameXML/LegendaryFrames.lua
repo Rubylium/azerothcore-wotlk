@@ -133,7 +133,6 @@ local PIECES = {
     corner = { 0, 128, 0, 128 },
     topCrest = { 128, 320, 0, 96 },
     bottomCrest = { 320, 512, 0, 96 },
-    titlePlate = { 128, 384, 96, 144 },
     across = { 128, 256, 144, 168 },
     down = { 0, 24, 128, 256 },
 }
@@ -202,14 +201,7 @@ local function CreateDress(tooltip, art)
     foot:SetSize(Size(PIECES.bottomCrest))
     foot:SetPoint("CENTER", dress, "BOTTOM", 0, EDGE)
 
-    -- The title's band: on the tooltip itself, under its text
-    local plate = Piece(tooltip, "BACKGROUND", art, PIECES.titlePlate)
-    plate:SetPoint("TOPLEFT", tooltip, "TOPLEFT", 6, -6)
-    plate:SetPoint("TOPRIGHT", tooltip, "TOPRIGHT", -6, -6)
-    plate:SetHeight(26)
-    dress.plate = plate
     dress:Hide()
-    plate:Hide()
     return dress
 end
 
@@ -217,7 +209,6 @@ local function Undress(tooltip)
     local dress = tooltip.legendaryDress
     if not dress or not dress:IsShown() then return end
     dress:Hide()
-    dress.plate:Hide()
     local border = tooltip.legendaryBorder
     if border then
         tooltip:SetBackdropBorderColor(border[1], border[2], border[3], border[4])
@@ -256,7 +247,6 @@ local function Dress(tooltip)
     tooltip:SetBackdropBorderColor(r, g, b, 0)
     dress:SetFrameLevel(tooltip:GetFrameLevel() + 2)
     dress:Show()
-    dress.plate:Show()
 end
 
 for _, name in ipairs({ "GameTooltip", "ItemRefTooltip", "ShoppingTooltip1", "ShoppingTooltip2", "ShoppingTooltip3" }) do
