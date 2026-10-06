@@ -189,7 +189,11 @@ localTools/interface/cache/
 /localTools/retailImport/.deps/
 /localTools/retailImport/RetailImport/bin/
 /localTools/retailImport/RetailImport/obj/
+# Incremental client generation and launcher payload/bundles
+/clientPatcher/.build/
 # The deploy window's Discord webhook (localTools/deployDiscord.ps1): a secret
 /localTools/deploy.local.json
+# Launcher release notification webhook
+/clientPatcher/release.local.json
 # buildBlueEffects.py: what its last build made from which inputs
 /localTools/oathblade/.cache/

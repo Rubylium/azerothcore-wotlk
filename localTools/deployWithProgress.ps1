@@ -58,14 +58,17 @@ $catalog = [ordered]@{
         Script = Join-Path $repoRoot 'clientPatcher\Build-FriendPatch.ps1'; Arguments = @(); NeedsWowClosed = $true
         Markers = @(
             (Marker 'Compiling custom icons' 'Icônes des sorts'), (Marker 'Patching spell data' 'Données des sorts'),
-            (Marker 'Building patch-Z.MPQ' 'Archive patch-Z'), (Marker 'Generating custom classes' 'Classes'),
+            (Marker 'Compiling Paragon node icons' 'Icônes du parangon'), (Marker 'Generating custom classes' 'Classes'),
             (Marker 'Generating talent trees' 'Arbres de talents'),
             (Marker 'Generating the Wow.exe' 'Patchs de Wow.exe'),
-            (Marker 'Painting custom class icons' 'Icônes de classe'), (Marker 'Compiling Evolutions Glue' 'Logo'),
-            (Marker 'Compiling Paragon node icons' 'Icônes du parangon'),
+            (Marker 'Painting custom class icons' 'Icônes de classe'), (Marker 'Cached classData' 'Données inchangées'),
+            (Marker 'Building patch-Z.MPQ' 'Archive patch-Z'), (Marker 'Compiling Evolutions Glue' 'Logo'),
+            (Marker 'Cached glueLogo' 'Logo inchangé'),
             (Marker 'Compiling Paragon interface art' 'Plateau du parangon'),
-            (Marker 'Compiling talent tree art' 'Art des talents'), (Marker 'Building interface patches' 'Interface'),
-            (Marker 'Patch created' 'Archive finale'))
+            (Marker 'Cached paragonArt' 'Plateau inchangé'), (Marker 'Compiling talent tree art' 'Art des talents'),
+            (Marker 'Cached talentArt' 'Art des talents inchangé'), (Marker 'Building interface patches' 'Interface'),
+            (Marker 'Cached interfacePatches' 'Interface inchangée'),
+            (Marker 'Client build ready' 'Client prêt'))
     }
     restart = @{
         Label = 'Redémarrage du serveur'; Caption = 'Installation et relance'; Expected = 60; Initial = 'Préparation'
@@ -79,7 +82,7 @@ $catalog = [ordered]@{
         Label = 'Publication'; Caption = 'Nouvelle version du lanceur'; Expected = 90; Initial = 'Préparation'
         Script = Join-Path $repoRoot 'clientPatcher\Publish-Release.ps1'; Arguments = @('-skipBuild')
         Markers = @(
-            (Marker 'Package:' 'Paquet'), (Marker 'Building the launcher' 'Lanceur'),
+            (Marker 'Payload:' 'Fichiers client'), (Marker 'Building the launcher' 'Lanceur'),
             (Marker 'Publishing v' 'Envoi sur GitHub'), (Marker 'Published:' 'Publié'))
     }
 }

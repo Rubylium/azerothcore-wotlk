@@ -5,7 +5,7 @@ param(
     # for the realm card's status. It used to default to empty, which left every release without an address:
     # the realm card could only ever say "Adresse inconnue". Pass '' to leave players' clients as they are.
     [string]$realmlist = '87.91.69.235',
-    # Publish the newest package in dist instead of building a new one
+    # Publish the completed .build/current payload instead of building a new one
     [switch]$skipBuild,
     # Publish this package from dist (e.g. CustomWotLKClientPatch-1.0.24.zip): a launcher-only release keeps the
     # client files the players already have. Implies -skipBuild.
@@ -13,7 +13,9 @@ param(
     [string]$repository = 'Rubylium/Evolutions',
     # Publish an existing package even though sources have changed since it was built. Only for deliberately
     # re-releasing an older client build; it is never the right answer to a build that just failed.
-    [switch]$allowStale
+    [switch]$allowStale,
+    # Prepare release assets and manifest without creating a GitHub release.
+    [switch]$prepareOnly
 )
 
 # Publishes a release that the Evolutions launcher installs from.
@@ -34,40 +36,18 @@ $work = Join-Path $patcherRoot '.release'
 
 $removedAddons = @('Atlas', 'Atlas_Battlegrounds', 'Atlas_DungeonLocs', 'Atlas_OutdoorRaids', 'Atlas_Transportation')
 
-Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
-
-# A zip whose bytes depend only on the folder's content: entries sorted, every date fixed. Unchanged content gives
-# the very same file, so it is neither uploaded nor downloaded again.
-function New-DeterministicZip([string]$folder, [string]$zipPath) {
-    $fixedDate = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
-    $entries = Get-ChildItem -LiteralPath $folder -File -Recurse | ForEach-Object {
-        [pscustomobject]@{ Name = $_.FullName.Substring($folder.Length + 1).Replace('\', '/'); Path = $_.FullName }
-    } | Sort-Object Name -CaseSensitive
-    $zip = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
-    try {
-        foreach ($item in $entries) {
-            $entry = $zip.CreateEntry($item.Name, [IO.Compression.CompressionLevel]::Optimal)
-            $entry.LastWriteTime = $fixedDate
-            $output = $entry.Open()
-            try {
-                $source = [IO.File]::OpenRead($item.Path)
-                try { $source.CopyTo($output) } finally { $source.Dispose() }
-            }
-            finally {
-                $output.Dispose()
-            }
-        }
-    }
-    finally {
-        $zip.Dispose()
-    }
-}
+$repoRoot = Split-Path -Parent $patcherRoot
+$buildRoot = Join-Path $patcherRoot '.build'
+$buildCacheRoot = Join-Path $buildRoot 'cache'
+. (Join-Path $patcherRoot 'build/BuildCache.ps1')
+. (Join-Path $patcherRoot 'build/ClientInputs.ps1')
+. (Join-Path $patcherRoot 'build/ReleaseBundles.ps1')
+. (Join-Path $patcherRoot 'Send-ReleaseDiscord.ps1')
 
 # Refuses to publish a package that no longer matches the sources it was built from.
 #
-# -skipBuild takes the newest zip in dist, and a build that FAILS leaves no new zip - so without this the
-# newest one is the previous build and it goes out as a new release carrying the old client, silently. The
-# same check catches the other way of getting there: editing a file and forgetting to build at all.
+# Legacy archives have no source fingerprints. Keep their original timestamp guard for explicit rollbacks;
+# normal -skipBuild releases use Assert-ClientBuildReady instead.
 function Assert-PackageIsCurrent([IO.FileInfo]$package) {
     $roots = @('interface', 'addons', 'assets', 'vendor') |
         ForEach-Object { Join-Path $patcherRoot $_ } |
@@ -112,38 +92,29 @@ function Invoke-Gh {
     }
 }
 
-if (Test-Path -LiteralPath $work) {
-    Remove-Item -LiteralPath $work -Recurse -Force
+if (-not $packageName -and -not $skipBuild) {
+    & (Join-Path $patcherRoot 'Build-FriendPatch.ps1')
 }
-$payloadRoot = Join-Path $work 'package'
+$buildLock = Open-BuildLock $buildRoot
+try {
+Remove-BuildDirectory $work $patcherRoot
 $uploadRoot = Join-Path $work 'upload'
-New-Item -ItemType Directory -Path $payloadRoot, $uploadRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $uploadRoot -Force | Out-Null
 
-# 1. The client package
+# Normal releases consume the staged payload directly. Explicit old ZIPs remain readable for rollback.
 if ($packageName) {
     $package = Get-Item -LiteralPath (Join-Path (Join-Path $patcherRoot 'dist') $packageName)
+    if (-not $allowStale) { Assert-PackageIsCurrent $package }
+    else { Write-Warning "Publishing an older package without source validation: $packageName" }
+    $payloadRoot = Join-Path $work 'package'
+    Expand-Archive -LiteralPath $package.FullName -DestinationPath $payloadRoot
 }
 else {
-    if (-not $skipBuild) {
-        & (Join-Path $patcherRoot 'Build-FriendPatch.ps1')
-    }
-    $package = Get-ChildItem -LiteralPath (Join-Path $patcherRoot 'dist') -Filter 'CustomWotLKClientPatch-*.zip' |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $package) {
-        throw 'No package in dist: run without -skipBuild.'
-    }
+    # A missing ready record (including a failed build) is never bypassed by -allowStale.
+    $ready = Assert-ClientBuildReady $buildRoot
+    $payloadRoot = Join-Path $buildRoot 'current'
 }
-if ($packageName -or $skipBuild) {
-    if ($allowStale) {
-        Write-Warning "Publishing $($package.Name) without checking it against the sources (-allowStale)."
-    }
-    else {
-        Assert-PackageIsCurrent $package
-    }
-}
-
-Write-Host "Package: $($package.Name)"
-Expand-Archive -LiteralPath $package.FullName -DestinationPath $payloadRoot
+Write-Host "Payload: $payloadRoot"
 
 # 2. The launcher, built again when a source of it is newer than the one built (a release of client files alone
 # needs no .NET SDK: one update of .NET took the SDK away and held every release)
@@ -171,8 +142,9 @@ $previousTag = $null
 # non-JSON token and the publish stops before a release exists.
 $releaseJson = & $gh release list --repo $repository --limit 1 --json tagName,isLatest 2>&1 |
     Where-Object { $_ -is [string] }
+if ($LASTEXITCODE -ne 0) { throw 'Could not read the existing GitHub releases.' }
 $releases = $null
-if ($LASTEXITCODE -eq 0 -and $releaseJson) {
+if ($releaseJson) {
     $releases = @(($releaseJson -join "`n") | ConvertFrom-Json)
 }
 if ($releases) {
@@ -224,12 +196,11 @@ function Publish-File([string]$path) {
 # Each addon ships as one zip (a release holds at most 1000 files, and addons carry thousands); the rest file by file
 $payloadFiles = Join-Path $payloadRoot 'payload'
 $addonRoot = Join-Path $payloadFiles 'Interface\AddOns'
-$bundleRoot = Join-Path $work 'bundles'
+$bundleRoot = Join-Path $buildRoot 'bundles'
 New-Item -ItemType Directory -Path $bundleRoot -Force | Out-Null
 
 $bundles = foreach ($folder in (Get-ChildItem -LiteralPath $addonRoot -Directory | Sort-Object Name)) {
-    $zipPath = Join-Path $bundleRoot ($folder.Name + '.zip')
-    New-DeterministicZip $folder.FullName $zipPath
+    $zipPath = Get-CachedAddonBundle $folder.FullName $bundleRoot
     $entry = Publish-File $zipPath
     $entry.Folder = 'Interface/AddOns/' + $folder.Name
     $entry
@@ -273,12 +244,13 @@ $manifest = [ordered]@{
 if ($previous) {
     $same = ($previous.Launcher.Sha256 -eq $launcherSha) -and ($previous.Realmlist -eq $realmlist) -and
         ($previous.WowExePatch.Sha256 -eq $manifest.WowExePatch.Sha256) -and
+        (@($previous.RemovedAddons) -join '|') -eq ($removedAddons -join '|') -and
         (($previous.Files | ForEach-Object { "$($_.Path)=$($_.Sha256)" }) -join '|') -eq
         (($manifest.Files | ForEach-Object { "$($_.Path)=$($_.Sha256)" }) -join '|') -and
         (($previous.Bundles | ForEach-Object { "$($_.Folder)=$($_.Sha256)" }) -join '|') -eq
         (($manifest.Bundles | ForEach-Object { "$($_.Folder)=$($_.Sha256)" }) -join '|') -and
         (ConvertTo-Json @($previous.News) -Depth 4 -Compress) -eq (ConvertTo-Json @($news) -Depth 4 -Compress)
-    if ($same) {
+    if ($same -and -not $prepareOnly) {
         Write-Host "Nothing changed since ${previousTag}: no release published."
         return
     }
@@ -290,11 +262,23 @@ $uploads.Add($manifestPath)
 
 # 5. The release
 $newBytes = ($uploads | ForEach-Object { (Get-Item $_).Length } | Measure-Object -Sum).Sum
-Write-Host ("Publishing {0}: {1} files, {2} addons, {3} uploaded ({4:N1} MB)" -f $tag, $manifest.Files.Count,
+Write-Host ("Publishing {0}: {1} files, {2} addons, {3} assets to upload ({4:N1} MB)" -f $tag, $manifest.Files.Count,
     $manifest.Bundles.Count, $uploads.Count, ($newBytes / 1MB))
+if ($prepareOnly) {
+    Write-Host "Prepared only: $uploadRoot"
+    return
+}
+# Sources may have been edited while the launcher/bundles were being prepared.
+if (-not $packageName) { $null = Assert-ClientBuildReady $buildRoot }
 $releaseNotesPath = Join-Path $work 'release-notes.txt'
 [IO.File]::WriteAllText($releaseNotesPath, '', [Text.UTF8Encoding]::new($false))
 Invoke-Gh release create $tag @uploads --repo $repository --title $tag --notes-file $releaseNotesPath --latest
 
 Write-Host "Published: https://github.com/$repository/releases/tag/$tag"
 Write-Host "Launcher:  https://github.com/$repository/releases/latest/download/Evolutions.exe"
+Send-ReleaseDiscord $version
+}
+finally {
+    Save-FileHashCache
+    $buildLock.Dispose()
+}

@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 const { Archive } = require('@jamiephan/stormlib');
 const { addOptions } = require('./patchFiles');
+const { archiveCache } = require('./archiveCache');
 
 // Builds the client interface patches from clientPatcher/interface and clientPatcher/vendor:
 // - Data/<locale>/patch-<locale>-R.MPQ: the retail glue package (clientPatcher/vendor/retail-glue, Noa-1995's
@@ -66,13 +67,13 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'PostProcessing.lua',
     // The action buttons' spell states (greyed out of the server's rules, proc glows); needs TalentTree.lua
     'SpellStates.lua',
-    // The Effects panel's view distance, objects' detail and grass past the stock limits, with the game's memory
     // The class HUD (a class's own resource, draggable; .agents/docs/systems/class-hud.md), then each class's own
     'ClassHud.lua', 'ClassHudReaper.lua',
     // Our own sound engine (the client extension DLL's EvolutionsAudio): the server's sounds, the place's acoustics
     'EvolutionsAudio.lua',
     // A boss's loot on the floor (mod-stat-growth GroundLoot.cpp): the item's tooltip over its bag; needs GameTooltip
     'GroundLoot.lua',
+    // The Effects panel's view distance, objects' detail and grass past the stock limits, with the game's memory
     'WorldDetailUI.lua'];
 
 function readArchiveFile(archivePath, name) {
@@ -130,6 +131,11 @@ function mergeByArchive(...lists) {
 }
 
 function writeArchive(outputPath, files) {
+    const cache = archiveCache(outputPath, files, __filename);
+    if (cache.current) {
+        console.log(`Cached ${outputPath} (${files.length} files)`);
+        return;
+    }
     for (const file of files) {
         if (!fs.existsSync(file.source)) {
             throw new Error(`Missing patch source: ${file.source}`);
@@ -156,6 +162,7 @@ function writeArchive(outputPath, files) {
         verification.close();
     }
     console.log(`Built ${outputPath} (${files.length} files)`);
+    cache.save();
 }
 
 // --- patch-<locale>-R: interface ---

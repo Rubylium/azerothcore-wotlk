@@ -6,7 +6,8 @@ param(
     # Reuse the installed glue/interface MPQs. Useful while WoW has its stock locale archives locked.
     [switch]$skipInterfacePatches,
     # awesome_wotlk (github.com/Rubylium/awesome_wotlk), built: MSDF font rendering and client fixes
-    [string]$awesomeWotlkPath = 'C:\Users\alexi\Documents\GitHub\awesome_wotlk'
+    [string]$awesomeWotlkPath = 'C:\Users\alexi\Documents\GitHub\awesome_wotlk',
+    [switch]$forceRebuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,151 +23,41 @@ if (-not $skipInterfacePatches -and $wotlkRunning) {
 }
 $patcherRoot = $PSScriptRoot
 $repoRoot = Split-Path -Parent $patcherRoot
+$buildRoot = Join-Path $patcherRoot '.build'
+$buildCacheRoot = Join-Path $buildRoot 'cache'
+. (Join-Path $patcherRoot 'build/BuildCache.ps1')
+. (Join-Path $patcherRoot 'build/ClientInputs.ps1')
+. (Join-Path $patcherRoot 'build/ClientGeneration.ps1')
+. (Join-Path $patcherRoot 'build/ClientPayload.ps1')
+$buildLock = Open-BuildLock $buildRoot
+$previousForce = $env:EVOLUTIONS_FORCE_REBUILD
+try {
+if ($forceRebuild) { $env:EVOLUTIONS_FORCE_REBUILD = '1' }
+$readyPath = Join-Path $buildRoot 'ready.json'
+# Invalidate before touching any output: a failed build must never be publishable.
+if (Test-Path -LiteralPath $readyPath) { Remove-Item -LiteralPath $readyPath -Force }
 $templatePath = Join-Path $patcherRoot 'template'
-$distPath = Join-Path $patcherRoot 'dist'
-$stagePath = Join-Path $patcherRoot '.stage'
+$stagePath = Join-Path $buildRoot 'current'
 $payloadPath = Join-Path $stagePath 'payload'
-$clientMpqPath = Join-Path $clientPath 'Data\patch-Z.MPQ'
-$packageMpqPath = $clientMpqPath
-
+$clientMpqPath = Join-Path $clientPath 'Data/patch-Z.MPQ'
+$builtMpqPath = Join-Path $repoRoot 'localTools/mpq-builder/patch-Z.MPQ'
+$packageMpqPath = if ($skipSpellData) { $clientMpqPath } else { $builtMpqPath }
 if (-not (Test-Path -LiteralPath (Join-Path $clientPath 'Wow.exe'))) {
     throw "WotLK client not found at: $clientPath"
 }
-
-# Default version: bump the patch number of the newest x.y.z package in dist
 if ([string]::IsNullOrWhiteSpace($version)) {
-    $latest = Get-ChildItem -LiteralPath $distPath -Filter 'CustomWotLKClientPatch-*.zip' -File -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            if ($_.BaseName -match '^CustomWotLKClientPatch-(\d+)\.(\d+)\.(\d+)$') {
-                [version]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
-            }
-        } |
-        Sort-Object -Descending |
-        Select-Object -First 1
+    $current = Read-BuildJson (Join-Path $stagePath 'manifest.json')
+    $latest = if ($current) { [version]$current.version } else {
+        Get-ChildItem (Join-Path $patcherRoot 'dist') -Filter 'CustomWotLKClientPatch-*.zip' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.BaseName -match '^CustomWotLKClientPatch-\d+\.\d+\.\d+$' } |
+            ForEach-Object { [version]($_.BaseName -replace '^CustomWotLKClientPatch-', '') } |
+            Sort-Object -Descending | Select-Object -First 1
+    }
     $version = if ($latest) { "$($latest.Major).$($latest.Minor).$($latest.Build + 1)" } else { '1.0.0' }
 }
-
-# Regenerate custom spell data (Spell.dbc, SkillLineAbility.dbc, SpellIcon.dbc) and rebuild patch-Z.MPQ,
-# so every spell change made in localTools/patchSinisterStrike.ps1 is part of the package.
-if (-not $skipSpellData) {
-    $mpqBuilderPath = Join-Path $repoRoot 'localTools\mpq-builder'
-    $builtMpqPath = Join-Path $mpqBuilderPath 'patch-Z.MPQ'
-
-    Write-Host 'Compiling custom icons...'
-    & (Join-Path $repoRoot 'localTools\buildRogueClientAssets.ps1')
-    & (Join-Path $repoRoot 'localTools\buildPestifereClientAssets.ps1')
-    & (Join-Path $repoRoot 'localTools\buildNecromancerClientAssets.ps1')
-
-    Write-Host 'Patching spell data...'
-    & (Join-Path $repoRoot 'localTools\patchSinisterStrike.ps1')
-
-    Write-Host 'Building patch-Z.MPQ...'
-    Push-Location $mpqBuilderPath
-    try {
-        & node buildPatch.js $builtMpqPath | Out-Host
-        if ($LASTEXITCODE -ne 0) {
-            throw "patch-Z.MPQ build failed (exit $LASTEXITCODE)."
-        }
-    }
-    finally {
-        Pop-Location
-    }
-
-    # Always package the freshly built MPQ, even when the running client has its installed copy locked.
-    $packageMpqPath = $builtMpqPath
-    try {
-        Copy-Item -LiteralPath $builtMpqPath -Destination $clientMpqPath -Force -ErrorAction Stop
-        Write-Host "Installed client patch: $clientMpqPath"
-    }
-    catch [System.IO.IOException] {
-        $pendingMpqPath = Join-Path $clientPath '_pending\patch-Z.MPQ'
-        New-Item -ItemType Directory -Path (Split-Path -Parent $pendingMpqPath) -Force | Out-Null
-        Copy-Item -LiteralPath $builtMpqPath -Destination $pendingMpqPath -Force
-        Write-Warning "WoW is using patch-Z.MPQ. The updated patch was staged at: $pendingMpqPath"
-    }
-}
-
-# Custom playable classes: regenerates the class DBCs (client copies land in clientPatcher/interface, server
-# copies in the worldserver dbc folder), the world SQL and the client class table used by the interface files.
-Write-Host 'Generating custom classes...'
-& python (Join-Path $repoRoot 'localTools\customClasses\buildCustomClasses.py') --client $clientPath | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Custom class generation failed (exit $LASTEXITCODE)."
-}
-
-# Retail-style talent trees (a class with `talentTree` in classes.json): the world SQL the server reads and the
-# client's copy of the trees. Needs the Spell.dbc patchSinisterStrike.ps1 wrote: it checks every rank exists.
-Write-Host 'Generating talent trees...'
-& python (Join-Path $repoRoot 'localTools\talentTree\buildTalentTree.py') | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Talent tree generation failed (exit $LASTEXITCODE)."
-}
-
-# Every change made to Wow.exe, applied by the installer through Patch-WowExe.ps1: the awesome_wotlk loader (its
-# bytes read from the fork's Patch.h) and the Dungeon Finder roles of the custom classes
-Write-Host 'Generating the Wow.exe patches...'
-& python (Join-Path $repoRoot 'localTools\clientExe\buildWowExePatch.py') --awesome-wotlk $awesomeWotlkPath | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Wow.exe patch generation failed (exit $LASTEXITCODE)."
-}
-
-# The custom classes' icons, painted into Details' class icon sheet (it has no cell for a class it does not know)
-Write-Host 'Painting custom class icons for Details...'
-& python (Join-Path $repoRoot 'localTools\interface\buildDetailsClassIcons.py') --client $clientPath | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Details class icon generation failed (exit $LASTEXITCODE)."
-}
-
-# Interface patches: RetailUI windows + Shadowlands character creation (patch-<locale>-R) and the Shadowlands
-# login screen assets with the custom menu music (patch-L). Built straight into the client folder.
-if (-not $skipInterfacePatches) {
-    Write-Host 'Compiling Evolutions Glue-screen logo...'
-    & python (Join-Path $repoRoot 'localTools\interface\buildGlueLogo.py') | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "Evolutions logo build failed (exit $LASTEXITCODE)."
-    }
-
-    Write-Host 'Compiling Paragon node icons...'
-    & python (Join-Path $repoRoot 'localTools\paragon\buildParagonIcons.py') | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "Paragon node icon build failed (exit $LASTEXITCODE)."
-    }
-
-    Write-Host 'Compiling Paragon interface art...'
-    & python (Join-Path $repoRoot 'localTools\interface\buildParagonArt.py') | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "Paragon art build failed (exit $LASTEXITCODE)."
-    }
-
-    Write-Host 'Compiling talent tree art...'
-    & python (Join-Path $repoRoot 'localTools\interface\buildTalentTreeArt.py') --client $clientPath | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "Talent tree art build failed (exit $LASTEXITCODE)."
-    }
-
-    Write-Host 'Building interface patches...'
-    Push-Location (Join-Path $repoRoot 'localTools\mpq-builder')
-    try {
-        & node buildInterfacePatch.js --client $clientPath | Out-Host
-        if ($LASTEXITCODE -ne 0) {
-            throw "Interface patch build failed (exit $LASTEXITCODE). Close WoW if it holds the patch files."
-        }
-    }
-    finally {
-        Pop-Location
-    }
-}
-else {
-    Write-Host 'Reusing installed interface patches.'
-}
-
-if (Test-Path -LiteralPath $stagePath) {
-    Remove-Item -LiteralPath $stagePath -Recurse -Force
-}
-
+Invoke-ClientGeneration
 New-Item -ItemType Directory -Path $payloadPath -Force | Out-Null
-New-Item -ItemType Directory -Path $distPath -Force | Out-Null
-Copy-Item -Path (Join-Path $templatePath '*') -Destination $stagePath -Recurse -Force
+Copy-BuildFile (Join-Path $templatePath 'WowExePatch.json') (Join-Path $stagePath 'WowExePatch.json')
 
 $sources = @(
     'Data\patch-Z.MPQ',
@@ -220,6 +111,7 @@ $externalSources = @{
 }
 
 $repoAddonPath = Join-Path $patcherRoot 'addons'
+$payloadSources = @{}
 foreach ($relativePath in $sources) {
     $repoSourcePath = Join-Path $repoAddonPath ($relativePath -replace '^Interface\\AddOns\\', '')
     $sourcePath = if ($relativePath -eq 'Data\patch-Z.MPQ') {
@@ -243,27 +135,15 @@ foreach ($relativePath in $sources) {
         throw "Required client patch source is missing: $sourcePath"
     }
 
-    $destinationPath = Join-Path $payloadPath $relativePath
-    New-Item -ItemType Directory -Path (Split-Path -Parent $destinationPath) -Force | Out-Null
-    Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Recurse -Force
+    Add-PayloadSource $payloadSources $sourcePath $relativePath
 }
-
-$excludedDirectoryNames = @('.git', '.kilo', '.vscode', '.idea', 'node_modules')
-Get-ChildItem -LiteralPath $payloadPath -Directory -Recurse -Force |
-    Where-Object { $_.Name -in $excludedDirectoryNames } |
-    Sort-Object { $_.FullName.Length } -Descending |
-    Remove-Item -Recurse -Force
-
-$excludedFilePatterns = @('*.bak', '*.tmp', '*.log')
-foreach ($pattern in $excludedFilePatterns) {
-    Get-ChildItem -LiteralPath $payloadPath -File -Recurse -Force -Filter $pattern | Remove-Item -Force
-}
+Sync-ClientPayload $payloadSources $payloadPath
 
 $files = Get-ChildItem -LiteralPath $payloadPath -File -Recurse | Sort-Object FullName | ForEach-Object {
     [ordered]@{
         path = $_.FullName.Substring($payloadPath.Length + 1).Replace('\', '/')
         size = $_.Length
-        sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+        sha256 = Get-CachedFileHash $_.FullName
     }
 }
 
@@ -277,23 +157,18 @@ $manifest = [ordered]@{
 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stagePath 'manifest.json') -Encoding UTF8
 
-$archivePath = Join-Path $distPath "CustomWotLKClientPatch-$version.zip"
-if (Test-Path -LiteralPath $archivePath) {
-    Remove-Item -LiteralPath $archivePath -Force
+Write-BuildJson $readyPath @{
+    version = $version
+    clientPath = $clientPath
+    awesomeWotlkPath = $awesomeWotlkPath
+    sources = (Get-ClientReleaseFingerprint)
+    payload = (Get-BuildFingerprint @($stagePath))
 }
-
-Compress-Archive -Path (Join-Path $stagePath '*') -DestinationPath $archivePath -CompressionLevel Optimal
-$archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
-Remove-Item -LiteralPath $stagePath -Recurse -Force
-
-Write-Host "Patch created: $archivePath"
-Write-Host "SHA256: $archiveHash"
-
-# Only the newest packages stay in dist: every release is on GitHub, and one package per build grew dist past 35 GB.
-# The newest one numbers the next build (above) and is what Publish-Release.ps1 -skipBuild sends.
-$keepPackages = 3
-Get-ChildItem -LiteralPath $distPath -Filter 'CustomWotLKClientPatch-*.zip' -File |
-    Where-Object { $_.BaseName -match '^CustomWotLKClientPatch-(\d+)\.(\d+)\.(\d+)$' } |
-    Sort-Object { [version]($_.BaseName -replace '^CustomWotLKClientPatch-', '') } -Descending |
-    Select-Object -Skip $keepPackages |
-    Remove-Item -Force
+Write-Host "Client build ready: $version"
+Write-Host "Payload: $payloadPath"
+}
+finally {
+    $env:EVOLUTIONS_FORCE_REBUILD = $previousForce
+    Save-FileHashCache
+    $buildLock.Dispose()
+}

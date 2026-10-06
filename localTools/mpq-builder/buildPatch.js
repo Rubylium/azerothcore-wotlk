@@ -4,10 +4,16 @@ const path = require('path');
 const { Archive } = require('@jamiephan/stormlib');
 
 const { addOptions, getPatchFiles } = require('./patchFiles');
+const { archiveCache } = require('./archiveCache');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const outputPath = process.argv[2] || path.join(__dirname, 'patch-Z.MPQ');
 const files = getPatchFiles(repoRoot);
+const cache = archiveCache(outputPath, files, __filename);
+if (cache.current) {
+    console.log(`Cached ${outputPath}`);
+    process.exit(0);
+}
 
 for (const file of files) {
     if (!fs.existsSync(file.source)) {
@@ -52,3 +58,4 @@ try {
 }
 
 console.log(JSON.stringify({ outputPath, files: results }, null, 2));
+cache.save();
