@@ -1,46 +1,42 @@
--- The Gladiateur's HUD (mod-warrior, the Warrior's fourth specialization): a bronze arena shield, a gladius behind it.
--- Its rim fills with the blood of Plaie du gladiateur on the target - full when Execute is worth cashing it in, the rim
--- then glowing; its boss is Revenge - gold under Ouverture, cracked red with Garde brisée; the thumbs-down medallion is
--- Execute - lit while the target bleeds, burning under Coup de grâce, a laurel of light and embers around the shield.
--- Shield Slam brought back rings out of the boss; the crossed gladii on top light during Duel. Fed by the server's
+-- The Gladiateur's HUD (mod-warrior, the Warrior's fourth specialization), on the Faucheur's model: two gladii lying
+-- mirrored, three gladiator's helmets over them. The helmets fill with the blood of Plaie du gladiateur on the target -
+-- each one a third of the way to "ripe", the next one by thirds - and at three full helmets a crimson glow beats behind
+-- them: Execute is worth cashing the bleed in. Under Coup de grâce they turn molten gold, a gold glow and energy along
+-- the blades. The jewel in the gladii's boss is Revenge: gold under Ouverture, cracked red with Garde brisée; Shield
+-- Slam coming back rings out of it. Fed by the server's
 -- "GLADIATOR\t<bleed %>:<opening>:<broken guard>:<execute>:<coup de grace>:<duel>:<resets>" (modules/mod-warrior), or
--- "GLADIATOR\t-" for any other Warrior: the HUD hides. Art: clientPatcher/assets/gladiatorHud (its assetManifest.json
--- gives the placements below, on the shield's 512 canvas). Framework: ClassHud.lua.
+-- "GLADIATOR\t-" for any other Warrior: the HUD hides. Art: clientPatcher/assets/gladiatorHud/v2 (its
+-- assetManifest.json gives the boxes and placements below). Framework: ClassHud.lua.
 
-local ROOT = "Interface\\ClassHud\\"
-local CANVAS = 512
-local SIZE = 120
-local SCALE = SIZE / CANVAS
+local ATLAS = "Interface\\ClassHud\\gladiatorHudV2Atlas"
+local SHOCKWAVE = "Interface\\ClassHud\\gladiatorShockwave"
+local ATLAS_WIDTH, ATLAS_HEIGHT = 1024, 512
 
--- Placements on the canvas: centres and sizes
-local BOSS = { 256, 253, 128 }
-local MEDALLION = { 373, 364, 56 }
-local DUEL = { 256, 36, 96, 48 }
+-- The atlas's pieces: their pixel boxes { left, right, top, bottom }
+local PIECES = {
+    frame = { 0, 512, 0, 224 },
+    bladeEnergy = { 512, 1024, 0, 224 },
+    empty = { 0, 152, 228, 336 },
+    oneThird = { 156, 308, 228, 336 },
+    twoThirds = { 312, 464, 228, 336 },
+    full = { 468, 620, 228, 336 },
+    gold = { 624, 776, 228, 336 },
+    glowCrimson = { 0, 212, 340, 448 },
+    glowGold = { 216, 428, 340, 448 },
+    jewelDark = { 432, 496, 340, 404 },
+    jewelGold = { 500, 564, 340, 404 },
+    jewelCrack = { 568, 632, 340, 404 },
+}
 
--- The rim's blood: 16 frames (4 x 4 cells of 512 on 2048), empty to full, clockwise from six o'clock
-local BLOOD_COLUMNS, BLOOD_FRAMES = 4, 16
--- The embers: 64 frames (8 x 8 cells of 256), a loop at 20 frames a second
-local EMBER_COLUMNS, EMBER_FRAMES, EMBER_FPS = 8, 64, 20
+local HELMET_WIDTH, HELMET_HEIGHT = 50, 35
+local HELMET_OFFSETS = { -40, -2, 36 }
+-- Each helmet a third of the way to ripe, filled by thirds: nine steps in all
+local THIRDS = 3
 
-local function place(texture, parent, x, y, width, height)
-    texture:SetSize(width * SCALE, (height or width) * SCALE)
-    texture:SetPoint("CENTER", parent, "TOPLEFT", x * SCALE, -y * SCALE)
-end
-
-local function layer(parent, level, file, blend)
-    local texture = parent:CreateTexture(nil, level)
-    texture:SetTexture(ROOT .. file)
-    if blend then
-        texture:SetBlendMode(blend)
-    end
-    return texture
-end
-
-local function setCell(texture, index, columns)
-    local column = index % columns
-    local row = math.floor(index / columns)
-    local size = 1 / columns
-    texture:SetTexCoord(column * size, (column + 1) * size, row * size, (row + 1) * size)
+local function setPiece(texture, piece)
+    local box = PIECES[piece]
+    texture:SetTexture(ATLAS)
+    texture:SetTexCoord(box[1] / ATLAS_WIDTH, box[2] / ATLAS_WIDTH, box[3] / ATLAS_HEIGHT, box[4] / ATLAS_HEIGHT)
 end
 
 local function pulse(texture, change, duration)
@@ -53,63 +49,125 @@ local function pulse(texture, change, duration)
     return group
 end
 
--- A brief swell and flash: a state just gained
-local function pop(texture)
+-- A brief swell and settle: a state just gained
+local function pop(texture, scale)
     local group = texture:CreateAnimationGroup()
     local grow = group:CreateAnimation("Scale")
-    grow:SetScale(1.2, 1.2)
-    grow:SetDuration(0.1)
+    grow:SetScale(scale, scale)
+    grow:SetDuration(0.12)
     grow:SetOrder(1)
     local settle = group:CreateAnimation("Scale")
-    settle:SetScale(1 / 1.2, 1 / 1.2)
-    settle:SetDuration(0.16)
+    settle:SetScale(1 / scale, 1 / scale)
+    settle:SetDuration(0.18)
     settle:SetOrder(2)
     return group
 end
 
+local function createHelmet(parent, index)
+    local helmet = CreateFrame("Frame", nil, parent)
+    helmet:SetSize(HELMET_WIDTH, HELMET_HEIGHT)
+    helmet:SetPoint("CENTER", parent, "CENTER", HELMET_OFFSETS[index], 2)
+    -- The left one over the middle one, the middle one over the right one
+    helmet:SetFrameLevel(parent:GetFrameLevel() + 4 - index)
+
+    helmet.fill = helmet:CreateTexture(nil, "ARTWORK")
+    helmet.fill:SetAllPoints()
+    setPiece(helmet.fill, "empty")
+    helmet.pop = pop(helmet.fill, 1.25)
+
+    -- Filled: a flash of its blood over it
+    helmet.flash = helmet:CreateTexture(nil, "OVERLAY")
+    helmet.flash:SetPoint("CENTER")
+    helmet.flash:SetSize(HELMET_WIDTH * 1.3, HELMET_HEIGHT * 1.3)
+    setPiece(helmet.flash, "full")
+    helmet.flash:SetBlendMode("ADD")
+    helmet.flash:SetAlpha(0)
+    helmet.burst = helmet.flash:CreateAnimationGroup()
+    local show = helmet.burst:CreateAnimation("Alpha")
+    show:SetChange(0.8)
+    show:SetDuration(0.08)
+    show:SetOrder(1)
+    local fade = helmet.burst:CreateAnimation("Alpha")
+    fade:SetChange(-0.8)
+    fade:SetDuration(0.4)
+    fade:SetOrder(2)
+
+    -- Emptied (Execute cashed the bleed in): its blood fades upwards
+    helmet.ghost = helmet:CreateTexture(nil, "OVERLAY")
+    helmet.ghost:SetAllPoints()
+    setPiece(helmet.ghost, "full")
+    helmet.ghost:SetAlpha(0)
+    helmet.vanish = helmet.ghost:CreateAnimationGroup()
+    local appear = helmet.vanish:CreateAnimation("Alpha")
+    appear:SetChange(1)
+    appear:SetDuration(0)
+    appear:SetOrder(1)
+    local away = helmet.vanish:CreateAnimation("Alpha")
+    away:SetChange(-1)
+    away:SetDuration(0.45)
+    away:SetOrder(2)
+    local rise = helmet.vanish:CreateAnimation("Translation")
+    rise:SetOffset(0, 10)
+    rise:SetDuration(0.45)
+    rise:SetOrder(2)
+    return helmet
+end
+
+local function glow(frame, piece, change, duration)
+    local texture = frame:CreateTexture(nil, "BACKGROUND")
+    texture:SetPoint("CENTER", 0, 2)
+    texture:SetSize(146, 60)
+    setPiece(texture, piece)
+    texture:SetBlendMode("ADD")
+    texture:SetAlpha(0)
+    return texture, pulse(texture, change, duration)
+end
+
 local function create(frame)
-    -- The laurel of light (Coup de grâce) behind the shield
-    frame.laurel = layer(frame, "BACKGROUND", "gladiatorLaurelFlare", "ADD")
-    frame.laurel:SetAllPoints()
-    frame.laurel:SetAlpha(0)
-    frame.laurelPulse = pulse(frame.laurel, -0.35, 1.2)
+    -- Behind everything: crimson when the bleed is ripe, gold under Coup de grâce
+    frame.glowCrimson, frame.crimsonPulse = glow(frame, "glowCrimson", -0.6, 0.9)
+    frame.glowGold, frame.goldPulse = glow(frame, "glowGold", -0.45, 1.4)
 
-    frame.shield = layer(frame, "BORDER", "gladiatorFrame")
-    frame.shield:SetAllPoints()
+    frame.border = frame:CreateTexture(nil, "BORDER")
+    frame.border:SetPoint("CENTER", 0, -8)
+    frame.border:SetSize(154, 63)
+    setPiece(frame.border, "frame")
 
-    frame.blood = layer(frame, "ARTWORK", "gladiatorBloodFill")
-    frame.blood:SetAllPoints()
-    setCell(frame.blood, 0, BLOOD_COLUMNS)
+    -- Coup de grâce: energy along the blades, flickering
+    frame.energy = frame:CreateTexture(nil, "ARTWORK")
+    frame.energy:SetPoint("CENTER", 0, -8)
+    frame.energy:SetSize(154, 63)
+    setPiece(frame.energy, "bladeEnergy")
+    frame.energy:SetBlendMode("ADD")
+    frame.energy:SetAlpha(0)
+    frame.energyPulse = pulse(frame.energy, -0.55, 0.7)
 
-    -- The rim's glow when the bleed is ripe: a slow heartbeat
-    frame.rimGlow = layer(frame, "ARTWORK", "gladiatorRimGlow", "ADD")
-    frame.rimGlow:SetAllPoints()
-    frame.rimGlow:SetAlpha(0)
-    frame.rimPulse = pulse(frame.rimGlow, -0.6, 0.9)
+    frame.helmets = {}
+    for index = 1, 3 do
+        frame.helmets[index] = createHelmet(frame, index)
+    end
 
-    -- Over the shield's face: the boss, the medallion, the crossed gladii
-    local face = CreateFrame("Frame", nil, frame)
-    face:SetAllPoints()
-    face:SetFrameLevel(frame:GetFrameLevel() + 2)
-    frame.face = face
-
-    frame.boss = layer(face, "ARTWORK", "gladiatorBossDark")
-    place(frame.boss, face, BOSS[1], BOSS[2], BOSS[3])
-    frame.bossPop = pop(frame.boss)
-    frame.crack = layer(face, "OVERLAY", "gladiatorBossCrack")
-    place(frame.crack, face, BOSS[1], BOSS[2], BOSS[3])
+    -- The jewel in the boss, over the helmets
+    local boss = CreateFrame("Frame", nil, frame)
+    boss:SetAllPoints()
+    boss:SetFrameLevel(frame:GetFrameLevel() + 5)
+    frame.jewel = boss:CreateTexture(nil, "ARTWORK")
+    frame.jewel:SetPoint("CENTER", 0, -17)
+    frame.jewel:SetSize(10, 10)
+    setPiece(frame.jewel, "jewelDark")
+    frame.jewelPop = pop(frame.jewel, 1.5)
+    frame.crack = boss:CreateTexture(nil, "OVERLAY")
+    frame.crack:SetPoint("CENTER", 0, -17)
+    frame.crack:SetSize(10, 10)
+    setPiece(frame.crack, "jewelCrack")
     frame.crack:Hide()
 
-    frame.medallion = layer(face, "ARTWORK", "gladiatorMedallionDark")
-    place(frame.medallion, face, MEDALLION[1], MEDALLION[2], MEDALLION[3])
-    frame.medallionPop = pop(frame.medallion)
-
-    frame.duel = layer(face, "ARTWORK", "gladiatorDuelDark")
-    place(frame.duel, face, DUEL[1], DUEL[2], DUEL[3], DUEL[4])
-
-    -- Shield Slam back: a ring out of the boss, swelling and fading
-    frame.shockwave = layer(face, "OVERLAY", "gladiatorShockwave", "ADD")
-    place(frame.shockwave, face, BOSS[1], BOSS[2], 120)
+    -- Shield Slam back: a gold ring out of the jewel, swelling and fading
+    frame.shockwave = boss:CreateTexture(nil, "OVERLAY")
+    frame.shockwave:SetTexture(SHOCKWAVE)
+    frame.shockwave:SetBlendMode("ADD")
+    frame.shockwave:SetPoint("CENTER", 0, -17)
+    frame.shockwave:SetSize(24, 24)
     frame.shockwave:SetAlpha(0)
     frame.ring = frame.shockwave:CreateAnimationGroup()
     local appear = frame.ring:CreateAnimation("Alpha")
@@ -117,7 +175,7 @@ local function create(frame)
     appear:SetDuration(0)
     appear:SetOrder(1)
     local swell = frame.ring:CreateAnimation("Scale")
-    swell:SetScale(3.4, 3.4)
+    swell:SetScale(4, 4)
     swell:SetDuration(0.5)
     swell:SetSmoothing("OUT")
     swell:SetOrder(2)
@@ -126,79 +184,85 @@ local function create(frame)
     fade:SetDuration(0.5)
     fade:SetSmoothing("IN")
     fade:SetOrder(2)
-
-    -- The embers of Coup de grâce, over everything
-    local embers = CreateFrame("Frame", nil, frame)
-    embers:SetAllPoints()
-    embers:SetFrameLevel(frame:GetFrameLevel() + 4)
-    frame.embers = layer(embers, "OVERLAY", "gladiatorEmberFlipbook", "ADD")
-    frame.embers:SetAllPoints()
-    frame.embers:Hide()
-    frame.emberElapsed = 0
 end
 
-local function playEmbers(frame, play)
-    if play then
-        frame.embers:Show()
-        frame:SetScript("OnUpdate", function(self, elapsed)
-            self.emberElapsed = self.emberElapsed + elapsed
-            setCell(self.embers, math.floor(self.emberElapsed * EMBER_FPS) % EMBER_FRAMES, EMBER_COLUMNS)
-        end)
-    else
-        frame.embers:Hide()
-        frame:SetScript("OnUpdate", nil)
+-- The bleed in ninths: three thirds a helmet
+local function ninths(bleed)
+    return math.floor(math.min(100, bleed) * 9 / 100 + 0.0001)
+end
+
+local function helmetPiece(index, filled, gold)
+    if gold then
+        return "gold"
+    end
+    local inHelmet = filled - (index - 1) * THIRDS
+    if inHelmet >= THIRDS then
+        return "full"
+    elseif inHelmet == 2 then
+        return "twoThirds"
+    elseif inHelmet == 1 then
+        return "oneThird"
+    end
+    return "empty"
+end
+
+-- A glow and its pulse in or out; was: whether it was shown before (nil: the first draw)
+local function showGlow(texture, animation, show, was)
+    if show and not was then
+        UIFrameFadeIn(texture, 0.25, texture:GetAlpha(), 1)
+        animation:Play()
+    elseif not show and was ~= false then
+        animation:Stop()
+        UIFrameFadeOut(texture, 0.3, texture:GetAlpha(), 0)
     end
 end
 
 local function update(frame, state, previous)
     if state.hidden then
-        playEmbers(frame, false)
         return
     end
     local before = (previous and not previous.hidden) and previous or nil
 
-    -- The bleed: its rim, ripe at 100
-    setCell(frame.blood, math.floor(state.bleed * (BLOOD_FRAMES - 1) / 100), BLOOD_COLUMNS)
-    local ripe = state.bleed >= 100
-    if ripe and not (before and before.bleed >= 100) then
-        UIFrameFadeIn(frame.rimGlow, 0.2, frame.rimGlow:GetAlpha(), 1)
-        frame.rimPulse:Play()
-    elseif not ripe and (not before or before.bleed >= 100) then
-        frame.rimPulse:Stop()
-        UIFrameFadeOut(frame.rimGlow, 0.3, frame.rimGlow:GetAlpha(), 0)
+    -- The helmets: the bleed in ninths, every one gold under Coup de grâce
+    local filled = ninths(state.bleed)
+    local filledBefore = before and ninths(before.bleed) or filled
+    for index, helmet in ipairs(frame.helmets) do
+        local piece = helmetPiece(index, filled, state.coupDeGrace)
+        setPiece(helmet.fill, piece)
+        local full = filled >= index * THIRDS
+        local wasFull = filledBefore >= index * THIRDS
+        if before and full and not wasFull then
+            setPiece(helmet.flash, piece)
+            helmet.pop:Stop()
+            helmet.pop:Play()
+            helmet.burst:Stop()
+            helmet.burst:Play()
+        elseif before and wasFull and not full and not state.coupDeGrace then
+            setPiece(helmet.ghost, before.coupDeGrace and "gold" or "full")
+            helmet.vanish:Stop()
+            helmet.vanish:Play()
+        end
     end
 
-    -- Revenge: Ouverture, Garde brisée
-    frame.boss:SetTexture(ROOT .. (state.opening and "gladiatorBossGold" or "gladiatorBossDark"))
+    -- Ripe: three full helmets, the crimson glow beating; Coup de grâce: the gold glow and the blades' energy
+    local ripe = state.bleed >= 100 and not state.coupDeGrace
+    local wasRipe = before and (before.bleed >= 100 and not before.coupDeGrace)
+    local wasGold = before and before.coupDeGrace
+    showGlow(frame.glowCrimson, frame.crimsonPulse, ripe, before and wasRipe or nil)
+    showGlow(frame.glowGold, frame.goldPulse, state.coupDeGrace, before and wasGold or nil)
+    showGlow(frame.energy, frame.energyPulse, state.coupDeGrace, before and wasGold or nil)
+
+    -- Revenge: the jewel
+    setPiece(frame.jewel, state.opening and "jewelGold" or "jewelDark")
     if state.opening and before and not before.opening then
-        frame.bossPop:Stop()
-        frame.bossPop:Play()
+        frame.jewelPop:Stop()
+        frame.jewelPop:Play()
     end
     if state.brokenGuard then
         frame.crack:Show()
     else
         frame.crack:Hide()
     end
-
-    -- Execute: usable while it bleeds, Coup de grâce
-    local medallion = state.coupDeGrace and "gladiatorMedallionCoupDeGrace" or
-        (state.execute and "gladiatorMedallionLit" or "gladiatorMedallionDark")
-    frame.medallion:SetTexture(ROOT .. medallion)
-    if before and ((state.execute and not before.execute) or (state.coupDeGrace and not before.coupDeGrace)) then
-        frame.medallionPop:Stop()
-        frame.medallionPop:Play()
-    end
-    if state.coupDeGrace and not (before and before.coupDeGrace) then
-        UIFrameFadeIn(frame.laurel, 0.2, frame.laurel:GetAlpha(), 1)
-        frame.laurelPulse:Play()
-        playEmbers(frame, true)
-    elseif not state.coupDeGrace and (not before or before.coupDeGrace) then
-        frame.laurelPulse:Stop()
-        UIFrameFadeOut(frame.laurel, 0.35, frame.laurel:GetAlpha(), 0)
-        playEmbers(frame, false)
-    end
-
-    frame.duel:SetTexture(ROOT .. (state.duel and "gladiatorDuelLit" or "gladiatorDuelDark"))
 
     -- Shield Slam back: the count went up since the last message
     if before and state.resets > before.resets then
@@ -229,15 +293,15 @@ end
 ClassHud_Register({
     token = "WARRIOR",
     prefix = "GLADIATOR",
-    width = SIZE,
-    height = SIZE,
-    anchor = { "TOPLEFT", "PlayerFrame", "BOTTOMLEFT", 106, 20 },
+    width = 162,
+    height = 70,
+    anchor = { "TOPLEFT", "PlayerFrame", "BOTTOMLEFT", 86, 8 },
     title = "Gladiateur",
     tooltip = function(state)
         local lines = {
             string.format("Plaie du gladiateur : %d%%%s", state.bleed,
                 state.bleed >= 100 and " - |cffff4030l'Exécution vaut d'être portée|r" or ""),
-            "Le bord du bouclier se remplit du sang de votre cible ; plein, votre Exécution en tire le plus.",
+            "Les casques se remplissent du sang de votre cible ; pleins, votre Exécution en tire le plus.",
         }
         if state.opening then
             table.insert(lines, "|cffe8c25aOuverture : Vengeance est gratuite.|r")
@@ -247,9 +311,6 @@ ClassHud_Register({
         end
         if state.coupDeGrace then
             table.insert(lines, "|cffe8c25aCoup de grâce : votre prochaine Exécution est gratuite et à pleine rage.|r")
-        end
-        if state.duel then
-            table.insert(lines, "Duel en cours.")
         end
         return lines
     end,
@@ -262,6 +323,6 @@ ClassHud_Register({
     end,
     isEmpty = function(state)
         return state.hidden or (state.bleed == 0 and not state.opening and not state.brokenGuard and
-            not state.coupDeGrace and not state.duel)
+            not state.coupDeGrace)
     end,
 })

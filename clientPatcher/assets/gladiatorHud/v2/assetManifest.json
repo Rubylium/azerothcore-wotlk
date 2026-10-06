@@ -1,0 +1,150 @@
+{
+  "version": 2,
+  "atlas": "Interface\\ClassHud\\gladiatorHudV2Atlas",
+  "atlasSize": [
+    1024,
+    512
+  ],
+  "pieceBoxes": {
+    "frame": [
+      0,
+      512,
+      0,
+      224
+    ],
+    "bladeEnergy": [
+      512,
+      1024,
+      0,
+      224
+    ],
+    "helmetEmpty": [
+      0,
+      152,
+      228,
+      336
+    ],
+    "helmetOneThird": [
+      156,
+      308,
+      228,
+      336
+    ],
+    "helmetTwoThirds": [
+      312,
+      464,
+      228,
+      336
+    ],
+    "helmetFull": [
+      468,
+      620,
+      228,
+      336
+    ],
+    "helmetGold": [
+      624,
+      776,
+      228,
+      336
+    ],
+    "glowCrimson": [
+      0,
+      212,
+      340,
+      448
+    ],
+    "glowGold": [
+      216,
+      428,
+      340,
+      448
+    ],
+    "jewelDark": [
+      432,
+      496,
+      340,
+      404
+    ],
+    "jewelGold": [
+      500,
+      564,
+      340,
+      404
+    ],
+    "jewelCrack": [
+      568,
+      632,
+      340,
+      404
+    ]
+  },
+  "boxOrder": [
+    "left",
+    "right",
+    "top",
+    "bottom"
+  ],
+  "additivePieces": [
+    "glowCrimson",
+    "glowGold",
+    "bladeEnergy"
+  ],
+  "hudSize": [
+    162,
+    70
+  ],
+  "frameSize": [
+    154,
+    63
+  ],
+  "frameOffset": [
+    0,
+    -8
+  ],
+  "helmetSize": [
+    50,
+    35
+  ],
+  "helmetOffsets": [
+    [
+      -40,
+      2
+    ],
+    [
+      -2,
+      2
+    ],
+    [
+      36,
+      2
+    ]
+  ],
+  "helmetOverlapOrder": [
+    "left",
+    "middle",
+    "right"
+  ],
+  "helmetFillBounds": [
+    3,
+    149
+  ],
+  "jewelSize": [
+    10,
+    10
+  ],
+  "jewelOffset": [
+    0,
+    -17
+  ],
+  "glowSize": [
+    146,
+    60
+  ],
+  "glowOffset": [
+    0,
+    2
+  ],
+  "shockwave": "Interface\\ClassHud\\gladiatorShockwave",
+  "integrationStatus": "assetsOnly"
+}

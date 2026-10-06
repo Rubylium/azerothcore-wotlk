@@ -1,0 +1,248 @@
+{
+  "version": 2,
+  "generator": "built-in image_gen",
+  "styleReferences": [
+    "../reference/reaperHud.png",
+    "../reference/reaperAtlas.png"
+  ],
+  "assets": [
+    {
+      "name": "frame",
+      "sourceFile": "source/frame.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. Generate ONLY a wide horizontal weapon FRAME, not an",
+        "assembled HUD. Two identical straight ROMAN GLADII, mirrored left/right, points facing OUTWARD",
+        "to far left and far right. Long dark worn iron blades, straight double edges, aged bronze",
+        "guards/pommels, simple leather grips. Tips raised slightly; both swords form a SHALLOW",
+        "symmetrical V, never a steep X. Hilts overlap and cross LOW at canvas centre, joined by a small",
+        "round dark bronze boss with an EMPTY round jewel socket. Composition on 512x224 transparent",
+        "canvas: left tip at approximately (12,65), right tip (500,65), inner blade roots at (215,135)",
+        "and (297,135); crossed grips behind boss at (256,178). These are virtual target coordinates,",
+        "scale proportionally if output is larger. Perfectly level bilateral symmetry. Middle-upper band",
+        "at x100..410,y30..120 remains clear for three separate helmet sockets. Match silhouette weight",
+        "and detail of the reference scythe FRAME at top of atlas, but Roman straight blades. Entire",
+        "silhouette inside canvas with 8px margin. No helmets, no jewels, no shield, no glows, no",
+        "background. Genuine transparent alpha."
+      ]
+    },
+    {
+      "name": "helmetEmpty",
+      "sourceFile": "source/helmetEmpty.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. Generate a SINGLE gladiator helmet SOCKET, galea",
+        "profile facing RIGHT. Rounded dome, simple chunky short crest on top, angular forward visor/brow",
+        "at right, cheek guard. Silhouette is wide, like the reference skull sockets; not tall. Aged",
+        "bronze sculpted rim enclosing a completely EMPTY near-black hollow shaped like the helmet, no",
+        "metal surface in the hollow. The rim is broad and simple, enough to read at 50x35px. Match the",
+        "dark socket outline and simple bevel of the empty reference skull, substituting a Roman helmet",
+        "profile. Target 152x108 canvas, helmet occupies 96% width and 92% height, exact centred",
+        "position, 3px margin, transparent alpha outside helmet, charcoal #100d0a inside. No blood, no",
+        "gold fill, no highlights inside hollow, no sword, no face, no plumes flowing out, no background,",
+        "no text."
+      ]
+    },
+    {
+      "name": "jewelDark",
+      "sourceFile": "source/jewelDark.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. Generate ONLY a tiny ROUND GEM set in a simple aged",
+        "bronze bezel, unlit, dark red-brown gem face. Simple chunky hand-painted facets, dark outline,",
+        "soft upper-left light. Match the reference's restrained painted UI materials and bevel weight.",
+        "Target square64x64, exact centred circular gem/bezel, outer diameter54px leaving5px transparent",
+        "padding. Genuine transparent alpha outside gem. No frame, no light effects, no crack, no text,",
+        "no runes, no intricate engraving."
+      ]
+    },
+    {
+      "name": "helmetOneThird",
+      "sourceFile": "source/helmetOneThird.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET is Image 1, the empty right-facing",
+        "gladiator helmet socket. Images 2 and 3 are style references for the luminous swirling fill.",
+        "LEFT ONE THIRD of the hollow filled with dark glowing crimson blood, with a clean vertical",
+        "liquid edge at one third of the hollow width; the RIGHT TWO THIRDS remain near-black empty. The",
+        "glowing liquid must match the abstract bright/dark swirling fill in the reference skulls, very",
+        "readable tiny, not smoke or flames outside. Keep EXACT original helmet silhouette, bronze rim,",
+        "visor, cheek guard, crest, position, canvas dimensions, padding, bevel thickness, camera and",
+        "lighting. Change ONLY the charcoal hollow to liquid fill where specified. Exterior and all",
+        "bronze metal MUST remain identical and dark bronze; no gold recolouring of helmet metal.",
+        "Transparent background outside same helmet, no outer halo, no frame, no text. Do not crop, move,",
+        "scale or redesign the helmet."
+      ]
+    },
+    {
+      "name": "helmetTwoThirds",
+      "sourceFile": "source/helmetTwoThirds.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET is Image 1, the empty right-facing",
+        "gladiator helmet socket. Images 2 and 3 are style references for the luminous swirling fill.",
+        "LEFT TWO THIRDS of the hollow filled with dark glowing crimson blood, with a clean vertical",
+        "liquid edge at two thirds of the hollow width; the RIGHT ONE THIRD remains near-black empty. The",
+        "glowing liquid must match the abstract bright/dark swirling fill in the reference skulls, very",
+        "readable tiny, not smoke or flames outside. Keep EXACT original helmet silhouette, bronze rim,",
+        "visor, cheek guard, crest, position, canvas dimensions, padding, bevel thickness, camera and",
+        "lighting. Change ONLY the charcoal hollow to liquid fill where specified. Exterior and all",
+        "bronze metal MUST remain identical and dark bronze; no gold recolouring of helmet metal.",
+        "Transparent background outside same helmet, no outer halo, no frame, no text. Do not crop, move,",
+        "scale or redesign the helmet."
+      ]
+    },
+    {
+      "name": "helmetFull",
+      "sourceFile": "source/helmetFull.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET is Image 1, the empty right-facing",
+        "gladiator helmet socket. Images 2 and 3 are style references for the luminous swirling fill.",
+        "ENTIRE hollow filled with bright glowing swirling CRIMSON BLOOD, #7a0a0a deep dark crimson with",
+        "#ff2a1a red flowing liquid veins and patches. The glowing liquid must match the abstract",
+        "bright/dark swirling fill in the reference skulls, very readable tiny, not smoke or flames",
+        "outside. Keep EXACT original helmet silhouette, bronze rim, visor, cheek guard, crest, position,",
+        "canvas dimensions, padding, bevel thickness, camera and lighting. Change ONLY the charcoal",
+        "hollow to liquid fill where specified. Exterior and all bronze metal MUST remain identical and",
+        "dark bronze; no gold recolouring of helmet metal. Transparent background outside same helmet, no",
+        "outer halo, no frame, no text. Do not crop, move, scale or redesign the helmet."
+      ]
+    },
+    {
+      "name": "helmetGold",
+      "sourceFile": "source/helmetGold.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET is Image 1, the empty right-facing",
+        "gladiator helmet socket. Images 2 and 3 are style references for the luminous swirling fill.",
+        "ENTIRE hollow filled with glowing MOLTEN GOLD, #ffc94a bright gold liquid with deep amber",
+        "regions and luminous swirling currents. The glowing liquid must match the abstract bright/dark",
+        "swirling fill in the reference skulls, very readable tiny, not smoke or flames outside. Keep",
+        "EXACT original helmet silhouette, bronze rim, visor, cheek guard, crest, position, canvas",
+        "dimensions, padding, bevel thickness, camera and lighting. Change ONLY the charcoal hollow to",
+        "liquid fill where specified. Exterior and all bronze metal MUST remain identical and dark",
+        "bronze; no gold recolouring of helmet metal. Transparent background outside same helmet, no",
+        "outer halo, no frame, no text. Do not crop, move, scale or redesign the helmet."
+      ]
+    },
+    {
+      "name": "jewelGold",
+      "sourceFile": "source/jewelGold.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET Image1: the round gem. Reference images2/3",
+        "show painted UI style. Keep EXACT original round bezel, gem facets, silhouette, position,",
+        "dimensions and transparent background. Change ONLY the red-brown gem face into glowing bright",
+        "molten GOLD #ffc94a, broad simple facet highlights, amber dark facets, bright readable centre.",
+        "The aged bronze bezel remains identical and dark; no enlarged outer glow, no text, no new",
+        "geometry."
+      ]
+    },
+    {
+      "name": "bladeEnergy",
+      "sourceFile": "source/bladeEnergy.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET Image1: the wide mirrored gladius frame.",
+        "Images2/3 style references. Produce ONLY GOLD AND CRIMSON MAGICAL EDGE ENERGY on PURE BLACK",
+        "#000000 background. Trace the EXACT two long straight blade outlines from the original, from",
+        "outward tips to bronze crossguards. Warm gold #ffc94a thin readable edge highlights with",
+        "restrained crimson #ff2a1a flow underneath and short soft glow falloff. Remove ALL solid frame",
+        "material: no iron, no bronze, no leather, no boss, no hilts; only energy light precisely",
+        "registered on original blade edges. Exact SAME canvas aspect, dimensions, padding, position,",
+        "bilateral mirror symmetry and blade angle as the target. Black everywhere away from blades;",
+        "empty central gap. No particles, no runes, no flames, no text."
+      ]
+    },
+    {
+      "name": "glowCrimson",
+      "sourceFile": "source/glowCrimson.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. ONLY SOFT CRIMSON GLOW, additive light on PURE BLACK",
+        "#000000, shaped as the silhouette of THREE slightly overlapping right-facing Roman helmet",
+        "sockets in a horizontal row. Target212x108 canvas. Soft diffuse red #7a0a0a to #ff2a1a aura,",
+        "broad painterly light patches like the purple cloud region in reference atlas, modest centre",
+        "luminosity, stronger gentle shoulders at sides. No sharp outlines, no visible helmet metal, no",
+        "crest details, no frame, no filled sockets, no smoke texture, no letters, no extra objects. Glow",
+        "fades smoothly to EXACT pure black at every canvas edge; broad row occupies central85% width",
+        "and70% height. Three humps subtly identify row but merge into one aura."
+      ]
+    },
+    {
+      "name": "glowGold",
+      "sourceFile": "source/glowGold.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET Image1, the crimson three-socket aura.",
+        "Keep its EXACT shape, soft falloff, position, dimensions and black background. Change ONLY hue",
+        "into warm GOLD #ffc94a with amber outer falloff. Light only, no solid helmet material. Soften",
+        "recognisable hard edges further into an abstract aura. All canvas edges and empty regions remain",
+        "PURE BLACK #000000. No letters, no objects, no particles."
+      ]
+    },
+    {
+      "name": "jewelCrack",
+      "sourceFile": "source/jewelCrack.png",
+      "promptLines": [
+        "Use case: stylized-concept. The TWO attached images are STYLE and PROPORTION references:",
+        "Ascension's Faucheur class-resource HUD as rendered, and its component atlas. Match their SIMPLE",
+        "hand-painted Warcraft UI style precisely: broad painted light/shadow facets, chunky dark",
+        "outline, soft upper-left light, very sparse surface detail, legibility at tiny game size. Do not",
+        "reproduce green or purple, skulls or scythes. No photorealistic materials, no high-frequency",
+        "scratches, no ornate decoration, no text. EDIT TARGET Image1, the glowing gold gem. Extract a",
+        "new overlay: ONLY ONE simple jagged glowing RED CRACK diagonally across the gem face from",
+        "upper-left to lower-right, with one short fork. Dark crimson #7a0a0a red core and bright #ff2a1a",
+        "light. Remove the entire gem and bezel to genuine transparency; transparent elsewhere, no metal",
+        "no circle no background. Preserve original square canvas, central registration and gem size.",
+        "Crack contained INSIDE original gem face (inner diameter about70% canvas). Thin but readable",
+        "at64x64, restrained red falloff. No gold light, no new objects, no text."
+      ]
+    }
+  ]
+}

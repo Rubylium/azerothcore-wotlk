@@ -72,13 +72,16 @@ infused purple), the purple glow and the infusion flipbook (additive, looping) w
 
 `ClassHudWarrior.lua` (class token `WARRIOR`, the Gladiateur spec only), prefix `GLADIATOR`, payload
 `bleed%:opening:brokenGuard:execute:coupDeGrace:duel:resets` or `-` (mod-warrior `SyncGladiatorHud`, every 250 ms when
-it changed). A bronze arena shield (120 px, the art's 512 canvas: `clientPatcher/assets/gladiatorHud`, its
-`assetManifest.json` for the placements; built by `localTools/interface/buildGladiatorHudArt.py`, AI-painted from
-`.agents/plans/gladiator-hud/gladiator-hud.ASSETS.md`):
-- the rim's blood (16 frames): Plaie du gladiateur on the selected enemy against `warrior.glad_hud_ripe_ap` times the
-  attack power (3 by default), in 5% steps; at 100% the rim glows and beats (ripe for Execute);
-- the boss: Revenge, gold under Ouverture (a pop as it comes), a red crack under Garde brisée;
-- the thumbs-down medallion: Execute, lit while the target bleeds, burning under Coup de grâce with a laurel of light
-  and the ember flipbook (64 frames, 20 fps);
-- a gold ring out of the boss each time Shield Slam comes back (the resets count went up);
-- the crossed gladii on top: Duel.
+it changed). On the Faucheur's model, the same size (162 x 70): two gladii lying mirrored, three gladiator's helmets
+over them (`gladiatorHudV2Atlas.blp`, 1024 x 512; art `clientPatcher/assets/gladiatorHud/v2`, its
+`assetManifest.json` for the boxes and placements; AI-painted from `.agents/plans/gladiator-hud/gladiator-hud.ASSETS.md`
+with the Faucheur's HUD as the style reference):
+- the helmets fill with Plaie du gladiateur's blood on the selected enemy, in ninths (each helmet a third of the way,
+  the next one by thirds) against `warrior.glad_hud_ripe_ap` times the attack power (3 by default); three full: a
+  crimson glow beats behind them (ripe for Execute); a helmet filling pops and flashes, one emptied fades upwards;
+- Coup de grâce: every helmet molten gold, a gold glow and energy along the blades;
+- the jewel in the boss: Revenge, gold under Ouverture (a pop as it comes), a red crack under Garde brisée;
+- a gold ring out of the jewel each time Shield Slam comes back (`gladiatorShockwave.blp`, the resets count went up).
+
+A first version - a big round shield, the bleed around its rim - read badly in game (too big, an awkward shape): keep
+to the Faucheur's proportions (a small wide weapon frame, three sockets in a row) for any class HUD.
