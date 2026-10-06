@@ -10,8 +10,6 @@ local ART = {
         frame = "Interface\\ItemFrames\\Legendary-MarqueInquisiteur-Frame",
         glow = "Interface\\ItemFrames\\Legendary-MarqueInquisiteur-Glow",
         tooltip = "Interface\\ItemFrames\\Legendary-MarqueInquisiteur-Tooltip",
-        -- The frame's empty middle, as a share of its texture (measured on the painting's alpha)
-        openingX = 0.59, openingY = 0.57,
         glowColor = { 1, 0.62, 0.25 },
     },
 }
@@ -28,8 +26,10 @@ api.registerResolver(function(tooltip)
     return art and art.key
 end)
 
--- How far the frame's inner edge sits inside the icon: on its rim, so the icon keeps its whole size
-local INSET = 1
+-- The frame's size against the icon's: its bars lie over the icon's rim, it reaches a little past it (first drawn
+-- with its whole opening on the icon, about 170%, it read "too much" in game)
+local FRAME_SCALE = 1.3
+local GLOW_SCALE = 1.5
 
 for _, art in pairs(ART) do
     api.registerStyle(art.key, {
@@ -46,13 +46,12 @@ for _, art in pairs(ART) do
             local frame = holder:CreateTexture(nil, "OVERLAY")
             frame:SetTexture(art.frame)
 
-            -- The texture laid so its opening lands on the icon's rim, whatever the button's size
+            -- Centred on the icon, whatever the button's size
             local function Layout(self)
                 local width, height = self:GetWidth(), self:GetHeight()
                 if width <= 0 or height <= 0 then return end
-                local outX = ((width - 2 * INSET) / art.openingX - width) / 2
-                local outY = ((height - 2 * INSET) / art.openingY - height) / 2
-                for _, texture in ipairs({ frame, glow }) do
+                for texture, scale in pairs({ [frame] = FRAME_SCALE, [glow] = GLOW_SCALE }) do
+                    local outX, outY = width * (scale - 1) / 2, height * (scale - 1) / 2
                     texture:ClearAllPoints()
                     texture:SetPoint("TOPLEFT", -outX, outY)
                     texture:SetPoint("BOTTOMRIGHT", outX, -outY)
@@ -66,12 +65,12 @@ for _, art in pairs(ART) do
             local breathe = glow:CreateAnimationGroup()
             breathe:SetLooping("BOUNCE")
             local fade = breathe:CreateAnimation("Alpha")
-            fade:SetChange(-0.55)
+            fade:SetChange(-0.3)
             fade:SetDuration(1.6)
             fade:SetSmoothing("IN_OUT")
             local function Start()
                 breathe:Stop()
-                glow:SetAlpha(1)
+                glow:SetAlpha(0.55)
                 breathe:Play()
             end
             holder:SetScript("OnShow", Start)
@@ -80,6 +79,35 @@ for _, art in pairs(ART) do
         end,
     })
 end
+
+-- The copy's item level on the icon: DragonUI writes the base item's there (its item level module reads GetItemInfo,
+-- the template's 289); a legendary's button shows its copy's, kept when DragonUI writes it again
+local function KeepItemLevel(button)
+    local text = button.__DragonUI_ILvl
+    if not text or text.legendaryHooked then return end
+    text.legendaryHooked = true
+    hooksecurefunc(text, "SetText", function(self, value)
+        local level = button.legendaryItemLevel
+        if level and tostring(value) ~= tostring(level) then
+            self:SetText(level)
+        end
+    end)
+end
+
+hooksecurefunc(api, "apply", function(button, key)
+    if not button then return end
+    local legendary = false
+    for _, art in pairs(ART) do
+        if art.key == key then legendary = true end
+    end
+    local copy = legendary and EvolutionsLegendary and
+        EvolutionsLegendary.CopyAt(EvolutionsItemFrameScan and EvolutionsItemFrameScan.legendaryWhere)
+    button.legendaryItemLevel = copy and copy.itemLevel or nil
+    if button.legendaryItemLevel and button.__DragonUI_ILvl then
+        KeepItemLevel(button)
+        button.__DragonUI_ILvl:SetText(button.legendaryItemLevel)
+    end
+end)
 
 -- The tooltip frame ---------------------------------------------------------------------------------------------------
 
@@ -92,8 +120,8 @@ local PIECES = {
     across = { 128, 256, 144, 168 },
     down = { 0, 24, 128, 256 },
 }
--- The atlas's pixels to the screen's: its bars, 20 px thick there, 6 here
-local SCALE = 0.3
+-- The atlas's pixels to the screen's: its bars, 20 px thick there, 5 here
+local SCALE = 0.24
 -- Where the bars cross inside the corner piece, and the bars' middle in from the tooltip's edge (on its own border)
 local CORNER_CROSS = 24 * SCALE
 local EDGE = 3

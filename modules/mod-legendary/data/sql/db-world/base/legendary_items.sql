@@ -18,7 +18,9 @@ UPDATE `legendary_base` SET
     `stat_type7` = 0, `stat_value7` = 0, `stat_type8` = 0, `stat_value8` = 0, `stat_type9` = 0, `stat_value9` = 0,
     `stat_type10` = 0, `stat_value10` = 0,
     `spellid_1` = 0, `spellid_2` = 0, `spellid_3` = 0, `spellid_4` = 0, `spellid_5` = 0,
-    `itemset` = 0, `SellPrice` = 0, `BuyPrice` = 0, `MaxDurability` = 0, `description` = '';
+    `itemset` = 0, `SellPrice` = 0, `BuyPrice` = 0, `MaxDurability` = 0, `description` = '',
+    `socketColor_1` = 0, `socketContent_1` = 0, `socketColor_2` = 0, `socketContent_2` = 0, `socketColor_3` = 0,
+    `socketContent_3` = 0, `socketBonus` = 0, `GemProperties` = 0;
 INSERT INTO `item_template` SELECT * FROM `legendary_base`;
 DROP TEMPORARY TABLE `legendary_base`;
 -- Its lore is written by the client (FrameXML Legendary.lua), under the copy's rolls

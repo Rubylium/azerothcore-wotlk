@@ -42,10 +42,11 @@ namespace
 {
 // The client's tooltip feed (FrameXML Legendary.lua):
 //   server -> client  C <tab> seed <tab> legendary <tab> item level <tab> power x10 <tab> window low x10 <tab>
-//                         window high x10 <tab> armour <tab> type=value,type=value...
-//   client -> server  Q <tab> seed      (a copy seen in a link, on another player, in the loot)
-// The seed is the copy's item guid: the server puts it in the item's property seed, which item links carry as their
-// unique id, so the client finds the copy behind any link.
+//                         window high x10 <tab> armour <tab> type=value,type=value... [<tab> bag:slot]
+//   client -> server  W <tab> bag <tab> slot    (a copy the player carries, by where it is: the server's bag and slot)
+//                     Q <tab> seed              (a copy by its id)
+// The seed is the copy's item guid. The client knows its own copies by where they sit: the 3.3.5 client does not put
+// an item's property seed in its links (only a random suffix item's), so a link alone does not say which copy it is.
 constexpr std::string_view Prefix = "LEGENDARY";
 
 constexpr uint32 SPELL_INQUISITOR_BRAND = 97000;    // localTools/legendary/Spells.ps1
@@ -111,15 +112,18 @@ void Send(Player* player, std::string const& body)
     player->GetSession()->SendPacket(&packet);
 }
 
-void SendCopy(Player* player, ObjectGuid::LowType seed, Copy const& copy)
+void SendCopy(Player* player, ObjectGuid::LowType seed, Copy const& copy, Item const* where = nullptr)
 {
     Definition const* definition = GetDefinition(copy.legendary);
     if (!definition)
         return;
     auto const [low, high] = PowerWindow(*definition, copy.itemLevel);
-    Send(player, Acore::StringFormat("C\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", seed, copy.legendary, copy.itemLevel,
-        std::lround(copy.power * 10.0f), std::lround(low * 10.0f), std::lround(high * 10.0f), copy.armor,
-        EncodeStats(copy)));
+    std::string body = Acore::StringFormat("C\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", seed, copy.legendary,
+        copy.itemLevel, std::lround(copy.power * 10.0f), std::lround(low * 10.0f), std::lround(high * 10.0f),
+        copy.armor, EncodeStats(copy));
+    if (where)
+        body += Acore::StringFormat("\t{}:{}", where->GetBagSlot(), where->GetSlot());
+    Send(player, body);
 }
 
 // The copy's id in the item itself: links carry it, the client asks for the copy by it. Not saved with the item, so
@@ -283,7 +287,7 @@ public:
             if (std::optional<Copy> copy = GetCopy(item))
             {
                 Mark(item);
-                SendCopy(player, item->GetGUID().GetCounter(), *copy);
+                SendCopy(player, item->GetGUID().GetCounter(), *copy, item);
             }
         });
     }
@@ -297,9 +301,20 @@ public:
         std::vector<std::string_view> fields = Acore::Tokenize(std::string_view(message).substr(Prefix.size() + 1),
             '\t', true);
         if (fields.size() == 2 && fields[0] == "Q")
+        {
             if (Optional<uint32> seed = Acore::StringTo<uint32>(fields[1]))
                 if (std::optional<Copy> copy = FindCopy(*seed))
                     SendCopy(player, *seed, *copy);
+        }
+        else if (fields.size() == 3 && fields[0] == "W")
+        {
+            Optional<uint32> bag = Acore::StringTo<uint32>(fields[1]);
+            Optional<uint32> slot = Acore::StringTo<uint32>(fields[2]);
+            Item* item = bag && slot && *bag <= 255 && *slot <= 255 ?
+                player->GetItemByPos(uint8(*bag), uint8(*slot)) : nullptr;
+            if (std::optional<Copy> copy = GetCopy(item))
+                SendCopy(player, item->GetGUID().GetCounter(), *copy, item);
+        }
     }
 };
 
@@ -480,7 +495,7 @@ Item* GiveLegendary(Player* player, uint32 legendary, uint32 itemLevel, std::opt
     }
     Save(guid, player->GetGUID().GetCounter(), copy);
     Mark(item);
-    SendCopy(player, guid, copy);
+    SendCopy(player, guid, copy, item);
     player->SendNewItem(item, 1, true, false);
     return item;
 }
