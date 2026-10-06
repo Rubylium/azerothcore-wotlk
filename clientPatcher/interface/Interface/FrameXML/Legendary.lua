@@ -67,51 +67,22 @@ local function SeedOf(link)
     end
 end
 
--- The stock lines the rolls go in front of, where the client puts an item's stats: durability, the level required,
--- the sell price
-local function IsTailLine(text)
-    if not text then
-        return false
-    end
-    local function Starts(template)
-        if not template then
-            return false
-        end
-        local head = template:match("^([^%%]*)")
-        return head ~= "" and text:sub(1, #head) == head
-    end
-    return Starts(DURABILITY_TEMPLATE) or Starts(ITEM_MIN_LEVEL) or Starts(SELL_PRICE)
-end
+-- Long lines broken by hand at word boundaries: a wrapped tooltip line stretched the tooltip (and its painted
+-- frame) to the line's whole length
+local WRAP = 60
 
--- The rolls (lines after `before`) moved up in front of the first tail line
-local function PlaceRolls(tooltip, before)
-    local layout = EvolutionsTooltip
-    local name = tooltip:GetName()
-    if not (layout and layout.Rearrange and name) then
-        return
-    end
-    local tail
-    for index = 2, before do
-        local line = _G[name .. "TextLeft" .. index]
-        if line and IsTailLine(line:GetText()) then
-            tail = index
-            break
+local function Wrapped(text)
+    local lines, current = {}, ""
+    for word in text:gmatch("%S+") do
+        if current ~= "" and #current + 1 + #word > WRAP then
+            lines[#lines + 1] = current
+            current = word
+        else
+            current = current == "" and word or (current .. " " .. word)
         end
     end
-    if not tail then
-        return
-    end
-    local order = {}
-    for index = 1, tail - 1 do
-        order[#order + 1] = index
-    end
-    for index = before + 1, tooltip:NumLines() do
-        order[#order + 1] = index
-    end
-    for index = tail, before do
-        order[#order + 1] = index
-    end
-    layout.Rearrange(tooltip, order)
+    lines[#lines + 1] = current
+    return table.concat(lines, "\n")
 end
 
 local function Write(tooltip, copy)
@@ -123,7 +94,6 @@ local function Write(tooltip, copy)
     if layout and layout.SetSource then
         layout.SetSource(tooltip, legendary.source, 1, 0.5, 0)
     end
-    local before = tooltip:NumLines()
     tooltip:AddLine(format(TEXT.itemLevel, copy.itemLevel), 1, 0.82, 0)
     if copy.armor > 0 then
         tooltip:AddLine(format(ARMOR_TEMPLATE, copy.armor), 1, 1, 1)
@@ -137,13 +107,13 @@ local function Write(tooltip, copy)
     for _, stat in ipairs(copy.stats) do
         local name = EQUIP_STATS[stat.type]
         if name and _G[name] then
-            tooltip:AddLine(ITEM_SPELL_TRIGGER_ONEQUIP .. " " .. format(_G[name], stat.value), 0, 1, 0, true)
+            tooltip:AddLine(Wrapped(ITEM_SPELL_TRIGGER_ONEQUIP .. " " .. format(_G[name], stat.value)), 0, 1, 0)
         end
     end
-    tooltip:AddLine(ITEM_SPELL_TRIGGER_ONEQUIP .. " " .. format(legendary.power, Percent(copy.power)), 1, 0.5, 0, true)
+    tooltip:AddLine(Wrapped(ITEM_SPELL_TRIGGER_ONEQUIP .. " " .. format(legendary.power, Percent(copy.power))),
+        1, 0.5, 0)
     tooltip:AddLine(format(TEXT.window, Percent(copy.low), Percent(copy.high)), 0.6, 0.6, 0.6)
-    tooltip:AddLine(legendary.lore, 1, 0.82, 0, true)
-    PlaceRolls(tooltip, before)
+    tooltip:AddLine(Wrapped(legendary.lore), 1, 0.82, 0)
 end
 
 -- Where a tooltip's item sits, as the server counts it: "bag:slot" (bag 255 the character's own slots: worn 0-18,
@@ -241,13 +211,16 @@ for _, name in ipairs(TOOLTIPS) do
 end
 
 -- The item frames' hidden scan tooltip (ItemFrames.lua): where its item sits, for LegendaryFrames.lua
+-- Kept apart from the tooltip: hiding it clears it before the frames read where it was. Reset as each scan starts
+-- (ItemFrames.lua sets the scan's owner first).
+local scanWhere
 local scan = _G.EvolutionsItemFrameScan
 if scan then
-    scan:HookScript("OnTooltipCleared", function(self) self.legendaryWhere = nil end)
-    hooksecurefunc(scan, "SetBagItem", function(self, bag, slot) self.legendaryWhere = WhereOfContainer(bag, slot) end)
-    hooksecurefunc(scan, "SetInventoryItem", function(self, unit, slot)
+    hooksecurefunc(scan, "SetOwner", function() scanWhere = nil end)
+    hooksecurefunc(scan, "SetBagItem", function(_, bag, slot) scanWhere = WhereOfContainer(bag, slot) end)
+    hooksecurefunc(scan, "SetInventoryItem", function(_, unit, slot)
         if unit and UnitIsUnit(unit, "player") and slot then
-            self.legendaryWhere = "255:" .. (slot - 1)
+            scanWhere = "255:" .. (slot - 1)
         end
     end)
 end
@@ -318,6 +291,9 @@ EvolutionsLegendary = {
     CopyOf = function(link)
         local seed = SeedOf(link)
         return seed and copies[seed], seed
+    end,
+    ScanWhere = function()
+        return scanWhere
     end,
     CopyAt = function(where)
         local seed = where and whereSeed[where]

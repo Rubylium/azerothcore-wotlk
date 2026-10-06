@@ -80,18 +80,32 @@ for _, art in pairs(ART) do
     })
 end
 
--- The copy's item level on the icon: DragonUI writes the base item's there (its item level module reads GetItemInfo,
--- the template's 289); a legendary's button shows its copy's, kept when DragonUI writes it again
-local function KeepItemLevel(button)
-    local text = button.__DragonUI_ILvl
-    if not text or text.legendaryHooked then return end
-    text.legendaryHooked = true
-    hooksecurefunc(text, "SetText", function(self, value)
-        local level = button.legendaryItemLevel
-        if level and tostring(value) ~= tostring(level) then
-            self:SetText(level)
+-- The copy's item level on the icon, over the painted frame: DragonUI writes the base item's under it (its item
+-- level module reads GetItemInfo, the template's 289), so on a legendary its number is hidden and the copy's written
+-- in the same font, above the frame
+local function LevelText(button)
+    local effect = button.evolutionsItemFrame
+    if not effect then return end
+    if not effect.legendaryLevel then
+        local holder = CreateFrame("Frame", nil, effect)
+        holder:SetAllPoints(effect)
+        holder:SetFrameLevel(effect:GetFrameLevel() + 2)
+        effect.legendaryLevel = holder:CreateFontString(nil, "OVERLAY")
+        effect.legendaryLevel:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        effect.legendaryLevel:SetPoint("BOTTOM", effect, "BOTTOM", 0, 2)
+        effect.legendaryLevel:SetTextColor(1, 0.5, 0)
+    end
+    local theirs = button.__DragonUI_ILvl
+    if theirs then
+        local font, size, flags = theirs:GetFont()
+        if font then effect.legendaryLevel:SetFont(font, size, flags) end
+        local point, _, relativePoint, x, y = theirs:GetPoint(1)
+        if point then
+            effect.legendaryLevel:ClearAllPoints()
+            effect.legendaryLevel:SetPoint(point, effect, relativePoint, x, y)
         end
-    end)
+    end
+    return effect.legendaryLevel, theirs
 end
 
 hooksecurefunc(api, "apply", function(button, key)
@@ -100,12 +114,15 @@ hooksecurefunc(api, "apply", function(button, key)
     for _, art in pairs(ART) do
         if art.key == key then legendary = true end
     end
-    local copy = legendary and EvolutionsLegendary and
-        EvolutionsLegendary.CopyAt(EvolutionsItemFrameScan and EvolutionsItemFrameScan.legendaryWhere)
-    button.legendaryItemLevel = copy and copy.itemLevel or nil
-    if button.legendaryItemLevel and button.__DragonUI_ILvl then
-        KeepItemLevel(button)
-        button.__DragonUI_ILvl:SetText(button.legendaryItemLevel)
+    local copy = legendary and EvolutionsLegendary and EvolutionsLegendary.CopyAt(EvolutionsLegendary.ScanWhere())
+    local level = copy and copy.itemLevel
+    local mine, theirs = LevelText(button)
+    if mine then
+        mine:SetText(level or "")
+        if level then mine:Show() else mine:Hide() end
+    end
+    if theirs then
+        theirs:SetAlpha(level and 0 or 1)
     end
 end)
 

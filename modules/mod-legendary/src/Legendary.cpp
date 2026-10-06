@@ -279,9 +279,18 @@ public:
                 std::make_pair(0u, 0.0f);
     }
 
-    // Every copy the character carries: marked, and its rolls sent for the tooltips
+    // Every copy the character carries: marked, and its rolls sent for the tooltips. The base items' records first,
+    // as the server has them now: the client keeps the ones it saw (its item cache) and showed a socket the base
+    // item lost.
     void OnPlayerLogin(Player* player) override
     {
+        if (player->GetSession() && !player->GetSession()->IsBot())
+            for (Definition const& definition : Definitions)
+            {
+                WorldPacket query(CMSG_ITEM_QUERY_SINGLE, 4);
+                query << definition.baseItem;
+                player->GetSession()->HandleItemQuerySingleOpcode(query);
+            }
         ForEachItem(player, [player](Item* item)
         {
             if (std::optional<Copy> copy = GetCopy(item))

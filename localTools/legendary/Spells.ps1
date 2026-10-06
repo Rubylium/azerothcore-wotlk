@@ -13,8 +13,12 @@ $spells = @(
        AuraDescription = 'Brûle : subit des dégâts du Sacré chaque seconde.'
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 6; Aura = 3; BasePoints = 0 })
        # SchoolMask holy, every second, 4 sec (DurationIndex 35), no damage class; Ex2 CANT_CRIT; Ex3 Ignite's plus
-       # SUPPRESS_CASTER_PROCS and IGNORE_CASTER_MODIFIERS; Holy Fire's look until the brand's own
-       Fields = @{ 225 = 2; 98 = 1000; 40 = 35; 213 = 0; 6 = 0x20000004; 7 = 0x30050000; 131 = 3400 } }
+       # SUPPRESS_CASTER_PROCS and IGNORE_CASTER_MODIFIERS
+       Fields = @{ 225 = 2; 98 = 1000; 40 = 35; 213 = 0; 6 = 0x20000004; 7 = 0x30050000 }
+       # The target burns in gold and orange while branded: Immolate's look (visual 46), its burning state kept (kit
+       # 235), no cast; each hit that feeds the brand recasts it, so its impact is Holy Vengeance's small flash (kit
+       # 121) - Holy Fire's look, first used, raised a pillar of fire on every hit
+       Visual = @{ Clone = 46; Precast = 0; Cast = 0; Impact = 121 } }
 )
 
 return $spells
