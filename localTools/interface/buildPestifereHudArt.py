@@ -94,6 +94,18 @@ def makePreviews(assets, mask, bounds):
     boils.save(assetRoot / "boilPreview.png")
 
 
+# Sépulcre's smoke as painted (dark violet, its brightest 55 of 255) was invisible drawn additive in game: lifted so
+# its brightest reaches this, as bright as the toxic glow, its violet kept
+SEPULCRE_PEAK = 210
+
+
+def brightenLight(image, peak):
+    pixels = np.asarray(image.convert("RGB")).astype(float)
+    top = np.percentile(pixels.max(axis=2), 99.5)
+    pixels = np.clip(pixels * (peak / max(1.0, top)), 0, 255)
+    return Image.fromarray(pixels.astype(np.uint8))
+
+
 ADDITIVE = ("boiling", "glowToxic", "glowSepulcre", "bileDrips", "splash")
 
 
@@ -112,6 +124,7 @@ def atlasPiece(name, image):
 def main():
     pngRoot.mkdir(parents=True, exist_ok=True)
     assets, mask, bounds, face = buildAssets(loadSource)
+    assets["glowSepulcre"] = brightenLight(assets["glowSepulcre"], SEPULCRE_PEAK)
     mask.save(assetRoot / "flaskFillMask.png")
     face.save(assetRoot / "boilFaceMask.png")
     atlas = Image.new("RGBA", (1024, 512), 0)
