@@ -22,6 +22,29 @@ local LEGENDARIES = {
         lore = french and "« Le sceau ardent de l'Inquisiteur Fairbanks. Ce qu'il marque ne cesse plus de brûler. »"
             or "\"Inquisitor Fairbanks' burning seal. What it marks never stops burning.\"",
     },
+    [2] = {
+        item = 996,
+        source = french and "Légendaire · Cathédrale écarlate, Mythique+" or "Legendary · Scarlet Cathedral, Mythic+",
+        power = french
+            and "Un coup fatal vous laisse à 1 point de vie, et le serment vous rend %s de votre vie en 4 sec. "
+                .. "Une fois toutes les 3 min."
+            or "A killing blow leaves you at 1 health instead, and the oath restores %s of your health over "
+                .. "4 sec. Once every 3 min.",
+        lore = french and "« Relève-toi, mon champion ! » Le serment de Whitemane ne laisse tomber personne."
+            or "\"Arise, my champion!\" Whitemane's oath lets no one fall.",
+    },
+    [3] = {
+        item = 21428,
+        source = french and "Légendaire · Cathédrale écarlate, Mythique+" or "Legendary · Scarlet Cathedral, Mythic+",
+        power = french
+            and "Toutes les 10 sec en combat, une terre consacrée vous suit pendant 6 sec : chaque seconde, elle "
+                .. "inflige aux ennemis proches et rend aux alliés proches %s de votre puissance d'attaque ou des "
+                .. "sorts."
+            or "Every 10 sec in combat, consecrated ground follows you for 6 sec: every second it deals to nearby "
+                .. "enemies and heals nearby allies for %s of your attack or spell power.",
+        lore = french and "Là où le Commandant écarlate pose les poings, la terre devient sainte."
+            or "Where the Scarlet Commander sets his fists, the ground turns holy.",
+    },
 }
 local BASE_ITEMS = {}
 for id, legendary in pairs(LEGENDARIES) do

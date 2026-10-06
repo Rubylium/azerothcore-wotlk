@@ -3,6 +3,7 @@
 
 #include "Define.h"
 
+#include <array>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -21,6 +22,17 @@ constexpr uint32 TopItemLevel = 370;
 enum Power : uint32
 {
     POWER_INQUISITOR_BRAND = 1,     // Marque de l'Inquisiteur: direct damage brands the target, X% of it burning
+    POWER_WHITEMANE_OATH = 2,       // Serment de Whitemane: a killing blow leaves 1 health and heals X% over 4 sec
+    POWER_MOGRAINE_GROUND = 3,      // Consécration de Mograine: ground that follows, X% of AP or SP every second
+};
+
+// A slot's stats at a reference item level, from the best stock items there; a copy's grow from them with the power
+// model (PowerScaling.h)
+struct Budget
+{
+    float itemLevel;
+    int32 primary, stamina, spellPower, secondary;
+    std::array<int32, 4> armor;     // by the looter's armour type: cloth, leather, mail, plate
 };
 
 struct Definition
@@ -31,7 +43,7 @@ struct Definition
     // The power's window at the floor item level and at TopItemLevel, in percent
     float bottomLow, bottomHigh, topLow, topHigh;
     uint32 floorItemLevel;          // the lowest item level it drops at (its window's bottom)
-    uint32 referenceArmor;          // its slot's armour at item level 284 (the reference cloak's)
+    Budget budget;
     uint32 sourceDungeon;           // where it drops: the Dungeon Finder dungeon a Mythic+ key of completes
 };
 

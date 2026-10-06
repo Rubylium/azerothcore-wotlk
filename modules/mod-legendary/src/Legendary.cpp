@@ -3,11 +3,15 @@
 #include "Legendary.h"
 
 #include "Bag.h"
+#include "CellImpl.h"
 #include "CharacterDatabase.h"
 #include "Chat.h"
 #include "ChatCommand.h"
 #include "CommandScript.h"
 #include "GlobalScript.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
+#include "Group.h"
 #include "GroundLoot.h"
 #include "Item.h"
 #include "LiveTuning.h"
@@ -54,22 +58,49 @@ namespace
 // an item's property seed in its links (only a random suffix item's), so a link alone does not say which copy it is.
 constexpr std::string_view Prefix = "LEGENDARY";
 
-constexpr uint32 SPELL_INQUISITOR_BRAND = 97000;    // localTools/legendary/Spells.ps1
+// localTools/legendary/Spells.ps1
+constexpr uint32 SPELL_INQUISITOR_BRAND = 97000;
+constexpr uint32 SPELL_WHITEMANE_OATH_HEAL = 97001;
+constexpr uint32 SPELL_WHITEMANE_OATH_SPENT = 97002;
+constexpr uint32 SPELL_MOGRAINE_GROUND = 97003;
+constexpr uint32 SPELL_MOGRAINE_GROUND_DAMAGE = 97004;
+constexpr uint32 SPELL_MOGRAINE_GROUND_HEAL = 97005;
 constexpr int32 BrandTicks = 4;
+constexpr int32 OathTicks = 4;
+// Consécration de Mograine: every this long in combat, for this many pulses a second apart, this far around
+constexpr uint32 GroundEveryMs = 10000;
+constexpr uint32 GroundPulses = 6;
+constexpr float GroundRadius = 8.0f;
 
-// Each copy's rolls start from the best stock items at item level 284 (a cloak: Cloak of Burning Dusk) and grow with
-// the power model (PowerScaling.h), as every generated item does
-constexpr float ReferenceItemLevel = 284.0f;
-constexpr int32 ReferencePrimary = 83;
-constexpr int32 ReferenceStamina = 83;
-constexpr int32 ReferenceSpellPower = 118;
-constexpr int32 ReferenceSecondary = 69;
+// The slots' budgets: a cloak (Cloak of Burning Dusk, 284: its armour the same for every wearer) and a ring (Ring of
+// Phased Regeneration, 284) share one; gloves (the Icecrown heroic ones, 277) carry more, and the armour of the
+// looter's type
+constexpr Budget CloakBudget = { 284.0f, 83, 83, 118, 69, { 189, 189, 189, 189 } };
+constexpr Budget RingBudget = { 284.0f, 83, 83, 118, 69, { 0, 0, 0, 0 } };
+constexpr Budget GlovesBudget = { 277.0f, 147, 155, 209, 86, { 231, 434, 964, 1723 } };
 
-std::array<Definition, 1> const Definitions = { {
-    // The Scarlet Cathedral's Mythic+ (Scarlet Monastery, Dungeon Finder dungeon 164): a cloak in the Scarlet
-    // Onslaught's red (item 24567, localTools/patchSinisterStrike.ps1). 5-10% at +2, 25-35% at +60.
-    { 1, 24567, POWER_INQUISITOR_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Mythic::GetItemLevel(2), 189, 164 },
+// The Scarlet Cathedral's Mythic+ (Scarlet Monastery, Dungeon Finder dungeon 164); localTools/patchSinisterStrike.ps1
+// and the module's world SQL hold their base items
+std::array<Definition, 3> const Definitions = { {
+    // A cloak in the Scarlet Onslaught's red (item 24567): 5-10% at +2, 25-35% at +60
+    { 1, 24567, POWER_INQUISITOR_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Mythic::GetItemLevel(2), CloakBudget, 164 },
+    // A ring (item 996): 10-15% of the health at +2, 40-50% at +60
+    { 2, 996, POWER_WHITEMANE_OATH, 10.0f, 15.0f, 40.0f, 50.0f, Mythic::GetItemLevel(2), RingBudget, 164 },
+    // Gloves in Turalyon's red and gold (item 21428): 5-10% of the attack or spell power at +2, 25-35% at +60
+    { 3, 21428, POWER_MOGRAINE_GROUND, 5.0f, 10.0f, 25.0f, 35.0f, Mythic::GetItemLevel(2), GlovesBudget, 164 },
 } };
+
+// The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
+uint32 ArmorType(Player* player)
+{
+    if (player->HasSkill(SKILL_PLATE_MAIL))
+        return 3;
+    if (player->HasSkill(SKILL_MAIL))
+        return 2;
+    if (player->HasSkill(SKILL_LEATHER))
+        return 1;
+    return 0;
+}
 
 // A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
 // every key of that source completed without one, never above the cap (bad luck protection, reset by a drop). Kept
@@ -205,18 +236,20 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
     auto const [low, high] = PowerWindow(definition, itemLevel);
     copy.power = powerOverride ? *powerOverride : std::round(frand(low, high) * 10.0f) / 10.0f;
 
+    Budget const& budget = definition.budget;
     float const level = float(itemLevel);
-    float const statGrowth = ::Power::StatGrowth(ReferenceItemLevel, level);
-    float const ratingGrowth = ::Power::StatGrowth(ReferenceItemLevel, level, true);
-    copy.armor = Spread(int32(std::lround(float(definition.referenceArmor) * statGrowth)), 0.0f);
+    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level);
+    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true);
+    int32 const armor = budget.armor[ArmorType(player)];
+    copy.armor = armor ? Spread(int32(std::lround(float(armor) * statGrowth)), 0.0f) : 0;
 
     uint32 const primary = FavouredPrimary(player);
-    copy.stats.emplace_back(primary, Spread(int32(std::lround(ReferencePrimary * statGrowth)), 0.05f));
-    copy.stats.emplace_back(ITEM_MOD_STAMINA, Spread(int32(std::lround(ReferenceStamina * statGrowth)), 0.05f));
+    copy.stats.emplace_back(primary, Spread(int32(std::lround(budget.primary * statGrowth)), 0.05f));
+    copy.stats.emplace_back(ITEM_MOD_STAMINA, Spread(int32(std::lround(budget.stamina * statGrowth)), 0.05f));
     bool const caster = primary == ITEM_MOD_INTELLECT;
     if (caster)
         copy.stats.emplace_back(ITEM_MOD_SPELL_POWER,
-            Spread(int32(std::lround(ReferenceSpellPower * statGrowth)), 0.05f));
+            Spread(int32(std::lround(budget.spellPower * statGrowth)), 0.05f));
 
     // Two secondaries drawn from the ones that suit the primary
     std::vector<uint32> pool = caster ?
@@ -227,7 +260,7 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
     {
         uint32 const index = urand(0, uint32(pool.size() - 1));
         float const growth = pool[index] == ITEM_MOD_SPIRIT ? statGrowth : ratingGrowth;
-        copy.stats.emplace_back(pool[index], Spread(int32(std::lround(ReferenceSecondary * growth)), 0.10f));
+        copy.stats.emplace_back(pool[index], Spread(int32(std::lround(budget.secondary * growth)), 0.10f));
         pool.erase(pool.begin() + index);
     }
     return copy;
@@ -248,6 +281,10 @@ struct Worn : public DataMap::Base
 {
     // Per equipment slot: the power it gives and its strength (0: none)
     std::array<std::pair<uint32, float>, EQUIPMENT_SLOT_END> slots = {};
+    // Consécration de Mograine: time to the next ground in combat, its pulses left and time to the next
+    uint32 groundIn = 0;
+    uint32 pulsesLeft = 0;
+    uint32 pulseIn = 0;
 
     float Total(Power power) const
     {
@@ -269,6 +306,7 @@ class LegendaryPlayerScript : public PlayerScript
 public:
     LegendaryPlayerScript() : PlayerScript("LegendaryPlayerScript", {
         PLAYERHOOK_ON_AFTER_APPLY_ITEM_BONUSES,
+        PLAYERHOOK_ON_UPDATE,
         PLAYERHOOK_ON_LOGIN,
         PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE
     }) { }
@@ -289,6 +327,71 @@ public:
         if (definition && slot < EQUIPMENT_SLOT_END)
             GetWorn(player)->slots[slot] = apply ? std::make_pair(uint32(definition->power), copy->power) :
                 std::make_pair(0u, 0.0f);
+    }
+
+    // Consécration de Mograine: every GroundEveryMs in combat (at once when a fight starts), consecrated ground on the
+    // wearer for GroundPulses seconds - its aura, which carries the ground's look - and a pulse every second: what it
+    // deals to each enemy and heals each ally around, the rolled share of the wearer's attack or spell power,
+    // whichever is higher
+    void OnPlayerUpdate(Player* player, uint32 diff) override
+    {
+        Worn* worn = GetWorn(player);
+        float const percent = worn->Total(POWER_MOGRAINE_GROUND);
+        if (percent <= 0.0f || !player->IsAlive())
+        {
+            worn->pulsesLeft = 0;
+            return;
+        }
+        if (worn->pulsesLeft)
+        {
+            worn->pulseIn = worn->pulseIn > diff ? worn->pulseIn - diff : 0;
+            if (!worn->pulseIn)
+            {
+                worn->pulseIn = 1000;
+                --worn->pulsesLeft;
+                Pulse(player, percent);
+            }
+        }
+        if (!player->IsInCombat())
+        {
+            worn->groundIn = 0;
+            return;
+        }
+        worn->groundIn = worn->groundIn > diff ? worn->groundIn - diff : 0;
+        if (worn->groundIn)
+            return;
+        worn->groundIn = GroundEveryMs;
+        worn->pulsesLeft = GroundPulses;
+        worn->pulseIn = 0;
+        player->CastSpell(player, SPELL_MOGRAINE_GROUND, true);
+    }
+
+    static void Pulse(Player* player, float percent)
+    {
+        float const power = std::max(player->GetTotalAttackPowerValue(BASE_ATTACK),
+            float(player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_HOLY)));
+        int32 const amount = std::max(1, int32(std::lround(power * percent / 100.0f)));
+
+        std::list<Unit*> enemies;
+        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(player, player, GroundRadius);
+        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(player, enemies, check);
+        Cell::VisitObjects(player, searcher, GroundRadius);
+        for (Unit* enemy : enemies)
+            if (enemy->IsAlive() && player->IsValidAttackTarget(enemy))
+                player->CastCustomSpell(enemy, SPELL_MOGRAINE_GROUND_DAMAGE, &amount, nullptr, nullptr, true);
+
+        auto heal = [player, amount](Player* ally)
+        {
+            if (ally && ally->IsAlive() && ally->IsInMap(player) && ally->IsWithinDistInMap(player, GroundRadius))
+                player->CastCustomSpell(ally, SPELL_MOGRAINE_GROUND_HEAL, &amount, nullptr, nullptr, true);
+        };
+        if (Group* group = player->GetGroup())
+        {
+            for (GroupReference* reference = group->GetFirstMember(); reference; reference = reference->next())
+                heal(reference->GetSource());
+        }
+        else
+            heal(player);
     }
 
     // Every copy the character carries: marked, and its rolls sent for the tooltips. The base items' records first,
@@ -346,7 +449,29 @@ public:
 class LegendaryUnitScript : public UnitScript
 {
 public:
-    LegendaryUnitScript() : UnitScript("LegendaryUnitScript", true, { UNITHOOK_MODIFY_FINAL_DAMAGE }) { }
+    LegendaryUnitScript() : UnitScript("LegendaryUnitScript", true, {
+        UNITHOOK_MODIFY_FINAL_DAMAGE,
+        UNITHOOK_ON_DAMAGE
+    }) { }
+
+    // Serment de Whitemane: a blow that would kill the wearer leaves them at 1 health, and the oath heals them for its
+    // rolled share of their health over 4 sec; then it rests for 3 min (its debuff shows how long). Whatever the blow:
+    // a hit, a damage over time effect, a fall.
+    void OnDamage(Unit* /*attacker*/, Unit* victim, uint32& damage) override
+    {
+        Player* player = victim ? victim->ToPlayer() : nullptr;
+        if (!player || !player->IsAlive() || damage < player->GetHealth() ||
+            player->HasAura(SPELL_WHITEMANE_OATH_SPENT))
+            return;
+        float const percent = GetWorn(player)->Total(POWER_WHITEMANE_OATH);
+        if (percent <= 0.0f)
+            return;
+        damage = player->GetHealth() - 1;
+        int32 const perTick = std::max(1, int32(std::lround(float(player->GetMaxHealth()) * percent / 100.0f /
+            OathTicks)));
+        player->CastCustomSpell(player, SPELL_WHITEMANE_OATH_HEAL, &perTick, nullptr, nullptr, true);
+        player->CastSpell(player, SPELL_WHITEMANE_OATH_SPENT, true);
+    }
 
     void ModifyFinalDamage(Unit* attacker, Unit* victim, uint32& damage, uint32& /*absorb*/,
                            SpellInfo const* spellInfo) override

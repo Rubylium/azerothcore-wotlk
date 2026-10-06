@@ -2358,6 +2358,12 @@ for ($field = 1; $field -le 7; ++$field) {
 $legendaryCloak = @{ Item = 24567; Display = 71000; CloneOf = 64326; Icon = 'INV_Legendary_MarqueInquisiteur' }
 if (-not $itemOffsets.ContainsKey($legendaryCloak.Item)) { throw "Item.dbc has no row $($legendaryCloak.Item) for Marque de l'Inquisiteur." }
 [BitConverter]::GetBytes([uint32]$legendaryCloak.Display).CopyTo($itemBytes, $itemOffsets[$legendaryCloak.Item] + 5 * 4)
+# Consécration de Mograine, the gloves: item 21428, a hands row of the "misc" armour subclass (every class wears it;
+# mod-legendary rolls its armour for the looter's own armour type), wearing Turalyon's red and gold gauntlets (62062).
+# Serment de Whitemane, the ring, keeps its row's look (item 996): a ring is only seen as its icon.
+$legendaryGloves = @{ Item = 21428; Display = 62062 }
+if (-not $itemOffsets.ContainsKey($legendaryGloves.Item)) { throw "Item.dbc has no row $($legendaryGloves.Item) for Consécration de Mograine." }
+[BitConverter]::GetBytes([uint32]$legendaryGloves.Display).CopyTo($itemBytes, $itemOffsets[$legendaryGloves.Item] + 5 * 4)
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
 #
