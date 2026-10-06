@@ -8,8 +8,12 @@
 #include "ChatCommand.h"
 #include "CommandScript.h"
 #include "GlobalScript.h"
+#include "GroundLoot.h"
 #include "Item.h"
+#include "LiveTuning.h"
 #include "Log.h"
+#include "Map.h"
+#include "MythicDungeon.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -32,6 +36,7 @@
 #include <array>
 #include <cmath>
 #include <mutex>
+#include <set>
 #include <shared_mutex>
 #include <string_view>
 #include <unordered_map>
@@ -61,10 +66,17 @@ constexpr int32 ReferenceSpellPower = 118;
 constexpr int32 ReferenceSecondary = 69;
 
 std::array<Definition, 1> const Definitions = { {
-    // The Scarlet Cathedral's Mythic+ (Scarlet Monastery): a cloak in the Scarlet Onslaught's red (item 24567,
-    // localTools/patchSinisterStrike.ps1). 5-10% at the floor, 25-35% at +60.
-    { 1, 24567, POWER_INQUISITOR_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, 289, 189 },
+    // The Scarlet Cathedral's Mythic+ (Scarlet Monastery, Dungeon Finder dungeon 164): a cloak in the Scarlet
+    // Onslaught's red (item 24567, localTools/patchSinisterStrike.ps1). 5-10% at +2, 25-35% at +60.
+    { 1, 24567, POWER_INQUISITOR_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Mythic::GetItemLevel(2), 189, 164 },
 } };
+
+// A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
+// every key of that source completed without one, never above the cap (bad luck protection, reset by a drop). Kept
+// per character and per source in character_legendary_luck. Average about 1 in 33 keys at 2 / 0.5 / 3.
+LiveTuning::Knob const DropBasePct("legendary.drop_base_pct", 2.0f);
+LiveTuning::Knob const DropStepPct("legendary.drop_step_pct", 0.5f);
+LiveTuning::Knob const DropCapPct("legendary.drop_cap_pct", 3.0f);
 
 std::shared_mutex StoreLock;
 std::unordered_map<ObjectGuid::LowType, Copy> Store;
@@ -401,6 +413,65 @@ public:
     }
 };
 
+// The legendaries of a source, when a Mythic+ key of it is completed: once per instance, for every real player in it,
+// a roll against their luck there; a drop picks one of the source's legendaries and lands with the key's loot on the
+// floor (GroundLoot), at the key's item level.
+class LegendaryDropScript : public GlobalScript
+{
+public:
+    LegendaryDropScript() : GlobalScript("LegendaryDropScript", { GLOBALHOOK_ON_AFTER_UPDATE_ENCOUNTER_STATE }) { }
+
+    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* /*source*/,
+        Difficulty /*difficulty*/, std::list<DungeonEncounter const*> const* /*encounters*/, uint32 dungeonCompleted,
+        bool /*updated*/) override
+    {
+        int32 const level = map->GetMythicLevel();
+        if (!dungeonCompleted || level <= 0)
+            return;
+        std::vector<Definition const*> pool;
+        for (Definition const& definition : Definitions)
+            if (definition.sourceDungeon == dungeonCompleted)
+                pool.push_back(&definition);
+        if (pool.empty() || !_rolled.insert(map->GetInstanceId()).second)
+            return;
+
+        uint32 const itemLevel = Mythic::GetItemLevel(level);
+        map->DoForAllPlayers([&pool, itemLevel, dungeonCompleted](Player* player)
+        {
+            if (!player->GetSession() || player->GetSession()->IsBot())
+                return;
+            ObjectGuid::LowType const guid = player->GetGUID().GetCounter();
+            uint32 misses = 0;
+            if (QueryResult result = CharacterDatabase.Query("SELECT misses FROM character_legendary_luck "
+                "WHERE guid = {} AND source = {}", guid, dungeonCompleted))
+                misses = result->Fetch()[0].Get<uint32>();
+            float const chance = std::min(float(DropCapPct), float(DropBasePct) + float(DropStepPct) * float(misses));
+            bool const dropped = frand(0.0f, 100.0f) < chance;
+            CharacterDatabase.Execute("REPLACE INTO character_legendary_luck (guid, source, misses) "
+                "VALUES ({}, {}, {})", guid, dungeonCompleted, dropped ? 0 : misses + 1);
+            LOG_INFO("module", "Legendary: {} completed a key of dungeon {} at {}%: {}", player->GetName(),
+                dungeonCompleted, chance, dropped ? "dropped" : "nothing");
+            if (!dropped)
+                return;
+
+            Definition const* definition = pool[urand(0, uint32(pool.size() - 1))];
+            uint32 const id = definition->id;
+            ItemTemplate const* base = sObjectMgr->GetItemTemplate(definition->baseItem);
+            ObjectGuid const owner = player->GetGUID();
+            bool const thrown = base && GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
+            {
+                if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
+                    MakeCopy(looter, item, id, itemLevel);
+            });
+            if (!thrown)
+                GiveLegendary(player, id, itemLevel);
+        });
+    }
+
+private:
+    std::set<uint32> _rolled;
+};
+
 using namespace Acore::ChatCommands;
 
 class LegendaryCommandScript : public CommandScript
@@ -474,6 +545,19 @@ std::optional<Copy> GetCopy(Item const* item)
     return copy;
 }
 
+// A copy rolled for an item: kept in memory and in the database, the item marked, the client told
+static void Keep(Player* player, Item* item, Copy const& copy)
+{
+    ObjectGuid::LowType const guid = item->GetGUID().GetCounter();
+    {
+        std::unique_lock lock(StoreLock);
+        Store[guid] = copy;
+    }
+    Save(guid, player->GetGUID().GetCounter(), copy);
+    Mark(item);
+    SendCopy(player, guid, copy, item->IsInWorld() ? item : nullptr);
+}
+
 std::pair<float, float> PowerWindow(Definition const& definition, uint32 itemLevel)
 {
     float const span = float(TopItemLevel) - float(definition.floorItemLevel);
@@ -497,16 +581,17 @@ Item* GiveLegendary(Player* player, uint32 legendary, uint32 itemLevel, std::opt
     Item* item = player->StoreNewItem(destination, definition->baseItem, true);
     if (!item)
         return nullptr;
-    ObjectGuid::LowType const guid = item->GetGUID().GetCounter();
-    {
-        std::unique_lock lock(StoreLock);
-        Store[guid] = copy;
-    }
-    Save(guid, player->GetGUID().GetCounter(), copy);
-    Mark(item);
-    SendCopy(player, guid, copy, item);
+    Keep(player, item, copy);
     player->SendNewItem(item, 1, true, false);
     return item;
+}
+
+void MakeCopy(Player* player, Item* item, uint32 legendary, uint32 itemLevel)
+{
+    Definition const* definition = GetDefinition(legendary);
+    if (!player || !item || !definition || item->GetEntry() != definition->baseItem)
+        return;
+    Keep(player, item, Roll(*definition, player, itemLevel, std::nullopt));
 }
 }
 
@@ -516,5 +601,6 @@ void AddLegendaryScripts()
     new Legendary::LegendaryUnitScript();
     new Legendary::LegendaryWorldScript();
     new Legendary::LegendaryGlobalScript();
+    new Legendary::LegendaryDropScript();
     new Legendary::LegendaryCommandScript();
 }
