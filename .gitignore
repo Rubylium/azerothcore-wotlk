@@ -191,6 +191,8 @@ localTools/interface/cache/
 /localTools/retailImport/RetailImport/obj/
 # Incremental client generation and launcher payload/bundles
 /clientPatcher/.build/
+# Local extraction dumps (the sounds a build uses are kept in modules/*/client-assets/audio/sources)
+/data/custom/
 # The deploy window's Discord webhook (localTools/deployDiscord.ps1): a secret
 /localTools/deploy.local.json
 # Launcher release notification webhook
