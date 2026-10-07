@@ -29,6 +29,7 @@ Read the matching doc(s) BEFORE starting the task:
 - Importing retail item models (weapons, shoulders) into the 3.3.5 client, or any custom item/display id → `.agents/docs/systems/retail-import.md`
 - A class's own resource display (the draggable class HUD, its server feed) → `.agents/docs/systems/class-hud.md`
 - Any new sound (playing one from the server, a sound bank, its volume, 3D, echo) → `.agents/docs/systems/evolutions-audio.md` (our own engine; never SoundEntries rows)
+- A legendary or Unique item (a new one, its power, its icon art) → `.agents/docs/systems/legendaries.md`
 - Boss loot thrown on the floor (the Diablo-style ground loot: its drops, sounds, Défi wait) → `.agents/docs/systems/ground-loot.md`
 - Map editing (terrain, water, object placement with Noggit; the server's maps, vmaps and mmaps) → `localTools/mapEditing/README.md`
 - Camera flights / intro cinematics (a boss introduction, a scripted camera, the client extension's CameraPath) → `.agents/docs/systems/cinematics.md`
