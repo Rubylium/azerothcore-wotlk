@@ -37,11 +37,11 @@ local LEGENDARIES = {
         item = 21428,
         source = french and "Légendaire · Cathédrale écarlate, Mythique+" or "Legendary · Scarlet Cathedral, Mythic+",
         power = french
-            and "Toutes les 10 sec en combat, une terre consacrée vous suit pendant 6 sec : chaque seconde, elle "
-                .. "inflige aux ennemis proches et rend aux alliés proches %s de votre puissance d'attaque ou des "
-                .. "sorts."
-            or "Every 10 sec in combat, consecrated ground follows you for 6 sec: every second it deals to nearby "
-                .. "enemies and heals nearby allies for %s of your attack or spell power.",
+            and "Toutes les 10 sec en combat, le sol se consacre sous vos pieds pendant 6 sec : chaque seconde, il "
+                .. "inflige aux ennemis qui s'y tiennent et rend aux alliés qui s'y tiennent %s de votre puissance "
+                .. "d'attaque ou des sorts."
+            or "Every 10 sec in combat, the ground beneath you is consecrated for 6 sec: every second it deals to "
+                .. "enemies and heals allies standing in it for %s of your attack or spell power.",
         lore = french and "Là où le Commandant écarlate pose les poings, la terre devient sainte."
             or "Where the Scarlet Commander sets his fists, the ground turns holy.",
     },

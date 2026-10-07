@@ -8,6 +8,7 @@
 #include "Chat.h"
 #include "ChatCommand.h"
 #include "CommandScript.h"
+#include "DynamicObject.h"
 #include "GlobalScript.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -329,10 +330,10 @@ public:
                 std::make_pair(0u, 0.0f);
     }
 
-    // Consécration de Mograine: every GroundEveryMs in combat (at once when a fight starts), consecrated ground on the
-    // wearer for GroundPulses seconds - its aura, which carries the ground's look - and a pulse every second: what it
-    // deals to each enemy and heals each ally around, the rolled share of the wearer's attack or spell power,
-    // whichever is higher
+    // Consécration de Mograine: every GroundEveryMs in combat (at once when a fight starts), consecrated ground where
+    // the wearer stands for GroundPulses seconds - a persistent area, Consecration's - and a pulse every second: what it
+    // deals to each enemy and heals each ally on it, the rolled share of the wearer's attack or spell power, whichever
+    // is higher
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         Worn* worn = GetWorn(player);
@@ -349,7 +350,11 @@ public:
             {
                 worn->pulseIn = 1000;
                 --worn->pulsesLeft;
-                Pulse(player, percent);
+                // Around the ground, where it was laid; gone (the wearer left the map), nothing more
+                if (DynamicObject* ground = player->GetDynObject(SPELL_MOGRAINE_GROUND))
+                    Pulse(player, ground, percent);
+                else
+                    worn->pulsesLeft = 0;
             }
         }
         if (!player->IsInCombat())
@@ -366,23 +371,23 @@ public:
         player->CastSpell(player, SPELL_MOGRAINE_GROUND, true);
     }
 
-    static void Pulse(Player* player, float percent)
+    static void Pulse(Player* player, WorldObject* ground, float percent)
     {
         float const power = std::max(player->GetTotalAttackPowerValue(BASE_ATTACK),
             float(player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_HOLY)));
         int32 const amount = std::max(1, int32(std::lround(power * percent / 100.0f)));
 
         std::list<Unit*> enemies;
-        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(player, player, GroundRadius);
-        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(player, enemies, check);
-        Cell::VisitObjects(player, searcher, GroundRadius);
+        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(ground, player, GroundRadius);
+        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(ground, enemies, check);
+        Cell::VisitObjects(ground, searcher, GroundRadius);
         for (Unit* enemy : enemies)
             if (enemy->IsAlive() && player->IsValidAttackTarget(enemy))
                 player->CastCustomSpell(enemy, SPELL_MOGRAINE_GROUND_DAMAGE, &amount, nullptr, nullptr, true);
 
-        auto heal = [player, amount](Player* ally)
+        auto heal = [player, ground, amount](Player* ally)
         {
-            if (ally && ally->IsAlive() && ally->IsInMap(player) && ally->IsWithinDistInMap(player, GroundRadius))
+            if (ally && ally->IsAlive() && ally->IsInMap(player) && ally->IsWithinDistInMap(ground, GroundRadius))
                 player->CastCustomSpell(ally, SPELL_MOGRAINE_GROUND_HEAL, &amount, nullptr, nullptr, true);
         };
         if (Group* group = player->GetGroup())

@@ -20,12 +20,13 @@ The Forge never takes legendaries.
 |---|---|---|---|---|
 | 1 | Marque de l'Inquisiteur | 24567, cloak | Scarlet Cathedral, Mythic+ (dungeon 164) | Direct damage brands the target: X% of it burns as Holy over 4 sec (5-10% at +2, 25-35% at +60) |
 | 2 | Serment de Whitemane | 996, ring | Scarlet Cathedral, Mythic+ (dungeon 164) | A killing blow leaves 1 health and heals X% of the health over 4 sec, once per 3 min (10-15% at +2, 40-50% at +60) |
-| 3 | Consécration de Mograine | 21428, gloves (misc armour: every class; armour of the looter's type) | Scarlet Cathedral, Mythic+ (dungeon 164) | Every 10 sec in combat, ground follows the wearer for 6 sec: each second X% of the attack or spell power to enemies and allies within 8 yd (5-10% at +2, 25-35% at +60) |
+| 3 | Consécration de Mograine | 21428, gloves (misc armour: every class; armour of the looter's type) | Scarlet Cathedral, Mythic+ (dungeon 164) | Every 10 sec in combat, ground where the wearer stands for 6 sec: each second X% of the attack or spell power to enemies and allies within 8 yd (5-10% at +2, 25-35% at +60) |
 
 Each slot has its stat budget (`Budget`: the best stock items at a reference item level). Serment de Whitemane works
 in `OnDamage` (any blow: a hit, damage over time, a fall), its heal 97001 and its 3 min shown by the debuff 97002.
-Consécration de Mograine is an aura on the wearer (97003, Consecration's ground glow as its look, so it follows) and a
-pulse every second from `OnPlayerUpdate`: 97004 on each enemy, 97005 on each group member in range.
+Consécration de Mograine lays a persistent area where the wearer stands (97003, Consecration's row and look; it does
+not follow them) and pulses around it every second from `OnPlayerUpdate`: 97004 on each enemy, 97005 on each group
+member on it.
 
 The brand (spell 97000, `localTools/legendary/Spells.ps1`) is a real periodic aura cast by the wearer, so the combat
 log and Details credit them with it on its own line. Only direct damage feeds it (`ModifyFinalDamage`: swings and

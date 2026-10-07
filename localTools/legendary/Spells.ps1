@@ -36,15 +36,14 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 4; BasePoints = 0 })
        Fields = @{ 40 = 25; 131 = 0 } },
 
-    # Consécration de Mograine: every 10 sec in combat the wearer carries consecrated ground for 6 sec - an aura on
-    # them (Divine Plea's row, a dummy aura) wearing Consecration's ground glow as its state (kit 9366), so it follows
-    # them; mod-legendary pulses it every second with the two spells below.
-    @{ Id = 97003; Clone = 54428; Name = 'Consécration de Mograine'; Icon = 'Legendary_ConsecrationMograine'; FallbackIconSpell = 48819; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = 'La terre consacrée de Mograine vous suit.'
-       AuraDescription = 'Une terre consacrée vous suit : elle brûle les ennemis et soigne les alliés proches.'
-       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 4; BasePoints = 0 })
-       Fields = @{ 40 = 32 }
-       Visual = @{ Clone = 5600; Cast = 0; Impact = 0; State = 9366 } },
+    # Consécration de Mograine: every 10 sec in combat, consecrated ground where the wearer stands, for 6 sec.
+    # Consecration's own row (a persistent area at the caster's feet, 8 yd) and look, its aura a dummy: mod-legendary
+    # pulses it every second with the two spells below, around the ground. (An aura on the wearer carrying the
+    # ground's look, first used, made it follow them: it did not look good.)
+    @{ Id = 97003; Clone = 48819; Name = 'Consécration de Mograine'; Icon = 'Legendary_ConsecrationMograine'; FallbackIconSpell = 48819; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'La terre consacrée de Mograine brûle les ennemis et soigne les alliés qui s''y tiennent.'
+       Fields = @{ 40 = 32; 95 = 4; 98 = 0; 80 = 0; 28 = 1 }
+       Visual = @{ Clone = 5600; Cast = 0; Impact = 0 } },
     # Its damage on each enemy in it, every second: Smite's row, instant, exact, no visual (the ground shows it)
     @{ Id = 97004; Clone = 585; Name = 'Consécration de Mograine'; Icon = 'Legendary_ConsecrationMograine'; FallbackIconSpell = 48819; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'La terre consacrée de Mograine brûle les ennemis.'
