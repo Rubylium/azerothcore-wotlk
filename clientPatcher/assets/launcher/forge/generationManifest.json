@@ -1,0 +1,242 @@
+{
+  "generator": "built-in imagegen",
+  "brief": ".agents/plans/launcher-forge/launcher-forge.ASSETS.md",
+  "styleReferences": [
+    "clientPatcher/assets/gladiatorHud/reference/reaperHud.png",
+    "clientPatcher/assets/gladiatorHud/v2/gladiatorHudV2Atlas.png",
+    "clientPatcher/assets/pestifereHud/pestifereHudAtlas.png"
+  ],
+  "assets": [
+    {
+      "name": "backWallHot",
+      "sourcePath": "source/backWallHot.png",
+      "generatedFile": "exec-f18308d7-0a80-43a7-ad45-6a243426b9cf.png",
+      "promptLines": [
+        "Use case: stylized-concept. Cinematic World of Warcraft key art, painterly Blizzard concept-art finish, ",
+        "dwarven blacksmith forge at night, dark iron and soot, light ONLY from fire and hot metal, deep shadows ",
+        "and warm orange-gold glow. No characters or text. Wide2560x1520 canvas target. LEFT45% of canvas and ",
+        "BOTTOM26% stay dark and calm, no bright detail: interface title on left and workbench bar at bottom. BACK ",
+        "WALL ONLY: great dwarven-scale forge hall, rough charcoal dark stone walls, huge furnace mouth glowing ",
+        "orange centred x77% y37%, chains/hooks hanging from beams, racks of tongs and hammers in shadow. Soft warm ",
+        "haze around furnace. NO ANVIL, sword, floor props or foreground objects. Left45% dark lowcontrast blank ",
+        "stone and bottom26% unlit dark floor, furnace light contained right uppermiddle. No bright windows. Opaque ",
+        "wide painting, 2560x1520 target."
+      ]
+    },
+    {
+      "name": "backWallCold",
+      "sourcePath": "source/backWallCold.png",
+      "generatedFile": "exec-22184a50-b9d7-4790-802b-be4175c26ace.png",
+      "promptLines": [
+        "Edit attached forge back wall to COLD CLOSED REALM state. SAME canvas and exact shapes, architecture, ",
+        "furnace, chains, hooks, tool racks, floor, positions and perspective. Change only temperature/light: fire ",
+        "dead, furnace mouth black, dull grey ash not orange, ALL orange/gold glow gone. Cold blue-grey light ",
+        "weakly enters from high window, little grey smoke. Left45% and bottom26% remain dark calm. No anvil or ",
+        "characters/text. Opaque canvas unchanged."
+      ]
+    },
+    {
+      "name": "anvilHot",
+      "sourcePath": "source/anvilHot.png",
+      "generatedFile": "exec-064070a0-1983-42c0-912f-d1129a8d1a34.png",
+      "promptLines": [
+        "Use case: stylized-concept. Cinematic World of Warcraft key art, painterly Blizzard concept-art finish, ",
+        "dwarven blacksmith forge at night, dark iron and soot, light ONLY from fire and hot metal, deep shadows ",
+        "and warm orange-gold glow. No characters or text. Wide2560x1520 canvas target. LEFT45% of canvas and ",
+        "BOTTOM26% stay dark and calm, no bright detail: interface title on left and workbench bar at bottom. LAYER ",
+        "ONLY on GENUINELY TRANSPARENT 2560x1520 canvas. Attached painting is scene REGISTRATION reference only; ",
+        "remove ALL hall/wall/furnace/background. Draw ONLY heavy iron ANVIL on stone block with long SWORD BLADE ",
+        "lying across its top, white-orange heat at blade centre fading dark tip, pair of tongs beside it. Anvil ",
+        "centred x76% y60%, silhouette occupies x59%-94%, y44%-73%. Bottom26% and left45% completely TRANSPARENT. ",
+        "Blade runs roughly horizontally, no huge diagonal, no sparks or glow beyond blade. Fire-lit orange edges, ",
+        "dark iron mass. Full original wide canvas, isolated anvil not centred in canvas."
+      ]
+    },
+    {
+      "name": "anvilCold",
+      "sourcePath": "source/anvilCold.png",
+      "generatedFile": "exec-0815a9df-3d3a-468b-839b-d227e961d8f3.png",
+      "promptLines": [
+        "Edit attached isolated anvil/sword layer to COLD state. EXACT same full wide canvas, object shapes, ",
+        "silhouette, positions, sword blade, anvil, stone block and tongs. Only change heat/light: blade DARK IRON ",
+        "with faint cool grey sheen, ALL orange/gold gone everywhere including reflected edges, no glow/sparks. ",
+        "Cold blue-grey steel. Genuine transparent background and holes preserved. Do not shift or redraw objects."
+      ]
+    },
+    {
+      "name": "foreground",
+      "sourcePath": "source/foreground.png",
+      "generatedFile": "exec-11c29cce-9606-45ca-8f13-22967123c78f.png",
+      "promptLines": [
+        "Use case: stylized-concept. Cinematic World of Warcraft key art, painterly Blizzard concept-art finish, ",
+        "dwarven blacksmith forge at night, dark iron and soot, light ONLY from fire and hot metal, deep shadows ",
+        "and warm orange-gold glow. No characters or text. Wide2560x1520 canvas target. LEFT45% of canvas and ",
+        "BOTTOM26% stay dark and calm, no bright detail: interface title on left and workbench bar at bottom. ",
+        "FOREGROUND SILHOUETTES ONLY on genuine transparent2560x1520 canvas. Near-black forms with VERY thin ",
+        "subdued warm rim: quench barrel at far bottom LEFT (x0%-15%,y77%-100%), hanging chain and hook at TOP ",
+        "RIGHT (x95%,y0%-42%), hammer HANDLE coming in bottom RIGHT EDGE (x90%-100%,y84%-100%). Nothing in middle: ",
+        "no anvil/blade/scene/wall/furnace. NO bright detail left45% or bottom26%; silhouettes very dark, avoid hot ",
+        "glowing rims. Exactly three separate framing objects at specified edges."
+      ]
+    },
+    {
+      "name": "fireLight",
+      "sourcePath": "source/fireLight.png",
+      "generatedFile": "exec-af2a4201-0e2a-415d-a321-9019c9cde0a0.png",
+      "promptLines": [
+        "Use case: stylized-concept. Cinematic World of Warcraft key art, painterly Blizzard concept-art finish, ",
+        "dwarven blacksmith forge at night, dark iron and soot, light ONLY from fire and hot metal, deep shadows ",
+        "and warm orange-gold glow. No characters or text. Wide2560x1520 canvas target. LEFT45% of canvas and ",
+        "BOTTOM26% stay dark and calm, no bright detail: interface title on left and workbench bar at bottom. LIGHT ",
+        "ONLY registered to attached forge wall and anvil scene references, same wide2560x1520 canvas. No physical ",
+        "forge/anvil/sword objects at all. Pure #000000 backdrop. Soft orange furnace bloom at x77%,y47% (radius13% ",
+        "canvas), small hot blade bloom x76%,y46%, gentle warm floor spill on right at y67%. Left45% and bottom26% ",
+        "completely black. Restrained soft broad light, no hard outlines, no full-wall lighting."
+      ]
+    },
+    {
+      "name": "smoke",
+      "sourcePath": "source/smoke.png",
+      "generatedFile": "exec-40e7c58d-109f-4231-8d39-5757fcd7799f.png",
+      "promptLines": [
+        "Use case: stylized-concept. Cinematic World of Warcraft key art, painterly Blizzard concept-art finish, ",
+        "dwarven blacksmith forge at night, dark iron and soot, light ONLY from fire and hot metal, deep shadows ",
+        "and warm orange-gold glow. No characters or text. Wide2560x1520 canvas target. LEFT45% of canvas and ",
+        "BOTTOM26% stay dark and calm, no bright detail: interface title on left and workbench bar at bottom. Thin ",
+        "wispy GREY forge SMOKE drifting sideways, very soft and sparse, light only on pure#000000 black. ",
+        "Wide2560x760, seamlessly tile left/right identical matching density at ends. No ",
+        "furnace/anvil/objects/fire, no bright white billowing clouds, no border. Lightest ash-grey wisps ",
+        "only10%-25% brightness, black empty space dominates. Tileable panorama."
+      ]
+    },
+    {
+      "name": "ingotHot",
+      "sourcePath": "source/ingotHot.png",
+      "generatedFile": "exec-733082de-3c11-4aeb-a42d-f23488fe94a6.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. HOT PLAY ",
+        "INGOT1200x400. Wide front-facing blacksmith ingot used as big button, long rounded rectangle3:1 ratio. ",
+        "Molten metal WHITE-GOLD core graduating to deep ORANGE edges, THIN dark crust at rim, broad painted ",
+        "facets, slight restrained heat shimmer. NO symbols, letters, handles, wings, jewels, end ornaments or ",
+        "studs. Whole object visible,10% transparent margin, genuine transparency. Symmetric simple readable ",
+        "rounded bar."
+      ]
+    },
+    {
+      "name": "ingotCold",
+      "sourcePath": "source/ingotCold.png",
+      "generatedFile": "exec-5cbfb014-f2c0-48a3-9457-113dfc1824ad.png",
+      "promptLines": [
+        "Edit attached ingot to COLD iron button. EXACT same canvas, shape, rounded silhouette, perspective and ",
+        "position. Change only heat: dark blue-grey iron dull metallic sheen, faint broad hammer marks. Absolutely ",
+        "NO orange/gold/yellow or glow. Keep outline and transparent background. Do not reshape or add any ",
+        "ornaments/text."
+      ]
+    },
+    {
+      "name": "ingotGlow",
+      "sourcePath": "source/ingotGlow.png",
+      "generatedFile": "exec-24a5dc33-5da6-4c73-8ef4-fed2f0c45c62.png",
+      "promptLines": [
+        "Attached hot ingot is REGISTRATION reference. Remove physical ingot entirely, only SOFT ORANGE-GOLD ",
+        "halo/heat haze around its outer silhouette, light only on PURE BLACK.1600x640 target: ingot would ",
+        "occupy1200x400 centred (offset200,120). No visible material, crust, bar, filled molten centre, letters or ",
+        "ornaments. Empty centre BLACK; broad restrained aura around outside, fade all canvas edges to pure black."
+      ]
+    },
+    {
+      "name": "sparkBurst",
+      "sourcePath": "source/sparkBurst.png",
+      "generatedFile": "exec-ec29c236-25a1-4ef9-bb51-44518daa34b0.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. SPARK ",
+        "BURST FLIPBOOK2048x2048, EXACT4x4 GRID of16 separate512x512 cells, pureblack no grid lines or labels. Same ",
+        "centred origin in each cell (256,256); chronological ROW-MAJOR sequence. First cells small bright central ",
+        "hammer flash, next sparks gold-orange flying OUTWARD, last cells sparse dim sparks fading to black. ONLY ",
+        "sparks/light, no hammer/anvil/objects. All16 cells visible, consistent particles evolving, no smoke or ",
+        "flames."
+      ]
+    },
+    {
+      "name": "embers",
+      "sourcePath": "source/embers.png",
+      "generatedFile": "exec-da725a96-b1db-4c08-8272-006c867b4909.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. EMBER ",
+        "SPRITE ATLAS1024x1024 EXACT4x4 GRID16 cells256x256 on pureBLACK. ONE individual small gold-orange glowing ",
+        "ember or elongated spark centred in EACH cell,16 varied sizes/shapes. Tiny solids with soft small glow, ",
+        "substantial black margin each cell. No clusters, no scene, no flames, grid lines, labels or text. All16 ",
+        "individual particles readable."
+      ]
+    },
+    {
+      "name": "hammer",
+      "sourcePath": "source/hammer.png",
+      "generatedFile": "exec-2b692eb4-8fce-45b8-9d4b-1f927a650d86.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. HEAVY ",
+        "BLACKSMITH HAMMER1200x900 on genuine transparent background. Side profile, massive darkiron head pointing ",
+        "LEFT, worn BRIGHT steel striking face at left, wrapped brown leather handle goes down-right. Entire tool ",
+        "visible with10% margin. Broad painted surfaces not filigree, no glowing runes or ornaments. No forge, arm ",
+        "or hand."
+      ]
+    },
+    {
+      "name": "emblem",
+      "sourcePath": "source/emblem.png",
+      "generatedFile": "exec-ca882c6c-54eb-4fde-95f7-f81cf666c03c.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. ",
+        "EVOLUTIONS EMBLEM1024x1024. Front-view ANVIL with rising FLAME/SPARK above forming STYLISED UPWARD ARROW, ",
+        "darkiron with molten ORANGE cracks, framed by ring of RIVETED IRON. PERFECT bilateral symmetry, broad ",
+        "compact readable silhouette scales to small window icon. No lettering, no background, genuine transparent ",
+        "cutout, entire ring visible with5% margin. NOT Scarlet sun/halo/wings."
+      ]
+    },
+    {
+      "name": "ironPlate",
+      "sourcePath": "source/ironPlate.png",
+      "generatedFile": "exec-dd373028-9570-4348-8889-8f0aac6a1a39.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. DARK ",
+        "RIVETED IRON PANEL1024x512. Worn blued charcoal steel rectangle, exactly FOUR RIVETS one at each corner, ",
+        "thin bevelled edge, faint broad hammer facets. Centre PLAIN EVEN DARK for stretched panel and text; all ",
+        "detail on border/corners. No crests, flames, symbols, bright gems or glyphs. Symmetric front view, genuine ",
+        "transparent outside panel, wholeplatevisible5% margin."
+      ]
+    },
+    {
+      "name": "headerBand",
+      "sourcePath": "source/headerBand.png",
+      "generatedFile": "exec-9a0deeff-c3da-443e-b032-d9f9be96a584.png",
+      "promptLines": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft UI element matching attached approved Ascension ",
+        "class resource HUD references: chunky readable silhouette, broad painted facets, soft upper-left light, ",
+        "dark outline, isolated, no text, no tiny scratches or filigree, no photorealism. Palette graphite#131416, ",
+        "iron#22252B, plate#2B2E35, rivet#454A54, ember#C84B10, molten#FF8A2A, hotgold#FFB347, ash#8D867E. WINDOW ",
+        "TITLE HEADER2560x192. Long thin HORIZONTAL BAND of dark riveted steel; evenly spaced row of small dull ",
+        "rivets along TOP and BOTTOM edges, bevelled lower lip, middle plain graphite for text. Seamless horizontal ",
+        "tiling, fullwidth edge-to-edge straight cut NO endcaps or ornaments. Genuine transparent above/below steel ",
+        "only. No lettering/flames/runes/crests."
+      ]
+    }
+  ]
+}

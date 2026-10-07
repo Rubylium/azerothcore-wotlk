@@ -3,57 +3,67 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Shapes;
+using System.Windows.Media.Imaging;
 
 namespace Evolutions
 {
-    // The home backdrop's life: a very slow Ken Burns drift over the art, the braziers' firelight and the city's
-    // beam breathing, and a few embers rising off the braziers. Everything is a storyboard over render transforms
-    // and opacities - no per-frame work of our own - capped at 30 frames a second, and paused while the window is
-    // minimised.
+    // The forge's life (Assets/Forge, .agents/plans/launcher-forge): its heat - the hot paintings cross-fading over
+    // the cold ones as the realm opens or closes - the fire's light flickering, smoke drifting across, embers rising
+    // off the blade while it is hot, three depths following the mouse a little, and a very slow drift over it all.
+    // Storyboards over render transforms and opacities, capped at 30 frames a second, paused while minimised.
     internal sealed class Backdrop
     {
-        // Where the lights sit on the 1672x941 art
-        static readonly Point LeftBrazier = new Point(310, 552);
-        static readonly Point RightBrazier = new Point(1362, 552);
+        // Where the embers leave from on the 1920 x 1140 scene: the blade on the anvil and the furnace's mouth
+        static readonly Rect EmberSource = new Rect(1240, 470, 470, 110);
+        const int EmberCount = 16;
+        // How far each depth moves with the mouse, in scene pixels, at the window's edge
+        const double BackTravel = 10, MidTravel = 22, FrontTravel = 44;
 
-        const int EmbersPerBrazier = 7;
-
-        // The scene's RenderTransform is a TransformGroup of a ScaleTransform then a TranslateTransform
         const string Scale = "(UIElement.RenderTransform).(TransformGroup.Children)[0].";
         const string Shift = "(UIElement.RenderTransform).(TransformGroup.Children)[1].";
 
         readonly FrameworkElement owner;
+        readonly UIElement wallHot, hotMid, embers;
+        readonly TranslateTransform back, mid, front;
         readonly Storyboard storyboard = new Storyboard();
         bool started;
+        bool? hot;
 
-        public Backdrop(FrameworkElement owner, UIElement scene, UIElement beaconHalo, UIElement beaconBeam,
-            UIElement leftGlow, UIElement leftCore, UIElement rightGlow, UIElement rightCore, Canvas embers)
+        public Backdrop(FrameworkElement owner, UIElement scene, UIElement wallHot, UIElement hotMid,
+            UIElement fireLight, UIElement smoke, Canvas embers, TranslateTransform back, TranslateTransform mid,
+            TranslateTransform front)
         {
             this.owner = owner;
+            this.wallHot = wallHot;
+            this.hotMid = hotMid;
+            this.embers = embers;
+            this.back = back;
+            this.mid = mid;
+            this.front = front;
             Timeline.SetDesiredFrameRate(storyboard, 30);
 
-            // Ken Burns: 5% of zoom on a 70 s breath, and a drift on two other periods so the path never quite
-            // repeats. The scale never drops under 1.03 around (0.5, 0.4) and the drift stays inside what that and
-            // the cover crop leave spare, so the art's edges never show.
-            Drift(scene, Scale + "(ScaleTransform.ScaleX)", 1.03, 1.08, 35);
-            Drift(scene, Scale + "(ScaleTransform.ScaleY)", 1.03, 1.08, 35);
-            Drift(scene, Shift + "(TranslateTransform.X)", -26, 26, 41);
-            Drift(scene, Shift + "(TranslateTransform.Y)", -8, 8, 29);
+            // A breath of zoom and a drift, on periods that never quite line up; the edges never show
+            Drift(scene, Scale + "(ScaleTransform.ScaleX)", 1.04, 1.07, 37);
+            Drift(scene, Scale + "(ScaleTransform.ScaleY)", 1.04, 1.07, 37);
+            Drift(scene, Shift + "(TranslateTransform.X)", -14, 14, 43);
+            Drift(scene, Shift + "(TranslateTransform.Y)", -6, 6, 31);
 
-            // Firelight and the beam: slow, slightly out of step with one another
-            Pulse(beaconHalo, 0.4, 0.75, 4.6, 0);
-            Pulse(beaconBeam, 0.45, 0.85, 3.3, 1.1);
-            Pulse(leftGlow, 0.45, 0.8, 2.7, 0);
-            Pulse(leftCore, 0.5, 0.95, 1.6, 0.4);
-            Pulse(rightGlow, 0.45, 0.8, 3.1, 0.9);
-            Pulse(rightCore, 0.5, 0.95, 1.8, 0.2);
+            // The fire breathes: a slow swell and a quicker flicker on top of it
+            var flicker = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            double[] levels = { 0.86, 1.0, 0.9, 0.97, 0.82, 1.0, 0.92, 0.88, 1.0, 0.86 };
+            for (int index = 0; index < levels.Length; ++index)
+                flicker.KeyFrames.Add(new EasingDoubleKeyFrame(levels[index],
+                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(index * 260)),
+                    new SineEase { EasingMode = EasingMode.EaseInOut }));
+            Add(flicker, fireLight, new PropertyPath(UIElement.OpacityProperty));
 
-            // Fixed seed: the same embers every run
-            var random = new Random(1672);
-            foreach (Point brazier in new[] { LeftBrazier, RightBrazier })
-                for (int index = 0; index < EmbersPerBrazier; ++index)
-                    AddEmber(embers, brazier, random);
+            // The smoke: two copies of the tileable band, sliding one width over a minute and a half
+            var slide = new DoubleAnimation(0, -1920, TimeSpan.FromSeconds(90)) { RepeatBehavior = RepeatBehavior.Forever };
+            Add(slide, smoke, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.X)"));
+
+            var random = new Random(1920);
+            for (int index = 0; index < EmberCount; ++index)
+                AddEmber(embers, index % 16, random);
         }
 
         public void Start()
@@ -82,7 +92,38 @@ namespace Evolutions
             started = false;
         }
 
-        // A storyboard cannot aim at a transform on its own, only at an element and a path down to it
+        // The forge lit or cold: the hot paintings (the wall, the anvil, the fire's light, the embers) fade over the
+        // cold ones. The first call sets it at once; later ones take their time, as metal heats and cools.
+        public void SetHeat(bool lit)
+        {
+            if (hot == lit)
+                return;
+            TimeSpan duration = hot == null ? TimeSpan.Zero : TimeSpan.FromSeconds(lit ? 1.8 : 3.0);
+            hot = lit;
+            foreach (UIElement layer in new[] { wallHot, hotMid, embers })
+                layer.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(lit ? 1 : 0, duration)
+                {
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                });
+        }
+
+        // The mouse, from -1 to 1 across the window: the far wall barely moves, the foreground the most
+        public void Parallax(double x, double y)
+        {
+            Ease(back, -x * BackTravel, -y * BackTravel * 0.5);
+            Ease(mid, -x * MidTravel, -y * MidTravel * 0.5);
+            Ease(front, -x * FrontTravel, -y * FrontTravel * 0.5);
+        }
+
+        static void Ease(TranslateTransform transform, double x, double y)
+        {
+            var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+            transform.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(x, TimeSpan.FromMilliseconds(600)) { EasingFunction = easing });
+            transform.BeginAnimation(TranslateTransform.YProperty,
+                new DoubleAnimation(y, TimeSpan.FromMilliseconds(600)) { EasingFunction = easing });
+        }
+
         void Drift(UIElement target, string path, double from, double to, double seconds)
         {
             var animation = new DoubleAnimation(from, to, TimeSpan.FromSeconds(seconds))
@@ -94,69 +135,49 @@ namespace Evolutions
             Add(animation, target, new PropertyPath(path));
         }
 
-        void Pulse(UIElement target, double low, double high, double seconds, double delay)
+        // One painted ember (Assets/Forge/emberNN.png) that leaves the fire, rises with a sway and fades, then
+        // starts over
+        void AddEmber(Canvas layer, int sprite, Random random)
         {
-            var animation = new DoubleAnimation(low, high, TimeSpan.FromSeconds(seconds))
-            {
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever,
-                BeginTime = TimeSpan.FromSeconds(-delay),
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-            };
-            Add(animation, target, new PropertyPath(UIElement.OpacityProperty));
-        }
+            double size = 14 + random.NextDouble() * 22;
+            double seconds = 3.4 + random.NextDouble() * 3.4;
+            double rise = 220 + random.NextDouble() * 260;
+            double sway = (random.NextDouble() - 0.5) * 140;
 
-        // A small soft spark that leaves the fire, rises with a little sway and fades out, then starts over
-        void AddEmber(Canvas layer, Point brazier, Random random)
-        {
-            double size = 4 + random.NextDouble() * 5;
-            double seconds = 3.6 + random.NextDouble() * 3.2;
-            double rise = 150 + random.NextDouble() * 120;
-            double sway = (random.NextDouble() - 0.5) * 60;
-
-            var ember = new Ellipse
+            var ember = new Image
             {
                 Width = size,
                 Height = size,
                 Opacity = 0,
                 RenderTransform = new TranslateTransform(),
-                Fill = new RadialGradientBrush(Color.FromArgb(0xFF, 0xFF, 0xE2, 0x9A),
-                    Color.FromArgb(0, 0xFF, 0x9A, 0x3A)),
+                Source = new BitmapImage(new Uri(
+                    $"pack://application:,,,/Evolutions;component/Assets/Forge/ember{sprite:00}.png")),
             };
-            ember.Fill.Freeze();
-            Canvas.SetLeft(ember, brazier.X - size / 2 + (random.NextDouble() - 0.5) * 80);
-            Canvas.SetTop(ember, brazier.Y - 20 + (random.NextDouble() - 0.5) * 24);
+            Canvas.SetLeft(ember, EmberSource.X + random.NextDouble() * EmberSource.Width);
+            Canvas.SetTop(ember, EmberSource.Y + random.NextDouble() * EmberSource.Height);
             layer.Children.Add(ember);
 
             var duration = new Duration(TimeSpan.FromSeconds(seconds));
-            // Spread over its own cycle so the embers never leave together
             TimeSpan phase = TimeSpan.FromSeconds(-random.NextDouble() * seconds);
 
-            var up = new DoubleAnimation(0, -rise, duration)
+            Add(new DoubleAnimation(0, -rise, duration)
             {
                 RepeatBehavior = RepeatBehavior.Forever,
                 BeginTime = phase,
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
-            };
-            Add(up, ember, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.Y)"));
-
-            var across = new DoubleAnimation(0, sway, duration)
+            }, ember, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.Y)"));
+            Add(new DoubleAnimation(0, sway, duration)
             {
                 RepeatBehavior = RepeatBehavior.Forever,
                 BeginTime = phase,
                 EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-            };
-            Add(across, ember, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.X)"));
+            }, ember, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.X)"));
 
-            var fade = new DoubleAnimationUsingKeyFrames
-            {
-                Duration = duration,
-                RepeatBehavior = RepeatBehavior.Forever,
-                BeginTime = phase,
-            };
+            var fade = new DoubleAnimationUsingKeyFrames { Duration = duration, RepeatBehavior = RepeatBehavior.Forever,
+                BeginTime = phase };
             fade.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(0)));
-            fade.KeyFrames.Add(new LinearDoubleKeyFrame(0.9, KeyTime.FromPercent(0.15)));
-            fade.KeyFrames.Add(new LinearDoubleKeyFrame(0.55, KeyTime.FromPercent(0.6)));
+            fade.KeyFrames.Add(new LinearDoubleKeyFrame(1, KeyTime.FromPercent(0.12)));
+            fade.KeyFrames.Add(new LinearDoubleKeyFrame(0.6, KeyTime.FromPercent(0.6)));
             fade.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(1)));
             Add(fade, ember, new PropertyPath(UIElement.OpacityProperty));
         }
