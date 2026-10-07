@@ -2395,10 +2395,16 @@ $legendaryItems = @(
     @{ Item = 21450; Display = 71022; CloneOf = 51932; Icon = 'INV_Legendary_PoingsLoken' }             # Halls of Lightning: Fists of Loken
     @{ Item = 6674;  Display = 71023; CloneOf = 31905; Icon = 'INV_Legendary_ChevaliereBjarngrim' }     # Halls of Lightning: Bjarngrim Family Signet
     @{ Item = 10555; Display = 71024; CloneOf = 33534; Icon = 'INV_Unique_EchoDuNeant' }                # The Hollow Voice's Unique: a ring
+    # L'Infini's: a ring's free row made a trinket (no free trinket row is left), Dark Matter's look
+    @{ Item = 16067; Display = 71025; CloneOf = 59323; Icon = 'INV_Legendary_EtoileCaptive'; InventoryType = 12 }
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }
     [BitConverter]::GetBytes([uint32]$legendary.Display).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 5 * 4)
+    # A row of another slot made this one (InventoryType, field 6): the server enforces the row's slot
+    if ($legendary.InventoryType) {
+        [BitConverter]::GetBytes([uint32]$legendary.InventoryType).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 6 * 4)
+    }
     $legendary.Painted = Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($legendary.Icon).tga")
 }
 

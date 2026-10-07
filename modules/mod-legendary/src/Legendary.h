@@ -45,6 +45,9 @@ enum Kind : uint32
     KIND_BULWARK,               // dropping below 50% health shields X% of the health; then rests (spent spell)
     KIND_COOLDOWN_ECHO,         // an ability with a cooldown of 20 sec or more used: every other ability's cooldown
                                 // loses X% of what it has left
+    KIND_SUPERNOVA,             // X% of the damage and healing done feeds a star; every everyMs in combat it collapses:
+                                // the damage on the target and the enemies within radius of it, the healing on the
+                                // count most hurt allies around, each shared between them
 };
 
 // Which blows a damage power takes: every direct one, weapon blows only, or spells only

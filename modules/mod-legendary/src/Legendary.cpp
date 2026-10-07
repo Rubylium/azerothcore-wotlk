@@ -48,6 +48,11 @@
 #include <string_view>
 #include <unordered_map>
 
+// mod-playerbots (RaidFinder.cpp, ChallengeBoard.cpp), built into the same modules library: a Défi's tier, and the
+// item level of the god's gear at it
+uint8 GetChallengeTierOf(Map const* map);
+uint32 GetChallengeGodItemLevel(uint8 tier);
+
 namespace Legendary
 {
 namespace
@@ -110,6 +115,12 @@ constexpr uint32 ForgeOfSouls = 252;
 constexpr uint32 HallsOfLightning = 212;
 // The Hollow Voice's win: Archbishop Aldric's death (mod-stat-growth HollowVoice.cpp NPC_ALDRIC)
 constexpr uint32 HollowVoiceBoss = 930100;
+// L'Infini, the Défi board's god (mod-stat-growth InfiniteGod.cpp NPC_INFINI): its legendary drops at its gear's item
+// level for the Défi's tier (GetChallengeGodItemLevel)
+constexpr uint32 InfiniteGodBoss = 930000;
+// L'Étoile captive: how far around the wearer the star finds a target when they have none, and their allies to heal
+constexpr float SupernovaTargetReach = 30.0f;
+constexpr float SupernovaHealReach = 40.0f;
 // Écho du Néant: what counts as a big cooldown, the least a cooldown must have left to be echoed (not a global
 // cooldown's tail), and the rest between two echoes
 constexpr uint32 EchoMinCooldownMs = 20000;
@@ -122,7 +133,7 @@ uint32 const Floor = Mythic::GetItemLevel(2);
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 25> const Definitions = { {
+std::array<Definition, 26> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -215,6 +226,14 @@ std::array<Definition, 25> const Definitions = { {
     // losing 20-30% of what they have left. Only from the Hollow Voice (item level 477): one window
     { 25, 10555, KIND_COOLDOWN_ECHO, 20.0f, 30.0f, 20.0f, 30.0f, Mythic::MaxPinnacleItemLevel, RingBudget, 0,
       { .spell = 97910 }, HollowVoiceBoss },
+
+    // --- L'Infini, the Défi board's god ---
+    // L'Étoile captive, a trinket (16067): 15-20% of the damage and healing done feeds a star that collapses every
+    // 20 sec in combat, its damage shared by the target and the enemies within 8 yd of it, its healing by the 5 most
+    // hurt allies within 40 yd. From L'Infini's death, at its gear's item level (370 at Défi I): one window
+    { 26, 16067, KIND_SUPERNOVA, 15.0f, 20.0f, 15.0f, 20.0f, Mythic::MaxLootItemLevel, NeckBudget, 0,
+      { .spell = 97920, .spell2 = 97921, .spell3 = 97922, .everyMs = 20000, .count = 5, .radius = 8.0f },
+      InfiniteGodBoss },
 } };
 
 // The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
@@ -421,6 +440,8 @@ struct PowerState
     uint32 pulseIn = 0;
     uint32 readyAt = 0;             // getMSTime() from which a power with a cooldown may act again
     float pending = 0.0f;
+    float healing = 0.0f;           // healing waiting to land (the star's)
+    bool running = false;           // a timed power's cycle under way
 };
 
 struct Worn : public DataMap::Base
@@ -716,6 +737,34 @@ public:
             state.pending = 0.0f;
         });
 
+        // L'Étoile captive: fed by the wearer's blows and heals, it collapses every everyMs in combat (its buff counts
+        // the time down); out of combat it goes out, what it held lost
+        worn->ForEach(KIND_SUPERNOVA, [player, diff, alive](Definition const& definition, float /*percent*/,
+            PowerState& state)
+        {
+            Tuning const& tuning = definition.tuning;
+            if (!alive || !player->IsInCombat())
+            {
+                if (state.running)
+                    player->RemoveAurasDueToSpell(tuning.spell3);
+                state = PowerState();
+                return;
+            }
+            if (!state.running)
+            {
+                state.running = true;
+                state.timer = tuning.everyMs;
+                player->CastSpell(player, tuning.spell3, true);
+                return;
+            }
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            state.timer = tuning.everyMs;
+            Collapse(player, definition, state);
+            player->CastSpell(player, tuning.spell3, true);
+        });
+
         // The last stand's look (Tombeau de Keleseth): on while the wearer is below the threshold
         worn->ForEach(KIND_LAST_STAND, [player, alive](Definition const& definition, float /*percent*/,
             PowerState& /*state*/)
@@ -727,6 +776,54 @@ public:
             else if (!low && player->HasAura(spell))
                 player->RemoveAurasDueToSpell(spell);
         });
+    }
+
+    // The star collapsing: its damage shared by the wearer's target (else the enemy nearest them) and the enemies
+    // around it, its healing by the most hurt allies around the wearer. Damage with no enemy in reach waits for the
+    // next collapse; healing with nobody hurt is gone.
+    static void Collapse(Player* player, Definition const& definition, PowerState& state)
+    {
+        Tuning const& tuning = definition.tuning;
+        if (state.pending >= 1.0f)
+        {
+            Unit* target = player->GetSelectedUnit();
+            if (!target || !target->IsAlive() || !player->IsValidAttackTarget(target) ||
+                !player->IsWithinDistInMap(target, SupernovaTargetReach))
+            {
+                target = nullptr;
+                for (Unit* enemy : EnemiesAround(player, player, SupernovaTargetReach))
+                    if (!target || player->GetExactDist(enemy) < player->GetExactDist(target))
+                        target = enemy;
+            }
+            if (target)
+            {
+                std::list<Unit*> enemies = EnemiesAround(player, target, tuning.radius);
+                if (std::find(enemies.begin(), enemies.end(), target) == enemies.end())
+                    enemies.push_back(target);
+                int32 const share = std::max(1, int32(std::lround(state.pending / float(enemies.size()))));
+                for (Unit* enemy : enemies)
+                    Cast(player, enemy, tuning.spell, share);
+                state.pending = 0.0f;
+            }
+        }
+        if (state.healing >= 1.0f)
+        {
+            std::vector<Player*> allies = AlliesAround(player, player, SupernovaHealReach);
+            std::erase_if(allies, [](Player* ally) { return ally->IsFullHealth(); });
+            std::sort(allies.begin(), allies.end(), [](Player* a, Player* b)
+            {
+                return a->GetHealthPct() < b->GetHealthPct();
+            });
+            if (allies.size() > tuning.count)
+                allies.resize(tuning.count);
+            if (!allies.empty())
+            {
+                int32 const share = std::max(1, int32(std::lround(state.healing / float(allies.size()))));
+                for (Player* ally : allies)
+                    Cast(player, ally, tuning.spell2, share);
+            }
+        }
+        state.healing = 0.0f;
     }
 
     // A ground's pulse: what it deals to each enemy and heals each ally on it, the rolled share of the wearer's
@@ -918,6 +1015,11 @@ public:
             });
             if (bonus > 0.0f)
                 damage = uint32(std::lround(float(damage) * (1.0f + bonus / 100.0f)));
+            uint32 const dealt = damage;
+            worn->ForEach(KIND_SUPERNOVA, [dealt](Definition const&, float percent, PowerState& state)
+            {
+                state.pending += float(dealt) * percent / 100.0f;
+            });
         }
         if (Player* wearer = target ? target->ToPlayer() : nullptr)
             damage = LastStand(wearer, damage);
@@ -931,9 +1033,17 @@ public:
         bool const tick = HealTickPending;
         HealTickPending = false;
         Player* player = healer ? healer->ToPlayer() : nullptr;
-        if (tick || !player || !target || !heal || !spellInfo || IsOwnSpell(spellInfo) || !target->IsAlive())
+        if (!player || !target || !heal || !spellInfo || IsOwnSpell(spellInfo) || !target->IsAlive())
             return;
         Worn* worn = GetWorn(player);
+        // L'Étoile captive: what the heal really heals (no overhealing), a tick's too
+        uint32 const healed = std::min(heal, target->GetMaxHealth() - target->GetHealth());
+        worn->ForEach(KIND_SUPERNOVA, [healed](Definition const&, float percent, PowerState& state)
+        {
+            state.healing += float(healed) * percent / 100.0f;
+        });
+        if (tick)
+            return;
         worn->ForEach(KIND_OVERHEAL_SHIELD, [player, target, heal](Definition const& definition, float percent,
             PowerState&)
         {
@@ -1028,6 +1138,11 @@ private:
                     break;
                 Cast(player, enemy, tuning.spell, Share(dealt, percent));
             }
+        });
+        // L'Étoile captive: the share feeds the star (OnPlayerUpdate collapses it)
+        worn->ForEach(KIND_SUPERNOVA, [dealt](Definition const&, float percent, PowerState& state)
+        {
+            state.pending += dealt * percent / 100.0f;
         });
         // Chevalière de Porung: the share waits to be healed (OnPlayerUpdate, once a second)
         worn->ForEach(KIND_LEECH, [dealt](Definition const&, float percent, PowerState& state)
@@ -1226,7 +1341,9 @@ public:
                 pool.push_back(&definition);
         if (pool.empty() || !FirstRoll(boss->GetMap(), entry))
             return;
-        RollDrops(boss->GetMap(), entry, pool, pool.front()->floorItemLevel);
+        uint32 const itemLevel = entry == InfiniteGodBoss ?
+            GetChallengeGodItemLevel(GetChallengeTierOf(boss->GetMap())) : pool.front()->floorItemLevel;
+        RollDrops(boss->GetMap(), entry, pool, itemLevel);
     }
 };
 

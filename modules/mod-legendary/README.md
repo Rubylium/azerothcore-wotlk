@@ -43,6 +43,7 @@ The Forge never takes legendaries.
 | 23 | Poings de Loken | 21450, gloves | Halls of Lightning (212) | Every 6 sec in combat, a lightning nova: X% of AP or SP within 10 yd (30-50% -> 130-170%) |
 | 24 | Chevalière de Bjarngrim | 6674, ring | Halls of Lightning (212) | Dropping below 50% health: a shield of X% of the health for 10 sec, once per minute (10-15% -> 30-40%) |
 | 25 | Écho du Néant (**Unique**: quality 6, red) | 10555, ring | The Hollow Voice (Archbishop Aldric's death, 930100), item level 477 | An ability with a cooldown of 20 sec or more echoes: every other ability's remaining cooldown is cut by X% (20-30%) |
+| 26 | L'Étoile captive | 16067, trinket (a ring's free Item.dbc row made a trinket) | L'Infini's death (930000), at its gear's item level for the Défi's tier (370 at Défi I, +10 a tier) | 15-20% of the damage and healing done feeds a star; every 20 sec in combat it collapses: the damage shared by the target and the enemies within 8 yd of it, the healing by the 5 most hurt allies within 40 yd |
 
 Windows read "+2 -> +60": the bottom one where a legendary drops lowest, the top one at +60 and in raids. Legendaries
 4-24 are misc armour (every class wears them, their armour rolled for the looter's type), rings, necks and trinkets:

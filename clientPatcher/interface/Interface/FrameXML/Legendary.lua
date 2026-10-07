@@ -73,6 +73,16 @@ local function AddUnique(id, item, boss, power, lore)
     }
 end
 
+-- A boss's: legendary (not Unique), from its death
+local function AddBoss(id, item, boss, power, lore)
+    LEGENDARIES[id] = {
+        item = item,
+        source = french and ("Légendaire · " .. boss[1]) or ("Legendary · " .. boss[2]),
+        power = french and power[1] or power[2],
+        lore = french and lore[1] or lore[2],
+    }
+end
+
 local MECHANAR = { "Le Méchanar", "The Mechanar" }
 local UTGARDE = { "Donjon d'Utgarde", "Utgarde Keep" }
 local SHATTERED_HALLS = { "Les Salles brisées", "The Shattered Halls" }
@@ -204,6 +214,17 @@ AddUnique(25, 10555, { "La Voix creuse", "The Hollow Voice" },
         .. "your other abilities is reduced by %s." },
     { "« Tu m'as entendu, n'est-ce pas ? » Vel'thazar ne s'est jamais tu. Il a seulement changé de maître.",
       "\"You heard me, didn't you?\" Vel'thazar never fell silent. He only changed masters." })
+
+AddBoss(26, 16067, { "L'Infini, Défi", "The Infinite, Challenge" },
+    { "%s de vos dégâts et de vos soins nourrissent une étoile captive. Toutes les 20 sec en combat, elle "
+        .. "s'effondre : ses dégâts se partagent entre votre cible et les ennemis à moins de 8 m d'elle, ses soins "
+        .. "entre les 5 alliés les plus blessés à moins de 40 m.",
+      "%s of your damage and healing feeds a captive star. Every 20 sec in combat it collapses: its damage is "
+        .. "shared by your target and the enemies within 8 yd of it, its healing by the 5 most injured allies "
+        .. "within 40 yd." },
+    { "L'Infini tenait les étoiles dans sa main avant que le premier mortel ne marche. Celle-ci, il l'a laissée "
+        .. "tomber.",
+      "The Infinite held the stars in its hand before the first mortal walked. This one, it let fall." })
 
 local BASE_ITEMS = {}
 for id, legendary in pairs(LEGENDARIES) do

@@ -43,7 +43,11 @@ LEGENDARIES = [
     (6674, 36979, "Chevalière de Bjarngrim", "Bjarngrim's Signet"),
     # The Hollow Voice's Unique: quality 6, red (the client extension DLL's UniqueQuality.cpp)
     (10555, 49800, "Écho du Néant", "Echo of the Void"),
+    # L'Infini's: a trinket, Dark Matter's template
+    (16067, 46038, "L'Étoile captive", "The Captive Star"),
 ]
+# Rows made another slot by localTools/patchSinisterStrike.ps1 ($legendaryItems InventoryType): the stock row is read
+INVENTORY_TYPES = {16067: 12}
 UNIQUE = {10555}
 
 
@@ -87,6 +91,7 @@ def item_rows():
     rows = {}
     for index in range(count):
         entry, cls, subclass, _, material, _, inventory, sheath = struct.unpack_from("<8I", data, 20 + index * size)
+        inventory = INVENTORY_TYPES.get(entry, inventory)
         rows[entry] = (cls, subclass, struct.unpack("<i", struct.pack("<I", material))[0], inventory, sheath)
     return rows
 

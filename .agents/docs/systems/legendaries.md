@@ -21,11 +21,11 @@ legendary is mostly data: a definition, a spell, an Item.dbc row's look, two cli
    - Size the numbers on the combat bench (`combat-bench.md`), not by feel; the drop item level follows
      `power-scaling.md`.
 3. **Its spell(s)** (`localTools/legendary/Spells.ps1`, the `New-Damage` / `New-Heal` / `New-Burn` / `New-Shield` /
-   `New-Mark` helpers): ids in 97700-97999, the next free ten (the last used is 97910; the Barbarian owns the range
+   `New-Mark` helpers): ids in 97700-97999, the next free ten (the last used is 97922; the Barbarian owns the range
    between 97005 and 97700). The wearer casts it, so Details and the combat log credit it on a line of its own. Its
    look is the source's own (the boss's spell visual) where one fits. Never let it feed a power again.
 4. **The item's look** (`localTools/patchSinisterStrike.ps1`, `$legendaryItems`): the base item, the next display id
-   (71025 on; 71024 is the last), the look it clones (an item its own dungeon's bosses drop in that slot) and its icon
+   (71026 on; 71025 is the last), the look it clones (an item its own dungeon's bosses drop in that slot) and its icon
    name.
 5. **The template** (`localTools/legendary/buildLegendaryItemSql.py`, `LEGENDARIES`): the base item, the look's item,
    its French and English names; run it to regenerate `modules/mod-legendary/data/sql/db-world/base/legendary_items.sql`

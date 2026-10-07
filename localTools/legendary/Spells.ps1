@@ -220,7 +220,19 @@ $spells += @(
     @{ Id = 97910; Clone = 45329; Name = 'Écho du Néant'; Icon = 'INV_Unique_EchoDuNeant'; FallbackIconSpell = 62660; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'La Voix creuse fait écho à vos grands pouvoirs : vos autres temps de recharge raccourcissent.'
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 1; BasePoints = 0 })
-       Fields = (Merge-Fields @{ 225 = 32; 131 = 10127 }) }
+       Fields = (Merge-Fields @{ 225 = 32; 131 = 10127 }) },
+
+    # --- L'Infini: L'Étoile captive ---
+    # The collapse on each enemy: a falling star as Starfall's (its star's own visual, Balance's), Arcane
+    (New-Damage 97920 'Supernova' 'INV_Legendary_EtoileCaptive' 64443 64 11040 `
+        "L'étoile captive s'effondre sur vos ennemis."),
+    # ... and on each ally: Prayer of Mending's golden sparkle, nothing louder
+    (New-Heal 97921 'Supernova' 'INV_Legendary_EtoileCaptive' 64443 64 1714 `
+        "L'étoile captive s'effondre en lumière sur vos alliés."),
+    # The star itself: a buff counting down to its collapse (20 sec, Sprint's helpful row, a dummy aura, no look)
+    (New-Mark 97922 2983 'Étoile captive' 'INV_Legendary_EtoileCaptive' 64443 18 0 `
+        "Vos dégâts et vos soins nourrissent une étoile captive." `
+        "Se nourrit de vos dégâts et de vos soins. S'effondre à la fin du temps restant.")
 )
 
 return $spells
