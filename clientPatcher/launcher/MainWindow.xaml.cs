@@ -45,15 +45,6 @@ namespace Evolutions
         bool repairRequested;
         Action playAction;
         Stopwatch transferClock;
-        // The ingot: how far the molten metal has run into it, whether it is ready to strike, the realm behind it
-        double ingotRatio;
-        bool ingotReady;
-        bool? realmOnline;
-        // The strike's spark burst (Assets/Forge/sparkNN.png), one frame every 45 ms
-        readonly BitmapImage[] SparkFrames = Enumerable.Range(0, 16).Select(index => new BitmapImage(new Uri(
-            $"pack://application:,,,/Evolutions;component/Assets/Forge/spark{index:00}.png"))).ToArray();
-        readonly DispatcherTimer sparkTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(45) };
-        int sparkFrame;
 
         // Development switch (--page): the page to open on instead of home
         public static string StartPage;
@@ -63,11 +54,8 @@ namespace Evolutions
             this.selfUpdate = selfUpdate;
             http.DefaultRequestHeaders.UserAgent.ParseAdd("Evolutions/" + Assembly.GetExecutingAssembly().GetName().Version);
             InitializeComponent();
-            backdrop = new Backdrop(this, BackdropScene, WallHot, HotMid, FireLight, SmokeLayer, BackdropEmbers,
-                BackShift, MidShift, FrontShift);
-            // Cold until the realm answers: the forge lights up when there is somewhere to play
-            backdrop.SetHeat(false);
-            sparkTimer.Tick += (sender, args) => NextSpark();
+            backdrop = new Backdrop(this, BackdropScene, BeaconHalo, BeaconBeam, LeftFireGlow, LeftFireCore,
+                RightFireGlow, RightFireCore, BackdropEmbers);
 
             SourceInitialized += (sender, args) => Dwm.Style(new WindowInteropHelper(this).Handle);
             StateChanged += (sender, args) =>
@@ -207,69 +195,38 @@ namespace Evolutions
             PlayButton.IsEnabled = onAction != null;
         }
 
-        // The ingot says what it will do and, underneath, what that involves
+        // The button says what it will do and, underneath, what that involves - as Ascension's did. The icon
+        // follows the action: play, download, retry.
         void ShowAction(string action)
         {
-            PlayText.Text = action;
-            string caption;
+            PlayText.Text = SentenceCase(action);
+            string icon, caption;
             switch (action)
             {
-                case "JOUER": caption = "WRATH OF THE LICH KING"; break;
-                case "VÉRIFICATION": caption = "RECHERCHE EN COURS"; break;
-                case "MISE À JOUR": caption = "VÉRIFICATION DES FICHIERS"; break;
-                case "INSTALLER": caption = "CHOISIR LE DOSSIER DU JEU"; break;
-                case "RÉESSAYER": caption = "NOUVELLE TENTATIVE"; break;
-                default: caption = ""; break;
+                case "JOUER": icon = "\uF5B0"; caption = "WRATH OF THE LICH KING"; break;
+                case "VÉRIFICATION": icon = "\uE895"; caption = "RECHERCHE EN COURS"; break;
+                case "MISE À JOUR": icon = "\uE896"; caption = "VÉRIFICATION DES FICHIERS"; break;
+                case "INSTALLER": icon = "\uE896"; caption = "CHOISIR LE DOSSIER DU JEU"; break;
+                case "RÉESSAYER": icon = "\uE72C"; caption = "NOUVELLE TENTATIVE"; break;
+                default: icon = "\uF5B0"; caption = ""; break;
             }
+            PlayIcon.Text = icon;
+            // The play triangle sits heavy on its left edge; nudged right it looks centred in the ring
+            PlayIcon.Margin = new Thickness(icon == "\uF5B0" ? 2 : 0, 0, 0, 0);
             PlaySub.Text = caption;
             PlaySub.Visibility = caption.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            UpdateIngot();
         }
 
-        // At rest the progress channel steps aside: a full bar under "Prêt à jouer" read as something that had just
+        // "MISE À JOUR" -> "Mise à jour"
+        static string SentenceCase(string text) =>
+            string.IsNullOrEmpty(text) ? text : text.Substring(0, 1) + text.Substring(1).ToLower(French);
+
+        // At rest the progress bar steps aside: a full bar under "Prêt à jouer" read as something that had just
         // finished loading, forever.
         void ShowReady(bool ready)
         {
             ProgressTrack.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
             StatusIcon.Text = ready ? "\uE73E" : "\uE946";
-            ingotReady = ready;
-            UpdateIngot();
-        }
-
-        // The ingot as the launcher's state: molten as far as the work has gone, glowing once it is ready to play
-        // on an open realm. Ready on a closed one it stays cold - still clickable, to start the game anyway.
-        void UpdateIngot()
-        {
-            if (IngotFill == null || launching)
-                return;
-            bool closed = ingotReady && realmOnline == false;
-            double ratio = ingotReady ? (closed ? 0 : 1) : ingotRatio;
-            IngotFill.BeginAnimation(WidthProperty, new DoubleAnimation(IngotArea.ActualWidth * ratio,
-                TimeSpan.FromMilliseconds(ingotReady ? 900 : 180))
-            {
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-            });
-
-            bool glowing = ingotReady && !closed;
-            IngotGlow.BeginAnimation(OpacityProperty, glowing
-                ? new DoubleAnimation(0.35, 0.75, TimeSpan.FromSeconds(1.4))
-                {
-                    AutoReverse = true,
-                    RepeatBehavior = RepeatBehavior.Forever,
-                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-                }
-                : new DoubleAnimation(0, TimeSpan.FromMilliseconds(400)));
-
-            // Dark words stamped into hot metal, light ones on cold iron
-            Brush ink = new SolidColorBrush(ratio >= 1 ? Color.FromRgb(0x2A, 0x14, 0x0A) : Color.FromRgb(0xF3, 0xED, 0xE6));
-            PlayText.Foreground = ink;
-            PlaySub.Foreground = ink;
-            PlaySub.Opacity = 0.9;
-            if (PlayText.Text == "JOUER")
-            {
-                PlaySub.Text = closed ? "ROYAUME FERMÉ · LANCER QUAND MÊME" : "WRATH OF THE LICH KING";
-                PlaySub.Visibility = Visibility.Visible;
-            }
         }
 
         void SetBusy(bool isBusy)
@@ -284,12 +241,9 @@ namespace Evolutions
         void SetProgress(long done, long total)
         {
             double ratio = Math.Max(0, Math.Min(1, done / (double)Math.Max(total, 1)));
-            double width = Math.Max(0, ProgressTrack.ActualWidth - 2) * ratio;
+            double width = ProgressTrack.ActualWidth * ratio;
             ProgressFill.BeginAnimation(WidthProperty,
                 new DoubleAnimation(width, TimeSpan.FromMilliseconds(180)) { FillBehavior = FillBehavior.HoldEnd });
-            ingotRatio = ratio;
-            if (!ingotReady)
-                UpdateIngot();
         }
 
         void ShowTransfer(long done, long total)
@@ -317,10 +271,16 @@ namespace Evolutions
             launching = true;
             playAction = null;
             PlayButton.IsHitTestVisible = false;
-            PlayText.Text = "LANCEMENT…";
+            PlayText.Text = "Lancement…";
             PlaySub.Text = "DÉMARRAGE DU JEU";
-            PlaySub.Visibility = Visibility.Visible;
-            Strike();
+            PlayIcon.Visibility = Visibility.Collapsed;
+            PlayRing.Visibility = Visibility.Collapsed;
+            LaunchSpinner.Visibility = Visibility.Visible;
+            LaunchSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, 360,
+                TimeSpan.FromMilliseconds(850))
+            {
+                RepeatBehavior = RepeatBehavior.Forever,
+            });
             StatusText.Text = "Lancement de World of Warcraft…";
             DetailText.Text = "Le client démarre, veuillez patienter.";
 
@@ -355,50 +315,13 @@ namespace Evolutions
             catch (Exception exception)
             {
                 launching = false;
+                LaunchSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                LaunchSpinner.Visibility = Visibility.Collapsed;
+                PlayIcon.Visibility = Visibility.Visible;
+                PlayRing.Visibility = Visibility.Visible;
                 PlayButton.IsHitTestVisible = true;
                 SetState("Impossible de lancer World of Warcraft", exception.Message, "RÉESSAYER", Play);
             }
-        }
-
-        // The hammer comes down on the ingot and the sparks burst from it
-        void Strike()
-        {
-            var raise = TimeSpan.FromMilliseconds(120);
-            Hammer.BeginAnimation(OpacityProperty, new DoubleAnimation(1, raise));
-            var swing = new DoubleAnimationUsingKeyFrames();
-            swing.KeyFrames.Add(new EasingDoubleKeyFrame(-70, KeyTime.FromTimeSpan(raise),
-                new SineEase { EasingMode = EasingMode.EaseOut }));
-            swing.KeyFrames.Add(new EasingDoubleKeyFrame(4, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)),
-                new QuadraticEase { EasingMode = EasingMode.EaseIn }));
-            swing.KeyFrames.Add(new EasingDoubleKeyFrame(-12, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420)),
-                new SineEase { EasingMode = EasingMode.EaseOut }));
-            swing.Completed += (sender, args) =>
-                Hammer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(500)));
-            HammerRotation.BeginAnimation(RotateTransform.AngleProperty, swing);
-
-            // The burst at the blow, and the ingot flaring with it
-            var blow = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-            blow.Tick += (sender, args) =>
-            {
-                blow.Stop();
-                sparkFrame = 0;
-                Sparks.Source = SparkFrames[0];
-                Sparks.Opacity = 1;
-                sparkTimer.Start();
-                IngotGlow.BeginAnimation(OpacityProperty, new DoubleAnimation(1.0, 0.7, TimeSpan.FromMilliseconds(700)));
-            };
-            blow.Start();
-        }
-
-        void NextSpark()
-        {
-            if (++sparkFrame >= SparkFrames.Length)
-            {
-                sparkTimer.Stop();
-                Sparks.Opacity = 0;
-                return;
-            }
-            Sparks.Source = SparkFrames[sparkFrame];
         }
 
         // Game folder ----------------------------------------------------------------------------------------------
@@ -521,9 +444,6 @@ namespace Evolutions
             RealmState.Text = online == true ? "En ligne" : online == false ? "Hors ligne" : "Inconnu";
             RealmDetail.Text = detail;
             RealmRetry.Visibility = online == false ? Visibility.Visible : Visibility.Collapsed;
-            realmOnline = online;
-            backdrop.SetHeat(online == true);
-            UpdateIngot();
 
             // A slow pulse while the realm is up
             RealmHalo.BeginAnimation(OpacityProperty, online == true
@@ -788,14 +708,6 @@ namespace Evolutions
             var fade = TimeSpan.FromMilliseconds(250);
             Veil.BeginAnimation(OpacityProperty, new DoubleAnimation(home ? 0 : 1, fade));
             ((Storyboard)FindResource("PageIn")).Begin(page);
-        }
-
-        // The scene's depths follow the mouse a little
-        void OnRootMouseMove(object sender, MouseEventArgs e)
-        {
-            Point point = e.GetPosition(Root);
-            backdrop.Parallax(point.X / Math.Max(Root.ActualWidth, 1) * 2 - 1,
-                point.Y / Math.Max(Root.ActualHeight, 1) * 2 - 1);
         }
 
         void OnDragWindow(object sender, MouseButtonEventArgs e)
