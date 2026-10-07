@@ -1137,6 +1137,7 @@ public:
         static ChatCommandTable legendaryTable =
         {
             { "add", HandleAdd, SEC_GAMEMASTER, Console::No },
+            { "all", HandleAll, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1166,6 +1167,27 @@ public:
         auto const [low, high] = PowerWindow(*definition, level);
         handler->PSendSysMessage("{} : niveau d'objet {}, pouvoir {:.1f}% (fenêtre {:.1f}-{:.1f}%), {}.",
             target->GetName(), level, copy ? copy->power : 0.0f, low, high, copy ? EncodeStats(*copy) : "");
+        return true;
+    }
+
+    // .legendary all [item level] [power %]: a rolled copy of every legendary for the selected player (or yourself),
+    // a test kit; stops when the bags are full and says how far it got
+    static bool HandleAll(ChatHandler* handler, Optional<uint32> itemLevel, Optional<float> power)
+    {
+        Player* target = handler->getSelectedPlayerOrSelf();
+        uint32 given = 0;
+        for (Definition const& definition : Definitions)
+        {
+            uint32 const level = itemLevel.value_or(definition.floorItemLevel);
+            if (!GiveLegendary(target, definition.id, level, power ? std::optional<float>(*power) : std::nullopt))
+            {
+                handler->PSendSysMessage("Sacs pleins : {} légendaires sur {} donnés (le suivant : {}).", given,
+                    Definitions.size(), definition.id);
+                return given > 0;
+            }
+            ++given;
+        }
+        handler->PSendSysMessage("{} : les {} légendaires donnés.", target->GetName(), given);
         return true;
     }
 };

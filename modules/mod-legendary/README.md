@@ -85,6 +85,7 @@ Nova, the Devourer's Mirrored Soul, Cookie's Cooking...).
 ## Commands
 
 `.legendary add <legendary> [item level] [power %]` (GM): a rolled copy for the selected player or yourself.
+`.legendary all [item level] [power %]` (GM): a copy of every legendary (a test kit; it stops when the bags are full).
 
 ## Drops
 
