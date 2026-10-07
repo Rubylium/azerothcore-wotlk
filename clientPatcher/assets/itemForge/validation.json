@@ -1,0 +1,152 @@
+{
+  "assetCount": 15,
+  "assets": [
+    {
+      "name": "stageCold",
+      "size": [
+        868,
+        480
+      ],
+      "mode": "RGB",
+      "sha256": "3d3be9aecca7a74b5fb29d9af66038612044ec4e08358cbb170cff54b761b9f7"
+    },
+    {
+      "name": "stageLit",
+      "size": [
+        868,
+        480
+      ],
+      "mode": "RGB",
+      "sha256": "4630ab3029db1a80fa62d86d7814dd45412991643253715fa6490eeea5b6ffd2"
+    },
+    {
+      "name": "fireLight",
+      "size": [
+        868,
+        480
+      ],
+      "mode": "RGB",
+      "sha256": "76e07fd13aac7bc6a9dec36bd078fd8c604b6009dbe1647c5ff9aa2771af2830"
+    },
+    {
+      "name": "medallion",
+      "size": [
+        120,
+        120
+      ],
+      "mode": "RGBA",
+      "sha256": "7e570f9c8ccc569f13d74800771f4ba5a8eae3e516fa6c6c1605a49f4e6231d0"
+    },
+    {
+      "name": "rowPlate",
+      "size": [
+        536,
+        84
+      ],
+      "mode": "RGBA",
+      "sha256": "ef4d23ae57ec088fe1ae881fc81ce4c42bd5c53024f3e4d13efa38f7496016d0"
+    },
+    {
+      "name": "rowSelected",
+      "size": [
+        536,
+        84
+      ],
+      "mode": "RGBA",
+      "sha256": "cb729c73e829198b3c3c0b7df33e959cc1378c8d1d98a105e3756b189a3a348b"
+    },
+    {
+      "name": "gaugeFill",
+      "size": [
+        464,
+        20
+      ],
+      "mode": "RGB",
+      "sha256": "0c9e9a41a5c85e26173a8f734ed969185c4ff3b057e070a8cff1920f511b6629"
+    },
+    {
+      "name": "rankCold",
+      "size": [
+        48,
+        48
+      ],
+      "mode": "RGBA",
+      "sha256": "9a1b1f8571c068252714415fbbf8f61870c96e264e919dbf5cb36176eea020d0"
+    },
+    {
+      "name": "rankLit",
+      "size": [
+        48,
+        48
+      ],
+      "mode": "RGBA",
+      "sha256": "1136b35d438fc9e9abaee33630d106e918eb439ce06d84c23f424445bebfcec3"
+    },
+    {
+      "name": "rankGold",
+      "size": [
+        48,
+        48
+      ],
+      "mode": "RGBA",
+      "sha256": "de0e2598e57f0a98bbd5435933ff3a4d1daafb2973d129580cc971d680b2f281"
+    },
+    {
+      "name": "rankFlare",
+      "size": [
+        96,
+        96
+      ],
+      "mode": "RGB",
+      "sha256": "8a6e5852b3e0239797d17d369ea1b3cf0853c79ec2899eebe591230f2765805f"
+    },
+    {
+      "name": "pieceHeat",
+      "size": [
+        116,
+        116
+      ],
+      "mode": "RGB",
+      "sha256": "a79b0b1276ef5b5187b6235419a2467420f9b4cf911aebc54ff772672497e1fa"
+    },
+    {
+      "name": "steam",
+      "size": [
+        1024,
+        512
+      ],
+      "mode": "RGB",
+      "sha256": "d3c6d7ea698e5d3dfaa35b4e88a1ca370e12fb39396e625904656dccf6acd3d6"
+    },
+    {
+      "name": "masterpieceBanner",
+      "size": [
+        960,
+        220
+      ],
+      "mode": "RGBA",
+      "sha256": "5129ec4dd92f5d5779a217384b1623f5599aac8eb36b0ecc0c4aed4c1326ab5a"
+    },
+    {
+      "name": "goldenBurst",
+      "size": [
+        440,
+        440
+      ],
+      "mode": "RGB",
+      "sha256": "eaba22f3f0850aa88c74b6dbed07949bfba139fc2c85f258fd44dfbefb46637d"
+    }
+  ],
+  "steamFrameEnergy": [
+    10.512,
+    23.152,
+    40.179,
+    45.981,
+    19.015,
+    8.588,
+    3.055,
+    0.174
+  ],
+  "sharedStateAlpha": true,
+  "errors": []
+}

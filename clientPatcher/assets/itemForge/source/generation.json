@@ -1,0 +1,236 @@
+{
+  "generator": "built-in image_gen",
+  "styleReferences": [
+    "clientPatcher/assets/gladiatorHud/reference/reaperHud.png",
+    "clientPatcher/assets/pestifereHud/pestifereHudAtlas.png",
+    "clientPatcher/assets/marqueInquisiteur/png/itemFrame.png"
+  ],
+  "assets": [
+    {
+      "name": "stageCold",
+      "source": "stageCold.png",
+      "originalSourceName": "exec-29269cd2-53eb-427e-8ee8-15ec8ed4ca31.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified. COLD ANVIL STAGE exact868x480 target. Last",
+        "reference EXACT POSITION guide only, no lines/labels. FRONT eye-level smithy: forge ARCHED MOUTH",
+        "boundingbox x240..628,y68..252, black/greyash inside NO fire. Heavy iron ANVIL centred, FLAT TOP",
+        "FACE exactly x280..600,y300..320; body belowtop extends to y440. Item-icon square",
+        "x376..492,y182..298 must stay EMPTY PLAIN dark behind where item willappear (no objects/visible",
+        "tools or busy stone there). Top name stripy0..68 darkcalm. Right hammer zonex580..820,y192..372",
+        "plain dim, NO hammer. Sootstonewalls, few hangingtongs far edges, dimquenchbarrel left. Darkedges.",
+        "No item/hammer/fire/text. OPAQUE fillscanvas. Broad HUD paint facets, not cinematicphotorealistic."
+      ]
+    },
+    {
+      "name": "stageLit",
+      "source": "stageLit.png",
+      "originalSourceName": "exec-e8c0148f-4ea1-4c1e-bc99-95ecd2c0a7bc.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 868x480. Edit cold stage: same canvas,",
+        "composition, EVERY object unmoved. Arched mouth roaring orange white-gold fire, warm reflected light",
+        "on walls/tools/anvil, top face dull red. Icon square above face stays empty plain. Nothing added",
+        "except fire/light. Last input is layout guide: use coordinates only, no guide lines/labels. FIRST",
+        "input is EDIT TARGET, preserve geometry; remaining are style refs."
+      ]
+    },
+    {
+      "name": "medallion",
+      "source": "medallion.png",
+      "originalSourceName": "exec-5c095aa6-ecb8-4908-a4a0-a84e8cd1a0b4.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 120x120. Round blacksmith medallion:",
+        "crossed hammer and anvil embossed old gold on blackened iron disc, brass rim, circular centred fills",
+        "canvas. Inputs are style references only."
+      ]
+    },
+    {
+      "name": "rowPlate",
+      "source": "rowPlate.png",
+      "originalSourceName": "exec-da5e2ed4-1192-4181-a228-50d9849bdf45.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 536x84. Flat horizontal iron tag,",
+        "aspect 536:84 (6.38:1). Thin brass edge, small rivet EACH end, plain very dark face for icon and two",
+        "lines of text. Straight LEVEL rectangular edges. Object exact aspect even if export canvas wider",
+        "margins. Inputs STYLE ONLY; do NOT copy their objects."
+      ]
+    },
+    {
+      "name": "rowSelected",
+      "source": "rowSelected.png",
+      "originalSourceName": "exec-6872d500-4cb2-4332-9ac9-6d9abdd098da.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 536x84. Edit only lighting: same plate",
+        "shape and position, molten orange rim, bright brass, faint warm face sheen, face remains dark plain.",
+        "FIRST input is EDIT TARGET. KEEP EXACT shape position. Others STYLE ONLY."
+      ]
+    },
+    {
+      "name": "gaugeFill",
+      "source": "gaugeFill.png",
+      "originalSourceName": "exec-a907b10c-0a39-4f6b-b50f-f4060c412450.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 464x20. Horizontal molten liquid metal",
+        "strip aspect 23.2:1, white-gold along top, dark ember bottom, slow ripples. Opaque edge-to-edge.",
+        "Very thin long strip, no frame, no objects. Inputs STYLE ONLY; do NOT copy their objects."
+      ]
+    },
+    {
+      "name": "rankCold",
+      "source": "rankCold.png",
+      "originalSourceName": "exec-e05fa691-63b4-47d0-9bfa-6051d2c8df9b.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 48x48. Small round cold charcoal lump",
+        "in tiny iron cup front view, dark grey-black coal faint ash cup iron rim. Centred fills canvas.",
+        "Inputs STYLE ONLY; do NOT copy their objects."
+      ]
+    },
+    {
+      "name": "rankLit",
+      "source": "rankLit.png",
+      "originalSourceName": "exec-1d2689d6-4dbf-46b3-8ddc-85156fbd1c7c.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 48x48. Edit cold ember only heat: SAME",
+        "cup, shape, canvas position. Coal burning orange-red internally, bright cracks cup rim warm. FIRST",
+        "input is EDIT TARGET. KEEP EXACT shape position. Others STYLE ONLY."
+      ]
+    },
+    {
+      "name": "rankGold",
+      "source": "rankGold.png",
+      "originalSourceName": "exec-f8169337-5198-4f07-86e1-58822bcec464.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted World of Warcraft/Ascension UI EXACTLY matching attached",
+        "reference HUDs/legendary frame. Chunky readable shapes, broad painterly facets, soft upper-left",
+        "light, dark outlines. Blackened forged iron, dark weathered stone, worn dark leather, brass/old-gold",
+        "rivets and trims. Only fire strong colour: molten orange#ff8a2a, ember#c84b10, white-gold#ffe0a0;",
+        "gold accents#e8b45a. NO green, bright red, purple or blue. NO TEXT, letters, numbers, logos. Plain",
+        "dark LOW-CONTRAST text surfaces. Exact requested output aspect and layout, full target canvas; no",
+        "automatic centring or extra margins unless specified.  Canvas 48x48. Edit cold ember only",
+        "material/light: SAME cup shape canvas position. Coal becomes glowing white-gold nugget masterpiece",
+        "radiance, rim gilded. FIRST input is EDIT TARGET. KEEP EXACT shape position. Others STYLE ONLY."
+      ]
+    },
+    {
+      "name": "pieceHeat",
+      "source": "pieceHeat.png",
+      "originalSourceName": "exec-0c4475d7-7eb5-4183-a972-0e67d62f5478.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted WoW fire/steam VFX. NO solid objects, ornaments, borders,",
+        "lettering. Pure BLACK background, luminous pixels only. Orange ember and whitegold fire, greywhite",
+        "steam.  Canvas 116x116. Light only PURE BLACK: softly rounded square icon heat, molten veins, middle",
+        "white hot edges orange and bleed softly outwards to BLACK before canvas edge."
+      ]
+    },
+    {
+      "name": "steam",
+      "source": "steam.png",
+      "originalSourceName": "exec-ae14b026-7e75-4c70-a33f-b7d371e84358.png",
+      "prompt": [
+        "Use case: stylized-concept. Hand-painted WoW fire/steam VFX. NO solid objects, ornaments, borders,",
+        "lettering. Pure BLACK background, luminous pixels only. Orange ember and whitegold fire, greywhite",
+        "steam.  Canvas 1024x512. Steam flipbook PURE BLACK 1024x512, EXACT4 columns2rows equal256squarecells",
+        "8frames rowmajor. Each cell independent and centred, ample black safety margins. Frame1",
+        "tightwhitepuffbottomcentre;2rises;3billows;4widens;5thins;6wisps;7faint;8almostgone. Greywhite",
+        "warmorangebase. Nothing crossing cell edge, no gridlines."
+      ]
+    },
+    {
+      "name": "fireLight",
+      "source": "fireLight.png",
+      "originalSourceName": "exec-e55d4bd1-a7a3-46d7-8174-8ad822213125.png",
+      "prompt": [
+        "Light-only additive game texture. 868x480 landscape PURE BLACK background. A VERY SOFT diffuse",
+        "orange gold bloom centred at x434 y210, small faint flame wisps within x240..628 y68..252, light",
+        "falls to x434 y310 below. No references necessary: do not draw any solid object, frame, plate,",
+        "stone, anvil, border or text. Faint fire LIGHT floating in empty black. Keep outer canvas entirely",
+        "black. Smooth subtle illumination, NOT a large sharp flame."
+      ]
+    },
+    {
+      "name": "goldenBurst",
+      "source": "goldenBurst.png",
+      "originalSourceName": "exec-03efd21e-1631-4291-9c01-ae3cdd62a0c7.png",
+      "prompt": [
+        "Square 440x440 game ADDITIVE VFX on pure BLACK. A RADIAL STARBURST, completely symmetric around",
+        "canvas CENTRE(220,220). Short straight white-gold light rays in ALL DIRECTIONS around a bright",
+        "central point, amber soft round halo and a few small sparks. Not fire, no flames, no upward plume,",
+        "no smoke. Ray endpoints within radius165. Outer60pixels pureblack. No objects, no border, no text.",
+        "Hand-painted fantasy radiant magical glint."
+      ]
+    },
+    {
+      "name": "rankFlare",
+      "source": "rankFlare.png",
+      "originalSourceName": "exec-1744b9e2-1dbf-45f8-98ed-338002b03662.png",
+      "prompt": [
+        "A small orange-gold RADIAL light flash, additive VFX, square96x96 target. PURE BLACK. A bright tiny",
+        "CENTRAL point at exact canvas centre, 6 to 8 short golden rays in all directions and few tiny amber",
+        "sparks. Symmetric radial burst; no flames, no smoke, no plume, no upward motion. Glow radius30px,",
+        "outside radius38px entirely black. Light only, no objects or text. Chunky handpainted fantasy glow."
+      ]
+    },
+    {
+      "name": "masterpieceBanner",
+      "source": "masterpieceBanner.png",
+      "originalSourceName": "exec-89c2c359-2e63-43ca-b9e3-4d1ce0a7a8f4.png",
+      "prompt": [
+        "Edit first image, painted style SAME. Keep long narrow 960:220 object aspect and current left ROUND",
+        "icon socket. Make upper and lower trims of RIGHT text plate MUCH THINNER (about HALF current",
+        "thickness). Its plain dark empty face must occupy y28..192 in a220high object, across x224..924",
+        "in960wide. Thus only28pixels for top border and28forbottom, ornaments MUST NOT intrude into dark",
+        "text face. Left icon socket stays current120-128innerdiameter centre116,110. Narrow rightendtrim",
+        "max36px. Topbottom symmetric. Do NOT add extra flourish peaks at midpoint. Preserve painterly",
+        "goldiron surfaces, no letters. Second image is exact layoutguide. Object can be centred on a larger",
+        "transparent native canvas; preserve object's4.36aspect. Transparent background."
+      ]
+    }
+  ]
+}

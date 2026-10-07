@@ -30,8 +30,30 @@ local SOUND_MILESTONE = "LEVELUPSOUND"
 local SOUND_MASTERWORK = "igQuestListComplete"
 local SOUND_MASTERPIECE = "AchievementSound"
 
-local WIDTH, HEIGHT = 780, 540
-local LIST_WIDTH, ROW_HEIGHT = 300, 46
+local WIDTH, HEIGHT = 780, 640
+local LIST_WIDTH, ROW_WIDTH, ROW_HEIGHT = 300, 268, 46
+
+-- The painted art (clientPatcher/assets/itemForge, BLPs by localTools/interface/buildItemForgeTextures.py). Every
+-- piece is painted at twice the size it is drawn and drawn at exactly its own proportions: never stretched.
+local ART = "Interface\\ItemForge\\"
+local ATLAS = ART .. "ForgeAtlas"       -- 1024 x 512: left, top, width, height of each piece, in its pixels
+local PIECES = {
+    medallion = { 4, 4, 120, 120 }, rankCold = { 132, 4, 48, 48 }, rankLit = { 184, 4, 48, 48 },
+    rankGold = { 236, 4, 48, 48 }, rankFlare = { 288, 4, 96, 96 }, pieceHeat = { 388, 4, 116, 116 },
+    rowPlate = { 4, 132, 536, 84 }, rowSelected = { 4, 220, 536, 84 }, gaugeFill = { 4, 308, 464, 20 },
+    goldenBurst = { 580, 4, 440, 440 },
+}
+-- The anvil stage (868 x 480 on 1024 x 512). On it, from its top left: the piece lying on the anvil's top face, the
+-- end of the hammer's handle (the hammer turns around it), and the coals the embers leave from.
+local STAGE_WIDTH, STAGE_HEIGHT = 434, 240
+local PIECE_X, PIECE_Y, PIECE_SIZE = 217, 115, 58
+local HAMMER_SIZE = 270                 -- the hammer's square (512 on its texture), its handle's end at the centre
+local HAMMER_X, HAMMER_Y = 286, 26
+-- The hammer's angles, anticlockwise in degrees from the way it is painted: at rest, raised, on the piece, back up
+local HAMMER_REST, HAMMER_RAISED, HAMMER_HIT, HAMMER_REBOUND = 15, -10, 65, 40
+local COALS = { 140, 116, 155, 12 }     -- left, top, width, height
+local EMBERS = 10
+local SPARK_SIZE, STEAM_SIZE = 160, 128 -- a cell of each sheet (256 on its texture)
 -- The server's smith strikes at the same moments (Forge.cpp HammerStrikes)
 local HAMMER_DELAY, HAMMER_GAP, HAMMER_STRIKES = 0.25, 0.42, 3
 
@@ -164,6 +186,39 @@ local function SetAtlas(texture, name)
     texture:SetTexCoord(atlas[4], atlas[5], atlas[6], atlas[7])
 end
 
+-- A piece of the atlas on a texture, and the size it is drawn at (half its painting, or that times a scale)
+local function SetPiece(texture, name)
+    local piece = PIECES[name]
+    texture:SetTexture(ATLAS)
+    texture:SetTexCoord(piece[1] / 1024, (piece[1] + piece[3]) / 1024, piece[2] / 512, (piece[2] + piece[4]) / 512)
+end
+
+local function PieceSize(name, scale)
+    local piece = PIECES[name]
+    return piece[3] / 2 * (scale or 1), piece[4] / 2 * (scale or 1)
+end
+
+-- One cell of a flipbook sheet of square cells, counted from 0 left to right then down
+local function SetCell(texture, columns, lines, index)
+    local column, line = index % columns, floor(index / columns)
+    texture:SetTexCoord(column / columns, (column + 1) / columns, line / lines, (line + 1) / lines)
+end
+
+-- A square texture turned around its centre by its coordinates, anticlockwise in degrees: the painting stays whole
+-- as long as it keeps within the square's inscribed circle (the hammer's does)
+local function Turn(texture, degrees)
+    local angle = math.rad(degrees)
+    local c, s = math.cos(angle), math.sin(angle)
+    local function corner(x, y)
+        return 0.5 + x * c - y * s, 0.5 + x * s + y * c
+    end
+    local ulx, uly = corner(-0.5, -0.5)
+    local llx, lly = corner(-0.5, 0.5)
+    local urx, ury = corner(0.5, -0.5)
+    local lrx, lry = corner(0.5, 0.5)
+    texture:SetTexCoord(ulx, uly, llx, lly, urx, ury, lrx, lry)
+end
+
 local function Key(bag, slot)
     return bag .. ":" .. slot
 end
@@ -289,6 +344,17 @@ local function StandingPerks(index)
     return #perks > 0 and table.concat(perks, "  ·  ") or TEXT.perkNone
 end
 
+-- The molten metal in the standing's groove, cut to how far it has run: shown as far as it goes, never stretched
+local GAUGE_WIDTH, GAUGE_HEIGHT = PieceSize("gaugeFill")
+
+local function SetGauge(fraction)
+    local width = max(1, floor(GAUGE_WIDTH * fraction + 0.5))
+    local piece = PIECES.gaugeFill
+    standing.fill:SetWidth(width)
+    standing.fill:SetTexCoord(piece[1] / 1024, (piece[1] + width * 2) / 1024, piece[2] / 512,
+        (piece[2] + piece[4]) / 512)
+end
+
 local function RefreshStanding()
     if not standing then
         return
@@ -300,32 +366,34 @@ local function RefreshStanding()
     standing.perks:SetText(StandingPerks(index))
     if next then
         local from = STANDINGS[index].gold
-        standing.fill:SetWidth(max(1, standing.bar:GetWidth() * min(1, (gold - from) / (next.gold - from))))
+        SetGauge(min(1, (gold - from) / (next.gold - from)))
         standing.value:SetText(format(TEXT.standingNext, Thousands(gold), Thousands(next.gold)))
     else
-        standing.fill:SetWidth(standing.bar:GetWidth())
+        SetGauge(1)
         standing.value:SetText(format(TEXT.standingTop, Thousands(gold)))
     end
 end
 
--- Rank pips: one ember per rank, lit once forged ------------------------------------------------------------------
+-- Rank embers: one coal per rank, burning once forged, gold for a masterpiece ---------------------------------------
 
--- The rank track: a slim bar of eight segments, each lit once its rank is forged (gold for a masterpiece)
-local function CreateTrack(parent, width, height)
-    local track = { width = width }
-    local gap = 2
-    local segment = (width - (MAX_RANK - 1) * gap) / MAX_RANK
+-- The rank track: eight coals of a size, side by side
+local function CreateTrack(parent, size, gap)
+    local track = {}
     for index = 1, MAX_RANK do
         local cell = parent:CreateTexture(nil, "ARTWORK")
-        cell:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        cell:SetSize(segment, height)
-        cell:SetPoint("LEFT", parent, "LEFT", (index - 1) * (segment + gap), 0)
+        SetPiece(cell, "rankCold")
+        cell:SetSize(size, size)
+        cell:SetPoint("LEFT", parent, "LEFT", (index - 1) * (size + gap), 0)
         track[index] = cell
     end
     return track
 end
 
--- How many segments an item's track shows: every rank, or only the ones it has once it can go no further (a Mythic+
+local function TrackWidth(size, gap)
+    return MAX_RANK * size + (MAX_RANK - 1) * gap
+end
+
+-- How many coals an item's track shows: every rank, or only the ones it has once it can go no further (a Mythic+
 -- item stopped by its item level cap short of the last rank) - never ranks it cannot have
 local function TrackLength(item)
     return item.nextEntry == 0 and item.rank or state.maxRank
@@ -335,13 +403,7 @@ local function SetTrack(track, rank, maxRank)
     for index = 1, MAX_RANK do
         local cell = track[index]
         SetShown(cell, index <= maxRank)
-        if index > rank then
-            cell:SetVertexColor(0.16, 0.12, 0.08)
-        elseif rank >= MAX_RANK then
-            cell:SetVertexColor(1, 0.84, 0.36)
-        else
-            cell:SetVertexColor(0.95, 0.5, 0.12)
-        end
+        SetPiece(cell, index > rank and "rankCold" or rank >= MAX_RANK and "rankGold" or "rankLit")
     end
 end
 
@@ -398,51 +460,48 @@ local function Select(key, quiet)
 end
 
 local function CreateRow(index)
+    -- A painted iron tag plate (268 x 42), heated along its edges when it is the one on the anvil
     local row = CreateFrame("Button", nil, listChild)
-    row:SetSize(LIST_WIDTH - 28, ROW_HEIGHT - 4)
+    row:SetSize(PieceSize("rowPlate"))
     row:SetPoint("TOPLEFT", listChild, "TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
 
-    local ground = row:CreateTexture(nil, "BACKGROUND")
-    ground:SetAllPoints()
-    ground:SetTexture(0.06, 0.045, 0.03, 0.85)
-
-    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    highlight:SetTexture(1, 0.75, 0.35, 0.08)
+    local plate = row:CreateTexture(nil, "BACKGROUND")
+    plate:SetAllPoints()
+    SetPiece(plate, "rowPlate")
 
     local selectedGlow = row:CreateTexture(nil, "BORDER")
     selectedGlow:SetAllPoints()
-    selectedGlow:SetTexture(1, 0.6, 0.2, 0.16)
+    SetPiece(selectedGlow, "rowSelected")
     selectedGlow:Hide()
     row.selectedGlow = selectedGlow
 
-    local edge = row:CreateTexture(nil, "ARTWORK")
-    edge:SetTexture(0.75, 0.6, 0.35, 0.6)
-    edge:SetPoint("BOTTOMLEFT")
-    edge:SetPoint("BOTTOMRIGHT")
-    edge:SetHeight(1)
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    SetPiece(highlight, "rowSelected")
+    highlight:SetAlpha(0.45)
 
+    -- Between the plate's riveted ends
     local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(34, 34)
-    icon:SetPoint("LEFT", 4, 0)
+    icon:SetSize(26, 26)
+    icon:SetPoint("LEFT", 26, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     row.icon = icon
 
-    local name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -1)
-    name:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    local name = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 7, 0)
+    name:SetPoint("RIGHT", row, "RIGHT", -26, 0)
     name:SetJustifyH("LEFT")
     row.name = name
 
     local detail = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    detail:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, 1)
+    detail:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 7, 0)
     detail:SetTextColor(0.8, 0.74, 0.62)
     row.detail = detail
 
     local trackHolder = CreateFrame("Frame", nil, row)
-    trackHolder:SetSize(72, 4)
-    trackHolder:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -8, 7)
-    row.track = CreateTrack(trackHolder, 72, 4)
+    trackHolder:SetSize(TrackWidth(9, 1), 9)
+    trackHolder:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -26, 8)
+    row.track = CreateTrack(trackHolder, 9, 1)
 
     row:SetScript("OnClick", function(self)
         if not state.working then
@@ -576,38 +635,65 @@ function RefreshAnvil(animate)
         anvil.icon:SetAlpha(0)
         Tween(0.25, 0, function(p)
             anvil.icon:SetAlpha(p)
-            local size = 58 + 14 * (1 - OutBack(p))
+            local size = PIECE_SIZE + 14 * (1 - OutBack(p))
             anvil.icon:SetSize(size, size)
         end)
     end
 end
 
 -- The smith at work -------------------------------------------------------------------------------------------------
+-- He takes up the hammer, and each blow lands on the piece: sparks burst off it, it jolts on the anvil and glows a
+-- little hotter, the fire flares. Then the quench: steam, and the piece cools back to its own colour.
 
--- One blow of the hammer: sparks off the piece, the piece jolts on the anvil
-local function Strike(index, golden)
+-- A flipbook sheet played once on a texture: its cells one after another, then gone
+local function PlaySheet(texture, columns, lines, frames, duration)
+    texture:SetAlpha(1)
+    SetCell(texture, columns, lines, 0)
+    Tween(duration, 0, function(p)
+        SetCell(texture, columns, lines, min(frames - 1, floor(p * frames)))
+    end, function()
+        texture:SetAlpha(0)
+    end)
+end
+
+-- How hot the piece glows, from 0 (its own colour) to 1 (white-hot)
+local function SetHeat(heat)
+    anvil.heat:SetAlpha(heat)
+    anvil.heat:SetVertexColor(1, 0.55 + 0.45 * heat, 0.25 + 0.6 * heat * heat)
+end
+
+-- One blow landing: sparks off the piece (golden on a masterwork), the piece jolts and heats, the fire flares
+local function Strike(golden)
     PlaySound(SOUND_HAMMER)
-    local spark = anvil.spark
     if golden then
-        spark:SetVertexColor(1, 0.92, 0.55)
+        anvil.sparks:SetVertexColor(1, 0.9, 0.55)
     else
-        spark:SetVertexColor(1, 0.75, 0.35)
+        anvil.sparks:SetVertexColor(1, 1, 1)
     end
-    Tween(0.35, 0, function(p)
-        local size = 60 + (golden and 150 or 90) * OutCubic(p)
-        spark:SetSize(size, size)
-        spark:SetAlpha(1 - p)
-    end)
-    local ring = anvil.ring
-    Tween(0.45, 0, function(p)
-        local size = 70 + 170 * OutCubic(p)
-        ring:SetSize(size, size)
-        ring:SetAlpha(0.9 * (1 - p))
-    end)
+    PlaySheet(anvil.sparks, 4, 4, 16, 0.5)
+    anvil.heatLevel = min(1, anvil.heatLevel + (golden and 0.4 or 0.3))
+    SetHeat(anvil.heatLevel)
+    anvil.fireBoost = 0.35
     local holder = anvil.iconHolder
     Tween(0.12, 0, function(p)
         holder:ClearAllPoints()
-        holder:SetPoint("CENTER", anvil.content, "TOP", 0, -82 - 5 * (1 - p))
+        holder:SetPoint("CENTER", anvil.stage, "TOPLEFT", PIECE_X, -PIECE_Y - 4 * (1 - p))
+    end)
+end
+
+-- One swing landing at `delay`: the hammer raised from where it is, brought down onto the piece, bouncing back up
+local function Swing(delay, from, golden)
+    local hammer = anvil.hammer
+    Tween(0.15, delay - 0.27, function(p)
+        Turn(hammer, from + (HAMMER_RAISED - from) * OutCubic(p))
+    end)
+    Tween(0.12, delay - 0.12, function(p)
+        Turn(hammer, HAMMER_RAISED + (HAMMER_HIT - HAMMER_RAISED) * p * p)
+    end, function()
+        Strike(golden)
+    end)
+    Tween(0.15, delay, function(p)
+        Turn(hammer, HAMMER_HIT + (HAMMER_REBOUND - HAMMER_HIT) * OutCubic(p))
     end)
 end
 
@@ -621,62 +707,66 @@ local function Flash(size, red, green, blue)
     end)
 end
 
+-- Newly forged ranks flaring as their coals catch, one after the other
+local function FlareRanks(from, to)
+    for index = from + 1, min(to, MAX_RANK) do
+        local cell = anvil.track[index]
+        Tween(0.6, 0.15 * (index - from - 1), function(p)
+            local flare = anvil.flare
+            flare:ClearAllPoints()
+            flare:SetPoint("CENTER", cell, "CENTER")
+            local size = 24 + 40 * OutCubic(p)
+            flare:SetSize(size, size)
+            flare:SetAlpha(1 - p)
+        end)
+    end
+end
+
 -- A piece of the banner: the masterpiece, or a new standing with the smith
 local function ShowBanner(icon, title, line, detail, red, green, blue)
     if not banner then
+        -- The painted banner plate (960 x 220 on its 1024 x 256 texture), drawn at 480 x 110; its round socket's
+        -- centre and its dark face are where the painting has them
         banner = CreateFrame("Frame", "ItemForgeBanner", UIParent)
-        banner:SetSize(480, 104)
+        banner:SetSize(480, 110)
         banner:SetPoint("TOP", UIParent, "TOP", 0, -150)
         banner:SetFrameStrata("DIALOG")
-        banner:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = false, edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 },
-        })
-        banner:SetBackdropColor(0.04, 0.03, 0.02, 0.92)
-        banner:SetBackdropBorderColor(1, 0.82, 0.35, 1)
         banner:Hide()
 
-        local shine = banner:CreateTexture(nil, "BACKGROUND", nil, 1)
-        shine:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Alert-Glow")
-        shine:SetTexCoord(0, 0.782, 0, 0.782)
-        shine:SetBlendMode("ADD")
-        shine:SetVertexColor(1, 0.55, 0.15)
-        shine:SetAlpha(0.6)
-        shine:SetPoint("TOPLEFT", 4, -4)
-        shine:SetPoint("BOTTOMRIGHT", -4, 4)
+        local burst = banner:CreateTexture(nil, "BACKGROUND")
+        SetPiece(burst, "goldenBurst")
+        burst:SetBlendMode("ADD")
+        burst:SetSize(PieceSize("goldenBurst"))
+        burst:SetPoint("CENTER", banner, "TOPLEFT", 47.5, -54)
+        banner.star = burst
 
-        local star = banner:CreateTexture(nil, "ARTWORK")
-        star:SetTexture("Interface\\Cooldown\\star4")
-        star:SetBlendMode("ADD")
-        star:SetSize(150, 150)
-        star:SetPoint("CENTER", banner, "LEFT", 58, 0)
-        banner.star = star
+        local plate = banner:CreateTexture(nil, "BORDER")
+        plate:SetTexture(ART .. "ForgeBanner")
+        plate:SetTexCoord(0, 960 / 1024, 0, 220 / 256)
+        plate:SetAllPoints()
 
-        local bannerIcon = banner:CreateTexture(nil, "OVERLAY")
-        bannerIcon:SetSize(56, 56)
-        bannerIcon:SetPoint("CENTER", banner, "LEFT", 58, 0)
+        local bannerIcon = banner:CreateTexture(nil, "ARTWORK")
+        bannerIcon:SetSize(38, 38)
+        bannerIcon:SetPoint("CENTER", banner, "TOPLEFT", 47.5, -54)
         bannerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         banner.icon = bannerIcon
 
-        local border = banner:CreateTexture(nil, "OVERLAY", nil, 1)
-        border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-        border:SetPoint("TOPLEFT", bannerIcon, "TOPLEFT", -17, 17)
-        border:SetPoint("BOTTOMRIGHT", bannerIcon, "BOTTOMRIGHT", 17, -17)
-
         local bannerTitle = banner:CreateFontString(nil, "OVERLAY")
-        bannerTitle:SetFont(MORPHEUS, 30)
+        bannerTitle:SetFont(MORPHEUS, 22)
         bannerTitle:SetShadowOffset(1, -1)
-        bannerTitle:SetPoint("TOPLEFT", banner, "TOPLEFT", 110, -14)
+        bannerTitle:SetPoint("TOPLEFT", banner, "TOPLEFT", 112, -31)
+        bannerTitle:SetPoint("RIGHT", banner, "LEFT", 448, 0)
+        bannerTitle:SetJustifyH("LEFT")
         banner.title = bannerTitle
 
-        local bannerLine = banner:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        bannerLine:SetPoint("TOPLEFT", bannerTitle, "BOTTOMLEFT", 0, -4)
-        bannerLine:SetPoint("RIGHT", banner, "RIGHT", -16, 0)
+        local bannerLine = banner:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        bannerLine:SetPoint("TOPLEFT", bannerTitle, "BOTTOMLEFT", 0, -2)
+        bannerLine:SetPoint("RIGHT", banner, "LEFT", 448, 0)
         bannerLine:SetJustifyH("LEFT")
         banner.line = bannerLine
 
         local bannerDetail = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        bannerDetail:SetPoint("TOPLEFT", bannerLine, "BOTTOMLEFT", 0, -4)
+        bannerDetail:SetPoint("TOPLEFT", bannerLine, "BOTTOMLEFT", 0, -2)
         bannerDetail:SetTextColor(0.85, 0.78, 0.62)
         banner.detail = bannerDetail
     end
@@ -709,31 +799,76 @@ end
 
 local function AnimateForge(item, result, onDone)
     state.working = true
-    Tween(0.5, 0, function(p) anvil.halo:SetAlpha(0.8 * p) end)
+    anvil.heatLevel = 0
+    Turn(anvil.hammer, HAMMER_REST)
+    Tween(0.2, 0, function(p) anvil.hammer:SetAlpha(p) end)
     local strikes = HAMMER_STRIKES + (result.masterwork and 1 or 0)
     for strike = 1, strikes do
-        Tween(0.01, HAMMER_DELAY + (strike - 1) * HAMMER_GAP, nil, function()
-            Strike(strike, strike > HAMMER_STRIKES)
-        end)
+        Swing(HAMMER_DELAY + (strike - 1) * HAMMER_GAP, strike == 1 and HAMMER_REST or HAMMER_REBOUND,
+            strike > HAMMER_STRIKES)
     end
     local quench = HAMMER_DELAY + strikes * HAMMER_GAP + 0.15
+    -- The hammer is put down; the piece hisses in the quench and cools back to its own colour
+    Tween(0.3, quench - 0.1, function(p) anvil.hammer:SetAlpha(1 - p) end)
     Tween(0.01, quench, nil, function()
         PlaySound(SOUND_QUENCH)
+        PlaySheet(anvil.steam, 4, 2, 8, 0.9)
         -- The list that came with the news is shown now, out of the quench
         RefreshList()
         onDone()
     end)
-    Tween(0.8, quench, function(p) anvil.halo:SetAlpha(0.8 * (1 - p)) end, function()
+    Tween(1.4, quench, function(p) SetHeat(anvil.heatLevel * (1 - p)) end, function()
         state.working = false
         RefreshAnvil(false)
     end)
+end
+
+-- Embers rising off the coals while the forge burns, each from a random spot, swaying, fading
+local function CreateEmbers(parent)
+    local embers = {}
+    for index = 1, EMBERS do
+        local ember = parent:CreateTexture(nil, "OVERLAY")
+        ember:SetTexture(ART .. "ForgeEmbers")
+        ember:SetBlendMode("ADD")
+        SetCell(ember, 4, 4, (index - 1) % 16)
+        ember:SetAlpha(0)
+        ember.life = -random() * 3
+        ember.span = 0
+        embers[index] = ember
+    end
+    return embers
+end
+
+local function UpdateEmbers(embers, elapsed, heat)
+    for _, ember in ipairs(embers) do
+        ember.life = ember.life + elapsed
+        if ember.life >= ember.span then
+            ember.life = 0
+            ember.span = 2.4 + random() * 1.8
+            ember.x = COALS[1] + random() * COALS[3]
+            ember.y = COALS[2] + random() * COALS[4]
+            ember.rise = 50 + random() * 50
+            ember.sway = (random() - 0.5) * 30
+            local size = 8 + random() * 7
+            ember:SetSize(size, size)
+        end
+        if ember.life < 0 then
+            ember:SetAlpha(0)
+        else
+            local p = ember.life / ember.span
+            ember:ClearAllPoints()
+            ember:SetPoint("CENTER", ember:GetParent(), "TOPLEFT", ember.x + ember.sway * math.sin(p * math.pi),
+                -(ember.y - ember.rise * p))
+            ember:SetAlpha(heat * (p < 0.15 and p / 0.15 or (1 - p) / 0.85))
+        end
+    end
 end
 
 -- The window -------------------------------------------------------------------------------------------------------
 
 local function CreateStanding(parent)
     standing = CreateFrame("Frame", nil, parent)
-    standing:SetSize(250, 64)
+    standing:SetSize(GAUGE_WIDTH + 4, 64)
     standing:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -30, -38)
 
     local label = standing:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -748,7 +883,7 @@ local function CreateStanding(parent)
     standing.name = name
 
     local bar = CreateFrame("Frame", nil, standing)
-    bar:SetSize(250, 12)
+    bar:SetSize(GAUGE_WIDTH + 4, GAUGE_HEIGHT + 4)
     bar:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
     bar:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -759,11 +894,9 @@ local function CreateStanding(parent)
     standing.bar = bar
 
     local fill = bar:CreateTexture(nil, "ARTWORK")
-    fill:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    fill:SetVertexColor(0.95, 0.66, 0.2)
+    SetPiece(fill, "gaugeFill")
     fill:SetPoint("TOPLEFT", 2, -2)
-    fill:SetPoint("BOTTOMLEFT", 2, 2)
-    fill:SetWidth(1)
+    fill:SetSize(1, GAUGE_HEIGHT)
     standing.fill = fill
 
     local value = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -831,22 +964,17 @@ local function CreateForge()
     mover:SetScript("OnDragStart", function() frame:StartMoving() end)
     mover:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
 
-    -- The smithy's sign: the blacksmith's hammer and the heading beside it
+    -- The smithy's sign: the painted medallion, hammer over anvil, and the heading beside it
     local emblem = frame:CreateTexture(nil, "OVERLAY")
-    emblem:SetTexture("Interface\\Icons\\Trade_BlackSmithing")
-    emblem:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    emblem:SetSize(40, 40)
-    emblem:SetPoint("TOPLEFT", frame, "TOPLEFT", 34, -40)
-    local emblemBorder = frame:CreateTexture(nil, "OVERLAY", nil, 1)
-    emblemBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-    emblemBorder:SetPoint("TOPLEFT", emblem, "TOPLEFT", -13, 13)
-    emblemBorder:SetPoint("BOTTOMRIGHT", emblem, "BOTTOMRIGHT", 13, -13)
+    SetPiece(emblem, "medallion")
+    emblem:SetSize(PieceSize("medallion"))
+    emblem:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -30)
 
     local heading = frame:CreateFontString(nil, "OVERLAY")
     heading:SetFont(MORPHEUS, 28)
     heading:SetShadowOffset(1, -1)
     heading:SetTextColor(1, 0.86, 0.55)
-    heading:SetPoint("TOPLEFT", emblem, "TOPRIGHT", 14, 2)
+    heading:SetPoint("TOPLEFT", emblem, "TOPRIGHT", 12, -6)
     heading:SetText(TEXT.heading)
 
     local intro = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -877,7 +1005,7 @@ local function CreateForge()
     scroll:SetPoint("TOPLEFT", listBox, "TOPLEFT", 6, -6)
     scroll:SetPoint("BOTTOMRIGHT", listBox, "BOTTOMRIGHT", -26, 6)
     listChild = CreateFrame("Frame", nil, scroll)
-    listChild:SetSize(LIST_WIDTH - 32, 1)
+    listChild:SetSize(ROW_WIDTH, 1)
     scroll:SetScrollChild(listChild)
     rows = {}
 
@@ -889,10 +1017,11 @@ local function CreateForge()
     emptyText:SetText(TEXT.empty)
     emptyText:Hide()
 
-    -- The anvil, on the right: the forge's fire rises behind the piece while the blacksmith works
+    -- The anvil, on the right: the painted smithy on top, the piece lying on its anvil; what the forge will do under it
     anvil = CreateFrame("Frame", nil, frame)
-    anvil:SetPoint("TOPLEFT", listBox, "TOPRIGHT", 16, 0)
-    anvil:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 24)
+    anvil:SetPoint("TOPLEFT", listBox, "TOPRIGHT", 6, 0)
+    anvil:SetPoint("BOTTOM", frame, "BOTTOM", 0, 24)
+    anvil:SetWidth(STAGE_WIDTH + 6)
     anvil:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = false, edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 },
@@ -900,59 +1029,80 @@ local function CreateForge()
     anvil:SetBackdropColor(0.05, 0.03, 0.02, 0.85)
     anvil:SetBackdropBorderColor(0.75, 0.6, 0.35, 1)
 
+    -- The stage (868 x 480 painted, on 1024 x 512): cold, and lit over it as the forge wakes; the fire's light and
+    -- the embers on top. Draw layers, not sublevels: 3.3.5 ignores those.
+    local stage = CreateFrame("Frame", nil, anvil)
+    stage:SetSize(STAGE_WIDTH, STAGE_HEIGHT)
+    stage:SetPoint("TOPLEFT", anvil, "TOPLEFT", 3, -3)
+    anvil.stage = stage
+
+    local cold = stage:CreateTexture(nil, "BACKGROUND")
+    cold:SetTexture(ART .. "ForgeStageCold")
+    cold:SetTexCoord(0, 868 / 1024, 0, 480 / 512)
+    cold:SetAllPoints()
+
+    local lit = stage:CreateTexture(nil, "BORDER")
+    lit:SetTexture(ART .. "ForgeStageLit")
+    lit:SetTexCoord(0, 868 / 1024, 0, 480 / 512)
+    lit:SetAllPoints()
+    lit:SetAlpha(0)
+    anvil.lit = lit
+
+    local fire = stage:CreateTexture(nil, "ARTWORK")
+    fire:SetTexture(ART .. "ForgeFireLight")
+    fire:SetTexCoord(0, 868 / 1024, 0, 480 / 512)
+    fire:SetBlendMode("ADD")
+    fire:SetAllPoints()
+    fire:SetAlpha(0)
+    anvil.fire = fire
+
+    anvil.embers = CreateEmbers(stage)
+    anvil.clock, anvil.fireBoost, anvil.heatLevel = 0, 0, 0
+    stage:SetScript("OnUpdate", function(_, elapsed)
+        anvil.clock = anvil.clock + elapsed
+        anvil.fireBoost = max(0, anvil.fireBoost - elapsed * 1.2)
+        local heat = lit:GetAlpha()
+        local flicker = 0.75 + 0.15 * math.sin(anvil.clock * 7.3) + 0.1 * math.sin(anvil.clock * 17.9)
+        fire:SetAlpha(min(1, heat * flicker * (state.working and 1 or 0.7) + anvil.fireBoost))
+        UpdateEmbers(anvil.embers, elapsed, heat)
+    end)
+
     local pick = anvil:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    pick:SetPoint("CENTER")
+    pick:SetPoint("CENTER", anvil, "TOP", 0, -(STAGE_HEIGHT + 120))
     pick:SetTextColor(0.85, 0.78, 0.62)
     pick:SetText(TEXT.pick)
     anvil.pick = pick
 
     local content = CreateFrame("Frame", nil, anvil)
     content:SetAllPoints()
+    content:SetFrameLevel(stage:GetFrameLevel() + 2)
     anvil.content = content
 
+    -- The piece's name in the stage's dark strip at its top
     local name = content:CreateFontString(nil, "OVERLAY")
-    name:SetFont(FONT, 17)
+    name:SetFont(FONT, 15)
     name:SetShadowOffset(1, -1)
-    name:SetPoint("TOP", content, "TOP", 0, -16)
-    name:SetWidth(380)
+    name:SetPoint("TOP", stage, "TOP", 0, -6)
+    name:SetWidth(STAGE_WIDTH - 40)
     anvil.name = name
 
+    -- The piece on the anvil's top face
     local iconHolder = CreateFrame("Frame", nil, content)
-    iconHolder:SetSize(80, 80)
-    iconHolder:SetPoint("CENTER", content, "TOP", 0, -82)
+    iconHolder:SetSize(PIECE_SIZE + 22, PIECE_SIZE + 22)
+    iconHolder:SetPoint("CENTER", stage, "TOPLEFT", PIECE_X, -PIECE_Y)
     anvil.iconHolder = iconHolder
 
     -- A masterpiece's golden radiance, behind it for good
     local masterGlow = iconHolder:CreateTexture(nil, "BACKGROUND")
-    masterGlow:SetTexture("Interface\\Cooldown\\star4")
+    SetPiece(masterGlow, "goldenBurst")
     masterGlow:SetBlendMode("ADD")
-    masterGlow:SetVertexColor(1, 0.85, 0.4)
     masterGlow:SetPoint("CENTER")
     masterGlow:SetSize(130, 130)
     masterGlow:SetAlpha(0)
     anvil.masterGlow = masterGlow
 
-    -- The forge's fire, rising behind the piece while the smith works: a burst of flame-coloured rays
-    local halo = iconHolder:CreateTexture(nil, "BACKGROUND", nil, 2)
-    halo:SetTexture("Interface\\Cooldown\\starburst")
-    halo:SetBlendMode("ADD")
-    halo:SetVertexColor(1, 0.45, 0.1)
-    halo:SetPoint("CENTER")
-    halo:SetSize(190, 190)
-    halo:SetAlpha(0)
-    anvil.halo = halo
-
-    -- Each blow's shockwave: a ring running out from the piece
-    local ring = iconHolder:CreateTexture(nil, "OVERLAY", nil, 3)
-    ring:SetTexture("Interface\\Cooldown\\ping4")
-    ring:SetBlendMode("ADD")
-    ring:SetVertexColor(1, 0.6, 0.25)
-    ring:SetPoint("CENTER")
-    ring:SetAlpha(0)
-    anvil.ring = ring
-
-    local glow = iconHolder:CreateTexture(nil, "BACKGROUND", nil, 1)
-    glow:SetTexture("Interface\\Cooldown\\star4")
+    local glow = iconHolder:CreateTexture(nil, "BORDER")
+    SetPiece(glow, "goldenBurst")
     glow:SetBlendMode("ADD")
     glow:SetPoint("CENTER")
     glow:SetSize(70, 70)
@@ -961,22 +1111,18 @@ local function CreateForge()
 
     local icon = iconHolder:CreateTexture(nil, "ARTWORK")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    icon:SetSize(58, 58)
+    icon:SetSize(PIECE_SIZE, PIECE_SIZE)
     icon:SetPoint("CENTER")
     anvil.icon = icon
 
-    local iconBorder = iconHolder:CreateTexture(nil, "OVERLAY")
-    iconBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-    iconBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", -18, 18)
-    iconBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 18, -18)
-
-    local spark = iconHolder:CreateTexture(nil, "OVERLAY", nil, 2)
-    spark:SetTexture("Interface\\Cooldown\\star4")
-    spark:SetBlendMode("ADD")
-    spark:SetPoint("CENTER")
-    spark:SetSize(60, 60)
-    spark:SetAlpha(0)
-    anvil.spark = spark
+    -- The heat of the work on the piece (116 x 116 painted, over the 58 x 58 icon)
+    local heat = iconHolder:CreateTexture(nil, "OVERLAY")
+    SetPiece(heat, "pieceHeat")
+    heat:SetBlendMode("ADD")
+    heat:SetSize(PieceSize("pieceHeat"))
+    heat:SetPoint("CENTER", icon, "CENTER")
+    heat:SetAlpha(0)
+    anvil.heat = heat
 
     iconHolder:EnableMouse(true)
     iconHolder:SetScript("OnEnter", function(self)
@@ -989,8 +1135,39 @@ local function CreateForge()
     end)
     iconHolder:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+    -- Over the piece: the hammer (its square turned around its handle's end), the sparks of each blow, the steam
+    local work = CreateFrame("Frame", nil, content)
+    work:SetAllPoints(stage)
+    work:SetFrameLevel(iconHolder:GetFrameLevel() + 2)
+
+    local hammer = work:CreateTexture(nil, "ARTWORK")
+    hammer:SetTexture(ART .. "ForgeHammer")
+    hammer:SetSize(HAMMER_SIZE, HAMMER_SIZE)
+    hammer:SetPoint("CENTER", stage, "TOPLEFT", HAMMER_X, -HAMMER_Y)
+    hammer:SetAlpha(0)
+    Turn(hammer, HAMMER_REST)
+    anvil.hammer = hammer
+
+    local sparks = work:CreateTexture(nil, "OVERLAY")
+    sparks:SetTexture(ART .. "ForgeSparks")
+    sparks:SetBlendMode("ADD")
+    sparks:SetSize(SPARK_SIZE, SPARK_SIZE)
+    sparks:SetPoint("CENTER", stage, "TOPLEFT", PIECE_X, -(PIECE_Y - PIECE_SIZE / 2))
+    sparks:SetAlpha(0)
+    anvil.sparks = sparks
+
+    -- The steam rises from the bottom of its cells: their bottom on the anvil's face
+    local steam = work:CreateTexture(nil, "OVERLAY")
+    steam:SetTexture(ART .. "ForgeSteam")
+    steam:SetBlendMode("ADD")
+    steam:SetSize(STEAM_SIZE, STEAM_SIZE)
+    steam:SetPoint("BOTTOM", stage, "TOPLEFT", PIECE_X, -(PIECE_Y + PIECE_SIZE / 2 + 6))
+    steam:SetAlpha(0)
+    anvil.steam = steam
+
+    -- Under the stage: the item level, the ranks, what the next one adds, the price and the button
     local levelLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    levelLabel:SetPoint("TOP", iconHolder, "BOTTOM", 0, -4)
+    levelLabel:SetPoint("TOP", stage, "BOTTOM", 0, -10)
     levelLabel:SetText(TEXT.itemLevel)
 
     local levels = content:CreateFontString(nil, "OVERLAY")
@@ -1000,18 +1177,25 @@ local function CreateForge()
     anvil.levels = levels
 
     local trackHolder = CreateFrame("Frame", nil, content)
-    trackHolder:SetSize(200, 7)
-    trackHolder:SetPoint("TOP", levels, "BOTTOM", 0, -10)
-    anvil.track = CreateTrack(trackHolder, 200, 7)
+    trackHolder:SetSize(TrackWidth(24, 4), 24)
+    trackHolder:SetPoint("TOP", levels, "BOTTOM", 0, -8)
+    anvil.track = CreateTrack(trackHolder, 24, 4)
+
+    -- A rank catching: its coal flares (96 x 96 painted)
+    local flare = trackHolder:CreateTexture(nil, "OVERLAY")
+    SetPiece(flare, "rankFlare")
+    flare:SetBlendMode("ADD")
+    flare:SetAlpha(0)
+    anvil.flare = flare
 
     local rank = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    rank:SetPoint("TOP", trackHolder, "BOTTOM", 0, -6)
+    rank:SetPoint("TOP", trackHolder, "BOTTOM", 0, -4)
     rank:SetTextColor(0.85, 0.78, 0.62)
     anvil.rank = rank
 
     -- What the next rank adds, stat by stat
     local gainsLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    gainsLabel:SetPoint("TOP", rank, "BOTTOM", 0, -10)
+    gainsLabel:SetPoint("TOP", rank, "BOTTOM", 0, -8)
     gainsLabel:SetText(TEXT.gains)
     anvil.gainsLabel = gainsLabel
     anvil.gains = {}
@@ -1026,7 +1210,7 @@ local function CreateForge()
     end
 
     local costLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    costLabel:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 22, 66)
+    costLabel:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 22, 58)
     costLabel:SetText(TEXT.price)
     anvil.costLabel = costLabel
 
@@ -1050,7 +1234,7 @@ local function CreateForge()
 
     local button = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     button:SetSize(170, 30)
-    button:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -20, 18)
+    button:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -20, 16)
     button:SetText(TEXT.forge)
     button:SetScript("OnClick", function()
         local item = state.selected and state.items[state.selected]
@@ -1083,6 +1267,9 @@ local function CreateForge()
             frame:SetAlpha(p)
             frame:SetScale(0.94 + 0.06 * OutCubic(p))
         end)
+        -- The smith stirs the fire: the cold smithy lights up
+        anvil.lit:SetAlpha(0)
+        Tween(1.2, 0.25, function(p) anvil.lit:SetAlpha(OutCubic(p)) end)
     end)
     frame:SetScript("OnHide", function()
         PlaySound(SOUND_CLOSE)
@@ -1461,7 +1648,9 @@ local function OnForged(result)
     end
     local key = Key(result.bag, result.slot)
     state.selected = key
+    local before = state.items[key] and state.items[key].rank or 0
     AnimateForge(state.items[key], result, function()
+        FlareRanks(before, result.rank)
         local name, _, icon = ItemInfo(result.entry)
         UIErrorsFrame:AddMessage(format(TEXT.done, name or "", result.itemLevel), 1, 0.72, 0.35, 1)
         Tween(0.35, 0, function(p)
