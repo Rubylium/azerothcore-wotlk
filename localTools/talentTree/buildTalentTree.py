@@ -257,7 +257,7 @@ def build_sql(definitions):
         '    `Gate2Row` TINYINT UNSIGNED NOT NULL DEFAULT 0,',
         '    `Gate2Cost` TINYINT UNSIGNED NOT NULL DEFAULT 0,',
         "    `Signature` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'of the whole class, matched by the client',",
-        "    `SpecSpells` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'a spec tree: learned while it is the chosen one',",
+        "    `SpecSpells` VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'a spec tree: learned while it is the chosen one',",
         "    `BotOrder` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'the order a bot takes its nodes in (node or node:option)',",
         "    `SingleBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: single-target preset',",
         "    `AoeBuild` VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'spec tree: AoE preset (bots, dungeons)',",

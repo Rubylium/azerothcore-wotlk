@@ -8,7 +8,8 @@
 # flag word, or [word 0, word 1, word 2]. `aura` may also be a list of up to three auras, one effect each, each
 # valued by its own `values` when it has them. A node or option marked
 # `existing` names rank spells the class authors itself (the Pestiféré's older talents), so nothing is made for
-# it. Runs inside patchSinisterStrike.ps1's scope, which defines $A_Dummy.
+# it. A tree's `baseRanks` (talents moved to the base kit) get their rank spells too. Runs inside
+# patchSinisterStrike.ps1's scope, which defines $A_Dummy.
 param(
     [Parameter(Mandatory)][string]$TreePath,
     [Parameter(Mandatory)][int]$Family
@@ -46,7 +47,9 @@ function New-TalentRank($id, $name, $icon, $description, $aura, $auraValue, $ran
 
 $ranks = @()
 foreach ($tree in $talentTree.trees) {
-    foreach ($node in $tree.nodes) {
+    # A tree's `baseRanks`: talents moved out of it into the base kit (granted with the specialization through
+    # specSpells) - their rank spells still made, as a node's would be
+    foreach ($node in @($tree.nodes) + @($tree.baseRanks | Where-Object { $_ })) {
         if ($node.kind -eq 'active' -or $node.existing) { continue }
         if ($node.kind -eq 'choice') {
             foreach ($option in $node.options) {

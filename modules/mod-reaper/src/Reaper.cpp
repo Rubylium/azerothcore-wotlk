@@ -178,7 +178,9 @@ enum Spells : uint32
     SPELL_SPEC_DOMINATION = 98902,
 };
 
-// Talent ranks the C++ reads (localTools/reaper/talentTree.json, through .agents/plans/reaper/talentIds.txt)
+// Talent ranks the C++ reads (localTools/reaper/talentTree.json, through .agents/plans/reaper/talentIds.txt). A merged
+// node (localTools/reaper/redesignTalentTree.py) keeps its source talents' spells as its ranks, and only its current
+// rank is learned: its first talent's effect is checked on every rank (Has... || ...), the next ones on theirs.
 enum Talents : uint32
 {
     TALENT_BACKSWING = 98403,
@@ -241,6 +243,7 @@ enum Talents : uint32
     TALENT_EMPYREAN_FORTITUDE = 98502,
     TALENT_LIFESTEALER = 98504,
     TALENT_JAILERS_WILL = 98505,
+    TALENT_DOMINATOR = 98506,
     TALENT_WELL_OF_SOULS = 98507,
     TALENT_SIPHON_ANIMA = 98509,
     TALENT_PAINMAIL = 98510,
@@ -502,7 +505,7 @@ void SummonSpectralScythes(Player* player, uint8 count, int32 durationMs, bool i
 
 void OnInfusionGained(Player* player)
 {
-    if (player->HasAura(TALENT_DOMINION))
+    if (player->HasAura(TALENT_DOMINION) || player->HasAura(TALENT_DAMNED))
         player->CastSpell(player, SPELL_DOMINION, true);
     if (player->HasAura(TALENT_DAMNED))
         player->CastSpell(player, SPELL_DAMNED, true);
@@ -534,7 +537,7 @@ void OnSoulGained(Player* player, Unit* target)
 {
     if (!target || !target->IsAlive() || !player->IsValidAttackTarget(target))
         target = CurrentEnemy(player, 40.0f);
-    if (player->HasAura(TALENT_SOUL_HARVEST) && target)
+    if ((player->HasAura(TALENT_SOUL_HARVEST) || player->HasAura(TALENT_SOUL_FURNACE)) && target)
         player->CastSpell(target, SPELL_SOUL_HARVEST, true);
     if (player->HasAura(TALENT_PAINBRINGER) && roll_chance_i(15))
         MasochisticRageProc(player);
@@ -1121,7 +1124,8 @@ public:
             return;
         damage = int32(float(damage) * DamageFactor(player, target, spellInfo, false));
         // Volonté du Geôlier: Frappe d'âme and 30% of Strength
-        if (spellInfo->Id == SPELL_SOUL_STRIKE && player->HasAura(TALENT_JAILERS_WILL))
+        if (spellInfo->Id == SPELL_SOUL_STRIKE &&
+            (player->HasAura(TALENT_JAILERS_WILL) || player->HasAura(TALENT_DOMINATOR)))
             damage += int32(player->GetStat(STAT_STRENGTH) * 0.3f);
     }
 
@@ -1295,7 +1299,8 @@ public:
                 AddSouls(player, 1, victim);
                 // Its heal: a share of the blow and of the missing health (Voleur de vie, Faux du moissonneur)
                 float missingPct = SoulStrikeMissingPct;
-                if (player->HasAura(TALENT_LIFESTEALER))
+                if (player->HasAura(TALENT_LIFESTEALER) || player->HasAura(TALENT_JAILERS_WILL) ||
+                    player->HasAura(TALENT_DOMINATOR))
                     missingPct += 3.0f;
                 float heal = float(damage) * SoulStrikeHealPct / 100.0f +
                     float(player->GetMaxHealth() - player->GetHealth()) * missingPct / 100.0f;
@@ -1463,7 +1468,7 @@ public:
             if (player->HasAura(SPELL_SPEC_REAPING))
             {
                 float pct = HarvesterPct;
-                if (player->HasAura(TALENT_MY_DOMAIN))
+                if (player->HasAura(TALENT_MY_DOMAIN) || player->HasAura(TALENT_BLOOD_FUELED))
                     pct *= InsideOwnDynObject(player, SPELL_HARVESTING_GROUNDS, player) ? 1.35f : 1.1f;
                 state->pendingHarvester += float(damage) * pct / 100.0f;
             }
