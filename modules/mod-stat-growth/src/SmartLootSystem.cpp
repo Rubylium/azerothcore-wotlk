@@ -417,16 +417,19 @@ bool IsSameItem(Item const* item, uint32 baseEntry, uint32 givenItemLevel)
 
 // Whether the player owns the candidate already at the item level it would be given at or better, as itself or as any
 // generated variant of it (worn, in the bags or the bank), or could not wear it beside what it wears (a unique ring or
-// trinket, a unique category): a variant of a worn unique ring was offered as the upgrade of the other ring slot, and
-// could not be put on. A lower copy does not count: a slot with a single item for the class (a rogue's leather
+// trinket, a unique category). A lower copy does not count: a slot with a single item for the class (a rogue's leather
 // agility boots near the top: Frostbitten Fur Boots alone) was never offered its better variants once the stock item
-// was worn, and stayed the weakest slot for good while the loot went elsewhere. A unique item keeps the strict rule:
-// any copy owned rules it out (a better variant of it would go to the other ring or trinket slot, beside it).
+// was worn, and stayed the weakest slot for good while the loot went elsewhere. A unique item with a lower copy worn
+// takes that copy's place (it is put on in its slot, which the unique rule allows): any copy owned used to rule it out,
+// and a player wearing a trinket was never given it again, however far above it the loot was.
 bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate, uint32 givenItemLevel)
 {
     uint32 const baseEntry = BaseItemEntry(candidate.ItemId);
-    if (candidate.HasFlag(ITEM_FLAG_UNIQUE_EQUIPPABLE) || candidate.ItemLimitCategory)
-        givenItemLevel = 0;
+    uint8 wornCopySlot = NULL_SLOT;
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+        if (Item const* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+            item && BaseItemEntry(item->GetEntry()) == baseEntry)
+            wornCopySlot = slot;
     for (uint8 slot = EQUIPMENT_SLOT_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
         if (IsSameItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot), baseEntry, givenItemLevel))
             return true;
@@ -444,7 +447,7 @@ bool OwnsOrCannotWear(Player* player, ItemTemplate const& candidate, uint32 give
                     if (IsSameItem(bag->GetItemByPos(static_cast<uint8>(slot)), baseEntry, givenItemLevel))
                         return true;
     }
-    return player->CanEquipUniqueItem(&candidate) != EQUIP_ERR_OK;
+    return player->CanEquipUniqueItem(&candidate, wornCopySlot) != EQUIP_ERR_OK;
 }
 
 // Whether the player could and would wear the candidate: its class, armor, stats, weapon skill and way of fighting,
@@ -605,10 +608,9 @@ std::vector<SlotCandidate> CollectSlotCandidates(Player* player, std::vector<Slo
     return candidates;
 }
 
-// Among items of about the best stat score (within a tenth of it), one of the top three: some variety, never an
-// item clearly worse for the class (a tank's strength cloak beside an agility one for a rogue)
-constexpr size_t SlotPickPoolSize = 3;
-
+// Any of the items of about the best stat score (within a tenth of it): variety, never an item clearly worse for the
+// class (a tank's strength cloak beside an agility one for a rogue). The top three alone made a slot drop the same
+// few items over and over.
 SlotCandidate const* PickBestCandidate(std::vector<SlotCandidate const*>& pool)
 {
     std::sort(pool.begin(), pool.end(), [](SlotCandidate const* left, SlotCandidate const* right)
@@ -619,7 +621,7 @@ SlotCandidate const* PickBestCandidate(std::vector<SlotCandidate const*>& pool)
     int32 const best = pool.front()->score;
     int32 const floor = best - std::abs(best) / 10;
     size_t size = 1;
-    while (size < std::min(pool.size(), SlotPickPoolSize) && pool[size]->score >= floor)
+    while (size < pool.size() && pool[size]->score >= floor)
         ++size;
     return pool[urand(0, static_cast<uint32>(size - 1))];
 }
@@ -767,6 +769,10 @@ SlotPick SelectMythicLoot(Player* player, uint32 itemLevel, uint32 givenItemLeve
             if (candidate.Quality != ITEM_QUALITY_EPIC || candidate.ItemLevel > itemLevel ||
                 candidate.RequiredLevel > progressionLevel)
                 return -1;
+            // A generated reward is grown to its own item level from any base (MythicItemGeneration): every base is
+            // as good, none comes first. The windows put the top tier first, and it was all that ever dropped.
+            if (generated)
+                return 0;
             for (size_t tier = 0; tier < MythicItemLevelWindows.size(); ++tier)
                 if (candidate.ItemLevel + MythicItemLevelWindows[tier] >= itemLevel)
                     return static_cast<int32>(tier);

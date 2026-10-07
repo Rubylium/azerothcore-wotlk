@@ -9,23 +9,56 @@
 #include <cmath>
 #include <vector>
 
-// Mythic+ loot above the game's best items (see MythicDungeon.h): every epic of the top tier is copied into each
-// generated variant, its item level raised and its stats grown with it. Made at startup, before anyone logs in,
-// so the item store never changes under the map threads and the items players keep always exist again after a
-// restart. The client draws them with their base item's look through the awesome_wotlk client extension.
+// Mythic+ loot above the game's best items (see MythicDungeon.h): every epic of the Northrend raids and dungeons from
+// Ulduar on is copied into each generated variant, its item level raised and its stats grown with it. Made at startup,
+// before anyone logs in, so the item store never changes under the map threads and the items players keep always exist
+// again after a restart. The client draws them with their base item's look through the awesome_wotlk client extension.
 namespace
 {
-// Base items: the top tier, this many item levels below the best
-constexpr uint32 BaseItemLevelSpan = 13;
+// The first bases were the top tier alone (this many item levels below the best): kept, or the variants of them
+// players own would be gone after a restart
+constexpr uint32 LegacyBaseItemLevelSpan = 13;
+// Bases from Ulduar's item level up: a variant's stats are grown to its own item level whatever its base's, so a lower
+// base gives as much. The top tier alone left a slot a handful of items (four trinkets, one neck at 278 and above),
+// and the same ones dropped over and over. Not lower: on-use and proc effects do not grow, and Naxxramas' trinkets are
+// far behind at a high key.
+constexpr uint32 MinimumBaseItemLevel = 226;
+
+bool HasStat(ItemTemplate const& itemTemplate, uint32 stat)
+{
+    for (uint32 index = 0; index < itemTemplate.StatsCount && index < MAX_ITEM_PROTO_STATS; ++index)
+        if (itemTemplate.ItemStat[index].ItemStatType == stat && itemTemplate.ItemStat[index].ItemStatValue)
+            return true;
+    return false;
+}
+
+bool IsLegacyBaseItem(ItemTemplate const& itemTemplate)
+{
+    return itemTemplate.ItemLevel + LegacyBaseItemLevelSpan >= Mythic::MaxItemLevel && itemTemplate.Map == 0 &&
+        itemTemplate.Area == 0 && !itemTemplate.HasFlag(ITEM_FLAG_DEPRECATED);
+}
+
+// What the Mythic+ reward may give (SmartLootSystem's catalog takes no more): no reputation, profession or quest item,
+// and no PvP gear - resilience, or a gladiator's relic whose effect only works in arenas
+bool IsWiderBaseItem(ItemTemplate const& itemTemplate)
+{
+    return itemTemplate.ItemLevel >= MinimumBaseItemLevel && itemTemplate.Map == 0 && itemTemplate.Area == 0 &&
+        itemTemplate.HolidayId == 0 && itemTemplate.StartQuest == 0 && itemTemplate.RequiredReputationFaction == 0 &&
+        itemTemplate.RequiredSkill == 0 && itemTemplate.RequiredSpell == 0 && itemTemplate.RequiredHonorRank == 0 &&
+        itemTemplate.Bonding != BIND_QUEST_ITEM && itemTemplate.Bonding != BIND_QUEST_ITEM1 &&
+        !itemTemplate.HasFlag(ITEM_FLAG_DEPRECATED) && !itemTemplate.HasFlag(ITEM_FLAG_NO_PICKUP) &&
+        !itemTemplate.HasFlag2(ITEM_FLAG2_INTERNAL_ITEM) && !HasStat(itemTemplate, ITEM_MOD_RESILIENCE_RATING) &&
+        itemTemplate.Name1.find("Gladiator's") == std::string::npos;
+}
 
 bool IsBaseItem(ItemTemplate const& itemTemplate)
 {
-    return itemTemplate.Quality == ITEM_QUALITY_EPIC && !Mythic::IsGeneratedItem(itemTemplate.ItemId) &&
-        (itemTemplate.Class == ITEM_CLASS_WEAPON || itemTemplate.Class == ITEM_CLASS_ARMOR) &&
-        itemTemplate.InventoryType != INVTYPE_NON_EQUIP && itemTemplate.ItemLevel <= Mythic::MaxItemLevel &&
-        itemTemplate.ItemLevel + BaseItemLevelSpan >= Mythic::MaxItemLevel && itemTemplate.RandomProperty == 0 &&
-        itemTemplate.RandomSuffix == 0 && itemTemplate.Map == 0 && itemTemplate.Area == 0 &&
-        !itemTemplate.HasFlag(ITEM_FLAG_DEPRECATED);
+    if (itemTemplate.Quality != ITEM_QUALITY_EPIC || Mythic::IsGeneratedItem(itemTemplate.ItemId) ||
+        (itemTemplate.Class != ITEM_CLASS_WEAPON && itemTemplate.Class != ITEM_CLASS_ARMOR) ||
+        itemTemplate.InventoryType == INVTYPE_NON_EQUIP || itemTemplate.ItemLevel > Mythic::MaxItemLevel ||
+        itemTemplate.RandomProperty != 0 || itemTemplate.RandomSuffix != 0)
+        return false;
+    return IsLegacyBaseItem(itemTemplate) || IsWiderBaseItem(itemTemplate);
 }
 
 int32 Grow(int32 value, float factor)
