@@ -48,9 +48,9 @@ local PIECES = {
 local STAGE_WIDTH, STAGE_HEIGHT = 434, 240
 local PIECE_X, PIECE_Y, PIECE_SIZE = 217, 115, 58
 local HAMMER_SIZE = 270                 -- the hammer's square (512 on its texture), its handle's end at the centre
-local HAMMER_X, HAMMER_Y = 286, 26
+local HAMMER_X, HAMMER_Y = 286, 34
 -- The hammer's angles, anticlockwise in degrees from the way it is painted: at rest, raised, on the piece, back up
-local HAMMER_REST, HAMMER_RAISED, HAMMER_HIT, HAMMER_REBOUND = 15, -10, 65, 40
+local HAMMER_REST, HAMMER_RAISED, HAMMER_HIT, HAMMER_REBOUND = 15, -10, 70, 45
 local COALS = { 140, 116, 155, 12 }     -- left, top, width, height
 local EMBERS = 10
 local SPARK_SIZE, STEAM_SIZE = 160, 128 -- a cell of each sheet (256 on its texture)
@@ -460,14 +460,21 @@ local function Select(key, quiet)
 end
 
 local function CreateRow(index)
-    -- A painted iron tag plate (268 x 42), heated along its edges when it is the one on the anvil
+    -- A quiet dark row; the one on the anvil sits on the painted iron plate (268 x 42), heated along its edges
     local row = CreateFrame("Button", nil, listChild)
     row:SetSize(PieceSize("rowPlate"))
     row:SetPoint("TOPLEFT", listChild, "TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
 
-    local plate = row:CreateTexture(nil, "BACKGROUND")
-    plate:SetAllPoints()
-    SetPiece(plate, "rowPlate")
+    local ground = row:CreateTexture(nil, "BACKGROUND")
+    ground:SetPoint("TOPLEFT", 4, -3)
+    ground:SetPoint("BOTTOMRIGHT", -4, 3)
+    ground:SetTexture(0.06, 0.045, 0.03, 0.7)
+
+    local edge = row:CreateTexture(nil, "BACKGROUND")
+    edge:SetPoint("BOTTOMLEFT", ground, "BOTTOMLEFT")
+    edge:SetPoint("BOTTOMRIGHT", ground, "BOTTOMRIGHT")
+    edge:SetHeight(1)
+    edge:SetTexture(0.75, 0.6, 0.35, 0.35)
 
     local selectedGlow = row:CreateTexture(nil, "BORDER")
     selectedGlow:SetAllPoints()
@@ -476,9 +483,8 @@ local function CreateRow(index)
     row.selectedGlow = selectedGlow
 
     local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    SetPiece(highlight, "rowSelected")
-    highlight:SetAlpha(0.45)
+    highlight:SetAllPoints(ground)
+    highlight:SetTexture(1, 0.75, 0.35, 0.08)
 
     -- Between the plate's riveted ends
     local icon = row:CreateTexture(nil, "ARTWORK")
@@ -489,7 +495,7 @@ local function CreateRow(index)
 
     local name = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 7, 0)
-    name:SetPoint("RIGHT", row, "RIGHT", -26, 0)
+    name:SetPoint("RIGHT", row, "RIGHT", -24, 0)
     name:SetJustifyH("LEFT")
     row.name = name
 
@@ -498,10 +504,9 @@ local function CreateRow(index)
     detail:SetTextColor(0.8, 0.74, 0.62)
     row.detail = detail
 
-    local trackHolder = CreateFrame("Frame", nil, row)
-    trackHolder:SetSize(TrackWidth(9, 1), 9)
-    trackHolder:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -26, 8)
-    row.track = CreateTrack(trackHolder, 9, 1)
+    local rank = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rank:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -26, 9)
+    row.rank = rank
 
     row:SetScript("OnClick", function(self)
         if not state.working then
@@ -550,14 +555,19 @@ local function RefreshList()
         local name, quality, icon = ItemInfo(item.entry)
         row.key = key
         row.icon:SetTexture(icon)
-        if EvolutionsItemFrames then
-            EvolutionsItemFrames.bindServerSlot(row, item.bag, item.slot, row.icon)
-        end
         row.name:SetText(name or "…")
         row.name:SetTextColor(QualityColor(quality))
         row.detail:SetText(format("%s %d · %s", TEXT.itemLevel, item.itemLevel,
             IsWorn(item) and TEXT.worn or TEXT.bags))
-        SetTrack(row.track, item.rank, TrackLength(item))
+        local length = TrackLength(item)
+        row.rank:SetText(format("%d/%d", item.rank, length))
+        if item.rank >= MAX_RANK then
+            row.rank:SetTextColor(1, 0.86, 0.45)
+        elseif item.rank > 0 then
+            row.rank:SetTextColor(1, 0.6, 0.25)
+        else
+            row.rank:SetTextColor(0.55, 0.5, 0.42)
+        end
         SetShown(row.selectedGlow, key == state.selected)
         row:Show()
     end
@@ -591,9 +601,6 @@ function RefreshAnvil(animate)
 
     local name, quality, icon = ItemInfo(item.entry)
     anvil.icon:SetTexture(icon)
-    if EvolutionsItemFrames then
-        EvolutionsItemFrames.bindServerSlot(anvil.icon:GetParent(), item.bag, item.slot, anvil.icon)
-    end
     anvil.name:SetText(name or "…")
     anvil.name:SetTextColor(QualityColor(quality))
     SetTrack(anvil.track, item.rank, TrackLength(item))
@@ -658,7 +665,7 @@ end
 
 -- How hot the piece glows, from 0 (its own colour) to 1 (white-hot)
 local function SetHeat(heat)
-    anvil.heat:SetAlpha(heat)
+    anvil.heat:SetAlpha(0.6 * heat)
     anvil.heat:SetVertexColor(1, 0.55 + 0.45 * heat, 0.25 + 0.6 * heat * heat)
 end
 
@@ -1101,13 +1108,25 @@ local function CreateForge()
     masterGlow:SetAlpha(0)
     anvil.masterGlow = masterGlow
 
-    local glow = iconHolder:CreateTexture(nil, "BORDER")
+    local glow = iconHolder:CreateTexture(nil, "BACKGROUND")
     SetPiece(glow, "goldenBurst")
     glow:SetBlendMode("ADD")
     glow:SetPoint("CENTER")
     glow:SetSize(70, 70)
     glow:SetAlpha(0)
     anvil.glow = glow
+
+    local setting = iconHolder:CreateTexture(nil, "BORDER")
+    setting:SetTexture(0.78, 0.62, 0.32, 1)
+    setting:SetSize(PIECE_SIZE + 4, PIECE_SIZE + 4)
+    setting:SetPoint("CENTER")
+    anvil.setting = setting
+
+    local backing = iconHolder:CreateTexture(nil, "BORDER")
+    backing:SetTexture(0, 0, 0, 1)
+    backing:SetSize(PIECE_SIZE + 2, PIECE_SIZE + 2)
+    backing:SetPoint("CENTER")
+    anvil.backing = backing
 
     local icon = iconHolder:CreateTexture(nil, "ARTWORK")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
