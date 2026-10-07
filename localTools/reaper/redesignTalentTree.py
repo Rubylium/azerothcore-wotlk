@@ -114,30 +114,31 @@ class_nodes = [
 class_base = [base(102), base(107), base(114), base(119)]
 class_spec_spells = [spell_of(103), 98401, 98404, 98410, 98413]
 
-# --- Moisson: "La Faux" ----------------------------------------------------------------------------------------------
+# --- Moisson: "La Faux" (a wide blade on its shaft) ----------------------------------------------------------------------------------------------
 moisson_nodes = [
-    take(226, 0, 4), merged(211, 0, 6, [], [98435, 98436, 98437], [5, 10, 10],
-                            "Augmente de {0}% les chances de coup critique de Lacération funeste. Au rang 3, ses "
-                            "coups critiques vous rendent une Âme moissonnée.",
-                            aura=[aura_of(211, [5, 10, 10])]),
-    merged(205, 1, 3, [226], [98430, 98445], [25, 25],
+    # The blade: wide, its execute and bleed openers on top
+    take(209, 0, 1),
+    merged(205, 0, 3, [], [98430, 98445], [25, 25],
            "Augmente de {0}% les dégâts de Faucher et de Meurtre. Au rang 2, augmente aussi de 30% les dégâts de "
            "Lacération funeste et de Massacre.",
            aura=[aura_of(205, [25, 25]), aura_of(222, [0, 30])]),
-    take(203, 1, 5, [226, 211]),
-    take(209, 2, 2, [205]), take(206, 2, 4, [205, 203]),
-    take(216, 3, 1, [209]), take(220, 3, 3, [209, 206]), take(221, 3, 5, [206]),
-    take(217, 4, 0, [216]), take(214, 4, 2, [216, 220]), take(218, 4, 4, [220, 221]),
-    merged(215, 4, 6, [221], [98439, 98453], [10, 10],
+    merged(211, 0, 5, [], [98435, 98436, 98437], [5, 10, 10],
+           "Augmente de {0}% les chances de coup critique de Lacération funeste. Au rang 3, ses coups critiques vous "
+           "rendent une Âme moissonnée.", aura=[aura_of(211, [5, 10, 10])]),
+    take(216, 1, 0, [209]), take(226, 1, 2, [209, 205]), take(203, 1, 4, [205, 211]), take(221, 1, 6, [211]),
+    take(220, 2, 1, [216, 226]), take(206, 2, 3, [226, 203]),
+    merged(215, 2, 5, [203, 221], [98439, 98453], [10, 10],
            "Augmente de {0}% les soins de Moissonneur, et de 25% de plus tant que vous vous tenez dans votre Champ "
            "de moisson. Au rang 2, augmente aussi de 30% les soins absorbés par Lacération funeste.",
            aura=[aura_of(230, [0, 30])]),
-    take(213, 5, 1, [217, 214]), take(210, 5, 3, [214, 218]), take(233, 5, 5, [218, 215]),
-    take(229, 6, 0, [213]), two_ranks(225, 6, 2, [213, 210], 5), take(223, 6, 4, [210, 233]),
-    take(231, 7, 0, [229]), take(232, 7, 2, [225]), two_ranks(237, 7, 4, [225, 223], 5),
-    take(234, 7, 6, [223]),
-    take(219, 8, 3, [232, 237]),
-    take(238, 9, 4, [219]),
+    take(217, 3, 0, [220]), take(214, 3, 2, [220, 206]), take(218, 3, 4, [206, 215]), take(233, 3, 6, [215]),
+    take(213, 4, 1, [217, 214]), take(210, 4, 3, [214, 218]), two_ranks(225, 4, 5, [218, 233], 5),
+    take(229, 5, 1, [213]), take(223, 5, 3, [210]), take(234, 5, 5, [225]),
+    # The shaft, down to the point
+    take(232, 6, 3, [229, 223, 234]),
+    take(231, 7, 2, [232]), two_ranks(237, 7, 4, [232], 5),
+    take(219, 8, 3, [231, 237]),
+    take(238, 9, 3, [219]),
 ]
 moisson_base = [base(204), base(228), base(236)]
 moisson_spec_spells = [spell_of(201), spell_of(202), spell_of(208), 98429, 98451, spell_of(236)]
@@ -205,9 +206,31 @@ def order_of(tree_nodes):
     return order
 
 
+def ranks_of(node):
+    return 1 if node["kind"] in ("active", "choice") else len(node["spells"])
+
+
+def capstone_path(tree_nodes):
+    """The deepest node and a line of parents up to a root: a preset takes it first, so it reaches the capstone (filled
+    top-down only, it ran out of points before the bottom rows)"""
+    by_id = {node["id"]: node for node in tree_nodes}
+    deepest = max(row for row in (node["row"] for node in tree_nodes))
+    bottom = [node for node in tree_nodes if node["row"] == deepest]
+    if len(bottom) != 1:
+        return {}
+    path, node = {}, bottom[0]
+    while node:
+        path[node["id"]] = ranks_of(node)
+        parents = node.get("parents", [])
+        node = by_id[parents[0]] if parents else None
+    return path
+
+
 def fill(tree_nodes, points, gates, skip=()):
-    """A preset: nodes in order, full ranks, as far as the points go, gates and parents respected"""
-    picked, spent = {}, 0
+    """A preset: the capstone's path, then nodes from the top, full ranks, as far as the points go, gates and parents
+    respected"""
+    picked = capstone_path(tree_nodes)
+    spent = sum(picked.values())
     by_row = sorted(tree_nodes, key=lambda node: (node["row"], node["col"]))
     progress = True
     while progress and spent < points:
@@ -215,13 +238,8 @@ def fill(tree_nodes, points, gates, skip=()):
         for node in by_row:
             if node["id"] in picked or node["id"] in skip:
                 continue
-            ranks = 1 if node["kind"] in ("active", "choice") else len(node["spells"])
+            ranks = ranks_of(node)
             if spent + ranks > points:
-                continue
-            needed = max([gate["cost"] for gate in gates if node["row"] >= gate["row"]] or [0])
-            above = sum(value for other, value in picked.items()
-                        if next(n for n in tree_nodes if n["id"] == other)["row"] < node["row"])
-            if above < needed:
                 continue
             parents = node.get("parents", [])
             if parents and not any(parent in picked for parent in parents):
@@ -229,6 +247,14 @@ def fill(tree_nodes, points, gates, skip=()):
             picked[node["id"]] = ranks
             spent += ranks
             progress = True
+    # What a player applying it needs: every gate's points above it, every node a fully ranked parent
+    rows = {node["id"]: node["row"] for node in tree_nodes}
+    for node_id in picked:
+        needed = max([gate["cost"] for gate in gates if rows[node_id] >= gate["row"]] or [0])
+        above = sum(value for other, value in picked.items() if rows[other] < rows[node_id])
+        assert above >= needed, f"preset: node {node_id} below a gate it cannot open ({above}/{needed})"
+        parents = next(node for node in tree_nodes if node["id"] == node_id).get("parents", [])
+        assert not parents or any(parent in picked for parent in parents), f"preset: node {node_id} unreachable"
     return picked
 
 
