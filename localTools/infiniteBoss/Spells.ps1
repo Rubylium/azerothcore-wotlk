@@ -1,4 +1,4 @@
-# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90768;
+# L'Infini's spell data (modules/mod-stat-growth/src/InfiniteGod.cpp, the Défi board's god fight). Ids 90740-90768 and 90790-90791;
 # 90729-90732 are its ring-shaped ground indicators (localTools/groundIndicators/shapes.json).
 #
 # The abilities are never cast: the script deals their damage on the areas it drew (MythicTuning::DealAbilityDamage),
@@ -62,6 +62,16 @@ $spells = @(
     @{ Id = 90754; Clone = 2983; Name = 'Poids de l''éternité'; FallbackIconSpell = 64412; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 50; Spellbook = $false
        Description = 'Une charge toutes les 10 secondes face au dieu révélé.'
        AuraDescription = 'Dégâts subis augmentés de 3% par charge.'
+       Fields = @{ 4 = $debuff; 40 = 21 } },
+    # The rework against chance (2026-10-08): a first mistake wounds instead of killing, and a clean mechanic weakens
+    # the god. Ids 90790-90791 (90769-90789 are the Hollow Voice's).
+    @{ Id = 90790; Clone = 2983; Name = 'Fêlure du temps'; FallbackIconSpell = 64122; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Une erreur face à L''Infini blesse au lieu de tuer, une seule fois.'
+       AuraDescription = 'Dégâts subis augmentés de 50%. Une nouvelle erreur est mortelle.'
+       Fields = @{ 4 = $debuff; 40 = 1 } },
+    @{ Id = 90791; Clone = 2983; Name = 'Fracture de l''éternité'; FallbackIconSpell = 64596; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 20; Spellbook = $false
+       Description = 'Chaque mécanique esquivée par tout le groupe fissure L''Infini.'
+       AuraDescription = 'Dégâts subis augmentés de 1% par charge.'
        Fields = @{ 4 = $debuff; 40 = 21 } },
     @{ Id = 90755; Clone = 64443; Name = 'Éclat d''éternité'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'L''énergie de L''Infini frappe tout le groupe.'

@@ -1,5 +1,6 @@
 #include "GroundIndicators.h"
 #include "FightMusic.h"
+#include "LiveTuning.h"
 #include "MythicDungeonSystem.h"
 #include "MythicTuning.h"
 
@@ -11,6 +12,7 @@
 #include "GameObject.h"
 #include "GameTime.h"
 #include "Group.h"
+#include "LFG.h"
 #include "Log.h"
 #include "Map.h"
 #include "MoveSplineInit.h"
@@ -61,6 +63,18 @@
 //      damage taken every 10 s).
 // 4:55 La Fin des Temps: a pulse every 2 s for 45% of everyone's maximum health, each one adding Fin imminente
 //      (+20% damage taken). 5:05: everyone in the Planetarium dies, whatever protects them.
+//
+// Against chance (the rework of 2026-10-08): the fight stays hard, but no one hit and no random mark decides it.
+// - A first mistake wounds instead of killing: Fêlure du temps, +50% damage taken for 15 s; a second one then kills.
+// - Marked mechanics go to whoever can carry them (ranged first, then healers, melee last, never a tank; the Étoile
+//   déchue to a real player first), each in turn, never to someone already carrying one.
+// - Phases 2 and 3 run one big ability at a time, in the same order every pull, the small ones in the gaps between.
+// - Supernova's lanes, the crosses, the constellation's lines, the black hole and the star come back to the same spots
+//   in the same order: they can be learnt.
+// - Résurgence: each intermission brings the fallen back, the god healing 5% for each one.
+// - Fracture de l'éternité: each mechanic the whole group handles cleanly makes the god take 1% more (20 at most), a
+//   failed one takes two back; with none it takes 5% less. The result follows the group's play.
+// - Every death is logged with what killed it (module.infinite), to tune on evidence.
 //
 // No tank swap: two tanks, the boss aims a cone at each. Every avoidable hit is drawn in red first (GroundIndicators)
 // and resolved against the very area drawn; bots step out of it, soak the star and keep the off-tank on the boss's
@@ -126,6 +140,35 @@ constexpr float WeightPerStackPct = 3.0f;       // Poids de l'éternité: damage
 constexpr float EndPulseHealthPct = 45.0f;      // La Fin des Temps, of the target's maximum health (not tier-scaled)
 constexpr float DoomPerStackPct = 20.0f;        // Fin imminente: damage taken, every stack
 constexpr float ExposedDamageTakenPct = 50.0f;  // intermission 1
+
+// Against chance. A first avoidable hit (Hit) is held back to at most WoundHitPct of the player's maximum health and
+// never takes them under WoundFloorPct; it leaves Fêlure du temps (WoundTakenPct more damage taken) for WoundMs, and
+// an avoidable hit while it lasts is the whole hit. Hits within WoundGraceMs of the wounding one are the same mistake
+// (two circles landing together), held back too.
+LiveTuning::Knob const WoundHitPct("infini.wound_hit_pct", 75.0f);
+LiveTuning::Knob const WoundTakenPct("infini.wound_taken_pct", 50.0f);
+constexpr float WoundFloorPct = 10.0f;
+constexpr uint32 WoundMs = 15000;
+constexpr uint32 WoundGraceMs = 1000;
+// Étoile déchue: a share of its hit above this on the others is theirs to avoid (nearer than FallenStarKeepAway)
+constexpr float FallenStarAvoidablePct = 35.0f;
+// Résurgence, each intermission: the fallen come back with this share of their health, the god healing for each
+LiveTuning::Knob const ResurgenceHealPct("infini.resurgence_heal_pct", 5.0f);
+constexpr float ResurgenceHealthPct = 50.0f;
+// Fracture de l'éternité: damage the god takes, a share at no stack and more for each (each clean mechanic one, a
+// failed one FractureLostOnFail back)
+LiveTuning::Knob const FractureBasePct("infini.fracture_base_pct", 95.0f);
+LiveTuning::Knob const FracturePerStackPct("infini.fracture_per_stack_pct", 1.0f);
+constexpr uint32 FractureMaxStacks = 20;
+constexpr uint32 FractureLostOnFail = 2;
+// Phases 2 and 3: the gap after each big ability, where a small one (a cleave, a rain of stars) lands alone
+constexpr uint32 SequenceGapMs = 3500;
+// The learnt patterns: each Supernova's lanes this far round from the last one's, each constellation line too
+constexpr float SupernovaTurn = 2.0f * float(M_PI) / 9.0f;
+constexpr float ConstellationTurn = 0.96f;
+constexpr float ConstellationOffset = 10.0f;   // the lines pass this far from the middle, by turns either side
+constexpr float SingularityDistance = 15.0f;   // the black hole and the star, a third of a turn round each time
+constexpr float StarDistance = 17.0f;
 
 // Sizes (yards) and warnings (ms)
 constexpr float CleaveRadius = 35.0f;
@@ -286,6 +329,8 @@ constexpr NamedSpell SPELL_TANK_ARCANE = { 90763, 64412 };      // Fracture stel
 // Debuffs the players see: dummy auras, the script does what they say
 constexpr uint32 SPELL_DOOM = 90753;            // Fin imminente
 constexpr uint32 SPELL_WEIGHT = 90754;          // Poids de l'éternité
+constexpr uint32 SPELL_FELURE = 90790;          // Fêlure du temps
+constexpr uint32 SPELL_FRACTURE = 90791;        // Fracture de l'éternité, on the god
 // The true form: stock visual-only auras
 constexpr uint32 SPELL_REVEAL_PARTICLES = 31954;    // Spirit Particles, super big
 constexpr uint32 SPELL_REVEAL_GLOW = 49411;         // Arcane Power State
@@ -400,15 +445,18 @@ struct Step
     Ability what;
 };
 
-// How long a phase 3 big ability holds the stage, the next one waiting for it
+// How long a big ability of phases 2 and 3 holds the stage, until it is over: the next one waits for it
 uint32 BigBusyMs(Ability what)
 {
     switch (what)
     {
-        case Ability::Supernova: return SupernovaWarningMs + 1500;
-        case Ability::OrbLasers: return OrbChargeMs + OrbLaserOutMs + OrbLaserBackMs + 1500;
-        case Ability::SpinLaser: return SpinWarningMs + SpinMs + 1500;
-        default:                 return 3000;
+        case Ability::Supernova:        return SupernovaWarningMs + 1000;
+        case Ability::OrbLasers:        return OrbChargeMs + OrbLaserOutMs + OrbLaserBackMs + 500;
+        case Ability::SpinLaser:        return SpinWarningMs + SpinMs + 500;
+        case Ability::Singularity:      return SingularityWarningMs + SingularityTicks * 1000 + 500;
+        case Ability::CollapsingStar:   return StarSoakMs + 500;
+        case Ability::Judgement:        return JudgementMs + 500;
+        default:                        return 3000;
     }
 }
 
@@ -422,6 +470,29 @@ std::vector<Step> BuildTimeline()
             steps.push_back({ at, what });
     };
     auto once = [&steps](Ability what, uint32 at) { steps.push_back({ at, what }); };
+    // One big ability at a time, each waiting for the last to be over, and in the gap after each a small one in turn:
+    // never two orders at once. Stacked, a bot torn between leaving a cone and keeping its circle away from the
+    // others lived or died on whichever won the moment. The same order every pull, so it can be learnt; `cycle` goes
+    // round the list until `until`. `twinStrikes`: Frappes jumelles (nothing to dodge) during each big one.
+    auto sequence = [&steps](std::vector<Ability> const& bigs, bool cycle, std::vector<Ability> const& smalls,
+        uint32 from, uint32 until, bool twinStrikes)
+    {
+        uint32 at = from;
+        for (std::size_t index = 0, gap = 0; cycle || index < bigs.size(); ++index)
+        {
+            Ability const big = bigs[index % bigs.size()];
+            if (at + BigBusyMs(big) > until)
+                break;
+            steps.push_back({ at, big });
+            if (twinStrikes)
+                steps.push_back({ at + 1500, Ability::TwinStrikes });
+            at += BigBusyMs(big);
+            if (at + SequenceGapMs > until)
+                break;
+            steps.push_back({ at, smalls[gap++ % smalls.size()] });
+            at += SequenceGapMs;
+        }
+    };
 
     // Phase 1: the Big Bang's break (23-29.5 s) keeps clear of everything else
     for (uint32 at : { 7000u, 18000u, 35000u })
@@ -447,18 +518,12 @@ std::vector<Step> BuildTimeline()
     every(Ability::RaidTick, AtIntermission1 + 1200, 2000, AtPhase2 - 1000);
     once(Ability::Intermission1Yell, AtIntermission1Yell);
 
-    // Phase 2: phase 1 a fifth faster, the black hole and the star
+    // Phase 2: the orb's lasers, the black hole and the star one after the other, a cleave or a rain of stars between
     once(Ability::Phase2, AtPhase2);
-    every(Ability::Cleave, AtPhase2 + 3000, 15000, AtIntermission2 - 4000);
-    every(Ability::Starfall, AtPhase2 + 1500, 10000, AtIntermission2 - 2500);
-    for (uint32 at : { AtPhase2 + 3000, AtPhase2 + 13500, AtPhase2 + 33500 })
-        once(Ability::OrbLasers, at);
-    once(Ability::SpinLaser, AtPhase2 + 21500);
     every(Ability::Gravity, AtPhase2 + 7500, 10000, AtIntermission2);
     every(Ability::TankArcane, AtPhase2 + 2000, TankArcaneMs, AtIntermission2);
-
-    every(Ability::Singularity, AtPhase2 + 5500, 15000, AtIntermission2 - 8000);
-    every(Ability::CollapsingStar, AtPhase2 + 10500, 20000, AtIntermission2 - StarSoakMs);
+    sequence({ Ability::OrbLasers, Ability::Singularity, Ability::CollapsingStar, Ability::OrbLasers }, false,
+        { Ability::Cleave, Ability::Starfall }, AtPhase2 + 1500, AtIntermission2, false);
 
     // Intermission 2: the heavens tear
     once(Ability::Intermission2, AtIntermission2);
@@ -472,48 +537,15 @@ std::vector<Step> BuildTimeline()
     once(Ability::RevealRise, AtRevealRise);
     once(Ability::RevealYell, AtRevealYell);
 
-    // Phase 3: the cleave and the twin strikes alternating every 10 s, the black hole and the star alternating,
-    // Supernova every 30 s, Jugement divin every 25 s, the orb's lasers and the Gardien's ray every 40 s each, the big
-    // ones one after the other (BigBusyMs); the tank busters never under Supernova's cones or the ray
+    // Phase 3: the big ones in turn, round and round - Supernova, the black hole, Jugement divin, the orb's lasers, the
+    // star, the Gardien's ray - Frappes jumelles during each, a rain of stars or a cleave in the gaps
     once(Ability::Phase3, AtPhase3);
-    every(Ability::Starfall, AtPhase3 + 1500, 5000, AtFinal - 2000);
     every(Ability::Gravity, AtPhase3 + 6000, 15000, AtFinal);
     every(Ability::Weight, AtPhase3 + 10000, 10000, AtFinal);
     every(Ability::TankArcane, AtPhase3 + 2000, TankArcaneMs, AtFinal);
-    std::vector<Step> big;
-    for (uint32 at = AtPhase3 + 8000, index = 0; at < AtFinal - StarSoakMs; at += 12500, ++index)
-        big.push_back({ at, index % 2 ? Ability::CollapsingStar : Ability::Singularity });
-    for (uint32 at = AtPhase3 + 14000; at < AtFinal - SupernovaWarningMs; at += 30000)
-        big.push_back({ at, Ability::Supernova });
-    for (uint32 at = AtPhase3 + 26000; at < AtFinal - JudgementMs; at += 25000)
-        big.push_back({ at, Ability::Judgement });
-    for (uint32 at = AtPhase3 + 19000; at < AtFinal - 10000; at += 40000)
-        big.push_back({ at, Ability::OrbLasers });
-    for (uint32 at = AtPhase3 + 39000; at < AtFinal - 14000; at += 40000)
-        big.push_back({ at, Ability::SpinLaser });
-    std::sort(big.begin(), big.end(), [](Step const& left, Step const& right) { return left.at < right.at; });
-    std::vector<std::pair<uint32, uint32>> clear;   // Supernova's and the ray's spans: no tank buster in them
-    uint32 free = 0;
-    for (Step step : big)
-    {
-        step.at = std::max(step.at, free);
-        if (step.at >= AtFinal - 2000)
-            continue;
-        steps.push_back(step);
-        free = step.at + BigBusyMs(step.what);
-        if (step.what == Ability::Supernova || step.what == Ability::SpinLaser)
-            clear.emplace_back(step.at, free);
-    }
-    for (uint32 at = AtPhase3 + 3000, index = 0; at < AtFinal - 1500; at += 10000, ++index)
-    {
-        // Pushed past a span it would land in (its cones drawn to their landing)
-        uint32 when = at;
-        for (auto const& [from, until] : clear)
-            if (when + CleaveWarningMs + 500 > from && when < until)
-                when = until + 500;
-        if (when < AtFinal - 1500)
-            once(index % 2 ? Ability::TwinStrikes : Ability::Cleave, when);
-    }
+    sequence({ Ability::Supernova, Ability::Singularity, Ability::Judgement, Ability::OrbLasers,
+        Ability::CollapsingStar, Ability::SpinLaser }, true, { Ability::Starfall, Ability::Cleave }, AtPhase3 + 3000,
+        AtFinal - 500, true);
 
     // The end of times, then silence
     once(Ability::Final, AtFinal);
@@ -587,6 +619,8 @@ struct boss_infinite_god : public ScriptedAI
         if (_lingering)
             return;
         bool const wiped = _phase != Phase::None && _phase != Phase::Over;
+        if (wiped)
+            LogSummary("wipe");
         ResetFight();
         if (wiped)
         {
@@ -617,6 +651,7 @@ struct boss_infinite_god : public ScriptedAI
         _phase = Phase::One;
         _nextOffTankMs = 0;
         _nextEdgeMs = 0;
+        ResetRework();
         Talk(SAY_AGGRO);
         _fightListeners.clear();
         for (Player* player : Listeners())
@@ -631,6 +666,8 @@ struct boss_infinite_god : public ScriptedAI
 
     void KilledUnit(Unit* victim) override
     {
+        if (victim->IsPlayer())
+            RecordDeath(victim->ToPlayer());
         if (!victim->IsPlayer() || _phase == Phase::Final || _phase == Phase::Over)
             return;
         uint32 const now = getMSTime();
@@ -646,6 +683,7 @@ struct boss_infinite_god : public ScriptedAI
         Talk(SAY_DEATH);
         EndTrack(MUSIC_SILENCE);
         LOG_INFO("module.infinite", "L'Infini killed instance={} elapsed={}ms", me->GetInstanceId(), Elapsed());
+        LogSummary("kill");
         ResetFight();
         _phase = Phase::Over;
     }
@@ -669,18 +707,33 @@ struct boss_infinite_god : public ScriptedAI
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
     {
+        if (_phase == Phase::None || _phase == Phase::Over)
+            return;
+        float factor = (float(FractureBasePct) + float(FracturePerStackPct) * float(_fracture)) / 100.0f;
         if (_phase == Phase::Intermission1)
-            damage = uint32(float(damage) * (1.0f + ExposedDamageTakenPct / 100.0f));
+            factor *= 1.0f + ExposedDamageTakenPct / 100.0f;
+        damage = uint32(float(damage) * factor);
     }
 
     // Its melee follows the players' Poids de l'éternité and Fin imminente, as its abilities do
     // Never less than MeleeFloorPct of the reference hit, whatever the target's armour: a tank has to be healed
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType type, SpellSchoolMask /*mask*/) override
     {
-        if (type == DIRECT_DAMAGE && victim && victim->IsPlayer())
+        if (!victim || !victim->IsPlayer())
+            return;
+        if (type == DIRECT_DAMAGE)
         {
             float const floor = Reference() * MeleeFloorPct / 100.0f * std::max(GetChallengeDamageFactorOf(me), 1.0f);
             damage = uint32(std::max(float(damage), floor) * TakenFactor(victim));
+            _lastHit[victim->GetGUID()] = { 0, Elapsed(), false };
+        }
+        // A first mistake (Hit): held back to WoundHitPct of their health, and never under WoundFloorPct of it
+        if (victim->GetGUID() == _sparing)
+        {
+            float const maximum = float(victim->GetMaxHealth());
+            damage = std::min(damage, uint32(maximum * float(WoundHitPct) / 100.0f));
+            uint32 const floor = uint32(maximum * WoundFloorPct / 100.0f);
+            damage = std::min(damage, victim->GetHealth() > floor ? victim->GetHealth() - floor : 0u);
         }
     }
 
@@ -748,9 +801,10 @@ struct boss_infinite_god : public ScriptedAI
     std::string Describe() const
     {
         return Acore::StringFormat("L'Infini: phase {} at {:.1f}s, health {}/{} ({:.1f}%), tier damage x{:.2f}, "
-                                   "reference {:.0f}, next step {}/{}", uint32(_phase), Elapsed() / 1000.0f,
-                                   me->GetHealth(), me->GetMaxHealth(), me->GetHealthPct(),
-                                   GetChallengeDamageFactorOf(me), Reference(), _next, _timeline.size());
+                                   "reference {:.0f}, next step {}/{}, fracture {} (clean {}, failed {}), revived {}",
+                                   uint32(_phase), Elapsed() / 1000.0f, me->GetHealth(), me->GetMaxHealth(),
+                                   me->GetHealthPct(), GetChallengeDamageFactorOf(me), Reference(), _next,
+                                   _timeline.size(), _fracture, _cleanCount, _failCount, _revived);
     }
 
     // Jumps the fight forward (testing): the steps passed over are dropped, the phase changes among them still run
@@ -872,6 +926,248 @@ private:
                 player->RemoveAurasDueToSpell(SPELL_DOOM);
         _weight.clear();
         _doom.clear();
+        ResetRework();
+    }
+
+    // --- Against chance: wounds, carriers, the god's fracture, the fallen brought back, the deaths logged ------------
+    void ResetRework()
+    {
+        for (auto const& [guid, wound] : _wounds)
+            if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                player->RemoveAurasDueToSpell(SPELL_FELURE);
+        me->RemoveAurasDueToSpell(SPELL_FRACTURE);
+        _wounds.clear();
+        _lastHit.clear();
+        _deaths.clear();
+        _lastCarried.clear();
+        _carryingUntil.clear();
+        _sparing.Clear();
+        _killLabel = nullptr;
+        _fracture = 0;
+        _bestFracture = 0;
+        _cleanCount = 0;
+        _failCount = 0;
+        _revived = 0;
+        _supernovas = 0;
+        _singularities = 0;
+        _stars = 0;
+        _crosses = 0;
+        _constellationLines = 0;
+    }
+
+    // Not wounded, or wounded by this very mistake a moment ago (WoundGraceMs): the hit is held back
+    bool IsSpared(ObjectGuid guid, uint32 now) const
+    {
+        auto const wound = _wounds.find(guid);
+        return wound == _wounds.end() || now >= wound->second.until || now < wound->second.since + WoundGraceMs;
+    }
+
+    bool IsWounded(ObjectGuid guid, uint32 now) const
+    {
+        auto const wound = _wounds.find(guid);
+        return wound != _wounds.end() && now < wound->second.until;
+    }
+
+    void Wound(Player* player, uint32 now)
+    {
+        Wounded& wound = _wounds[player->GetGUID()];
+        if (now < wound.until)
+            return;
+        wound = { now, now + WoundMs };
+        if (!sSpellMgr->GetSpellInfo(SPELL_FELURE))
+            return;
+        player->RemoveAurasDueToSpell(SPELL_FELURE);
+        if (Aura* aura = me->AddAura(SPELL_FELURE, player))
+        {
+            aura->SetMaxDuration(int32(WoundMs));
+            aura->SetDuration(int32(WoundMs));
+        }
+    }
+
+    // Who carries a marked mechanic: no tank, nobody carrying one already; whoever can best keep it from the others -
+    // a real player first when `playerFirst` (the hardest ones: the player is the hero, the bots the steady support),
+    // then the ranged, the healers, the melee last (a melee stuck in the god's feet drew its circle over the others) -
+    // and among them whoever carried one the longest ago, so each takes a turn
+    std::vector<Player*> PickCarriers(uint32 count, bool playerFirst)
+    {
+        uint32 const now = Elapsed();
+        std::vector<Player*> players = ArenaPlayers();
+        std::erase_if(players, [this, now](Player* player)
+        {
+            auto const carrying = _carryingUntil.find(player->GetGUID());
+            return IsGroupTank(player) || (carrying != _carryingUntil.end() && now < carrying->second);
+        });
+        auto const rank = [playerFirst](Player* player) -> uint32
+        {
+            if (playerFirst && player->GetSession() && !player->GetSession()->IsBot())
+                return 0;
+            if (IsHealerPlayer(player))
+                return 2;
+            return FightsAtRange(player) ? 1 : 3;
+        };
+        auto const last = [this](Player* player)
+        {
+            auto const found = _lastCarried.find(player->GetGUID());
+            return found == _lastCarried.end() ? 0u : found->second + 1;
+        };
+        std::stable_sort(players.begin(), players.end(), [&rank, &last](Player* left, Player* right)
+        {
+            uint32 const leftRank = rank(left);
+            uint32 const rightRank = rank(right);
+            return leftRank != rightRank ? leftRank < rightRank : last(left) < last(right);
+        });
+        if (players.size() > count)
+            players.resize(count);
+        for (Player* player : players)
+        {
+            _lastCarried[player->GetGUID()] = now;
+            _carryingUntil[player->GetGUID()] = now + 1000;
+        }
+        return players;
+    }
+
+    // How long the carrier picked keeps its mark: no other one is given to them meanwhile
+    void Carries(Player* player, uint32 lasts)
+    {
+        _carryingUntil[player->GetGUID()] = Elapsed() + lasts + 500;
+    }
+
+    static bool IsHealerPlayer(Player* player)
+    {
+        if (Group* group = player->GetGroup())
+            for (Group::MemberSlot const& member : group->GetMemberSlots())
+                if (member.guid == player->GetGUID() && member.roles)
+                    return member.roles & lfg::PLAYER_ROLE_HEALER;
+        return player->HasHealSpec();
+    }
+
+    static bool FightsAtRange(Player* player)
+    {
+        return player->getClass() == CLASS_HUNTER || player->HasCasterSpec() || IsHealerPlayer(player);
+    }
+
+    static char const* RoleName(Player* player)
+    {
+        if (IsGroupTank(player))
+            return "tank";
+        if (IsHealerPlayer(player))
+            return "healer";
+        return FightsAtRange(player) ? "ranged" : "melee";
+    }
+
+    // A mechanic's resolution, over its parts (a rain of stars' circles, Jugement's two carriers): clean when no part
+    // hit anyone who could have kept out of it
+    struct Outcome
+    {
+        uint32 left;
+        bool failed = false;
+    };
+
+    std::shared_ptr<Outcome> Expect(uint32 parts)
+    {
+        return std::make_shared<Outcome>(Outcome{ std::max(parts, 1u) });
+    }
+
+    void Settle(std::shared_ptr<Outcome> const& outcome, bool failed)
+    {
+        outcome->failed = outcome->failed || failed;
+        if (!outcome->left || --outcome->left)
+            return;
+        Resolve(!outcome->failed);
+    }
+
+    // Fracture de l'éternité: a stack more for a clean mechanic, FractureLostOnFail fewer for a failed one
+    void Resolve(bool clean)
+    {
+        if (_phase == Phase::None || _phase == Phase::Over || _phase == Phase::Final)
+            return;
+        ++(clean ? _cleanCount : _failCount);
+        uint32 const before = _fracture;
+        _fracture = clean ? std::min(_fracture + 1, FractureMaxStacks) :
+            (_fracture > FractureLostOnFail ? _fracture - FractureLostOnFail : 0u);
+        _bestFracture = std::max(_bestFracture, _fracture);
+        if (_fracture == before || !sSpellMgr->GetSpellInfo(SPELL_FRACTURE))
+            return;
+        if (!_fracture)
+        {
+            me->RemoveAurasDueToSpell(SPELL_FRACTURE);
+            return;
+        }
+        Aura* aura = me->GetAura(SPELL_FRACTURE);
+        if (!aura)
+            aura = me->AddAura(SPELL_FRACTURE, me);
+        if (aura)
+            aura->SetStackAmount(uint8(_fracture));
+    }
+
+    // Résurgence: the fight's fallen stand again where they fell, the god healing ResurgenceHealPct for each
+    void Resurgence()
+    {
+        uint32 revived = 0;
+        for (ObjectGuid const& guid : _fightListeners)
+        {
+            Player* player = ObjectAccessor::GetPlayer(*me, guid);
+            if (!player || player->IsAlive() || player->IsGameMaster() ||
+                player->GetExactDist2d(&ArenaCenter) > ArenaReach)
+                continue;
+            player->ResurrectPlayer(ResurgenceHealthPct / 100.0f);
+            player->SpawnCorpseBones();
+            player->RemoveAurasDueToSpell(SPELL_FELURE);
+            _wounds.erase(guid);
+            ++revived;
+        }
+        if (!revived)
+            return;
+        _revived += revived;
+        me->ModifyHealth(int32(float(me->GetMaxHealth()) * float(ResurgenceHealPct) / 100.0f * float(revived)));
+        LOG_INFO("module.infinite", "L'Infini Résurgence instance={} at={:.1f}s revived={} health={:.1f}%",
+                 me->GetInstanceId(), Elapsed() / 1000.0f, revived, me->GetHealthPct());
+    }
+
+    static std::string SpellName(uint32 spellId)
+    {
+        if (!spellId)
+            return "melee";
+        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId))
+            for (char const* name : info->SpellName)
+                if (name && *name)
+                    return name;
+        return std::to_string(spellId);
+    }
+
+    // What killed a player, logged for tuning on evidence: the last hit they took from the god
+    void RecordDeath(Player* player)
+    {
+        if (_phase == Phase::None || _phase == Phase::Over)
+            return;
+        uint32 const now = Elapsed();
+        auto const last = _lastHit.find(player->GetGUID());
+        std::string const what = _killLabel ? std::string(_killLabel) :
+            last == _lastHit.end() ? std::string("unknown") : SpellName(last->second.spellId);
+        bool const avoidable = !_killLabel && last != _lastHit.end() && last->second.avoidable;
+        ++_deaths[what];
+        LOG_INFO("module.infinite", "L'Infini death instance={} at={:.1f}s phase={} {} ({}, {}): {}{}{}",
+                 me->GetInstanceId(), now / 1000.0f, uint32(_phase), player->GetName(),
+                 player->GetSession() && player->GetSession()->IsBot() ? "bot" : "player", RoleName(player), what,
+                 avoidable ? " (avoidable)" : "", IsWounded(player->GetGUID(), now) ? " while wounded" : "");
+    }
+
+    void LogSummary(char const* outcome)
+    {
+        std::string deaths;
+        for (auto const& [what, count] : _deaths)
+            deaths += Acore::StringFormat("{}{} x{}", deaths.empty() ? "" : ", ", what, count);
+        LOG_INFO("module.infinite", "L'Infini {} instance={} at={:.1f}s phase={} health={:.1f}% deaths=[{}] "
+                 "revived={} clean={} failed={} fracture={} (best {})", outcome, me->GetInstanceId(),
+                 Elapsed() / 1000.0f, uint32(_phase), me->GetHealthPct(), deaths, _revived, _cleanCount, _failCount,
+                 _fracture, _bestFracture);
+    }
+
+    // A spot of the learnt patterns: at a fixed angle round the Planetarium's middle
+    Position FixedSpot(float angle, float distance) const
+    {
+        return Ground(Position(ArenaCenter.GetPositionX() + std::cos(angle) * distance,
+            ArenaCenter.GetPositionY() + std::sin(angle) * distance, ArenaFloorZ));
     }
 
     bool CanMelee() const
@@ -906,10 +1202,12 @@ private:
         return players;
     }
 
-    // What a player takes on top of a hit: Poids de l'éternité and Fin imminente
+    // What a player takes on top of a hit: Poids de l'éternité, Fin imminente and Fêlure du temps
     float TakenFactor(Unit const* victim) const
     {
         float factor = 1.0f;
+        if (IsWounded(victim->GetGUID(), Elapsed()))
+            factor *= 1.0f + float(WoundTakenPct) / 100.0f;
         if (auto const weight = _weight.find(victim->GetGUID()); weight != _weight.end())
             factor *= 1.0f + WeightPerStackPct * float(weight->second) / 100.0f;
         if (auto const doom = _doom.find(victim->GetGUID()); doom != _doom.end())
@@ -926,6 +1224,8 @@ private:
         return tier > 1 ? tier - 1u : 0u;
     }
 
+    // An avoidable one is a mistake: the first wounds rather than kills (held back in DamageDealt, then Fêlure du
+    // temps), a second one while wounded is the whole hit.
     void Hit(Player* player, NamedSpell const& spell, float percent, bool avoidable)
     {
         if (!player || !player->IsAlive())
@@ -933,9 +1233,19 @@ private:
         if (avoidable)
             percent *= 1.0f + AvoidablePctPerTier / 100.0f * float(TierAbove());
         float const amount = Reference() * percent / 100.0f * TakenFactor(player);
+        uint32 const now = Elapsed();
+        ObjectGuid const guid = player->GetGUID();
+        bool const spared = avoidable && IsSpared(guid, now);
+        _lastHit[guid] = { SpellOf(spell), now, avoidable };
+        if (spared)
+            _sparing = guid;
         MythicTuning::DealAbilityDamage(me, player, SpellOf(spell), uint32(std::max(1.0f, amount)));
-        if (avoidable)
-            MythicTuning::ApplyImprudence(player);
+        _sparing.Clear();
+        if (!avoidable)
+            return;
+        MythicTuning::ApplyImprudence(player);
+        if (spared && player->IsAlive())
+            Wound(player, now);
     }
 
     std::vector<Player*> PlayersIn(GroundIndicators::Area const& area) const
@@ -1154,6 +1464,7 @@ private:
         scheduler.Schedule(Milliseconds(CleaveWarningMs), [this, cones](TaskContext)
         {
             me->SendPlaySpellVisual(KIT_QUANTUM_STRIKE);
+            bool failed = false;
             for (Player* player : ArenaPlayers())
             {
                 float percent = 0.0f;
@@ -1171,7 +1482,9 @@ private:
                 }
                 if (percent > 0.0f)
                     Hit(player, SPELL_DOUBLE_CLEAVE, percent, stoodIn);
+                failed = failed || stoodIn;
             }
+            Resolve(!failed);
             EndWindup();
         });
     }
@@ -1203,15 +1516,18 @@ private:
     {
         std::vector<Player*> players = ArenaPlayers();
         Acore::Containers::RandomResize(players, count);
+        auto const outcome = Expect(uint32(players.size()));
         for (Player* target : players)
         {
             GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, Ground(*target), StarfallRadius,
                 StarfallWarningMs, GroundIndicators::Theme::Arcane);
-            scheduler.Schedule(Milliseconds(StarfallWarningMs), [this, area](TaskContext)
+            scheduler.Schedule(Milliseconds(StarfallWarningMs), [this, area, outcome](TaskContext)
             {
                 PlayOnGround(area.origin, KIT_COSMIC_SMASH);
-                for (Player* player : PlayersIn(area))
+                std::vector<Player*> const hit = PlayersIn(area);
+                for (Player* player : hit)
                     Hit(player, SPELL_STARFALL, StarfallPct, true);
+                Settle(outcome, !hit.empty());
             });
         }
     }
@@ -1221,11 +1537,11 @@ private:
     {
         if (_lifted)
             return;
-        std::vector<Player*> players = ArenaPlayers();
-        std::erase_if(players, [](Player* player) { return IsGroupTank(player); });
-        if (players.empty())
+        std::vector<Player*> const carriers = PickCarriers(1, false);
+        if (carriers.empty())
             return;
-        Player* target = Acore::Containers::SelectRandomContainerElement(players);
+        Player* target = carriers.front();
+        Carries(target, SweepWarningMs);
         Position const apex = Ground(me->GetPosition());
         GroundIndicators::Area const area = GroundIndicators::ShowCone(me, apex, apex.GetAngle(target), SweepRadius,
             SweepArc, SweepWarningMs, GroundIndicators::Theme::Arcane);
@@ -1236,8 +1552,10 @@ private:
                 PlayOnGround(Position(area.origin.GetPositionX() + std::cos(facing) * along,
                     area.origin.GetPositionY() + std::sin(facing) * along, area.origin.GetPositionZ()),
                     KIT_COSMIC_SMASH);
-            for (Player* player : PlayersIn(area))
+            std::vector<Player*> const hit = PlayersIn(area);
+            for (Player* player : hit)
                 Hit(player, SPELL_SWEEP, SweepPct, true);
+            Resolve(hit.empty());
         });
     }
 
@@ -1334,11 +1652,11 @@ private:
     // runs from the group.
     void FallenStar()
     {
-        std::vector<Player*> players = ArenaPlayers();
-        std::erase_if(players, [](Player* player) { return IsGroupTank(player); });
-        if (players.empty())
+        std::vector<Player*> const carriers = PickCarriers(1, true);
+        if (carriers.empty())
             return;
-        Player* marked = Acore::Containers::SelectRandomContainerElement(players);
+        Player* marked = carriers.front();
+        Carries(marked, FallenStarMs);
         // Its carrier keeps FallenStarKeepAway from the others: the hit falls off to a third there
         GroundIndicators::ShowCarriedCircle(me, marked, FallenStarLethalRadius, FallenStarMs, 0, FallenStarKeepAway);
         if (SPELL_FX_MARK)
@@ -1356,16 +1674,22 @@ private:
             Position const at = Ground(*target);
             PlayOnGround(at, KIT_FX_STAR_FALL ? KIT_FX_STAR_FALL : KIT_BIG_BANG_HIT);
             Hit(target, SPELL_FALLEN_STAR, FallenStarCarrierPct, false);
+            bool failed = false;
             for (Player* player : ArenaPlayers())
             {
                 if (player == target)
                     continue;
                 float const distance = player->GetExactDist2d(&at);
                 float const share = std::max(0.0f, 1.0f - distance / FallenStarReach);
+                float const percent = FallenStarMaxPct * share * share;
+                // Nearer than its keep-away distance it was theirs to avoid (it was only so inside the red: a step
+                // past it still killed, as an unavoidable hit)
+                bool const avoidable = percent > FallenStarAvoidablePct;
                 if (share > 0.02f)
-                    Hit(player, SPELL_FALLEN_STAR, FallenStarMaxPct * share * share,
-                        distance <= FallenStarLethalRadius);
+                    Hit(player, SPELL_FALLEN_STAR, percent, avoidable);
+                failed = failed || avoidable;
             }
+            Resolve(!failed);
         });
     }
 
@@ -1374,7 +1698,8 @@ private:
     void CrossWavesStart()
     {
         Position const center = Ground(me->GetPosition());
-        float const first = frand(0.0f, float(M_PI) / 2.0f);
+        // Learnt: the first cross of each turned an eighth from the last one's
+        float const first = float(_crosses++) * float(M_PI) / 8.0f;
         for (uint32 wave = 0; wave < CrossWaves; ++wave)
         {
             float const facing = first + float(wave) * float(M_PI) / 4.0f;
@@ -1399,10 +1724,15 @@ private:
                                 center.GetPositionY() + std::sin(angle) * along, center.GetPositionZ()),
                                 KIT_COSMIC_SMASH);
                     }
+                    bool failed = false;
                     for (Player* player : ArenaPlayers())
                         if (std::ranges::any_of(lines, [player](GroundIndicators::Area const& line)
                             { return line.Contains(*player); }))
+                        {
                             Hit(player, SPELL_CROSS, CrossWavePct, true);
+                            failed = true;
+                        }
+                    Resolve(!failed);
                 });
             });
         }
@@ -1488,6 +1818,8 @@ private:
                             break;
                         }
                 }
+                if (at + LaserTickMs > OrbLaserOutMs + OrbLaserBackMs)
+                    Resolve(hitOut->empty() && hitBack->empty());
             });
     }
 
@@ -1554,6 +1886,8 @@ private:
                         Hit(player, SPELL_SPIN_LASER, SpinLaserPct, true);
                     }
                 }
+                if (at + LaserTickMs > SpinMs)
+                    Resolve(lastHit->empty());
             });
         scheduler.Schedule(Milliseconds(SpinWarningMs + SpinMs + 100), [this](TaskContext) { EndWindup(); });
     }
@@ -1606,11 +1940,13 @@ private:
     {
         // One bright moment in the fight: the true form's arrival (phase 3); the blast here stays on the ground
         GroundIndicators::Burst(me, Ground(_liftFrom), GroundIndicators::Theme::Arcane);
-        for (Player* player : PlayersIn(_bigBang))
+        std::vector<Player*> const hit = PlayersIn(_bigBang);
+        for (Player* player : hit)
         {
             player->SendPlaySpellVisual(KIT_BIG_BANG_HIT);
             Hit(player, SPELL_BIG_BANG, BigBangPct, true);
         }
+        Resolve(hit.empty());
         Land(true);
     }
 
@@ -1623,6 +1959,7 @@ private:
         Hold();
         me->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         _exposed = true;
+        Resurgence();
     }
 
     // Two Fragments d'éternité from the edge, walking to the god: the first one marked with the skull, which bots kill
@@ -1718,7 +2055,9 @@ private:
     // Singularité: a black hole in the platform, pulling everyone near it into its pool
     void Singularity()
     {
-        Position const hole = ArenaSpot(10.0f, 20.0f);
+        // Learnt: a third of a turn round from the last one
+        float const turn = float(_singularities++) * 2.0f * float(M_PI) / 3.0f;
+        Position const hole = FixedSpot(ArenaCenter.GetOrientation() + turn, SingularityDistance);
         uint32 const lasts = SingularityWarningMs + SingularityTicks * 1000;
         me->SummonCreature(NPC_SINGULARITY, hole, TEMPSUMMON_TIMED_DESPAWN, lasts);
         // No red: the black hole's own look says where its pool is. The bots still keep out of it.
@@ -1728,15 +2067,21 @@ private:
         pool.radius = SingularityRadius;
         GroundIndicators::WatchArea(me, pool, lasts);
         PlayOnGround(hole, KIT_SINGULARITY);
+        auto const failed = std::make_shared<bool>(false);
         for (uint32 tick = 1; tick <= SingularityTicks; ++tick)
         {
-            scheduler.Schedule(Milliseconds(SingularityWarningMs + tick * 1000), [this, pool](TaskContext)
+            scheduler.Schedule(Milliseconds(SingularityWarningMs + tick * 1000), [this, pool, tick, failed](TaskContext)
             {
+                if (tick == SingularityTicks)
+                    scheduler.Schedule(10ms, [this, failed](TaskContext) { Resolve(!*failed); });
                 for (Player* player : ArenaPlayers())
                 {
                     float const distance = player->GetExactDist2d(&pool.origin);
                     if (pool.Contains(*player))
+                    {
                         Hit(player, SPELL_SINGULARITY, SingularityPoolPct, true);
+                        *failed = true;
+                    }
                     else if (distance <= SingularityPullReach)
                         // A knockback from the far side of the player: towards the hole (bots take no negative speed)
                         player->KnockbackFrom(2.0f * player->GetPositionX() - pool.origin.GetPositionX(),
@@ -1749,7 +2094,9 @@ private:
     // Étoile effondrée: a star to share, three players or more in its circle, or it bursts on everyone
     void CollapsingStar()
     {
-        Position const where = ArenaSpot(12.0f, 22.0f);
+        // Learnt: between the black hole's spots, a third of a turn round from the last one
+        Position const where = FixedSpot(ArenaCenter.GetOrientation() + float(M_PI) / 3.0f +
+            float(_stars++) * 2.0f * float(M_PI) / 3.0f, StarDistance);
         me->SummonCreature(NPC_COLLAPSING_STAR, where, TEMPSUMMON_TIMED_DESPAWN, StarSoakMs + 500);
         GroundIndicators::ShowSoak(me, where, StarRadius, StarSoakMs, StarSoakersBots);
         GroundIndicators::Area soak;
@@ -1764,8 +2111,10 @@ private:
             {
                 for (Player* player : soakers)
                     Hit(player, SPELL_COLLAPSING_STAR, StarSharedPct / float(soakers.size()), false);
+                Resolve(true);
                 return;
             }
+            Resolve(false);
             for (Player* player : ArenaPlayers())
                 Hit(player, SPELL_COLLAPSING_STAR, StarFailPct, false);
         });
@@ -1777,6 +2126,7 @@ private:
         EndWindup();
         Talk(SAY_INTERMISSION_2);
         Hold();
+        Resurgence();
         me->GetMotionMaster()->MovePoint(POINT_CENTER, ArenaCenter);
         me->SendPlaySpellVisual(KIT_REORIGINATION);
     }
@@ -1785,22 +2135,31 @@ private:
     void Constellation()
     {
         me->SendPlaySpellVisual(KIT_REORIGINATION);
-        for (uint32 line = 0; line < 2 + TierAbove() / 3; ++line)
+        uint32 const lines = 2 + TierAbove() / 3;
+        auto const outcome = Expect(lines);
+        for (uint32 line = 0; line < lines; ++line)
         {
-            float const from = frand(0.0f, 2.0f * float(M_PI));
-            Position const start = Ground(Position(ArenaCenter.GetPositionX() + std::cos(from) * 40.0f,
-                ArenaCenter.GetPositionY() + std::sin(from) * 40.0f, ArenaFloorZ));
-            Position const through = ArenaSpot(0.0f, 15.0f);
-            float const facing = start.GetAngle(&through);
+            // Learnt: each line turned ConstellationTurn from the last, passing by turns left of the middle, through
+            // it, right of it
+            uint32 const index = _constellationLines++;
+            float const facing = Position::NormalizeOrientation(ArenaCenter.GetOrientation() +
+                float(index) * ConstellationTurn);
+            float const offset = (float(index % 3) - 1.0f) * ConstellationOffset;
+            float const half = ConstellationLength / 2.0f;
+            Position const start = Ground(Position(
+                ArenaCenter.GetPositionX() - std::cos(facing) * half - std::sin(facing) * offset,
+                ArenaCenter.GetPositionY() - std::sin(facing) * half + std::cos(facing) * offset, ArenaFloorZ));
             GroundIndicators::Area const area = GroundIndicators::ShowRectangle(me, start, facing,
                 ConstellationLength, ConstellationWidth, ConstellationWarningMs, GroundIndicators::Theme::Arcane);
-            scheduler.Schedule(Milliseconds(ConstellationWarningMs), [this, area, start, facing](TaskContext)
+            scheduler.Schedule(Milliseconds(ConstellationWarningMs), [this, area, start, facing, outcome](TaskContext)
             {
                 for (float along = 8.0f; along < ConstellationLength; along += 16.0f)
                     PlayOnGround(Position(start.GetPositionX() + std::cos(facing) * along,
                         start.GetPositionY() + std::sin(facing) * along, ArenaFloorZ), KIT_COSMIC_SMASH);
-                for (Player* player : PlayersIn(area))
+                std::vector<Player*> const hit = PlayersIn(area);
+                for (Player* player : hit)
                     Hit(player, SPELL_CONSTELLATION, ConstellationPct, true);
+                Settle(outcome, !hit.empty());
             });
         }
     }
@@ -1826,16 +2185,19 @@ private:
 
     void Meteors()
     {
+        auto const outcome = Expect(MeteorsPerWave);
         for (uint32 index = 0; index < MeteorsPerWave; ++index)
         {
             Position const where = ArenaSpot(4.0f, ArenaWalkRadius - 2.0f);
             GroundIndicators::Area const area = GroundIndicators::ShowCircle(me, where, MeteorRadius, MeteorWarningMs,
                 GroundIndicators::Theme::Fire);
-            scheduler.Schedule(Milliseconds(MeteorWarningMs), [this, area](TaskContext)
+            scheduler.Schedule(Milliseconds(MeteorWarningMs), [this, area, outcome](TaskContext)
             {
                 PlayOnGround(area.origin, KIT_COSMIC_SMASH);
-                for (Player* player : PlayersIn(area))
+                std::vector<Player*> const hit = PlayersIn(area);
+                for (Player* player : hit)
                     Hit(player, SPELL_METEORS, MeteorPct, true);
+                Settle(outcome, !hit.empty());
             });
         }
     }
@@ -1861,7 +2223,8 @@ private:
     void Supernova()
     {
         Position const center = Ground(me->GetPosition());
-        float const base = frand(0.0f, 2.0f * float(M_PI));
+        // Learnt: the lanes turn SupernovaTurn from the last Supernova's, always the same way
+        float const base = ArenaCenter.GetOrientation() + float(_supernovas++) * SupernovaTurn;
         std::vector<GroundIndicators::Area> areas;
         areas.push_back(GroundIndicators::ShowCircle(me, center, SupernovaCoreRadius, SupernovaWarningMs,
             GroundIndicators::Theme::Holy));
@@ -1895,35 +2258,47 @@ private:
                         area.origin.GetPositionY() + std::sin(facing) * distance, ArenaFloorZ),
                         GroundIndicators::Theme::Holy);
             }
+            bool failed = false;
             for (Player* player : ArenaPlayers())
                 if (std::ranges::any_of(areas, [player](GroundIndicators::Area const& area)
                     { return area.Contains(*player); }))
+                {
                     Hit(player, SPELL_SUPERNOVA, SupernovaPct, true);
+                    failed = true;
+                }
+            Resolve(!failed);
         });
     }
 
     // Jugement divin: two players carry a circle; whoever else is in one when it lands takes it
     void Judgement()
     {
-        Unit* tank = me->GetVictim();
-        std::vector<Player*> players = ArenaPlayers();
-        std::erase_if(players, [tank](Player* player) { return player == tank; });
-        Acore::Containers::RandomResize(players, JudgementCarriers);
-        for (Player* carrier : players)
+        std::vector<Player*> const carriers = PickCarriers(JudgementCarriers, false);
+        auto const outcome = Expect(uint32(carriers.size()));
+        for (Player* carrier : carriers)
         {
+            Carries(carrier, JudgementMs);
             GroundIndicators::Area const area = GroundIndicators::ShowCarriedCircle(me, carrier, JudgementRadius,
                 JudgementMs);
             ObjectGuid const guid = carrier->GetGUID();
-            scheduler.Schedule(Milliseconds(JudgementMs), [this, area, guid](TaskContext)
+            scheduler.Schedule(Milliseconds(JudgementMs), [this, area, guid, outcome](TaskContext)
             {
                 Player* carrier = ObjectAccessor::GetPlayer(*me, guid);
                 if (!carrier || !carrier->IsAlive())
+                {
+                    Settle(outcome, false);
                     return;
+                }
                 carrier->SendPlaySpellVisual(KIT_ASCEND_HIT);
                 Hit(carrier, SPELL_JUDGEMENT, JudgementCarrierPct, false);
+                bool failed = false;
                 for (Player* player : PlayersIn(GroundIndicators::CurrentArea(carrier, area)))
                     if (player != carrier)
+                    {
                         Hit(player, SPELL_JUDGEMENT, JudgementOtherPct, true);
+                        failed = true;
+                    }
+                Settle(outcome, failed);
             });
         }
     }
@@ -1933,17 +2308,22 @@ private:
     // a little.
     void StarRays()
     {
-        std::vector<Player*> players = ArenaPlayers();
-        Acore::Containers::RandomResize(players, StarRaysCarriers + (TierAbove() >= 3) + (TierAbove() >= 6));
-        for (Player* carrier : players)
+        std::vector<Player*> const carriers = PickCarriers(StarRaysCarriers + (TierAbove() >= 3) + (TierAbove() >= 6),
+            false);
+        auto const outcome = Expect(uint32(carriers.size()));
+        for (Player* carrier : carriers)
         {
+            Carries(carrier, StarRaysMs);
             GroundIndicators::Area const area = GroundIndicators::ShowCarriedStar(me, carrier, StarRaysMs);
             ObjectGuid const guid = carrier->GetGUID();
-            scheduler.Schedule(Milliseconds(StarRaysMs), [this, area, guid](TaskContext)
+            scheduler.Schedule(Milliseconds(StarRaysMs), [this, area, guid, outcome](TaskContext)
             {
                 Player* carrier = ObjectAccessor::GetPlayer(*me, guid);
                 if (!carrier || !carrier->IsAlive())
+                {
+                    Settle(outcome, false);
                     return;
+                }
                 GroundIndicators::Area const rays = GroundIndicators::CurrentArea(carrier, area);
                 // The rays flare along their length
                 for (uint32 arm = 0; arm < 4; ++arm)
@@ -1955,9 +2335,14 @@ private:
                             GroundIndicators::Theme::Arcane);
                 }
                 Hit(carrier, SPELL_STAR_RAYS, StarRaysCarrierPct, false);
+                bool failed = false;
                 for (Player* player : PlayersIn(rays))
                     if (player != carrier)
+                    {
                         Hit(player, SPELL_STAR_RAYS, StarRaysOtherPct, true);
+                        failed = true;
+                    }
+                Settle(outcome, failed);
             });
         }
     }
@@ -2034,12 +2419,14 @@ private:
             scheduler.Schedule(Milliseconds(pulse * FinishPulseMs), [this, pulse](TaskContext)
             {
                 me->SendPlaySpellVisual(KIT_ASCEND_CAST);
+                _killLabel = "no player standing";
                 for (Player* player : ArenaPlayers())
                 {
                     player->SendPlaySpellVisual(KIT_ASCEND_HIT);
                     if (pulse + 1 == FinishPulses)
                         Unit::Kill(me, player);
                 }
+                _killLabel = nullptr;
             });
     }
 
@@ -2048,8 +2435,10 @@ private:
     {
         Talk(SAY_HARD_ENRAGE);
         me->SendPlaySpellVisual(KIT_BIG_BANG_BLAST);
+        _killLabel = "hard enrage";
         for (Player* player : ArenaPlayers())
             Unit::Kill(me, player);
+        _killLabel = nullptr;
     }
 
     // The off-tank's spot: at the god's side, a quarter turn from its target, on the side with fewer players, so the
@@ -2167,6 +2556,36 @@ private:
 
     std::map<ObjectGuid, uint32> _weight;
     std::map<ObjectGuid, uint32> _doom;
+
+    // Against chance (ResetRework)
+    struct Wounded
+    {
+        uint32 since = 0;
+        uint32 until = 0;
+    };
+    struct LastHit
+    {
+        uint32 spellId = 0;                     // 0: its melee
+        uint32 at = 0;
+        bool avoidable = false;
+    };
+    std::map<ObjectGuid, Wounded> _wounds;
+    std::map<ObjectGuid, LastHit> _lastHit;
+    std::map<std::string, uint32> _deaths;
+    std::map<ObjectGuid, uint32> _lastCarried;
+    std::map<ObjectGuid, uint32> _carryingUntil;
+    ObjectGuid _sparing;                        // the player the hit being dealt wounds rather than kills
+    char const* _killLabel = nullptr;           // what the deaths being dealt are logged as (the ends)
+    uint32 _fracture = 0;
+    uint32 _bestFracture = 0;
+    uint32 _cleanCount = 0;
+    uint32 _failCount = 0;
+    uint32 _revived = 0;
+    uint32 _supernovas = 0;
+    uint32 _singularities = 0;
+    uint32 _stars = 0;
+    uint32 _crosses = 0;
+    uint32 _constellationLines = 0;
 };
 
 boss_infinite_god* FindGod(Player* player)
