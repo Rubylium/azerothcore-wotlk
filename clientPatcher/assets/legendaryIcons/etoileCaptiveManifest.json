@@ -1,0 +1,27 @@
+{
+  "generator": "built-in image_gen",
+  "name": "INV_Legendary_EtoileCaptive",
+  "source": "source/INV_Legendary_EtoileCaptive.png",
+  "delivery": "png/INV_Legendary_EtoileCaptive.png",
+  "size": [
+    256,
+    256
+  ],
+  "mode": "RGB",
+  "prompt": [
+    "Use case: stylized-concept. A World of Warcraft: Wrath of the Lich King item icon, square,",
+    "hand-painted in Blizzard's icon style, matching attached stock icons for painterly medium only: the",
+    "subject filling the frame at a slight angle, chunky readable shapes, painterly texture, dramatic",
+    "light from the upper left, rich saturated colour, a dark vignette at the edges, a FAINT legendary",
+    "orange glow around the subject. No border, no frame, no text. 256x256 opaque square target. Primary",
+    "request: A SMALL DYING STAR held captive inside a TITAN ORRERY CAGE: EXACTLY THREE THIN INTERLOCKING",
+    "RINGS of dark silver and gold engraved with constellation lines, closed around a dense WHITE-GOLD",
+    "STAR CORE that is COLLAPSING INWARD. Its light is pulled into a TIGHT INWARD SPIRAL with faint",
+    "ARCANE-BLUE streaks at the edges. Tiny motes of starlight caught BETWEEN the rings. Palette of",
+    "L'Infini: DEEP MIDNIGHT BLUE, STARRY WHITE AND GOLD. The star is the brightest point but CONTAINED,",
+    "NOT EXPLODING: no outward burst, no long radial rays. The background is a DEEP BLUE STARFIELD VOID,",
+    "fully opaque. One clear orrery subject, full circular ring silhouettes at slight three-quarter",
+    "angle, contrasting dark metallic rings visibly enclosing the compact luminous core. Recognisable",
+    "at32px; no extra planets, no pedestal, no lettering."
+  ]
+}
