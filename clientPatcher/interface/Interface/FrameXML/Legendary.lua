@@ -46,6 +46,142 @@ local LEGENDARIES = {
             or "Where the Scarlet Commander sets his fists, the ground turns holy.",
     },
 }
+
+-- The other dungeons' (mod-legendary Definitions 4-24), three each: { French, English } for every text
+local function Add(id, item, dungeon, power, lore)
+    LEGENDARIES[id] = {
+        item = item,
+        source = french and ("Légendaire · " .. dungeon[1] .. ", Mythique+")
+            or ("Legendary · " .. dungeon[2] .. ", Mythic+"),
+        power = french and power[1] or power[2],
+        lore = french and lore[1] or lore[2],
+    }
+end
+
+local MECHANAR = { "Le Méchanar", "The Mechanar" }
+local UTGARDE = { "Donjon d'Utgarde", "Utgarde Keep" }
+local SHATTERED_HALLS = { "Les Salles brisées", "The Shattered Halls" }
+local DEADMINES = { "Les Mortemines", "The Deadmines" }
+local DRAK_THARON = { "Donjon de Drak'Tharon", "Drak'Tharon Keep" }
+local FORGE_OF_SOULS = { "La Forge des âmes", "The Forge of Souls" }
+local HALLS_OF_LIGHTNING = { "Les salles de Foudre", "Halls of Lightning" }
+
+Add(4, 21424, MECHANAR,
+    { "Les coups de mêlée que vous subissez renvoient %s des dégâts à leur auteur, en dégâts des Arcanes.",
+      "Melee blows you take strike back at their attacker for %s of the damage as Arcane damage." },
+    { "« Polarité inversée. » Ce qui frappe Capacitus se frappe lui-même.",
+      "\"Polarity shift.\" What strikes Capacitus strikes itself." })
+Add(5, 1258, MECHANAR,
+    { "Vos coups directs ont 15 %% de chances d'augmenter votre hâte de %s pendant 8 sec. Pas plus d'une fois "
+        .. "toutes les 30 sec.",
+      "Your direct hits have a 15%% chance to raise your haste by %s for 8 sec. No more than once every 30 sec." },
+    { "Pathaleon a tout calculé. Même vous.", "Pathaleon has calculated everything. Even you." })
+Add(6, 21432, MECHANAR,
+    { "Vos sorts embrasent la cible : elle brûle pour %s des dégâts infligés, en dégâts de Feu sur 4 sec.",
+      "Your spells set the target ablaze: it burns for %s of the damage dealt as Fire damage over 4 sec." },
+    { "Les flammes déchaînées de la nethermancienne ne s'éteignent jamais tout à fait.",
+      "The nethermancer's raging flames never quite go out." })
+
+Add(7, 21425, UTGARDE,
+    { "Tous les 5 coups directs, Ingvar lance sa hache d'ombre sur la cible : %s de votre puissance d'attaque "
+        .. "ou des sorts en dégâts d'Ombre.",
+      "Every 5th direct hit, Ingvar hurls his shadow axe at the target: %s of your attack or spell power as "
+        .. "Shadow damage." },
+    { "Le Pilleur tombe et se relève. Sa hache, elle, ne tombe jamais.",
+      "The Plunderer falls and rises again. His axe never falls at all." })
+Add(8, 21420, UTGARDE,
+    { "Sous 35 %% de vie, vous subissez %s de dégâts en moins.",
+      "Below 35%% health, you take %s less damage." },
+    { "Le prince Keleseth enferme ce qu'il veut garder dans un tombeau de givre.",
+      "Prince Keleseth keeps what he wants in a tomb of frost." })
+Add(9, 26541, UTGARDE,
+    { "Quand vous tuez un ennemi, vos dégâts augmentent de %s pendant 10 sec.",
+      "When you kill an enemy, your damage is increased by %s for 10 sec." },
+    { "Annhylde l'Appeleuse relève les morts. Elle exalte aussi ceux qui les font.",
+      "Annhylde the Caller raises the dead. She also exalts those who make them." })
+
+Add(10, 21437, SHATTERED_HALLS,
+    { "Vos dégâts directs frappent aussi jusqu'à 4 autres ennemis à moins de 6 m de la cible pour %s "
+        .. "des dégâts infligés.",
+      "Your direct damage also strikes up to 4 other enemies within 6 yd of the target for %s of the damage "
+        .. "dealt." },
+    { "Kargath n'a plus de mains. Il a mieux.", "Kargath has no hands left. He has something better." })
+Add(11, 21433, SHATTERED_HALLS,
+    { "Vos dégâts périodiques sont augmentés de %s.", "Your damage over time is increased by %s." },
+    { "Le rituel de Nethekurse fait durer la douleur.", "Nethekurse's ritual makes the pain last." })
+Add(12, 5828, SHATTERED_HALLS,
+    { "%s de vos dégâts directs vous soignent.", "%s of your direct damage heals you." },
+    { "La garde de sang de Porung ne boit jamais assez.", "Porung's blood guard never drinks enough." })
+
+Add(13, 21421, DEADMINES,
+    { "Vos dégâts sont augmentés de %s contre les ennemis sous 35 %% de vie.",
+      "Your damage is increased by %s against enemies below 35%% health." },
+    { "« Personne ne quitte la Confrérie. » VanCleef finit toujours ce qu'il commence.",
+      "\"No one leaves the Brotherhood.\" VanCleef always finishes what he starts." })
+Add(14, 21429, DEADMINES,
+    { "Les ennemis que vous tuez explosent : %s de votre puissance d'attaque ou des sorts en dégâts de Feu aux "
+        .. "ennemis à moins de 8 m.",
+      "Enemies you kill explode: %s of your attack or spell power as Fire damage to enemies within 8 yd." },
+    { "Gilnid ne compte plus ses doigts. Il compte ses barils.",
+      "Gilnid no longer counts his fingers. He counts his barrels." })
+Add(15, 21444, DEADMINES,
+    { "Toutes les 5 sec en combat, l'allié le plus blessé à moins de 40 m est soigné pour %s de votre puissance "
+        .. "d'attaque ou des sorts.",
+      "Every 5 sec in combat, the most injured ally within 40 yd is healed for %s of your attack or spell power." },
+    { "Cookie ne laisse personne repartir le ventre vide.", "Cookie lets no one leave on an empty stomach." })
+
+Add(16, 18161, DRAK_THARON,
+    { "Vos coups d'arme font saigner la cible : %s des dégâts infligés en dégâts physiques sur 6 sec.",
+      "Your weapon blows make the target bleed for %s of the damage dealt as Physical damage over 6 sec." },
+    { "Le roi Dred n'a jamais lâché une proie.", "King Dred has never let go of his prey." })
+Add(17, 21430, DRAK_THARON,
+    { "%s des soins directs en excès que vous prodiguez protègent la cible pendant 10 sec, jusqu'à 20 %% de sa vie.",
+      "%s of the overhealing of your direct heals shields the target for 10 sec, up to 20%% of its health." },
+    { "La barrière de Novos tient tant qu'il reste quelqu'un à protéger.",
+      "Novos' barrier holds as long as someone is left to protect." })
+Add(18, 27218, DRAK_THARON,
+    { "Vos soins directs soignent aussi l'autre allié le plus blessé à moins de 40 m pour %s du soin.",
+      "Your direct heals also heal the most injured other ally within 40 yd for %s of the heal." },
+    { "Tharon'ja a vu la chair revenir aux os. Il sait la rendre.",
+      "Tharon'ja has seen flesh return to the bone. He knows how to give it back." })
+
+Add(19, 21423, FORGE_OF_SOULS,
+    { "Toutes les 10 sec en combat, un puits des âmes s'ouvre sous vos pieds pendant 6 sec : chaque seconde, il "
+        .. "inflige aux ennemis qui s'y tiennent %s de votre puissance d'attaque ou des sorts en dégâts d'Ombre.",
+      "Every 10 sec in combat, a well of souls opens beneath you for 6 sec: every second it deals %s of your "
+        .. "attack or spell power as Shadow damage to enemies standing in it." },
+    { "Le Dévoreur d'âmes a faim. Il a toujours faim.", "The Devourer of Souls is hungry. Always hungry." })
+Add(20, 21434, FORGE_OF_SOULS,
+    { "Quand vous tuez un ennemi, son âme vous rend %s de votre vie en 4 sec.",
+      "When you kill an enemy, its soul restores %s of your health over 4 sec." },
+    { "Bronjahm façonne les âmes. Celle-ci vous appartient.",
+      "Bronjahm shapes souls. This one belongs to you." })
+Add(21, 6673, FORGE_OF_SOULS,
+    { "%s de vos dégâts directs frappent aussi l'ennemi le plus proche de la cible, à moins de 10 m.",
+      "%s of your direct damage also strikes the enemy nearest the target, within 10 yd." },
+    { "Ce que vous infligez, votre reflet l'inflige aussi.", "What you inflict, your reflection inflicts too." })
+
+Add(22, 8688, HALLS_OF_LIGHTNING,
+    { "Vos dégâts directs bondissent vers jusqu'à 3 ennemis proches de la cible, à moins de 10 m, pour %s des "
+        .. "dégâts infligés. Pas plus d'une fois toutes les 2 sec.",
+      "Your direct damage leaps to up to 3 enemies near the target, within 10 yd, for %s of the damage dealt. "
+        .. "No more than once every 2 sec." },
+    { "Ionar n'est jamais tout à fait parti. Une étincelle suffit.",
+      "Ionar is never quite gone. A spark is enough." })
+Add(23, 21450, HALLS_OF_LIGHTNING,
+    { "Toutes les 6 sec en combat, une nova de foudre inflige aux ennemis à moins de 10 m %s de votre puissance "
+        .. "d'attaque ou des sorts en dégâts de Nature.",
+      "Every 6 sec in combat, a lightning nova deals %s of your attack or spell power as Nature damage to "
+        .. "enemies within 10 yd." },
+    { "Loken frappe le sol, et les salles tremblent.", "Loken strikes the ground, and the halls shake." })
+Add(24, 6674, HALLS_OF_LIGHTNING,
+    { "Quand un coup vous fait passer sous 50 %% de vie, un rempart absorbe des dégâts à hauteur de %s de votre "
+        .. "vie pendant 10 sec. Une fois par minute.",
+      "When a blow takes you below 50%% health, a bulwark absorbs damage equal to %s of your health for 10 sec. "
+        .. "Once per minute." },
+    { "Le général Bjarngrim change de posture. Jamais de camp.",
+      "General Bjarngrim changes his stance. Never his side." })
+
 local BASE_ITEMS = {}
 for id, legendary in pairs(LEGENDARIES) do
     BASE_ITEMS[legendary.item] = id

@@ -1,5 +1,5 @@
 # The legendaries' spell data (modules/mod-legendary, .agents/plans/legendary-items/legendary-items.DESIGN.md): the
-# spells their powers cast. Ids 97000-97999.
+# spells their powers cast. Ids 97000-97005 and 97700-97999 (the Barbarian's are between).
 #
 # A power's damage or healing is a spell of our own, cast by the wearer, with its name and icon: the combat log (and
 # Details) credits the wearer with it on a line of its own.
@@ -54,6 +54,165 @@ $spells = @(
        Description = 'La terre consacrée de Mograine soigne les alliés.'
        Effects = @(@{ Index = 0; Effect = 10; TargetA = 21; BasePoints = 0 })
        Fields = @{ 225 = 2; 213 = 0; 28 = 1; 6 = 0x20000000; 7 = 0x20050000; 131 = 0 } }
+)
+
+# --- The other dungeons' legendaries (mod-legendary Definitions 4-24) ---------------------------------------------------
+# One spell (or two) per power, built from a handful of shapes. Every one: instant, exact (no crit, no caster
+# modifier, no proc of its own), reaching anywhere (the power has chosen its target), out of every class's spell family
+# so no talent touches it, and drawn with its source's look - mostly its own boss's spell visual. The icon is the
+# legendary's own (one painted icon per legendary, its item's), a stock one until it is painted.
+# Schools: 1 physical, 2 holy, 4 fire, 8 nature, 16 frost, 32 shadow, 64 arcane.
+$exact = @{ 213 = 0; 28 = 1; 46 = 13; 6 = 0x20000000; 7 = 0x20050000; 208 = 0; 209 = 0; 210 = 0; 211 = 0 }
+
+function Merge-Fields($extra) {
+    $fields = @{}
+    foreach ($key in $exact.Keys) { $fields[$key] = $exact[$key] }
+    foreach ($key in $extra.Keys) { $fields[$key] = $extra[$key] }
+    return $fields
+}
+
+# A blow on one enemy (Smite's row)
+function New-Damage($id, $name, $icon, $fallback, $school, $visual, $description) {
+    @{ Id = $id; Clone = 585; Name = $name; Icon = $icon; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = $description
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; BasePoints = 0 })
+       Fields = (Merge-Fields @{ 225 = $school; 131 = $visual }) }
+}
+
+# A heal on one ally (Flash of Light's row)
+function New-Heal($id, $name, $icon, $fallback, $school, $visual, $description) {
+    @{ Id = $id; Clone = 48785; Name = $name; Icon = $icon; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = $description
+       Effects = @(@{ Index = 0; Effect = 10; TargetA = 21; BasePoints = 0 })
+       Fields = (Merge-Fields @{ 225 = $school; 131 = $visual }) }
+}
+
+# A burn on one enemy, every second for its duration (Ignite's row, as the Marque's brand): mod-legendary sets each
+# tick and the core's Ignite rolls what is left into the next
+function New-Burn($id, $name, $icon, $fallback, $school, $duration, $visual, $description, $auraDescription) {
+    @{ Id = $id; Clone = 12654; Name = $name; Icon = $icon; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = $description
+       AuraDescription = $auraDescription
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 6; Aura = 3; BasePoints = 0 })
+       Fields = @{ 225 = $school; 98 = 1000; 40 = $duration; 213 = 0; 6 = 0x20000004; 7 = 0x30050000; 208 = 0; 209 = 0; 210 = 0; 211 = 0 }
+       Visual = $visual }
+}
+
+# The same burn wearing a stock visual as it is (its impact on every feed): a visual id rather than a recipe
+function New-PlainBurn($id, $name, $icon, $fallback, $school, $duration, $visual, $description, $auraDescription) {
+    $burn = New-Burn $id $name $icon $fallback $school $duration $null $description $auraDescription
+    $burn.Remove('Visual')
+    $burn.Fields[131] = $visual
+    return $burn
+}
+
+# A shield (Power Word: Shield's row): absorbs what mod-legendary sets, every school
+function New-Shield($id, $name, $icon, $fallback, $targetA, $duration, $visual, $description, $auraDescription) {
+    @{ Id = $id; Clone = 48066; Name = $name; Icon = $icon; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = $description
+       AuraDescription = $auraDescription
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = $targetA; Aura = 69; Misc = 127; BasePoints = 0 })
+       Fields = (Merge-Fields @{ 225 = 2; 40 = $duration; 131 = $visual }) }
+}
+
+# A mark the wearer carries (a dummy aura): a buff mod-legendary reads, or a rest it counts down. $clone gives it a
+# helpful or harmful row (a buff or a debuff) besides its look.
+function New-Mark($id, $clone, $name, $icon, $fallback, $duration, $visual, $description, $auraDescription) {
+    @{ Id = $id; Clone = $clone; Name = $name; Icon = $icon; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = $description
+       AuraDescription = $auraDescription
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 4; BasePoints = 0 })
+       Fields = @{ 40 = $duration; 131 = $visual; 28 = 1; 41 = 0; 226 = 0; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } }
+}
+
+$spells += @(
+    # --- The Mechanar ---
+    # Épaulières de Capacitus: a melee blow taken strikes back as Arcane, on its attacker (an arcane missile's impact)
+    (New-Damage 97700 'Bouclier réfléchissant' 'INV_Legendary_EpaulieresCapacitus' 35159 64 270 `
+        'Le bouclier de Capacitus renvoie une part des coups reçus.'),
+    # Abaque de Pathaleon: the surge, melee, ranged and spell haste for 8 sec (Arcane Power's row and look)
+    @{ Id = 97710; Clone = 12042; Name = 'Calcul de Pathaleon'; Icon = 'INV_Legendary_AbaquePathaleon'; FallbackIconSpell = 12042; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Le calcul de Pathaleon accélère vos attaques et vos sorts.'
+       AuraDescription = 'Hâte augmentée.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 192; BasePoints = 0 }, @{ Index = 1; Effect = 6; TargetA = 1; Aura = 65; BasePoints = 0 })
+       Fields = @{ 40 = 31; 28 = 1; 41 = 0; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
+    # Brassards de Sepethrea: spells burn as Fire over 4 sec (Immolate's burning look, no flash per feed)
+    (New-Burn 97720 'Flammes de Sepethrea' 'INV_Legendary_BrassardsSepethrea' 29964 4 35 @{ Clone = 46; Precast = 0; Cast = 0; Impact = 0 } `
+        'Les flammes déchaînées de Sepethrea brûlent ce que vos sorts touchent.' 'Brûle : subit des dégâts de Feu chaque seconde.'),
+
+    # --- Utgarde Keep ---
+    # Ceinture d'Ingvar: every 5th hit, a shadow axe (a shadow bolt's look)
+    (New-Damage 97730 "Hache d'ombre d'Ingvar" 'INV_Legendary_CeintureIngvar' 42751 32 64 `
+        "Ingvar lance sa hache d'ombre sur votre cible."),
+    # Cuirasse de Keleseth: the last stand's look while it holds (Ice Barrier's shell, a buff)
+    (New-Mark 97740 43039 'Tombeau de Keleseth' 'INV_Legendary_CuirasseKeleseth' 48400 21 4302 `
+        'Le givre de Keleseth vous enserre quand vous faiblissez.' 'Dégâts subis réduits.'),
+    # Collier d'Annhylde: the frenzy after a kill, 10 sec (Enrage's red glow, a buff)
+    (New-Mark 97750 12880 "Appel d'Annhylde" 'INV_Legendary_CollierAnnhylde' 12880 1 2817 `
+        "L'appel d'Annhylde exalte chaque victoire." 'Dégâts infligés augmentés.'),
+
+    # --- The Shattered Halls ---
+    # Poignes de Kargath: the blow on the enemies around (Cleave's slash)
+    (New-Damage 97760 'Lames de Kargath' 'INV_Legendary_PoignesKargath' 30739 1 219 `
+        'Les lames de Kargath frappent les ennemis autour de votre cible.'),
+    # Chevalière de Porung: what the blows earned, healed once a second (Vampiric Embrace's look)
+    (New-Heal 97780 'Soif de Porung' 'INV_Legendary_ChevalierePorung' 15290 1 3542 `
+        'La soif de sang de Porung vous soigne de vos coups.'),
+
+    # --- The Deadmines ---
+    # Ceinture à poudre de Gilnid: a kill blows up, on every enemy around it (dynamite's blast)
+    (New-Damage 97800 'Poudre de Gilnid' 'INV_Legendary_PoudreGilnid' 7978 4 148 `
+        'La poudre de Gilnid fait exploser vos victimes.'),
+    # Moufles de Cookie: the most hurt ally fed (Cookie's Cooking, the Deadmines cook's own heal)
+    (New-Heal 97810 'Ragoût de Cookie' 'INV_Legendary_MouflesCookie' 5174 8 147 `
+        "Cookie sert une louche à l'allié le plus blessé."),
+
+    # --- Drak'Tharon Keep ---
+    # Bottes du roi Dred: weapon blows bleed over 6 sec (Rend's blood)
+    (New-PlainBurn 97820 'Griffes du roi Dred' 'INV_Legendary_BottesDred' 48920 1 32 372 `
+        'Les griffes du roi Dred lacèrent ce que vos armes touchent.' 'Saigne : subit des dégâts physiques chaque seconde.'),
+    # Robe de Novos: the overhealing's shield on the ally healed, 10 sec (Divine Aegis's look)
+    (New-Shield 97830 'Barrière de Novos' 'INV_Legendary_RobeNovos' 47346 21 1 10895 `
+        'La barrière de Novos garde ce que vos soins ont de trop.' 'Absorbe des dégâts.'),
+    # Pendentif de Tharon'ja: the share of a heal on the most hurt other ally (Return Flesh, Tharon'ja's own)
+    (New-Heal 97840 'Chair rendue' 'INV_Legendary_PendentifTharonja' 53463 8 10907 `
+        "Le rituel de Tharon'ja rend sa chair à un autre allié."),
+
+    # --- The Forge of Souls ---
+    # Jambières du Dévoreur: a well of souls where the wearer stands, 6 sec (Death and Decay's ground, its aura a
+    # dummy: mod-legendary pulses it every second with the blow below)
+    @{ Id = 97850; Clone = 49938; Name = 'Puits des âmes'; Icon = 'INV_Legendary_JambieresDevoreur'; FallbackIconSpell = 68820; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Le puits des âmes du Dévoreur dévore les ennemis qui s'y tiennent."
+       Fields = @{ 40 = 32; 95 = 4; 98 = 0; 80 = 0; 28 = 1; 86 = 18; 41 = 0; 226 = 0; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
+    (New-Damage 97851 'Puits des âmes' 'INV_Legendary_JambieresDevoreur' 68820 32 0 `
+        'Le puits des âmes dévore les ennemis.'),
+    # Heaume de Bronjahm: a kill heals over 4 sec (Renew's row; Corrupt Soul's look, Bronjahm's own)
+    @{ Id = 97860; Clone = 139; Name = "Fragment d'âme"; Icon = 'INV_Legendary_HeaumeBronjahm'; FallbackIconSpell = 68839; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "L'âme arrachée à votre victime vous soigne."
+       AuraDescription = 'Récupère de la vie chaque seconde.'
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 1; Aura = 8; BasePoints = 0 })
+       Fields = @{ 225 = 32; 98 = 1000; 40 = 35; 213 = 0; 28 = 1; 6 = 0x20000000; 7 = 0x20010000; 131 = 12656; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
+    # Anneau de l'âme reflétée: the mirrored share on another enemy (Mirrored Soul, the Devourer's own)
+    (New-Damage 97870 'Âme reflétée' 'INV_Legendary_AnneauAmeRefletee' 69051 32 14793 `
+        'Votre âme reflétée inflige vos coups à un autre ennemi.'),
+
+    # --- The Halls of Lightning ---
+    # Étincelle d'Ionar: the leap of lightning (Chain Lightning's bolt)
+    (New-Damage 97880 'Surcharge statique' 'INV_Legendary_EtincelleIonar' 52658 8 36 `
+        "L'étincelle d'Ionar bondit vers les ennemis proches."),
+    # Poings de Loken: the nova's look on the wearer (Loken's own Lightning Nova), then its blow on each enemy
+    @{ Id = 97890; Clone = 52960; Name = 'Nova de foudre'; Icon = 'INV_Legendary_PoingsLoken'; FallbackIconSpell = 52960; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Loken libère une nova de foudre autour de vous.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1; BasePoints = 0 })
+       Fields = (Merge-Fields @{ 225 = 8; 131 = 11674 }) },
+    (New-Damage 97891 'Nova de foudre' 'INV_Legendary_PoingsLoken' 52960 8 0 `
+        'La nova de foudre de Loken frappe les ennemis proches.'),
+    # Chevalière de Bjarngrim: the shield below half health, 10 sec (Power Word: Shield's bubble), and its minute
+    # of rest (Forbearance's row, a debuff)
+    (New-Shield 97900 'Rempart de Bjarngrim' 'INV_Legendary_ChevaliereBjarngrim' 41105 1 1 784 `
+        'Le rempart de Bjarngrim vous protège quand vous faiblissez.' 'Absorbe des dégâts.'),
+    (New-Mark 97901 25771 'Rempart de Bjarngrim' 'INV_Legendary_ChevaliereBjarngrim' 41105 3 0 `
+        'Le rempart de Bjarngrim vous a déjà protégé.' 'Le rempart de Bjarngrim ne peut plus vous protéger.')
 )
 
 return $spells

@@ -2368,6 +2368,38 @@ if (-not $itemOffsets.ContainsKey($legendaryRing.Item)) { throw "Item.dbc has no
 [BitConverter]::GetBytes([uint32]$legendaryRing.Display).CopyTo($itemBytes, $itemOffsets[$legendaryRing.Item] + 5 * 4)
 if (-not $itemOffsets.ContainsKey($legendaryGloves.Item)) { throw "Item.dbc has no row $($legendaryGloves.Item) for Consécration de Mograine." }
 [BitConverter]::GetBytes([uint32]$legendaryGloves.Display).CopyTo($itemBytes, $itemOffsets[$legendaryGloves.Item] + 5 * 4)
+# The other dungeons' legendaries (mod-legendary Definitions 4-24): Item.dbc rows with no template (most of the "misc"
+# armour subclass: every class wears them), each wearing a look its dungeon's own bosses drop in that slot: its own
+# display (71003 on), that look with the legendary's painted icon - or the look's own icon while it is not painted
+# (modules/mod-stat-growth/client-assets/compiled/<Icon>.tga, localTools\interface\buildLegendaryClientArt.py).
+$legendaryItems = @(
+    @{ Item = 21424; Display = 71003; CloneOf = 43801; Icon = 'INV_Legendary_EpaulieresCapacitus' }     # Mechanar: Pauldrons of Surging Mana
+    @{ Item = 1258;  Display = 71004; CloneOf = 41449; Icon = 'INV_Legendary_AbaquePathaleon' }         # Mechanar: Abacus of Violent Odds
+    @{ Item = 21432; Display = 71005; CloneOf = 42847; Icon = 'INV_Legendary_BrassardsSepethrea' }      # Mechanar: Bracers of Recklessness
+    @{ Item = 21425; Display = 71006; CloneOf = 52509; Icon = 'INV_Legendary_CeintureIngvar' }          # Utgarde: Girdle of the Howling Berserker
+    @{ Item = 21420; Display = 71007; CloneOf = 49353; Icon = 'INV_Legendary_CuirasseKeleseth' }        # Utgarde: Chestplate of the Northern Lights
+    @{ Item = 26541; Display = 71008; CloneOf = 9657;  Icon = 'INV_Legendary_CollierAnnhylde' }         # Utgarde: Winterfall's Frozen Necklace
+    @{ Item = 21437; Display = 71009; CloneOf = 43052; Icon = 'INV_Legendary_PoignesKargath' }          # Shattered Halls: Gauntlets of Desolation
+    @{ Item = 21433; Display = 71010; CloneOf = 42975; Icon = 'INV_Legendary_BandelettesNethekurse' }   # Shattered Halls: Bands of Nethekurse
+    @{ Item = 5828;  Display = 71011; CloneOf = 28733; Icon = 'INV_Legendary_ChevalierePorung' }        # Shattered Halls: Band of Dominion
+    @{ Item = 21421; Display = 71012; CloneOf = 9123;  Icon = 'INV_Legendary_PlastronVanCleef' }        # Deadmines: Blackened Defias Armor
+    @{ Item = 21429; Display = 71013; CloneOf = 14389; Icon = 'INV_Legendary_PoudreGilnid' }            # Deadmines: Blackened Defias Belt
+    @{ Item = 21444; Display = 71014; CloneOf = 16642; Icon = 'INV_Legendary_MouflesCookie' }           # Deadmines: Magefist Gloves
+    @{ Item = 18161; Display = 71015; CloneOf = 50618; Icon = 'INV_Legendary_BottesDred' }              # Drak'Tharon: Scytheclaw Boots
+    @{ Item = 21430; Display = 71016; CloneOf = 52216; Icon = 'INV_Legendary_RobeNovos' }               # Drak'Tharon: Robes of Novos
+    @{ Item = 27218; Display = 71017; CloneOf = 35437; Icon = 'INV_Legendary_PendentifTharonja' }       # Drak'Tharon: Crystal Pendant of Warding
+    @{ Item = 21423; Display = 71018; CloneOf = 64722; Icon = 'INV_Legendary_JambieresDevoreur' }       # Forge of Souls: Legplates of Frozen Granite
+    @{ Item = 21434; Display = 71019; CloneOf = 52304; Icon = 'INV_Legendary_HeaumeBronjahm' }          # Forge of Souls: Skullcage of Eternal Terror
+    @{ Item = 6673;  Display = 71020; CloneOf = 33534; Icon = 'INV_Legendary_AnneauAmeRefletee' }       # Forge of Souls: Spiteful Signet
+    @{ Item = 8688;  Display = 71021; CloneOf = 55033; Icon = 'INV_Legendary_EtincelleIonar' }          # Halls of Lightning: Tears of Bitter Anguish
+    @{ Item = 21450; Display = 71022; CloneOf = 51932; Icon = 'INV_Legendary_PoingsLoken' }             # Halls of Lightning: Fists of Loken
+    @{ Item = 6674;  Display = 71023; CloneOf = 31905; Icon = 'INV_Legendary_ChevaliereBjarngrim' }     # Halls of Lightning: Bjarngrim Family Signet
+)
+foreach ($legendary in $legendaryItems) {
+    if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }
+    [BitConverter]::GetBytes([uint32]$legendary.Display).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 5 * 4)
+    $legendary.Painted = Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($legendary.Icon).tga")
+}
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
 #
@@ -2449,12 +2481,14 @@ Set-Field $record 0 ([uint32]$frontierShard.Display)
 Set-Field $record 5 (Add-DbcString $displayDbc.Strings $frontierShard.Icon)
 $displayDbc.NewRecords.AddRange($record)
 # The legendaries' (modules/mod-legendary): each the look it is made from, with its own icon
-foreach ($legendary in @($legendaryCloak, $legendaryRing, $legendaryGloves)) {
+foreach ($legendary in @($legendaryCloak, $legendaryRing, $legendaryGloves) + $legendaryItems) {
     if ($displayDbc.Offsets.ContainsKey($legendary.Display)) { throw "ItemDisplayInfo.dbc already has a row $($legendary.Display)." }
+    if (-not $displayDbc.Offsets.ContainsKey($legendary.CloneOf)) { throw "ItemDisplayInfo.dbc has no row $($legendary.CloneOf) for $($legendary.Icon)." }
     $record = [byte[]]::new($displayDbc.RecordSize)
     [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$legendary.CloneOf], $record, 0, $displayDbc.RecordSize)
     Set-Field $record 0 ([uint32]$legendary.Display)
-    Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendary.Icon)
+    # A legendary not painted yet keeps its look's own icon (a missing icon is a question mark)
+    if ($legendary.Painted -ne $false) { Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendary.Icon) }
     $displayDbc.NewRecords.AddRange($record)
 }
 $displayOutput = Get-StringDbcOutput $displayDbc

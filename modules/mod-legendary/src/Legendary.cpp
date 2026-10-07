@@ -28,6 +28,7 @@
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "StringConvert.h"
 #include "StringFormat.h"
 #include "Timer.h"
@@ -59,36 +60,140 @@ namespace
 // an item's property seed in its links (only a random suffix item's), so a link alone does not say which copy it is.
 constexpr std::string_view Prefix = "LEGENDARY";
 
-// localTools/legendary/Spells.ps1
-constexpr uint32 SPELL_INQUISITOR_BRAND = 97000;
-constexpr uint32 SPELL_WHITEMANE_OATH_HEAL = 97001;
-constexpr uint32 SPELL_WHITEMANE_OATH_SPENT = 97002;
-constexpr uint32 SPELL_MOGRAINE_GROUND = 97003;
-constexpr uint32 SPELL_MOGRAINE_GROUND_DAMAGE = 97004;
-constexpr uint32 SPELL_MOGRAINE_GROUND_HEAL = 97005;
-constexpr int32 BrandTicks = 4;
-constexpr int32 OathTicks = 4;
-// Consécration de Mograine: every this long in combat, for this many pulses a second apart, this far around
-constexpr uint32 GroundEveryMs = 10000;
-constexpr uint32 GroundPulses = 6;
-constexpr float GroundRadius = 8.0f;
+// The powers' spells: localTools/legendary/Spells.ps1, every one of them the wearer's own (its name and icon in the
+// combat log and Details). None of them feeds a power again. The Scarlet Cathedral's are 97000-97005, the other
+// dungeons' 97700-97999: the Barbarian's own spells sit between (97100-97299).
+bool IsOwnSpell(SpellInfo const* spellInfo)
+{
+    if (!spellInfo)
+        return false;
+    uint32 const id = spellInfo->Id;
+    return (id >= 97000 && id <= 97005) || (id >= 97700 && id <= 97999);
+}
 
-// The slots' budgets: a cloak (Cloak of Burning Dusk, 284: its armour the same for every wearer) and a ring (Ring of
-// Phased Regeneration, 284) share one; gloves (the Icecrown heroic ones, 277) carry more, and the armour of the
-// looter's type
+// Health below which "low health" powers (Execute, Last Stand) act, and the Bulwark's threshold
+constexpr float LowHealthPct = 35.0f;
+constexpr float BulwarkHealthPct = 50.0f;
+// An overhealing shield never holds more than this share of its target's health
+constexpr float OverhealShieldCapPct = 20.0f;
+
+// The slots' budgets at a reference item level, from the best stock items there (2026-10-07: the medians of the
+// item level 277 epics per slot). A cloak and a ring share one (the Cloak of Burning Dusk and the Ring of Phased
+// Regeneration, 284); a trinket takes a neck's.
 constexpr Budget CloakBudget = { 284.0f, 83, 83, 118, 69, { 189, 189, 189, 189 } };
 constexpr Budget RingBudget = { 284.0f, 83, 83, 118, 69, { 0, 0, 0, 0 } };
 constexpr Budget GlovesBudget = { 277.0f, 147, 155, 209, 86, { 231, 434, 964, 1723 } };
+constexpr Budget HeadBudget = { 277.0f, 149, 144, 186, 110, { 300, 564, 1253, 2239 } };
+constexpr Budget ShoulderBudget = { 277.0f, 128, 107, 150, 86, { 277, 521, 1157, 2067 } };
+constexpr Budget ChestBudget = { 277.0f, 153, 144, 195, 114, { 369, 694, 1542, 2756 } };
+constexpr Budget WaistBudget = { 277.0f, 112, 105, 140, 82, { 208, 391, 867, 1550 } };
+constexpr Budget LegsBudget = { 277.0f, 139, 144, 195, 114, { 323, 608, 1349, 2412 } };
+constexpr Budget FeetBudget = { 277.0f, 103, 107, 140, 82, { 254, 477, 1060, 1895 } };
+constexpr Budget WristBudget = { 277.0f, 102, 80, 110, 64, { 162, 304, 675, 1206 } };
+constexpr Budget NeckBudget = { 277.0f, 78, 102, 110, 62, { 0, 0, 0, 0 } };
 
-// The Scarlet Cathedral's Mythic+ (Scarlet Monastery, Dungeon Finder dungeon 164); localTools/patchSinisterStrike.ps1
-// and the module's world SQL hold their base items
-std::array<Definition, 3> const Definitions = { {
-    // A cloak in the Scarlet Onslaught's red (item 24567): 5-10% at +2, 25-35% at +60
-    { 1, 24567, POWER_INQUISITOR_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Mythic::GetItemLevel(2), CloakBudget, 164 },
-    // A ring (item 996): 10-15% of the health at +2, 40-50% at +60
-    { 2, 996, POWER_WHITEMANE_OATH, 10.0f, 15.0f, 40.0f, 50.0f, Mythic::GetItemLevel(2), RingBudget, 164 },
-    // Gloves in Turalyon's red and gold (item 21428): 5-10% of the attack or spell power at +2, 25-35% at +60
-    { 3, 21428, POWER_MOGRAINE_GROUND, 5.0f, 10.0f, 25.0f, 35.0f, Mythic::GetItemLevel(2), GlovesBudget, 164 },
+// The Mythic+ pool's dungeons (Dungeon Finder ids: mod-playerbots RaidFinder.cpp MythicDungeons)
+constexpr uint32 ScarletCathedral = 164;
+constexpr uint32 Mechanar = 192;
+constexpr uint32 UtgardeKeep = 242;
+constexpr uint32 ShatteredHalls = 189;
+constexpr uint32 Deadmines = 6;
+constexpr uint32 DrakTharon = 215;
+constexpr uint32 ForgeOfSouls = 252;
+constexpr uint32 HallsOfLightning = 212;
+
+uint32 const Floor = Mythic::GetItemLevel(2);
+
+// Every legendary: its base item (Item.dbc rows with no template of their own, given one in the module's world SQL and
+// their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
+// budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
+// own type. Three per dungeon.
+std::array<Definition, 24> const Definitions = { {
+    // --- The Scarlet Cathedral ---
+    // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
+    { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
+      { .spell = 97000, .count = 4 } },
+    // Serment de Whitemane, a ring (996): a killing blow leaves 1 health, 10-15% -> 40-50% of it back over 4 sec
+    { 2, 996, KIND_OATH, 10.0f, 15.0f, 40.0f, 50.0f, Floor, RingBudget, ScarletCathedral,
+      { .spell = 97001, .spell2 = 97002, .count = 4 } },
+    // Consécration de Mograine, gloves (21428): holy ground every 10 sec, 5-10% -> 25-35% of AP or SP a second
+    { 3, 21428, KIND_GROUND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, GlovesBudget, ScarletCathedral,
+      { .spell = 97003, .spell2 = 97004, .spell3 = 97005, .everyMs = 10000, .count = 6, .radius = 8.0f } },
+
+    // --- The Mechanar ---
+    // Bouclier de Capacitus, shoulders (21424): melee blows taken strike back as Arcane, 10-15% -> 40-50%
+    { 4, 21424, KIND_THORNS, 10.0f, 15.0f, 40.0f, 50.0f, Floor, ShoulderBudget, Mechanar,
+      { .spell = 97700 } },
+    // Abaque de Pathaleon, a trinket (1258): 15% of direct hits haste 5-8% -> 15-20% for 8 sec, once per 30 sec
+    { 5, 1258, KIND_SURGE, 5.0f, 8.0f, 15.0f, 20.0f, Floor, NeckBudget, Mechanar,
+      { .spell = 97710, .chance = 15.0f, .cooldownMs = 30000 } },
+    // Brassards de Sepethrea, bracers (21432): spells burn as Fire over 4 sec, 8-12% -> 30-40%
+    { 6, 21432, KIND_BRAND, 8.0f, 12.0f, 30.0f, 40.0f, Floor, WristBudget, Mechanar,
+      { .spell = 97720, .count = 4, .filter = FILTER_SPELL } },
+
+    // --- Utgarde Keep ---
+    // Ceinture d'Ingvar, a belt (21425): every 5th direct hit, a shadow axe, 50-70% -> 180-240% of AP or SP
+    { 7, 21425, KIND_ECHO, 50.0f, 70.0f, 180.0f, 240.0f, Floor, WaistBudget, UtgardeKeep,
+      { .spell = 97730, .count = 5 } },
+    // Tombeau de Keleseth, a chest (21420): below 35% health, 10-15% -> 30-40% less damage taken
+    { 8, 21420, KIND_LAST_STAND, 10.0f, 15.0f, 30.0f, 40.0f, Floor, ChestBudget, UtgardeKeep,
+      { .spell = 97740 } },
+    // Appel d'Annhylde, a neck (26541): a kill, 5-8% -> 15-20% more damage for 10 sec
+    { 9, 26541, KIND_KILL_FRENZY, 5.0f, 8.0f, 15.0f, 20.0f, Floor, NeckBudget, UtgardeKeep,
+      { .spell = 97750 } },
+
+    // --- The Shattered Halls ---
+    // Poignes de Kargath, gloves (21437): direct damage to 4 more enemies within 6 yd of the target, 10-15% -> 35-45%
+    { 10, 21437, KIND_CLEAVE, 10.0f, 15.0f, 35.0f, 45.0f, Floor, GlovesBudget, ShatteredHalls,
+      { .spell = 97760, .count = 4, .radius = 6.0f } },
+    // Bandelettes de Nethekurse, bracers (21433): damage over time 8-12% -> 30-40% stronger
+    { 11, 21433, KIND_DOT_FEAST, 8.0f, 12.0f, 30.0f, 40.0f, Floor, WristBudget, ShatteredHalls, {} },
+    // Chevalière de Porung, a ring (5828): 2-3% -> 6-8% of direct damage heals
+    { 12, 5828, KIND_LEECH, 2.0f, 3.0f, 6.0f, 8.0f, Floor, RingBudget, ShatteredHalls,
+      { .spell = 97780 } },
+
+    // --- The Deadmines ---
+    // Plastron de VanCleef, a chest (21421): 8-12% -> 30-40% more damage to enemies below 35% health
+    { 13, 21421, KIND_EXECUTE, 8.0f, 12.0f, 30.0f, 40.0f, Floor, ChestBudget, Deadmines, {} },
+    // Ceinture à poudre de Gilnid, a belt (21429): kills blow up, 50-80% -> 200-260% of AP or SP within 8 yd
+    { 14, 21429, KIND_KILL_NOVA, 50.0f, 80.0f, 200.0f, 260.0f, Floor, WaistBudget, Deadmines,
+      { .spell = 97800, .radius = 8.0f } },
+    // Moufles de Cookie, gloves (21444): every 5 sec, the most hurt ally healed, 50-80% -> 200-260% of AP or SP
+    { 15, 21444, KIND_RENEW_ALLIES, 50.0f, 80.0f, 200.0f, 260.0f, Floor, GlovesBudget, Deadmines,
+      { .spell = 97810, .everyMs = 5000, .radius = 40.0f } },
+
+    // --- Drak'Tharon Keep ---
+    // Griffes du roi Dred, boots (18161): weapon blows bleed over 6 sec, 5-10% -> 25-35%
+    { 16, 18161, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, FeetBudget, DrakTharon,
+      { .spell = 97820, .count = 6, .filter = FILTER_WEAPON } },
+    // Robe de Novos, a robe (21430): 15-25% -> 50-70% of overhealing shields its target
+    { 17, 21430, KIND_OVERHEAL_SHIELD, 15.0f, 25.0f, 50.0f, 70.0f, Floor, ChestBudget, DrakTharon,
+      { .spell = 97830 } },
+    // Pendentif de Tharon'ja, a neck (27218): 8-12% -> 30-40% of a heal on the most hurt other ally within 40 yd
+    { 18, 27218, KIND_HEAL_SPLASH, 8.0f, 12.0f, 30.0f, 40.0f, Floor, NeckBudget, DrakTharon,
+      { .spell = 97840, .radius = 40.0f } },
+
+    // --- The Forge of Souls ---
+    // Jambières du Dévoreur, legs (21423): a well of souls every 10 sec, 8-13% -> 35-45% of AP or SP a second
+    { 19, 21423, KIND_GROUND, 8.0f, 13.0f, 35.0f, 45.0f, Floor, LegsBudget, ForgeOfSouls,
+      { .spell = 97850, .spell2 = 97851, .everyMs = 10000, .count = 6, .radius = 8.0f } },
+    // Heaume de Bronjahm, a helm (21434): a kill gives back 2-3% -> 6-8% of the health over 4 sec
+    { 20, 21434, KIND_KILL_HEAL, 2.0f, 3.0f, 6.0f, 8.0f, Floor, HeadBudget, ForgeOfSouls,
+      { .spell = 97860, .count = 4 } },
+    // L'Âme reflétée, a ring (6673): 10-15% -> 40-50% of direct damage to another enemy within 10 yd
+    { 21, 6673, KIND_CHAIN, 10.0f, 15.0f, 40.0f, 50.0f, Floor, RingBudget, ForgeOfSouls,
+      { .spell = 97870, .count = 1, .radius = 10.0f } },
+
+    // --- The Halls of Lightning ---
+    // Étincelle d'Ionar, a trinket (8688): a hit leaps to 3 enemies within 10 yd, 20-30% -> 80-100%, every 2 sec
+    { 22, 8688, KIND_CHAIN, 20.0f, 30.0f, 80.0f, 100.0f, Floor, NeckBudget, HallsOfLightning,
+      { .spell = 97880, .count = 3, .radius = 10.0f, .cooldownMs = 2000 } },
+    // Poings de Loken, gloves (21450): a lightning nova every 6 sec, 30-50% -> 130-170% of AP or SP within 10 yd
+    { 23, 21450, KIND_PULSE, 30.0f, 50.0f, 130.0f, 170.0f, Floor, GlovesBudget, HallsOfLightning,
+      { .spell = 97891, .spell2 = 97890, .everyMs = 6000, .radius = 10.0f } },
+    // Chevalière de Bjarngrim, a ring (6674): below 50% health, a shield of 10-15% -> 30-40% of it, once per min
+    { 24, 6674, KIND_BULWARK, 10.0f, 15.0f, 30.0f, 40.0f, Floor, RingBudget, HallsOfLightning,
+      { .spell = 97900, .spell2 = 97901 } },
 } };
 
 // The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
@@ -278,22 +383,55 @@ void Save(ObjectGuid::LowType guid, ObjectGuid::LowType owner, Copy const& copy)
 
 constexpr char const* WornKey = "LegendaryWorn";
 
-struct Worn : public DataMap::Base
+// A worn legendary's running state on its wearer: timers, a hit counter, a ground's pulses, healing waiting to land
+struct PowerState
 {
-    // Per equipment slot: the power it gives and its strength (0: none)
-    std::array<std::pair<uint32, float>, EQUIPMENT_SLOT_END> slots = {};
-    // Consécration de Mograine: time to the next ground in combat, its pulses left and time to the next
-    uint32 groundIn = 0;
+    uint32 timer = 0;
+    uint32 counter = 0;
     uint32 pulsesLeft = 0;
     uint32 pulseIn = 0;
+    uint32 readyAt = 0;             // getMSTime() from which a power with a cooldown may act again
+    float pending = 0.0f;
+};
 
-    float Total(Power power) const
+struct Worn : public DataMap::Base
+{
+    // Per equipment slot: the legendary worn there and its strength (0: none)
+    std::array<std::pair<uint32, float>, EQUIPMENT_SLOT_END> slots = {};
+    std::unordered_map<uint32, PowerState> states;
+
+    // Every legendary worn, once, with its strength: two copies of one add up
+    template <typename Visit>
+    void ForEach(Kind kind, Visit visit)
     {
-        float total = 0.0f;
-        for (auto const& [worn, value] : slots)
-            if (worn == power)
-                total += value;
-        return total;
+        std::array<std::pair<Definition const*, float>, EQUIPMENT_SLOT_END> seen = {};
+        size_t count = 0;
+        for (auto const& [legendary, value] : slots)
+        {
+            if (!legendary || value <= 0.0f)
+                continue;
+            Definition const* definition = GetDefinition(legendary);
+            if (!definition || definition->kind != kind)
+                continue;
+            auto found = std::find_if(seen.begin(), seen.begin() + count,
+                [definition](auto const& entry) { return entry.first == definition; });
+            if (found != seen.begin() + count)
+                found->second += value;
+            else
+                seen[count++] = { definition, value };
+        }
+        for (size_t index = 0; index < count; ++index)
+            visit(*seen[index].first, seen[index].second, states[seen[index].first->id]);
+    }
+
+    bool Wears(Kind kind)
+    {
+        for (auto const& [legendary, value] : slots)
+            if (legendary && value > 0.0f)
+                if (Definition const* definition = GetDefinition(legendary))
+                    if (definition->kind == kind)
+                        return true;
+        return false;
     }
 };
 
@@ -302,6 +440,91 @@ Worn* GetWorn(Player* player)
     return player->CustomData.GetDefault<Worn>(WornKey);
 }
 
+// What a share of "attack or spell power" is taken of: the higher of the two, for the power's own school
+float PowerOf(Player* player, uint32 spell)
+{
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spell);
+    SpellSchoolMask const school = spellInfo ? spellInfo->GetSchoolMask() : SPELL_SCHOOL_MASK_HOLY;
+    return std::max({ player->GetTotalAttackPowerValue(BASE_ATTACK),
+        float(player->SpellBaseDamageBonusDone(school)), float(player->SpellBaseHealingBonusDone(school)) });
+}
+
+int32 Share(float of, float percent)
+{
+    return std::max(1, int32(std::lround(of * percent / 100.0f)));
+}
+
+// The living enemies of the wearer within radius of a point
+std::list<Unit*> EnemiesAround(Player* player, WorldObject* center, float radius)
+{
+    std::list<Unit*> enemies;
+    Acore::AnyUnfriendlyUnitInObjectRangeCheck check(center, player, radius);
+    Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(center, enemies, check);
+    Cell::VisitObjects(center, searcher, radius);
+    enemies.remove_if([player](Unit* enemy) { return !enemy->IsAlive() || !player->IsValidAttackTarget(enemy); });
+    return enemies;
+}
+
+// The wearer's group in the map, living, within radius of a point; alone, the wearer
+std::vector<Player*> AlliesAround(Player* player, WorldObject* center, float radius)
+{
+    std::vector<Player*> allies;
+    auto consider = [&allies, player, center, radius](Player* ally)
+    {
+        if (ally && ally->IsAlive() && ally->IsInMap(player) && ally->IsWithinDistInMap(center, radius))
+            allies.push_back(ally);
+    };
+    if (Group* group = player->GetGroup())
+    {
+        for (GroupReference* reference = group->GetFirstMember(); reference; reference = reference->next())
+            consider(reference->GetSource());
+    }
+    else
+        consider(player);
+    return allies;
+}
+
+// The most hurt of them (by share of health), not at full health; nullptr if none
+Player* MostHurt(std::vector<Player*> const& allies, Unit const* except = nullptr)
+{
+    Player* chosen = nullptr;
+    for (Player* ally : allies)
+        if (ally != except && !ally->IsFullHealth() &&
+            (!chosen || ally->GetHealthPct() < chosen->GetHealthPct()))
+            chosen = ally;
+    return chosen;
+}
+
+// A power with a cooldown: whether it may act again (readyAt: getMSTime() from which it may; the clock wraps)
+bool Ready(uint32 readyAt, uint32 now)
+{
+    return int32(now - readyAt) >= 0;
+}
+
+bool Matches(Filter filter, SpellInfo const* spellInfo)
+{
+    if (filter == FILTER_ANY)
+        return true;
+    bool const weapon = !spellInfo || spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE ||
+        spellInfo->DmgClass == SPELL_DAMAGE_CLASS_RANGED;
+    return filter == FILTER_WEAPON ? weapon : !weapon;
+}
+
+bool IsDamageOverTime(SpellInfo const* spellInfo)
+{
+    return spellInfo && (spellInfo->HasAura(SPELL_AURA_PERIODIC_DAMAGE) ||
+        spellInfo->HasAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT) || spellInfo->HasAura(SPELL_AURA_PERIODIC_LEECH));
+}
+
+void Cast(Player* player, Unit* target, uint32 spell, int32 amount)
+{
+    player->CastCustomSpell(target, spell, &amount, nullptr, nullptr, true);
+}
+
+// A heal-over-time tick reaches ModifyHealReceived right after ModifyPeriodicDamageAurasTick (SpellAuraEffects.cpp);
+// a heal power only takes direct heals, so the tick is marked on its way through
+thread_local bool HealTickPending = false;
+
 class LegendaryPlayerScript : public PlayerScript
 {
 public:
@@ -309,7 +532,9 @@ public:
         PLAYERHOOK_ON_AFTER_APPLY_ITEM_BONUSES,
         PLAYERHOOK_ON_UPDATE,
         PLAYERHOOK_ON_LOGIN,
-        PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE
+        PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE,
+        PLAYERHOOK_ON_CREATURE_KILL,
+        PLAYERHOOK_ON_CREATURE_KILLED_BY_PET
     }) { }
 
     // A worn copy's own armour and stats, through the core's own item stat code, and its power
@@ -325,78 +550,175 @@ public:
             player->ApplyItemStatMod(type, value, apply);
 
         Definition const* definition = GetDefinition(copy->legendary);
-        if (definition && slot < EQUIPMENT_SLOT_END)
-            GetWorn(player)->slots[slot] = apply ? std::make_pair(uint32(definition->power), copy->power) :
-                std::make_pair(0u, 0.0f);
+        if (!definition || slot >= EQUIPMENT_SLOT_END)
+            return;
+        GetWorn(player)->slots[slot] = apply ? std::make_pair(definition->id, copy->power) :
+            std::make_pair(0u, 0.0f);
+        // A buff the power keeps up goes with it; a spent debuff stays (taking it off and on is no way around it)
+        if (!apply && (definition->kind == KIND_LAST_STAND || definition->kind == KIND_KILL_FRENZY ||
+            definition->kind == KIND_SURGE))
+            player->RemoveAurasDueToSpell(definition->tuning.spell);
     }
 
-    // Consécration de Mograine: every GroundEveryMs in combat (at once when a fight starts), consecrated ground where
-    // the wearer stands for GroundPulses seconds - a persistent area, Consecration's - and a pulse every second: what it
-    // deals to each enemy and heals each ally on it, the rolled share of the wearer's attack or spell power, whichever
-    // is higher
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         Worn* worn = GetWorn(player);
-        float const percent = worn->Total(POWER_MOGRAINE_GROUND);
-        if (percent <= 0.0f || !player->IsAlive())
+        bool const alive = player->IsAlive();
+
+        // Grounds (Consécration de Mograine, Jambières du Dévoreur): every everyMs in combat (at once when a fight
+        // starts), the ground where the wearer stands - a persistent area, laid and left - pulsing every second
+        worn->ForEach(KIND_GROUND, [player, diff, alive](Definition const& definition, float percent, PowerState& state)
         {
-            worn->pulsesLeft = 0;
-            return;
-        }
-        if (worn->pulsesLeft)
-        {
-            worn->pulseIn = worn->pulseIn > diff ? worn->pulseIn - diff : 0;
-            if (!worn->pulseIn)
+            Tuning const& tuning = definition.tuning;
+            if (!alive)
             {
-                worn->pulseIn = 1000;
-                --worn->pulsesLeft;
-                // Around the ground, where it was laid; gone (the wearer left the map), nothing more
-                if (DynamicObject* ground = player->GetDynObject(SPELL_MOGRAINE_GROUND))
-                    Pulse(player, ground, percent);
-                else
-                    worn->pulsesLeft = 0;
+                state.pulsesLeft = 0;
+                return;
             }
-        }
-        if (!player->IsInCombat())
+            if (state.pulsesLeft)
+            {
+                state.pulseIn = state.pulseIn > diff ? state.pulseIn - diff : 0;
+                if (!state.pulseIn)
+                {
+                    state.pulseIn = 1000;
+                    --state.pulsesLeft;
+                    // Around the ground, where it was laid; gone (the wearer left the map), nothing more
+                    if (DynamicObject* ground = player->GetDynObject(tuning.spell))
+                        GroundPulse(player, ground, definition, percent);
+                    else
+                        state.pulsesLeft = 0;
+                }
+            }
+            if (!player->IsInCombat())
+            {
+                state.timer = 0;
+                return;
+            }
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            state.timer = tuning.everyMs;
+            state.pulsesLeft = tuning.count;
+            state.pulseIn = 0;
+            player->CastSpell(player, tuning.spell, true);
+        });
+
+        // Novas (Poings de Loken): every everyMs in combat, the nova's look on the wearer and its blow on every
+        // enemy around
+        worn->ForEach(KIND_PULSE, [player, diff, alive](Definition const& definition, float percent, PowerState& state)
         {
-            worn->groundIn = 0;
-            return;
-        }
-        worn->groundIn = worn->groundIn > diff ? worn->groundIn - diff : 0;
-        if (worn->groundIn)
-            return;
-        worn->groundIn = GroundEveryMs;
-        worn->pulsesLeft = GroundPulses;
-        worn->pulseIn = 0;
-        player->CastSpell(player, SPELL_MOGRAINE_GROUND, true);
+            if (!alive || !player->IsInCombat())
+            {
+                state.timer = 0;
+                return;
+            }
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            Tuning const& tuning = definition.tuning;
+            state.timer = tuning.everyMs;
+            if (tuning.spell2)
+                player->CastSpell(player, tuning.spell2, true);
+            int32 const amount = Share(PowerOf(player, tuning.spell), percent);
+            for (Unit* enemy : EnemiesAround(player, player, tuning.radius))
+                Cast(player, enemy, tuning.spell, amount);
+        });
+
+        // Allies looked after (Moufles de Cookie): every everyMs in combat, the most hurt one around healed
+        worn->ForEach(KIND_RENEW_ALLIES, [player, diff, alive](Definition const& definition, float percent,
+            PowerState& state)
+        {
+            if (!alive || !player->IsInCombat())
+            {
+                state.timer = 0;
+                return;
+            }
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            Tuning const& tuning = definition.tuning;
+            state.timer = tuning.everyMs;
+            if (Player* ally = MostHurt(AlliesAround(player, player, tuning.radius)))
+                Cast(player, ally, tuning.spell, Share(PowerOf(player, tuning.spell), percent));
+        });
+
+        // Leech (Chevalière de Porung): what the blows have earned, healed once a second - one line a second in the
+        // combat log, not one per hit
+        worn->ForEach(KIND_LEECH, [player, diff, alive](Definition const& definition, float /*percent*/,
+            PowerState& state)
+        {
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            state.timer = 1000;
+            if (alive && state.pending >= 1.0f && !player->IsFullHealth())
+                Cast(player, player, definition.tuning.spell, int32(std::lround(state.pending)));
+            state.pending = 0.0f;
+        });
+
+        // The last stand's look (Tombeau de Keleseth): on while the wearer is below the threshold
+        worn->ForEach(KIND_LAST_STAND, [player, alive](Definition const& definition, float /*percent*/,
+            PowerState& /*state*/)
+        {
+            uint32 const spell = definition.tuning.spell;
+            bool const low = alive && player->HealthBelowPct(int32(LowHealthPct));
+            if (low && !player->HasAura(spell))
+                player->CastSpell(player, spell, true);
+            else if (!low && player->HasAura(spell))
+                player->RemoveAurasDueToSpell(spell);
+        });
     }
 
-    static void Pulse(Player* player, WorldObject* ground, float percent)
+    // A ground's pulse: what it deals to each enemy and heals each ally on it, the rolled share of the wearer's
+    // attack or spell power, whichever is higher
+    static void GroundPulse(Player* player, WorldObject* ground, Definition const& definition, float percent)
     {
-        float const power = std::max(player->GetTotalAttackPowerValue(BASE_ATTACK),
-            float(player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_HOLY)));
-        int32 const amount = std::max(1, int32(std::lround(power * percent / 100.0f)));
+        Tuning const& tuning = definition.tuning;
+        int32 const amount = Share(PowerOf(player, tuning.spell2), percent);
+        for (Unit* enemy : EnemiesAround(player, ground, tuning.radius))
+            Cast(player, enemy, tuning.spell2, amount);
+        if (tuning.spell3)
+            for (Player* ally : AlliesAround(player, ground, tuning.radius))
+                Cast(player, ally, tuning.spell3, amount);
+    }
 
-        std::list<Unit*> enemies;
-        Acore::AnyUnfriendlyUnitInObjectRangeCheck check(ground, player, GroundRadius);
-        Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(ground, enemies, check);
-        Cell::VisitObjects(ground, searcher, GroundRadius);
-        for (Unit* enemy : enemies)
-            if (enemy->IsAlive() && player->IsValidAttackTarget(enemy))
-                player->CastCustomSpell(enemy, SPELL_MOGRAINE_GROUND_DAMAGE, &amount, nullptr, nullptr, true);
+    // A kill (the killing blow, the wearer's or their pet's)
+    void OnPlayerCreatureKill(Player* player, Creature* killed) override
+    {
+        OnKill(player, killed);
+    }
 
-        auto heal = [player, ground, amount](Player* ally)
+    void OnPlayerCreatureKilledByPet(Player* owner, Creature* killed) override
+    {
+        OnKill(owner, killed);
+    }
+
+    static void OnKill(Player* player, Creature* killed)
+    {
+        if (!player || !killed || !player->IsAlive())
+            return;
+        Worn* worn = GetWorn(player);
+        // Appel d'Annhylde: the frenzy's buff, renewed; ModifyFinalDamage reads it
+        worn->ForEach(KIND_KILL_FRENZY, [player](Definition const& definition, float, PowerState&)
         {
-            if (ally && ally->IsAlive() && ally->IsInMap(player) && ally->IsWithinDistInMap(ground, GroundRadius))
-                player->CastCustomSpell(ally, SPELL_MOGRAINE_GROUND_HEAL, &amount, nullptr, nullptr, true);
-        };
-        if (Group* group = player->GetGroup())
+            player->CastSpell(player, definition.tuning.spell, true);
+        });
+        // Ceinture à poudre de Gilnid: the body blows up
+        worn->ForEach(KIND_KILL_NOVA, [player, killed](Definition const& definition, float percent, PowerState&)
         {
-            for (GroupReference* reference = group->GetFirstMember(); reference; reference = reference->next())
-                heal(reference->GetSource());
-        }
-        else
-            heal(player);
+            Tuning const& tuning = definition.tuning;
+            int32 const amount = Share(PowerOf(player, tuning.spell), percent);
+            for (Unit* enemy : EnemiesAround(player, killed, tuning.radius))
+                if (enemy != killed)
+                    Cast(player, enemy, tuning.spell, amount);
+        });
+        // Heaume de Bronjahm: the soul taken heals
+        worn->ForEach(KIND_KILL_HEAL, [player](Definition const& definition, float percent, PowerState&)
+        {
+            Tuning const& tuning = definition.tuning;
+            Cast(player, player, tuning.spell, std::max(1, int32(std::lround(float(player->GetMaxHealth()) *
+                percent / 100.0f / float(std::max(1u, tuning.count))))));
+        });
     }
 
     // Every copy the character carries: marked, and its rolls sent for the tooltips. The base items' records first,
@@ -447,51 +769,252 @@ public:
     }
 };
 
-// Marque de l'Inquisiteur: the wearer's direct damage - a swing, a spell's hit, after mitigation, what the combat log
-// shows - brands its target, X% of it burning as Holy over 4 sec. The core's Ignite rolls what is left of the burn into
-// the new one (Unit::CastDelayedSpellWithPeriodicAmount). Periodic damage never reaches this hook: no loop between
-// damage over time effects, and the burn does not feed itself.
+// The powers on blows and heals. Only direct damage feeds the blow powers (ModifyFinalDamage: swings and spell hits,
+// never periodic damage), and none of the powers' own spells feeds any of them: no loop.
 class LegendaryUnitScript : public UnitScript
 {
 public:
     LegendaryUnitScript() : UnitScript("LegendaryUnitScript", true, {
         UNITHOOK_MODIFY_FINAL_DAMAGE,
-        UNITHOOK_ON_DAMAGE
+        UNITHOOK_ON_DAMAGE,
+        UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
+        UNITHOOK_MODIFY_HEAL_RECEIVED
     }) { }
 
-    // Serment de Whitemane: a blow that would kill the wearer leaves them at 1 health, and the oath heals them for its
-    // rolled share of their health over 4 sec; then it rests for 3 min (its debuff shows how long). Whatever the blow:
-    // a hit, a damage over time effect, a fall.
+    // Whatever the blow - a hit, damage over time, a fall:
+    // - Serment de Whitemane: a blow that would kill the wearer leaves them at 1 health, and the oath heals them for
+    //   its rolled share of their health over 4 sec; then it rests for 3 min (its debuff shows how long);
+    // - Chevalière de Bjarngrim: a blow that takes them below half health raises a shield of its rolled share of
+    //   their health; then it rests for a minute.
     void OnDamage(Unit* /*attacker*/, Unit* victim, uint32& damage) override
     {
         Player* player = victim ? victim->ToPlayer() : nullptr;
-        if (!player || !player->IsAlive() || damage < player->GetHealth() ||
-            player->HasAura(SPELL_WHITEMANE_OATH_SPENT))
+        if (!player || !player->IsAlive() || !damage)
             return;
-        float const percent = GetWorn(player)->Total(POWER_WHITEMANE_OATH);
-        if (percent <= 0.0f)
+        Worn* worn = GetWorn(player);
+        if (damage >= player->GetHealth())
+        {
+            worn->ForEach(KIND_OATH, [player, &damage](Definition const& definition, float percent, PowerState&)
+            {
+                Tuning const& tuning = definition.tuning;
+                if (damage < player->GetHealth() || player->HasAura(tuning.spell2))
+                    return;
+                damage = player->GetHealth() - 1;
+                Cast(player, player, tuning.spell, std::max(1, int32(std::lround(float(player->GetMaxHealth()) *
+                    percent / 100.0f / float(std::max(1u, tuning.count))))));
+                player->CastSpell(player, tuning.spell2, true);
+            });
             return;
-        damage = player->GetHealth() - 1;
-        int32 const perTick = std::max(1, int32(std::lround(float(player->GetMaxHealth()) * percent / 100.0f /
-            OathTicks)));
-        player->CastCustomSpell(player, SPELL_WHITEMANE_OATH_HEAL, &perTick, nullptr, nullptr, true);
-        player->CastSpell(player, SPELL_WHITEMANE_OATH_SPENT, true);
+        }
+        float const threshold = float(player->GetMaxHealth()) * BulwarkHealthPct / 100.0f;
+        if (float(player->GetHealth() - damage) >= threshold)
+            return;
+        worn->ForEach(KIND_BULWARK, [player](Definition const& definition, float percent, PowerState&)
+        {
+            Tuning const& tuning = definition.tuning;
+            if (player->HasAura(tuning.spell2))
+                return;
+            Cast(player, player, tuning.spell, Share(float(player->GetMaxHealth()), percent));
+            player->CastSpell(player, tuning.spell2, true);
+        });
     }
 
     void ModifyFinalDamage(Unit* attacker, Unit* victim, uint32& damage, uint32& /*absorb*/,
                            SpellInfo const* spellInfo) override
     {
-        Player* player = attacker ? attacker->ToPlayer() : nullptr;
-        if (!player || !victim || victim == attacker || !damage || !victim->IsAlive() ||
-            (spellInfo && spellInfo->Id == SPELL_INQUISITOR_BRAND))
+        if (!victim || victim == attacker || !damage || IsOwnSpell(spellInfo))
             return;
-        float const percent = GetWorn(player)->Total(POWER_INQUISITOR_BRAND);
-        if (percent <= 0.0f)
+        if (Player* wearer = victim->ToPlayer())
+            Taken(wearer, attacker, damage, spellInfo);
+        if (Player* player = attacker ? attacker->ToPlayer() : nullptr)
+            if (victim->IsAlive())
+                Dealt(player, victim, damage, spellInfo);
+    }
+
+    // Damage over time: the wearer's grows (Bandelettes de Nethekurse, a frenzy), the wearer's last stand eases what
+    // they take. The hook also carries heal-over-time ticks: those only get marked for ModifyHealReceived.
+    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage,
+                                       SpellInfo const* spellInfo) override
+    {
+        if (spellInfo && spellInfo->HasAura(SPELL_AURA_PERIODIC_HEAL))
+        {
+            HealTickPending = true;
             return;
-        int32 const perTick = int32(std::lround(float(damage) * percent / 100.0f / BrandTicks));
-        if (perTick > 0)
-            victim->CastDelayedSpellWithPeriodicAmount(player, SPELL_INQUISITOR_BRAND, SPELL_AURA_PERIODIC_DAMAGE,
-                perTick);
+        }
+        if (!IsDamageOverTime(spellInfo) || IsOwnSpell(spellInfo) || !damage || target == attacker)
+            return;
+        if (Player* player = attacker ? attacker->ToPlayer() : nullptr)
+        {
+            Worn* worn = GetWorn(player);
+            float bonus = 0.0f;
+            worn->ForEach(KIND_DOT_FEAST, [&bonus](Definition const&, float percent, PowerState&)
+            {
+                bonus += percent;
+            });
+            worn->ForEach(KIND_KILL_FRENZY, [player, &bonus](Definition const& definition, float percent, PowerState&)
+            {
+                if (player->HasAura(definition.tuning.spell))
+                    bonus += percent;
+            });
+            if (bonus > 0.0f)
+                damage = uint32(std::lround(float(damage) * (1.0f + bonus / 100.0f)));
+        }
+        if (Player* wearer = target ? target->ToPlayer() : nullptr)
+            damage = LastStand(wearer, damage);
+    }
+
+    // Direct heals by a wearer (a heal-over-time tick, marked on its way, is not one):
+    // - Robe de Novos: the rolled share of the overhealing shields the target, added to what is left of the shield;
+    // - Pendentif de Tharon'ja: the rolled share of the heal also heals the most hurt other ally around.
+    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
+    {
+        bool const tick = HealTickPending;
+        HealTickPending = false;
+        Player* player = healer ? healer->ToPlayer() : nullptr;
+        if (tick || !player || !target || !heal || !spellInfo || IsOwnSpell(spellInfo) || !target->IsAlive())
+            return;
+        Worn* worn = GetWorn(player);
+        worn->ForEach(KIND_OVERHEAL_SHIELD, [player, target, heal](Definition const& definition, float percent,
+            PowerState&)
+        {
+            uint32 const missing = target->GetMaxHealth() - target->GetHealth();
+            if (heal <= missing)
+                return;
+            uint32 const spell = definition.tuning.spell;
+            float shield = float(heal - missing) * percent / 100.0f;
+            if (AuraEffect const* existing = target->GetAuraEffect(spell, EFFECT_0, player->GetGUID()))
+                shield += float(existing->GetAmount());
+            shield = std::min(shield, float(target->GetMaxHealth()) * OverhealShieldCapPct / 100.0f);
+            if (shield >= 1.0f)
+                Cast(player, target, spell, int32(std::lround(shield)));
+        });
+        worn->ForEach(KIND_HEAL_SPLASH, [player, target, heal](Definition const& definition, float percent,
+            PowerState&)
+        {
+            Tuning const& tuning = definition.tuning;
+            if (Player* ally = MostHurt(AlliesAround(player, player, tuning.radius), target))
+                Cast(player, ally, tuning.spell, Share(float(heal), percent));
+        });
+    }
+
+private:
+    // What a wearer's blow becomes: amplified first (Plastron de VanCleef, a frenzy), then what it sets off
+    static void Dealt(Player* player, Unit* victim, uint32& damage, SpellInfo const* spellInfo)
+    {
+        Worn* worn = GetWorn(player);
+        float bonus = 0.0f;
+        if (victim->HealthBelowPct(int32(LowHealthPct)))
+            worn->ForEach(KIND_EXECUTE, [&bonus](Definition const&, float percent, PowerState&) { bonus += percent; });
+        worn->ForEach(KIND_KILL_FRENZY, [player, &bonus](Definition const& definition, float percent, PowerState&)
+        {
+            if (player->HasAura(definition.tuning.spell))
+                bonus += percent;
+        });
+        if (bonus > 0.0f)
+            damage = uint32(std::lround(float(damage) * (1.0f + bonus / 100.0f)));
+        float const dealt = float(damage);
+
+        // Brands (Marque de l'Inquisiteur, Brassards de Sepethrea, Griffes du roi Dred): the share burns over the
+        // spell's duration; the core's Ignite rolls what is left of the burn into the new one
+        worn->ForEach(KIND_BRAND, [player, victim, dealt, spellInfo](Definition const& definition, float percent,
+            PowerState&)
+        {
+            Tuning const& tuning = definition.tuning;
+            if (!Matches(tuning.filter, spellInfo))
+                return;
+            int32 const perTick = int32(std::lround(dealt * percent / 100.0f / float(std::max(1u, tuning.count))));
+            if (perTick > 0)
+                victim->CastDelayedSpellWithPeriodicAmount(player, tuning.spell, SPELL_AURA_PERIODIC_DAMAGE, perTick);
+        });
+        // Ceinture d'Ingvar: every count-th hit, a blow of its own
+        worn->ForEach(KIND_ECHO, [player, victim](Definition const& definition, float percent, PowerState& state)
+        {
+            Tuning const& tuning = definition.tuning;
+            if (++state.counter < tuning.count)
+                return;
+            state.counter = 0;
+            Cast(player, victim, tuning.spell, Share(PowerOf(player, tuning.spell), percent));
+        });
+        // Poignes de Kargath: the share on enemies around the target
+        worn->ForEach(KIND_CLEAVE, [player, victim, dealt](Definition const& definition, float percent, PowerState&)
+        {
+            Tuning const& tuning = definition.tuning;
+            uint32 hit = 0;
+            for (Unit* enemy : EnemiesAround(player, victim, tuning.radius))
+                if (enemy != victim && hit < tuning.count)
+                {
+                    ++hit;
+                    Cast(player, enemy, tuning.spell, Share(dealt, percent));
+                }
+        });
+        // Chains (Étincelle d'Ionar, L'Âme reflétée): the share leaps to other enemies, nearest first
+        worn->ForEach(KIND_CHAIN, [player, victim, dealt](Definition const& definition, float percent,
+            PowerState& state)
+        {
+            Tuning const& tuning = definition.tuning;
+            uint32 const now = getMSTime();
+            if (tuning.cooldownMs && !Ready(state.readyAt, now))
+                return;
+            std::list<Unit*> enemies = EnemiesAround(player, victim, tuning.radius);
+            enemies.remove(victim);
+            if (enemies.empty())
+                return;
+            enemies.sort([victim](Unit* a, Unit* b) { return victim->GetExactDist(a) < victim->GetExactDist(b); });
+            state.readyAt = now + tuning.cooldownMs;
+            uint32 hit = 0;
+            for (Unit* enemy : enemies)
+            {
+                if (hit++ >= tuning.count)
+                    break;
+                Cast(player, enemy, tuning.spell, Share(dealt, percent));
+            }
+        });
+        // Chevalière de Porung: the share waits to be healed (OnPlayerUpdate, once a second)
+        worn->ForEach(KIND_LEECH, [dealt](Definition const&, float percent, PowerState& state)
+        {
+            state.pending += dealt * percent / 100.0f;
+        });
+        // Abaque de Pathaleon: a chance of the surge, then its rest
+        worn->ForEach(KIND_SURGE, [player](Definition const& definition, float percent, PowerState& state)
+        {
+            Tuning const& tuning = definition.tuning;
+            uint32 const now = getMSTime();
+            if (!Ready(state.readyAt, now) || !roll_chance_f(tuning.chance))
+                return;
+            state.readyAt = now + tuning.cooldownMs;
+            int32 const haste = std::max(1, int32(std::lround(percent)));
+            player->CastCustomSpell(player, tuning.spell, &haste, &haste, nullptr, true);
+        });
+    }
+
+    // What a wearer's taken blow becomes: eased by a last stand, struck back by thorns (melee swings: no spell)
+    static void Taken(Player* wearer, Unit* attacker, uint32& damage, SpellInfo const* spellInfo)
+    {
+        damage = LastStand(wearer, damage);
+        if (spellInfo || !attacker || !attacker->IsAlive() || !damage)
+            return;
+        uint32 const taken = damage;
+        GetWorn(wearer)->ForEach(KIND_THORNS, [wearer, attacker, taken](Definition const& definition, float percent,
+            PowerState&)
+        {
+            if (wearer->IsValidAttackTarget(attacker))
+                Cast(wearer, attacker, definition.tuning.spell, Share(float(taken), percent));
+        });
+    }
+
+    // Tombeau de Keleseth: below the threshold, the rolled share less
+    static uint32 LastStand(Player* wearer, uint32 damage)
+    {
+        if (!wearer->HealthBelowPct(int32(LowHealthPct)))
+            return damage;
+        float reduction = 0.0f;
+        GetWorn(wearer)->ForEach(KIND_LAST_STAND, [&reduction](Definition const&, float percent, PowerState&)
+        {
+            reduction += percent;
+        });
+        if (reduction <= 0.0f)
+            return damage;
+        return uint32(std::lround(float(damage) * std::max(0.0f, 1.0f - reduction / 100.0f)));
     }
 };
 

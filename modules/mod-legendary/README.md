@@ -21,16 +21,58 @@ The Forge never takes legendaries.
 | 1 | Marque de l'Inquisiteur | 24567, cloak | Scarlet Cathedral, Mythic+ (dungeon 164) | Direct damage brands the target: X% of it burns as Holy over 4 sec (5-10% at +2, 25-35% at +60) |
 | 2 | Serment de Whitemane | 996, ring | Scarlet Cathedral, Mythic+ (dungeon 164) | A killing blow leaves 1 health and heals X% of the health over 4 sec, once per 3 min (10-15% at +2, 40-50% at +60) |
 | 3 | Consécration de Mograine | 21428, gloves (misc armour: every class; armour of the looter's type) | Scarlet Cathedral, Mythic+ (dungeon 164) | Every 10 sec in combat, ground where the wearer stands for 6 sec: each second X% of the attack or spell power to enemies and allies within 8 yd (5-10% at +2, 25-35% at +60) |
+| 4 | Épaulières de Capacitus | 21424, shoulders | The Mechanar (192) | Melee blows taken strike back: X% as Arcane (10-15% -> 40-50%) |
+| 5 | Abaque de Pathaleon | 1258, trinket | The Mechanar (192) | 15% of direct hits: X% haste for 8 sec, once per 30 sec (5-8% -> 15-20%) |
+| 6 | Brassards de Sepethrea | 21432, bracers | The Mechanar (192) | Spells burn the target: X% of the damage as Fire over 4 sec (8-12% -> 30-40%) |
+| 7 | Ceinture d'Ingvar | 21425, belt | Utgarde Keep (242) | Every 5th direct hit, a shadow axe: X% of AP or SP (50-70% -> 180-240%) |
+| 8 | Cuirasse de Keleseth | 21420, chest | Utgarde Keep (242) | Below 35% health, X% less damage taken (10-15% -> 30-40%) |
+| 9 | Collier d'Annhylde | 26541, neck | Utgarde Keep (242) | A kill: X% more damage for 10 sec (5-8% -> 15-20%) |
+| 10 | Poignes de Kargath | 21437, gloves | The Shattered Halls (189) | Direct damage hits 4 more enemies within 6 yd of the target for X% (10-15% -> 35-45%) |
+| 11 | Bandelettes de Nethekurse | 21433, bracers | The Shattered Halls (189) | Damage over time X% stronger (8-12% -> 30-40%) |
+| 12 | Chevalière de Porung | 5828, ring | The Shattered Halls (189) | X% of direct damage heals, once a second (2-3% -> 6-8%) |
+| 13 | Plastron de VanCleef | 21421, chest | The Deadmines (6) | X% more damage to enemies below 35% health (8-12% -> 30-40%) |
+| 14 | Ceinture à poudre de Gilnid | 21429, belt | The Deadmines (6) | Kills explode: X% of AP or SP as Fire within 8 yd (50-80% -> 200-260%) |
+| 15 | Moufles de Cookie | 21444, gloves | The Deadmines (6) | Every 5 sec in combat, the most hurt ally within 40 yd healed for X% of AP or SP (50-80% -> 200-260%) |
+| 16 | Bottes du roi Dred | 18161, boots | Drak'Tharon Keep (215) | Weapon blows bleed: X% of the damage over 6 sec (5-10% -> 25-35%) |
+| 17 | Robe de Novos | 21430, robe | Drak'Tharon Keep (215) | X% of a direct heal's overhealing shields the target for 10 sec, up to 20% of its health (15-25% -> 50-70%) |
+| 18 | Pendentif de Tharon'ja | 27218, neck | Drak'Tharon Keep (215) | Direct heals also heal the most hurt other ally within 40 yd for X% (8-12% -> 30-40%) |
+| 19 | Jambières du Dévoreur | 21423, legs | The Forge of Souls (252) | Every 10 sec in combat, a well of souls for 6 sec: X% of AP or SP as Shadow a second within 8 yd (8-13% -> 35-45%) |
+| 20 | Heaume de Bronjahm | 21434, helm | The Forge of Souls (252) | A kill heals X% of the health over 4 sec (2-3% -> 6-8%) |
+| 21 | Anneau de l'âme reflétée | 6673, ring | The Forge of Souls (252) | X% of direct damage also hits the enemy nearest the target, within 10 yd (10-15% -> 40-50%) |
+| 22 | Étincelle d'Ionar | 8688, trinket | Halls of Lightning (212) | A direct hit leaps to 3 enemies within 10 yd for X%, once per 2 sec (20-30% -> 80-100%) |
+| 23 | Poings de Loken | 21450, gloves | Halls of Lightning (212) | Every 6 sec in combat, a lightning nova: X% of AP or SP within 10 yd (30-50% -> 130-170%) |
+| 24 | Chevalière de Bjarngrim | 6674, ring | Halls of Lightning (212) | Dropping below 50% health: a shield of X% of the health for 10 sec, once per minute (10-15% -> 30-40%) |
 
-Each slot has its stat budget (`Budget`: the best stock items at a reference item level). Serment de Whitemane works
-in `OnDamage` (any blow: a hit, damage over time, a fall), its heal 97001 and its 3 min shown by the debuff 97002.
-Consécration de Mograine lays a persistent area where the wearer stands (97003, Consecration's row and look; it does
-not follow them) and pulses around it every second from `OnPlayerUpdate`: 97004 on each enemy, 97005 on each group
-member on it.
+Windows read "+2 -> +60": the bottom one where a legendary drops lowest, the top one at +60 and in raids. Legendaries
+4-24 are misc armour (every class wears them, their armour rolled for the looter's type), rings, necks and trinkets:
+Item.dbc rows with no template of their own, given one by `localTools/legendary/buildLegendaryItemSql.py` (copied
+from the item whose look they wear, a look their own dungeon's bosses drop in that slot) and their look and icon by
+`localTools/patchSinisterStrike.ps1`. Each has one painted icon, its item's and its power's alike, and no frames.
 
-The brand (spell 97000, `localTools/legendary/Spells.ps1`) is a real periodic aura cast by the wearer, so the combat
-log and Details credit them with it on its own line. Only direct damage feeds it (`ModifyFinalDamage`: swings and
-spell hits, never periodic damage); what is left of the burn rolls into the new one (the core's Ignite).
+Each slot has its stat budget (`Budget`: the median of the item level 277 epics of that slot, the three Cathedral
+ones the best stock items at a reference item level).
+
+### Powers
+
+A power is one of a handful of mechanics (`Kind`, Legendary.h), written once and taken by any number of legendaries
+with their own spells and numbers (`Tuning`). Its rolled value is always a percentage:
+
+- on direct damage dealt (`ModifyFinalDamage`: swings and spell hits, never periodic damage): brands (a burn of the
+  share over the spell's duration, rolled into the next by the core's Ignite; any blow, weapon blows or spells),
+  echoes (every Nth hit), cleaves, chains (with a cooldown or none), leech (healed once a second), a haste surge, and
+  the amplifiers - execute and a kill's frenzy (also on damage over time);
+- on damage taken: the oath and the bulwark (`OnDamage`, any blow), thorns on melee swings and the last stand
+  (`ModifyFinalDamage`, `ModifyPeriodicDamageAurasTick`);
+- on direct heals (`ModifyHealReceived`; a heal-over-time tick is marked on its way through
+  `ModifyPeriodicDamageAurasTick` and left out): the overhealing shield and the heal splash;
+- on kills, the wearer's or their pet's: the frenzy, the explosion, the soul's heal;
+- on a timer in combat (`OnPlayerUpdate`): grounds (a persistent area laid and left, pulsing every second), novas and
+  a heal for the most hurt ally.
+
+Every one of them is a spell of the wearer's (`localTools/legendary/Spells.ps1`: 97000-97005 and 97700-97999, the
+Barbarian's between), so the combat log and Details credit the wearer with it on a line of its own; none of them
+feeds a power again. Their looks are their own dungeon's, mostly their boss's own spell visual (Loken's Lightning
+Nova, the Devourer's Mirrored Soul, Cookie's Cooking...).
 
 ## Client
 

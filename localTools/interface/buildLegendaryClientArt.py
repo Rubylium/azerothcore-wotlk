@@ -92,10 +92,41 @@ def build(legendary):
     print(f"{legendary['name']}: icons, item frame and glow, tooltip atlas")
 
 
+# The other dungeons' legendaries (mod-legendary Definitions 4-24): one painted icon each and nothing else - no frame,
+# no tooltip frame (those stay for a few chosen items). Its item and its power's spell share it. Painted at 256 x 256
+# into clientPatcher/assets/legendaryIcons/png/<icon>.png (.agents/plans/legendary-items/dungeon-legendaries.ASSETS.md);
+# one not painted yet is skipped, and the game shows its look's own icon meanwhile (localTools/patchSinisterStrike.ps1).
+ICON_ONLY = REPO / "clientPatcher" / "assets" / "legendaryIcons" / "png"
+ICON_ONLY_NAMES = [
+    "INV_Legendary_EpaulieresCapacitus", "INV_Legendary_AbaquePathaleon", "INV_Legendary_BrassardsSepethrea",
+    "INV_Legendary_CeintureIngvar", "INV_Legendary_CuirasseKeleseth", "INV_Legendary_CollierAnnhylde",
+    "INV_Legendary_PoignesKargath", "INV_Legendary_BandelettesNethekurse", "INV_Legendary_ChevalierePorung",
+    "INV_Legendary_PlastronVanCleef", "INV_Legendary_PoudreGilnid", "INV_Legendary_MouflesCookie",
+    "INV_Legendary_BottesDred", "INV_Legendary_RobeNovos", "INV_Legendary_PendentifTharonja",
+    "INV_Legendary_JambieresDevoreur", "INV_Legendary_HeaumeBronjahm", "INV_Legendary_AnneauAmeRefletee",
+    "INV_Legendary_EtincelleIonar", "INV_Legendary_PoingsLoken", "INV_Legendary_ChevaliereBjarngrim",
+]
+
+
+def build_icons():
+    painted = 0
+    for name in ICON_ONLY_NAMES:
+        source = ICON_ONLY / f"{name}.png"
+        if not source.exists():
+            continue
+        image = Image.open(source)
+        if image.width != image.height:
+            raise SystemExit(f"{source.name} is {image.width} x {image.height}: an icon is square")
+        write_icon_tga(image, ICONS / f"{name}.tga")
+        painted += 1
+    print(f"Dungeon legendaries: {painted} of {len(ICON_ONLY_NAMES)} icons painted")
+
+
 def main():
     FRAMES.mkdir(parents=True, exist_ok=True)
     for legendary in LEGENDARIES:
         build(legendary)
+    build_icons()
 
 
 if __name__ == "__main__":

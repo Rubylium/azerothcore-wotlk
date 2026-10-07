@@ -19,11 +19,38 @@ namespace Legendary
 // Mythic+ loot's cap (+60): a power's window is at its top there, and above (raids)
 constexpr uint32 TopItemLevel = 370;
 
-enum Power : uint32
+// What a power does: a mechanic, written once in Legendary.cpp, that a legendary takes with its own spells, numbers
+// and theme. Its rolled value is always a percentage (of what, the mechanic says).
+enum Kind : uint32
 {
-    POWER_INQUISITOR_BRAND = 1,     // Marque de l'Inquisiteur: direct damage brands the target, X% of it burning
-    POWER_WHITEMANE_OATH = 2,       // Serment de Whitemane: a killing blow leaves 1 health and heals X% over 4 sec
-    POWER_MOGRAINE_GROUND = 3,      // Consécration de Mograine: ground that follows, X% of AP or SP every second
+    KIND_BRAND = 1,             // direct damage burns the target: X% of it over the spell's duration (its school)
+    KIND_OATH,                  // a killing blow leaves 1 health and heals X% of it over 4 sec; then rests
+    KIND_GROUND,                // every everyMs in combat, ground where the wearer stands: X% of AP or SP a second
+    KIND_THORNS,                // struck in melee: X% of the blow back at the attacker
+    KIND_SURGE,                 // direct hits may (chance, cooldown) hasten the wearer by X% for the buff's length
+    KIND_ECHO,                  // every count-th direct hit strikes again: X% of AP or SP
+    KIND_LAST_STAND,            // below 35% health, X% less damage taken
+    KIND_KILL_FRENZY,           // a kill: X% more damage done for the buff's length
+    KIND_CLEAVE,                // X% of direct damage to up to count other enemies within radius of the target
+    KIND_DOT_FEAST,             // damage over time deals X% more
+    KIND_LEECH,                 // X% of direct damage dealt heals the wearer (once a second)
+    KIND_EXECUTE,               // X% more damage to enemies below 35% health
+    KIND_KILL_NOVA,             // a kill blows up: X% of AP or SP to enemies within radius of it
+    KIND_RENEW_ALLIES,          // every everyMs in combat, the most hurt ally within radius healed for X% of AP or SP
+    KIND_OVERHEAL_SHIELD,       // X% of a direct heal's overhealing shields its target (up to 20% of its health)
+    KIND_HEAL_SPLASH,           // X% of a direct heal also heals the most hurt other ally within radius
+    KIND_KILL_HEAL,             // a kill heals the wearer for X% of their health over 4 sec
+    KIND_CHAIN,                 // a direct hit (cooldown) leaps to up to count other enemies within radius: X% of it
+    KIND_PULSE,                 // every everyMs in combat, a nova around the wearer: X% of AP or SP within radius
+    KIND_BULWARK,               // dropping below 50% health shields X% of the health; then rests (spent spell)
+};
+
+// Which blows a damage power takes: every direct one, weapon blows only, or spells only
+enum Filter : uint8
+{
+    FILTER_ANY = 0,
+    FILTER_WEAPON,
+    FILTER_SPELL,
 };
 
 // A slot's stats at a reference item level, from the best stock items there; a copy's grow from them with the power
@@ -35,16 +62,31 @@ struct Budget
     std::array<int32, 4> armor;     // by the looter's armour type: cloth, leather, mail, plate
 };
 
+// A power's own numbers, besides its rolled value (0 where the mechanic has no use for one)
+struct Tuning
+{
+    uint32 spell = 0;               // what it casts (its damage, heal, shield or buff: the combat log's line)
+    uint32 spell2 = 0;              // a second one (a visual, a ground's pulse, a spent debuff)
+    uint32 spell3 = 0;              // a third (a ground's heal on allies)
+    uint32 everyMs = 0;             // how often (in combat)
+    uint32 count = 0;               // targets, hits, ticks
+    float radius = 0.0f;
+    float chance = 0.0f;            // percent
+    uint32 cooldownMs = 0;
+    Filter filter = FILTER_ANY;
+};
+
 struct Definition
 {
     uint32 id;
     uint32 baseItem;                // the template (its look, slot, quality); ids below 65536, in Item.dbc
-    Power power;
+    Kind kind;
     // The power's window at the floor item level and at TopItemLevel, in percent
     float bottomLow, bottomHigh, topLow, topHigh;
     uint32 floorItemLevel;          // the lowest item level it drops at (its window's bottom)
     Budget budget;
     uint32 sourceDungeon;           // where it drops: the Dungeon Finder dungeon a Mythic+ key of completes
+    Tuning tuning;
 };
 
 struct Copy
