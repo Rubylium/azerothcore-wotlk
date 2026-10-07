@@ -257,8 +257,25 @@ local function Write(tooltip, copy)
     if price and GameTooltip_ClearMoney then
         GameTooltip_ClearMoney(tooltip)
     end
+    -- The client's own item level line is the base item's (every copy shares its template): it says the copy's
+    -- instead, in place. Without one, the copy's goes with the rolls.
+    local stockLevel = false
+    if name and ITEM_LEVEL then
+        local _, _, _, baseLevel = GetItemInfo(legendary.item)
+        local stock = baseLevel and format(ITEM_LEVEL, baseLevel)
+        for index = 2, tooltip:NumLines() do
+            local line = _G[name .. "TextLeft" .. index]
+            if stock and line and line:GetText() == stock then
+                line:SetText(format(ITEM_LEVEL, copy.itemLevel))
+                stockLevel = true
+                break
+            end
+        end
+    end
     tooltip:AddLine(legendary.source, 1, 0.5, 0)
-    tooltip:AddLine(format(TEXT.itemLevel, copy.itemLevel), 1, 0.82, 0)
+    if not stockLevel then
+        tooltip:AddLine(format(TEXT.itemLevel, copy.itemLevel), 1, 0.82, 0)
+    end
     if copy.armor > 0 then
         tooltip:AddLine(format(ARMOR_TEMPLATE, copy.armor), 1, 1, 1)
     end

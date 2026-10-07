@@ -36,7 +36,7 @@ The Forge never takes legendaries.
 | 16 | Bottes du roi Dred | 18161, boots | Drak'Tharon Keep (215) | Weapon blows bleed: X% of the damage over 6 sec (5-10% -> 25-35%) |
 | 17 | Robe de Novos | 21430, robe | Drak'Tharon Keep (215) | X% of a direct heal's overhealing shields the target for 10 sec, up to 20% of its health (15-25% -> 50-70%) |
 | 18 | Pendentif de Tharon'ja | 27218, neck | Drak'Tharon Keep (215) | Direct heals also heal the most hurt other ally within 40 yd for X% (8-12% -> 30-40%) |
-| 19 | Jambières du Dévoreur | 21423, legs | The Forge of Souls (252) | Every 10 sec in combat, a well of souls for 6 sec: X% of AP or SP as Shadow a second within 8 yd (8-13% -> 35-45%) |
+| 19 | Jambières du Dévoreur | 21423, legs | The Forge of Souls (252) | Every 10 sec in combat, a well of souls for 6 sec: X% of AP or SP as Shadow a second within 6 yd (8-13% -> 35-45%) |
 | 20 | Heaume de Bronjahm | 21434, helm | The Forge of Souls (252) | A kill heals X% of the health over 4 sec (2-3% -> 6-8%) |
 | 21 | Anneau de l'âme reflétée | 6673, ring | The Forge of Souls (252) | X% of direct damage also hits the enemy nearest the target, within 10 yd (10-15% -> 40-50%) |
 | 22 | Étincelle d'Ionar | 8688, trinket | Halls of Lightning (212) | A direct hit leaps to 3 enemies within 10 yd for X%, once per 2 sec (20-30% -> 80-100%) |

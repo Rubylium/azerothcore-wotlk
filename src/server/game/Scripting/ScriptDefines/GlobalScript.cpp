@@ -29,6 +29,11 @@ void ScriptMgr::OnGlobalItemDelFromDB(CharacterDatabaseTransaction trans, Object
     CALL_ENABLED_HOOKS(GlobalScript, GLOBALHOOK_ON_ITEM_DEL_FROM_DB, script->OnItemDelFromDB(trans, itemGuid));
 }
 
+void ScriptMgr::OnGlobalItemLevel(Item const* item, uint32& itemLevel)
+{
+    CALL_ENABLED_HOOKS(GlobalScript, GLOBALHOOK_ON_ITEM_LEVEL, script->OnItemLevel(item, itemLevel));
+}
+
 void ScriptMgr::OnGlobalMirrorImageDisplayItem(Item const* item, uint32& display)
 {
     CALL_ENABLED_HOOKS(GlobalScript, GLOBALHOOK_ON_MIRRORIMAGE_DISPLAY_ITEM, script->OnMirrorImageDisplayItem(item, display));

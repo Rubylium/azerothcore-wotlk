@@ -16335,7 +16335,12 @@ float Player::GetAverageItemLevel()
             continue;
 
         if (m_items[i] && m_items[i]->GetTemplate())
-            sum += m_items[i]->GetTemplate()->GetItemLevelIncludingQuality(level);
+        {
+            // A copy with an item level of its own (a legendary's roll) counts at it
+            uint32 itemLevel = m_items[i]->GetTemplate()->GetItemLevelIncludingQuality(level);
+            sScriptMgr->OnGlobalItemLevel(m_items[i], itemLevel);
+            sum += itemLevel;
+        }
 
         ++count;
     }
@@ -16360,7 +16365,11 @@ float Player::GetAverageItemLevelForDF()
             if (m_items[i]->GetTemplate()->Quality == ITEM_QUALITY_HEIRLOOM)
                 sum += level * 2.33f;
             else
-                sum += m_items[i]->GetTemplate()->ItemLevel;
+            {
+                uint32 itemLevel = m_items[i]->GetTemplate()->ItemLevel;
+                sScriptMgr->OnGlobalItemLevel(m_items[i], itemLevel);
+                sum += itemLevel;
+            }
         }
 
         ++count;

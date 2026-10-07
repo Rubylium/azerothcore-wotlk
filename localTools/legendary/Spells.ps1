@@ -179,9 +179,10 @@ $spells += @(
         "Le rituel de Tharon'ja rend sa chair à un autre allié."),
 
     # --- The Forge of Souls ---
-    # Jambières du Dévoreur: a well of souls where the wearer stands, 6 sec (Death and Decay's ground, its aura a
-    # dummy: mod-legendary pulses it every second with the blow below)
-    @{ Id = 97850; Clone = 49938; Name = 'Puits des âmes'; Icon = 'INV_Legendary_JambieresDevoreur'; FallbackIconSpell = 68820; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+    # Jambières du Dévoreur: a well of souls where the wearer stands, 6 sec (a creature's Desecration: a dark shadow
+    # ground of 6 yd - Death and Decay's, first used, was a death knight's, too big and too bright - its aura a dummy:
+    # mod-legendary pulses it every second with the blow below)
+    @{ Id = 97850; Clone = 36473; Name = 'Puits des âmes'; Icon = 'INV_Legendary_JambieresDevoreur'; FallbackIconSpell = 68820; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = "Le puits des âmes du Dévoreur dévore les ennemis qui s'y tiennent."
        Fields = @{ 40 = 32; 95 = 4; 98 = 0; 80 = 0; 28 = 1; 86 = 18; 41 = 0; 226 = 0; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
     (New-Damage 97851 'Puits des âmes' 'INV_Legendary_JambieresDevoreur' 68820 32 0 `

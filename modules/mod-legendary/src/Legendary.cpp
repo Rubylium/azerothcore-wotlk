@@ -174,9 +174,10 @@ std::array<Definition, 24> const Definitions = { {
       { .spell = 97840, .radius = 40.0f } },
 
     // --- The Forge of Souls ---
-    // Jambières du Dévoreur, legs (21423): a well of souls every 10 sec, 8-13% -> 35-45% of AP or SP a second
+    // Jambières du Dévoreur, legs (21423): a well of souls every 10 sec, 8-13% -> 35-45% of AP or SP a second, as wide
+    // as its look (6 yd)
     { 19, 21423, KIND_GROUND, 8.0f, 13.0f, 35.0f, 45.0f, Floor, LegsBudget, ForgeOfSouls,
-      { .spell = 97850, .spell2 = 97851, .everyMs = 10000, .count = 6, .radius = 8.0f } },
+      { .spell = 97850, .spell2 = 97851, .everyMs = 10000, .count = 6, .radius = 6.0f } },
     // Heaume de Bronjahm, a helm (21434): a kill gives back 2-3% -> 6-8% of the health over 4 sec
     { 20, 21434, KIND_KILL_HEAL, 2.0f, 3.0f, 6.0f, 8.0f, Floor, HeadBudget, ForgeOfSouls,
       { .spell = 97860, .count = 4 } },
@@ -1052,11 +1053,22 @@ public:
     }
 };
 
-// A deleted item takes its copy with it
+// A deleted item takes its copy with it; a copy has its own item level
 class LegendaryGlobalScript : public GlobalScript
 {
 public:
-    LegendaryGlobalScript() : GlobalScript("LegendaryGlobalScript", { GLOBALHOOK_ON_ITEM_DEL_FROM_DB }) { }
+    LegendaryGlobalScript() : GlobalScript("LegendaryGlobalScript", {
+        GLOBALHOOK_ON_ITEM_DEL_FROM_DB,
+        GLOBALHOOK_ON_ITEM_LEVEL
+    }) { }
+
+    // A copy counts at its own item level, not its base item's (the average item level: the Défis' and the Dungeon
+    // Finder's requirements)
+    void OnItemLevel(Item const* item, uint32& itemLevel) override
+    {
+        if (std::optional<Copy> copy = GetCopy(item))
+            itemLevel = copy->itemLevel;
+    }
 
     void OnItemDelFromDB(CharacterDatabaseTransaction transaction, ObjectGuid::LowType itemGuid) override
     {

@@ -47,6 +47,7 @@ enum GlobalHook
     GLOBALHOOK_ON_INSTANCEID_REMOVED,
     GLOBALHOOK_ON_BEFORE_SET_BOSS_STATE,
     GLOBALHOOK_AFTER_INSTANCE_GAME_OBJECT_CREATE,
+    GLOBALHOOK_ON_ITEM_LEVEL,
     GLOBALHOOK_END
 };
 
@@ -60,6 +61,8 @@ public:
     // items
     virtual void OnItemDelFromDB(CharacterDatabaseTransaction /*trans*/, ObjectGuid::LowType /*itemGuid*/) { }
     virtual void OnMirrorImageDisplayItem(Item const* /*item*/, uint32& /*display*/) { }
+    // An item's own item level, when it is not its template's (a copy that rolled its own: mod-legendary)
+    virtual void OnItemLevel(Item const* /*item*/, uint32& /*itemLevel*/) { }
 
     // loot
     virtual void OnAfterRefCount(Player const* /*player*/, LootStoreItem* /*LootStoreItem*/, Loot& /*loot*/, bool /*canRate*/, uint16 /*lootMode*/, uint32& /*maxcount*/, LootStore const& /*store*/) { }
