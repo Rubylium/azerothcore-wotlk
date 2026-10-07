@@ -1,8 +1,8 @@
 {
   "archive": "localTools/mpq-builder/patch-Z.MPQ",
-  "archiveSha256": "a651539773a465fc6e9a3a2ad53bd69b90ba47118d76905d748cf733e3f1789c",
-  "verifiedArchiveFileCount": 4375,
-  "newLegendaryIconCount": 21,
+  "archiveSha256": "65d9e8b7ebe27193176e436a762006b6ea742238ba8a0b09200fdcd75672c82b",
+  "verifiedArchiveFileCount": 4376,
+  "iconCount": 22,
   "icons": [
     {
       "path": "Interface\\Icons\\INV_Legendary_AbaquePathaleon.tga",
@@ -108,6 +108,11 @@
       "path": "Interface\\Icons\\INV_Legendary_RobeNovos.tga",
       "bytes": 16402,
       "sha256": "4ea4e119a84f4fc10b96398eb255cdafd48d330014d30561b67ba9d7dadf4550"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Unique_EchoDuNeant.tga",
+      "bytes": 16402,
+      "sha256": "45c216b367bddac07b55a87233bd778affaeef5c187b749a824f54e36d91fca0"
     }
   ]
 }

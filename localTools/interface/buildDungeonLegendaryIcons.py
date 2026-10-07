@@ -24,8 +24,9 @@ def font(size):
 
 
 def previews(images):
-    sheet = Image.new("RGB", (1024, 2380), (18, 16, 22))
-    small = Image.new("RGB", (1024, 860), (18, 16, 22))
+    rowCount = (len(images) + 2) // 3
+    sheet = Image.new("RGB", (1024, 98 + rowCount * 326), (18, 16, 22))
+    small = Image.new("RGB", (1024, 90 + rowCount * 110), (18, 16, 22))
     draw = ImageDraw.Draw(sheet)
     smallDraw = ImageDraw.Draw(small)
     draw.text((24, 12), "Dungeon legendaries - 256px PNGs", fill=(232, 180, 90), font=font(22))
@@ -35,10 +36,11 @@ def previews(images):
         x, y = 24 + col * 336, 88 + row * 326
         smallY = 84 + row * 110
         if col == 0:
-            draw.text((24, y - 36), dungeonNames[row], fill="white", font=font(18))
-            smallDraw.text((24, smallY - 28), dungeonNames[row], fill="white", font=font(16))
+            group = dungeonNames[row] if row < len(dungeonNames) else "Unique"
+            draw.text((24, y - 36), group, fill="white", font=font(18))
+            smallDraw.text((24, smallY - 28), group, fill="white", font=font(16))
         sheet.paste(image, (x, y))
-        label = name.removeprefix("INV_Legendary_")
+        label = name.removeprefix("INV_Legendary_").removeprefix("INV_Unique_")
         draw.text((x, y + 266), label, fill="white", font=font(15))
         small.paste(image.resize((64, 64), Image.Resampling.LANCZOS), (x, smallY))
         small.paste(image.resize((32, 32), Image.Resampling.LANCZOS), (x + 78, smallY + 16))

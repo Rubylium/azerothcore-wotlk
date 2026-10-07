@@ -1,0 +1,24 @@
+{
+  "generator": "built-in image_gen",
+  "name": "INV_Unique_EchoDuNeant",
+  "source": "source/INV_Unique_EchoDuNeant.png",
+  "prompt": [
+    "Use case: stylized-concept. World of Warcraft Wrath of the Lich King ITEM ICON, hand-painted",
+    "Blizzard icon style matching attached STOCK ICON references (style only). Square opaque full-canvas",
+    "dark red-black void background. 256x256 target. One dominant ring at slight three-quarter angle,",
+    "chunky readable shapes and broad painterly facets, upper-left highlights; strong silhouette readable",
+    "at32px. Primary request: A dark ring of void-black metal cracked with THIN lines of WHITE-GOLD HOLY",
+    "LIGHT, set with a SINGLE swirling orb of DEEP VIOLET VOID in which a faint SCREAMING FACE echoes",
+    "outward in CONCENTRIC RINGS OF SOUND. On one side of the band a sliver of the Archbishop's gold, on",
+    "the other the demon's BLACK CLAWS gripping it. A CRIMSON RED rim light around the WHOLE RING, the",
+    "Unique's colour. Background DEEP RED-BLACK VOID. Crimson rim light, no legendary orange halo. Keep",
+    "ring band visible and orb the single focal point. No border, no frame, no text, no letters, no logo.",
+    "Opaque square icon fills canvas."
+  ],
+  "size": [
+    256,
+    256
+  ],
+  "mode": "RGB",
+  "rimLight": "crimson red"
+}

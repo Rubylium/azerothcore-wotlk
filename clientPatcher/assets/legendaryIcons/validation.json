@@ -1,5 +1,5 @@
 {
-  "iconCount": 21,
+  "iconCount": 22,
   "compiledVerified": true,
   "icons": [
     {
@@ -211,6 +211,16 @@
       "mode": "RGB",
       "sha256": "3936685841d1691e79ba889147de9a706892d286f8f6a0d4b3f248ea5860ab60",
       "compiledSha256": "2cc95815be3ae2247165f04e70280ff5919814ff74e2f8d22d9055b7aa42cd68"
+    },
+    {
+      "name": "INV_Unique_EchoDuNeant",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "1263e5f87564ed7701aa3345dc2baf401573708f6eff8316781f1c6376de4723",
+      "compiledSha256": "45c216b367bddac07b55a87233bd778affaeef5c187b749a824f54e36d91fca0"
     }
   ],
   "errors": []
