@@ -1329,12 +1329,7 @@ public:
         if (itr == _gameObjectLocaleStore.end()) return nullptr;
         return &itr->second;
     }
-    [[nodiscard]] ItemLocale const* GetItemLocale(uint32 entry) const
-    {
-        ItemLocaleContainer::const_iterator itr = _itemLocaleStore.find(entry);
-        if (itr == _itemLocaleStore.end()) return nullptr;
-        return &itr->second;
-    }
+    [[nodiscard]] ItemLocale const* GetItemLocale(uint32 entry) const;
     [[nodiscard]] ItemSetNameLocale const* GetItemSetNameLocale(uint32 entry) const
     {
         ItemSetNameLocaleContainer::const_iterator itr = _itemSetNameLocaleStore.find(entry);

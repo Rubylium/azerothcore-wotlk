@@ -115,17 +115,23 @@ public:
             if (IsBaseItem(itemTemplate))
                 bases.push_back(&itemTemplate);
 
+        // The ladder above the highest reward (Mythic::MaxPinnacleItemLevel) is only kept for the first bases, whose
+        // variants up there players may still own: nothing gives one any more, and a wider base never had them
+        uint32 const highestRewardVariant = Mythic::GetGeneratedVariant(Mythic::MaxPinnacleItemLevel);
+        size_t generated = 0;
         for (ItemTemplate const* base : bases)
         {
-            for (uint32 variant = 0; variant < Mythic::GeneratedItemVariants; ++variant)
+            uint32 const variants = IsLegacyBaseItem(*base) ? Mythic::GeneratedItemVariants : highestRewardVariant + 1;
+            for (uint32 variant = 0; variant < variants; ++variant)
                 sObjectMgr->AddGeneratedItemTemplate(MakeVariant(*base, variant), base->ItemId);
+            generated += variants + Mythic::CapVariants;
             for (uint32 variant = Mythic::FirstCapVariant;
                 variant < Mythic::FirstCapVariant + Mythic::CapVariants; ++variant)
                 sObjectMgr->AddGeneratedItemTemplate(MakeVariant(*base, variant), base->ItemId);
         }
 
         LOG_INFO("server.loading", ">> Generated {} Mythic+ items ({} bases, item level {} to {}) in {} ms",
-            bases.size() * (Mythic::GeneratedItemVariants + Mythic::CapVariants), bases.size(),
+            generated, bases.size(),
             Mythic::GetGeneratedItemLevel(0),
             Mythic::GetGeneratedItemLevel(Mythic::GeneratedItemVariants - 1), GetMSTimeDiffToNow(startTime));
     }

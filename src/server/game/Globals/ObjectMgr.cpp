@@ -36,6 +36,7 @@
 #include "LFGMgr.h"
 #include "Log.h"
 #include "MapMgr.h"
+#include "MythicDungeon.h"
 #include "Pet.h"
 #include "PoolMgr.h"
 #include "RaceMgr.h"
@@ -3971,9 +3972,22 @@ ItemTemplate const* ObjectMgr::AddGeneratedItemTemplate(ItemTemplate const& item
     _generatedItemTemplates = true;
     EnsureGearSellPrice(stored);
 
-    if (ItemLocale const* locale = GetItemLocale(localeSourceEntry))
-        _itemLocaleStore[entry] = *locale;
+    // Named as their base item: read from it (GetItemLocale) rather than copied, hundreds of thousands of times
+    if (localeSourceEntry != entry % Mythic::GeneratedItemBase)
+        if (ItemLocale const* locale = GetItemLocale(localeSourceEntry))
+            _itemLocaleStore[entry] = *locale;
     return &stored;
+}
+
+ItemLocale const* ObjectMgr::GetItemLocale(uint32 entry) const
+{
+    ItemLocaleContainer::const_iterator itr = _itemLocaleStore.find(entry);
+    // A generated item without names of its own has its base item's (AddGeneratedItemTemplate)
+    if (itr == _itemLocaleStore.end() && _generatedItemTemplates && entry >= Mythic::GeneratedItemBase)
+        itr = _itemLocaleStore.find(entry % Mythic::GeneratedItemBase);
+    if (itr == _itemLocaleStore.end())
+        return nullptr;
+    return &itr->second;
 }
 
 void ObjectMgr::LoadItemSetNameLocales()
