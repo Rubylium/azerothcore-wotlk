@@ -74,6 +74,9 @@ $sources = @(
     # DragonUI's bag tint judged armor and weapons from stock class tables (mail red on a warrior, everything red
     # on a custom class); ours trusts the tooltip. Listed after the DragonUI folder, so it replaces the stock file
     'Interface\AddOns\DragonUI\modules\bags_usability.lua',
+    # DragonUI's item levels read GetItemInfo, which only knows a legendary's base item (every copy shares its id);
+    # ours asks FrameXML Legendary.lua for the copy's own rolled level. Replaces the stock file the same way
+    'Interface\AddOns\DragonUI\modules\itemlevel.lua',
     # Retail-style raid frames (Blizzard's Compact Raid Frames backported to a stock 3.3.5a client)
     'Interface\AddOns\CompactRaidFrame',
     'Interface\AddOns\Details',

@@ -1,0 +1,113 @@
+{
+  "archive": "localTools/mpq-builder/patch-Z.MPQ",
+  "archiveSha256": "a651539773a465fc6e9a3a2ad53bd69b90ba47118d76905d748cf733e3f1789c",
+  "verifiedArchiveFileCount": 4375,
+  "newLegendaryIconCount": 21,
+  "icons": [
+    {
+      "path": "Interface\\Icons\\INV_Legendary_AbaquePathaleon.tga",
+      "bytes": 16402,
+      "sha256": "b7eea28bfda7ed69bdf41f443530a95738ebf82babfb637f6308f798bc72da82"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_AnneauAmeRefletee.tga",
+      "bytes": 16402,
+      "sha256": "7043192f7048f1727299d092d0a02a74ee2d1bf2af0857886a8cab804611d4e4"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_BandelettesNethekurse.tga",
+      "bytes": 16402,
+      "sha256": "b727e2a4fe5d2f03ea3dfa410fabb8c1c52117445695f1c064bd79442d8fec27"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_BottesDred.tga",
+      "bytes": 16402,
+      "sha256": "48075d372291cbec4f5354662b02166f4c7a3a0979e486023b0915f9c21618ff"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_BrassardsSepethrea.tga",
+      "bytes": 16402,
+      "sha256": "5448b316b31827df6966aa0767139c963c42a56057d72a4716bca83e101fc51c"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_CeintureIngvar.tga",
+      "bytes": 16402,
+      "sha256": "fca6986786e5f766d040c9572e227e1376c43de947564df79076058aeb0b9374"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_ChevaliereBjarngrim.tga",
+      "bytes": 16402,
+      "sha256": "2cc95815be3ae2247165f04e70280ff5919814ff74e2f8d22d9055b7aa42cd68"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_ChevalierePorung.tga",
+      "bytes": 16402,
+      "sha256": "9ba1621550b054df9dccdcf592b27d99256e85cef282b70e7367888237b5233a"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_CollierAnnhylde.tga",
+      "bytes": 16402,
+      "sha256": "d209dc4b9c9c1d51e116cd4f4b167ec1bb890cee0da2a71a11d02f83f4839423"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_CuirasseKeleseth.tga",
+      "bytes": 16402,
+      "sha256": "e5cd6b40b39b84cd0d6bd108c01e80602699631404e34ab74f83d4857d75c3b2"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_EpaulieresCapacitus.tga",
+      "bytes": 16402,
+      "sha256": "be69289c145b8a970681b411620070982deae2c4ea9d1a04d0c13041b895630f"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_EtincelleIonar.tga",
+      "bytes": 16402,
+      "sha256": "5ff2f0ead2063f3e3f585c61e6f7d5695ba27815ea25c2a0c203e7b8b3bf2c81"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_HeaumeBronjahm.tga",
+      "bytes": 16402,
+      "sha256": "31b05a93a0fec923bcb27dad059f15300a119a743f1048b214150cc4ac567f99"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_JambieresDevoreur.tga",
+      "bytes": 16402,
+      "sha256": "90e662798123844a4be1e28980b05b6f32239f33861232463a91ee7ec56d0c6e"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_MouflesCookie.tga",
+      "bytes": 16402,
+      "sha256": "a2b8c889ad8c0e2eab8e6f1b742da978b075890ef04dcd533218be29902a53d2"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_PendentifTharonja.tga",
+      "bytes": 16402,
+      "sha256": "1c20ffcd6bb4621df24505e9bd1f6bf1c407565f955ea14b0e6438db25597e9f"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_PlastronVanCleef.tga",
+      "bytes": 16402,
+      "sha256": "416a9e03db272f19df71b4de8003c4038d564404527b5c6615e725f3457e35a9"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_PoignesKargath.tga",
+      "bytes": 16402,
+      "sha256": "3c768d2abcf16ca284c51059da5072295f8931bd479f0ce0fcfb7310f99cbb58"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_PoingsLoken.tga",
+      "bytes": 16402,
+      "sha256": "b63839e17c3b98b6512e89a8022d7b11d40068c58395eabc2e234701aa775983"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_PoudreGilnid.tga",
+      "bytes": 16402,
+      "sha256": "d9295f607de3d0ffdacc8558cb803761f45c3da9b9ef22d3d29b8a6973a571b5"
+    },
+    {
+      "path": "Interface\\Icons\\INV_Legendary_RobeNovos.tga",
+      "bytes": 16402,
+      "sha256": "4ea4e119a84f4fc10b96398eb255cdafd48d330014d30561b67ba9d7dadf4550"
+    }
+  ]
+}

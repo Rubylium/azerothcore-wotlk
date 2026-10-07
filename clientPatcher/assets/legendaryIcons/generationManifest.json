@@ -1,0 +1,327 @@
+{
+  "generator": "built-in image_gen",
+  "styleReferences": [
+    "clientPatcher/assets/legendaryIcons/reference/c-INV_Shoulder_36.png",
+    "clientPatcher/assets/legendaryIcons/reference/c-INV_Shoulder_22.png",
+    "clientPatcher/assets/legendaryIcons/reference/o-INV_Misc_Bone_ElfSkull_01.png",
+    "clientPatcher/assets/legendaryIcons/reference/c-Spell_Shadow_SoulLeech_3.png"
+  ],
+  "assets": [
+    {
+      "name": "INV_Legendary_EpaulieresCapacitus",
+      "source": "source/INV_Legendary_EpaulieresCapacitus.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "pair of heavy blue-steel shoulder pauldrons of netherstorm engineering, crackling with a shimmering",
+        "violet arcane reflective shield, small polarity sigils (a plus and a minus) glowing on each plate.",
+        "The PLUS and MINUS polarity symbols are explicitly allowed; no other text."
+      ],
+      "originalSourceName": "exec-6a4dac57-3ec3-4c3a-a871-3ddf0d3a658e.png"
+    },
+    {
+      "name": "INV_Legendary_AbaquePathaleon",
+      "source": "source/INV_Legendary_AbaquePathaleon.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "floating ethereal abacus of brass rods and glowing violet-blue arcane beads, beads sliding in motion",
+        "blur, tiny runes of calculation orbiting it."
+      ],
+      "originalSourceName": "exec-a1611117-5cbf-4dd3-93f1-845fa6753ba5.png"
+    },
+    {
+      "name": "INV_Legendary_BrassardsSepethrea",
+      "source": "source/INV_Legendary_BrassardsSepethrea.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "pair of ornate bracers of dark iron and red-gold, the nethermancer's flames bursting from their",
+        "seams, raging fire licking around the wrists."
+      ],
+      "originalSourceName": "exec-2f1342a6-39c4-44dc-9c3a-74d2a37375a7.png"
+    },
+    {
+      "name": "INV_Legendary_CeintureIngvar",
+      "source": "source/INV_Legendary_CeintureIngvar.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "massive vrykul war belt of black iron and frost-rimed leather, a huge skull buckle, a spectral",
+        "shadow axe of purple-black smoke hanging from it."
+      ],
+      "originalSourceName": "exec-2c01f369-7902-4e95-a24f-d1c1b8fb0b81.png"
+    },
+    {
+      "name": "INV_Legendary_CuirasseKeleseth",
+      "source": "source/INV_Legendary_CuirasseKeleseth.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request:",
+        "An elegant dark breastplate of the San'layn prince, half of it encased in a shell of pale blue ice,",
+        "frost crystals growing from the plates, a cold glow beneath."
+      ],
+      "originalSourceName": "exec-b5b4dc85-3c24-4e99-8e62-b1de457daf68.png"
+    },
+    {
+      "name": "INV_Legendary_CollierAnnhylde",
+      "source": "source/INV_Legendary_CollierAnnhylde.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "val'kyr's necklace of pale gold and frozen crystal, a small pair of spectral wings around a glowing",
+        "blue soul-gem, a wisp of a calling spirit rising from it."
+      ],
+      "originalSourceName": "exec-3f23b5bc-f8b0-4ec4-8c21-493a2007f0a3.png"
+    },
+    {
+      "name": "INV_Legendary_PoignesKargath",
+      "source": "source/INV_Legendary_PoignesKargath.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "brutal fel-orc gauntlet with long curved blades instead of fingers, dark iron and blood-red leather,",
+        "the blades glinting, a faint green fel smoke around them."
+      ],
+      "originalSourceName": "exec-0fe307ea-48d5-46bf-a3af-f50ac2aee2ba.png"
+    },
+    {
+      "name": "INV_Legendary_BandelettesNethekurse",
+      "source": "source/INV_Legendary_BandelettesNethekurse.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request:",
+        "Dark cloth wraps bound around a warlock's wrists, inscribed with glowing green-purple shadow runes,",
+        "thin wisps of shadow and fel smoke slowly coiling off them."
+      ],
+      "originalSourceName": "exec-7b0ec2f8-183d-482d-a31e-66269240e7a4.png"
+    },
+    {
+      "name": "INV_Legendary_ChevalierePorung",
+      "source": "source/INV_Legendary_ChevalierePorung.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "heavy orcish signet ring of black iron set with a large blood-red gem, a drop of blood running down",
+        "the band, a crimson glow pulsing inside the stone."
+      ],
+      "originalSourceName": "exec-590f184a-2af2-436b-aea3-8ae75b291d73.png"
+    },
+    {
+      "name": "INV_Legendary_PlastronVanCleef",
+      "source": "source/INV_Legendary_PlastronVanCleef.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "black leather Defias chestguard with a red bandana tied across it, a long dagger tucked in a strap,",
+        "a glinting blade edge catching the light."
+      ],
+      "originalSourceName": "exec-497a3362-76dd-4182-bca8-5ae30ec8fbb2.png"
+    },
+    {
+      "name": "INV_Legendary_PoudreGilnid",
+      "source": "source/INV_Legendary_PoudreGilnid.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "goblin smith's belt loaded with small powder kegs and sticks of dynamite, a lit fuse sparking, soot",
+        "and a small fiery burst at the edge."
+      ],
+      "originalSourceName": "exec-a62502fe-ba10-4b68-82d0-3d87715de682.png"
+    },
+    {
+      "name": "INV_Legendary_MouflesCookie",
+      "source": "source/INV_Legendary_MouflesCookie.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "pair of greasy cook's oven mitts holding a big steaming ladle of stew, warm golden steam rising, a",
+        "comforting glow - playful but painted seriously."
+      ],
+      "originalSourceName": "exec-0af310e4-0154-43f0-86d7-16e6e9c1bef8.png"
+    },
+    {
+      "name": "INV_Legendary_BottesDred",
+      "source": "source/INV_Legendary_BottesDred.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request:",
+        "Rugged leather boots trimmed with the curved claws and scaly hide of a raptor king, the claws",
+        "dripping with fresh red blood."
+      ],
+      "originalSourceName": "exec-90caa5a2-8d5b-4413-9d50-cca47e4d8bed.png"
+    },
+    {
+      "name": "INV_Legendary_RobeNovos",
+      "source": "source/INV_Legendary_RobeNovos.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "dark necromancer's robe of deep blue and black, a shimmering arcane barrier of light blue hexagons",
+        "wrapped around it, cold blue light inside."
+      ],
+      "originalSourceName": "exec-4037fbb8-0cd5-4e0b-bff1-9ef8e9b5168a.png"
+    },
+    {
+      "name": "INV_Legendary_PendentifTharonja",
+      "source": "source/INV_Legendary_PendentifTharonja.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "troll prophet's pendant of bone and green jade, half of it bare skeletal bone and half of it living",
+        "flesh regrowing, a green healing glow between the two halves."
+      ],
+      "originalSourceName": "exec-e8a78c45-155b-4b66-8587-1fcf5bdb159c.png"
+    },
+    {
+      "name": "INV_Legendary_JambieresDevoreur",
+      "source": "source/INV_Legendary_JambieresDevoreur.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request:",
+        "Massive dark saronite leg plates covered in screaming spectral faces, pale blue wailing souls",
+        "swirling around them, a dark purple glow from the cracks."
+      ],
+      "originalSourceName": "exec-a99076f5-3d8b-4dd5-8d41-23198fcb7a06.png"
+    },
+    {
+      "name": "INV_Legendary_HeaumeBronjahm",
+      "source": "source/INV_Legendary_HeaumeBronjahm.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "horned dark helm of the soul-shaper, a corrupted soul fragment of pale blue-green light trapped in a",
+        "cage of saronite on its brow."
+      ],
+      "originalSourceName": "exec-6a9b17ab-173a-4bdd-abf7-40d72eede933.png"
+    },
+    {
+      "name": "INV_Legendary_AnneauAmeRefletee",
+      "source": "source/INV_Legendary_AnneauAmeRefletee.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "ring of dark saronite set with two identical gems facing each other like mirrors, a pale ghostly",
+        "face reflected between them, cold violet light."
+      ],
+      "originalSourceName": "exec-632a51cc-296b-4dce-9b1d-683c6970fc54.png"
+    },
+    {
+      "name": "INV_Legendary_EtincelleIonar",
+      "source": "source/INV_Legendary_EtincelleIonar.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "small titan-forged sphere of bronze and blue crystal crackling with a living spark of lightning,",
+        "arcs of electricity leaping off it in every direction."
+      ],
+      "originalSourceName": "exec-d1263f89-98e8-4d52-a13e-c80c914441e9.png"
+    },
+    {
+      "name": "INV_Legendary_PoingsLoken",
+      "source": "source/INV_Legendary_PoingsLoken.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request:",
+        "Enormous titan gauntlets of gold and dark iron, one fist clenched and surrounded by an expanding",
+        "ring of white and blue lightning, rune lines glowing along the fingers."
+      ],
+      "originalSourceName": "exec-e75ac4d8-6e9c-4d42-a53b-5cb5eb642013.png"
+    },
+    {
+      "name": "INV_Legendary_ChevaliereBjarngrim",
+      "source": "source/INV_Legendary_ChevaliereBjarngrim.png",
+      "prompt": [
+        "A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's original",
+        "icon style matching stock reference icons. Subject fills most of square at slight angle, chunky",
+        "readable shapes, broad painterly texture, dramatic upper-left light, rich saturated colour, dark",
+        "vignette edges, faint legendary orange halo around subject. One clear primary equipment subject with",
+        "strong silhouette readable at32px. Background dark, fully opaque, fills square. NO border, NO frame,",
+        "NO text, NO letters. 256x256 target. References STYLE ONLY, do not copy subjects. Primary request: A",
+        "broad iron-and-gold family signet of the iron dwarves, a small round shield engraved on its face, a",
+        "shimmering golden protective bubble around the ring."
+      ],
+      "originalSourceName": "exec-d0b20cd9-9f80-47f3-83c4-2ba5ca5da0e7.png"
+    }
+  ]
+}

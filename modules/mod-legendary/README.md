@@ -42,6 +42,7 @@ The Forge never takes legendaries.
 | 22 | Étincelle d'Ionar | 8688, trinket | Halls of Lightning (212) | A direct hit leaps to 3 enemies within 10 yd for X%, once per 2 sec (20-30% -> 80-100%) |
 | 23 | Poings de Loken | 21450, gloves | Halls of Lightning (212) | Every 6 sec in combat, a lightning nova: X% of AP or SP within 10 yd (30-50% -> 130-170%) |
 | 24 | Chevalière de Bjarngrim | 6674, ring | Halls of Lightning (212) | Dropping below 50% health: a shield of X% of the health for 10 sec, once per minute (10-15% -> 30-40%) |
+| 25 | Écho du Néant (**Unique**: quality 6, red) | 10555, ring | The Hollow Voice (Archbishop Aldric's death, 930100), item level 477 | An ability with a cooldown of 20 sec or more echoes: every other ability's remaining cooldown is cut by X% (20-30%) |
 
 Windows read "+2 -> +60": the bottom one where a legendary drops lowest, the top one at +60 and in raids. Legendaries
 4-24 are misc armour (every class wears them, their armour rolled for the looter's type), rings, necks and trinkets:
@@ -73,6 +74,16 @@ Every one of them is a spell of the wearer's (`localTools/legendary/Spells.ps1`:
 Barbarian's between), so the combat log and Details credit the wearer with it on a line of its own; none of them
 feeds a power again. Their looks are their own dungeon's, mostly their boss's own spell visual (Loken's Lightning
 Nova, the Devourer's Mirrored Soul, Cookie's Cooking...).
+
+The Unique is quality 6, the stock client's unused "Artifact": the client extension DLL recolours it red
+(awesome_wotlk `UniqueQuality.cpp`) and `Legendary.lua` names it "Unique". It drops from a boss's death
+(`sourceBoss`, `LegendaryBossDropScript`) with the same luck rules, kept by the boss's entry. Its echo hooks the cast
+(`OnPlayerSpellCast`: the player's own casts, not triggered, not an item's) and cuts the cooldowns with
+`Player::ModifySpellCooldown`, which tells the client.
+
+A copy also counts at its own item level for the server's average (`GLOBALHOOK_ON_ITEM_LEVEL`, called by
+`Player::GetAverageItemLevel` and `GetAverageItemLevelForDF`), and shows it: in its tooltip, in place of the base
+item's line, and on DragonUI's item level texts (`clientPatcher/addons/DragonUI/modules/itemlevel.lua`).
 
 ## Client
 

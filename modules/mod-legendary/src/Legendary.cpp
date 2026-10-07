@@ -25,6 +25,7 @@
 #include "PlayerScript.h"
 #include "PowerScaling.h"
 #include "Random.h"
+#include "Spell.h"
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
@@ -101,6 +102,13 @@ constexpr uint32 Deadmines = 6;
 constexpr uint32 DrakTharon = 215;
 constexpr uint32 ForgeOfSouls = 252;
 constexpr uint32 HallsOfLightning = 212;
+// The Hollow Voice's win: Archbishop Aldric's death (mod-stat-growth HollowVoice.cpp NPC_ALDRIC)
+constexpr uint32 HollowVoiceBoss = 930100;
+// Écho du Néant: what counts as a big cooldown, the least a cooldown must have left to be echoed (not a global
+// cooldown's tail), and the rest between two echoes
+constexpr uint32 EchoMinCooldownMs = 20000;
+constexpr uint32 EchoMinLeftMs = 1500;
+constexpr uint32 EchoRestMs = 1000;
 
 uint32 const Floor = Mythic::GetItemLevel(2);
 
@@ -108,7 +116,7 @@ uint32 const Floor = Mythic::GetItemLevel(2);
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 24> const Definitions = { {
+std::array<Definition, 25> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -195,6 +203,12 @@ std::array<Definition, 24> const Definitions = { {
     // Chevalière de Bjarngrim, a ring (6674): below 50% health, a shield of 10-15% -> 30-40% of it, once per min
     { 24, 6674, KIND_BULWARK, 10.0f, 15.0f, 30.0f, 40.0f, Floor, RingBudget, HallsOfLightning,
       { .spell = 97900, .spell2 = 97901 } },
+
+    // --- The Hollow Voice: the Unique (quality 6, red), above the others ---
+    // Écho du Néant, a ring (10555): an ability with a cooldown of 20 sec or more echoes, the others' cooldowns
+    // losing 20-30% of what they have left. Only from the Hollow Voice (item level 477): one window
+    { 25, 10555, KIND_COOLDOWN_ECHO, 20.0f, 30.0f, 20.0f, 30.0f, Mythic::MaxPinnacleItemLevel, RingBudget, 0,
+      { .spell = 97910 }, HollowVoiceBoss },
 } };
 
 // The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
@@ -535,8 +549,39 @@ public:
         PLAYERHOOK_ON_LOGIN,
         PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE,
         PLAYERHOOK_ON_CREATURE_KILL,
-        PLAYERHOOK_ON_CREATURE_KILLED_BY_PET
+        PLAYERHOOK_ON_CREATURE_KILLED_BY_PET,
+        PLAYERHOOK_ON_SPELL_CAST
     }) { }
+
+    // Écho du Néant: an ability with a cooldown of 20 sec or more, cast by the player themselves (not triggered, not
+    // an item's), echoes: every other ability still cooling down loses the rolled share of what it has left. The
+    // client is told each change (its cooldown sweeps jump). Item cooldowns are left alone.
+    void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
+    {
+        SpellInfo const* spellInfo = spell ? spell->GetSpellInfo() : nullptr;
+        if (!spellInfo || spell->IsTriggered() || spell->m_CastItem || IsOwnSpell(spellInfo) ||
+            std::max(spellInfo->RecoveryTime, spellInfo->CategoryRecoveryTime) < EchoMinCooldownMs)
+            return;
+        GetWorn(player)->ForEach(KIND_COOLDOWN_ECHO, [player, spellInfo](Definition const& definition, float percent,
+            PowerState& state)
+        {
+            uint32 const now = getMSTime();
+            if (!Ready(state.readyAt, now))
+                return;
+            state.readyAt = now + EchoRestMs;
+            std::vector<std::pair<uint32, int32>> cuts;
+            for (auto const& [id, cooldown] : player->GetSpellCooldownMap())
+            {
+                if (id == spellInfo->Id || cooldown.itemid || int32(cooldown.end - now) <= int32(EchoMinLeftMs))
+                    continue;
+                cuts.emplace_back(id, -int32(std::lround(float(cooldown.end - now) * percent / 100.0f)));
+            }
+            for (auto const& [id, cut] : cuts)
+                player->ModifySpellCooldown(id, cut);
+            if (!cuts.empty() && definition.tuning.spell)
+                player->CastSpell(player, definition.tuning.spell, true);
+        });
+    }
 
     // A worn copy's own armour and stats, through the core's own item stat code, and its power
     void OnPlayerAfterApplyItemBonuses(Player* player, Item* item, uint8 slot, bool apply) override
@@ -1078,9 +1123,54 @@ public:
     }
 };
 
-// The legendaries of a source, when a Mythic+ key of it is completed: once per instance, for every real player in it,
-// a roll against their luck there; a drop picks one of the source's legendaries and lands with the key's loot on the
-// floor (GroundLoot), at the key's item level.
+// Every real player in a map rolls once against their luck at a source (a dungeon id or a boss entry); a drop picks
+// one of the pool and lands on the floor (GroundLoot) at the item level given.
+void RollDrops(Map* map, uint32 source, std::vector<Definition const*> const& pool, uint32 itemLevel)
+{
+    map->DoForAllPlayers([&pool, itemLevel, source](Player* player)
+    {
+        if (!player->GetSession() || player->GetSession()->IsBot())
+            return;
+        ObjectGuid::LowType const guid = player->GetGUID().GetCounter();
+        uint32 misses = 0;
+        if (QueryResult result = CharacterDatabase.Query("SELECT misses FROM character_legendary_luck "
+            "WHERE guid = {} AND source = {}", guid, source))
+            misses = result->Fetch()[0].Get<uint32>();
+        float const chance = std::min(float(DropCapPct), float(DropBasePct) + float(DropStepPct) * float(misses));
+        bool const dropped = frand(0.0f, 100.0f) < chance;
+        CharacterDatabase.Execute("REPLACE INTO character_legendary_luck (guid, source, misses) "
+            "VALUES ({}, {}, {})", guid, source, dropped ? 0 : misses + 1);
+        LOG_INFO("module", "Legendary: {} at source {} at {}%: {}", player->GetName(), source, chance,
+            dropped ? "dropped" : "nothing");
+        if (!dropped)
+            return;
+
+        Definition const* definition = pool[urand(0, uint32(pool.size() - 1))];
+        uint32 const id = definition->id;
+        ItemTemplate const* base = sObjectMgr->GetItemTemplate(definition->baseItem);
+        ObjectGuid const owner = player->GetGUID();
+        bool const thrown = base && GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
+        {
+            if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
+                MakeCopy(looter, item, id, itemLevel);
+        });
+        if (!thrown)
+            GiveLegendary(player, id, itemLevel);
+    });
+}
+
+// Once per instance and source
+std::mutex RolledLock;
+std::set<std::pair<uint32, uint32>> Rolled;
+
+bool FirstRoll(Map* map, uint32 source)
+{
+    std::lock_guard lock(RolledLock);
+    return Rolled.insert({ map->GetInstanceId(), source }).second;
+}
+
+// The legendaries of a dungeon, when a Mythic+ key of it is completed, at the key's item level. The luck is kept
+// per character and source (character_legendary_luck: the dungeon's id).
 class LegendaryDropScript : public GlobalScript
 {
 public:
@@ -1097,44 +1187,33 @@ public:
         for (Definition const& definition : Definitions)
             if (definition.sourceDungeon == dungeonCompleted)
                 pool.push_back(&definition);
-        if (pool.empty() || !_rolled.insert(map->GetInstanceId()).second)
+        if (pool.empty() || !FirstRoll(map, dungeonCompleted))
             return;
-
-        uint32 const itemLevel = Mythic::GetItemLevel(level);
-        map->DoForAllPlayers([&pool, itemLevel, dungeonCompleted](Player* player)
-        {
-            if (!player->GetSession() || player->GetSession()->IsBot())
-                return;
-            ObjectGuid::LowType const guid = player->GetGUID().GetCounter();
-            uint32 misses = 0;
-            if (QueryResult result = CharacterDatabase.Query("SELECT misses FROM character_legendary_luck "
-                "WHERE guid = {} AND source = {}", guid, dungeonCompleted))
-                misses = result->Fetch()[0].Get<uint32>();
-            float const chance = std::min(float(DropCapPct), float(DropBasePct) + float(DropStepPct) * float(misses));
-            bool const dropped = frand(0.0f, 100.0f) < chance;
-            CharacterDatabase.Execute("REPLACE INTO character_legendary_luck (guid, source, misses) "
-                "VALUES ({}, {}, {})", guid, dungeonCompleted, dropped ? 0 : misses + 1);
-            LOG_INFO("module", "Legendary: {} completed a key of dungeon {} at {}%: {}", player->GetName(),
-                dungeonCompleted, chance, dropped ? "dropped" : "nothing");
-            if (!dropped)
-                return;
-
-            Definition const* definition = pool[urand(0, uint32(pool.size() - 1))];
-            uint32 const id = definition->id;
-            ItemTemplate const* base = sObjectMgr->GetItemTemplate(definition->baseItem);
-            ObjectGuid const owner = player->GetGUID();
-            bool const thrown = base && GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
-            {
-                if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
-                    MakeCopy(looter, item, id, itemLevel);
-            });
-            if (!thrown)
-                GiveLegendary(player, id, itemLevel);
-        });
+        RollDrops(map, dungeonCompleted, pool, Mythic::GetItemLevel(level));
     }
+};
 
-private:
-    std::set<uint32> _rolled;
+// The legendaries of a boss, when it dies (the Hollow Voice: Archbishop Aldric), at its loot's item level - the
+// floor of their window. The luck is kept by the boss's entry.
+class LegendaryBossDropScript : public UnitScript
+{
+public:
+    LegendaryBossDropScript() : UnitScript("LegendaryBossDropScript", true, { UNITHOOK_ON_UNIT_DEATH }) { }
+
+    void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
+    {
+        Creature* boss = unit ? unit->ToCreature() : nullptr;
+        if (!boss || !boss->GetMap())
+            return;
+        uint32 const entry = boss->GetEntry();
+        std::vector<Definition const*> pool;
+        for (Definition const& definition : Definitions)
+            if (definition.sourceBoss == entry)
+                pool.push_back(&definition);
+        if (pool.empty() || !FirstRoll(boss->GetMap(), entry))
+            return;
+        RollDrops(boss->GetMap(), entry, pool, pool.front()->floorItemLevel);
+    }
 };
 
 using namespace Acore::ChatCommands;
@@ -1289,5 +1368,6 @@ void AddLegendaryScripts()
     new Legendary::LegendaryWorldScript();
     new Legendary::LegendaryGlobalScript();
     new Legendary::LegendaryDropScript();
+    new Legendary::LegendaryBossDropScript();
     new Legendary::LegendaryCommandScript();
 }

@@ -213,7 +213,14 @@ $spells += @(
     (New-Shield 97900 'Rempart de Bjarngrim' 'INV_Legendary_ChevaliereBjarngrim' 41105 1 1 784 `
         'Le rempart de Bjarngrim vous protège quand vous faiblissez.' 'Absorbe des dégâts.'),
     (New-Mark 97901 25771 'Rempart de Bjarngrim' 'INV_Legendary_ChevaliereBjarngrim' 41105 3 0 `
-        'Le rempart de Bjarngrim vous a déjà protégé.' 'Le rempart de Bjarngrim ne peut plus vous protéger.')
+        'Le rempart de Bjarngrim vous a déjà protégé.' 'Le rempart de Bjarngrim ne peut plus vous protéger.'),
+
+    # --- The Hollow Voice: the Unique ---
+    # Écho du Néant: the echo's look on the wearer as the other cooldowns jump (Shadow Nova's, Sunwell's void)
+    @{ Id = 97910; Clone = 45329; Name = 'Écho du Néant'; Icon = 'INV_Unique_EchoDuNeant'; FallbackIconSpell = 62660; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'La Voix creuse fait écho à vos grands pouvoirs : vos autres temps de recharge raccourcissent.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1; BasePoints = 0 })
+       Fields = (Merge-Fields @{ 225 = 32; 131 = 10127 }) }
 )
 
 return $spells

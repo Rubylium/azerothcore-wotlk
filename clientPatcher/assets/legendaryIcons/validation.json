@@ -1,0 +1,217 @@
+{
+  "iconCount": 21,
+  "compiledVerified": true,
+  "icons": [
+    {
+      "name": "INV_Legendary_EpaulieresCapacitus",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "770fcb7081f57ac7059bf995625367059f1c1efa4eda521c87421b0486379c6d",
+      "compiledSha256": "be69289c145b8a970681b411620070982deae2c4ea9d1a04d0c13041b895630f"
+    },
+    {
+      "name": "INV_Legendary_AbaquePathaleon",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "05237cce47b4970504000db7f267f6070d08226c604b55c16abd54cd45175f40",
+      "compiledSha256": "b7eea28bfda7ed69bdf41f443530a95738ebf82babfb637f6308f798bc72da82"
+    },
+    {
+      "name": "INV_Legendary_BrassardsSepethrea",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "540fdc09fd5f1c7e24a66fe86940e2c7ecb63879f70cb6745bc1db15e87951d4",
+      "compiledSha256": "5448b316b31827df6966aa0767139c963c42a56057d72a4716bca83e101fc51c"
+    },
+    {
+      "name": "INV_Legendary_CeintureIngvar",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "91e0afa593135d4364351757041bc9ec30cec60bc09afbca5fea5c2159e59025",
+      "compiledSha256": "fca6986786e5f766d040c9572e227e1376c43de947564df79076058aeb0b9374"
+    },
+    {
+      "name": "INV_Legendary_CuirasseKeleseth",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "be659918132d6e74ffdbf8893fa29383a1ebcc59ef819ce0333bad355d2fa140",
+      "compiledSha256": "e5cd6b40b39b84cd0d6bd108c01e80602699631404e34ab74f83d4857d75c3b2"
+    },
+    {
+      "name": "INV_Legendary_CollierAnnhylde",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "dee69c59aae5f80f7a177fe1f14bdcde1c92b12c082d0b9eff80123bc826a4ea",
+      "compiledSha256": "d209dc4b9c9c1d51e116cd4f4b167ec1bb890cee0da2a71a11d02f83f4839423"
+    },
+    {
+      "name": "INV_Legendary_PoignesKargath",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "53fdd0dfd2121d525425764c3a006335913e6d3089850cff50e067cc17b6c0c5",
+      "compiledSha256": "3c768d2abcf16ca284c51059da5072295f8931bd479f0ce0fcfb7310f99cbb58"
+    },
+    {
+      "name": "INV_Legendary_BandelettesNethekurse",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "42b55734eb076fa80ae8f42165a255c9e5e247cd1172f601811deb2a7db4e6e9",
+      "compiledSha256": "b727e2a4fe5d2f03ea3dfa410fabb8c1c52117445695f1c064bd79442d8fec27"
+    },
+    {
+      "name": "INV_Legendary_ChevalierePorung",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "5193f32e74285a96e5ac0a24e30265bdfe1b8a431609842c1af03408073c460b",
+      "compiledSha256": "9ba1621550b054df9dccdcf592b27d99256e85cef282b70e7367888237b5233a"
+    },
+    {
+      "name": "INV_Legendary_PlastronVanCleef",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "5aea61eac53923059199b161cde6f569aa6cfc67c432835e283a5462d9ebfa03",
+      "compiledSha256": "416a9e03db272f19df71b4de8003c4038d564404527b5c6615e725f3457e35a9"
+    },
+    {
+      "name": "INV_Legendary_PoudreGilnid",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "07154d139b5b05f40e3f7d6ea5a184f6c8618d68b3ba6a298798751a15939e95",
+      "compiledSha256": "d9295f607de3d0ffdacc8558cb803761f45c3da9b9ef22d3d29b8a6973a571b5"
+    },
+    {
+      "name": "INV_Legendary_MouflesCookie",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "6fa04e463eac4dca3e8b08dbb843b558f1b4c33e0947b8bb9ce728b1f9165f3a",
+      "compiledSha256": "a2b8c889ad8c0e2eab8e6f1b742da978b075890ef04dcd533218be29902a53d2"
+    },
+    {
+      "name": "INV_Legendary_BottesDred",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "91fcb8b4ce4cdc3091ea4dbb8d51ac6b44e7b9f5196d9321fd3bc8ec96332af1",
+      "compiledSha256": "48075d372291cbec4f5354662b02166f4c7a3a0979e486023b0915f9c21618ff"
+    },
+    {
+      "name": "INV_Legendary_RobeNovos",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "ee1524257a8fc5c369c80594d2ba7a98dc6ce448220f02616c3b31859c3d11ba",
+      "compiledSha256": "4ea4e119a84f4fc10b96398eb255cdafd48d330014d30561b67ba9d7dadf4550"
+    },
+    {
+      "name": "INV_Legendary_PendentifTharonja",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "1da84a2204b5e1c8a32754240f00a08ce86dce7e2595ede0dbd6d4004a630094",
+      "compiledSha256": "1c20ffcd6bb4621df24505e9bd1f6bf1c407565f955ea14b0e6438db25597e9f"
+    },
+    {
+      "name": "INV_Legendary_JambieresDevoreur",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "2149a97d05334927a96a7dd189bdc060649d000bc520e3778eab677d71560e8a",
+      "compiledSha256": "90e662798123844a4be1e28980b05b6f32239f33861232463a91ee7ec56d0c6e"
+    },
+    {
+      "name": "INV_Legendary_HeaumeBronjahm",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "a4e1e37effc1d72bcc40ac67dc007ae10039e3b1eda655d6cc97f0f5098570e0",
+      "compiledSha256": "31b05a93a0fec923bcb27dad059f15300a119a743f1048b214150cc4ac567f99"
+    },
+    {
+      "name": "INV_Legendary_AnneauAmeRefletee",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "7da2117efba2a8fd5859881f7bf0b97064df03c67b097d1f09af98f63ac96aae",
+      "compiledSha256": "7043192f7048f1727299d092d0a02a74ee2d1bf2af0857886a8cab804611d4e4"
+    },
+    {
+      "name": "INV_Legendary_EtincelleIonar",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "7f005b9363c4aab0a7032857f5422648b555eef50caec0f2100ce3bad45cedec",
+      "compiledSha256": "5ff2f0ead2063f3e3f585c61e6f7d5695ba27815ea25c2a0c203e7b8b3bf2c81"
+    },
+    {
+      "name": "INV_Legendary_PoingsLoken",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "538beb4a3fbabe001c81dd2d34d3d31cff0ffe159baa89d6ebdc537c7b933ded",
+      "compiledSha256": "b63839e17c3b98b6512e89a8022d7b11d40068c58395eabc2e234701aa775983"
+    },
+    {
+      "name": "INV_Legendary_ChevaliereBjarngrim",
+      "size": [
+        256,
+        256
+      ],
+      "mode": "RGB",
+      "sha256": "3936685841d1691e79ba889147de9a706892d286f8f6a0d4b3f248ea5860ab60",
+      "compiledSha256": "2cc95815be3ae2247165f04e70280ff5919814ff74e2f8d22d9055b7aa42cd68"
+    }
+  ],
+  "errors": []
+}

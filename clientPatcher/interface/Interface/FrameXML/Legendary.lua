@@ -9,6 +9,10 @@
 local PREFIX = "LEGENDARY"
 local french = GetLocale() == "frFR"
 
+-- Item quality 6, the stock "Artifact", is our Unique: a legendary above the others (the Hollow Voice's), red - the
+-- client extension DLL recolours it (awesome_wotlk UniqueQuality.cpp)
+ITEM_QUALITY6_DESC = "Unique"
+
 -- Per legendary: its base item, where it drops, its power's wording (%s: the rolled value) and its lore
 local LEGENDARIES = {
     [1] = {
@@ -53,6 +57,17 @@ local function Add(id, item, dungeon, power, lore)
         item = item,
         source = french and ("Légendaire · " .. dungeon[1] .. ", Mythique+")
             or ("Legendary · " .. dungeon[2] .. ", Mythic+"),
+        power = french and power[1] or power[2],
+        lore = french and lore[1] or lore[2],
+    }
+end
+
+-- The Unique: quality 6, red (the client extension DLL recolours it), from a boss rather than a key
+local function AddUnique(id, item, boss, power, lore)
+    LEGENDARIES[id] = {
+        item = item,
+        unique = true,
+        source = french and ("Unique · " .. boss[1]) or ("Unique · " .. boss[2]),
         power = french and power[1] or power[2],
         lore = french and lore[1] or lore[2],
     }
@@ -182,6 +197,14 @@ Add(24, 6674, HALLS_OF_LIGHTNING,
     { "Le général Bjarngrim change de posture. Jamais de camp.",
       "General Bjarngrim changes his stance. Never his side." })
 
+AddUnique(25, 10555, { "La Voix creuse", "The Hollow Voice" },
+    { "Quand vous utilisez une technique dont le temps de recharge est d'au moins 20 sec, la Voix lui fait écho : "
+        .. "le temps de recharge restant de vos autres techniques est réduit de %s.",
+      "When you use an ability with a cooldown of 20 sec or more, the Voice echoes it: the remaining cooldown of "
+        .. "your other abilities is reduced by %s." },
+    { "« Tu m'as entendu, n'est-ce pas ? » Vel'thazar ne s'est jamais tu. Il a seulement changé de maître.",
+      "\"You heard me, didn't you?\" Vel'thazar never fell silent. He only changed masters." })
+
 local BASE_ITEMS = {}
 for id, legendary in pairs(LEGENDARIES) do
     BASE_ITEMS[legendary.item] = id
@@ -272,7 +295,11 @@ local function Write(tooltip, copy)
             end
         end
     end
-    tooltip:AddLine(legendary.source, 1, 0.5, 0)
+    if legendary.unique then
+        tooltip:AddLine(legendary.source, 0.91, 0.2, 0.17)
+    else
+        tooltip:AddLine(legendary.source, 1, 0.5, 0)
+    end
     if not stockLevel then
         tooltip:AddLine(format(TEXT.itemLevel, copy.itemLevel), 1, 0.82, 0)
     end
@@ -467,6 +494,9 @@ listener:SetScript("OnEvent", function(_, event, prefix, message)
     if EvolutionsItemFrames then
         EvolutionsItemFrames.refresh()
     end
+    for _, callback in ipairs(EvolutionsLegendary.listeners) do
+        callback()
+    end
 end)
 
 -- For the item frames and other FrameXML: the copy behind a link, or at a place ("bag:slot"), if known; a place's
@@ -492,4 +522,38 @@ EvolutionsLegendary = {
             end
         end
     end,
+    listeners = {},
 }
+
+-- Item levels for the interface's own item level texts (DragonUI's itemlevel module, clientPatcher/addons): a copy's
+-- level is its roll, not its base item's - every copy shares that one item id, so GetItemInfo can never say it. A
+-- copy is known by where it sits; nil when the link is no legendary, or the copy is not known yet (asked for, and
+-- the listeners called once it arrives).
+function EvolutionsLegendary.LevelAt(link, where)
+    local id = link and tonumber(link:match("item:(%d+)"))
+    if not id or not BASE_ITEMS[id] or not where then
+        return nil
+    end
+    local copy = EvolutionsLegendary.CopyAt(where)
+    return copy and copy.itemLevel
+end
+
+-- Where an item button's item sits, as the server counts it: the bags', the bank's, the character sheet's, and
+-- DragonUI's own bag buttons (which know their bag)
+function EvolutionsLegendary.WhereOfButton(button)
+    local name = button and button.GetName and button:GetName() or ""
+    if button and button.GetBag and button.GetID and not (button.IsCached and button:IsCached()) then
+        return WhereOfContainer(button:GetBag(), button:GetID())
+    elseif name:match("^ContainerFrame%d+Item%d+$") then
+        return WhereOfContainer(button:GetParent():GetID(), button:GetID())
+    elseif name:match("^BankFrameItem%d+$") then
+        return WhereOfContainer(-1, button:GetID())
+    elseif name:match("^Character.+Slot$") then
+        return "255:" .. (button:GetID() - 1)
+    end
+end
+
+-- Called (no arguments) whenever a copy's rolls arrive: what shows them can draw them again
+function EvolutionsLegendary.OnCopy(callback)
+    tinsert(EvolutionsLegendary.listeners, callback)
+end

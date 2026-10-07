@@ -43,6 +43,8 @@ enum Kind : uint32
     KIND_CHAIN,                 // a direct hit (cooldown) leaps to up to count other enemies within radius: X% of it
     KIND_PULSE,                 // every everyMs in combat, a nova around the wearer: X% of AP or SP within radius
     KIND_BULWARK,               // dropping below 50% health shields X% of the health; then rests (spent spell)
+    KIND_COOLDOWN_ECHO,         // an ability with a cooldown of 20 sec or more used: every other ability's cooldown
+                                // loses X% of what it has left
 };
 
 // Which blows a damage power takes: every direct one, weapon blows only, or spells only
@@ -85,8 +87,9 @@ struct Definition
     float bottomLow, bottomHigh, topLow, topHigh;
     uint32 floorItemLevel;          // the lowest item level it drops at (its window's bottom)
     Budget budget;
-    uint32 sourceDungeon;           // where it drops: the Dungeon Finder dungeon a Mythic+ key of completes
+    uint32 sourceDungeon;           // where it drops: the Dungeon Finder dungeon a Mythic+ key of completes (0: none)
     Tuning tuning;
+    uint32 sourceBoss = 0;          // or the boss whose death drops it (its creature entry)
 };
 
 struct Copy

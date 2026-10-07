@@ -2394,6 +2394,7 @@ $legendaryItems = @(
     @{ Item = 8688;  Display = 71021; CloneOf = 55033; Icon = 'INV_Legendary_EtincelleIonar' }          # Halls of Lightning: Tears of Bitter Anguish
     @{ Item = 21450; Display = 71022; CloneOf = 51932; Icon = 'INV_Legendary_PoingsLoken' }             # Halls of Lightning: Fists of Loken
     @{ Item = 6674;  Display = 71023; CloneOf = 31905; Icon = 'INV_Legendary_ChevaliereBjarngrim' }     # Halls of Lightning: Bjarngrim Family Signet
+    @{ Item = 10555; Display = 71024; CloneOf = 33534; Icon = 'INV_Unique_EchoDuNeant' }                # The Hollow Voice's Unique: a ring
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }

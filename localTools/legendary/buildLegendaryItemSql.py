@@ -41,7 +41,10 @@ LEGENDARIES = [
     (8688, 43573, "Étincelle d'Ionar", "Ionar's Spark"),
     (21450, 36995, "Poings de Loken", "Fists of Loken"),
     (6674, 36979, "Chevalière de Bjarngrim", "Bjarngrim's Signet"),
+    # The Hollow Voice's Unique: quality 6, red (the client extension DLL's UniqueQuality.cpp)
+    (10555, 49800, "Écho du Néant", "Echo of the Void"),
 ]
+UNIQUE = {10555}
 
 
 def item_rows():
@@ -66,7 +69,7 @@ DELETE FROM `item_template_locale` WHERE `ID` = {base};
 DROP TEMPORARY TABLE IF EXISTS `legendary_base`;
 CREATE TEMPORARY TABLE `legendary_base` SELECT * FROM `item_template` WHERE `entry` = {source};
 UPDATE `legendary_base` SET
-    `entry` = {base}, `name` = '{quote(french)}', `Quality` = 5, `ItemLevel` = 227, `RequiredLevel` = 80,
+    `entry` = {base}, `name` = '{quote(french)}', `Quality` = {6 if base in UNIQUE else 5}, `ItemLevel` = 227, `RequiredLevel` = 80,
     `class` = {cls}, `subclass` = {subclass}, `Material` = {material}, `InventoryType` = {inventory},
     `sheath` = {sheath},
     `displayid` = {71003 + LEGENDARIES.index((base, source, french, english))}, `bonding` = 1, `armor` = 0,
