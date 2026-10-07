@@ -231,10 +231,11 @@ uint32 ArmorType(Player* player)
 
 // A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
 // every key of that source completed without one, never above the cap (bad luck protection, reset by a drop). Kept
-// per character and per source in character_legendary_luck. Average about 1 in 33 keys at 2 / 0.5 / 3.
+// per character and per source in character_legendary_luck. At 2 / 0.5 / 10 (the cap raised from 3 on 2026-10-07:
+// a legendary every 33 keys on average felt like none at all) the chance climbs to 10% over 16 dry keys.
 LiveTuning::Knob const DropBasePct("legendary.drop_base_pct", 2.0f);
 LiveTuning::Knob const DropStepPct("legendary.drop_step_pct", 0.5f);
-LiveTuning::Knob const DropCapPct("legendary.drop_cap_pct", 3.0f);
+LiveTuning::Knob const DropCapPct("legendary.drop_cap_pct", 10.0f);
 
 std::shared_mutex StoreLock;
 std::unordered_map<ObjectGuid::LowType, Copy> Store;
