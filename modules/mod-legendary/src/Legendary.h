@@ -55,12 +55,16 @@ enum Filter : uint8
     FILTER_SPELL,
 };
 
-// A slot's stats at a reference item level, from the best stock items there; a copy's grow from them with the power
-// model (PowerScaling.h)
+// A slot's stats at a reference item level, as stock items carry them for each kind of wearer; a copy's grow from them
+// with the power model (PowerScaling.h). A strength or agility copy has its primary stat and as much stamina, an
+// agility one attack power besides (as stock agility gear does; strength gear never has it); an intellect copy has its
+// intellect, as much stamina and spell power.
 struct Budget
 {
     float itemLevel;
-    int32 primary, stamina, spellPower, secondary;
+    int32 physical, attackPower;    // strength or agility; the attack power an agility copy adds
+    int32 intellect, spellPower;
+    int32 secondary;                // each of the two secondaries
     std::array<int32, 4> armor;     // by the looter's armour type: cloth, leather, mail, plate
 };
 

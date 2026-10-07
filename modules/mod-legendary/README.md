@@ -50,8 +50,9 @@ Item.dbc rows with no template of their own, given one by `localTools/legendary/
 from the item whose look they wear, a look their own dungeon's bosses drop in that slot) and their look and icon by
 `localTools/patchSinisterStrike.ps1`. Each has one painted icon, its item's and its power's alike, and no frames.
 
-Each slot has its stat budget (`Budget`: the median of the item level 277 epics of that slot, the three Cathedral
-ones the best stock items at a reference item level).
+Each slot has its stat budget (`Budget`): the medians of the item level 277 epics of that slot, for each kind of
+wearer - strength or agility with as much stamina (agility adds attack power, as stock agility gear does), intellect
+with as much stamina and spell power - and two secondaries.
 
 ### Powers
 

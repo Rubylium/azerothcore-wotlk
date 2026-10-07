@@ -223,7 +223,17 @@ local STATS = {
 }
 local EQUIP_STATS = {
     [31] = "ITEM_MOD_HIT_RATING", [32] = "ITEM_MOD_CRIT_RATING", [36] = "ITEM_MOD_HASTE_RATING",
-    [37] = "ITEM_MOD_EXPERTISE_RATING", [44] = "ITEM_MOD_ARMOR_PENETRATION_RATING", [45] = "ITEM_MOD_SPELL_POWER",
+    [37] = "ITEM_MOD_EXPERTISE_RATING", [38] = "ITEM_MOD_ATTACK_POWER", [44] = "ITEM_MOD_ARMOR_PENETRATION_RATING",
+    [45] = "ITEM_MOD_SPELL_POWER",
+}
+
+-- The same stats as GetItemStats names them (its keys, the comparison's): a copy's rolls compared with any item
+local STAT_KEYS = {
+    [3] = "ITEM_MOD_AGILITY_SHORT", [4] = "ITEM_MOD_STRENGTH_SHORT", [5] = "ITEM_MOD_INTELLECT_SHORT",
+    [6] = "ITEM_MOD_SPIRIT_SHORT", [7] = "ITEM_MOD_STAMINA_SHORT", [31] = "ITEM_MOD_HIT_RATING_SHORT",
+    [32] = "ITEM_MOD_CRIT_RATING_SHORT", [36] = "ITEM_MOD_HASTE_RATING_SHORT",
+    [37] = "ITEM_MOD_EXPERTISE_RATING_SHORT", [38] = "ITEM_MOD_ATTACK_POWER_SHORT",
+    [44] = "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT", [45] = "ITEM_MOD_SPELL_POWER_SHORT",
 }
 
 local copies = {}       -- seed -> the copy's rolls
@@ -400,11 +410,123 @@ local function Clear(tooltip)
     tooltip.legendarySetter = nil
 end
 
+-- The comparison ("If you replace this item...") is the client's own, from the two items' records: a legendary's base
+-- item has no stats (every copy rolls its own), so a copy compared there counted as nothing. Once the client has
+-- written it, it is written again from the copies' rolls: what the hovered item would change, worn in place of the
+-- compared one.
+local function StatsOf(tooltip)
+    local _, link = tooltip:GetItem()
+    if not link then
+        return nil
+    end
+    local copy = tooltip.legendarySeed and copies[tooltip.legendarySeed]
+    if not copy then
+        local _, base = SeedOf(link)
+        if base then
+            return nil      -- a legendary whose rolls are not known yet: nothing honest to compare
+        end
+        return GetItemStats(link) or {}
+    end
+    local stats = {}
+    for _, stat in ipairs(copy.stats) do
+        local key = STAT_KEYS[stat.type]
+        if key then
+            stats[key] = (stats[key] or 0) + stat.value
+        end
+    end
+    if copy.armor > 0 then
+        stats.RESISTANCE0_NAME = copy.armor
+    end
+    return stats
+end
+
+local function RewriteComparison(shopping)
+    local hovered = GameTooltip:IsShown() and GameTooltip:GetItem() and GameTooltip
+        or (ItemRefTooltip:IsShown() and ItemRefTooltip)
+    if not hovered or not shopping:IsShown() or not ITEM_DELTA_DESCRIPTION then
+        return
+    end
+    -- Only where a legendary copy is one of the two: the client's comparison is right for every other item
+    if not shopping.legendarySeed and not hovered.legendarySeed then
+        return
+    end
+    local name = shopping:GetName()
+    local header
+    for index = 2, shopping:NumLines() do
+        local line = _G[name .. "TextLeft" .. index]
+        if line and line:GetText() == ITEM_DELTA_DESCRIPTION then
+            header = index
+            break
+        end
+    end
+    local new, worn = StatsOf(hovered), StatsOf(shopping)
+    if not header or not new or not worn then
+        return
+    end
+
+    local changes = {}
+    for key, value in pairs(new) do
+        local delta = value - (worn[key] or 0)
+        if delta ~= 0 and _G[key] then
+            changes[#changes + 1] = { key = key, delta = delta }
+        end
+    end
+    for key, value in pairs(worn) do
+        if new[key] == nil and value ~= 0 and _G[key] then
+            changes[#changes + 1] = { key = key, delta = -value }
+        end
+    end
+    sort(changes, function(a, b) return a.delta > b.delta end)
+
+    local index = header
+    for _, change in ipairs(changes) do
+        index = index + 1
+        local text = format("%s%d %s", change.delta > 0 and "+" or "", change.delta, _G[change.key])
+        local line = _G[name .. "TextLeft" .. index]
+        if line and index <= shopping:NumLines() then
+            line:SetText(text)
+            if change.delta > 0 then line:SetTextColor(0, 1, 0) else line:SetTextColor(1, 0.13, 0.13) end
+        elseif change.delta > 0 then
+            shopping:AddLine(text, 0, 1, 0)
+        else
+            shopping:AddLine(text, 1, 0.13, 0.13)
+        end
+    end
+    -- The client's own lines past ours are spent
+    for rest = index + 1, shopping:NumLines() do
+        local line = _G[name .. "TextLeft" .. rest]
+        if line then
+            line:SetText(nil)
+        end
+    end
+    shopping:Show()
+end
+
+-- The client writes its comparison after OnTooltipSetItem: it is rewritten on the next frame
+local pendingComparisons = {}
+local comparer = CreateFrame("Frame")
+comparer:Hide()
+comparer:SetScript("OnUpdate", function(self)
+    self:Hide()
+    for shopping in pairs(pendingComparisons) do
+        pendingComparisons[shopping] = nil
+        RewriteComparison(shopping)
+    end
+end)
+
+local function QueueComparison(shopping)
+    pendingComparisons[shopping] = true
+    comparer:Show()
+end
+
 local TOOLTIPS = { "GameTooltip", "ItemRefTooltip", "ShoppingTooltip1", "ShoppingTooltip2", "ShoppingTooltip3" }
 for _, name in ipairs(TOOLTIPS) do
     local tooltip = _G[name]
     if tooltip and tooltip.HookScript then
         tooltip:HookScript("OnTooltipSetItem", Decorate)
+        if name:find("^ShoppingTooltip") then
+            tooltip:HookScript("OnTooltipSetItem", QueueComparison)
+        end
         tooltip:HookScript("OnTooltipCleared", Clear)
         hooksecurefunc(tooltip, "SetBagItem", function(self, bag, slot)
             self.legendaryWhere = WhereOfContainer(bag, slot)

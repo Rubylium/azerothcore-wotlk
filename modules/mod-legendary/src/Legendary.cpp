@@ -78,20 +78,22 @@ constexpr float BulwarkHealthPct = 50.0f;
 // An overhealing shield never holds more than this share of its target's health
 constexpr float OverhealShieldCapPct = 20.0f;
 
-// The slots' budgets at a reference item level, from the best stock items there (2026-10-07: the medians of the
-// item level 277 epics per slot). A cloak and a ring share one (the Cloak of Burning Dusk and the Ring of Phased
-// Regeneration, 284); a trinket takes a neck's.
-constexpr Budget CloakBudget = { 284.0f, 83, 83, 118, 69, { 189, 189, 189, 189 } };
-constexpr Budget RingBudget = { 284.0f, 83, 83, 118, 69, { 0, 0, 0, 0 } };
-constexpr Budget GlovesBudget = { 277.0f, 147, 155, 209, 86, { 231, 434, 964, 1723 } };
-constexpr Budget HeadBudget = { 277.0f, 149, 144, 186, 110, { 300, 564, 1253, 2239 } };
-constexpr Budget ShoulderBudget = { 277.0f, 128, 107, 150, 86, { 277, 521, 1157, 2067 } };
-constexpr Budget ChestBudget = { 277.0f, 153, 144, 195, 114, { 369, 694, 1542, 2756 } };
-constexpr Budget WaistBudget = { 277.0f, 112, 105, 140, 82, { 208, 391, 867, 1550 } };
-constexpr Budget LegsBudget = { 277.0f, 139, 144, 195, 114, { 323, 608, 1349, 2412 } };
-constexpr Budget FeetBudget = { 277.0f, 103, 107, 140, 82, { 254, 477, 1060, 1895 } };
-constexpr Budget WristBudget = { 277.0f, 102, 80, 110, 64, { 162, 304, 675, 1206 } };
-constexpr Budget NeckBudget = { 277.0f, 78, 102, 110, 62, { 0, 0, 0, 0 } };
+// The slots' budgets at item level 277, the medians of the stock epics of that slot for each kind of wearer
+// (2026-10-07): strength or agility (the higher of the two: a strength slot's own median is a tank's, its stamina
+// raised), the attack power of agility gear, intellect and the spell power of caster gear, a secondary. The first
+// budgets were one median for everyone - a caster's - and left strength and agility copies a quarter short, agility
+// ones without their attack power. A trinket takes a neck's.
+constexpr Budget HeadBudget = { 277.0f, 184, 212, 139, 186, 110, { 300, 564, 1253, 2239 } };
+constexpr Budget NeckBudget = { 277.0f, 105, 120, 78, 110, 63, { 0, 0, 0, 0 } };
+constexpr Budget ShoulderBudget = { 277.0f, 138, 165, 103, 150, 86, { 277, 521, 1157, 2067 } };
+constexpr Budget CloakBudget = { 277.0f, 102, 120, 78, 110, 64, { 185, 185, 185, 185 } };
+constexpr Budget ChestBudget = { 277.0f, 184, 212, 139, 195, 114, { 369, 694, 1542, 2756 } };
+constexpr Budget WristBudget = { 277.0f, 102, 120, 78, 110, 63, { 162, 304, 675, 1206 } };
+constexpr Budget GlovesBudget = { 277.0f, 138, 165, 103, 150, 86, { 231, 434, 964, 1723 } };
+constexpr Budget WaistBudget = { 277.0f, 139, 181, 103, 140, 82, { 208, 391, 867, 1550 } };
+constexpr Budget LegsBudget = { 277.0f, 183, 212, 139, 195, 114, { 323, 608, 1349, 2412 } };
+constexpr Budget FeetBudget = { 277.0f, 120, 181, 103, 140, 82, { 254, 477, 1060, 1895 } };
+constexpr Budget RingBudget = { 277.0f, 102, 120, 78, 110, 62, { 0, 0, 0, 0 } };
 
 // The Mythic+ pool's dungeons (Dungeon Finder ids: mod-playerbots RaidFinder.cpp MythicDungeons)
 constexpr uint32 ScarletCathedral = 164;
@@ -365,12 +367,16 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
     copy.armor = armor ? Spread(int32(std::lround(float(armor) * statGrowth)), 0.0f) : 0;
 
     uint32 const primary = FavouredPrimary(player);
-    copy.stats.emplace_back(primary, Spread(int32(std::lround(budget.primary * statGrowth)), 0.05f));
-    copy.stats.emplace_back(ITEM_MOD_STAMINA, Spread(int32(std::lround(budget.stamina * statGrowth)), 0.05f));
     bool const caster = primary == ITEM_MOD_INTELLECT;
+    int32 const main = caster ? budget.intellect : budget.physical;
+    copy.stats.emplace_back(primary, Spread(int32(std::lround(main * statGrowth)), 0.05f));
+    copy.stats.emplace_back(ITEM_MOD_STAMINA, Spread(int32(std::lround(main * statGrowth)), 0.05f));
     if (caster)
         copy.stats.emplace_back(ITEM_MOD_SPELL_POWER,
             Spread(int32(std::lround(budget.spellPower * statGrowth)), 0.05f));
+    else if (primary == ITEM_MOD_AGILITY)
+        copy.stats.emplace_back(ITEM_MOD_ATTACK_POWER,
+            Spread(int32(std::lround(budget.attackPower * statGrowth)), 0.05f));
 
     // Two secondaries drawn from the ones that suit the primary
     std::vector<uint32> pool = caster ?
