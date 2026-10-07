@@ -47,7 +47,6 @@ namespace Evolutions
         Stopwatch transferClock;
         // The ingot: how far the molten metal has run into it, whether it is ready to strike, the realm behind it
         double ingotRatio;
-        string currentAction;
         bool ingotReady;
         bool? realmOnline;
         // The strike's spark burst (Assets/Forge/sparkNN.png), one frame every 45 ms
@@ -58,8 +57,6 @@ namespace Evolutions
 
         // Development switch (--page): the page to open on instead of home
         public static string StartPage;
-        // Development switch (--state): a state to show instead of checking the game
-        public static string PreviewState;
 
         public MainWindow(bool selfUpdate)
         {
@@ -94,11 +91,6 @@ namespace Evolutions
                     NavSettings.IsChecked = true;
                 backdrop.Start();
                 realmTimer.Start();
-                if (PreviewState != null)
-                {
-                    Preview(PreviewState);
-                    return;
-                }
                 await CheckRealmAsync();
                 await CheckAsync();
             };
@@ -194,36 +186,6 @@ namespace Evolutions
 
         async void Retry() => await CheckAsync();
 
-        void Preview(string state)
-        {
-            if (state == "strike")
-            {
-                // The blow, held still: the hammer on the ingot and the burst at its height
-                ShowRealm(true, "Latence 42 ms");
-                SetState("Prêt à jouer", "", "JOUER", Play);
-                ShowReady(true);
-                Hammer.Opacity = 1;
-                HammerRotation.Angle = -6;
-                Sparks.Source = SparkFrames[4];
-                Sparks.Opacity = 1;
-                return;
-            }
-            if (state == "closed")
-            {
-                ShowRealm(false, "Nouvel essai dans 30 s");
-                SetState("Prêt à jouer", "", "JOUER", Play);
-                ShowReady(true);
-                return;
-            }
-            ShowRealm(true, "Latence 42 ms");
-            SetState("Mise à jour du client…", "", "MISE À JOUR", null);
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                SetProgress(64, 100);
-                DetailText.Text = "212,4 Mo sur 330,0 Mo · 4,2 Mo/s";
-            }), DispatcherPriority.Loaded);
-        }
-
         void Remember(Manifest latest)
         {
             settings.Realmlist = latest.Realmlist;
@@ -248,31 +210,27 @@ namespace Evolutions
         // The ingot says what it will do and, underneath, what that involves
         void ShowAction(string action)
         {
-            currentAction = action;
-            // While it casts, the ingot shows how far, and the action moves underneath
-            bool casting = action == "MISE À JOUR";
-            PlayText.Text = casting ? Percent(ingotRatio) : action;
-            PlayText.FontSize = PlayText.Text.Length <= 6 ? 32 : 24;
+            PlayText.Text = action;
             string caption;
             switch (action)
             {
-                case "JOUER": caption = ""; break;
+                case "JOUER": caption = "WRATH OF THE LICH KING"; break;
                 case "VÉRIFICATION": caption = "RECHERCHE EN COURS"; break;
                 case "MISE À JOUR": caption = "VÉRIFICATION DES FICHIERS"; break;
                 case "INSTALLER": caption = "CHOISIR LE DOSSIER DU JEU"; break;
                 case "RÉESSAYER": caption = "NOUVELLE TENTATIVE"; break;
                 default: caption = ""; break;
             }
-            PlaySub.Text = casting ? action : caption;
+            PlaySub.Text = caption;
             PlaySub.Visibility = caption.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             UpdateIngot();
         }
 
-        // Ready, the workbench shows the news plates; at work, the channel the metal runs in and what it is doing
+        // At rest the progress channel steps aside: a full bar under "Prêt à jouer" read as something that had just
+        // finished loading, forever.
         void ShowReady(bool ready)
         {
-            NewsCards.Visibility = ready ? Visibility.Visible : Visibility.Collapsed;
-            WorkPanel.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
+            ProgressTrack.Visibility = ready ? Visibility.Collapsed : Visibility.Visible;
             StatusIcon.Text = ready ? "\uE73E" : "\uE946";
             ingotReady = ready;
             UpdateIngot();
@@ -306,14 +264,11 @@ namespace Evolutions
             Brush ink = new SolidColorBrush(ratio >= 1 ? Color.FromRgb(0x2A, 0x14, 0x0A) : Color.FromRgb(0xF3, 0xED, 0xE6));
             PlayText.Foreground = ink;
             PlaySub.Foreground = ink;
-            PlayText.Effect = ratio >= 1 ? null
-                : new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 6, ShadowDepth = 0, Opacity = 1,
-                    Color = Colors.Black };
             PlaySub.Opacity = 0.9;
             if (PlayText.Text == "JOUER")
             {
-                PlaySub.Text = closed ? "ROYAUME FERMÉ · LANCER QUAND MÊME" : "";
-                PlaySub.Visibility = closed ? Visibility.Visible : Visibility.Collapsed;
+                PlaySub.Text = closed ? "ROYAUME FERMÉ · LANCER QUAND MÊME" : "WRATH OF THE LICH KING";
+                PlaySub.Visibility = Visibility.Visible;
             }
         }
 
@@ -333,8 +288,6 @@ namespace Evolutions
             ProgressFill.BeginAnimation(WidthProperty,
                 new DoubleAnimation(width, TimeSpan.FromMilliseconds(180)) { FillBehavior = FillBehavior.HoldEnd });
             ingotRatio = ratio;
-            if (currentAction == "MISE À JOUR" && !launching)
-                PlayText.Text = Percent(ratio);
             if (!ingotReady)
                 UpdateIngot();
         }
@@ -407,19 +360,17 @@ namespace Evolutions
             }
         }
 
-        static string Percent(double ratio) => Math.Round(ratio * 100).ToString(French) + "%";
-
         // The hammer comes down on the ingot and the sparks burst from it
         void Strike()
         {
             var raise = TimeSpan.FromMilliseconds(120);
             Hammer.BeginAnimation(OpacityProperty, new DoubleAnimation(1, raise));
             var swing = new DoubleAnimationUsingKeyFrames();
-            swing.KeyFrames.Add(new EasingDoubleKeyFrame(55, KeyTime.FromTimeSpan(raise),
+            swing.KeyFrames.Add(new EasingDoubleKeyFrame(-70, KeyTime.FromTimeSpan(raise),
                 new SineEase { EasingMode = EasingMode.EaseOut }));
-            swing.KeyFrames.Add(new EasingDoubleKeyFrame(-6, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)),
+            swing.KeyFrames.Add(new EasingDoubleKeyFrame(4, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)),
                 new QuadraticEase { EasingMode = EasingMode.EaseIn }));
-            swing.KeyFrames.Add(new EasingDoubleKeyFrame(8, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420)),
+            swing.KeyFrames.Add(new EasingDoubleKeyFrame(-12, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(420)),
                 new SineEase { EasingMode = EasingMode.EaseOut }));
             swing.Completed += (sender, args) =>
                 Hammer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(500)));
@@ -627,11 +578,10 @@ namespace Evolutions
             // The featured spot rotates through the newest few and the cards carry on from there, so nothing is
             // on the home page twice - it used to feature an article and then show it again as the first card.
             // The cards take priority: as many featured articles as leave four for them.
-            int featuredCount = Math.Max(1, Math.Min(3, views.Count - 3));
+            int featuredCount = Math.Max(1, Math.Min(3, views.Count - 4));
             featuredNews = views.Take(featuredCount).ToList();
-            NewsCards.ItemsSource = views.Skip(featuredCount).Take(3).ToList();
+            NewsCards.ItemsSource = views.Skip(featuredCount).Take(4).ToList();
             NewsList.ItemsSource = views;
-            NewsList.SelectedIndex = 0;
             NewsBadge.Visibility = IsRecent(news) ? Visibility.Visible : Visibility.Collapsed;
 
             BuildFeaturedDots();
@@ -645,8 +595,8 @@ namespace Evolutions
         void SetFeatured(NewsView featured)
         {
             FeaturedTagText.Text = featured.Tag;
-            FeaturedTitle.Text = featured.Title.ToUpper(French);
-            FeaturedBody.Text = featured.Summary;
+            FeaturedTitle.Text = featured.Title;
+            FeaturedImage.ImageSource = featured.Image;
             for (int index = 0; index < FeaturedDots.Children.Count; ++index)
             {
                 var dot = (Border)FeaturedDots.Children[index];
@@ -705,7 +655,7 @@ namespace Evolutions
 
         void OnFeaturedEnter(object sender, MouseEventArgs e) => featuredTimer.Stop();
 
-        void OnFeaturedClick(object sender, MouseButtonEventArgs e) => OpenArticle(featuredNews[featuredIndex]);
+        void OnFeaturedClick(object sender, MouseButtonEventArgs e) => NavNews.IsChecked = true;
 
         // The top bar's "Nouveau" badge: the newest article is less than two weeks old
         static bool IsRecent(List<NewsItem> news) =>
@@ -734,15 +684,11 @@ namespace Evolutions
             {
                 Title = item.Title ?? "";
                 Tag = (item.Tag ?? "Nouveauté").ToUpper(French);
-                Body = (item.Body ?? "").Replace("\r", "");
-                bool dated = DateTime.TryParseExact(item.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out DateTime date);
-                DateText = dated ? date.ToString("d MMMM yyyy", French) : "";
-                // "CLASSE · 3 OCT." - the stamp on the plates
-                Stamp = dated ? Tag + " · " + date.ToString("d MMM", French).TrimEnd('.').ToUpper(French) + "." : Tag;
-                // The headline's lede: the first paragraph
-                Summary = Body.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim()
-                    ?? "";
+                Body = item.Body ?? "";
+                DateText = DateTime.TryParseExact(item.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out DateTime date)
+                    ? date.ToString("d MMMM yyyy", French)
+                    : "";
                 string key = NewsImages.Contains(item.Image) ? item.Image : NewsImages[index % NewsImages.Length];
                 Image = new BitmapImage(new Uri("pack://application:,,,/Evolutions;component/Assets/news-" + key + ".jpg"));
             }
@@ -751,36 +697,12 @@ namespace Evolutions
             public string Tag { get; }
             public string Body { get; }
             public string DateText { get; }
-            public string Stamp { get; }
-            public string Summary { get; }
             public ImageSource Image { get; }
         }
 
-        void OnNewsCardClick(object sender, RoutedEventArgs e) => OpenArticle(((FrameworkElement)sender).Tag as NewsView);
+        void OnNewsCardClick(object sender, RoutedEventArgs e) => NavNews.IsChecked = true;
 
-        // The news page, open on that article
-        void OpenArticle(NewsView article)
-        {
-            if (article != null)
-                NewsList.SelectedItem = article;
-            NavNews.IsChecked = true;
-        }
-
-        void OnNewsSelected(object sender, SelectionChangedEventArgs e)
-        {
-            if (!(NewsList.SelectedItem is NewsView article))
-                return;
-            ArticleImage.Source = article.Image;
-            ArticleTitle.Text = article.Title.ToUpper(French);
-            ArticleMeta.Text = string.IsNullOrEmpty(article.DateText)
-                ? SentenceCase(article.Tag)
-                : SentenceCase(article.Tag) + " · " + article.DateText;
-            ArticleBody.Text = article.Body;
-        }
-
-        // "CLASSE" -> "Classe"
-        static string SentenceCase(string text) =>
-            string.IsNullOrEmpty(text) ? text : text.Substring(0, 1) + text.Substring(1).ToLower(French);
+        void OnOpenNews(object sender, RoutedEventArgs e) => NavNews.IsChecked = true;
 
         // The Play button's chevron: the game tools from the settings page, one click from home
         void OnPlayMenu(object sender, RoutedEventArgs e)

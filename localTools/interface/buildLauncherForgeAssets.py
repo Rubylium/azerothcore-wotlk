@@ -91,8 +91,8 @@ def main():
 
     save_png(scaled(load("hammer").convert("RGBA"), 0.4), "hammer")
     save_png(scaled(load("emblem").convert("RGBA"), 0.25), "emblem")
-    # ironPlate and headerBand stay in the package only: the launcher's panels and header take sizes their
-    # paintings do not have, and painted art is never drawn out of its proportions
+    save_png(load("ironPlate").convert("RGBA"), "ironPlate")
+    save_png(scaled(load("headerBand").convert("RGBA"), 0.5), "headerBand")
 
     (OUT / "forge.json").write_text(json.dumps(layout, indent=2) + "\n", encoding="utf-8", newline="\n")
     total = sum(path.stat().st_size for path in OUT.iterdir())
