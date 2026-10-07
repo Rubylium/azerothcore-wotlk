@@ -46,7 +46,7 @@
 // intermissions and abilities come at set times from the pull, the Big Bang on the track's first drop, the god's
 // true form on the second, the end of times as it fades, and at 5:05, in the silence, everyone dies.
 //
-// 0:00 Phase 1 "Voici ce que vous affrontez": Double fauchage cosmique (two cones, one on each tank), Pluie
+// 0:00 Phase 1 "Voici ce que vous affrontez": Double fauchage cosmique (two cones, aimed at the tanks), Pluie
 //      d'étoiles (circles under players), Onde de gravité (raid-wide); 0:23 the god rises in the break, 0:28.2 Big Bang
 //      on the drop: everything but its feet.
 // 0:46.8 Intermission 1: it is exposed (+50% damage taken); two Fragments d'éternité walk to it (kill or slow them,
@@ -98,7 +98,7 @@ namespace
 constexpr float ProfileItemLevel = 300.0f;
 constexpr float ProfileParagon = 100.0f;
 
-constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on each tank a cone is aimed at
+constexpr float CleaveTankPct = 110.0f;         // Double fauchage cosmique, on a tank left in a cone
 constexpr float CleaveOtherPct = 160.0f;        // ... on anyone else in a cone
 constexpr float TwinStrikePct = 130.0f;         // Frappes jumelles, on each tank (phase 3)
 constexpr float StarfallPct = 55.0f;            // Pluie d'étoiles, each circle
@@ -122,8 +122,10 @@ constexpr uint32 TankArcaneMs = 6000;
 constexpr float AvoidablePctPerTier = 10.0f;
 constexpr float BigBangPct = 140.0f;            // anyone off the god's feet
 constexpr float RaidTickPct = 3.0f;             // intermissions, every 2 s
-constexpr float FragmentBurstPct = 25.0f;       // a fragment reaching the god: the raid...
-constexpr float FragmentHealPct = 4.0f;         // ... and it heals this share of its maximum health
+// A fragment reaching the god: the raid takes this, and it heals this share of its maximum health - both at Défi I's
+// count, shared out when there are more (SummonFragments)
+constexpr float FragmentBurstPct = 25.0f;
+constexpr float FragmentHealPct = 4.0f;
 constexpr float SingularityPoolPct = 12.0f;     // each second in the black hole's pool
 constexpr float StarSharedPct = 180.0f;         // Étoile effondrée shared by 3 or more: split between them
 constexpr float StarFailPct = 70.0f;            // ... fewer than 3: everyone
@@ -173,7 +175,7 @@ constexpr float StarDistance = 17.0f;
 // Sizes (yards) and warnings (ms)
 constexpr float CleaveRadius = 35.0f;
 constexpr float CleaveArc = 60.0f;
-constexpr uint32 CleaveWarningMs = 3000;          // the cones turn with their tanks until they land
+constexpr uint32 CleaveWarningMs = 3000;          // the cones stay where they were aimed: time to step out
 constexpr float StarfallRadius = 5.0f;
 constexpr float SweepRadius = 38.0f;            // Rayon cosmique: a cone from the god at a player who is no tank
 constexpr float SweepArc = 50.0f;
@@ -248,6 +250,10 @@ constexpr float RevealScale = 1.35f;
 constexpr float LiftHeight = 6.0f;
 constexpr uint32 FragmentCount = 2;             // at Défi I; FragmentCountHigh from Défi II
 constexpr uint32 FragmentCountHigh = 4;
+// The fragments' health together, against Défi I's two (the tier's own scaling on top). More of them share it: four
+// had each a whole one's health, twice the damage in the same 22 s, out of reach from Défi III. Live: read at each
+// intermission's summons.
+LiveTuning::Knob const FragmentHealthPct("infini.fragment_health_pct", 100.0f);
 constexpr uint32 FinishPulses = 3;              // the bots left alone: pulses, the last one kills them
 constexpr uint32 FinishPulseMs = 1000;
 constexpr Milliseconds WipeLinger = 8s;         // a wipe: the god stands this long, the music on, before it goes
@@ -1442,9 +1448,9 @@ private:
         return tanks;
     }
 
-    // Double fauchage cosmique: a cone at each of the two tanks (BusterTargets), at once, each turning with its tank
-    // until it lands. It lands on the one it is aimed at wherever that one stands; anyone else in a cone takes far
-    // more - the two tanks stacked take each other's and die (tanks: stand apart, cones away from the group).
+    // Double fauchage cosmique: a cone at each of the two tanks (BusterTargets), at once, aimed where each stands as
+    // it begins and staying there: everyone steps out of both, the tanks too. Whoever is still in one when it lands
+    // is hit, a tank hard, anyone else far harder (tanks: keep the cones pointed away from the group).
     void DoubleCleave()
     {
         std::vector<Unit*> const targets = BusterTargets();
@@ -1455,11 +1461,11 @@ private:
 
         BeginWindup(me->GetAngle(first));
         me->HandleEmoteCommand(EMOTE_ONESHOT_SPELL_CAST_OMNI);
-        std::vector<std::pair<ObjectGuid, GroundIndicators::Area>> cones;
+        std::vector<GroundIndicators::Area> cones;
         for (Unit* aimed : { first, second })
             if (aimed)
-                cones.emplace_back(aimed->GetGUID(), GroundIndicators::ShowTrackingCone(me, me->GetPosition(),
-                    CleaveRadius, CleaveArc, CleaveWarningMs, aimed));
+                cones.push_back(GroundIndicators::ShowCone(me, me->GetPosition(), me->GetAngle(aimed),
+                    CleaveRadius, CleaveArc, CleaveWarningMs));
 
         scheduler.Schedule(Milliseconds(CleaveWarningMs), [this, cones](TaskContext)
         {
@@ -1467,22 +1473,12 @@ private:
             bool failed = false;
             for (Player* player : ArenaPlayers())
             {
-                float percent = 0.0f;
-                bool stoodIn = false;
-                for (auto const& [aimed, area] : cones)
-                {
-                    if (player->GetGUID() == aimed)
-                        percent = std::max(percent, CleaveTankPct);
-                    else if (GroundIndicators::CurrentCone(ObjectAccessor::GetUnit(*me, aimed), area)
-                        .Contains(*player))
-                    {
-                        percent = std::max(percent, CleaveOtherPct);
-                        stoodIn = true;
-                    }
-                }
-                if (percent > 0.0f)
-                    Hit(player, SPELL_DOUBLE_CLEAVE, percent, stoodIn);
-                failed = failed || stoodIn;
+                bool const stoodIn = std::ranges::any_of(cones, [player](GroundIndicators::Area const& area)
+                    { return area.Contains(*player); });
+                if (!stoodIn)
+                    continue;
+                Hit(player, SPELL_DOUBLE_CLEAVE, IsGroupTank(player) ? CleaveTankPct : CleaveOtherPct, true);
+                failed = true;
             }
             Resolve(!failed);
             EndWindup();
@@ -1962,13 +1958,15 @@ private:
         Resurgence();
     }
 
-    // Two Fragments d'éternité from the edge, walking to the god: the first one marked with the skull, which bots kill
-    // first (DpsTargetValue)
+    // Fragments d'éternité from the edge, walking to the god, two at Défi I and four above sharing two's health: the
+    // first one marked with the skull, which bots kill first (DpsTargetValue)
     void SummonFragments()
     {
         _fragments.clear();
         float const base = frand(0.0f, 2.0f * float(M_PI));
         uint32 const count = TierAbove() > 0 ? FragmentCountHigh : FragmentCount;
+        _fragmentShare = float(FragmentCount) / float(count);
+        float const healthShare = _fragmentShare * float(FragmentHealthPct) / 100.0f;
         for (uint32 index = 0; index < count; ++index)
         {
             float const angle = base + float(M_PI) * 2.0f * float(index) / float(count);
@@ -1976,6 +1974,12 @@ private:
                 me->GetPositionY() + std::sin(angle) * FragmentSpawnDistance, ArenaFloorZ));
             if (TempSummon* fragment = me->SummonCreature(NPC_FRAGMENT, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000))
             {
+                // As the tier's scaling sets it (ScaleChallengeCreature), done already: a share of it
+                uint32 const health = std::max<uint32>(1, uint32(float(fragment->GetCreateHealth()) * healthShare));
+                fragment->SetCreateHealth(health);
+                fragment->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, float(health));
+                fragment->UpdateMaxHealth();
+                fragment->SetFullHealth();
                 fragment->SetFacingToObject(me);
                 fragment->SetWalk(true);
                 fragment->SetSpeed(MOVE_WALK, FragmentWalkSpeedRate);
@@ -2026,9 +2030,9 @@ private:
     void MergeFragment(Creature* fragment)
     {
         fragment->SendPlaySpellVisual(KIT_BLACK_HOLE_HIT);
-        me->ModifyHealth(int32(float(me->GetMaxHealth()) * FragmentHealPct / 100.0f));
+        me->ModifyHealth(int32(float(me->GetMaxHealth()) * FragmentHealPct * _fragmentShare / 100.0f));
         for (Player* player : ArenaPlayers())
-            Hit(player, SPELL_ETERNITY_SHARD, FragmentBurstPct, false);
+            Hit(player, SPELL_ETERNITY_SHARD, FragmentBurstPct * _fragmentShare, false);
         fragment->DespawnOrUnsummon(500ms);
         MarkFragment();
     }
@@ -2552,6 +2556,7 @@ private:
     GroundIndicators::Area _bigBang;
     GroundIndicators::Area _edgeArea;
     std::vector<ObjectGuid> _fragments;
+    float _fragmentShare = 1.0f;                // Défi I's count over this one's (SummonFragments)
     std::set<ObjectGuid> _fightListeners;
 
     std::map<ObjectGuid, uint32> _weight;
