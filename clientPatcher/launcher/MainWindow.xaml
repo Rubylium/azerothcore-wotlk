@@ -9,7 +9,7 @@
         Icon="Assets/Evolutions.ico"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType"
-        FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource Text}">
+        FontFamily="{StaticResource Body}" FontSize="14" Foreground="{StaticResource Text}">
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0" GlassFrameThickness="0,0,0,1"
@@ -17,27 +17,31 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- "La Forge" (.agents/plans/launcher-forge): a forge whose heat is the launcher's state. The pages are
-             stamped tabs on the header band; the current one is molten. -->
+        <!-- "La Forge" (.agents/plans/launcher-forge, the Forge artboards): an iron header, the forge glowing on the
+             right, the headline on the dark left, and the workbench along the bottom - the realm, the news plates
+             (or the casting channel while it works) and the ingot. Painted art is only ever drawn at its own
+             proportions. -->
+
+        <DataTemplate x:Key="TrackedContent">
+            <local:Tracked Text="{Binding}" FontFamily="{StaticResource Label}" Spacing="0.14" />
+        </DataTemplate>
+
         <Style x:Key="NavTab" TargetType="RadioButton">
             <Setter Property="GroupName" Value="Pages" />
-            <Setter Property="Margin" Value="2,0" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{StaticResource Soft}" />
-            <Setter Property="FontFamily" Value="{StaticResource Display}" />
+            <Setter Property="Foreground" Value="{StaticResource Tab}" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="ContentTemplate" Value="{StaticResource TrackedContent}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Back" CornerRadius="2" Padding="14,7" Background="Transparent">
+                        <Border x:Name="Back" CornerRadius="3" Padding="15,9" Background="Transparent">
                             <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource Text}" />
-                                <Setter TargetName="Back" Property="Background" Value="#22FFFFFF" />
+                                <Setter Property="Foreground" Value="{StaticResource Bright}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Back" Property="Background" Value="{StaticResource GoldBrush}" />
@@ -49,11 +53,10 @@
             </Setter>
         </Style>
 
-        <!-- Title bar buttons, small iron squares -->
         <Style x:Key="ChromeButton" TargetType="Button">
-            <Setter Property="Width" Value="34" />
-            <Setter Property="Height" Value="30" />
-            <Setter Property="Foreground" Value="{StaticResource Soft}" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Foreground" Value="{StaticResource Tab}" />
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="10" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
@@ -61,13 +64,13 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Back" Background="#FF22252B" BorderBrush="#FF454A54" BorderThickness="1"
-                                CornerRadius="2">
+                                CornerRadius="3">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Back" Property="BorderBrush" Value="{StaticResource Gold}" />
-                                <Setter Property="Foreground" Value="{StaticResource Text}" />
+                                <Setter Property="Foreground" Value="{StaticResource Bright}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -79,14 +82,14 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Back" Background="#FF22252B" BorderBrush="#FF454A54" BorderThickness="1"
-                                CornerRadius="2">
+                                CornerRadius="3">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Back" Property="Background" Value="#FFB0401A" />
                                 <Setter TargetName="Back" Property="BorderBrush" Value="#FFFF8A2A" />
-                                <Setter Property="Foreground" Value="{StaticResource Text}" />
+                                <Setter Property="Foreground" Value="{StaticResource Bright}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -94,32 +97,35 @@
             </Setter>
         </Style>
 
-        <!-- Secondary actions: a stamped iron plate, rimmed in molten metal under the mouse -->
-        <Style x:Key="GhostButton" TargetType="Button">
+        <!-- An iron button with stamped words; the Accent one is rimmed in molten metal -->
+        <Style x:Key="IronButton" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Text}" />
-            <Setter Property="Padding" Value="16,8" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontFamily" Value="{StaticResource Display}" />
+            <Setter Property="Background" Value="#FF2B2E35" />
+            <Setter Property="BorderBrush" Value="#FF454A54" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="16,0" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <local:Tracked Text="{Binding}" FontFamily="{StaticResource Label}" Spacing="0.12" />
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Back" CornerRadius="2" BorderThickness="1" BorderBrush="#FF454A54"
+                        <Border x:Name="Back" CornerRadius="3" BorderThickness="1"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                                 Padding="{TemplateBinding Padding}">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#FF33363E" Offset="0" />
-                                    <GradientStop Color="#FF24272D" Offset="1" />
-                                </LinearGradientBrush>
-                            </Border.Background>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Back" Property="BorderBrush" Value="{StaticResource Gold}" />
-                                <Setter Property="Foreground" Value="{StaticResource GoldLight}" />
+                                <Setter Property="Foreground" Value="#FFFFCF9A" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4" />
@@ -129,18 +135,23 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource IronButton}">
+            <Setter Property="Background" Value="#1FFF8A2A" />
+            <Setter Property="BorderBrush" Value="#FFFF8A2A" />
+            <Setter Property="Foreground" Value="#FFFFCF9A" />
+        </Style>
 
         <Style x:Key="LinkButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource Gold}" />
+            <Setter Property="Foreground" Value="{StaticResource GoldLight}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <ContentPresenter x:Name="Content" />
+                        <ContentPresenter />
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource GoldLight}" />
+                                <Setter Property="Foreground" Value="#FFFFD3A3" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -148,7 +159,7 @@
             </Setter>
         </Style>
 
-        <!-- The ingot is painted around it (IngotArea): the button itself is only its hit area and its words -->
+        <!-- The ingot is painted around it: the button is only its hit area and its words -->
         <Style x:Key="PlayButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
@@ -163,11 +174,6 @@
             </Setter>
         </Style>
 
-        <!-- The game tools: a small iron square beside the ingot -->
-        <Style x:Key="PlayMenuButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
-            <Setter Property="Padding" Value="0" />
-        </Style>
-
         <Style x:Key="PlayMenuStyle" TargetType="ContextMenu">
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="HasDropShadow" Value="False" />
@@ -175,7 +181,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border CornerRadius="3" Padding="6" BorderThickness="1" BorderBrush="#FF454A54"
-                                Background="#FA1B1D22" Margin="0,8,0,0">
+                                Background="#FA1B1D22" Margin="0,0,0,8">
                             <ItemsPresenter />
                         </Border>
                     </ControlTemplate>
@@ -186,7 +192,7 @@
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="Foreground" Value="{StaticResource Text}" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
@@ -200,7 +206,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="Back" Property="Background" Value="#26FF8A2A" />
-                                <Setter Property="Foreground" Value="{StaticResource GoldLight}" />
+                                <Setter Property="Foreground" Value="#FFFFCF9A" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4" />
@@ -235,67 +241,92 @@
             </Setter>
         </Style>
 
-        <Style x:Key="Stamp" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource Display}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{StaticResource Gold}" />
-        </Style>
-
-        <!-- The home page's chronicle: one stamped line per article, its tag and date, then its title -->
+        <!-- A news plate on the workbench: its stamp at the top, its title at the bottom -->
         <DataTemplate x:Key="NewsCard">
-            <Button Style="{StaticResource LinkButton}" Click="OnNewsCardClick" Tag="{Binding}" Margin="0,0,0,8">
-                <Border x:Name="Card" CornerRadius="2" BorderThickness="1" BorderBrush="#FF353942" Padding="14,9"
-                        Background="#D91B1D22">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Tag}" Style="{StaticResource Stamp}" FontSize="11" />
-                            <TextBlock Text="  ·  " Style="{StaticResource Stamp}" FontSize="11"
-                                       Foreground="{StaticResource Muted}" />
-                            <TextBlock Text="{Binding DateText}" FontSize="11" Foreground="{StaticResource Muted}" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"
-                                   Foreground="{StaticResource Text}" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+            <Button Style="{StaticResource LinkButton}" Click="OnNewsCardClick" Tag="{Binding}" Margin="6,0">
+                <Border x:Name="Card" CornerRadius="4" BorderThickness="1" BorderBrush="{StaticResource Edge}"
+                        Background="{StaticResource PlateBrush}" Padding="15,13">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <local:Tracked Text="{Binding Stamp}" FontFamily="{StaticResource Label}" FontSize="11.5"
+                                       Spacing="0.2" Foreground="{StaticResource Gold}" />
+                        <TextBlock Grid.Row="1" Text="{Binding Title}" FontFamily="{StaticResource BodyStrong}"
+                                   FontSize="15.5" LineHeight="20" LineStackingStrategy="BlockLineHeight"
+                                   MaxHeight="60" TextWrapping="Wrap" TextTrimming="WordEllipsis"
+                                   VerticalAlignment="Bottom" Foreground="{StaticResource Text}" />
+                    </Grid>
                 </Border>
             </Button>
             <DataTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource Gold}" />
-                    <Setter TargetName="Card" Property="Background" Value="#E62A231E" />
+                    <Setter TargetName="Card" Property="BorderBrush" Value="#FFFF8A2A" />
                 </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
 
-        <!-- An article on the news page, on its iron plate -->
-        <DataTemplate x:Key="NewsEntry">
-            <Grid Margin="0,0,0,14">
-                <local:IronPlate CornerSize="22" />
-                <Grid Margin="18,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="230" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border BorderBrush="#FF454A54" BorderThickness="2" CornerRadius="2" MinHeight="128"
-                            VerticalAlignment="Top">
-                        <Border.Background>
-                            <ImageBrush ImageSource="{Binding Image}" Stretch="UniformToFill" />
-                        </Border.Background>
-                    </Border>
-                    <StackPanel Grid.Column="1" Margin="20,2,6,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Tag}" Style="{StaticResource Stamp}" />
-                            <TextBlock Text="{Binding DateText}" FontSize="11" Margin="12,0,0,0"
-                                       VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding Title}" FontFamily="{StaticResource Display}" FontSize="22"
-                                   FontWeight="SemiBold" Margin="0,8,0,6" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding Body}" TextWrapping="Wrap" LineHeight="20"
-                                   Foreground="{StaticResource Soft}" />
-                    </StackPanel>
-                </Grid>
-            </Grid>
-        </DataTemplate>
+        <!-- The news page's list: the open article lit, rimmed in molten metal on its left -->
+        <Style x:Key="NewsListItem" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Margin" Value="0,0,14,10" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Card" CornerRadius="3" BorderThickness="1" BorderBrush="#FF353942"
+                                Background="#FF1D1F24">
+                            <Grid>
+                                <Border x:Name="Rim" Width="4" HorizontalAlignment="Left" Background="#FFFF8A2A"
+                                        CornerRadius="3,0,0,3" Visibility="Collapsed" />
+                                <StackPanel Margin="16,13,14,13">
+                                    <local:Tracked x:Name="Stamp" Text="{Binding Stamp}" FontSize="11.5" Spacing="0.2"
+                                                   FontFamily="{StaticResource Label}" Foreground="#FFB7834F" />
+                                    <TextBlock Text="{Binding Title}" FontFamily="{StaticResource BodyStrong}"
+                                               FontSize="16" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource Text}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="#FF5A4632" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="#FF5A4632" />
+                                <Setter TargetName="Card" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#FF2F2A26" Offset="0" />
+                                            <GradientStop Color="#FF26221F" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Rim" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="Stamp" Property="Foreground" Value="{StaticResource Gold}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A settings section: an iron plate with its stamped heading -->
+        <Style x:Key="Section" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Edge}" />
+            <Setter Property="Padding" Value="22,20" />
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#FF23262C" Offset="0" />
+                        <GradientStop Color="#FF1C1E23" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Storyboard x:Key="PageIn">
             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.25" />
@@ -310,14 +341,29 @@
 
     <Grid x:Name="Root" ClipToBounds="True" MouseMove="OnRootMouseMove">
         <Grid.RowDefinitions>
-            <RowDefinition Height="52" />
+            <RowDefinition Height="70" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+        <!-- The forge's warmth on the dark iron, under the painting -->
+        <Grid.Background>
+            <RadialGradientBrush Center="0.74,0.46" GradientOrigin="0.74,0.46" RadiusX="0.75" RadiusY="0.78">
+                <GradientStop Color="#FF4A2312" Offset="0" />
+                <GradientStop Color="#FF1F1612" Offset="0.45" />
+                <GradientStop Color="#FF111113" Offset="1" />
+            </RadialGradientBrush>
+        </Grid.Background>
 
-        <!-- The forge, in depth (Backdrop.cs): the far wall, the anvil and its fire, the smoke, the foreground. Each
-             has a cold painting under a hot one, cross-faded with the realm's state. Scene pixels: 1920 x 1140. -->
-        <Viewbox Grid.RowSpan="2" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"
+        <!-- The forge, in depth (Backdrop.cs), at the painting's own proportions (1920 x 1140, cropped to the window,
+             never stretched). It melts into the dark towards the left, where the words are. -->
+        <Viewbox Grid.RowSpan="2" Stretch="UniformToFill" HorizontalAlignment="Right" VerticalAlignment="Center"
                  ClipToBounds="True" IsHitTestVisible="False">
+            <Viewbox.OpacityMask>
+                <RadialGradientBrush Center="0.74,0.46" GradientOrigin="0.74,0.46" RadiusX="0.5" RadiusY="0.72">
+                    <GradientStop Color="#FF000000" Offset="0" />
+                    <GradientStop Color="#E0000000" Offset="0.5" />
+                    <GradientStop Color="#00000000" Offset="1" />
+                </RadialGradientBrush>
+            </Viewbox.OpacityMask>
             <Canvas x:Name="BackdropScene" Width="1920" Height="1140" RenderTransformOrigin="0.62,0.45">
                 <Canvas.RenderTransform>
                     <TransformGroup>
@@ -329,404 +375,456 @@
                     <Canvas.RenderTransform>
                         <TranslateTransform x:Name="BackShift" />
                     </Canvas.RenderTransform>
-                    <Image Source="Assets/Forge/backWallCold.jpg" Width="1920" Height="1140" Stretch="Fill"
+                    <Image Source="Assets/Forge/backWallCold.jpg" Width="1920" Height="1140"
                            RenderOptions.BitmapScalingMode="HighQuality" />
                     <Image x:Name="WallHot" Source="Assets/Forge/backWallHot.jpg" Width="1920" Height="1140"
-                           Stretch="Fill" Opacity="0" RenderOptions.BitmapScalingMode="HighQuality" />
+                           Opacity="0" RenderOptions.BitmapScalingMode="HighQuality" />
                 </Canvas>
                 <Canvas Width="1920" Height="1140">
                     <Canvas.RenderTransform>
                         <TranslateTransform x:Name="MidShift" />
                     </Canvas.RenderTransform>
                     <Image Source="Assets/Forge/anvilCold.png" Canvas.Left="1204" Canvas.Top="489" Width="549"
-                           Height="346" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                           Height="346" RenderOptions.BitmapScalingMode="HighQuality" />
                     <Canvas x:Name="HotMid" Width="1920" Height="1140" Opacity="0">
                         <Image Source="Assets/Forge/anvilHot.png" Canvas.Left="1204" Canvas.Top="489" Width="549"
-                               Height="346" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+                               Height="346" RenderOptions.BitmapScalingMode="HighQuality" />
                         <Image x:Name="FireLight" Source="Assets/Forge/fireLight.png" Canvas.Left="941" Canvas.Top="2"
-                               Width="977" Height="809" Stretch="Fill" />
+                               Width="977" Height="809" />
                     </Canvas>
                     <Canvas x:Name="BackdropEmbers" Width="1920" Height="1140" Opacity="0" />
                 </Canvas>
-                <Canvas x:Name="SmokeLayer" Canvas.Top="300" Opacity="0.55">
+                <Canvas x:Name="SmokeLayer" Canvas.Top="300" Opacity="0.5">
                     <Canvas.RenderTransform>
                         <TranslateTransform />
                     </Canvas.RenderTransform>
-                    <Image Source="Assets/Forge/smoke.png" Width="1920" Height="570" Stretch="Fill" />
-                    <Image Source="Assets/Forge/smoke.png" Canvas.Left="1920" Width="1920" Height="570" Stretch="Fill" />
+                    <Image Source="Assets/Forge/smoke.png" Width="1920" Height="570" />
+                    <Image Source="Assets/Forge/smoke.png" Canvas.Left="1920" Width="1920" Height="570" />
                 </Canvas>
                 <Canvas Width="1920" Height="1140">
                     <Canvas.RenderTransform>
                         <TranslateTransform x:Name="FrontShift" />
                     </Canvas.RenderTransform>
-                    <Image Source="Assets/Forge/foreground.png" Width="1920" Height="1140" Stretch="Fill"
+                    <Image Source="Assets/Forge/foreground.png" Width="1920" Height="1140"
                            RenderOptions.BitmapScalingMode="HighQuality" />
                 </Canvas>
             </Canvas>
         </Viewbox>
-        <!-- Shade where the words sit: the left column and the workbench at the bottom -->
-        <Rectangle Grid.RowSpan="2" IsHitTestVisible="False">
-            <Rectangle.Fill>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#D0101113" Offset="0" />
-                    <GradientStop Color="#80101113" Offset="0.38" />
-                    <GradientStop Color="#00101113" Offset="0.6" />
-                </LinearGradientBrush>
-            </Rectangle.Fill>
-        </Rectangle>
-        <Rectangle Grid.RowSpan="2" IsHitTestVisible="False">
-            <Rectangle.Fill>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#00101113" Offset="0.62" />
-                    <GradientStop Color="#C0101113" Offset="0.86" />
-                    <GradientStop Color="#F0101113" Offset="1" />
-                </LinearGradientBrush>
-            </Rectangle.Fill>
-        </Rectangle>
         <!-- Pages other than home sit on a darker veil -->
-        <Rectangle x:Name="Veil" Grid.RowSpan="2" Fill="#EA101113" Opacity="0" IsHitTestVisible="False" />
+        <Rectangle x:Name="Veil" Grid.RowSpan="2" Fill="#F0111113" Opacity="0" IsHitTestVisible="False" />
 
-        <!-- The header band: the mark, the pages, the window's buttons -->
-        <Grid MouseLeftButtonDown="OnDragWindow">
-            <Grid.Background>
-                <ImageBrush ImageSource="Assets/Forge/headerBand.png" Stretch="Fill" />
-            </Grid.Background>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal" Margin="18,0,30,0" VerticalAlignment="Center">
-                <Image Source="Assets/Forge/emblem.png" Width="40" Height="40" Margin="0,0,10,0"
-                       RenderOptions.BitmapScalingMode="HighQuality" />
-                <TextBlock Text="EVOLUTIONS" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="22"
-                           VerticalAlignment="Center" Foreground="{StaticResource Text}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <RadioButton x:Name="NavHome" Style="{StaticResource NavTab}" IsChecked="True" Checked="OnNavigate"
-                             Content="ACCUEIL" />
-                <RadioButton x:Name="NavNews" Style="{StaticResource NavTab}" Checked="OnNavigate">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="ANNONCES" VerticalAlignment="Center" />
-                        <!-- Only while the newest article is recent -->
-                        <Border x:Name="NewsBadge" CornerRadius="2" Background="#FFC84B10" Padding="5,1"
-                                Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
-                            <TextBlock Text="NOUVEAU" FontSize="9" FontWeight="Bold" Foreground="#FFFFF1DF" />
-                        </Border>
+        <!-- The header: an iron plate with the mark, the pages and the window's buttons -->
+        <Border BorderBrush="#FF0C0D0F" BorderThickness="0,0,0,2" MouseLeftButtonDown="OnDragWindow">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#FF2B2E35" Offset="0" />
+                    <GradientStop Color="#FF1D1F24" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Rectangle Height="2" VerticalAlignment="Top" Fill="#FF3B3F48" />
+                <Grid Margin="26,0,18,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,34,0">
+                        <Image Source="Assets/Forge/emblem.png" Width="40" Height="40" Margin="0,0,12,0"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                        <local:Tracked Text="EVOLUTIONS" FontFamily="{StaticResource Display}" FontSize="26"
+                                       Spacing="0.2" Foreground="#FFF3EDE6" VerticalAlignment="Center" />
                     </StackPanel>
-                </RadioButton>
-                <RadioButton x:Name="NavSettings" Style="{StaticResource NavTab}" Checked="OnNavigate"
-                             Content="RÉGLAGES" />
-            </StackPanel>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
-                <Border x:Name="VersionPill" Margin="0,0,12,0" VerticalAlignment="Center" Visibility="Collapsed">
-                    <TextBlock x:Name="VersionText" FontSize="11" Foreground="{StaticResource Muted}" />
-                </Border>
-                <Button Style="{StaticResource ChromeButton}" Content="&#xE921;" Click="OnMinimize" />
-                <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="OnClose" Margin="6,0,0,0" />
-            </StackPanel>
-        </Grid>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <RadioButton x:Name="NavHome" Style="{StaticResource NavTab}" IsChecked="True"
+                                     Checked="OnNavigate" Content="JOUER" Margin="0,0,6,0" />
+                        <RadioButton x:Name="NavNews" Style="{StaticResource NavTab}" Checked="OnNavigate"
+                                     Margin="0,0,6,0">
+                            <RadioButton.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <local:Tracked Text="ANNONCES" FontFamily="{StaticResource Label}"
+                                                       Spacing="0.14" VerticalAlignment="Center" />
+                                        <ContentPresenter Content="{Binding}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </RadioButton.ContentTemplate>
+                            <!-- Only while the newest article is recent -->
+                            <Border x:Name="NewsBadge" Width="7" Height="7" CornerRadius="3.5" Margin="7,0,0,8"
+                                    VerticalAlignment="Center" Background="#FFFF8A2A" Visibility="Collapsed" />
+                        </RadioButton>
+                        <RadioButton x:Name="NavSettings" Style="{StaticResource NavTab}" Checked="OnNavigate"
+                                     Content="RÉGLAGES" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border x:Name="VersionPill" Margin="0,0,14,0" VerticalAlignment="Center"
+                                Visibility="Collapsed">
+                            <TextBlock x:Name="VersionText" FontSize="13" Foreground="{StaticResource Muted}" />
+                        </Border>
+                        <Button Style="{StaticResource ChromeButton}" Content="&#xE921;" Click="OnMinimize" />
+                        <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="OnClose"
+                                Margin="8,0,0,0" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
 
         <!-- Home -->
         <Grid x:Name="HomePage" Grid.Row="1">
             <Grid.RenderTransform>
                 <TranslateTransform />
             </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="184" />
+            </Grid.RowDefinitions>
 
-            <!-- The left column: the featured article, then the chronicle -->
-            <StackPanel Width="500" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="44,30,0,0">
-                <!-- Rotates through the newest articles; hovering it holds the current one -->
-                <Border x:Name="Featured" Background="Transparent" Cursor="Hand" MouseEnter="OnFeaturedEnter"
-                        MouseLeave="OnFeaturedLeave" MouseLeftButtonUp="OnFeaturedClick">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Width="150" Height="96" BorderBrush="#FF454A54" BorderThickness="2" CornerRadius="2"
-                                VerticalAlignment="Top">
-                            <Border.Background>
-                                <ImageBrush x:Name="FeaturedImage" Stretch="UniformToFill" />
-                            </Border.Background>
-                        </Border>
-                        <StackPanel Grid.Column="1" Margin="18,0,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="À LA UNE  ·  " Style="{StaticResource Stamp}" />
-                                <TextBlock x:Name="FeaturedTagText" Style="{StaticResource Stamp}" />
-                            </StackPanel>
-                            <TextBlock x:Name="FeaturedTitle" FontFamily="{StaticResource Display}" FontWeight="Bold"
-                                       FontSize="26" TextWrapping="Wrap" LineHeight="29" MaxHeight="58" Margin="0,6,0,0"
-                                       LineStackingStrategy="BlockLineHeight" TextTrimming="WordEllipsis"
-                                       Foreground="#FFF6F0E8">
-                                <TextBlock.Effect>
-                                    <DropShadowEffect BlurRadius="14" ShadowDepth="1" Opacity="0.9" Color="Black" />
-                                </TextBlock.Effect>
-                            </TextBlock>
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                <!-- One pill per featured article; filled in by ShowNews -->
-                                <StackPanel x:Name="FeaturedDots" Orientation="Horizontal" VerticalAlignment="Center" />
-                                <TextBlock Text="Lire l'annonce →" Foreground="{StaticResource Gold}" FontSize="13"
-                                           FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+            <!-- The headline: the featured article, rotating through the newest; hovering holds it -->
+            <Border x:Name="Featured" Width="470" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Margin="52,0,0,6" Background="Transparent" Cursor="Hand" MouseEnter="OnFeaturedEnter"
+                    MouseLeave="OnFeaturedLeave" MouseLeftButtonUp="OnFeaturedClick">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <local:Tracked Text="À LA UNE  ·  " FontFamily="{StaticResource Label}" FontSize="13"
+                                       Spacing="0.3" Foreground="{StaticResource Gold}" />
+                        <local:Tracked x:Name="FeaturedTagText" FontFamily="{StaticResource Label}" FontSize="13"
+                                       Spacing="0.3" Foreground="{StaticResource Gold}" />
+                    </StackPanel>
+                    <TextBlock x:Name="FeaturedTitle" FontFamily="{StaticResource Display}" FontSize="54"
+                               LineHeight="56" LineStackingStrategy="BlockLineHeight" MaxHeight="168"
+                               TextWrapping="Wrap" TextTrimming="WordEllipsis" Margin="0,14,0,0"
+                               Foreground="{StaticResource Bright}" />
+                    <TextBlock x:Name="FeaturedBody" FontSize="16.5" LineHeight="25" MaxHeight="75"
+                               LineStackingStrategy="BlockLineHeight" TextWrapping="Wrap" TextTrimming="WordEllipsis"
+                               Margin="0,16,0,0" Foreground="{StaticResource Soft}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <TextBlock Text="Lire l'annonce →" FontFamily="{StaticResource BodyStrong}" FontSize="15"
+                                   Foreground="{StaticResource GoldLight}" VerticalAlignment="Center" />
+                        <!-- One pill per featured article; filled in by ShowNews -->
+                        <StackPanel x:Name="FeaturedDots" Orientation="Horizontal" VerticalAlignment="Center"
+                                    Margin="22,1,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
-                <TextBlock Text="CHRONIQUE" Style="{StaticResource Stamp}" Foreground="{StaticResource Muted}"
-                           Margin="0,34,0,10" FontSize="12" />
-                <ItemsControl x:Name="NewsCards" ItemTemplate="{StaticResource NewsCard}" />
-            </StackPanel>
-
-            <!-- The workbench: the ingot, what the launcher is doing, the realm -->
-            <Grid VerticalAlignment="Bottom" Height="132" Margin="24,0,24,20">
-                <local:IronPlate CornerSize="30" />
-                <Grid Margin="26,16,26,16">
+            <!-- The workbench -->
+            <Border Grid.Row="1" BorderBrush="{StaticResource Edge}" BorderThickness="0,2,0,0">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#FF24272D" Offset="0" />
+                        <GradientStop Color="#FF17191D" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid Margin="26,22">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="320" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="196" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- The ingot: cold iron, the molten one revealed over it as far as the work has gone, its
-                         glow behind while it is ready. The hammer and the sparks of the strike above it. -->
-                    <Grid x:Name="IngotArea" Margin="0,-6,0,-6" RenderTransformOrigin="0.5,0.5">
-                        <Grid.RenderTransform>
-                            <ScaleTransform />
-                        </Grid.RenderTransform>
-                        <Grid.Style>
-                            <Style TargetType="Grid">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsMouseOver, ElementName=PlayButton}" Value="True">
-                                        <DataTrigger.EnterActions>
-                                            <BeginStoryboard>
-                                                <Storyboard>
-                                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
-                                                                     To="1.03" Duration="0:0:0.15" />
-                                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
-                                                                     To="1.03" Duration="0:0:0.15" />
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </DataTrigger.EnterActions>
-                                        <DataTrigger.ExitActions>
-                                            <BeginStoryboard>
-                                                <Storyboard>
-                                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
-                                                                     To="1" Duration="0:0:0.25" />
-                                                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
-                                                                     To="1" Duration="0:0:0.25" />
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </DataTrigger.ExitActions>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Grid.Style>
-                        <Image x:Name="IngotGlow" Source="Assets/Forge/ingotGlow.png" Margin="-34,-24" Opacity="0"
-                               Stretch="Fill" IsHitTestVisible="False" />
-                        <Image Source="Assets/Forge/ingotCold.png" Stretch="Fill" IsHitTestVisible="False"
-                               RenderOptions.BitmapScalingMode="HighQuality" />
-                        <Border x:Name="IngotFill" HorizontalAlignment="Left" Width="0" ClipToBounds="True"
-                                IsHitTestVisible="False">
-                            <Image Source="Assets/Forge/ingotHot.png" Stretch="Fill" HorizontalAlignment="Left"
-                                   Width="{Binding ActualWidth, ElementName=IngotArea}"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                        </Border>
-                        <Button x:Name="PlayButton" Style="{StaticResource PlayButton}" IsEnabled="False" Click="OnPlay"
-                                Margin="30,18">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock x:Name="PlayText" Text="JOUER" FontFamily="{StaticResource Display}"
-                                           FontWeight="Bold" FontSize="28" HorizontalAlignment="Center"
-                                           Foreground="#FF2A140A" />
-                                <TextBlock x:Name="PlaySub" FontFamily="{StaticResource Display}" FontSize="11.5"
-                                           FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#CC2A140A"
-                                           Visibility="Collapsed" />
-                            </StackPanel>
-                        </Button>
-                        <!-- The strike: the hammer coming down on the ingot, sparks bursting from it -->
-                        <Canvas IsHitTestVisible="False">
-                            <Image x:Name="Hammer" Source="Assets/Forge/hammer.png" Width="190" Height="142"
-                                   Canvas.Left="190" Canvas.Top="-118" Opacity="0" RenderTransformOrigin="0.92,0.9">
-                                <Image.RenderTransform>
-                                    <RotateTransform x:Name="HammerRotation" Angle="-55" />
-                                </Image.RenderTransform>
-                            </Image>
-                            <Image x:Name="Sparks" Width="300" Height="300" Canvas.Left="10" Canvas.Top="-104"
-                                   Opacity="0" />
-                        </Canvas>
-                    </Grid>
-
-                    <Button x:Name="PlayMenuButton" Grid.Column="1" Style="{StaticResource PlayMenuButton}" Width="40"
-                            Height="56" Margin="10,0,0,0" ToolTip="Outils du jeu" Click="OnPlayMenu">
-                        <Button.ContextMenu>
-                            <ContextMenu x:Name="PlayMenu" Style="{StaticResource PlayMenuStyle}" Width="236">
-                                <MenuItem x:Name="PlayMenuRepair" Header="Réparer le jeu" Style="{StaticResource PlayMenuItem}"
-                                          Click="OnRepair">
-                                    <MenuItem.Icon>
-                                        <TextBlock Text="&#xE90F;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem x:Name="PlayMenuCache" Header="Vider le cache" Style="{StaticResource PlayMenuItem}"
-                                          Click="OnClearCache">
-                                    <MenuItem.Icon>
-                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem x:Name="PlayMenuFolder" Header="Ouvrir le dossier du jeu"
-                                          Style="{StaticResource PlayMenuItem}" Click="OnOpenFolder">
-                                    <MenuItem.Icon>
-                                        <TextBlock Text="&#xE838;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="Réglages" Style="{StaticResource PlayMenuItem}"
-                                          Click="OnPlayMenuSettings">
-                                    <MenuItem.Icon>
-                                        <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                            </ContextMenu>
-                        </Button.ContextMenu>
-                        <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
-                    </Button>
-
-                    <!-- What the launcher is doing, and the channel the metal runs in while it works -->
-                    <StackPanel Grid.Column="2" Margin="26,0,22,0" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="StatusIcon" Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       Foreground="{StaticResource Gold}" VerticalAlignment="Center" Margin="0,1,10,0" />
-                            <TextBlock x:Name="StatusText" FontFamily="{StaticResource Display}" FontSize="19"
-                                       FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <TextBlock x:Name="DetailText" FontSize="13" Foreground="{StaticResource Muted}" Margin="24,4,0,0"
-                                   TextTrimming="CharacterEllipsis" />
-                        <Grid x:Name="ProgressTrack" Height="12" Margin="0,12,0,0">
-                            <Border CornerRadius="2" Background="#FF121316" BorderBrush="#FF3B3F48" BorderThickness="1" />
-                            <Border x:Name="ProgressFill" CornerRadius="2" HorizontalAlignment="Left" Width="0"
-                                    Margin="1" Background="{StaticResource MoltenBrush}">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="#FFFF8A2A" BlurRadius="12" ShadowDepth="0" Opacity="0.8" />
-                                </Border.Effect>
-                            </Border>
-                        </Grid>
-                    </StackPanel>
-
                     <!-- The realm -->
-                    <Border Grid.Column="3" BorderBrush="#FF3B3F48" BorderThickness="1,0,0,0" Padding="22,0,4,0"
-                            VerticalAlignment="Center">
-                        <StackPanel>
-                            <TextBlock Text="ROYAUME" Style="{StaticResource Stamp}" Foreground="{StaticResource Muted}" />
-                            <Grid Margin="0,6,0,0">
+                    <Border CornerRadius="4" BorderThickness="1" BorderBrush="#FF353942"
+                            Background="{StaticResource Plate}" Padding="16,0">
+                        <StackPanel VerticalAlignment="Center">
+                            <local:Tracked Text="ROYAUME" FontFamily="{StaticResource Label}" FontSize="12.5"
+                                           Spacing="0.24" Foreground="{StaticResource Muted}" />
+                            <Grid Margin="0,10,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Grid Width="14" Height="14" VerticalAlignment="Top" Margin="0,4,0,0">
+                                <Grid Width="14" Height="14" VerticalAlignment="Center">
                                     <Ellipse x:Name="RealmHalo" Fill="{StaticResource Muted}" Opacity="0.25" />
-                                    <Ellipse x:Name="RealmDot" Width="9" Height="9" Fill="{StaticResource Muted}" />
+                                    <Ellipse x:Name="RealmDot" Width="10" Height="10" Fill="{StaticResource Muted}" />
                                 </Grid>
-                                <StackPanel Grid.Column="1" Margin="9,0,0,0" MinWidth="110">
-                                    <TextBlock x:Name="RealmState" Text="Vérification…" FontFamily="{StaticResource Display}"
-                                               FontSize="17" FontWeight="SemiBold" />
-                                    <TextBlock x:Name="RealmDetail" FontSize="12" Foreground="{StaticResource Muted}" />
-                                </StackPanel>
+                                <TextBlock x:Name="RealmState" Grid.Column="1" Text="Vérification…" Margin="9,0,0,1"
+                                           FontFamily="{StaticResource BodyStrong}" FontSize="18"
+                                           VerticalAlignment="Center" Foreground="#FFF0EBE5" />
                                 <!-- Only while the realm is down: no need to wait for the next 30 second check -->
                                 <Button x:Name="RealmRetry" Grid.Column="2" Style="{StaticResource LinkButton}"
-                                        Visibility="Collapsed" VerticalAlignment="Center" Margin="8,0,0,0"
-                                        Click="OnRealmRetry" ToolTip="Vérifier maintenant">
+                                        Visibility="Collapsed" VerticalAlignment="Center" Click="OnRealmRetry"
+                                        ToolTip="Vérifier maintenant">
                                     <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
                                 </Button>
                             </Grid>
+                            <TextBlock x:Name="RealmDetail" FontSize="13" Margin="0,8,0,0"
+                                       Foreground="{StaticResource Muted}" />
                         </StackPanel>
                     </Border>
+
+                    <!-- Ready: the three news plates. At work: the channel the metal runs in. -->
+                    <ItemsControl x:Name="NewsCards" Grid.Column="1" Margin="12,0" ItemTemplate="{StaticResource NewsCard}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" Columns="3" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <Grid x:Name="WorkPanel" Grid.Column="1" Margin="26,0,24,0" VerticalAlignment="Center"
+                          Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="StatusIcon" Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{StaticResource Gold}" VerticalAlignment="Center" Margin="0,1,10,0" />
+                            <TextBlock x:Name="StatusText" FontFamily="{StaticResource BodyStrong}" FontSize="17"
+                                       Foreground="#FFF0EBE5" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <Grid x:Name="ProgressTrack" Grid.Row="1" Height="16" Margin="0,12,0,0">
+                            <Border CornerRadius="3" Background="#FF121316" BorderBrush="{StaticResource Edge}"
+                                    BorderThickness="1" />
+                            <Border x:Name="ProgressFill" CornerRadius="2" HorizontalAlignment="Left" Width="0"
+                                    Margin="1" Background="{StaticResource MoltenBrush}">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#FFFF8A2A" BlurRadius="16" ShadowDepth="0" Opacity="0.7" />
+                                </Border.Effect>
+                            </Border>
+                        </Grid>
+                        <TextBlock x:Name="DetailText" Grid.Row="2" FontSize="13" Margin="0,10,0,0"
+                                   Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
+                    </Grid>
+
+                    <!-- The ingot (600 x 200 painted, drawn at 3:1): cold iron, the molten one revealed over it as
+                         far as the work has gone, its glow behind while it is ready. The hammer above it. -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <Grid x:Name="IngotArea" Width="300" Height="100" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform />
+                            </Grid.RenderTransform>
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=PlayButton}" Value="True">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                                                         To="1.03" Duration="0:0:0.15" />
+                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                                                         To="1.03" Duration="0:0:0.15" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                                                         To="1" Duration="0:0:0.25" />
+                                                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                                                         To="1" Duration="0:0:0.25" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+                            <!-- The glow (800 x 320 painted, 2.5:1) -->
+                            <Canvas IsHitTestVisible="False">
+                                <Image x:Name="IngotGlow" Source="Assets/Forge/ingotGlow.png" Width="400" Height="160"
+                                       Canvas.Left="-50" Canvas.Top="-30" Opacity="0" />
+                            </Canvas>
+                            <Image Source="Assets/Forge/ingotCold.png" Width="300" Height="100" IsHitTestVisible="False"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                            <Border x:Name="IngotFill" HorizontalAlignment="Left" Width="0" ClipToBounds="True"
+                                    IsHitTestVisible="False">
+                                <Image Source="Assets/Forge/ingotHot.png" Width="300" Height="100"
+                                       HorizontalAlignment="Left" RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Border>
+                            <Button x:Name="PlayButton" Style="{StaticResource PlayButton}" IsEnabled="False"
+                                    Click="OnPlay" Margin="26,16">
+                                <StackPanel HorizontalAlignment="Center" Margin="0,0,0,4">
+                                    <local:Tracked x:Name="PlayText" Text="JOUER" FontFamily="{StaticResource Display}"
+                                                   FontSize="32" Spacing="0.22" HorizontalAlignment="Center"
+                                                   Foreground="#FF2A140A" />
+                                    <local:Tracked x:Name="PlaySub" FontFamily="{StaticResource Label}" FontSize="10.5"
+                                                   Spacing="0.16" HorizontalAlignment="Center" Margin="0,1,0,0"
+                                                   Foreground="#FF2A140A" Visibility="Collapsed" />
+                                </StackPanel>
+                            </Button>
+                            <!-- The strike: the hammer (480 x 360 painted, 4:3) coming down on the ingot, sparks
+                                 (square frames) bursting from it -->
+                            <Canvas IsHitTestVisible="False">
+                                <Image x:Name="Sparks" Width="240" Height="240" Canvas.Left="34" Canvas.Top="-116"
+                                       Opacity="0" />
+                                <Image x:Name="Hammer" Source="Assets/Forge/hammer.png" Width="160" Height="120"
+                                       Canvas.Left="116" Canvas.Top="-74" Opacity="0" RenderTransformOrigin="0.86,0.84">
+                                    <Image.RenderTransform>
+                                        <RotateTransform x:Name="HammerRotation" Angle="40" />
+                                    </Image.RenderTransform>
+                                </Image>
+                            </Canvas>
+                        </Grid>
+
+                        <Button x:Name="PlayMenuButton" Style="{StaticResource IronButton}" Width="34" Height="56"
+                                Padding="0" Margin="10,0,0,0" ToolTip="Outils du jeu" Click="OnPlayMenu"
+                                ContentTemplate="{x:Null}">
+                            <Button.ContextMenu>
+                                <ContextMenu x:Name="PlayMenu" Style="{StaticResource PlayMenuStyle}" Width="236">
+                                    <MenuItem x:Name="PlayMenuRepair" Header="Réparer le jeu"
+                                              Style="{StaticResource PlayMenuItem}" Click="OnRepair">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="&#xE90F;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem x:Name="PlayMenuCache" Header="Vider le cache"
+                                              Style="{StaticResource PlayMenuItem}" Click="OnClearCache">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem x:Name="PlayMenuFolder" Header="Ouvrir le dossier du jeu"
+                                              Style="{StaticResource PlayMenuItem}" Click="OnOpenFolder">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="&#xE838;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="Réglages" Style="{StaticResource PlayMenuItem}"
+                                              Click="OnPlayMenuSettings">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="13" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                            <TextBlock Text="&#xE70E;" FontFamily="Segoe MDL2 Assets" FontSize="12" />
+                        </Button>
+                    </StackPanel>
                 </Grid>
-            </Grid>
+            </Border>
         </Grid>
 
-        <!-- News -->
-        <Grid x:Name="NewsPage" Grid.Row="1" Visibility="Collapsed">
+        <!-- News: the list on the left, the open article on the right -->
+        <Grid x:Name="NewsPage" Grid.Row="1" Visibility="Collapsed" Margin="28,26,28,24">
+            <Grid.RenderTransform>
+                <TranslateTransform />
+            </Grid.RenderTransform>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ListBox x:Name="NewsList" Background="Transparent" BorderThickness="0" Padding="0"
+                     ItemContainerStyle="{StaticResource NewsListItem}" SelectionChanged="OnNewsSelected"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,0,22,0" />
+            <Border Grid.Column="1" CornerRadius="4" BorderThickness="1" BorderBrush="#FF353942"
+                    Background="{StaticResource Plate}" ClipToBounds="True">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="220" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border CornerRadius="4,4,0,0" ClipToBounds="True">
+                        <Grid>
+                            <!-- The article's picture, cropped to the band, never stretched -->
+                            <Image x:Name="ArticleImage" Stretch="UniformToFill" VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                            <Rectangle>
+                                <Rectangle.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#001B1D22" Offset="0.2" />
+                                        <GradientStop Color="#F21B1D22" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Rectangle.Fill>
+                            </Rectangle>
+                            <TextBlock x:Name="ArticleTitle" FontFamily="{StaticResource Display}" FontSize="38"
+                                       LineHeight="42" LineStackingStrategy="BlockLineHeight" TextWrapping="Wrap"
+                                       VerticalAlignment="Bottom" Margin="26,0,26,18" Foreground="#FFFBF3E8">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.8" Color="Black" />
+                                </TextBlock.Effect>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="26,18,20,22">
+                        <StackPanel>
+                            <TextBlock x:Name="ArticleMeta" FontSize="13.5" Foreground="{StaticResource Muted}" />
+                            <TextBlock x:Name="ArticleBody" FontSize="16" LineHeight="26" Margin="0,14,0,0"
+                                       LineStackingStrategy="BlockLineHeight" TextWrapping="Wrap"
+                                       Foreground="#FFD4CCC2" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Settings -->
+        <Grid x:Name="SettingsPage" Grid.Row="1" Visibility="Collapsed" Margin="28,26,28,22">
             <Grid.RenderTransform>
                 <TranslateTransform />
             </Grid.RenderTransform>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBlock Text="ANNONCES" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="30"
-                       Margin="40,26,40,16" />
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="40,0,34,10">
-                <ItemsControl x:Name="NewsList" ItemTemplate="{StaticResource NewsEntry}" />
-            </ScrollViewer>
-        </Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <!-- Settings -->
-        <Grid x:Name="SettingsPage" Grid.Row="1" Visibility="Collapsed">
-            <Grid.RenderTransform>
-                <TranslateTransform />
-            </Grid.RenderTransform>
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,26,34,10">
-                <StackPanel Width="780" HorizontalAlignment="Left">
-                    <TextBlock Text="RÉGLAGES" FontFamily="{StaticResource Display}" FontWeight="Bold"
-                               FontSize="30" Margin="0,0,0,16" />
-
-                    <Grid Margin="0,0,0,12">
-                        <local:IronPlate CornerSize="22" />
-                        <Grid Margin="32,28">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="DOSSIER DU JEU" Style="{StaticResource Stamp}" FontSize="14" />
-                                <TextBlock x:Name="FolderText" Margin="0,6,0,0" Foreground="{StaticResource Soft}"
-                                           TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button x:Name="OpenFolderButton" Style="{StaticResource GhostButton}" Content="OUVRIR"
-                                        Click="OnOpenFolder" Margin="16,0,8,0" />
-                                <Button x:Name="ChangeFolderButton" Style="{StaticResource GhostButton}"
-                                        Content="CHANGER" Click="OnChangeFolder" />
-                            </StackPanel>
-                        </Grid>
+            <!-- The client: where it lives -->
+            <Border Style="{StaticResource Section}" VerticalAlignment="Top">
+                <StackPanel>
+                    <local:Tracked Text="CLIENT" FontFamily="{StaticResource Label}" FontSize="18" Spacing="0.2"
+                                   Foreground="{StaticResource Gold}" />
+                    <TextBlock Text="Dossier de World of Warcraft" FontSize="14" Margin="0,16,0,6"
+                               Foreground="{StaticResource Soft}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Height="40" CornerRadius="3" BorderThickness="1" BorderBrush="#FF454A54"
+                                Background="#FF121316" Padding="12,0">
+                            <TextBlock x:Name="FolderText" FontSize="15" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                        </Border>
+                        <Button x:Name="ChangeFolderButton" Grid.Column="1" Style="{StaticResource IronButton}"
+                                Content="PARCOURIR" Click="OnChangeFolder" Margin="8,0,0,0" />
                     </Grid>
-
-                    <Grid Margin="0,0,0,12">
-                        <local:IronPlate CornerSize="22" />
-                        <Grid Margin="32,28">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="RÉPARER LE JEU" Style="{StaticResource Stamp}" FontSize="14" />
-                                <TextBlock Margin="0,6,0,0" Foreground="{StaticResource Soft}" TextWrapping="Wrap"
-                                           Text="Vérifie chaque fichier du patch et retélécharge ce qui manque ou a été abîmé." />
-                            </StackPanel>
-                            <Button x:Name="RepairButton" Grid.Column="1" Style="{StaticResource GhostButton}"
-                                    Content="RÉPARER" Click="OnRepair" Margin="16,0,0,0" VerticalAlignment="Center" />
-                        </Grid>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,12">
-                        <local:IronPlate CornerSize="22" />
-                        <Grid Margin="32,28">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="VIDER LE CACHE" Style="{StaticResource Stamp}" FontSize="14" />
-                                <TextBlock Margin="0,6,0,0" Foreground="{StaticResource Soft}" TextWrapping="Wrap"
-                                           Text="Corrige les objets, sorts ou quêtes qui s'affichent mal en jeu. Le jeu le reconstruit tout seul." />
-                            </StackPanel>
-                            <Button x:Name="CacheButton" Grid.Column="1" Style="{StaticResource GhostButton}"
-                                    Content="VIDER" Click="OnClearCache" Margin="16,0,0,0" VerticalAlignment="Center" />
-                        </Grid>
-                    </Grid>
-
-                    <TextBlock x:Name="AboutText" Margin="2,10,0,0" FontSize="11" Foreground="{StaticResource Muted}" />
+                    <Button x:Name="OpenFolderButton" Style="{StaticResource IronButton}" Content="OUVRIR LE DOSSIER"
+                            Click="OnOpenFolder" HorizontalAlignment="Left" Margin="0,12,0,0" />
                 </StackPanel>
-            </ScrollViewer>
+            </Border>
+
+            <!-- Upkeep: repair and the cache -->
+            <Border Grid.Column="2" Style="{StaticResource Section}" VerticalAlignment="Top">
+                <StackPanel>
+                    <local:Tracked Text="ENTRETIEN" FontFamily="{StaticResource Label}" FontSize="18" Spacing="0.2"
+                                   Foreground="{StaticResource Gold}" />
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Vérifie chaque fichier du patch et retélécharge ce qui manque ou a été abîmé."
+                                   TextWrapping="Wrap" FontSize="14" LineHeight="20" Foreground="{StaticResource Soft}"
+                                   VerticalAlignment="Center" Margin="0,0,16,0" />
+                        <Button x:Name="RepairButton" Grid.Column="1" Style="{StaticResource AccentButton}"
+                                Content="RÉPARER LE CLIENT" Click="OnRepair" />
+                    </Grid>
+                    <Rectangle Height="1" Fill="#FF2E3138" Margin="0,16" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Corrige les objets, sorts ou quêtes qui s'affichent mal. Le jeu le reconstruit tout seul."
+                                   TextWrapping="Wrap" FontSize="14" LineHeight="20" Foreground="{StaticResource Soft}"
+                                   VerticalAlignment="Center" Margin="0,0,16,0" />
+                        <Button x:Name="CacheButton" Grid.Column="1" Style="{StaticResource IronButton}"
+                                Content="VIDER LE CACHE" Click="OnClearCache" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <TextBlock x:Name="AboutText" Grid.Row="2" Grid.ColumnSpan="3" FontSize="13"
+                       Foreground="{StaticResource Muted}" />
         </Grid>
 
     </Grid>

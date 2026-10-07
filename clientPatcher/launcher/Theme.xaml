@@ -1,20 +1,26 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- "La Forge" (.agents/plans/launcher-forge): dark iron and molten metal. Display text in Bahnschrift, Windows'
-         own condensed industrial face (no font file to ship), the rest in Segoe UI. -->
-    <FontFamily x:Key="Display">Bahnschrift</FontFamily>
+    <!-- "La Forge" (.agents/plans/launcher-forge): dark iron and molten metal. Oswald for the stamped capitals and
+         headlines, Barlow for reading (Assets/Fonts, OFL). Each face is its own family, so none is ever synthesised. -->
+    <FontFamily x:Key="Display">pack://application:,,,/Evolutions;component/Assets/Fonts/#Oswald SemiBold</FontFamily>
+    <FontFamily x:Key="Label">pack://application:,,,/Evolutions;component/Assets/Fonts/#Oswald Medium</FontFamily>
+    <FontFamily x:Key="Body">pack://application:,,,/Evolutions;component/Assets/Fonts/#Barlow</FontFamily>
+    <FontFamily x:Key="BodyStrong">pack://application:,,,/Evolutions;component/Assets/Fonts/#Barlow SemiBold</FontFamily>
 
-    <SolidColorBrush x:Key="Base" Color="#FF131416" />
+    <SolidColorBrush x:Key="Base" Color="#FF111113" />
     <SolidColorBrush x:Key="Iron" Color="#FF22252B" />
-    <SolidColorBrush x:Key="Plate" Color="#FF2B2E35" />
+    <SolidColorBrush x:Key="Plate" Color="#FF1B1D22" />
+    <SolidColorBrush x:Key="Edge" Color="#FF3B3F48" />
     <SolidColorBrush x:Key="Rivet" Color="#FF454A54" />
-    <SolidColorBrush x:Key="Text" Color="#FFF3EDE6" />
-    <SolidColorBrush x:Key="Soft" Color="#FFD4CCC2" />
+    <SolidColorBrush x:Key="Text" Color="#FFECE6DF" />
+    <SolidColorBrush x:Key="Bright" Color="#FFF6F0E8" />
+    <SolidColorBrush x:Key="Soft" Color="#FFB9B0A6" />
+    <SolidColorBrush x:Key="Tab" Color="#FFC9C2BA" />
     <SolidColorBrush x:Key="Muted" Color="#FF8D867E" />
     <!-- Molten: the accent; Gold kept as its name for the code that asks for it -->
     <SolidColorBrush x:Key="Gold" Color="#FFFF9A3C" />
-    <SolidColorBrush x:Key="GoldLight" Color="#FFFFCF9A" />
+    <SolidColorBrush x:Key="GoldLight" Color="#FFFFB46B" />
     <SolidColorBrush x:Key="Online" Color="#FF8FD16A" />
     <SolidColorBrush x:Key="Offline" Color="#FFD26A4A" />
     <LinearGradientBrush x:Key="GoldBrush" StartPoint="0,0" EndPoint="0,1">
@@ -26,17 +32,21 @@
         <GradientStop Color="#FFFF8A2A" Offset="0.55" />
         <GradientStop Color="#FFC84B10" Offset="1" />
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PlateBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FF2A2D34" Offset="0" />
+        <GradientStop Color="#FF22252B" Offset="1" />
+    </LinearGradientBrush>
 
     <Style TargetType="ToolTip">
         <Setter Property="Foreground" Value="{StaticResource Text}" />
-        <Setter Property="FontFamily" Value="Segoe UI" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontFamily" Value="{StaticResource Body}" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="Placement" Value="Bottom" />
         <Setter Property="VerticalOffset" Value="6" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
-                    <Border CornerRadius="2" Background="#F71B1D22" BorderBrush="#FF454A54" BorderThickness="1"
+                    <Border CornerRadius="3" Background="#F71B1D22" BorderBrush="#FF454A54" BorderThickness="1"
                             Padding="10,6">
                         <ContentPresenter />
                     </Border>
