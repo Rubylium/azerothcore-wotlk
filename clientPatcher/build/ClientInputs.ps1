@@ -52,7 +52,7 @@ function Get-StockClientStamp {
 
 function Get-ClientReleaseFingerprint {
     $paths = @(Get-ClientCodeInputs) + @(Get-ClientAssetRoots) + @(
-        (Join-Path $patcherRoot 'interface'), (Join-Path $patcherRoot 'addons'),
+        (Join-Path $patcherRoot 'interface'), (Join-Path $patcherRoot 'addons'), (Join-Path $patcherRoot 'maps'),
         (Join-Path $patcherRoot 'assets'), (Join-Path $patcherRoot 'vendor'),
         (Join-Path $patcherRoot 'template'), (Join-Path $repoRoot 'server/Data/dbc'),
         (Join-Path $patcherRoot '.dbccache'), (Join-Path $repoRoot 'localTools/interface/cache/talents'),

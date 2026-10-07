@@ -188,6 +188,10 @@ compile_commands.json
 localTools/interface/cache/
 # localTools/retailImport: MultiConverter checkout, listfile, DB2 definitions, TACTSharp cache, work files, previews
 /localTools/retailImport/.deps/
+# The map editor (Noggit) and the server map rebuild's staging: localTools/mapEditing/README.md
+/localTools/mapEditing/.deps/
+/localTools/mapEditing/.work/
+/localTools/mapEditing/.view/
 /localTools/retailImport/RetailImport/bin/
 /localTools/retailImport/RetailImport/obj/
 # Incremental client generation and launcher payload/bundles

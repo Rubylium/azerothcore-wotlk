@@ -128,10 +128,12 @@ function getPatchFiles(repoRoot) {
     // A module's client files stored at their archive path: client-assets/files (its own: icons...) and
     // client-assets/imported/files (the effect models, textures and sounds of the visuals imported from the Ascension
     // client, localTools/ascensionImport/importVisuals.py)
+    // and the maps edited with Noggit (clientPatcher/maps, its project folder: localTools/mapEditing/README.md), first
     const modulesRoot = path.join(repoRoot, 'modules');
-    const archiveFolders = fs.readdirSync(modulesRoot).sort().flatMap((module) => [
-        path.join(modulesRoot, module, 'client-assets', 'files'),
-        path.join(modulesRoot, module, 'client-assets', 'imported', 'files')]);
+    const archiveFolders = [path.join(repoRoot, 'clientPatcher', 'maps')].concat(
+        fs.readdirSync(modulesRoot).sort().flatMap((module) => [
+            path.join(modulesRoot, module, 'client-assets', 'files'),
+            path.join(modulesRoot, module, 'client-assets', 'imported', 'files')]));
     // Two modules' imports can bring the same Ascension file (a model or a sound both looks use): packed once, the
     // first module's copy (the same file)
     const moduleArchives = new Set();
