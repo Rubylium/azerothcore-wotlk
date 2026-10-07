@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Evolutions
@@ -36,12 +37,37 @@ namespace Evolutions
         // A local manifest.json to read instead of the published one (previewing a release before it goes out)
         public static string ManifestOverride { get; set; }
 
+        // The manifest is small: an answer takes a second or two. A slow or silent server is given ManifestTimeout per
+        // try and ManifestTries tries, each said on screen, then the launcher goes on without it (the game still starts
+        // with what is installed) - it used to wait on the download client's own 30 minutes, saying nothing.
+        static readonly TimeSpan ManifestTimeout = TimeSpan.FromSeconds(15);
+        const int ManifestTries = 3;
+
         public async Task<Manifest> FetchManifestAsync()
         {
-            string json = ManifestOverride != null
-                ? File.ReadAllText(ManifestOverride)
-                : await http.GetStringAsync(ManifestUrl);
-            return Manifest.Parse(json);
+            if (ManifestOverride != null)
+                return Manifest.Parse(File.ReadAllText(ManifestOverride));
+
+            for (int attempt = 1; ; ++attempt)
+            {
+                Status?.Invoke(attempt == 1 ? "Connexion au serveur de mises à jour…"
+                    : $"Le serveur tarde à répondre, nouvel essai ({attempt}/{ManifestTries})…");
+                try
+                {
+                    using (var timeout = new CancellationTokenSource(ManifestTimeout))
+                    using (var response = await http.GetAsync(ManifestUrl, timeout.Token))
+                    {
+                        response.EnsureSuccessStatusCode();
+                        return Manifest.Parse(await response.Content.ReadAsStringAsync());
+                    }
+                }
+                catch (Exception exception) when (exception is TaskCanceledException ||
+                    exception is HttpRequestException)
+                {
+                    if (attempt >= ManifestTries)
+                        throw new HttpRequestException("Le serveur de mises à jour ne répond pas.", exception);
+                }
+            }
         }
 
         // Replaces the running launcher with the release's one and starts it; returns true when this copy must exit
@@ -56,7 +82,14 @@ namespace Evolutions
 
             Status?.Invoke("Mise à jour du launcher…");
             string folder = Path.GetDirectoryName(exePath);
-            string downloaded = await Files.DownloadVerifiedAsync(http, manifest.Launcher, folder, null);
+            long done = 0;
+            long total = Math.Max(manifest.Launcher.Size, 1);
+            string downloaded = await Files.DownloadVerifiedAsync(http, manifest.Launcher, folder, bytes =>
+            {
+                done += bytes;
+                Progress?.Invoke(done, total);
+                Transfer?.Invoke(done, total);
+            });
 
             // A running executable can be renamed, not overwritten: move it aside, put the new one in its place
             string old = exePath + ".old";

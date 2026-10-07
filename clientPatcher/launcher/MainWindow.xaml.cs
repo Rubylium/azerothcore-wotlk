@@ -103,12 +103,23 @@ namespace Evolutions
                 updater.Progress += (done, total) => Dispatcher.Invoke(() => SetProgress(done, total));
                 updater.Transfer += (done, total) => Dispatcher.Invoke(() => ShowTransfer(done, total));
 
+                // While the server is asked, the seconds it has been asked for: a slow answer never looks frozen
+                var waited = Stopwatch.StartNew();
+                var waiting = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                waiting.Tick += (sender, args) =>
+                {
+                    int seconds = (int)waited.Elapsed.TotalSeconds;
+                    if (seconds >= 3)
+                        DetailText.Text = string.Format(French, "En attente de réponse depuis {0} s", seconds);
+                };
+                waiting.Start();
                 try
                 {
                     manifest = await updater.FetchManifestAsync();
                 }
                 catch (HttpRequestException)
                 {
+                    waiting.Stop();
                     // Offline: the game can still start with what is installed
                     if (HasGameFolder())
                         SetState("Mises à jour indisponibles", "Le jeu peut quand même être lancé.", "JOUER", Play);
@@ -117,6 +128,8 @@ namespace Evolutions
                             "RÉESSAYER", Retry);
                     return;
                 }
+                waiting.Stop();
+                DetailText.Text = "";
 
                 string knownRealm = settings.Realmlist;
                 Remember(manifest);
