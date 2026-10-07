@@ -726,4 +726,56 @@ DROP TEMPORARY TABLE `legendary_base`;
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
 (10555, 'frFR', 'Écho du Néant', '', 0),
 (10555, 'enUS', 'Echo of the Void', '', 0);
+
+-- Every legendary base's sockets: a stock epic's of its slot, with a stamina bonus
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 24567;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 996;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21428;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21424;
+UPDATE `item_template` SET `socketColor_1` = 0, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 0 WHERE `entry` = 1258;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21432;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 21425;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 21420;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 26541;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21437;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21433;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 5828;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 21421;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 21429;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21444;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 18161;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 21430;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 27218;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 4, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3307 WHERE `entry` = 21423;
+UPDATE `item_template` SET `socketColor_1` = 1, `socketColor_2` = 2, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 3766 WHERE `entry` = 21434;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 6673;
+UPDATE `item_template` SET `socketColor_1` = 0, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 0 WHERE `entry` = 8688;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 21450;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 6674;
+UPDATE `item_template` SET `socketColor_1` = 2, `socketColor_2` = 0, `socketColor_3` = 0,
+    `socketContent_1` = 0, `socketContent_2` = 0, `socketContent_3` = 0, `socketBonus` = 2868 WHERE `entry` = 10555;
 -- END generated

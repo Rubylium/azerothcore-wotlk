@@ -83,6 +83,10 @@ constexpr float OverhealShieldCapPct = 20.0f;
 // raised), the attack power of agility gear, intellect and the spell power of caster gear, a secondary. The first
 // budgets were one median for everyone - a caster's - and left strength and agility copies a quarter short, agility
 // ones without their attack power. A trinket takes a neck's.
+// What a legendary's stats have over a stock epic's of its item level (its sockets are a stock item's: the base
+// items' templates, localTools/legendary/buildLegendaryItemSql.py)
+constexpr float LegendaryPremium = 1.10f;
+
 constexpr Budget HeadBudget = { 277.0f, 184, 212, 139, 186, 110, { 300, 564, 1253, 2239 } };
 constexpr Budget NeckBudget = { 277.0f, 105, 120, 78, 110, 63, { 0, 0, 0, 0 } };
 constexpr Budget ShoulderBudget = { 277.0f, 138, 165, 103, 150, 86, { 277, 521, 1157, 2067 } };
@@ -361,10 +365,13 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
 
     Budget const& budget = definition.budget;
     float const level = float(itemLevel);
-    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level);
-    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true);
+    // A legendary's stats are a stock epic's at its item level, a little more (LegendaryPremium); its armour is the
+    // slot's
+    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level) * LegendaryPremium;
+    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true) * LegendaryPremium;
+    float const armorGrowth = ::Power::StatGrowth(budget.itemLevel, level);
     int32 const armor = budget.armor[ArmorType(player)];
-    copy.armor = armor ? Spread(int32(std::lround(float(armor) * statGrowth)), 0.0f) : 0;
+    copy.armor = armor ? Spread(int32(std::lround(float(armor) * armorGrowth)), 0.0f) : 0;
 
     uint32 const primary = FavouredPrimary(player);
     bool const caster = primary == ITEM_MOD_INTELLECT;

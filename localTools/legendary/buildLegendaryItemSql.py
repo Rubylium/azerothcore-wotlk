@@ -47,6 +47,40 @@ LEGENDARIES = [
 UNIQUE = {10555}
 
 
+# Every legendary base (the three Scarlet Cathedral ones written by hand above the generated block, the others below)
+CATHEDRAL = [24567, 996, 21428]
+
+# Sockets by slot (InventoryType), as the item level 277 epics have them most (2026-10-07): 1 meta, 2 red, 4 yellow,
+# 8 blue; and a socket bonus of stamina, which suits every wearer (SpellItemEnchantment: 2868 +6, 3307 +9, 3766 +12).
+# A trinket has none.
+SOCKETS = {
+    1: ((1, 2), 3766),          # head: a meta and one
+    2: ((2,), 2868),            # neck
+    3: ((2,), 2868),            # shoulders
+    5: ((2, 4), 3307),          # chest
+    20: ((2, 4), 3307),         # robe
+    6: ((2, 4), 3307),          # belt
+    7: ((2, 4), 3307),          # legs
+    8: ((2, 4), 3307),          # feet
+    9: ((2,), 2868),            # wrists
+    10: ((2,), 2868),           # hands
+    11: ((2,), 2868),           # ring
+    16: ((2,), 2868),           # cloak
+}
+
+
+def sockets_sql(rows):
+    lines = ["-- Every legendary base's sockets: a stock epic's of its slot, with a stamina bonus"]
+    for base in CATHEDRAL + [legendary[0] for legendary in LEGENDARIES]:
+        inventory = rows[base][3]
+        colors, bonus = SOCKETS.get(inventory, ((), 0))
+        colors = list(colors) + [0] * (3 - len(colors))
+        lines.append(f"UPDATE `item_template` SET `socketColor_1` = {colors[0]}, `socketColor_2` = {colors[1]}, "
+                     f"`socketColor_3` = {colors[2]},\n    `socketContent_1` = 0, `socketContent_2` = 0, "
+                     f"`socketContent_3` = 0, `socketBonus` = {bonus} WHERE `entry` = {base};")
+    return "\n".join(lines) + "\n"
+
+
 def item_rows():
     data = ITEM_DBC.read_bytes()
     count, _, size = struct.unpack_from("<III", data, 4)
@@ -103,7 +137,7 @@ def main():
             raise SystemExit(f"Item.dbc has no row {base}")
         blocks.append(block(*legendary, rows[base]))
     generated = (f"{BEGIN}\n-- The other dungeons' legendaries (mod-legendary Definitions 4-24): see the script for "
-                 f"how each is made.\n" + "\n".join(blocks) + f"{END}\n")
+                 f"how each is made.\n" + "\n".join(blocks) + "\n" + sockets_sql(rows) + f"{END}\n")
     text = SQL.read_text(encoding="utf-8")
     if BEGIN in text:
         text = text[:text.index(BEGIN)] + generated + text[text.index(END) + len(END) + 1:]

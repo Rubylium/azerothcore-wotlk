@@ -52,7 +52,9 @@ from the item whose look they wear, a look their own dungeon's bosses drop in th
 
 Each slot has its stat budget (`Budget`): the medians of the item level 277 epics of that slot, for each kind of
 wearer - strength or agility with as much stamina (agility adds attack power, as stock agility gear does), intellect
-with as much stamina and spell power - and two secondaries.
+with as much stamina and spell power - and two secondaries. A legendary has 10% more than that (`LegendaryPremium`), its armour the
+slot's, and the sockets a stock epic of its slot has, with a stamina socket bonus (the base items' templates,
+`localTools/legendary/buildLegendaryItemSql.py`).
 
 ### Powers
 
@@ -84,7 +86,8 @@ The Unique is quality 6, the stock client's unused "Artifact": the client extens
 
 A copy also counts at its own item level for the server's average (`GLOBALHOOK_ON_ITEM_LEVEL`, called by
 `Player::GetAverageItemLevel` and `GetAverageItemLevelForDF`), and shows it: in its tooltip, in place of the base
-item's line, and on DragonUI's item level texts (`clientPatcher/addons/DragonUI/modules/itemlevel.lua`).
+item's line, in the comparison (rewritten from the copies' rolls as the client's
+`GameTooltip_ShowCompareItem` returns), and on DragonUI's item level texts (`clientPatcher/addons/DragonUI/modules/itemlevel.lua`).
 
 ## Client
 

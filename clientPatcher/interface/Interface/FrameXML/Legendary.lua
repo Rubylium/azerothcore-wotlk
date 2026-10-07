@@ -366,7 +366,7 @@ local function Decorate(tooltip)
     end
     local where = tooltip.legendaryWhere
     -- A comparison tooltip shows what is worn: the equipped copy of that base item
-    if seed == 0 and not where and (tooltip:GetName() or ""):find("^ShoppingTooltip") then
+    if seed == 0 and not where and (tooltip:GetName() or ""):find("ShoppingTooltip%d$") then
         local _, base = SeedOf(link)
         for slot = 1, 19 do
             local worn = GetInventoryItemLink("player", slot)
@@ -427,7 +427,7 @@ local function StatsOf(tooltip)
         end
         return GetItemStats(link) or {}
     end
-    local stats = {}
+    local stats = GetItemStats(link) or {}
     for _, stat in ipairs(copy.stats) do
         local key = STAT_KEYS[stat.type]
         if key then
@@ -440,14 +440,16 @@ local function StatsOf(tooltip)
     return stats
 end
 
-local function RewriteComparison(shopping)
-    local hovered = GameTooltip:IsShown() and GameTooltip:GetItem() and GameTooltip
-        or (ItemRefTooltip:IsShown() and ItemRefTooltip)
-    if not hovered or not shopping:IsShown() or not ITEM_DELTA_DESCRIPTION then
+local function RewriteComparison(hovered, shopping)
+    if not hovered or not shopping or not shopping:IsShown() or not ITEM_DELTA_DESCRIPTION then
         return
     end
     -- Only where a legendary copy is one of the two: the client's comparison is right for every other item
     if not shopping.legendarySeed and not hovered.legendarySeed then
+        return
+    end
+    local new, worn = StatsOf(hovered), StatsOf(shopping)
+    if not new or not worn then
         return
     end
     local name = shopping:GetName()
@@ -458,10 +460,6 @@ local function RewriteComparison(shopping)
             header = index
             break
         end
-    end
-    local new, worn = StatsOf(hovered), StatsOf(shopping)
-    if not header or not new or not worn then
-        return
     end
 
     local changes = {}
@@ -476,20 +474,36 @@ local function RewriteComparison(shopping)
             changes[#changes + 1] = { key = key, delta = -value }
         end
     end
-    sort(changes, function(a, b) return a.delta > b.delta end)
+    if #changes == 0 and not header then
+        return
+    end
+    sort(changes, function(a, b)
+        if a.delta ~= b.delta then
+            return a.delta > b.delta
+        end
+        return a.key < b.key
+    end)
 
+    -- No comparison from the client: its header, after a blank line, as it writes it
+    if not header then
+        shopping:AddLine(" ")
+        shopping:AddLine(ITEM_DELTA_DESCRIPTION, 1, 0.82, 0, true)
+        header = shopping:NumLines()
+    end
     local index = header
     for _, change in ipairs(changes) do
         index = index + 1
         local text = format("%s%d %s", change.delta > 0 and "+" or "", change.delta, _G[change.key])
+        local red, green, blue = 0, 1, 0
+        if change.delta < 0 then
+            red, green, blue = 1, 0.13, 0.13
+        end
         local line = _G[name .. "TextLeft" .. index]
         if line and index <= shopping:NumLines() then
             line:SetText(text)
-            if change.delta > 0 then line:SetTextColor(0, 1, 0) else line:SetTextColor(1, 0.13, 0.13) end
-        elseif change.delta > 0 then
-            shopping:AddLine(text, 0, 1, 0)
+            line:SetTextColor(red, green, blue)
         else
-            shopping:AddLine(text, 1, 0.13, 0.13)
+            shopping:AddLine(text, red, green, blue)
         end
     end
     -- The client's own lines past ours are spent
@@ -502,31 +516,34 @@ local function RewriteComparison(shopping)
     shopping:Show()
 end
 
--- The client writes its comparison after OnTooltipSetItem: it is rewritten on the next frame
-local pendingComparisons = {}
-local comparer = CreateFrame("Frame")
-comparer:Hide()
-comparer:SetScript("OnUpdate", function(self)
-    self:Hide()
-    for shopping in pairs(pendingComparisons) do
-        pendingComparisons[shopping] = nil
-        RewriteComparison(shopping)
+-- The client's comparison is GameTooltip_ShowCompareItem (FrameXML): its comparison tooltips are set, decorated and
+-- given their stat changes inside it, and it runs again and again while the compare key is held. Ours is written as
+-- it returns, every time: never a frame of the client's.
+local function ShoppingTooltipsOf(tooltip)
+    if tooltip and tooltip.shoppingTooltips then
+        return tooltip.shoppingTooltips
     end
-end)
-
-local function QueueComparison(shopping)
-    pendingComparisons[shopping] = true
-    comparer:Show()
+    if tooltip == ItemRefTooltip then
+        return { ItemRefShoppingTooltip1, ItemRefShoppingTooltip2, ItemRefShoppingTooltip3 }
+    end
+    return { ShoppingTooltip1, ShoppingTooltip2, ShoppingTooltip3 }
 end
 
-local TOOLTIPS = { "GameTooltip", "ItemRefTooltip", "ShoppingTooltip1", "ShoppingTooltip2", "ShoppingTooltip3" }
+if GameTooltip_ShowCompareItem then
+    hooksecurefunc("GameTooltip_ShowCompareItem", function(self)
+        local hovered = self or GameTooltip
+        for _, shopping in ipairs(ShoppingTooltipsOf(hovered)) do
+            RewriteComparison(hovered, shopping)
+        end
+    end)
+end
+
+local TOOLTIPS = { "GameTooltip", "ItemRefTooltip", "ShoppingTooltip1", "ShoppingTooltip2", "ShoppingTooltip3",
+    "ItemRefShoppingTooltip1", "ItemRefShoppingTooltip2", "ItemRefShoppingTooltip3" }
 for _, name in ipairs(TOOLTIPS) do
     local tooltip = _G[name]
     if tooltip and tooltip.HookScript then
         tooltip:HookScript("OnTooltipSetItem", Decorate)
-        if name:find("^ShoppingTooltip") then
-            tooltip:HookScript("OnTooltipSetItem", QueueComparison)
-        end
         tooltip:HookScript("OnTooltipCleared", Clear)
         hooksecurefunc(tooltip, "SetBagItem", function(self, bag, slot)
             self.legendaryWhere = WhereOfContainer(bag, slot)
@@ -560,17 +577,26 @@ end
 
 -- A copy arrived while its tooltip waits: drawn again, by the setter that showed it
 local function Redraw(seed, where)
+    local compare = {}
     for _, name in ipairs(TOOLTIPS) do
         local tooltip = _G[name]
         if tooltip and tooltip:IsShown() and (tooltip.legendarySeed == seed or
             (where and tooltip.legendaryWhere == where)) then
             local setter = tooltip.legendarySetter
             local _, link = tooltip:GetItem()
-            if setter then
+            if name:find("ShoppingTooltip%d$") then
+                -- A comparison tooltip is drawn again by its comparison (a link alone would lose "equipped")
+                compare[name:find("^ItemRef") and ItemRefTooltip or GameTooltip] = true
+            elseif setter then
                 tooltip[setter[1]](tooltip, setter[2], setter[3])
             elseif link then
                 tooltip:SetHyperlink(link)
             end
+        end
+    end
+    for owner in pairs(compare) do
+        if owner:IsShown() and GameTooltip_ShowCompareItem then
+            GameTooltip_ShowCompareItem(owner)
         end
     end
 end
