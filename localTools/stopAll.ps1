@@ -71,6 +71,9 @@ exit 0
     Write-Host "$($process.ProcessName) stopped cleanly."
 }
 
+# The players' status channel (serverStatus.ps1): a deliberate stop, before the world closes
+try { & (Join-Path $PSScriptRoot 'serverStatus.ps1') offline } catch { }
+
 $worldServer = Get-Process -Name 'worldserver' -ErrorAction SilentlyContinue
 if ($worldServer) {
     Stop-ServerGracefully -process $worldServer
