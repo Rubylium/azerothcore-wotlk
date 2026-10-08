@@ -7,6 +7,7 @@ param(
 # Posts a progress report to the developer's own Discord channel (the `progressWebhook` of the gitignored
 # localTools/deploy.local.json; nothing is sent without it): a task finished, something ready to test in game. Not the
 # players' channel (deployDiscord.ps1) nor the server status (serverStatus.ps1).
+# Always a NEW message, never an edit of an earlier one: an edit sends no notification, and the point is to be told.
 $ErrorActionPreference = 'Stop'
 $settings = Join-Path $PSScriptRoot 'deploy.local.json'
 if (-not (Test-Path $settings)) { Write-Host 'No deploy.local.json: nothing sent.'; return }
