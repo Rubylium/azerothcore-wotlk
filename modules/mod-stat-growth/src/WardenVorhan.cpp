@@ -29,6 +29,7 @@
 #include "StringFormat.h"
 #include "TemporarySummon.h"
 #include "Timer.h"
+#include "WorldPacket.h"
 #include "WorldSession.h"
 
 #include <algorithm>
@@ -157,6 +158,25 @@ constexpr float TankSpotSlack = 6.0f;
 constexpr float ThrowSpeedZ = 7.0f;
 constexpr float ThrowDistance = 18.0f;          // the charge: from within 6 yd lands within 24, short of the walls
 constexpr float IsolationThrowDistance = 25.0f;
+// The isolation's blow drawn this far past the tank it throws
+constexpr float StrikePastTank = 8.0f;
+
+// His eye, drawn by the players' interface over his torso (FrameXML WardenGaze.lua: over the world and the nameplates,
+// which hid it as a model in the world): this high over his feet, this wide (yards)
+constexpr std::string_view GazePrefix = "WardenVorhan";
+constexpr float GazeHeight = 4.0f;
+constexpr float GazeWidth = 5.0f;
+
+void SendGaze(Player* player, ObjectGuid const& on, uint32 durationMs, float height, float width)
+{
+    if (!player || !player->GetSession() || player->GetSession()->IsBot())
+        return;
+    WorldPacket packet;
+    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player,
+        Acore::StringFormat("{}	GAZE	0x{:016X}	{}	{:.2f}	{:.2f}", GazePrefix, on.GetRawValue(), durationMs,
+                            height, width));
+    player->GetSession()->SendPacket(&packet);
+}
 constexpr float GazeThrowSpeedXY = 15.0f;
 constexpr float GazeThrowSpeedZ = 6.0f;
 float ThrowSpeedXY(float distance)
@@ -190,9 +210,6 @@ constexpr uint32 LookAwayLeadMs = 1500;         // the bots turn their backs thi
 constexpr uint32 CurfewHoldLeadMs = 1500;       // the bots stand still this long before the curfew sounds
 constexpr uint32 RiotWaveMs[3] = { 2000, 11000, 20000 };   // from the riot's start
 constexpr uint32 PrisonersPerWave = 4;
-constexpr uint32 FinishPulses = 3;
-constexpr uint32 FinishPulseMs = 1000;
-constexpr Seconds WipeRespawnDelay = 5s;
 constexpr uint32 DefiGraceMs = 8000;
 
 constexpr uint32 NPC_VORHAN = 930200;
@@ -370,7 +387,8 @@ constexpr std::array<std::array<uint8, 4>, 3> RollCallOrders = { {
 } };
 
 // .vorhan botsonly: the fight fought by its bots alone, a game master watching (the fight leaves game masters out): the
-// bots count as players - no finishing them off - for testing them (e2e/local/vorhan)
+// bots count as players, for testing them (e2e/local/vorhan). The board's wipe counts them so on its own: a group whose
+// players all watch is fought by its bots (RaidFinder IsChallengeFighterStanding).
 bool BotsOnly = false;
 
 float Reference()
@@ -407,8 +425,14 @@ struct boss_warden_vorhan : public ScriptedAI
 
     void Reset() override
     {
+        // A fight still on is a wipe: the board resets him once the players are down (RaidFinder UpdateChallengeWipe),
+        // and the group is raised once he stands reset at his post
+        if (_phase != Phase::None && _phase != Phase::Over)
+        {
+            LogSummary("wipe");
+            EndMusic();
+        }
         ResetFight();
-        _lingering = false;
         if (_defiConfirmed)
         {
             me->SetVisible(true);
@@ -419,19 +443,14 @@ struct boss_warden_vorhan : public ScriptedAI
     }
 
     // A wipe is the players', never combat's: while one stands in the lair he fights on (the riot holds him away from
-    // them, untargetable, and the core would evade him). The wipe: he goes at once - nobody released and running
-    // back can pull a half-reset warden - and stands at his post again, reset, a few seconds later.
+    // them, untargetable, and the core would evade him). The wipe itself is the board's (RaidFinder
+    // UpdateChallengeWipe): he is reset in place, at full health (Reset), and nobody is raised before.
     void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
     {
-        if (_lingering)
-            return;
         bool const fighting = _phase != Phase::None && _phase != Phase::Over;
         if (fighting && RealPlayerStanding())
             return;
-        if (fighting)
-            Wipe();
-        else
-            ScriptedAI::EnterEvadeMode(why);
+        ScriptedAI::EnterEvadeMode(why);
     }
 
     // A player standing in the lair (the bots too with .vorhan botsonly)
@@ -443,18 +462,10 @@ struct boss_warden_vorhan : public ScriptedAI
         return false;
     }
 
+    // The fight ended by him (the hard enrage, nobody left in the lair): out of combat, reset at his post (Reset)
     void Wipe()
     {
-        if (_lingering)
-            return;
-        LogSummary("wipe");
-        EndMusic();
-        ResetFight();
-        _lingering = true;
-        me->CombatStop(true);
-        me->AttackStop();
-        me->SetReactState(REACT_PASSIVE);
-        me->DespawnOnEvade(WipeRespawnDelay);
+        ScriptedAI::EnterEvadeMode(EVADE_REASON_OTHER);
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -654,7 +665,7 @@ private:
         _checkTimer = 0;
         if (!_defiConfirmed)
             UpdateDefi();
-        else if (!_lingering)
+        else
             ClearLair();
     }
 
@@ -730,7 +741,6 @@ private:
         _timeline.clear();
         _next = 0;
         _phase = Phase::None;
-        _finishing = false;
         _nextStandingCheckMs = 0;
         _nextSecondMs = 0;
         _numbers.clear();
@@ -742,7 +752,6 @@ private:
         _chains.clear();
         _sparing.Clear();
         _isolating.Clear();
-        _killLabel = nullptr;
         _rollCalls = 0;
         _isolations = 0;
         _lifeSentences = 0;
@@ -1025,7 +1034,7 @@ private:
         if (CanMelee() && Elapsed() >= _placingUntil)
             GroundIndicators::SetTankSpot(me, ArenaCenter, 2000, TankSpotSlack);
         UpdateChains();
-        if (_defiConfirmed && !_lingering)
+        if (_defiConfirmed)
             ClearLair();
     }
 
@@ -1065,6 +1074,10 @@ private:
             ++_isolations;
             tank->SendPlaySpellVisual(KIT_STRIKE);
             Sound("Vorhan.Isolation", tank);
+            // The blow seen: a cone of fire from his fist through the tank, and the furrows of its throw
+            float const blow = me->GetAngle(tank);
+            GroundIndicators::ShowWardenStrike(me, me->GetPosition(), blow, me->GetExactDist2d(tank) + StrikePastTank);
+            GroundIndicators::ShowWardenPushTrail(me, tank->GetPosition(), blow, IsolationThrowDistance);
             _isolating = guid;
             Hit(tank, SPELL_ISOLATION, IsolationPct, false);
             _isolating.Clear();
@@ -1083,6 +1096,7 @@ private:
                     return;
                 tank->SendPlaySpellVisual(KIT_SEAL);
                 Sound("Vorhan.SealBurst", tank);
+                GroundIndicators::ShowWardenSealBurst(me, tank->GetPosition(), SealAvoidable);
                 std::string tooClose;
                 for (Player* player : ArenaPlayers())
                 {
@@ -1630,41 +1644,12 @@ private:
         Wipe();
     }
 
-    // No player stands, only bots: the fight is lost (RaidFinder counts the wipe from the last player), so the warden
-    // ends it, and the players do not watch their bots fight on
+    // Nobody left in the lair at all: the fight is over (combat would not tell during the riot). Players down with bots
+    // still standing are the board's wipe (RaidFinder UpdateChallengeWipe): it stops the bots and resets him.
     void CheckPlayersStanding()
     {
-        // Nobody left at all: the wipe (combat would not tell during the riot)
         if (ArenaPlayers().empty())
-        {
             Wipe();
-            return;
-        }
-        if (_finishing)
-            return;
-        bool botStanding = false;
-        for (Player* player : ArenaPlayers())
-        {
-            if (!player->GetSession() || !player->GetSession()->IsBot() || BotsOnly)
-                return;
-            botStanding = true;
-        }
-        if (!botStanding)
-            return;
-        _finishing = true;
-        for (uint32 pulse = 0; pulse < FinishPulses; ++pulse)
-            scheduler.Schedule(Milliseconds(pulse * FinishPulseMs), [this, pulse](TaskContext)
-            {
-                me->SendPlaySpellVisual(KIT_SHOUT);
-                if (pulse + 1 != FinishPulses)
-                    return;
-                _killLabel = "no player standing";
-                for (Player* player : ArenaPlayers())
-                    Doom(player, SPELL_CAPITAL);
-                _killLabel = nullptr;
-                // Whatever brings anyone back (the board revives a wiped group), the attempt is over: he goes
-                Wipe();
-            });
     }
 
     // --- The music: our sound engine's looping track, to the players near the lair at the pull (FightMusic.h: a later
@@ -1760,10 +1745,12 @@ private:
         GroundIndicators::ShowWardenWall(me, center, durationMs, GroundIndicators::WardenWallRiseDelayMs);
     }
 
-    // His eye over him, opening for the whole cast (16 painted frames, a red burst as it opens), moving with him
+    // His eye on his torso, opening for the whole cast (64 frames, a red burst as it opens), drawn by each player's
+    // interface over everything
     void ShowGaze(uint32 durationMs)
     {
-        GroundIndicators::ShowWardenGaze(me, me->GetPosition(), durationMs, me);
+        for (Player* player : Listeners())
+            SendGaze(player, me->GetGUID(), durationMs, GazeHeight, GazeWidth);
     }
 
     // The bots: their backs to him from LookAwayLeadMs before the eye opens (in `opensInMs`) until it has: they stop
@@ -1805,8 +1792,7 @@ private:
         if (_phase == Phase::None || _phase == Phase::Over)
             return;
         auto const last = _lastHit.find(player->GetGUID());
-        std::string const what = _killLabel ? std::string(_killLabel) :
-            last == _lastHit.end() ? std::string("unknown") : SpellName(last->second.spellId);
+        std::string const what = last == _lastHit.end() ? std::string("unknown") : SpellName(last->second.spellId);
         ++_deaths[what];
         LOG_INFO("module.vorhan", "Vorhan death instance={} at={:.1f}s phase={} {} number {} ({}): {}",
                  me->GetInstanceId(), Elapsed() / 1000.0f, uint32(_phase), player->GetName(), NumberOf(player),
@@ -1860,8 +1846,6 @@ private:
     Phase _phase = Phase::None;
     bool _casting = false;
     bool _rooted = false;
-    bool _finishing = false;
-    bool _lingering = false;
     bool _defiConfirmed = false;
     uint32 _defiWaitMs = 0;
     uint32 _checkTimer = 0;
@@ -1884,7 +1868,6 @@ private:
     std::set<ObjectGuid> _fightListeners;
     ObjectGuid _sparing;                        // the player the hit being dealt marks rather than kills
     ObjectGuid _isolating;                      // the tank Mise à l'isolement never kills
-    char const* _killLabel = nullptr;
 };
 
 // The riot's prisoners: on their tank from the moment they come, blows sized by the warden (PrisonerDamage)
@@ -1939,6 +1922,7 @@ public:
             { "cast", HandleCast, SEC_GAMEMASTER, Console::No },
             { "pull", HandlePull, SEC_GAMEMASTER, Console::No },
             { "botsonly", HandleBotsOnly, SEC_GAMEMASTER, Console::Yes },
+            { "fx", HandleFx, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "vorhan", vorhanTable },
@@ -1978,6 +1962,58 @@ public:
             return false;
         }
         return true;
+    }
+
+    // .vorhan fx <gaze|isolation>: a rule's visuals and sounds alone, anywhere, on the game master (or the unit they
+    // target), without a fight or any harm - to look at them. gaze: his eye on the target's torso (on one's own when
+    // targeting nothing), opening over 6 s. isolation: the blow from 6 yards in front of the game master through them,
+    // the furrows of a throw behind them, and 3 s later the seal's burst where they stand.
+    static bool HandleFx(ChatHandler* handler, std::string what)
+    {
+        Player* player = handler->GetPlayer();
+        if (!player)
+            return false;
+        if (what == "gaze")
+        {
+            Unit* target = handler->getSelectedUnit();
+            Unit* on = target ? target : player;
+            // A warden's torso, or a player's chest
+            bool const warden = on->GetTypeId() == TYPEID_UNIT && on->ToCreature()->GetEntry() == NPC_VORHAN;
+            SendGaze(player, on->GetGUID(), GazeMs, warden ? GazeHeight : 1.3f, warden ? GazeWidth : 2.0f);
+            EvolutionsAudio::PlayAt(player, "Vorhan.GazeOpen", on->GetPosition());
+            ObjectGuid const guid = player->GetGUID();
+            Position const where = on->GetPosition();
+            player->m_Events.AddEventAtOffset([guid, where]()
+            {
+                if (Player* player = ObjectAccessor::FindPlayer(guid))
+                    EvolutionsAudio::PlayAt(player, "Vorhan.GazeBurst", where);
+            }, Milliseconds(GazeMs));
+            return true;
+        }
+        if (what == "isolation")
+        {
+            float const facing = player->GetOrientation();
+            Position const fist(player->GetPositionX() + 6.0f * std::cos(facing),
+                                player->GetPositionY() + 6.0f * std::sin(facing), player->GetPositionZ());
+            float const blow = Position::NormalizeOrientation(facing + float(M_PI));
+            player->SendPlaySpellVisual(KIT_STRIKE);
+            EvolutionsAudio::PlayAt(player, "Vorhan.Isolation", player->GetPosition());
+            GroundIndicators::ShowWardenStrike(player, fist, blow, 6.0f + StrikePastTank);
+            GroundIndicators::ShowWardenPushTrail(player, player->GetPosition(), blow, IsolationThrowDistance);
+            ObjectGuid const guid = player->GetGUID();
+            player->m_Events.AddEventAtOffset([guid]()
+            {
+                Player* player = ObjectAccessor::FindPlayer(guid);
+                if (!player)
+                    return;
+                player->SendPlaySpellVisual(KIT_SEAL);
+                EvolutionsAudio::PlayAt(player, "Vorhan.SealBurst", player->GetPosition());
+                GroundIndicators::ShowWardenSealBurst(player, player->GetPosition(), SealAvoidable);
+            }, Milliseconds(IsolationBurstMs));
+            return true;
+        }
+        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation>");
+        return false;
     }
 
     // .vorhan botsonly <on|off>: the bots fight alone, the game master watching (testing the bots)

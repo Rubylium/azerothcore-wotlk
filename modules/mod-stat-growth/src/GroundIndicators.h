@@ -183,6 +183,9 @@ namespace GroundIndicators
     constexpr uint32 SPELL_WARDEN_ROLL_CALL_PAIR_FIRST = 94221;  // "1-2", "3-4", "5-6", "7-8"
     constexpr uint32 SPELL_WARDEN_WALL_SHOCKWAVE = 94226;
     constexpr uint32 SPELL_WARDEN_WALL_FIRST = 94227;          // its three pieces, each a third of the band
+    constexpr uint32 SPELL_WARDEN_STRIKE = 94230;              // the isolation's blow: a cone of fire from his fist
+    constexpr uint32 SPELL_WARDEN_PUSH_TRAIL = 94231;          // the furrows the thrown tank leaves
+    constexpr uint32 SPELL_WARDEN_SEAL_BURST = 94232;          // the seal going off round the tank
     // The gaze's model: one eye, 8 x 4 yards, its middle this high over the floor (on the warden's chest and head,
     // drawn over his body), its burst on from WardenGazeBurstMs
     constexpr float WardenGazeElevation = 4.5f;
@@ -200,6 +203,16 @@ namespace GroundIndicators
     constexpr uint32 WardenShockwaveArriveMs = 600;
     constexpr uint32 WardenShockwaveMs = 1400;
     constexpr uint32 WardenWallRiseDelayMs = 400;
+    // The isolation's blow (shapes.json VW_Strike: flashing on, fading over a second), from `from` towards
+    // orientation, reach yards long; the furrows of the tank's throw (VW_PushTrail), from where it stood, length yards
+    // along orientation, burning out over 4 s; the seal's burst round center (VW_SealBurst), growing to radius yards
+    // in under half a second, then fading. Only shown: none is an area.
+    constexpr uint32 WardenStrikeMs = 1100;
+    constexpr uint32 WardenPushTrailMs = 4000;
+    constexpr uint32 WardenSealBurstMs = 1400;
+    void ShowWardenStrike(Unit* owner, Position const& from, float orientation, float reach);
+    void ShowWardenPushTrail(Unit* owner, Position const& from, float orientation, float length);
+    void ShowWardenSealBurst(Unit* owner, Position const& center, float radius);
     // The eye over owner at position (its stalker's place; the model stands WardenGazeElevation over the floor there),
     // for durationMs: the cast's 6 s and a moment of its burst. follow: the boss, if it moves meanwhile.
     void ShowWardenGaze(Unit* owner, Position const& position, uint32 durationMs, Unit* follow = nullptr);

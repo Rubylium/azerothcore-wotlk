@@ -342,7 +342,9 @@ def measure(source):
 
 def build_painted_texture(shape):
     """The shape's painting warped onto its area, in the padded quad's frame (u forward along x, v across y)"""
-    source_image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGBA')
+    # Its painting: a file, or what its `picture` function draws
+    source_image = (art_function(shape['picture'])(*shape.get('args', [])) if 'picture' in shape else
+                    Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/')))).convert('RGBA')
     if shape.get('blackKey'):
         # Painted on black: its brightness is its alpha, and on black its colour is already premultiplied by it
         # (an additive glow's own colour comes back exactly); `gain` brightens a dim one

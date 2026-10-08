@@ -374,6 +374,98 @@ def shockwave_ring():
     return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
 
 
+# --- The isolation: the blow that throws his tank, and the seal's burst ---------------------------------------------
+
+STRIKE_ANGLE = 44.0
+
+
+def strike_cone():
+    """The blow, from his fist out (a cone of STRIKE_ANGLE degrees, its apex at the middle of the left edge): streaks of
+    ember fire driven outwards, hottest at his fist, and the blow's front, a broken arc of fire near its end. Nothing
+    white. 1024 x 1024, RGBA."""
+    size = 1024
+    xs = (numpy.arange(size) + 0.5) / size
+    ys = (numpy.arange(size) + 0.5) / size * 2.0 - 1.0
+    x, y = numpy.meshgrid(xs, ys)
+    radius = numpy.hypot(x, y * 0.5)
+    angle = numpy.degrees(numpy.arctan2(y * 0.5, x))
+    half = STRIKE_ANGLE / 2.0
+    across = numpy.clip(numpy.abs(angle) / half, 0.0, 2.0)
+    inside = smooth(1.0, 0.7, across) * smooth(1.0, 0.94, radius)
+    # Streaks along the blow: noise stretched along the radius (sampled on angle and a slow radius)
+    rng = numpy.random.default_rng(71)
+    lanes = rng.random(40)
+    lane = numpy.interp((angle + half * 1.2) / (half * 2.4) * 39.0, numpy.arange(40), lanes)
+    lane = lane * lane * (3.0 - 2.0 * lane)
+    streaks = numpy.clip(lane * 1.4 - 0.3, 0.0, 1.0) * (0.5 + 0.5 * noise(size, size, 60, 72))
+    heat = smooth(0.85, 0.05, radius)
+    front = numpy.exp(-((radius - 0.8) / 0.06) ** 2) * (0.55 + 0.45 * noise(size, size, 14, 73))
+    glow = numpy.clip(streaks * (0.35 + 0.65 * heat) + front * 0.9 + smooth(0.25, 0.0, radius) * 0.8, 0.0, 1.0)
+    glow *= inside
+    hot = numpy.array([1.0, 0.62, 0.18])
+    deep = numpy.array([0.75, 0.10, 0.03])
+    mix = numpy.clip(heat * 0.8 + front * 0.6, 0.0, 1.0)[..., None]
+    colour = deep * (1 - mix) + hot * mix
+    alpha = numpy.clip(glow * 0.95, 0.0, 0.9)
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
+def push_trail():
+    """Where the thrown tank skidded: two scorched furrows along the line (from its start, left, to where it landed,
+    right), embers still burning in them, brightest where the blow struck. 1024 x 192, RGBA."""
+    width, height = 1024, 192
+    xs = (numpy.arange(width) + 0.5) / width
+    ys = (numpy.arange(height) + 0.5) / height * 2.0 - 1.0
+    x, y = numpy.meshgrid(xs, ys)
+    wobble = (noise(width, height, 160, 81) - 0.5) * 0.12
+    furrows = numpy.zeros((height, width))
+    for middle in (-0.32, 0.32):
+        furrows = numpy.maximum(furrows, numpy.exp(-((y - middle - wobble) / 0.16) ** 2))
+    ends = smooth(0.0, 0.06, x) * smooth(1.0, 0.8, x)
+    scorch = furrows * ends * (0.6 + 0.4 * noise(width, height, 12, 82))
+    embers = numpy.clip(noise(width, height, 4, 83) - 0.62, 0.0, 1.0) * 3.0 * furrows * smooth(0.9, 0.0, x)
+    hot = smooth(0.5, 0.0, x) * furrows
+    glow = numpy.clip(embers + hot * 0.7, 0.0, 1.0) * ends
+    ash = numpy.array([0.05, 0.04, 0.035])
+    ember = numpy.array([1.0, 0.38, 0.08])
+    alpha = numpy.clip(scorch * 0.75 + glow * 0.6, 0.0, 0.85)
+    weight = numpy.where(alpha > 1e-4, glow * 0.6 / numpy.maximum(alpha, 1e-4), 0.0)
+    weight = numpy.clip(weight, 0.0, 1.0)[..., None]
+    colour = ash * (1 - weight) + ember * weight
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
+def seal_burst():
+    """The seal going off round the isolated tank, at its full size (the model grows it from the middle): a front of
+    crimson fire at its edge, broken links of a seal's runes inside it and the floor scorched dark behind. No white.
+    1024 x 1024, RGBA, the front's outside at the picture's edge."""
+    size = 1024
+    x, y, radius = grid(size, size)
+    angle = numpy.arctan2(y, x)
+    broken = 0.5 + 0.5 * noise(size, size, 20, 91)
+    front = numpy.where(radius < 0.93, numpy.exp(-((radius - 0.93) / 0.06) ** 2),
+                        numpy.exp(-((radius - 0.93) / 0.025) ** 2)) * broken
+    # The seal's ring of runes, cracked into links (a band at two thirds, cut every so often)
+    links = (numpy.cos(angle * 24.0) > -0.55).astype(float)
+    runes = numpy.exp(-((radius - 0.62) / 0.025) ** 2) * links * (0.5 + 0.5 * noise(size, size, 6, 92))
+    cracks = numpy.clip(noise(size, size, 3, 93) - 0.78, 0.0, 1.0) * 3.5 * smooth(0.15, 0.5, radius) *         smooth(0.92, 0.8, radius)
+    scorch = smooth(0.0, 0.3, radius) * smooth(0.95, 0.82, radius) * (0.55 + 0.45 * noise(size, size, 16, 94)) * 0.5
+    glow = numpy.clip(front * 0.9 + runes * 0.8 + cracks * 0.45, 0.0, 1.0)
+    crimson = numpy.array([0.85, 0.08, 0.06])
+    ember = numpy.array([1.0, 0.45, 0.1])
+    char = numpy.array([0.04, 0.02, 0.025])
+    alpha = numpy.clip(glow * 0.85 + scorch * (1 - glow), 0.0, 0.88)
+    weight = numpy.clip(numpy.where(alpha > 1e-4, glow * 0.85 / numpy.maximum(alpha, 1e-4), 0.0), 0.0, 1.0)
+    hue = numpy.clip(front, 0.0, 1.0)[..., None]
+    lit = crimson * (1 - hue) + ember * hue
+    colour = char * (1 - weight[..., None]) + lit * weight[..., None]
+    alpha *= smooth(1.0, 0.985, radius)
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
 # --- Placeholders: drawn here until the paintings are in art/ ------------------------------------------------------
 
 def iron_texture(width, height, seed):
