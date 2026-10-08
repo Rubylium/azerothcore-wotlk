@@ -834,6 +834,8 @@ void AddWardenVorhanScripts();
 void AddFrontierQuartermasterScripts();
 // DaytimeCommand.cpp: .daytime, the game master's client set to a time of day
 void AddDaytimeCommand();
+// FxLab.cpp: .fxlab, the plain gray room to look at spell visuals in (map 606)
+void AddFxLabScripts();
 
 void AddStatGrowthScripts()
 {
@@ -852,6 +854,7 @@ void AddStatGrowthScripts()
     AddGroundLootScripts();
     AddExperienceRateCommand();
     AddDaytimeCommand();
+    AddFxLabScripts();
     AddOnyxiaReworkScripts();
     AddBronjahmReworkScripts();
     AddDevourerReworkScripts();

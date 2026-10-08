@@ -32,6 +32,7 @@ Read the matching doc(s) BEFORE starting the task:
 - A legendary or Unique item (a new one, its power, its icon art) → `.agents/docs/systems/legendaries.md`
 - Boss loot thrown on the floor (the Diablo-style ground loot: its drops, sounds, Défi wait) → `.agents/docs/systems/ground-loot.md`
 - Map editing (terrain, water, object placement with Noggit; the server's maps, vmaps and mmaps) → `localTools/mapEditing/README.md`
+- Previewing spell visuals, kits or ground indicators in game (the plain gray FX lab, `.fxlab`, map 606) → `.agents/docs/systems/fx-lab.md`
 - Camera flights / intro cinematics (a boss introduction, a scripted camera, the client extension's CameraPath) → `.agents/docs/systems/cinematics.md`
 - Writing, debugging, or changing live-stack e2e (`e2e/`) → `e2e/README.md`, `.agents/docs/e2e-policy.md`, and AzerothGhost `e2e/LLM_GUIDE.md` (scratch work → `e2e/local/`)
 - Capturing a lesson or adding/updating agent docs → `.agents/docs/README.md`
