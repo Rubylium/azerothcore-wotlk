@@ -377,6 +377,43 @@ private:
     uint32 _timer = 0;
 };
 
+// A swinging line's stalker: from its facing, turned `turn` radians in swingMs (eased in and out) once startMs have
+// passed, then held
+struct SwingAI : public NullCreatureAI
+{
+    SwingAI(Creature* creature, float from, float turn, uint32 startMs, uint32 swingMs)
+        : NullCreatureAI(creature), _from(from), _turn(turn), _startMs(startMs),
+          _swingMs(std::max<uint32>(swingMs, 1)) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _elapsed += diff;
+        if (_done || _elapsed < _startMs)
+            return;
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+        _timer = TurnEveryMs;
+        float const t = std::min(1.0f, float(_elapsed - _startMs) / float(_swingMs));
+        float const eased = t * t * (3.0f - 2.0f * t);
+        me->SetFacingTo(Position::NormalizeOrientation(_from + _turn * eased));
+        _done = t >= 1.0f;
+    }
+
+private:
+    static constexpr uint32 TurnEveryMs = 50;
+
+    float _from;
+    float _turn;
+    uint32 _startMs;
+    uint32 _swingMs;
+    uint32 _elapsed = 0;
+    uint32 _timer = 0;
+    bool _done = false;
+};
+
 // A star's stalker at its carrier's feet: stepped onto them every FollowEveryMs, in a straight line and just fast
 // enough to be there by the next step, its facing fixed. (An aura on the carrier turned with the carrier's facing; a
 // stock follow lagged and slid around them.)
@@ -1447,6 +1484,24 @@ Area ShowPaintedLine(Unit* owner, Area const& area, PaintedLine const& look, uin
     Register(owner, nullptr, area, durationMs, hitDamage);
     ShowParticles(owner, area, theme, durationMs);
     return area;
+}
+
+Area ShowSwingingLine(Unit* owner, Area const& area, uint32 look, float turn, uint32 startMs, uint32 swingMs,
+                      uint32 durationMs, uint32 hitDamage, uint32 lingerMs, ObjectGuid* placed)
+{
+    float const from = area.origin.GetOrientation();
+    Area stop = area;
+    stop.origin.SetOrientation(Position::NormalizeOrientation(from + turn));
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return stop;
+    if (Creature* stalker = Place(owner, area.origin, from, look, 1.0f, durationMs + lingerMs))
+    {
+        stalker->AIM_Initialize(new SwingAI(stalker, from, turn, startMs, swingMs));
+        if (placed)
+            *placed = stalker->GetGUID();
+    }
+    Register(owner, nullptr, stop, durationMs, hitDamage);
+    return stop;
 }
 
 void RepaintLine(Unit* owner, Area const& area, PaintedLine const& from, PaintedLine const& to)

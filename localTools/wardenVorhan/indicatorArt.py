@@ -39,6 +39,8 @@ SIZES = {
     'wall_band_4.png': (1024, 256),
     'eye_open.png': (1024, 1024),
     'eye_glow.png': (1024, 1024),
+    'curfew_ring.png': (1024, 1024),
+    'curfew_mark.png': (256, 256),
 }
 
 
@@ -478,6 +480,45 @@ def seal_burst():
     return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
 
 
+# --- Coup de hache: the line his axe splits the floor along ---------------------------------------------------------
+
+def axe_line(hit, long=False):
+    """His axe's line, the whole of it (four pieces of the line drawn in a chain, shapes.json VW_Axe*): along it (left,
+    where he stands, to right) a crack in the floor. Warning: the crack glowing, its edges burnt dark red, embers rising
+    from it - the line's whole width marked, faintly, to its borders. Blow (hit): the crack torn open, fire bursting
+    from it across the width. On black (the builder keys it to clear). 2048 x 512, RGB; long: 4096 x 512, the line
+    drawn as one model 8 times as long as it is wide (VW_AxeSwing*)."""
+    width, height = (4096 if long else 2048), 512
+    xs = (numpy.arange(width) + 0.5) / width
+    ys = (numpy.arange(height) + 0.5) / height * 2.0 - 1.0
+    x, y = numpy.meshgrid(xs, ys)
+    rng = numpy.random.default_rng(121)
+    # The crack wanders along the line's middle, a zigzag of short straight runs
+    knots = numpy.linspace(0.0, 1.0, 40)
+    offsets = rng.uniform(-0.18, 0.18, knots.size)
+    middle = numpy.interp(x, knots, offsets)
+    crack = numpy.exp(-((y - middle) / 0.035) ** 2)
+    rim = numpy.exp(-((y - middle) / 0.16) ** 2)
+    ends = smooth(0.0, 0.03, x) * smooth(1.0, 0.97, x)
+    border = (numpy.exp(-((numpy.abs(y) - 0.92) / 0.03) ** 2)) * 0.45
+    fill = 0.12 * smooth(1.0, 0.85, numpy.abs(y))
+    embers = numpy.clip(noise(width, height, 6, 122) - 0.62, 0.0, 1.0) * 2.5 * numpy.exp(-((y - middle) / 0.4) ** 2)
+    if hit:
+        flames = numpy.clip(noise(width, height, 18, 123) * 1.3 - 0.25, 0.0, 1.0) * smooth(0.95, 0.2, numpy.abs(y))
+        heat = numpy.clip(crack * 1.2 + rim * 0.8 + flames * 0.9 + embers, 0.0, 1.0)
+        colour = (numpy.array([1.0, 0.62, 0.2]) * (crack + rim * 0.5)[..., None] +
+                  numpy.array([0.95, 0.22, 0.05]) * (flames + embers)[..., None])
+        colour = colour * ends[..., None] + numpy.array([0.5, 0.05, 0.02]) * (border + fill * 2.0)[..., None]
+        colour = numpy.clip(colour * (0.4 + 0.6 * heat[..., None]), 0.0, 1.0)
+    else:
+        colour = (numpy.array([1.0, 0.45, 0.1]) * (crack * 0.85)[..., None] +
+                  numpy.array([0.7, 0.08, 0.03]) * (rim * 0.45 + embers * 0.7)[..., None]) * ends[..., None]
+        colour = colour + numpy.array([0.6, 0.06, 0.03]) * (border + fill)[..., None]
+        colour = numpy.clip(colour, 0.0, 1.0)
+    rgb = numpy.clip(colour * 255.0 + 0.5, 0, 255).astype(numpy.uint8)
+    return Image.fromarray(rgb, 'RGB')
+
+
 # --- The cells' bars and the curfew --------------------------------------------------------------------------------
 
 def cell_bars():
@@ -508,7 +549,10 @@ def cell_bars():
 def curfew_ring():
     """The curfew round the whole room, at its full size: a clock's dial at the edge - twelve heavy hour bars, minute
     ticks, a rim - burning red, and a faint red haze inside it. The model breathes it faster and faster until the
-    bell. 1024 x 1024, RGBA."""
+    bell. 1024 x 1024, RGBA. The painting art/curfew_ring.png takes its place once it is there (on pure black: the
+    builder keys it, shapes.json VW_CurfewRing `keyed`)."""
+    if os.path.exists(os.path.join(ART, 'curfew_ring.png')):
+        return painting('curfew_ring.png')
     size = 1024
     x, y, radius = grid(size, size)
     angle = numpy.arctan2(y, x)
@@ -531,7 +575,13 @@ def curfew_ring():
 
 def curfew_mark():
     """Over each head while the curfew is called: an hourglass in the numbers' style (ember fill, black-iron edge, red
-    glow). 256 x 256, RGBA."""
+    glow). 256 x 256, RGBA. The painting art/curfew_mark.png (on pure black) takes its place once it is there."""
+    if os.path.exists(os.path.join(ART, 'curfew_mark.png')):
+        rgb = as_array(painting('curfew_mark.png'))[..., :3]
+        alpha = numpy.clip(rgb.max(axis=2) / 0.12, 0.0, 1.0)
+        colour = numpy.where(alpha[..., None] > 1e-4, rgb / numpy.maximum(alpha[..., None], 1e-4), 0.0)
+        rgba = numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha[..., None]], axis=2)
+        return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
     width = height = 256
     scale = 4
     big = width * scale

@@ -124,6 +124,24 @@ constexpr float EscapePct = 60.0f;              // an empty cell: everyone
 constexpr float EscapeTakenPct = 25.0f;         // ... and Évasion, damage taken a stack
 constexpr uint32 EscapeMs = 10000;
 constexpr float OutOfCellPct = 80.0f;
+// Coup de hache: between his rules, his axe splits the floor along a line - out of it before it lands. The lines
+// grow wilder as the fight goes (AxeVolley): one, two, three at once, then one that splits where it lands into four
+// more, each with its own warning. A blow (with what it splits into) needs AxeWindowMs clear of the next rule.
+constexpr uint32 AxeWarnMs = 2000;              // the cast: its warning
+constexpr uint32 AxeLingerMs = 900;             // the blow shown where it landed
+constexpr uint32 AxeEveryMs = 6500;             // from a blow to the next, at the soonest
+constexpr uint32 AxeWindowMs = 6000;
+constexpr float AxeWidth = 5.0f;
+// The split: as a line lands, it opens like shears - one swings to its left, one to its right, still from his feet,
+// AxeSwingDegrees each way in AxeSwingMs (from AxeSwingStartMs after it lands), stops, and blows AxeSplitMs after the
+// line landed. In Perpétuité it opens in four (half and all of AxeSwingDegrees each way).
+constexpr float AxeSwingDegrees = 45.0f;
+constexpr uint32 AxeSwingStartMs = 250;
+constexpr uint32 AxeSwingMs = 1100;
+constexpr uint32 AxeSplitMs = 2000;
+constexpr uint32 SPELL_AXE_SWING = 94245;       // shapes.json VW_AxeSwing: the whole line on one model, 40 yards
+constexpr uint32 SPELL_AXE_SWING_HIT = 94246;
+constexpr float AxePct = 65.0f;
 // A cell's cage stands this long past the doors' slam
 constexpr uint32 CageAfterDoorsMs = 3000;
 // Rancœur du détenu: who stood within this of his reach as a rule sent everyone away, and for how long it lasts
@@ -240,6 +258,7 @@ enum Hits : uint32
     SPELL_CURFEW_VIOLATION      = 94412,
     SPELL_LIFE_SENTENCE         = 94413,
     SPELL_CAPITAL               = 94414,
+    SPELL_AXE                   = 94415,
 };
 
 // The debuffs, shown on the players (and the warden's eye on him)
@@ -259,6 +278,7 @@ enum Marks : uint32
 // His cast bars
 enum Casts : uint32
 {
+    CAST_AXE                    = 94438,
     CAST_SENTENCE               = 94440,
     CAST_ISOLATION              = 94441,
     CAST_CELLS                  = 94442,
@@ -383,6 +403,16 @@ std::vector<Step> BuildTimeline()
     });
     return steps;
 }
+
+// Coup de hache's lines (shapes.json VW_AxeSeg*, VW_AxeHitSeg*: four pieces 10 yards long, built to size): the whole
+// line, 40 yards, and the split's branches, its first two pieces (20 yards)
+constexpr GroundIndicators::PaintedLine AxeFullLine { 94237, 4, 2.0f, true, 0 };
+constexpr GroundIndicators::PaintedLine AxeFullLineHit { 94241, 4, 2.0f, true, 0 };
+constexpr GroundIndicators::PaintedLine AxeHalfLine { 94237, 2, 2.0f, true, 0 };
+constexpr GroundIndicators::PaintedLine AxeHalfLineHit { 94241, 2, 2.0f, true, 0 };
+// Two lines from then in phase 1; in phase 2 three, then from AxeSplitFromMs one that splits
+constexpr uint32 AxeTwoFromMs = 50000;
+constexpr uint32 AxeSplitFromMs = 175000;
 
 // The Roll Call's four marks, at the cardinal points (north, east, south, west), and which pair each holds at each
 // call: the same sequence every pull, so it can be learnt
@@ -602,6 +632,8 @@ struct boss_warden_vorhan : public ScriptedAI
             _nextStandingCheckMs = elapsed + 500;
             CheckPlayersStanding();
         }
+        if (AxeFree(elapsed))
+            AxeVolley();
         if (CanMelee())
             DoMeleeAttackIfReady();
     }
@@ -742,6 +774,8 @@ private:
         EndCast();
         _awayFromHim.clear();
         _shacklesOn = false;
+        _nextAxeMs = 0;
+        _busyUntil = 0;
         _summons.DespawnAll();
         GroundIndicators::ClearAreasOf(me);
         ClearPlayerAuras();
@@ -1070,6 +1104,7 @@ private:
         if (!tank)
             return;
         ObjectGuid const guid = tank->GetGUID();
+        _busyUntil = Elapsed() + IsolationCastMs + IsolationBurstMs + 500;
         Cast(CAST_ISOLATION);
         if (Player* other = OtherTank(tank))
             GroundIndicators::SetBossHolder(me, other, IsolationCastMs + IsolationBurstMs + 3000);
@@ -1309,6 +1344,148 @@ private:
         uint32 since;                           // when it was put on
         ObjectGuid tether = ObjectGuid::Empty;  // the chain's look (GroundIndicators::ShowTether)
     };
+
+    // --- Coup de hache ------------------------------------------------------------------------------------------
+    // Free for a blow: not casting nor placing anyone, no rule going off, the next one far enough, not in the riot
+    bool AxeFree(uint32 elapsed) const
+    {
+        if (_phase != Phase::One && _phase != Phase::Two && _phase != Phase::LifeSentence)
+            return false;
+        if (_casting || elapsed < _placingUntil || elapsed < _busyUntil || elapsed < _nextAxeMs || !me->GetVictim())
+            return false;
+        return _next >= _timeline.size() || _timeline[_next].at >= elapsed + AxeWindowMs;
+    }
+
+    // How many lines, and whether they split, as the fight goes
+    void AxeVolley()
+    {
+        uint32 const elapsed = Elapsed();
+        _nextAxeMs = elapsed + AxeEveryMs;
+        // parts: 0 a line that only lands; 2 a line that splits in two as it lands; 4 in four
+        uint32 lines = 1;
+        uint8 parts = 0;
+        if (_phase == Phase::LifeSentence)
+        {
+            lines = 2;
+            parts = 4;
+        }
+        else if (_phase == Phase::Two)
+        {
+            lines = elapsed >= AxeSplitFromMs ? 1 : 3;
+            parts = elapsed >= AxeSplitFromMs ? 2 : 0;
+        }
+        else if (elapsed >= AxeTwoFromMs)
+            lines = 2;
+
+        // At players other than his tanks, each a different one where it can
+        std::vector<Player*> targets;
+        for (Player* player : ArenaPlayers())
+            if (player->IsAlive() && !IsGroupTank(player))
+                targets.push_back(player);
+        if (targets.empty())
+            targets = ArenaPlayers();
+        if (targets.empty())
+            return;
+        Acore::Containers::RandomShuffle(targets);
+
+        Cast(CAST_AXE);
+        Position const from = Ground(me->GetPosition());
+        std::vector<float> directions;
+        for (uint32 line = 0; line < lines; ++line)
+            directions.push_back(me->GetAngle(targets[line % targets.size()]));
+        me->SetFacingTo(directions.front());
+        std::vector<GroundIndicators::Area> areas;
+        for (float direction : directions)
+            areas.push_back(AxeLine(from, direction, AxeFullLine, AxeWarnMs));
+        scheduler.Schedule(Milliseconds(AxeWarnMs), [this, areas, parts](TaskContext)
+        {
+            EndCast();
+            me->SendPlaySpellVisual(KIT_STRIKE);
+            Sound("Vorhan.Isolation");
+            for (GroundIndicators::Area const& area : areas)
+            {
+                AxeLands(area, AxeFullLine);
+                if (parts)
+                    AxeSplit(area, parts);
+            }
+        });
+    }
+
+    // The line opening as it lands, like shears: lines swing out from his feet to either side (in four, half as far
+    // too), stop, blow
+    void AxeSplit(GroundIndicators::Area const& area, uint8 parts)
+    {
+        float const full = AxeSwingDegrees * float(M_PI) / 180.0f;
+        std::vector<float> turns = { full, -full };
+        if (parts >= 4)
+            turns = { full / 2.0f, -full / 2.0f, full, -full };
+        auto const swings = std::make_shared<std::vector<std::pair<GroundIndicators::Area, ObjectGuid>>>();
+        for (float turn : turns)
+        {
+            ObjectGuid placed;
+            GroundIndicators::Area const stop = GroundIndicators::ShowSwingingLine(me, area, SPELL_AXE_SWING, turn,
+                AxeSwingStartMs, AxeSwingMs, AxeSplitMs, uint32(Reference() * AxePct / 100.0f), AxeLingerMs, &placed);
+            swings->emplace_back(stop, placed);
+        }
+        scheduler.Schedule(Milliseconds(AxeSplitMs), [this, swings](TaskContext)
+        {
+            Sound("Vorhan.Isolation");
+            for (auto const& [stop, placed] : *swings)
+            {
+                if (Creature* line = me->GetMap()->GetCreature(placed))
+                {
+                    line->RemoveAurasDueToSpell(SPELL_AXE_SWING);
+                    line->AddAura(SPELL_AXE_SWING_HIT, line);
+                }
+                AxeStrikes(stop);
+            }
+        });
+    }
+
+    // A line's warning, painted (the bots leave it: it is registered as any red area)
+    GroundIndicators::Area AxeLine(Position const& from, float direction, GroundIndicators::PaintedLine const& look,
+                                   uint32 warnMs)
+    {
+        GroundIndicators::Area area;
+        area.kind = GroundIndicators::Area::Kind::Rectangle;
+        area.origin = Position(from.GetPositionX(), from.GetPositionY(), from.GetPositionZ(), direction);
+        area.radius = float(look.count) * look.ratio * AxeWidth;
+        area.width = AxeWidth;
+        Position const center = Ground(ArenaCenter);
+        return GroundIndicators::ShowPaintedLine(me, area, look, warnMs, GroundIndicators::Theme::None,
+            uint32(Reference() * AxePct / 100.0f), AxeLingerMs, &center, WallRadius + 2.0f);
+    }
+
+    // The blow: the line torn open, whoever stands in it hit
+    void AxeLands(GroundIndicators::Area const& area, GroundIndicators::PaintedLine const& look)
+    {
+        // The blow's look: the warning's pieces, four spells on (VW_AxeHitSeg*)
+        GroundIndicators::PaintedLine hit = look;
+        hit.firstSpell = look.firstSpell + 4;
+        GroundIndicators::RepaintLine(me, area, look, hit);
+        AxeStrikes(area);
+    }
+
+    void AxeStrikes(GroundIndicators::Area const& area)
+    {
+        std::string struck;
+        for (Player* player : ArenaPlayers())
+            if (area.Contains(player->GetPosition()))
+            {
+                Hit(player, SPELL_AXE, AxePct, true);
+                struck += " " + player->GetName();
+            }
+        if (struck.empty())
+            Kept("axe");
+        else
+            Broken("axe", struck);
+    }
+
+    static Position AtAngleFrom(Position const& from, float angle, float distance)
+    {
+        return Position(from.GetPositionX() + distance * std::cos(angle),
+                        from.GetPositionY() + distance * std::sin(angle), from.GetPositionZ());
+    }
 
     // Who stands at his side as a rule sends everyone away: the melee, whose damage it costs
     void MarkAway()
@@ -1916,6 +2093,8 @@ private:
     // Who stood at his side when a rule sent everyone away (MarkAway): Rally() makes it up to them once it is over
     std::set<ObjectGuid> _awayFromHim;
     bool _shacklesOn = false;
+    uint32 _nextAxeMs = 0;                      // Coup de hache: no blow before then
+    uint32 _busyUntil = 0;                      // a rule still going off after its cast (the isolation's seal)
     std::set<ObjectGuid> _fightListeners;
     ObjectGuid _sparing;                        // the player the hit being dealt marks rather than kills
     ObjectGuid _isolating;                      // the tank Mise à l'isolement never kills
@@ -2096,7 +2275,51 @@ public:
             }, Milliseconds(CurfewMs));
             return true;
         }
-        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew>");
+        if (what == "axe")
+        {
+            // A blow from the game master's feet ahead of them, opening as it lands like shears
+            Position const from(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(),
+                                player->GetOrientation());
+            GroundIndicators::Area area;
+            area.kind = GroundIndicators::Area::Kind::Rectangle;
+            area.origin = from;
+            area.radius = float(AxeFullLine.count) * AxeFullLine.ratio * AxeWidth;
+            area.width = AxeWidth;
+            GroundIndicators::ShowPaintedLine(player, area, AxeFullLine, AxeWarnMs, GroundIndicators::Theme::None, 0,
+                AxeLingerMs);
+            ObjectGuid const guid = player->GetGUID();
+            player->m_Events.AddEventAtOffset([guid, area]()
+            {
+                Player* player = ObjectAccessor::FindPlayer(guid);
+                if (!player)
+                    return;
+                GroundIndicators::RepaintLine(player, area, AxeFullLine, AxeFullLineHit);
+                player->SendPlaySpellVisual(KIT_STRIKE);
+                EvolutionsAudio::PlayAt(player, "Vorhan.Isolation", area.origin);
+                // Opening as it lands, like shears: a line swings out to either side from the start, stops, blows
+                std::vector<ObjectGuid> swung;
+                float const full = AxeSwingDegrees * float(M_PI) / 180.0f;
+                for (float turn : { full, -full })
+                {
+                    ObjectGuid placed;
+                    GroundIndicators::ShowSwingingLine(player, area, SPELL_AXE_SWING, turn, AxeSwingStartMs,
+                        AxeSwingMs, AxeSplitMs, 0, AxeLingerMs, &placed);
+                    swung.push_back(placed);
+                }
+                player->m_Events.AddEventAtOffset([guid, swung]()
+                {
+                    if (Player* player = ObjectAccessor::FindPlayer(guid))
+                        for (ObjectGuid const& placed : swung)
+                            if (Creature* line = player->GetMap()->GetCreature(placed))
+                            {
+                                line->RemoveAurasDueToSpell(SPELL_AXE_SWING);
+                                line->AddAura(SPELL_AXE_SWING_HIT, line);
+                            }
+                }, Milliseconds(AxeSplitMs));
+            }, Milliseconds(AxeWarnMs));
+            return true;
+        }
+        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew|axe>");
         return false;
     }
 

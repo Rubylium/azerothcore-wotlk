@@ -142,6 +142,12 @@ namespace GroundIndicators
     Area ShowPaintedLine(Unit* owner, Area const& area, PaintedLine const& look, uint32 durationMs,
                          Theme theme = Theme::None, uint32 hitDamage = 0, uint32 lingerMs = 0,
                          Position const* clipCenter = nullptr, float clipRadius = 0.0f);
+    // A painted line that swings round its start: one model drawn from area's origin (look, built to its length),
+    // turned `turn` radians (positive: counterclockwise) in swingMs from startMs after it shows, eased, then held until
+    // durationMs. The area where it stops is registered (the bots leave it) and returned; placed: its carrier, to turn
+    // its look to its blow where it lands.
+    Area ShowSwingingLine(Unit* owner, Area const& area, uint32 look, float turn, uint32 startMs, uint32 swingMs,
+                          uint32 durationMs, uint32 hitDamage = 0, uint32 lingerMs = 0, ObjectGuid* placed = nullptr);
     // The pieces of a line shown with look `from` turned to look `to` (a warning's to its hit, where it lands)
     void RepaintLine(Unit* owner, Area const& area, PaintedLine const& from, PaintedLine const& to);
     // A picture painted on the ground at center, radius yards, turned to orientation, for durationMs: a boss's sigil

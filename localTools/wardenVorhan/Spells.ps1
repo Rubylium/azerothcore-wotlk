@@ -74,6 +74,8 @@ $spells = @(
         'Vous bougiez quand le couvre-feu a sonné.'),
     (New-Hit 94413 'Perpétuité' 'ICON_Perpetuite' 589 $shadow `
         "La peine s'alourdit à chaque instant."),
+    (New-Hit 94415 'Coup de hache' 'ICON_CoupDeHache' 845 $physical `
+        'Le gardien-chef a fendu le sol de sa hache : sortez de la ligne avant qu''elle frappe.'),
     (New-Hit 94414 'Peine capitale' 'ICON_PeineCapitale' 589 $shadow `
         'Le temps est écoulé.'),
 
@@ -137,6 +139,7 @@ $spells = @(
         'Matricule 8.'),
 
     # --- The cast bars ---
+    (New-Cast 94438 'Coup de hache' 'ICON_CoupDeHache' 845 5 'Le gardien-chef lève sa hache.'),
     (New-Cast 94440 'Sentence' 'ICON_Sentence' 589 5 'Le gardien-chef prononce sa sentence.'),
     (New-Cast 94441 "Mise à l'isolement" 'ICON_MiseIsolement' 33813 16 "Le gardien-chef s'apprête à frapper son gardien."),
     (New-Cast 94442 'Cellules' 'ICON_HorsCellule' 33813 170 'Les cellules vont se refermer : chacun dans la sienne.'),
