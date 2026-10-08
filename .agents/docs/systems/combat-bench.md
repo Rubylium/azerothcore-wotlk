@@ -2,12 +2,63 @@
 
 The in-game test ground (`.bench`, GM Island) measures damage, healing and damage taken on dummies scaled exactly
 like Mythic+ creatures. **Use it for any class tuning, new class or spec, talent / rotation change, or bot AI combat
-change** instead of dungeon runs: a full comparison takes ~6 minutes, a tuning step under a minute (the session and
-live tuning below). In-game usage and every command: `modules/mod-playerbots/COMBAT_BENCH.md`. Code:
-`modules/mod-playerbots/src/Script/CombatBench.cpp`, measuring in `src/server/game/Telemetry/CombatTelemetry.cpp`
-(`Bench*`).
+change** instead of dungeon runs. **Every damage spec at once: the sweep** (each bot alone on its own dummies, 30 at a
+time, one command for every profile), and the **auto-tune** that moves the spec balance toward the Fire mage live;
+one spec's own spells: the session and live tuning below. In-game usage and every command:
+`modules/mod-playerbots/COMBAT_BENCH.md`. Code: `modules/mod-playerbots/src/Script/CombatBench.cpp`, measuring in
+`src/server/game/Telemetry/CombatTelemetry.cpp` (`Bench*`), the sweep's driving in
+`localTools/combatBench/BenchSweep.ps1`.
 
-## Tuning loop (fast): a bench session and live tuning
+## Fast survey: the sweep and the auto-tune (start here)
+
+**Use this for any survey of the classes and for the spec balance.** One command measures every damage spec at every
+profile, with several bots a spec, and prints its share of the Fire mage:
+
+```powershell
+.\localTools\combatBench\bench.ps1 sweep                      # every damage spec x2 at 258/0, 450/600 and 460/650
+.\localTools\combatBench\bench.ps1 sweep -profiles '460:650' -specs '4 1:Assassination;8 2:Fire' -copies 3 -repeats 2
+.\localTools\combatBench\bench.ps1 sweep -profiles '460:650' -goal 1%    # a whole kill a lane (its dummies at 25%)
+.\localTools\combatBench\bench.ps1 tune                       # balance0.* at 258/0, balance.* at 460/650, then 450/600
+python localTools/tuning/bakeTuning.py --dry-run                 # the live overrides into the table, then build
+```
+
+- **Lanes** (`.bench lanes on`): every bench bot gets its own copy of the layout, in a phase of its own (a phase bit a
+  lane, 30 at most): no AoE, cleave, chain, aura, totem or buff reaches another lane, and all lanes stand on the same
+  flat ground (the geometry of a one-bot run). A lane's dummies hold its bot only. So **every spec fights solo,
+  without the buffs of a party**: absolute DPS is below a party run's, compare shares within a sweep.
+- **The bots** come all at once (content bots, logged in a few at a time; the driver polls `.bench list`'s
+  `#benchstate` line instead of fixed sleeps), with their group role (2026-10-08 fix) and the spec's
+  `StatsWeightCalculator` gear at the profile's item level. Between profiles they are geared again **in place**
+  (`.bench gear <ilvl>`, empty bags, no new login) and their board set (`.bench paragon <points>`): a heat's bots are
+  brought once for every profile.
+- **Heats**: the default list (`BenchSweep.ps1 $DefaultSweepSpecs`: 29 damage specs, classes by id and premade specs
+  by number) x `-copies 2` is two heats of 30 lanes; a spec's copies stay in the same heat and every heat carries the
+  Fire mage's copies (its mean pools over all heats and runs).
+- **Profiles** `ilvl:paragon[:scaling[:layouts]]`: scaling by default +10 at paragon 0, `defi10-25` above; layouts
+  (`+`-separated) by default `single` on a key, `boss` (a boss dummy that stays up: one bot never brings it to its
+  execute range) on a raid scaling; `-layouts single,boss` for all. `-goal 1%`: each lane fights to 1% on dummies
+  at `-laneHealth` (default 25: a kill by one bot in about the time four take), its DPS over its own time; a lane
+  slower than twice the median finished lane is not waited for. Compare the stays-up and kill means (below).
+- **Output**: per profile, layout and spec the mean DPS, its % of the Fire mage's mean, the spread (one standard
+  deviation, % of the mean), the share's standard error and n; rows not trusted are left out and listed: item level
+  off by more than `-ilvlTolerance` (10), a spec other than asked, a `board tank`, a board of other points than asked,
+  no damage, a bot offline. CSV: `var/combatBench/sweep-<stamp>.csv` and `-rows.csv` (every bot's row with its run
+  id: the per-spell table of one is `mod_combat_bench_spell` for that run).
+- **Auto-tune** (`tune`): a heat's bots brought once; at the no-paragon profile it moves `balance0.<class>.<spec>`, at
+  650 `balance.<class>.<spec>` (the factor goes from one to the other by the character's points, so each end is
+  measured on its own), the knob names and values read from the rows (`DescribeSpecBalance`). Each iteration runs the
+  heat, takes each spec's share of the mage and steps its factor by `(target / share) ^ damping` (0.7), at most
+  `-maxStep` (25%) a step; a spec within `-band` (5%) or within its standard error is settled, one whose gap grew
+  twice running is stuck (look at its rows and rotation). Up to `-iterations` (4), then the `-validate` profiles
+  (450/600) once. It prints old -> new and the last share, and leaves **live overrides**: bake them
+  (`bakeTuning.py` now bakes the table's `{ "key", value }` entries too), build, commit, naming the sweep.
+- **Noise**: a bot's run varies ~15%, bots of a spec 15-20%: a share's standard error with 2 copies and 1 repeat is
+  ~7%. `-repeats 2` (or `-copies 3`) before trusting a 5% band; the stuck / in-noise statuses say when the noise wins.
+- Healers and tanks are not swept: their tests stay `pulse` and the `tank` layouts (one at a time, below).
+- The other agent's or a player's session: lanes use the owner's raid (up to 30 bots past `CombatBench.MaxBots`) and
+  the content bot pool (8 a class a side: 2-3 copies of every spec of a class fit).
+
+## Tuning loop (one spec): a bench session and live tuning
 
 **Use this for any tuning pass.** A loop of change → run → read costs only the runs: no driver build, no login, no
 bots brought again (the session), and no server build, restart or client release (live tuning).
@@ -56,14 +107,14 @@ bots brought again (the session), and no server build, restart or client release
 `modules/mod-stat-growth/src/StatGrowthScripts.cpp` `SpecBalance`: one damage factor per class and spec (its pets'
 and totems' hits too), applied before mitigation so meters show it. Two of them, since specs drift apart with
 paragon: `balance0.<class>.<spec>` at no paragon (measured at +10, ilvl 258) and `balance.<class>.<spec>` at 650
-points (the Hollow Voice's 460 / 650), in between by the character's points. Spec: its tree, 1 to 4 (Arms 1, Fury 2).
+points (the Hollow Voice's 460 / 650), in between by the character's points. The auto-tune above moves both. Spec: its tree, 1 to 4 (Arms 1, Fury 2).
 Fix a spec's own spells first; use these to bring a spec to the Fire mage at both ends, then bake them into the
 table (`.tune set balance...` live, the table's defaults in the code). Compare against the mage's **mean** over all
 groups of a survey: one group's mage varies ±30% at +10.
 
 Bench content bots (Bot/ContentBotMgr.h) come fresh: logged in, specced and geared for the bench, bags emptied. A
-row at the wrong item level or without its paragon board (`.bench list` shows it) is not to be trusted, nor a damage
-dealer with a `board tank`: before 2026-10-08 the bench gave its bots no group role, and the board took one from a
+row at the wrong item level or without its paragon board (`.bench list` shows it; the sweep flags it) is not to be
+trusted, nor a damage dealer with a `board tank`: before 2026-10-08 the bench gave its bots no group role, and the board took one from a
 Dungeon Finder role left over or a stance - Retribution bots that had tanked keys fought at a quarter of the damage.
 Bots of the same spec still differ by 15-20% (Assassination: Itlonk against Buslill): pool several bots' runs.
 

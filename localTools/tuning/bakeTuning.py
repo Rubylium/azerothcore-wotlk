@@ -1,9 +1,9 @@
 """Bakes live tuning into the code (src/server/game/Tuning/LiveTuning.h).
 
 A knob overridden with `.tune set` while the server ran has its value written as its default in the source that
-declares it, `LiveTuning::Knob const Name("key", <value>)`, and its override removed from the world database's
-`live_tuning`, so the code is again the one place the number lives. Spell multipliers (`.tune spell`, table
-`live_tuning_spell`) are listed, not baked: put the factor in the spell's data or script, then `.tune reset`.
+declares it, `LiveTuning::Knob const Name("key", <value>)` or a table's entry `{ "key", <value> }` (the spec balance),
+and its override removed from the world database's `live_tuning`, so the code is again the one place the number
+lives. Spell multipliers (`.tune spell`, table `live_tuning_spell`) are listed, not baked: put the factor in the spell's data or script, then `.tune reset`.
 
     python localTools/tuning/bakeTuning.py            # bake every override
     python localTools/tuning/bakeTuning.py --dry-run  # show what it would change
@@ -26,6 +26,8 @@ WORLD_CONFIG = os.path.join(REPO_ROOT, 'server', 'configs', 'worldserver.conf')
 
 # Knob const Name("key", value) / KnobInt / KnobUInt; the value: a number literal with an optional f / u suffix
 DECLARATION = r'(LiveTuning::Knob(?:Int|UInt)?\s+const\s+\w+\s*\(\s*"{key}"\s*,\s*)(-?[0-9.]+(?:e-?[0-9]+)?[fFuU]?)(\s*\))'
+# A knob in a table of them, { "key", value } (mod-stat-growth StatGrowthScripts.cpp's spec balance)
+TABLE_ENTRY = r'(\{{\s*"{key}"\s*,\s*)(-?[0-9.]+(?:e-?[0-9]+)?[fFuU]?)(\s*\}})'
 
 
 def world_database():
@@ -91,13 +93,13 @@ def main():
     files = {path: None for path in source_files()}
     baked = []
     for key, value in overrides:
-        pattern = re.compile(DECLARATION.format(key=re.escape(key)))
+        patterns = [re.compile(form.format(key=re.escape(key))) for form in (DECLARATION, TABLE_ENTRY)]
         found = False
         for path in files:
             if files[path] is None:
                 with open(path, encoding='utf-8', newline='') as source:
                     files[path] = source.read()
-            match = pattern.search(files[path])
+            match = next((m for m in (pattern.search(files[path]) for pattern in patterns) if m), None)
             if not match:
                 continue
             new = literal(value, match.group(2))

@@ -116,6 +116,9 @@ namespace CombatTelemetry
     AC_GAME_API bool IsBenchRunning(ObjectGuid owner);
     // Since the test's first damage, 0 before it
     AC_GAME_API uint32 GetBenchElapsedMs(ObjectGuid owner);
+    // A participant's damage to the test's dummies so far, 0 when it is not in one (a sweep's lane that is done before
+    // the others keeps what it had dealt by then)
+    AC_GAME_API uint64 GetBenchDamage(ObjectGuid owner, ObjectGuid player);
     // Ends the owner's test. Returns whether anything happened in it; then result holds it and, unless discard, it
     // is saved (completed: it ran its course; else it was stopped early).
     AC_GAME_API bool FinishBench(ObjectGuid owner, bool completed, bool discard, BenchResult& result);

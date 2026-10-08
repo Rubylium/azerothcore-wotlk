@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -71,6 +72,73 @@ func waitFor(log *chatLog, start int, want *regexp.Regexp, timeout time.Duration
 		time.Sleep(200 * time.Millisecond)
 	}
 	return "", false
+}
+
+// The chat lines that answer a command sent at start: the first one waited for up to wait, then the rest until the
+// chat has been quiet for a moment (a reply comes in one burst)
+func collect(log *chatLog, start int, wait time.Duration) []string {
+	const quiet = 400 * time.Millisecond
+	deadline := time.Now().Add(wait)
+	seen := log.count()
+	lastChange := time.Now()
+	for time.Now().Before(deadline) {
+		time.Sleep(100 * time.Millisecond)
+		if n := log.count(); n != seen {
+			seen = n
+			lastChange = time.Now()
+			continue
+		}
+		if seen > start && time.Since(lastChange) >= quiet {
+			break
+		}
+	}
+	return log.since(start)
+}
+
+var stateRe = regexp.MustCompile(`#benchstate;(\S+)`)
+
+// The bench's state from `.bench list` (its #benchstate line: bots, pending, gearing, lanes, test); ok false from a
+// server without that line
+func benchState(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog) (map[string]string, []string, bool) {
+	start := log.count()
+	bot.GM(t, ".bench list")
+	line, ok := waitFor(log, start, stateRe, 5*time.Second)
+	lines := log.since(start)
+	if !ok {
+		return nil, lines, false
+	}
+	state := map[string]string{}
+	for _, field := range strings.Split(stateRe.FindStringSubmatch(line)[1], ";") {
+		if key, value, found := strings.Cut(field, "="); found {
+			state[key] = value
+		}
+	}
+	return state, lines, true
+}
+
+// Waits until no bench bot is logging in or being geared (ContentBotMgr logs them in a few at a time; .bench gear
+// gears a few each world update), polling `.bench list` instead of sleeping a fixed time
+func settle(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, timeout time.Duration) {
+	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(time.Second) {
+		state, lines, ok := benchState(t, bot, log)
+		if !ok {
+			// An older server: its "logging in" line
+			pending := false
+			for _, line := range lines {
+				if strings.Contains(line, "logging in") || strings.Contains(line, "en connexion") {
+					pending = true
+				}
+			}
+			if !pending {
+				return
+			}
+			continue
+		}
+		if state["pending"] == "0" && state["gearing"] == "0" {
+			return
+		}
+	}
+	t.Logf("[setup] the bench bots did not settle in %s", timeout)
 }
 
 func envOr(name, fallback string) string {
@@ -134,39 +202,28 @@ func startBench(t *testing.T) (*e2eharness.ScenarioBot, *chatLog) {
 }
 
 // Brings the bench bots (";"-separated `.bench bot` arguments) and an optional group damage pulse (`.bench pulse`),
-// then reports `.bench list`
+// then reports `.bench list`. The requests go at once: the content bots (ContentBotMgr) log in a few at a time, and
+// `.bench list` is polled until none is on its way.
 func spawnBots(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, bots, pulse string,
 	report func(string, ...any)) {
 	setup := log.count()
+	count := 0
 	for _, args := range strings.Split(bots, ";") {
 		if args = strings.TrimSpace(args); args != "" {
 			bot.GM(t, ".bench bot "+args)
-			time.Sleep(4 * time.Second)
+			count++
+			time.Sleep(300 * time.Millisecond)
 		}
 	}
-	time.Sleep(10 * time.Second)
-	// Content bots (ContentBotMgr) log in for the bench: `.bench list` names the ones still on their way
-	for deadline := time.Now().Add(90 * time.Second); time.Now().Before(deadline); {
-		start := log.count()
-		bot.GM(t, ".bench list")
-		time.Sleep(2 * time.Second)
-		pending := false
-		for _, line := range log.since(start) {
-			if strings.Contains(line, "logging in") || strings.Contains(line, "en connexion") {
-				pending = true
-			}
-		}
-		if !pending {
-			break
-		}
-		time.Sleep(3 * time.Second)
-	}
-	if pulse != "" {
-		bot.GM(t, ".bench pulse "+pulse)
-		time.Sleep(time.Second)
-	}
-	bot.GM(t, ".bench list")
 	time.Sleep(2 * time.Second)
+	settle(t, bot, log, time.Duration(90+5*count)*time.Second)
+	if pulse != "" {
+		start := log.count()
+		bot.GM(t, ".bench pulse "+pulse)
+		collect(log, start, 3*time.Second)
+	}
+	benchState(t, bot, log)
+	time.Sleep(500 * time.Millisecond)
 	for _, line := range log.since(setup) {
 		report("[setup] %s", line)
 	}
@@ -175,13 +232,21 @@ func spawnBots(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, bots, pu
 // Each layout in turn (","-separated): its report, then RESULT <layout> <run id> for the per-spell tables
 func runLayouts(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, layouts, key, seconds string,
 	report func(string, ...any)) {
+	// A timed test, its seconds and the start; one down to a health share (a sweep's whole kill), up to the bench's
+	// ten minutes
+	timeout := 11 * time.Minute
+	if secs, err := strconv.Atoi(strings.TrimSuffix(seconds, "s")); err == nil {
+		timeout = time.Duration(secs+120) * time.Second
+	}
 	for _, layout := range strings.Split(layouts, ",") {
 		if layout = strings.TrimSpace(layout); layout == "" {
 			continue
 		}
 		start := log.count()
 		bot.GM(t, ".bench run "+layout+" "+key+" "+seconds)
-		line, ok := waitFor(log, start, runRe, 3*time.Minute)
+		line, ok := waitFor(log, start, runRe, timeout)
+		// The report's last line names the run: the rest of it has come
+		time.Sleep(300 * time.Millisecond)
 		for _, l := range log.since(start) {
 			report("[%s] %s", layout, l)
 		}
@@ -190,8 +255,9 @@ func runLayouts(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, layouts
 		} else {
 			report("RESULT %s none", layout)
 		}
+		reset := log.count()
 		bot.GM(t, ".bench reset")
-		time.Sleep(3 * time.Second)
+		collect(log, reset, 3*time.Second)
 	}
 }
 
@@ -202,7 +268,9 @@ func runLayouts(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, layouts
 //
 //	.<command>                        a chat command (.tune set ..., .bench pulse 10) and its replies
 //	bots <a;b;...> [pulse=<percent>]  the bench bots replaced by these (`.bench bot` arguments)
-//	run <layouts> [key] [seconds]     the layouts in turn, their reports and RESULT lines
+//	run <layouts> [key] [seconds]     the layouts in turn, their reports and RESULT lines (seconds or N%)
+//	settle [seconds]                  until no bench bot is logging in or being geared (.bench gear), then
+//	                                  `.bench list`
 //	wait <seconds>
 //	quit                              ends the session
 func TestTool_CombatBenchSession(t *testing.T) {
@@ -272,13 +340,28 @@ func handleRequest(t *testing.T, bot *e2eharness.ScenarioBot, log *chatLog, cont
 		case strings.HasPrefix(line, "."):
 			start := log.count()
 			bot.GM(t, line)
-			time.Sleep(1500 * time.Millisecond)
-			for _, reply := range log.since(start) {
+			for _, reply := range collect(log, start, 3*time.Second) {
 				report("[%s] %s", fields[0], reply)
 			}
+		case fields[0] == "settle":
+			timeout := 180 * time.Second
+			if len(fields) == 2 {
+				if secs, err := strconv.Atoi(fields[1]); err == nil {
+					timeout = time.Duration(secs) * time.Second
+				}
+			}
+			start := log.count()
+			settle(t, bot, log, timeout)
+			benchState(t, bot, log)
+			time.Sleep(300 * time.Millisecond)
+			for _, reply := range log.since(start) {
+				report("[settle] %s", reply)
+			}
 		case fields[0] == "bots":
+			start := log.count()
 			bot.GM(t, ".bench dismiss all")
-			time.Sleep(3 * time.Second)
+			collect(log, start, 3*time.Second)
+			time.Sleep(time.Second)
 			arguments := strings.TrimSpace(strings.TrimPrefix(line, "bots"))
 			pulse := ""
 			if at := strings.LastIndex(arguments, " pulse="); at >= 0 {

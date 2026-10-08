@@ -837,6 +837,16 @@ uint32 GetBenchElapsedMs(ObjectGuid owner)
     return static_cast<uint32>(std::max<uint64>(GameTime::GetGameTimeMS().count() - itr->second.firstEventMs, 1));
 }
 
+uint64 GetBenchDamage(ObjectGuid owner, ObjectGuid player)
+{
+    std::lock_guard lock(telemetryMutex);
+    auto const bench = benchRuns.find(owner);
+    if (bench == benchRuns.end())
+        return 0;
+    auto const participant = bench->second.run.participants.find(player.GetCounter());
+    return participant != bench->second.run.participants.end() ? participant->second.damage : 0;
+}
+
 bool FinishBench(ObjectGuid owner, bool completed, bool discard, BenchResult& result)
 {
     BenchRun finished;

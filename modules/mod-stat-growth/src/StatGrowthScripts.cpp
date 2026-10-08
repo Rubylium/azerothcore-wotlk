@@ -651,6 +651,8 @@ SpecBalanceRow const SpecBalance[] = {
         { "balance.necromancer.3", 1.0f }, { "balance.necromancer.4", 1.0f } } },
     { { { "balance.barbarian.1", 1.33f }, { "balance.barbarian.2", 1.28f },
         { "balance.barbarian.3", 1.0f }, { "balance.barbarian.4", 1.0f } } },
+    { { { "balance.reaper.1", 1.0f }, { "balance.reaper.2", 1.0f },
+        { "balance.reaper.3", 1.0f }, { "balance.reaper.4", 1.0f } } },
 };
 SpecBalanceRow const SpecBalanceLow[] = {
     { { { "balance0.none.1", 1.0f }, { "balance0.none.2", 1.0f },
@@ -683,6 +685,8 @@ SpecBalanceRow const SpecBalanceLow[] = {
         { "balance0.necromancer.3", 1.0f }, { "balance0.necromancer.4", 1.0f } } },
     { { { "balance0.barbarian.1", 0.7f }, { "balance0.barbarian.2", 0.66f },
         { "balance0.barbarian.3", 0.78f }, { "balance0.barbarian.4", 1.0f } } },
+    { { { "balance0.reaper.1", 1.0f }, { "balance0.reaper.2", 1.0f },
+        { "balance0.reaper.3", 1.0f }, { "balance0.reaper.4", 1.0f } } },
 };
 
 float GetSpecBalance(Unit* attacker)
@@ -711,6 +715,21 @@ void ScaleByCatchUp(Unit* attacker, Unit* target, T& damage)
     if (multiplier != 1.0f)
         damage = static_cast<T>(std::min<double>(double(damage) * multiplier, std::numeric_limits<T>::max()));
 }
+}
+
+// The combat bench's sweep (mod-playerbots Script/CombatBench.cpp, localTools/combatBench/bench.ps1 tune): the two
+// spec balance knobs a character's damage goes through, their values and its paragon share between them,
+// ";"-separated: "balance0.rogue.1;0.77;balance.rogue.1;1.45;0.923" ("-;1;-;1;0" for a class without a row)
+std::string DescribeSpecBalance(Player* player)
+{
+    if (!player || player->getClass() >= std::size(SpecBalance))
+        return "-;1;-;1;0";
+    int8 const index = GetTalentSpecializationIndex(player);
+    std::size_t const spec = index >= 0 && index < 4 ? std::size_t(index) : 0;
+    LiveTuning::Knob const& low = SpecBalanceLow[player->getClass()].specs[spec];
+    LiveTuning::Knob const& high = SpecBalance[player->getClass()].specs[spec];
+    float const share = std::min(float(GetParagonBalancePoints(player)) / SpecBalanceParagon, 1.0f);
+    return Acore::StringFormat("{};{:.4g};{};{:.4g};{:.3f}", low.Key(), low.Get(), high.Key(), high.Get(), share);
 }
 
 class StatGrowthUnitScript : public UnitScript
