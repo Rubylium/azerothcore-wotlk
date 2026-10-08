@@ -107,22 +107,28 @@ constexpr float WaveSeconds = 8.0f;
 constexpr float MeleeFloorPct = 12.0f;          // his melee on a player: at least this, whatever their armour
 constexpr float PrisonerMeleePct = 3.0f;        // a fel orc prisoner's swing
 constexpr float AbyssalMeleePct = 5.0f;         // an abyssal's
-constexpr float SentencePct[2] = { 30.0f, 40.0f };     // phase 1, phase 2
-constexpr float RiotSentencePct = 18.0f;        // during the riot
-constexpr float LifeSentencePct = 35.0f;        // Perpétuité's first, each one LifeSentenceGrowth heavier
+constexpr float SentencePct[2] = { 45.0f, 60.0f };     // phase 1, phase 2
+constexpr float RiotSentencePct = 27.0f;        // during the riot
+constexpr float LifeSentencePct = 50.0f;        // Perpétuité's first, each one LifeSentenceGrowth heavier
 constexpr float LifeSentenceGrowth = 1.2f;
 constexpr float IsolationPct = 120.0f;          // on his tank (a tank has about 1.45 times this health): never lethal
-// The seal's burst on everyone else, by their distance from the isolated tank: death next to it, falling to a
-// raid-wide hit from SealFar on (the tank thrown off and waiting); nearer than SealAvoidable it was theirs to avoid
+// The seal's burst on everyone else, by their distance from the isolated tank - he carries a bomb: death within
+// SealAvoidable (its lethal ring), half one's health just past it, falling to SealFarPct at SealFar (the room's far
+// side) and beyond
 constexpr float SealNearPct = 250.0f;
+constexpr float SealEdgePct = 50.0f;
 constexpr float SealFarPct = 20.0f;
-constexpr float SealNear = 8.0f;
-constexpr float SealFar = 26.0f;
+constexpr float SealFar = 40.0f;
 constexpr float SealAvoidable = 16.0f;
 constexpr float EscapePct = 60.0f;              // an empty cell: everyone
 constexpr float EscapeTakenPct = 25.0f;         // ... and Évasion, damage taken a stack
 constexpr uint32 EscapeMs = 10000;
 constexpr float OutOfCellPct = 80.0f;
+// A cell's cage stands this long past the doors' slam
+constexpr uint32 CageAfterDoorsMs = 3000;
+// Rancœur du détenu: who stood within this of his reach as a rule sent everyone away, and for how long it lasts
+constexpr float RallyReach = 6.0f;
+constexpr uint32 RallyMs = 10000;
 constexpr std::array<float, 6> ChainRampPct = { 6.0f, 12.0f, 24.0f, 48.0f, 96.0f, 192.0f };
 constexpr float CurfewPct = 100.0f;
 
@@ -246,6 +252,7 @@ enum Marks : uint32
     SPELL_ESCAPED               = 94424,
     SPELL_OPENING_EYE           = 94425,
     SPELL_CURFEW_STUN           = 94426,
+    SPELL_RALLY                 = 94427,        // Rancœur du détenu: the melee's damage back after a rule
     SPELL_NUMBER_FIRST          = 94430,        // Matricule 1, ... 94437 Matricule 8
 };
 
@@ -733,6 +740,8 @@ private:
     {
         scheduler.CancelAll();
         EndCast();
+        _awayFromHim.clear();
+        _shacklesOn = false;
         _summons.DespawnAll();
         GroundIndicators::ClearAreasOf(me);
         ClearPlayerAuras();
@@ -1102,9 +1111,10 @@ private:
                     if (player == tank)
                         continue;
                     float const distance = player->GetExactDist2d(tank);
-                    float const share = std::clamp((distance - SealNear) / (SealFar - SealNear), 0.0f, 1.0f);
-                    Hit(player, SPELL_SEAL, SealNearPct + (SealFarPct - SealNearPct) * share,
-                        distance < SealAvoidable);
+                    float const share = std::clamp((distance - SealAvoidable) / (SealFar - SealAvoidable), 0.0f,
+                                                   1.0f);
+                    Hit(player, SPELL_SEAL, distance < SealAvoidable ? SealNearPct :
+                        SealEdgePct + (SealFarPct - SealEdgePct) * share, distance < SealAvoidable);
                     if (distance < SealAvoidable)
                         tooClose += Acore::StringFormat(" {} ({:.1f} yd{})", player->GetName(), distance,
                             player->GetSession() && player->GetSession()->IsBot() ? ", bot" : "");
@@ -1129,6 +1139,7 @@ private:
     // after the doors, still in their cell.
     void Cells(bool curfew)
     {
+        MarkAway();
         Cast(CAST_CELLS);
         uint32 const lasts = CellsMs + (curfew ? CurfewAfterCellsMs : 0);
         AssignNumbers(lasts + 500);
@@ -1152,6 +1163,7 @@ private:
     void SlamDoors()
     {
         Sound("Vorhan.CellDoors");
+        Rally();
         // Their numbers go a moment after the doors
         scheduler.Schedule(1500ms, [this](TaskContext) { ClearNumbers(); });
         std::array<std::vector<Player*>, 9> inCell;
@@ -1222,9 +1234,11 @@ private:
     void Curfew(uint32 inMs)
     {
         Sound("Vorhan.CurfewTick");
+        GroundIndicators::ShowWardenCurfew(me, Ground(ArenaCenter), inMs);
         for (Player* player : ArenaPlayers())
         {
             AddTimedAura(player, SPELL_CURFEW, inMs);
+            GroundIndicators::ShowCarriedLook(player, GroundIndicators::SPELL_WARDEN_CURFEW_MARK, inMs);
             HoldStill(player, inMs > CurfewHoldLeadMs ? inMs - CurfewHoldLeadMs : 0, CurfewHoldLeadMs + 1000);
         }
         scheduler.Schedule(Milliseconds(inMs), [this](TaskContext)
@@ -1252,12 +1266,14 @@ private:
     // break it facing away.
     void Shackles(bool gaze)
     {
+        MarkAway();
         Cast(CAST_SHACKLES);
         Placing(ChainCastMs + ChainMaxMs);
         scheduler.Schedule(Milliseconds(ChainCastMs), [this, gaze](TaskContext)
         {
             EndCast();
             _chains.clear();
+            _shacklesOn = true;
             // Pairs drawn at random, no number shown: the chain itself says who is bound to whom
             std::vector<Player*> players = ArenaPlayers();
             Acore::Containers::RandomShuffle(players);
@@ -1293,6 +1309,23 @@ private:
         uint32 since;                           // when it was put on
         ObjectGuid tether = ObjectGuid::Empty;  // the chain's look (GroundIndicators::ShowTether)
     };
+
+    // Who stands at his side as a rule sends everyone away: the melee, whose damage it costs
+    void MarkAway()
+    {
+        for (Player* player : ArenaPlayers())
+            if (player->IsAlive() && player->GetExactDist2d(me) <= me->GetCombatReach() + RallyReach)
+                _awayFromHim.insert(player->GetGUID());
+    }
+
+    // The rule over: those it kept off him get their damage back for a while (Rancœur du détenu)
+    void Rally()
+    {
+        for (ObjectGuid const& guid : _awayFromHim)
+            if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && player->IsAlive())
+                AddTimedAura(player, SPELL_RALLY, RallyMs);
+        _awayFromHim.clear();
+    }
 
     void BreakChain(Chain const& chain)
     {
@@ -1341,6 +1374,12 @@ private:
             Sound("Vorhan.ChainTighten", first);
             ++chain;
         }
+        // The last chain gone: the shackles are over
+        if (_shacklesOn && _chains.empty())
+        {
+            _shacklesOn = false;
+            Rally();
+        }
     }
 
     // Regard du geôlier: his eye opens over 6 s; whoever faces him then dies, thrown back. With the curfew: still,
@@ -1384,6 +1423,9 @@ private:
     // number's mark: death. A player whose partner is dead stands alone legitimately.
     void RollCall(bool drawn = false)
     {
+        // Drawn by the charge: who it sent away is already known
+        if (!drawn)
+            MarkAway();
         std::array<uint8, 4> const order = RollCallOrders[_rollCalls++ % RollCallOrders.size()];
         Cast(CAST_ROLL_CALL);
         if (!drawn)
@@ -1407,6 +1449,7 @@ private:
             Sound("Vorhan.RollCallEnd");
             ResolveRollCall(pairOnMark);
             ClearNumbers();
+            Rally();
         });
     }
 
@@ -1484,6 +1527,7 @@ private:
     // under him it lands short of the walls; farther, into them. With the Roll Call: called as they land.
     void Charge(bool rollCall)
     {
+        MarkAway();
         Cast(CAST_CHARGE);
         me->NearTeleportTo(ArenaCenter.GetPositionX(), ArenaCenter.GetPositionY(), Ground(ArenaCenter).GetPositionZ(),
                            me->GetOrientation());
@@ -1538,6 +1582,8 @@ private:
                     Broken("charge", walled);
                 if (rollCall)
                     RollCall(true);
+                else
+                    Rally();
             });
         });
     }
@@ -1717,6 +1763,8 @@ private:
     {
         Position const spot = CellSpot(number);
         GroundIndicators::ShowCell(me, spot, number, ArenaCenter.GetAngle(&spot), durationMs, CellRadius);
+        // The cage low while they find their cells; it rises as the doors slam (DropCage)
+        GroundIndicators::ShowWardenCellBars(me, Ground(spot), durationMs, false);
     }
 
     // The doors slam: the runes flare, a cage's bars round each cell for a moment
@@ -1724,6 +1772,7 @@ private:
     {
         Position const spot = CellSpot(number);
         GroundIndicators::FlareCell(me, spot, CellRadius);
+        GroundIndicators::ShowWardenCellBars(me, Ground(spot), CageAfterDoorsMs, true);
         if (Creature* stalker = me->SummonCreature(NPC_STALKER, spot, TEMPSUMMON_TIMED_DESPAWN, 3000))
             if (sSpellMgr->GetSpellInfo(SPELL_CAGE))
                 stalker->AddAura(SPELL_CAGE, stalker);
@@ -1864,6 +1913,9 @@ private:
     std::map<std::string, uint32> _deaths;
     std::map<ObjectGuid, uint64> _dealt;
     std::vector<Chain> _chains;
+    // Who stood at his side when a rule sent everyone away (MarkAway): Rally() makes it up to them once it is over
+    std::set<ObjectGuid> _awayFromHim;
+    bool _shacklesOn = false;
     std::set<ObjectGuid> _fightListeners;
     ObjectGuid _sparing;                        // the player the hit being dealt marks rather than kills
     ObjectGuid _isolating;                      // the tank Mise à l'isolement never kills
@@ -2011,7 +2063,40 @@ public:
             }, Milliseconds(IsolationBurstMs));
             return true;
         }
-        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation>");
+        if (what == "cell")
+        {
+            // A cell round the game master, its number 1, its cage rising; the doors' flare 5 s later
+            Position const at = player->GetPosition();
+            GroundIndicators::ShowCell(player, at, 1, player->GetOrientation(), 8000, CellRadius);
+            GroundIndicators::ShowWardenCellBars(player, at, 5000, false);
+            EvolutionsAudio::PlayAt(player, "Vorhan.CellsOpen", at);
+            ObjectGuid const guid = player->GetGUID();
+            player->m_Events.AddEventAtOffset([guid, at]()
+            {
+                if (Player* player = ObjectAccessor::FindPlayer(guid))
+                {
+                    GroundIndicators::FlareCell(player, at, CellRadius);
+                    GroundIndicators::ShowWardenCellBars(player, at, CageAfterDoorsMs, true);
+                    EvolutionsAudio::PlayAt(player, "Vorhan.CellDoors", at);
+                }
+            }, 5s);
+            return true;
+        }
+        if (what == "curfew")
+        {
+            // The dial round the game master, the hourglass over their head, the bell at its end
+            GroundIndicators::ShowWardenCurfew(player, player->GetPosition(), CurfewMs);
+            GroundIndicators::ShowCarriedLook(player, GroundIndicators::SPELL_WARDEN_CURFEW_MARK, CurfewMs);
+            EvolutionsAudio::PlayAt(player, "Vorhan.CurfewTick", player->GetPosition());
+            ObjectGuid const guid = player->GetGUID();
+            player->m_Events.AddEventAtOffset([guid]()
+            {
+                if (Player* player = ObjectAccessor::FindPlayer(guid))
+                    EvolutionsAudio::PlayAt(player, "Vorhan.CurfewBell", player->GetPosition());
+            }, Milliseconds(CurfewMs));
+            return true;
+        }
+        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew>");
         return false;
     }
 

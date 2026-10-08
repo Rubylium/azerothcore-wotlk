@@ -41,6 +41,105 @@ eye:SetTexture(ATLAS)
 
 local gaze
 
+-- The particles round the eye (their sprites: buildGazeUi.py), in units of the eye's width from its middle. While it
+-- opens: embers drawn in from round it to the eye, more and faster as it opens, wisps of dark red smoke curling off
+-- it, a glow swelling behind it. At its burst: a flare, and the embers flung out.
+local SPRITE = "Interface" .. string.char(92) .. "WardenVorhan" .. string.char(92)
+local POOL = 72
+local EMBER_MOST, SMOKE_MOST = 30, 140
+local particles = {}
+local glow = frame:CreateTexture(nil, "BACKGROUND")
+glow:SetTexture(SPRITE .. "WardenGazeFlare")
+glow:SetBlendMode("ADD")
+glow:SetPoint("CENTER")
+for index = 1, POOL do
+    local texture = frame:CreateTexture(nil, index % 4 == 0 and "BORDER" or "ARTWORK")
+    texture:Hide()
+    particles[index] = { texture = texture, smoke = index % 4 == 0 }
+    if particles[index].smoke then
+        texture:SetTexture(SPRITE .. "WardenGazeSmoke")
+    else
+        texture:SetTexture(SPRITE .. "WardenGazeEmber")
+        texture:SetBlendMode("ADD")
+    end
+end
+local nextEmber, nextSmoke, burst = 0, 0, false
+
+local function Spawn(smoke, x, y, vx, vy, life, size)
+    for _, particle in ipairs(particles) do
+        if particle.smoke == smoke and not particle.life then
+            particle.x, particle.y, particle.vx, particle.vy = x, y, vx, vy
+            particle.life, particle.age, particle.size = life, 0, size
+            particle.texture:Show()
+            return
+        end
+    end
+end
+
+local function ClearParticles()
+    for _, particle in ipairs(particles) do
+        particle.life = nil
+        particle.texture:Hide()
+    end
+    glow:SetAlpha(0)
+    nextEmber, nextSmoke, burst = 0, 0, false
+end
+
+local function UpdateParticles(elapsed, progress, width, delta)
+    -- The glow behind it: swelling as it opens, at its brightest at the burst
+    local swell = progress < 1 and (0.25 + 0.55 * progress) or math.max(0, 1 - (elapsed - gaze.ms / 1000) / 0.6)
+    glow:SetSize(width * (1.4 + 0.6 * progress), width * (1.0 + 0.4 * progress))
+    glow:SetAlpha(swell)
+    if progress < 1 then
+        -- Gathering: embers from a ring round the eye, drawn into it
+        nextEmber = nextEmber - delta
+        while nextEmber <= 0 do
+            nextEmber = nextEmber + 1 / (14 + 46 * progress)
+            local angle = math.random() * 2 * math.pi
+            local reach = 0.9 + math.random() * 0.5
+            local x, y = math.cos(angle) * reach, math.sin(angle) * reach * 0.6
+            local life = 0.45 + math.random() * 0.35 - 0.2 * progress
+            Spawn(false, x, y, -x / life, -y / life, life, 0.16 + math.random() * 0.12)
+        end
+        nextSmoke = nextSmoke - delta
+        while nextSmoke <= 0 do
+            nextSmoke = nextSmoke + 1 / (3 + 6 * progress)
+            local x = (math.random() - 0.5) * 0.7
+            Spawn(true, x, 0.05, x * 0.3, 0.35 + math.random() * 0.25, 1.2 + math.random() * 0.6,
+                0.35 + math.random() * 0.25)
+        end
+    elseif not burst then
+        -- The burst: the embers flung out from it
+        burst = true
+        for _ = 1, 32 do
+            local angle = math.random() * 2 * math.pi
+            local speed = 1.2 + math.random() * 1.2
+            Spawn(false, 0, 0, math.cos(angle) * speed, math.sin(angle) * speed * 0.6, 0.5 + math.random() * 0.4,
+                0.18 + math.random() * 0.12)
+        end
+    end
+    for _, particle in ipairs(particles) do
+        if particle.life then
+            particle.age = particle.age + delta
+            if particle.age >= particle.life then
+                particle.life = nil
+                particle.texture:Hide()
+            else
+                particle.x = particle.x + particle.vx * delta
+                particle.y = particle.y + particle.vy * delta
+                local left = 1 - particle.age / particle.life
+                -- In proportion to the eye, but never blots: an ember at most EMBER_MOST pixels, a wisp SMOKE_MOST
+                local size = width * particle.size * (particle.smoke and (1 + particle.age) or (0.6 + 0.4 * left))
+                size = math.min(size, particle.smoke and SMOKE_MOST or EMBER_MOST)
+                particle.texture:SetSize(size, size)
+                particle.texture:SetAlpha(particle.smoke and left * 0.6 or math.min(1, left * 1.6))
+                particle.texture:ClearAllPoints()
+                particle.texture:SetPoint("CENTER", frame, "CENTER", particle.x * width, particle.y * width)
+            end
+        end
+    end
+end
+
 local function ShowFrame(index)
     local column, row = index % GRID, math.floor(index / GRID)
     eye:SetTexCoord(column / GRID, (column + 1) / GRID, row / GRID, (row + 1) / GRID)
@@ -57,8 +156,9 @@ local function FrameAt(ms)
     return index
 end
 
-frame:SetScript("OnUpdate", function(self)
+frame:SetScript("OnUpdate", function(self, delta)
     if not gaze then
+        ClearParticles()
         self:Hide()
         return
     end
@@ -66,9 +166,11 @@ frame:SetScript("OnUpdate", function(self)
     local length = gaze.ms / 1000
     if elapsed > length + HOLD + FADE then
         gaze = nil
+        ClearParticles()
         self:Hide()
         return
     end
+    UpdateParticles(elapsed, math.min(1, elapsed / length), self:GetWidth(), delta or 0)
     -- The timeline is 6 s long: a longer or shorter gaze plays it at its own pace
     ShowFrame(FrameAt(elapsed / length * 6000))
     eye:SetAlpha(elapsed > length + HOLD and math.max(0, 1 - (elapsed - length - HOLD) / FADE) or 1)
@@ -115,6 +217,7 @@ listener:SetScript("OnEvent", function(_, _, prefix, message)
     end
     gaze = { guid = guid, ms = tonumber(ms) or 6000, height = tonumber(height) or 4, width = tonumber(width) or 5,
         start = GetTime() }
+    ClearParticles()
     ShowFrame(0)
     frame:Show()
 end)

@@ -186,6 +186,10 @@ namespace GroundIndicators
     constexpr uint32 SPELL_WARDEN_STRIKE = 94230;              // the isolation's blow: a cone of fire from his fist
     constexpr uint32 SPELL_WARDEN_PUSH_TRAIL = 94231;          // the furrows the thrown tank leaves
     constexpr uint32 SPELL_WARDEN_SEAL_BURST = 94232;          // the seal going off round the tank
+    constexpr uint32 SPELL_WARDEN_CELL_BARS = 94233;           // a side of a cell's cage of red-hot bars
+    constexpr uint32 SPELL_WARDEN_CURFEW_RING = 94234;         // the curfew's dial round the room
+    constexpr uint32 SPELL_WARDEN_CURFEW_MARK = 94235;         // the curfew's hourglass over each head
+    constexpr uint32 SPELL_WARDEN_CELL_BARS_LOW = 94236;       // the cage's side, knee-high, before the doors
     // The gaze's model: one eye, 8 x 4 yards, its middle this high over the floor (on the warden's chest and head,
     // drawn over his body), its burst on from WardenGazeBurstMs
     constexpr float WardenGazeElevation = 4.5f;
@@ -205,15 +209,22 @@ namespace GroundIndicators
     constexpr uint32 WardenWallRiseDelayMs = 400;
     // The isolation's blow (shapes.json VW_Strike: a 14-yard cone, flashing on, held near a second, fading), from
     // `from` towards orientation; the furrows of the tank's throw (VW_PushTrail), 25 yards from where it stood along
-    // orientation, burning out over 4.5 s; the seal's burst round center (VW_SealBurst), growing to its 16 yards in
-    // half a second, then fading. Each model is built to its size (a scale set as it appears grows in slowly on the
-    // client). Only shown: none is an area.
+    // orientation, burning out over 4.5 s; the seal's burst round center (VW_SealBurst), a blast out to 40 yards in a
+    // fifth of a second, its lethal ring at 16, gone within a second. Each model is built to its size (a scale set as
+    // it appears grows in slowly on the client). Only shown: none is an area.
     constexpr uint32 WardenStrikeMs = 1800;
     constexpr uint32 WardenPushTrailMs = 4600;
-    constexpr uint32 WardenSealBurstMs = 2400;
+    constexpr uint32 WardenSealBurstMs = 1000;
     void ShowWardenStrike(Unit* owner, Position const& from, float orientation);
     void ShowWardenPushTrail(Unit* owner, Position const& from, float orientation);
     void ShowWardenSealBurst(Unit* owner, Position const& center);
+    // A cell's cage round center: sixteen sides of red-hot bars on the cell's 3-yard circle, rising out of the floor as
+    // they come, for durationMs - knee-high while the players find their cells (VW_CellBarsLow), full height once the
+    // doors slam on them (tall, VW_CellBars)
+    void ShowWardenCellBars(Unit* owner, Position const& center, uint32 durationMs, bool tall);
+    // The curfew's dial round the whole room at center (VW_CurfewRing, 31 yards: its edge, breathing faster and faster
+    // until the bell), for durationMs
+    void ShowWardenCurfew(Unit* owner, Position const& center, uint32 durationMs);
     // The eye over owner at position (its stalker's place; the model stands WardenGazeElevation over the floor there),
     // for durationMs: the cast's 6 s and a moment of its burst. follow: the boss, if it moves meanwhile.
     void ShowWardenGaze(Unit* owner, Position const& position, uint32 durationMs, Unit* follow = nullptr);

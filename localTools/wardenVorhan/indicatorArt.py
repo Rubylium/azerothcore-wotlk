@@ -440,31 +440,126 @@ def push_trail():
     return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
 
 
+# The seal's burst is drawn 40 yards wide (shapes.json VW_SealBurst scale): its lethal ring at 16 of them
+SEAL_LETHAL_SHARE = 16.0 / 40.0
+
+
 def seal_burst():
-    """The seal going off round the isolated tank, at its full size (the model grows it from the middle): a front of
-    crimson fire at its edge, broken links of a seal's runes inside it and the floor scorched dark behind. No white.
+    """The seal going off round the isolated tank, at its full size (the model grows it from the middle): a broad
+    front of crimson fire racing out to the room's walls, and inside it the lethal ring - a hard, bright band of the
+    seal's broken runes at SEAL_LETHAL_SHARE of the radius, the floor scorched black within it. No white.
     1024 x 1024, RGBA, the front's outside at the picture's edge."""
     size = 1024
     x, y, radius = grid(size, size)
     angle = numpy.arctan2(y, x)
-    broken = 0.5 + 0.5 * noise(size, size, 20, 91)
-    front = numpy.where(radius < 0.93, numpy.exp(-((radius - 0.93) / 0.06) ** 2),
+    broken = 0.55 + 0.45 * noise(size, size, 20, 91)
+    front = numpy.where(radius < 0.93, numpy.exp(-((radius - 0.93) / 0.07) ** 2),
                         numpy.exp(-((radius - 0.93) / 0.025) ** 2)) * broken
-    # The seal's ring of runes, cracked into links (a band at two thirds, cut every so often)
-    links = (numpy.cos(angle * 24.0) > -0.55).astype(float)
-    runes = numpy.exp(-((radius - 0.62) / 0.025) ** 2) * links * (0.5 + 0.5 * noise(size, size, 6, 92))
-    cracks = numpy.clip(noise(size, size, 3, 93) - 0.78, 0.0, 1.0) * 3.5 * smooth(0.15, 0.5, radius) *         smooth(0.92, 0.8, radius)
-    scorch = smooth(0.0, 0.3, radius) * smooth(0.95, 0.82, radius) * (0.55 + 0.45 * noise(size, size, 16, 94)) * 0.5
-    glow = numpy.clip(front * 0.9 + runes * 0.8 + cracks * 0.45, 0.0, 1.0)
-    crimson = numpy.array([0.85, 0.08, 0.06])
-    ember = numpy.array([1.0, 0.45, 0.1])
-    char = numpy.array([0.04, 0.02, 0.025])
-    alpha = numpy.clip(glow * 0.85 + scorch * (1 - glow), 0.0, 0.88)
-    weight = numpy.clip(numpy.where(alpha > 1e-4, glow * 0.85 / numpy.maximum(alpha, 1e-4), 0.0), 0.0, 1.0)
-    hue = numpy.clip(front, 0.0, 1.0)[..., None]
+    lethal = SEAL_LETHAL_SHARE
+    # The wave between the lethal ring and the front: a red haze thinning outwards
+    haze = smooth(0.95, lethal, radius) * smooth(lethal - 0.02, lethal + 0.06, radius) * \
+        (0.35 + 0.25 * noise(size, size, 24, 95))
+    links = (numpy.cos(angle * 18.0) > -0.6).astype(float)
+    ring = numpy.exp(-((radius - lethal) / 0.022) ** 2) * (0.75 + 0.25 * links)
+    runes = numpy.exp(-((radius - lethal * 0.78) / 0.012) ** 2) * links * (0.5 + 0.5 * noise(size, size, 6, 92))
+    scorch = smooth(lethal, lethal - 0.05, radius) * (0.6 + 0.4 * noise(size, size, 16, 94)) * 0.75
+    cracks = numpy.clip(noise(size, size, 3, 93) - 0.75, 0.0, 1.0) * 3.5 * smooth(lethal, lethal * 0.3, radius)
+    glow = numpy.clip(front * 0.9 + ring + runes * 0.8 + cracks * 0.5 + haze, 0.0, 1.0)
+    crimson = numpy.array([0.85, 0.07, 0.05])
+    ember = numpy.array([1.0, 0.5, 0.12])
+    char = numpy.array([0.04, 0.02, 0.02])
+    alpha = numpy.clip(glow * 0.9 + scorch * (1 - glow), 0.0, 0.92)
+    weight = numpy.clip(numpy.where(alpha > 1e-4, glow * 0.9 / numpy.maximum(alpha, 1e-4), 0.0), 0.0, 1.0)
+    hue = numpy.clip(front + ring * 0.6, 0.0, 1.0)[..., None]
     lit = crimson * (1 - hue) + ember * hue
     colour = char * (1 - weight[..., None]) + lit * weight[..., None]
     alpha *= smooth(1.0, 0.985, radius)
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
+# --- The cells' bars and the curfew --------------------------------------------------------------------------------
+
+def cell_bars():
+    """One side of a cell's cage (a curtain piece, one of 16 round its 3 yards: 1.17 yards wide): two bars of red-hot
+    iron and the two rails holding them, glowing on black (the builder keys black to clear), hottest at the floor.
+    128 x 512, RGB."""
+    width, height = 128, 512
+    xs = (numpy.arange(width) + 0.5) / width
+    ys = (numpy.arange(height) + 0.5) / height
+    x, y = numpy.meshgrid(xs, ys)
+    bars = numpy.zeros((height, width))
+    for middle in (0.25, 0.75):
+        bars = numpy.maximum(bars, numpy.exp(-((x - middle) / 0.06) ** 2))
+    rails = numpy.zeros((height, width))
+    for middle in (0.06, 0.94):
+        rails = numpy.maximum(rails, numpy.exp(-((y - middle) / 0.018) ** 2))
+    iron = numpy.maximum(bars, rails)
+    heat = 0.55 + 0.45 * y
+    glow = numpy.clip(iron * heat * (0.8 + 0.2 * noise(width, height, 24, 101)), 0.0, 1.0)
+    halo = numpy.clip(blur(iron, width * 0.05) * 0.35, 0.0, 1.0) * heat
+    core = numpy.array([1.0, 0.55, 0.15])
+    edge = numpy.array([0.75, 0.12, 0.04])
+    colour = core * (glow ** 1.5)[..., None] + edge * numpy.clip(glow + halo, 0.0, 1.0)[..., None] * 0.6
+    rgb = numpy.clip(colour * 255.0 + 0.5, 0, 255).astype(numpy.uint8)
+    return Image.fromarray(rgb, 'RGB')
+
+
+def curfew_ring():
+    """The curfew round the whole room, at its full size: a clock's dial at the edge - twelve heavy hour bars, minute
+    ticks, a rim - burning red, and a faint red haze inside it. The model breathes it faster and faster until the
+    bell. 1024 x 1024, RGBA."""
+    size = 1024
+    x, y, radius = grid(size, size)
+    angle = numpy.arctan2(y, x)
+    rim = numpy.exp(-((radius - 0.95) / 0.012) ** 2) + numpy.exp(-((radius - 0.80) / 0.008) ** 2) * 0.7
+    hour = numpy.abs(numpy.remainder(angle / (2.0 * numpy.pi) * 12.0 + 0.5, 1.0) - 0.5)
+    bars = smooth(0.06, 0.03, hour) * smooth(0.79, 0.82, radius) * smooth(0.95, 0.92, radius)
+    minute = numpy.abs(numpy.remainder(angle / (2.0 * numpy.pi) * 60.0 + 0.5, 1.0) - 0.5)
+    ticks = smooth(0.12, 0.06, minute) * smooth(0.88, 0.9, radius) * smooth(0.95, 0.93, radius) * 0.6
+    dial = numpy.clip(rim + bars + ticks, 0.0, 1.0)
+    haze = smooth(0.2, 0.8, radius) * smooth(0.95, 0.8, radius) * 0.18
+    glow = numpy.clip(blur(dial, size * 0.006) * 1.4, 0.0, 1.0)
+    red = numpy.array([0.9, 0.12, 0.05])
+    hot = numpy.array([1.0, 0.5, 0.15])
+    alpha = numpy.clip(glow * 0.95 + haze, 0.0, 0.95)
+    colour = red * numpy.ones((size, size, 1)) * (1 - dial[..., None]) + hot * dial[..., None]
+    alpha *= smooth(1.0, 0.985, radius)
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
+def curfew_mark():
+    """Over each head while the curfew is called: an hourglass in the numbers' style (ember fill, black-iron edge, red
+    glow). 256 x 256, RGBA."""
+    width = height = 256
+    scale = 4
+    big = width * scale
+
+    def mask(grow):
+        image = Image.new('L', (big, big))
+        draw = ImageDraw.Draw(image)
+        g = grow * scale
+        top, bottom, left, right, middle = 0.16 * big, 0.84 * big, 0.28 * big, 0.72 * big, 0.5 * big
+        neck = 0.05 * big
+        draw.polygon([(left - g, top + 0.06 * big - g), (right + g, top + 0.06 * big - g),
+                      (middle + neck + g, middle), (middle - neck - g, middle)], fill=255)
+        draw.polygon([(middle - neck - g, middle), (middle + neck + g, middle),
+                      (right + g, bottom - 0.06 * big + g), (left - g, bottom - 0.06 * big + g)], fill=255)
+        for row in (top, bottom - 0.06 * big):
+            draw.rectangle([left - 0.06 * big - g, row - g, right + 0.06 * big + g, row + 0.06 * big + g], fill=255)
+        return as_float(image.resize((width, height), Image.LANCZOS))
+
+    fill = mask(0)
+    edge = mask(6)
+    halo = numpy.clip(blur(edge, width * 0.06) * 1.6, 0.0, 1.0)
+    rows = numpy.linspace(0.0, 1.0, height)[:, None, None]
+    ember = EMBER_TOP * (1 - rows) + EMBER_BOTTOM * rows
+    colour = GLOW * numpy.ones((height, width, 1))
+    alpha = halo * 0.85
+    colour = colour * (1 - edge[..., None]) + IRON * edge[..., None]
+    alpha = alpha * (1 - edge) + edge
+    colour = colour * (1 - fill[..., None]) + ember * fill[..., None]
     rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
     return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
 

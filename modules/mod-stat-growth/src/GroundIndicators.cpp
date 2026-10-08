@@ -2223,6 +2223,22 @@ void ShowWardenSealBurst(Unit* owner, Position const& center)
           SPELL_WARDEN_SEAL_BURST, 1.0f, WardenSealBurstMs);
 }
 
+void ShowWardenCellBars(Unit* owner, Position const& center, uint32 durationMs, bool tall)
+{
+    // Sixteen sides 1.17 yards long: their corners on the cell's 3-yard circle
+    ShowCurtainRing(owner, center, tall ? SPELL_WARDEN_CELL_BARS : SPELL_WARDEN_CELL_BARS_LOW, 1, 16, 1.1705f,
+                    durationMs);
+}
+
+void ShowWardenCurfew(Unit* owner, Position const& center, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+    // Built to its size
+    Place(owner, OnGround(owner, center.GetPositionX(), center.GetPositionY(), center.GetPositionZ()), 0.0f,
+          SPELL_WARDEN_CURFEW_RING, 1.0f, durationMs);
+}
+
 void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold, Unit* tank)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
