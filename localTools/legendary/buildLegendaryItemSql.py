@@ -45,7 +45,85 @@ LEGENDARIES = [
     (10555, 49800, "Écho du Néant", "Echo of the Void"),
     # L'Infini's: a trinket, Dark Matter's template
     (16067, 46038, "L'Étoile captive", "The Captive Star"),
+    # Gardien-chef Vorhan's sets (mod-legendary Definitions 101-135): epic, every copy rolled as a legendary is, one
+    # set an armour type and three shared pieces, on free Item.dbc rows made the slot and armour they need
+    (13710, 30972, "Heaume du Gardien-chef", "Head Warden's Helm"),
+    (13711, 30979, "Spallières du Gardien-chef", "Head Warden's Pauldrons"),
+    (13712, 30975, "Cuirasse du Gardien-chef", "Head Warden's Breastplate"),
+    (13713, 30969, "Gantelets du Gardien-chef", "Head Warden's Gauntlets"),
+    (13714, 30977, "Cuissards du Gardien-chef", "Head Warden's Legplates"),
+    (13715, 34441, "Brassards du Gardien-chef", "Head Warden's Bracers"),
+    (13716, 34546, "Ceinturon du Gardien-chef", "Head Warden's Girdle"),
+    (13717, 34569, "Solerets du Gardien-chef", "Head Warden's Sabatons"),
+    (13672, 29081, "Coiffe du Porte-chaînes", "Chainbearer's Coif"),
+    (13673, 29084, "Épaulières du Porte-chaînes", "Chainbearer's Spaulders"),
+    (13674, 29082, "Haubert du Porte-chaînes", "Chainbearer's Hauberk"),
+    (13675, 29085, "Poignes du Porte-chaînes", "Chainbearer's Grips"),
+    (13676, 29083, "Jambières du Porte-chaînes", "Chainbearer's Legguards"),
+    (13677, 34443, "Garde-poignets du Porte-chaînes", "Chainbearer's Wristguards"),
+    (13678, 34549, "Ceinture du Porte-chaînes", "Chainbearer's Belt"),
+    (13679, 34570, "Bottes du Porte-chaînes", "Chainbearer's Boots"),
+    (13680, 29044, "Masque du Traqueur d'évadés", "Escape-Hunter's Mask"),
+    (13681, 29047, "Mantelet du Traqueur d'évadés", "Escape-Hunter's Mantle"),
+    (13682, 29045, "Tunique du Traqueur d'évadés", "Escape-Hunter's Tunic"),
+    (13683, 29048, "Gants du Traqueur d'évadés", "Escape-Hunter's Gloves"),
+    (13684, 29046, "Jambières du Traqueur d'évadés", "Escape-Hunter's Leggings"),
+    (13685, 34448, "Brassards du Traqueur d'évadés", "Escape-Hunter's Bracers"),
+    (13686, 34558, "Ceinture du Traqueur d'évadés", "Escape-Hunter's Belt"),
+    (13687, 34575, "Bottes du Traqueur d'évadés", "Escape-Hunter's Boots"),
+    (13688, 28963, "Capuche du Lieur de sceaux", "Sealbinder's Hood"),
+    (13689, 28967, "Amict du Lieur de sceaux", "Sealbinder's Amice"),
+    (13690, 28964, "Robe du Lieur de sceaux", "Sealbinder's Robe"),
+    (13691, 28968, "Gants du Lieur de sceaux", "Sealbinder's Gloves"),
+    (13692, 28966, "Chausses du Lieur de sceaux", "Sealbinder's Leggings"),
+    (13693, 34436, "Manchettes du Lieur de sceaux", "Sealbinder's Cuffs"),
+    (13694, 34541, "Cordelière du Lieur de sceaux", "Sealbinder's Cord"),
+    (13695, 34564, "Sandales du Lieur de sceaux", "Sealbinder's Sandals"),
+    (13696, 28789, "Clé de cellule", "Cell Key"),
+    (13697, 28789, "Anneau de matricule", "Inmate Ring"),
+    (12187, 33590, "Cape du geôlier", "Jailer's Cloak"),
 ]
+# Epic: the warden's sets
+EPIC = {13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717, 13672, 13673, 13674, 13675, 13676, 13677, 13678, 13679, 13680, 13681, 13682, 13683, 13684, 13685, 13686, 13687, 13688, 13689, 13690, 13691, 13692, 13693, 13694, 13695, 13696, 13697, 12187}
+# Rows made another class, armour or slot by localTools/patchSinisterStrike.ps1 ($legendaryItems): (class, subclass,
+# material, inventory type, sheath) in place of the stock row's
+ROW_OVERRIDES = {
+    13710: (4, 4, 1, 1, 0),
+    13711: (4, 4, 1, 3, 0),
+    13712: (4, 4, 1, 5, 0),
+    13713: (4, 4, 1, 10, 0),
+    13714: (4, 4, 1, 7, 0),
+    13715: (4, 4, 1, 9, 0),
+    13716: (4, 4, 1, 6, 0),
+    13717: (4, 4, 1, 8, 0),
+    13672: (4, 3, 5, 1, 0),
+    13673: (4, 3, 5, 3, 0),
+    13674: (4, 3, 5, 5, 0),
+    13675: (4, 3, 5, 10, 0),
+    13676: (4, 3, 5, 7, 0),
+    13677: (4, 3, 5, 9, 0),
+    13678: (4, 3, 5, 6, 0),
+    13679: (4, 3, 5, 8, 0),
+    13680: (4, 2, 8, 1, 0),
+    13681: (4, 2, 8, 3, 0),
+    13682: (4, 2, 8, 5, 0),
+    13683: (4, 2, 8, 10, 0),
+    13684: (4, 2, 8, 7, 0),
+    13685: (4, 2, 8, 9, 0),
+    13686: (4, 2, 8, 6, 0),
+    13687: (4, 2, 8, 8, 0),
+    13688: (4, 1, 7, 1, 0),
+    13689: (4, 1, 7, 3, 0),
+    13690: (4, 1, 7, 20, 0),
+    13691: (4, 1, 7, 10, 0),
+    13692: (4, 1, 7, 7, 0),
+    13693: (4, 1, 7, 9, 0),
+    13694: (4, 1, 7, 6, 0),
+    13695: (4, 1, 7, 8, 0),
+    13696: (4, 0, 4, 2, 0),
+    13697: (4, 0, 4, 11, 0),
+    12187: (4, 1, 7, 16, 0)
+}
 # Rows made another slot by localTools/patchSinisterStrike.ps1 ($legendaryItems InventoryType): the stock row is read
 INVENTORY_TYPES = {16067: 12}
 UNIQUE = {10555}
@@ -93,6 +171,8 @@ def item_rows():
         entry, cls, subclass, _, material, _, inventory, sheath = struct.unpack_from("<8I", data, 20 + index * size)
         inventory = INVENTORY_TYPES.get(entry, inventory)
         rows[entry] = (cls, subclass, struct.unpack("<i", struct.pack("<I", material))[0], inventory, sheath)
+        if entry in ROW_OVERRIDES:
+            rows[entry] = ROW_OVERRIDES[entry]
     return rows
 
 
@@ -108,7 +188,7 @@ DELETE FROM `item_template_locale` WHERE `ID` = {base};
 DROP TEMPORARY TABLE IF EXISTS `legendary_base`;
 CREATE TEMPORARY TABLE `legendary_base` SELECT * FROM `item_template` WHERE `entry` = {source};
 UPDATE `legendary_base` SET
-    `entry` = {base}, `name` = '{quote(french)}', `Quality` = {6 if base in UNIQUE else 5}, `ItemLevel` = 227, `RequiredLevel` = 80,
+    `entry` = {base}, `name` = '{quote(french)}', `Quality` = {6 if base in UNIQUE else 4 if base in EPIC else 5}, `ItemLevel` = 227, `RequiredLevel` = 80,
     `class` = {cls}, `subclass` = {subclass}, `Material` = {material}, `InventoryType` = {inventory},
     `sheath` = {sheath},
     `displayid` = {71003 + LEGENDARIES.index((base, source, french, english))}, `bonding` = 1, `armor` = 0,

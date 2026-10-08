@@ -541,6 +541,8 @@ uint32 FadeLookOf(uint32 look)
         return look + 6000;
     if (look >= 94000 && look < 94200)
         return look + 200;
+    if (look >= 94200 && look < 94250)
+        return look + 300;
     return 0;
 }
 
@@ -1079,7 +1081,9 @@ struct Goal
         Tank,                                   // the spot of the tank the owner is hitting (SetTankSpot)
         Holder,                                 // the tank to hold the owner (SetBossHolder)
         Unit,                                   // a spot for one unit (SetUnitSpot), named in `tank`
-        GroupHit                                // a hit on the whole group landing at endMs (WarnGroupDamage)
+        GroupHit,                               // a hit on the whole group landing at endMs (WarnGroupDamage)
+        Still,                                  // one unit not to move until endMs (SetHoldStill), named in `tank`
+        LookAway                                // everyone's back to the owner, standing at center (SetLookAway)
     };
 
     Kind kind = Kind::Soak;
@@ -1099,6 +1103,8 @@ struct Goal
 std::mutex GoalLock;
 std::vector<Goal> Goals;
 
+// A gaze turns the backs of everyone this close to the one gazing (SetLookAway)
+constexpr float LookAwayReach = 100.0f;
 // A soak is looked at by the players this close to it; a player this far inside its edge stands in it
 constexpr float SoakReach = 50.0f;
 constexpr float SoakInsideMargin = 1.0f;
@@ -1869,8 +1875,66 @@ bool HasFightPlace(Unit* unit)
     if (AssignedSoak(unit, soak) || HoldsOffTankSpot(unit) || KeepsAway(unit))
         return true;
     for (Goal const& goal : GoalsAround(unit))
-        if (goal.kind == Goal::Kind::Unit && goal.tank == unit->GetGUID())
+        if ((goal.kind == Goal::Kind::Unit || goal.kind == Goal::Kind::Still) && goal.tank == unit->GetGUID())
             return true;
+    return false;
+}
+
+void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || !unit || durationMs == 0)
+        return;
+    Goal goal;
+    goal.kind = Goal::Kind::Still;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = unit->GetPosition();
+    goal.tank = unit->GetGUID();
+    goal.endMs = NowMs() + durationMs;
+    std::lock_guard<std::mutex> guard(GoalLock);
+    Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [&goal](Goal const& entry)
+        {
+            return entry.kind == Goal::Kind::Still && entry.owner == goal.owner && entry.tank == goal.tank;
+        }), Goals.end());
+    Goals.push_back(goal);
+}
+
+bool HoldsStill(Unit* unit)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::Still && goal.tank == unit->GetGUID())
+            return true;
+    return false;
+}
+
+void SetLookAway(Unit* owner, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+    Goal goal;
+    goal.kind = Goal::Kind::LookAway;
+    goal.mapId = owner->GetMapId();
+    goal.instanceId = owner->GetInstanceId();
+    goal.owner = owner->GetGUID();
+    goal.center = owner->GetPosition();
+    goal.radius = LookAwayReach;
+    goal.endMs = NowMs() + durationMs;
+    AddGoal(goal, true);
+}
+
+bool LooksAway(Unit* unit, Position& from)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::LookAway && unit->GetExactDist2d(&goal.center) <= goal.radius)
+        {
+            from = goal.center;
+            return true;
+        }
     return false;
 }
 
@@ -1926,6 +1990,120 @@ void EndSoak(Unit* owner, Position const& center)
 void ShowDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs, uint32 spellId)
 {
     Place(owner, center, orientation, spellId, radius, durationMs);
+}
+
+void ShowBillboard(Unit* owner, Position const& position, uint32 look, uint32 durationMs, Unit* follow,
+                   ObjectGuid* placed)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    // On the floor: the model carries its own height (a stalker in the air would fall)
+    Position const at = follow ? Position(follow->GetPositionX(), follow->GetPositionY(), follow->GetPositionZ()) :
+        OnGround(owner, position.GetPositionX(), position.GetPositionY(), position.GetPositionZ());
+    // Built to its size: never scaled
+    Creature* stalker = Place(owner, at, 0.0f, look, 1.0f, durationMs);
+    if (!stalker)
+        return;
+    if (follow)
+        stalker->AIM_Initialize(new FollowCarrierAI(stalker, follow->GetGUID()));
+    if (placed)
+        *placed = stalker->GetGUID();
+}
+
+bool ShowCarriedLook(Unit* carrier, uint32 look, uint32 durationMs)
+{
+    if (!carrier || !carrier->IsInWorld() || !carrier->IsAlive())
+        return false;
+    Aura* aura = carrier->AddAura(look, carrier);
+    if (!aura)
+        return false;
+    // The look's spell never ends by itself: a time given is set on it
+    if (durationMs)
+    {
+        aura->SetMaxDuration(int32(durationMs));
+        aura->SetDuration(int32(durationMs));
+    }
+    return true;
+}
+
+void ClearCarriedLook(Unit* carrier, uint32 look)
+{
+    if (carrier)
+        carrier->RemoveAurasDueToSpell(look);
+}
+
+void ShowCurtainRing(Unit* owner, Position const& center, uint32 look, uint32 tiles, float tileLength,
+                     uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || tiles < 3 || durationMs == 0)
+        return;
+    // Straight tiles meeting at their ends: a regular polygon, each tile on its own carrier at its middle, turned
+    // along its side (the model runs along its carrier's facing)
+    float const middle = tileLength / (2.0f * std::tan(float(M_PI) / float(tiles)));
+    for (uint32 index = 0; index < tiles; ++index)
+    {
+        float const angle = 2.0f * float(M_PI) * float(index) / float(tiles);
+        Position const at = OnGround(owner, center.GetPositionX() + middle * std::cos(angle),
+                                     center.GetPositionY() + middle * std::sin(angle), center.GetPositionZ());
+        Place(owner, at, Position::NormalizeOrientation(angle + float(M_PI) / 2.0f), look, 1.0f, durationMs);
+    }
+}
+
+void ShowWardenGaze(Unit* owner, Position const& position, uint32 durationMs, Unit* follow)
+{
+    ShowBillboard(owner, position, SPELL_WARDEN_GAZE, durationMs, follow);
+}
+
+bool ShowCarriedNumber(Unit* carrier, uint32 number, uint32 durationMs)
+{
+    if (number < 1 || number > 8)
+        return false;
+    ClearCarriedNumber(carrier);
+    return ShowCarriedLook(carrier, SPELL_WARDEN_NUMBER_FIRST + number - 1, durationMs);
+}
+
+void ClearCarriedNumber(Unit* carrier)
+{
+    for (uint32 number = 0; number < 8; ++number)
+        ClearCarriedLook(carrier, SPELL_WARDEN_NUMBER_FIRST + number);
+}
+
+// How big a cell's number is, and a roll call mark's pair, for the seal's or the plaque's radius: inside its flat
+// empty middle
+constexpr float CellNumberShare = 0.55f;
+constexpr float RollCallPairShare = 0.62f;
+
+void ShowCell(Unit* owner, Position const& center, uint32 number, float orientation, uint32 durationMs, float radius)
+{
+    if (!owner || !owner->IsInWorld() || number < 1 || number > 8 || durationMs == 0)
+        return;
+    Position const at = OnGround(owner, center.GetPositionX(), center.GetPositionY(), center.GetPositionZ());
+    Place(owner, at, orientation, SPELL_WARDEN_CELL_IRON, radius, durationMs);
+    Place(owner, at, orientation, SPELL_WARDEN_CELL_RUNES, radius, durationMs);
+    Place(owner, at, orientation, SPELL_WARDEN_CELL_NUMBER_FIRST + number - 1, radius * CellNumberShare, durationMs);
+}
+
+void FlareCell(Unit* owner, Position const& center, float radius, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+    Place(owner, OnGround(owner, center.GetPositionX(), center.GetPositionY(), center.GetPositionZ()), 0.0f,
+          SPELL_WARDEN_CELL_FLARE, radius, durationMs);
+}
+
+void ShowRollCallMark(Unit* owner, Position const& center, uint32 pair, float orientation, uint32 durationMs,
+                      float radius)
+{
+    if (!owner || !owner->IsInWorld() || pair > 3 || durationMs == 0)
+        return;
+    Position const at = OnGround(owner, center.GetPositionX(), center.GetPositionY(), center.GetPositionZ());
+    Place(owner, at, orientation, SPELL_WARDEN_ROLL_CALL, radius, durationMs);
+    Place(owner, at, orientation, SPELL_WARDEN_ROLL_CALL_PAIR_FIRST + pair, radius * RollCallPairShare, durationMs);
+}
+
+void ShowWardenWall(Unit* owner, Position const& center, uint32 durationMs)
+{
+    ShowCurtainRing(owner, center, SPELL_WARDEN_WALL, WardenWallTiles, WardenWallTileLength, durationMs);
 }
 
 void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold, Unit* tank)

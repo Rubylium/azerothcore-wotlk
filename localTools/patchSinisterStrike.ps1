@@ -889,6 +889,10 @@ $customSpells += & ([ScriptBlock]::Create($infiniteBossSpellSource))
 # the log, its debuffs and the looks its bosses wear
 $hollowVoiceSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\hollowVoice\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($hollowVoiceSpellSource))
+# Gardien-chef Vorhan, the Défi board's prison warden (modules/mod-stat-growth/src/WardenVorhan.cpp): its hits, its
+# rules' debuffs and its cast bars
+$wardenVorhanSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\wardenVorhan\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($wardenVorhanSpellSource))
 # Le Front du Nord, the open-world content at level 80 (modules/mod-stat-growth/src/frontier): the tier phase and its
 # abilities' names in the log
 $frontierSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\frontier\Spells.ps1') -Raw -Encoding UTF8
@@ -1652,6 +1656,7 @@ $indicatorConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\gro
 function Get-IndicatorFadeSpell([int]$spell) {
     if ($spell -ge 90600 -and $spell -lt 90900) { return $spell + 6000 }
     if ($spell -ge 94000 -and $spell -lt 94200) { return $spell + 200 }
+    if ($spell -ge 94200 -and $spell -lt 94250) { return $spell + 300 }
     throw "Indicator spell $spell has no fading twin range."
 }
 foreach ($shape in $indicatorConfig.shapes) {
@@ -1672,10 +1677,14 @@ foreach ($shape in $indicatorConfig.shapes) {
         foreach ($field in $EffectFields) { $kitFields[$field] = 0 }
         $kitFields[5] = [uint32]$effectNameDbc.MaxId
         $customVisualKits += @{ Key = "GI_$($look.Key)"; Clone = 12338; Fields = $kitFields }
-        # A carried circle is an aura on the player carrying it: its buff tells them what to do
-        $description = if ($shape.carried) { 'Vous portez une zone de danger : éloignez-vous des autres joueurs.' }
+        # A carried circle is an aura on the player carrying it: its buff tells them what to do (a shape that is no
+        # danger, a fight's mark, says what it is: `description`)
+        $description = if ($shape.description) { $shape.description }
+            elseif ($shape.carried) { 'Vous portez une zone de danger : éloignez-vous des autres joueurs.' }
             else { 'Ne restez pas dans la zone rouge.' }
-        $customSpells += @{ Id = $look.Spell; Clone = 62898; Name = 'Zone de danger'; Cost = 0; Cooldown = 0; Level = 0
+        # ... and is named for it too (`title`: a fight's mark worn by a player, Vorhan's inmate numbers)
+        $title = if ($shape.title) { $shape.title } else { 'Zone de danger' }
+        $customSpells += @{ Id = $look.Spell; Clone = 62898; Name = $title; Cost = 0; Cooldown = 0; Level = 0
             Spellbook = $false; Description = $description; AuraDescription = $description
             Visual = @{ Clone = 13273; State = "GI_$($look.Key)" } }
     }
@@ -2397,13 +2406,57 @@ $legendaryItems = @(
     @{ Item = 10555; Display = 71024; CloneOf = 33534; Icon = 'INV_Unique_EchoDuNeant' }                # The Hollow Voice's Unique: a ring
     # L'Infini's: a ring's free row made a trinket (no free trinket row is left), Dark Matter's look
     @{ Item = 16067; Display = 71025; CloneOf = 59323; Icon = 'INV_Legendary_EtoileCaptive'; InventoryType = 12 }
+    # Gardien-chef Vorhan's sets (mod-legendary 101-135): free rows made each piece's class, armour and slot, wearing
+    # the tier set looks they are recoloured from (Onslaught, Demon Stalker, Netherblade, Voidheart and their tier 6
+    # wrists, waists and feet) until their own
+    @{ Item = 13710; Display = 71026; CloneOf = 49684; Icon = 'INV_Vorhan_Plate_Head'; Class = 4; Subclass = 4; Material = 1; InventoryType = 1 }
+    @{ Item = 13711; Display = 71027; CloneOf = 45661; Icon = 'INV_Vorhan_Plate_Shoulders'; Class = 4; Subclass = 4; Material = 1; InventoryType = 3 }
+    @{ Item = 13712; Display = 71028; CloneOf = 45658; Icon = 'INV_Vorhan_Plate_Chest'; Class = 4; Subclass = 4; Material = 1; InventoryType = 5 }
+    @{ Item = 13713; Display = 71029; CloneOf = 45659; Icon = 'INV_Vorhan_Plate_Hands'; Class = 4; Subclass = 4; Material = 1; InventoryType = 10 }
+    @{ Item = 13714; Display = 71030; CloneOf = 45660; Icon = 'INV_Vorhan_Plate_Legs'; Class = 4; Subclass = 4; Material = 1; InventoryType = 7 }
+    @{ Item = 13715; Display = 71031; CloneOf = 48347; Icon = 'INV_Vorhan_Plate_Wrists'; Class = 4; Subclass = 4; Material = 1; InventoryType = 9 }
+    @{ Item = 13716; Display = 71032; CloneOf = 48360; Icon = 'INV_Vorhan_Plate_Waist'; Class = 4; Subclass = 4; Material = 1; InventoryType = 6 }
+    @{ Item = 13717; Display = 71033; CloneOf = 48372; Icon = 'INV_Vorhan_Plate_Feet'; Class = 4; Subclass = 4; Material = 1; InventoryType = 8 }
+    @{ Item = 13672; Display = 71034; CloneOf = 40451; Icon = 'INV_Vorhan_Mail_Head'; Class = 4; Subclass = 3; Material = 5; InventoryType = 1 }
+    @{ Item = 13673; Display = 71035; CloneOf = 40453; Icon = 'INV_Vorhan_Mail_Shoulders'; Class = 4; Subclass = 3; Material = 5; InventoryType = 3 }
+    @{ Item = 13674; Display = 71036; CloneOf = 40448; Icon = 'INV_Vorhan_Mail_Chest'; Class = 4; Subclass = 3; Material = 5; InventoryType = 5 }
+    @{ Item = 13675; Display = 71037; CloneOf = 40831; Icon = 'INV_Vorhan_Mail_Hands'; Class = 4; Subclass = 3; Material = 5; InventoryType = 10 }
+    @{ Item = 13676; Display = 71038; CloneOf = 40454; Icon = 'INV_Vorhan_Mail_Legs'; Class = 4; Subclass = 3; Material = 5; InventoryType = 7 }
+    @{ Item = 13677; Display = 71039; CloneOf = 48315; Icon = 'INV_Vorhan_Mail_Wrists'; Class = 4; Subclass = 3; Material = 5; InventoryType = 9 }
+    @{ Item = 13678; Display = 71040; CloneOf = 48353; Icon = 'INV_Vorhan_Mail_Waist'; Class = 4; Subclass = 3; Material = 5; InventoryType = 6 }
+    @{ Item = 13679; Display = 71041; CloneOf = 48364; Icon = 'INV_Vorhan_Mail_Feet'; Class = 4; Subclass = 3; Material = 5; InventoryType = 8 }
+    @{ Item = 13680; Display = 71042; CloneOf = 45810; Icon = 'INV_Vorhan_Leather_Head'; Class = 4; Subclass = 2; Material = 8; InventoryType = 1 }
+    @{ Item = 13681; Display = 71043; CloneOf = 45811; Icon = 'INV_Vorhan_Leather_Shoulders'; Class = 4; Subclass = 2; Material = 8; InventoryType = 3 }
+    @{ Item = 13682; Display = 71044; CloneOf = 45812; Icon = 'INV_Vorhan_Leather_Chest'; Class = 4; Subclass = 2; Material = 8; InventoryType = 5 }
+    @{ Item = 13683; Display = 71045; CloneOf = 45813; Icon = 'INV_Vorhan_Leather_Hands'; Class = 4; Subclass = 2; Material = 8; InventoryType = 10 }
+    @{ Item = 13684; Display = 71046; CloneOf = 45814; Icon = 'INV_Vorhan_Leather_Legs'; Class = 4; Subclass = 2; Material = 8; InventoryType = 7 }
+    @{ Item = 13685; Display = 71047; CloneOf = 48324; Icon = 'INV_Vorhan_Leather_Wrists'; Class = 4; Subclass = 2; Material = 8; InventoryType = 9 }
+    @{ Item = 13686; Display = 71048; CloneOf = 48357; Icon = 'INV_Vorhan_Leather_Waist'; Class = 4; Subclass = 2; Material = 8; InventoryType = 6 }
+    @{ Item = 13687; Display = 71049; CloneOf = 48369; Icon = 'INV_Vorhan_Leather_Feet'; Class = 4; Subclass = 2; Material = 8; InventoryType = 8 }
+    @{ Item = 13688; Display = 71050; CloneOf = 40480; Icon = 'INV_Vorhan_Cloth_Head'; Class = 4; Subclass = 1; Material = 7; InventoryType = 1 }
+    @{ Item = 13689; Display = 71051; CloneOf = 40684; Icon = 'INV_Vorhan_Cloth_Shoulders'; Class = 4; Subclass = 1; Material = 7; InventoryType = 3 }
+    @{ Item = 13690; Display = 71052; CloneOf = 40482; Icon = 'INV_Vorhan_Cloth_Chest'; Class = 4; Subclass = 1; Material = 7; InventoryType = 20 }
+    @{ Item = 13691; Display = 71053; CloneOf = 40479; Icon = 'INV_Vorhan_Cloth_Hands'; Class = 4; Subclass = 1; Material = 7; InventoryType = 10 }
+    @{ Item = 13692; Display = 71054; CloneOf = 40481; Icon = 'INV_Vorhan_Cloth_Legs'; Class = 4; Subclass = 1; Material = 7; InventoryType = 7 }
+    @{ Item = 13693; Display = 71055; CloneOf = 48349; Icon = 'INV_Vorhan_Cloth_Wrists'; Class = 4; Subclass = 1; Material = 7; InventoryType = 9 }
+    @{ Item = 13694; Display = 71056; CloneOf = 48359; Icon = 'INV_Vorhan_Cloth_Waist'; Class = 4; Subclass = 1; Material = 7; InventoryType = 6 }
+    @{ Item = 13695; Display = 71057; CloneOf = 48371; Icon = 'INV_Vorhan_Cloth_Feet'; Class = 4; Subclass = 1; Material = 7; InventoryType = 8 }
+    @{ Item = 13696; Display = 71058; CloneOf = 43528; Icon = 'INV_Vorhan_Neck'; Class = 4; Subclass = 0; Material = 4; InventoryType = 2 }
+    @{ Item = 13697; Display = 71059; CloneOf = 43528; Icon = 'INV_Vorhan_Ring'; Class = 4; Subclass = 0; Material = 4; InventoryType = 11 }
+    @{ Item = 12187; Display = 71060; CloneOf = 47067; Icon = 'INV_Vorhan_Cloak'; Class = 4; Subclass = 1; Material = 7; InventoryType = 16 }
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }
     [BitConverter]::GetBytes([uint32]$legendary.Display).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 5 * 4)
-    # A row of another slot made this one (InventoryType, field 6): the server enforces the row's slot
+    # A row of another slot made this one (InventoryType, field 6), and of another class or armour (fields 1, 2, 4):
+    # the server enforces the row's
     if ($legendary.InventoryType) {
         [BitConverter]::GetBytes([uint32]$legendary.InventoryType).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 6 * 4)
+    }
+    if ($legendary.Class) {
+        [BitConverter]::GetBytes([uint32]$legendary.Class).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 1 * 4)
+        [BitConverter]::GetBytes([uint32]$legendary.Subclass).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 2 * 4)
+        [BitConverter]::GetBytes([uint32]$legendary.Material).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 4 * 4)
     }
     $legendary.Painted = Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($legendary.Icon).tga")
 }

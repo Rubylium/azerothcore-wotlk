@@ -50,6 +50,14 @@ local GOD_ATTEMPTS = 1
 local VOICE_BOSS = 930100
 local VOICE_FIGURE_BOTTOM = 0.6367
 local VOICE_ATTEMPTS = 1
+-- Gardien-chef Vorhan (mod-stat-growth WardenVorhan.cpp): a page as the Hollow Voice's (ChallengeWarden-*), one
+-- difficulty, the tier's three attempts (ChallengeTiers.h BossProfiles: his rules are learnt), and his music while
+-- the page is open (our sound engine's looping track, FrameXML EvolutionsAudio.lua)
+local WARDEN_BOSS = 930200
+local WARDEN_FIGURE_BOTTOM = 0.6367
+local WARDEN_ATTEMPTS = 3
+local WARDEN_MUSIC = "Music.PrisonIdle"
+local WARDEN_MUSIC_FADE_IN, WARDEN_MUSIC_FADE_OUT = 1500, 2000
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -238,6 +246,33 @@ local TEXT = french and {
     voiceGearHelp = "Chaque pièce qu'elle laisse est faite pour vous et porte l'apparence de l'ensemble de votre "
         .. "classe : chaque classe a le sien, celui qu'elle portait au Tombeau de Sargeras. C'est le plus haut niveau "
         .. "d'objet du jeu.",
+    tabWarden = "La Geôle",
+    headingWarden = "La Geôle des Flammes infernales",
+    introWarden = "Au fond de la Citadelle des Flammes infernales, là où Magtheridon fut enchaîné, une prison applique "
+        .. "son règlement.",
+    wardenName = "Gardien-chef Vorhan",
+    wardenEpithet = "Geôle des Flammes infernales",
+    wardenPlace = "Repaire de Magtheridon",
+    wardenQuote = "« Vous apprendrez le règlement, ou vous apprendrez la fosse. »",
+    wardenSignature = "— Gardien-chef Vorhan",
+    wardenLore = "Illidan enchaîna Magtheridon au fond de la Citadelle des Flammes infernales. Après sa chute, les orcs "
+        .. "gangrenés qui gardaient le seigneur des abîmes firent de ces profondeurs une prison pour le pire de "
+        .. "l'Outreterre : démons, renégats, ce que la Légion a laissé derrière elle. Le gardien-chef Vorhan en tient "
+        .. "toutes les clés. Il ne se bat pas pour gagner : il applique le règlement, et chaque règle enfreinte est "
+        .. "une sentence.",
+    wardenTierHelp = "Le gardien-chef n'a pas de paliers : un seul combat, taillé pour un groupe de %d joueurs (2 tanks, "
+        .. "2 soigneurs, 4 dégâts) au niveau d'objet %d avec %d points de parangon. Ses règles s'apprennent : chaque "
+        .. "inscription donne trois tentatives.",
+    wardenFace = "Affronter le gardien-chef",
+    wardenOnce = "Une victoire par tableau : il revient avec les nouvelles missions.",
+    wardenAbsent = "Le gardien-chef attend les aventuriers de niveau 80.",
+    satchelWarden = "Chaque vainqueur reçoit une pièce des ensembles de la Geôle, de niveau d'objet %d, faite pour lui ; "
+        .. "la besace contient de l'or et %d %% de chances d'une seconde pièce.",
+    wardenGear = "Équipement épique, niveau d'objet %d · l'ensemble de votre armure",
+    wardenGearTitle = "Les ensembles de la Geôle",
+    wardenGearHelp = "Chaque rang du personnel de la Geôle a son ensemble : le Harnois du Gardien-chef (plaques), les "
+        .. "Mailles du Porte-chaînes, les Cuirs du Traqueur d'évadés et les Atours du Lieur de sceaux (tissu). Chaque "
+        .. "pièce tire ses caractéristiques pour vous.",
     failed = {
         [1] = "Défi échoué : trop de tentatives.",
         [2] = "Défi échoué : le temps est écoulé.",
@@ -399,6 +434,29 @@ local TEXT = french and {
     voiceGearTitle = "The Hollow Voice's sets",
     voiceGearHelp = "Every piece it leaves is made for you and wears your class's set: each class has its own, the one "
         .. "it wore in the Tomb of Sargeras. The highest item level in the game.",
+    tabWarden = "The Gaol",
+    headingWarden = "The Hellfire Gaol",
+    introWarden = "Deep in Hellfire Citadel, where Magtheridon was chained, a prison enforces its rules.",
+    wardenName = "Head Warden Vorhan",
+    wardenEpithet = "Hellfire Gaol",
+    wardenPlace = "Magtheridon's Lair",
+    wardenQuote = "\"You will learn the rules, or you will learn the pit.\"",
+    wardenSignature = "— Head Warden Vorhan",
+    wardenLore = "Illidan chained Magtheridon in the depths of Hellfire Citadel. After his fall, the fel orcs who kept "
+        .. "the pit lord made those depths a prison for the worst of Outland: demons, renegades, what the Legion left "
+        .. "behind. Head Warden Vorhan holds every key. He does not fight to win: he applies the rules, and every rule "
+        .. "broken is a sentence.",
+    wardenTierHelp = "The head warden has no tiers: one fight, made for a group of %d players (2 tanks, 2 healers, 4 "
+        .. "damage) at item level %d with %d paragon points. His rules are learnt: each sign-up gives three attempts.",
+    wardenFace = "Face the head warden",
+    wardenOnce = "One win per board: he returns with the new missions.",
+    wardenAbsent = "The head warden awaits adventurers of level 80.",
+    satchelWarden = "Every winner gets a piece of the Gaol's sets, item level %d, made for them; the satchel holds gold "
+        .. "and a %d%% chance of a second piece.",
+    wardenGear = "Epic gear, item level %d · your armour's set",
+    wardenGearTitle = "The Gaol's sets",
+    wardenGearHelp = "Each rank of the Gaol's staff has its set: the Head Warden's Battlegear (plate), the Chainbearer's "
+        .. "Mail, the Escape-Hunter's Leathers and the Sealbinder's Regalia (cloth). Each piece rolls its stats for you.",
     failed = {
         [1] = "Challenge failed: too many attempts.",
         [2] = "Challenge failed: time ran out.",
@@ -439,7 +497,7 @@ local state = {
     godOpenTier = TIER_MIN,     -- the same two for the god, on its own ladder
     godTier = nil,
     currentTier = 0,            -- the tier of the challenge they are in
-    page = "raids",             -- the tab shown: "raids", "dungeons", "god" or "voice"
+    page = "raids",             -- the tab shown: "raids", "dungeons", "god", "voice" or "warden"
     itemLevel = nil,            -- the player's equipped item level, as the server measures it for a sign-up
     key = 2,                    -- the player's Mythic+ key level
     contract = 0,               -- the dungeon challenge they took up (Dungeon Finder entry), 0 for none
@@ -447,7 +505,7 @@ local state = {
 }
 
 local frame, cards, rewardRows, emptyText, timerText, timerFill, errorText, quitButton, roleButtons
-local dial, keyStrip, dungeonCards, tabs, godPage, voicePage
+local dial, keyStrip, dungeonCards, tabs, godPage, voicePage, wardenPage
 local banner
 local incoming = { missions = {}, rewards = {}, dungeons = {} }
 
@@ -471,6 +529,7 @@ local BACKGROUND_FALLBACK = "Interface\\LFGFrame\\UI-LFG-BACKGROUND-GENERICDUNGE
 local PLACE_BY_BOSS = {
     [930000] = GetLocale() == "frFR" and "Ulduar - Planétarium céleste" or "Ulduar - Celestial Planetarium",
     [VOICE_BOSS] = TEXT.voicePlace,
+    [WARDEN_BOSS] = TEXT.wardenPlace,
 }
 
 local function DungeonTexture(dungeonId, kind)
@@ -549,9 +608,13 @@ local function IsVoice(mission)
     return mission and mission.boss == VOICE_BOSS
 end
 
+local function IsWarden(mission)
+    return mission and mission.boss == WARDEN_BOSS
+end
+
 -- A boss with a page of its own rather than a card
 local function HasOwnPage(mission)
-    return IsGod(mission) or IsVoice(mission)
+    return IsGod(mission) or IsVoice(mission) or IsWarden(mission)
 end
 
 -- The god's tier dial: the tier picked, never above the highest open
@@ -568,7 +631,7 @@ local function CardTier(mission)
         return state.currentTier
     elseif IsGod(mission) then
         return GodTier()
-    elseif IsVoice(mission) then
+    elseif IsVoice(mission) or IsWarden(mission) then
         return TIER_MIN
     end
     return state.tier or state.openTier
@@ -585,6 +648,14 @@ end
 local function VoiceMission()
     for _, mission in ipairs(state.missions) do
         if IsVoice(mission) then
+            return mission
+        end
+    end
+end
+
+local function WardenMission()
+    for _, mission in ipairs(state.missions) do
+        if IsWarden(mission) then
             return mission
         end
     end
@@ -705,10 +776,10 @@ local function CardTooltipSatchel(owner)
     local mission = owner:GetParent().mission
     if mission and mission.kind == KIND_DUNGEON then
         GameTooltip:AddLine(TEXT.satchelDungeon, 1, 0.82, 0.3, true)
-    elseif IsVoice(mission) then
+    elseif IsVoice(mission) or IsWarden(mission) then
         -- A piece at the kill, and the satchel's chance of a second (ChallengeBoard.cpp FillSatchel)
-        GameTooltip:AddLine(format(TEXT.satchelVoice, mission.itemLevel or 0, SATCHEL_ITEM_CHANCE[0] or 35),
-            1, 0.82, 0.3, true)
+        GameTooltip:AddLine(format(IsWarden(mission) and TEXT.satchelWarden or TEXT.satchelVoice,
+            mission.itemLevel or 0, SATCHEL_ITEM_CHANCE[0] or 35), 1, 0.82, 0.3, true)
     elseif mission then
         local tier = CardTier(mission)
         local chance = min(100, (SATCHEL_ITEM_CHANCE[mission.difficulty] or 35) + TierExtraItemChance(tier))
@@ -1063,6 +1134,9 @@ local function AnimateCardsIn()
     elseif state.page == "voice" then
         voicePage.Enter(true)
         return
+    elseif state.page == "warden" then
+        wardenPage.Enter(true)
+        return
     end
     for index, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
         if card.mission then
@@ -1076,6 +1150,22 @@ local function AnimateCardsIn()
     end
 end
 
+-- The warden's page plays his idle track, looping, while it is open: started as it opens, faded out as it closes or
+-- the window does (our sound engine's music, FrameXML EvolutionsAudio.lua; nothing without the engine)
+local boardMusic = false
+local function UpdateBoardMusic()
+    local wanted = frame and frame:IsShown() and state.page == "warden" and WardenMission() ~= nil or false
+    if wanted == boardMusic then
+        return
+    end
+    boardMusic = wanted
+    if wanted and EvolutionsAudio_PlayMusic then
+        EvolutionsAudio_PlayMusic(WARDEN_MUSIC, WARDEN_MUSIC_FADE_IN)
+    elseif not wanted and EvolutionsAudio_StopMusic then
+        EvolutionsAudio_StopMusic(WARDEN_MUSIC_FADE_OUT)
+    end
+end
+
 local function Refresh(animate)
     if not frame then
         return
@@ -1084,7 +1174,8 @@ local function Refresh(animate)
     local dungeonsPage = state.page == "dungeons"
     local godShown = state.page == "god"
     local voiceShown = state.page == "voice"
-    -- The god and the Hollow Voice have their pages: the raid cards are the drawn missions
+    local wardenShown = state.page == "warden"
+    -- The god, the Hollow Voice and the warden have their pages: the raid cards are the drawn missions
     local raidMissions = {}
     for _, mission in ipairs(state.missions) do
         if not HasOwnPage(mission) then
@@ -1122,11 +1213,12 @@ local function Refresh(animate)
         keyStrip.Refresh()
     end
     -- A page's scene in place of the board's parchment and header, or the board back
-    local god, voice = GodMission(), VoiceMission()
+    local god, voice, warden = GodMission(), VoiceMission(), WardenMission()
     godPage.SetScene(godShown)
     voicePage.SetScene(voiceShown)
+    wardenPage.SetScene(wardenShown)
     for _, region in ipairs(frame.boardArt) do
-        SetShown(region, not (godShown or voiceShown))
+        SetShown(region, not (godShown or voiceShown or wardenShown))
     end
     SetShown(godPage, godShown and god ~= nil)
     if godPage:IsShown() then
@@ -1136,6 +1228,11 @@ local function Refresh(animate)
     if voicePage:IsShown() then
         voicePage.Refresh(voice)
     end
+    SetShown(wardenPage, wardenShown and warden ~= nil)
+    if wardenPage:IsShown() then
+        wardenPage.Refresh(warden)
+    end
+    UpdateBoardMusic()
 
     if godShown and not god then
         emptyText:SetText(state.bracket < 80 and TEXT.godLocked or TEXT.empty)
@@ -1143,7 +1240,10 @@ local function Refresh(animate)
     elseif voiceShown and not voice then
         emptyText:SetText(state.bracket < 80 and TEXT.voiceAbsent or TEXT.empty)
         emptyText:Show()
-    elseif godShown or voiceShown then
+    elseif wardenShown and not warden then
+        emptyText:SetText(state.bracket < 80 and TEXT.wardenAbsent or TEXT.empty)
+        emptyText:Show()
+    elseif godShown or voiceShown or wardenShown then
         emptyText:Hide()
     elseif dungeonsPage and shownDungeons == 0 then
         emptyText:SetText(state.bracket < 80 and TEXT.dungeonsLocked or TEXT.empty)
@@ -1206,6 +1306,8 @@ local GOD_COLUMN_LEFT, GOD_COLUMN_RIGHT = 424, 26
 -- Ulduar's cosmic chest opening, for stepping in; Sunwell's gate opening for the Hollow Voice's
 local GOD_OPEN_SOUND = "Sound\\Doodad\\UL_Chest_Cosmic_Open.wav"
 local VOICE_OPEN_SOUND = "Sound\\Doodad\\SunwellRaid_Gate_02Open.wav"
+-- A cell door of Blackrock Depths opening, for the Gaol
+local WARDEN_OPEN_SOUND = "Sound\\Doodad\\BlackRockCellDoor01Open.wav"
 -- What sets the two pages apart. The god: its tier ladder and its gear, its name the server's. The Hollow Voice: one
 -- difficulty, no gear of its own, a sign-up locked under an equipped item level, its name the page's (the server's is
 -- the Archbishop's, the boss the challenge follows).
@@ -1220,7 +1322,27 @@ local PAGE_SPECS = {
         boss = VOICE_BOSS, art = "ChallengeVoice", figureBottom = VOICE_FIGURE_BOTTOM, sound = VOICE_OPEN_SOUND,
         name = TEXT.voiceName, nameSize = 40, heading = TEXT.headingVoice, intro = TEXT.introVoice,
         epithet = TEXT.voiceEpithet, quote = TEXT.voiceQuote, signature = TEXT.voiceSignature, lore = TEXT.voiceLore,
-        face = TEXT.voiceFace, once = TEXT.voiceOnce, tiers = false,
+        face = TEXT.voiceFace, once = TEXT.voiceOnce, tiers = false, attempts = VOICE_ATTEMPTS,
+        text = {
+            tier = TEXT.voiceTier, profile = TEXT.voiceProfile, tierTitle = TEXT.voiceTierTitle,
+            tierHelp = TEXT.voiceTierHelp, itemLevel = TEXT.voiceItemLevel,
+            itemLevelUnknown = TEXT.voiceItemLevelUnknown, locked = TEXT.voiceLocked, lockHelp = TEXT.voiceLockHelp,
+            gear = TEXT.voiceGear, gearTitle = TEXT.voiceGearTitle, gearHelp = TEXT.voiceGearHelp,
+        },
+    },
+    -- The warden: as the Hollow Voice's, his own sets for gear and the tier's attempts
+    warden = {
+        boss = WARDEN_BOSS, art = "ChallengeWarden", figureBottom = WARDEN_FIGURE_BOTTOM, sound = WARDEN_OPEN_SOUND,
+        name = TEXT.wardenName, nameSize = 40, heading = TEXT.headingWarden, intro = TEXT.introWarden,
+        epithet = TEXT.wardenEpithet, quote = TEXT.wardenQuote, signature = TEXT.wardenSignature,
+        lore = TEXT.wardenLore, face = TEXT.wardenFace, once = TEXT.wardenOnce, tiers = false,
+        attempts = WARDEN_ATTEMPTS,
+        text = {
+            tier = TEXT.voiceTier, profile = TEXT.voiceProfile, tierTitle = TEXT.voiceTierTitle,
+            tierHelp = TEXT.wardenTierHelp, itemLevel = TEXT.voiceItemLevel,
+            itemLevelUnknown = TEXT.voiceItemLevelUnknown, locked = TEXT.voiceLocked, lockHelp = TEXT.voiceLockHelp,
+            gear = TEXT.wardenGear, gearTitle = TEXT.wardenGearTitle, gearHelp = TEXT.wardenGearHelp,
+        },
     },
 }
 
@@ -1380,8 +1502,8 @@ local function CreateGodPage(spec)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         if not spec.tiers then
             local mission = page.rewards.mission
-            GameTooltip:AddLine(TEXT.voiceTierTitle, 1, 0.82, 0.3)
-            GameTooltip:AddLine(format(TEXT.voiceTierHelp, mission and mission.players or 10,
+            GameTooltip:AddLine(spec.text.tierTitle, 1, 0.82, 0.3)
+            GameTooltip:AddLine(format(spec.text.tierHelp, mission and mission.players or 10,
                 mission and mission.requiredItemLevel or 0, mission and mission.baseParagon or 0), 1, 0.9, 0.7, true)
             GameTooltip:Show()
             return
@@ -1512,8 +1634,8 @@ local function CreateGodPage(spec)
                 return
             end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(TEXT.voiceGearTitle, 0.78, 0.55, 1)
-            GameTooltip:AddLine(TEXT.voiceGearHelp, 1, 0.9, 0.7, true)
+            GameTooltip:AddLine(spec.text.gearTitle, 0.78, 0.55, 1)
+            GameTooltip:AddLine(spec.text.gearHelp, 1, 0.9, 0.7, true)
             GameTooltip:Show()
         end)
         gearHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1563,9 +1685,9 @@ local function CreateGodPage(spec)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         local mission = rewards.mission
         if mission and mission.state == STATE_OPEN and not MeetsItemLevel(mission) then
-            GameTooltip:AddLine(format(TEXT.voiceLocked, mission.signUpItemLevel, state.itemLevel or 0),
+            GameTooltip:AddLine(format(spec.text.locked, mission.signUpItemLevel, state.itemLevel or 0),
                 0.85, 0.53, 0.37, true)
-            GameTooltip:AddLine(format(TEXT.voiceLockHelp, mission.signUpItemLevel), 1, 0.9, 0.7, true)
+            GameTooltip:AddLine(format(spec.text.lockHelp, mission.signUpItemLevel), 1, 0.9, 0.7, true)
         else
             GameTooltip:AddLine(spec.once, 1, 0.9, 0.7, true)
         end
@@ -1603,9 +1725,9 @@ local function CreateGodPage(spec)
             SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
         else
             -- One difficulty: the profile it is made for (ChallengeTiers.h BossProfiles)
-            tierText:SetText(TEXT.voiceTier)
-            tierInfo:SetText(format(TEXT.voiceProfile, mission.requiredItemLevel or 0, mission.baseParagon or 0,
-                VOICE_ATTEMPTS, VOICE_ATTEMPTS > 1 and "s" or ""))
+            tierText:SetText(spec.text.tier)
+            tierInfo:SetText(format(spec.text.profile, mission.requiredItemLevel or 0, mission.baseParagon or 0,
+                spec.attempts, spec.attempts > 1 and "s" or ""))
             dialGlow:SetAlpha(0.4)
         end
 
@@ -1619,8 +1741,8 @@ local function CreateGodPage(spec)
             -- The equipped item level signing up asks for, beside the player's: gold when they wear it, a dull
             -- ember when not (the server refuses the sign-up below it)
             local signUp = mission.signUpItemLevel or 0
-            itemLevel:SetText(state.itemLevel and format(TEXT.voiceItemLevel, signUp, state.itemLevel) or
-                format(TEXT.voiceItemLevelUnknown, signUp))
+            itemLevel:SetText(state.itemLevel and format(spec.text.itemLevel, signUp, state.itemLevel) or
+                format(spec.text.itemLevelUnknown, signUp))
             if MeetsItemLevel(mission) then
                 itemLevel:SetTextColor(1, 0.86, 0.55)
             else
@@ -1650,10 +1772,10 @@ local function CreateGodPage(spec)
         else
             gearLocked = locked
             if locked then
-                gear:SetText(format(TEXT.voiceLocked, mission.signUpItemLevel, state.itemLevel or 0))
+                gear:SetText(format(spec.text.locked, mission.signUpItemLevel, state.itemLevel or 0))
                 gear:SetTextColor(0.85, 0.53, 0.37)
             else
-                gear:SetText(format(TEXT.voiceGear, mission.itemLevel or 0))
+                gear:SetText(format(spec.text.gear, mission.itemLevel or 0))
                 gear:SetTextColor(0.78, 0.55, 1)
             end
         end
@@ -2085,6 +2207,7 @@ local function CreateBoard()
 
     godPage = CreateGodPage(PAGE_SPECS.god)
     voicePage = CreateGodPage(PAGE_SPECS.voice)
+    wardenPage = CreateGodPage(PAGE_SPECS.warden)
 
     emptyText = frame:CreateFontString(nil, "OVERLAY")
     emptyText:SetFont(FRIZ, 16)
@@ -2172,11 +2295,12 @@ local function CreateBoard()
     -- The tabs under the window, as on the character sheet: the raid missions, the dungeon challenges, the god, the
     -- Hollow Voice
     tabs = {}
-    local pages = { "raids", "dungeons", "god", "voice" }
+    local pages = { "raids", "dungeons", "god", "voice", "warden" }
     local headings = { raids = TEXT.heading, dungeons = TEXT.headingDungeons, god = TEXT.headingGod,
-        voice = TEXT.headingVoice }
-    local intros = { raids = TEXT.intro, dungeons = TEXT.introDungeons, god = TEXT.introGod, voice = TEXT.introVoice }
-    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons, TEXT.tabGod, TEXT.tabVoice }) do
+        voice = TEXT.headingVoice, warden = TEXT.headingWarden }
+    local intros = { raids = TEXT.intro, dungeons = TEXT.introDungeons, god = TEXT.introGod, voice = TEXT.introVoice,
+        warden = TEXT.introWarden }
+    for index, label in ipairs({ TEXT.tabRaids, TEXT.tabDungeons, TEXT.tabGod, TEXT.tabVoice, TEXT.tabWarden }) do
         local tab = CreateFrame("Button", "ChallengeBoardFrameTab" .. index, frame, "CharacterFrameTabButtonTemplate")
         tab:SetID(index)
         tab:SetText(label)
@@ -2243,6 +2367,7 @@ local function CreateBoard()
     frame:SetScript("OnHide", function()
         PlaySound("igQuestListClose")
         GameTooltip:Hide()
+        UpdateBoardMusic()
     end)
 
     tinsert(UISpecialFrames, "ChallengeBoardFrame")
@@ -2280,6 +2405,8 @@ local function AnimateClaim(boss, gold, paragon, essences)
         return godPage.Claimed(gold, paragon, essences)
     elseif boss == VOICE_BOSS and state.page == "voice" and voicePage:IsShown() then
         return voicePage.Claimed(gold, paragon, essences)
+    elseif boss == WARDEN_BOSS and state.page == "warden" and wardenPage:IsShown() then
+        return wardenPage.Claimed(gold, paragon, essences)
     end
 
     for _, card in ipairs(state.page == "dungeons" and dungeonCards or cards) do
@@ -2306,6 +2433,8 @@ local function AnimateAccepted(boss)
         return godPage.Accepted()
     elseif boss == VOICE_BOSS and frame and frame:IsShown() and state.page == "voice" and voicePage:IsShown() then
         return voicePage.Accepted()
+    elseif boss == WARDEN_BOSS and frame and frame:IsShown() and state.page == "warden" and wardenPage:IsShown() then
+        return wardenPage.Accepted()
     end
     PlaySound("WriteQuest")
     if not frame or not frame:IsShown() then

@@ -128,12 +128,14 @@ constexpr uint32 EchoMinLeftMs = 1500;
 constexpr uint32 EchoRestMs = 1000;
 
 uint32 const Floor = Mythic::GetItemLevel(2);
+// Gardien-chef Vorhan's sets: his gear's item level (mod-playerbots ChallengeBoard.cpp)
+constexpr uint32 VorhanItemLevel = 472;
 
 // Every legendary: its base item (Item.dbc rows with no template of their own, given one in the module's world SQL and
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 26> const Definitions = { {
+std::array<Definition, 61> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -234,7 +236,57 @@ std::array<Definition, 26> const Definitions = { {
     { 26, 16067, KIND_SUPERNOVA, 15.0f, 20.0f, 15.0f, 20.0f, Mythic::MaxLootItemLevel, NeckBudget, 0,
       { .spell = 97920, .spell2 = 97921, .spell3 = 97922, .everyMs = 20000, .count = 5, .radius = 8.0f },
       InfiniteGodBoss },
+
+    // --- Gardien-chef Vorhan's sets (WardenVorhan.cpp): epic pieces with no power, each copy rolled as a legendary is
+    // (its item level, the looter's primary, two secondaries), a stock epic's stats (no premium). One set an armour
+    // type - the Head Warden's Battlegear, the Chainbearer's Mail, the Escape-Hunter's Leathers, the Sealbinder's
+    // Regalia - and three shared pieces. Given by GiveWardenVorhanLootItem, never dropped by the luck rules.
+    { 101, 13710, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Head Warden's Helm
+    { 102, 13711, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Head Warden's Pauldrons
+    { 103, 13712, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Head Warden's Breastplate
+    { 104, 13713, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Head Warden's Gauntlets
+    { 105, 13714, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Head Warden's Legplates
+    { 106, 13715, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Head Warden's Bracers
+    { 107, 13716, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Head Warden's Girdle
+    { 108, 13717, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Head Warden's Sabatons
+    { 109, 13672, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Chainbearer's Coif
+    { 110, 13673, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Chainbearer's Spaulders
+    { 111, 13674, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Chainbearer's Hauberk
+    { 112, 13675, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Chainbearer's Grips
+    { 113, 13676, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Chainbearer's Legguards
+    { 114, 13677, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Chainbearer's Wristguards
+    { 115, 13678, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Chainbearer's Belt
+    { 116, 13679, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Chainbearer's Boots
+    { 117, 13680, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Escape-Hunter's Mask
+    { 118, 13681, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Escape-Hunter's Mantle
+    { 119, 13682, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Escape-Hunter's Tunic
+    { 120, 13683, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Escape-Hunter's Gloves
+    { 121, 13684, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Escape-Hunter's Leggings
+    { 122, 13685, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Escape-Hunter's Bracers
+    { 123, 13686, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Escape-Hunter's Belt
+    { 124, 13687, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Escape-Hunter's Boots
+    { 125, 13688, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Sealbinder's Hood
+    { 126, 13689, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Sealbinder's Amice
+    { 127, 13690, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Sealbinder's Robe
+    { 128, 13691, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Sealbinder's Gloves
+    { 129, 13692, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Sealbinder's Leggings
+    { 130, 13693, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Sealbinder's Cuffs
+    { 131, 13694, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Sealbinder's Cord
+    { 132, 13695, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Sealbinder's Sandals
+    { 133, 13696, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, NeckBudget, 0, {}, 0, true },   // Cell Key
+    { 134, 13697, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, RingBudget, 0, {}, 0, true },   // Inmate Ring
+    { 135, 12187, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, CloakBudget, 0, {}, 0, true },   // Jailer's Cloak
 } };
+
+// Vorhan's pieces by the looter's armour type (ArmorType: cloth, leather, mail, plate), head to feet, and the three
+// shared ones (neck, ring, cloak)
+constexpr std::array<std::array<uint32, 8>, 4> VorhanSets = { {
+    { 125, 126, 127, 128, 129, 130, 131, 132 },   // cloth
+    { 117, 118, 119, 120, 121, 122, 123, 124 },   // leather
+    { 109, 110, 111, 112, 113, 114, 115, 116 },   // mail
+    { 101, 102, 103, 104, 105, 106, 107, 108 },   // plate
+} };
+constexpr std::array<uint32, 3> VorhanShared = { 133, 134, 135 };
 
 // The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
 uint32 ArmorType(Player* player)
@@ -387,8 +439,9 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
     float const level = float(itemLevel);
     // A legendary's stats are a stock epic's at its item level, a little more (LegendaryPremium); its armour is the
     // slot's
-    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level) * LegendaryPremium;
-    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true) * LegendaryPremium;
+    float const premium = definition.gear ? 1.0f : LegendaryPremium;
+    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level) * premium;
+    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true) * premium;
     float const armorGrowth = ::Power::StatGrowth(budget.itemLevel, level);
     int32 const armor = budget.armor[ArmorType(player)];
     copy.armor = armor ? Spread(int32(std::lround(float(armor) * armorGrowth)), 0.0f) : 0;
@@ -1490,6 +1543,30 @@ void MakeCopy(Player* player, Item* item, uint32 legendary, uint32 itemLevel)
         return;
     Keep(player, item, Roll(*definition, player, itemLevel, std::nullopt));
 }
+}
+
+// A piece of Gardien-chef Vorhan's sets for a player (mod-playerbots ChallengeBoard.cpp: his win): one of their armour
+// type's eight or a shared piece, at random, rolled for them; thrown on the floor with his loot (GroundLoot) as the
+// legendaries are, in the bags when it cannot be
+void GiveWardenVorhanLootItem(Player* player, uint32 itemLevel)
+{
+    using namespace Legendary;
+    if (!player)
+        return;
+    uint32 const pick = urand(0, 10);
+    uint32 const id = pick < 8 ? VorhanSets[ArmorType(player)][pick] : VorhanShared[pick - 8];
+    Definition const* definition = GetDefinition(id);
+    ItemTemplate const* base = definition ? sObjectMgr->GetItemTemplate(definition->baseItem) : nullptr;
+    if (!base)
+        return;
+    ObjectGuid const owner = player->GetGUID();
+    bool const thrown = GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
+    {
+        if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
+            MakeCopy(looter, item, id, itemLevel);
+    });
+    if (!thrown)
+        GiveLegendary(player, id, itemLevel);
 }
 
 void AddLegendaryScripts()

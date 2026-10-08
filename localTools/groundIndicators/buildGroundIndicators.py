@@ -31,7 +31,21 @@ warning). Both run on global sequences, so they go on whatever the model's own a
 A shape of kind "image" is a picture painted on the ground the same way (a boss's sigil: The Hollow Voice's, from
 localTools/hollowVoice/sigils): a circle of radius 1 carrying the picture, its image path relative to the repository,
 softened (brightness, alpha: a projected texture on bright ground reads as a flash otherwise) and cut round, its edge
-faded, so the border stays clear.
+faded, so the border stays clear. `size`: its texture's side (a 6-yard cell seal at 1024); `keyed`: a painting on pure
+black, its black keyed to transparent (alpha full from that brightness up: dark iron stays iron); `blend` "add": added
+to the floor (a glow) rather than laid over it.
+
+A shape's picture is its `image` file, or `picture` ("path.py:function", called with `args`): a fight's own art module
+(localTools/wardenVorhan/indicatorArt.py) that renders numbers, builds a flipbook from key paintings, or draws a
+placeholder until the painting is there.
+
+Any model may breathe on its own animation rather than the world's clock: `pulseRamp` ([low, high, first period, last
+period, ramp ms, hold ms]: faster and faster over the ramp, then at the last period) or `alphaKeys` ([[ms, alpha], ...]:
+a flare). Its animation starts when the model is put on (the fading twins rely on it), so a warning's breathing
+quickens with its cast. A global sequence would start anywhere in its loop.
+
+A shape of kind "billboard" is an upright picture turned to the camera (a boss's eye over it, a number over a player's
+head): see build_billboard_model.
 """
 import importlib.util
 import json
@@ -201,11 +215,47 @@ def build_texture(shape, color, alpha):
     return image
 
 
+PICTURE_MODULES = {}
+
+
+def load_picture(shape, *extra):
+    """A shape's source picture: its `image` file, or what its `picture` function returns (called with `args`, then
+    extra), its black keyed to transparent if it is `keyed`"""
+    if 'picture' in shape:
+        path, function = shape['picture'].rsplit(':', 1)
+        module = PICTURE_MODULES.get(path)
+        if module is None:
+            module_spec = importlib.util.spec_from_file_location(
+                os.path.splitext(os.path.basename(path))[0], os.path.join(REPO_ROOT, *path.split('/')))
+            module = importlib.util.module_from_spec(module_spec)
+            module_spec.loader.exec_module(module)
+            PICTURE_MODULES[path] = module
+        image = getattr(module, function)(*shape.get('args', []), *extra)
+    else:
+        image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/')))
+    if shape.get('keyed') and image.mode != 'RGBA':
+        return key_black(image, shape['keyed'])
+    return image.convert('RGBA')
+
+
+def key_black(image, knee):
+    """A painting on pure black made transparent there: alpha from its brightness (full from knee up), its colour
+    unpremultiplied, so it reads as painted laid over the scene"""
+    rgb = numpy.asarray(image.convert('RGB'), dtype=numpy.float64) / 255.0
+    alpha = numpy.clip(rgb.max(axis=2, keepdims=True) / knee, 0.0, 1.0)
+    colour = numpy.where(alpha > 1e-4, rgb / numpy.maximum(alpha, 1e-4), 0.0)
+    rgba = numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
 def build_image_texture(shape):
     """The shape's picture fitted into the padded circle, softened and cut round (see the module's comment)"""
     x0, x1, _, _ = padded_bounds(shape)
-    size = IMAGE_TEXTURE_SIZE
-    source = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGBA')
+    size = shape.get('size', IMAGE_TEXTURE_SIZE)
+    source = load_picture(shape)
+    # (The Hollow Voice's sigils came near square and are drawn as they always were)
+    if 'picture' in shape and source.width != source.height:
+        raise SystemExit(f"{shape['key']}: its picture is {source.width} x {source.height}, an image is square")
     # The picture spans the circle (radius 1) inside the padded square
     inner = int(round(size * 2.0 / (x1 - x0)))
     picture = source.resize((inner, inner), Image.LANCZOS)
@@ -467,6 +517,96 @@ def write_global_track(data, track_offset, global_index, sequence_count, timesta
     struct.pack_into('<IIII', data, track_offset + 4, sequence_count, time_arrays, sequence_count, value_arrays)
 
 
+def write_sequence_track(data, track_offset, timelines, value_format):
+    """Points an M2Track at keys on the model's own animation: one (timestamps, values) per sequence, linear"""
+    time_entries = []
+    value_entries = []
+    for timestamps, values in timelines:
+        time_entries.append((len(timestamps), append_block(data, struct.pack(f'<{len(timestamps)}I', *timestamps))))
+        value_entries.append((len(values), append_block(data, b''.join(struct.pack(value_format, *value)
+                                                                        for value in values))))
+    time_arrays = append_block(data, b''.join(struct.pack('<II', *entry) for entry in time_entries))
+    value_arrays = append_block(data, b''.join(struct.pack('<II', *entry) for entry in value_entries))
+    struct.pack_into('<Hh', data, track_offset, 1, -1)
+    struct.pack_into('<IIII', data, track_offset + 4, len(timelines), time_arrays, len(timelines), value_arrays)
+
+
+# The template's sequence that plays as its model goes (Decay): it holds the last key rather than starting over
+DECAY_ANIMATION = 159
+
+
+def sequence_timelines(data, timestamps, values, length):
+    """The same keys on every sequence of the model, each lasting length ms (the stock ones loop after half a second:
+    keys past that were never reached), the one played as it goes holding the last key"""
+    sequence_count, sequences = array(data, 0x1C)
+    timelines = []
+    for index in range(sequence_count):
+        animation = struct.unpack_from('<H', data, sequences + 64 * index)[0]
+        if animation == DECAY_ANIMATION:
+            timelines.append(([0], [values[-1]]))
+            continue
+        struct.pack_into('<I', data, sequences + 64 * index + 4, int(length))
+        timelines.append((list(timestamps), list(values)))
+    return timelines
+
+
+def stepped(keys, length):
+    """Keys [(ms, value)] held until the next one (linear tracks: each value held to a millisecond before the next,
+    so the change is a step whichever interpolation the client gives the track)"""
+    timestamps, values = [], []
+    for index, (time, value) in enumerate(keys):
+        end = keys[index + 1][0] - 1 if index + 1 < len(keys) else length
+        timestamps += [int(time), int(max(time, end))]
+        values += [value, value]
+    return timestamps, values
+
+
+def ramp_keys(pulse_ramp):
+    """A breathing that quickens: low and high in turn, its period going from first to last over ramp ms, then held
+    at last until ramp + hold"""
+    low, high, first, last, ramp, hold = pulse_ramp
+    keys = []
+    time = 0.0
+    while time < ramp + hold:
+        period = first + (last - first) * min(1.0, time / ramp) if ramp else last
+        keys += [(int(time), low), (int(time + period / 2), high)]
+        time += period
+    keys.append((int(time), low))
+    return keys
+
+
+def own_alpha(data, shape):
+    """A shape's breathing on its own animation (pulseRamp or alphaKeys, see the module's comment): its
+    transparency's keys, from when it is put on"""
+    if shape.get('pulseRamp'):
+        keys = ramp_keys(shape['pulseRamp'])
+    elif shape.get('alphaKeys'):
+        keys = [tuple(key) for key in shape['alphaKeys']]
+    else:
+        return
+    length = keys[-1][0] + 1
+    _, transparency = array(data, 0x58)
+    values = [(int(alpha * 0x7FFF),) for _, alpha in keys]
+    write_sequence_track(data, transparency, sequence_timelines(data, [time for time, _ in keys], values, length),
+                         '<h')
+
+
+def hold_alpha(data, shape):
+    """A fading twin carries on from where its shape's own flare ended (alphaKeys: its last alpha), not from full"""
+    if not shape.get('alphaKeys'):
+        return
+    last = int(shape['alphaKeys'][-1][1] * 0x7FFF)
+    transparency_count, transparency = array(data, 0x58)
+    for item in range(transparency_count):
+        for values, offset in track_values(data, transparency + 20 * item):
+            for key in range(values):
+                struct.pack_into('<h', data, offset + 2 * key, last)
+
+
+# How a model is drawn over what is behind it (M2 blending modes): laid over it, or added to it (a glow)
+BLEND_MODES = {'alpha': 2, 'add': 4}
+
+
 def animate(data, shape):
     """A painted shape's spin (its texture turning) and pulse (its alpha breathing), on global sequences"""
     spin = shape.get('spin', 0)
@@ -513,6 +653,8 @@ def fade_spell(spell):
         return spell + 6000
     if 94000 <= spell < 94200:
         return spell + 200
+    if 94200 <= spell < 94250:
+        return spell + 300
     raise SystemExit(f'spell {spell}: no fading twin range for it (fade_spell)')
 
 
@@ -568,10 +710,10 @@ def build_model(template, shape, texture_path, fade=False):
     data += name
     struct.pack_into('<II', data, textures + 16 * texture_index + 8, len(name), name_offset)
 
-    # Alpha-blended rather than additive: added red washes out to pink on bright ground
+    # Alpha-blended rather than additive: added red washes out to pink on bright ground (a glow may be added: `blend`)
     _, materials = array(data, 0x70)
     flags, _ = struct.unpack_from('<HH', data, materials)
-    struct.pack_into('<HH', data, materials, flags, 2)
+    struct.pack_into('<HH', data, materials, flags, BLEND_MODES[shape.get('blend', 'alpha')])
 
     # The template's white-gold tint and fades: white and opaque at every key, the texture carries the colour
     colors_count, colors = array(data, 0x48)
@@ -594,6 +736,9 @@ def build_model(template, shape, texture_path, fade=False):
     animate(data, shape)
     if fade:
         fade_alpha(data)
+        hold_alpha(data, shape)
+    else:
+        own_alpha(data, shape)
 
     # Bounds of the quad, for culling
     radius = max(math.hypot(x, y) for x in (x0, x1) for y in (y0, y1))
@@ -612,26 +757,59 @@ def build_model(template, shape, texture_path, fade=False):
 # what is behind it, flowing along the line every `scroll` ms. A piece (`segment` [index, count]) shows its share of
 # the tile, so the pieces of a line, flowing on the same clock, run on seamless; `tiles` repeats the tile along a
 # whole one.
+#
+# A wall (the Warden's electrified barrier) is a curtain of one plane (`planes` 1), its painting's whole height from
+# the floor to its top (`band` "full": a band painted bottom to top, its own fade kept), its texture `textureSize`
+# a frame, and `frames` paintings of it (its picture called with 1 to frames) stacked in one texture that it flickers
+# through, one every `flicker` ms in a fixed shuffled order, while it flows.
 CURTAIN_TEXTURE = (512, 128)
 
 
-def build_curtain_texture(shape):
-    source_image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/'))).convert('RGB')
-    rgb = numpy.clip(numpy.asarray(source_image, dtype=numpy.float64) / 255.0 * shape.get('gain', 1.0), 0.0, 1.0)
+def build_curtain_frame(shape, source_image):
+    rgb = numpy.clip(numpy.asarray(source_image.convert('RGB'), dtype=numpy.float64) / 255.0 * shape.get('gain', 1.0),
+                     0.0, 1.0)
     source = numpy.concatenate([rgb, rgb.max(axis=2, keepdims=True)], axis=2)
     height, width = source.shape[:2]
+    columns, rows = shape.get('textureSize', CURTAIN_TEXTURE)
+    xs = (numpy.arange(columns) + 0.5) / columns * (width - 1.0)
+    v = (numpy.arange(rows) + 0.5) / rows             # 0 at the top of the curtain, 1 at the floor
+    if shape.get('band') == 'full':
+        if abs(width / height - columns / rows) > 0.01:
+            raise SystemExit(f"{shape['key']}: its painting is {width} x {height}, its texture {columns} x {rows} "
+                             f"(never stretched: paint it at that aspect)")
+        X, Y = numpy.meshgrid(xs, v * (height - 1.0))
+        return sample(source, X, Y)
     rows_mean = source[..., 3].mean(axis=1)
     lit = numpy.nonzero(rows_mean > 0.1 * rows_mean.max())[0]
     top, middle = float(lit.min()), (float(lit.min()) + float(lit.max())) / 2.0
-    columns, rows = CURTAIN_TEXTURE
-    xs = (numpy.arange(columns) + 0.5) / columns * (width - 1.0)
-    v = (numpy.arange(rows) + 0.5) / rows             # 0 at the top of the curtain, 1 at the floor
     ys = top + v * (middle - top)
     X, Y = numpy.meshgrid(xs, ys)
     result = sample(source, X, Y)
     # Fading up: full at the floor, nothing at the top
     result *= (v ** 1.5)[:, None, None]
     return result
+
+
+def build_curtain_texture(shape):
+    frames = int(shape.get('frames', 1))
+    if frames == 1:
+        source = load_picture(shape) if 'picture' in shape else \
+            Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/')))
+        return build_curtain_frame(shape, source)
+    # The frames one under the other, the first at the top
+    return numpy.concatenate([build_curtain_frame(shape, load_picture(shape, frame))
+                              for frame in range(1, frames + 1)], axis=0)
+
+
+def flicker_order(frames, steps):
+    """The frames in a fixed shuffled order, never the same twice running"""
+    rng = numpy.random.default_rng(7)
+    order = [0]
+    while len(order) < steps:
+        frame = int(rng.integers(frames))
+        if frame != order[-1]:
+            order.append(frame)
+    return order
 
 
 def build_curtain_model(template, skin, shape, texture_path, fade=False):
@@ -650,10 +828,18 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     # far end that many yards over its near one: a whole line from a room's middle to its rising edge (the Hollow
     # Voice's floor climbs 1.6 yards to the walls) would otherwise sink into the floor as it goes
     rise = float(shape.get('rise', 0.0))
+    # A flickering curtain shows one frame of its texture at a time: the first's rows, moved to the others'
+    frames = int(shape.get('frames', 1))
+    floor_v = 1.0 / frames
     corners = []
-    for side in (-1.0, 1.0):
-        corners += [(x0, side * lean, 0.0, u0, 1.0), (x1, side * lean, rise, u1, 1.0),
-                    (x0, -side * lean, height, u0, 0.0), (x1, -side * lean, height + rise, u1, 0.0)]
+    if int(shape.get('planes', 2)) == 1:
+        lean = 0.0
+        corners += [(x0, 0.0, 0.0, u0, floor_v), (x1, 0.0, rise, u1, floor_v),
+                    (x0, 0.0, height, u0, 0.0), (x1, 0.0, height + rise, u1, 0.0)]
+    else:
+        for side in (-1.0, 1.0):
+            corners += [(x0, side * lean, 0.0, u0, floor_v), (x1, side * lean, rise, u1, floor_v),
+                        (x0, -side * lean, height, u0, 0.0), (x1, -side * lean, height + rise, u1, 0.0)]
     _, template_vertices = array(data, 0x3C)
     vertex = bytes(data[template_vertices:template_vertices + 48])
     block = bytearray()
@@ -697,8 +883,26 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
         struct.pack_into('<II', data, 0x14, len(loops), append_block(data, struct.pack(f'<{len(loops)}I', *loops)))
     if scroll:
         transform = append_block(data, bytes(60))
-        write_global_track(data, transform, 0, sequence_count, [0, scroll], [(0.0, 0.0, 0.0), (-1.0, 0.0, 0.0)],
-                           '<3f')
+        if frames > 1:
+            # Flowing along u and flickering down v together: a key at every flicker, u running on evenly, v
+            # stepping to the next frame within a millisecond
+            flicker = int(shape['flicker'])
+            if scroll % flicker:
+                raise SystemExit(f"{shape['key']}: its scroll ({scroll} ms) is not a whole number of flickers")
+            steps = scroll // flicker
+            order = flicker_order(frames, steps)
+            timestamps, values = [], []
+            for step in range(steps):
+                start, end = step * flicker, (step + 1) * flicker - 1
+                v = FLIPBOOK_SIGN * order[step] / frames
+                timestamps += [start, end]
+                values += [(-start / scroll, v, 0.0), (-end / scroll, v, 0.0)]
+            timestamps.append(scroll)
+            values.append((-1.0, FLIPBOOK_SIGN * order[0] / frames, 0.0))
+            write_global_track(data, transform, 0, sequence_count, timestamps, values, '<3f')
+        else:
+            write_global_track(data, transform, 0, sequence_count, [0, scroll], [(0.0, 0.0, 0.0), (-1.0, 0.0, 0.0)],
+                               '<3f')
         struct.pack_into('<hh', data, transform + 20, 0, -1)
         struct.pack_into('<hh', data, transform + 40, 0, -1)
         struct.pack_into('<II', data, 0x60, 1, transform)
@@ -718,15 +922,16 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     for sequence in range(sequences_count):
         struct.pack_into('<6ff', data, sequences + 64 * sequence + 32, x0, -lean, 0.0, x1, lean, top, radius)
 
-    # Its skin: the eight corners, two quads; a plain batch (not projected on the floor), its texture flowing
+    # Its skin: the corners, a quad for each plane; a plain batch (not projected on the floor), its texture flowing
     model_skin = bytearray(skin)
-    triangles = [0, 1, 2, 3, 2, 1, 4, 5, 6, 7, 6, 5]
-    struct.pack_into('<II', model_skin, 0x04, 8, append_block(model_skin, struct.pack('<8H', *range(8))))
+    count = len(corners)
+    triangles = [0, 1, 2, 3, 2, 1, 4, 5, 6, 7, 6, 5][:count // 4 * 6]
+    struct.pack_into('<II', model_skin, 0x04, count, append_block(model_skin, struct.pack(f'<{count}H', *range(count))))
     struct.pack_into('<II', model_skin, 0x0C, len(triangles),
                      append_block(model_skin, struct.pack(f'<{len(triangles)}H', *triangles)))
-    struct.pack_into('<II', model_skin, 0x14, 8, append_block(model_skin, bytes(4 * 8)))
+    struct.pack_into('<II', model_skin, 0x14, count, append_block(model_skin, bytes(4 * count)))
     _, submeshes = struct.unpack_from('<II', model_skin, 0x1C)
-    struct.pack_into('<H', model_skin, submeshes + 6, 8)
+    struct.pack_into('<H', model_skin, submeshes + 6, count)
     struct.pack_into('<H', model_skin, submeshes + 10, len(triangles))
     centre = ((x0 + x1) / 2.0, 0.0, top / 2.0)
     struct.pack_into('<3f', model_skin, submeshes + 20, *centre)
@@ -739,6 +944,144 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
         struct.pack_into('<H', model_skin, batches + 22, 0)
     model_skin[batches] = flags
     return bytes(data), bytes(model_skin)
+
+
+# A shape of kind "billboard" is one picture standing up, `width` x `height` yards, its middle `elevation` yards over
+# its owner's feet, always turned to the camera: its bone carries the M2 billboard flag (the client turns a billboarded
+# bone's local x to face the camera, as the glows and halos of the stock models do), its quad stands in the bone's
+# y-z plane round the bone's pivot. Drawn unlit, both sides, laid over the scene (`blend` "add" adds it: a glow).
+# carried: an aura on a player (their number over their head), at its own size.
+#
+# A flipbook (`grid` [columns, rows]: its picture an atlas of frames, row by row) steps through its frames on the
+# model's own animation, from when it is put on: `timeline` [[ms, frame], ...], each frame held until the next key (a
+# texture transform's translation, moved from one frame to the next within a millisecond), the last held to the end.
+# Its fading twin holds the last frame while it fades.
+#
+# Two things only the game can tell, set here once checked in game:
+# - which way the texture transform moves the picture: FLIPBOOK_SIGN 1 if a translation of +t shows the texels at
+#   uv + t (the frames then play in order; the other way they play scrambled), -1 otherwise;
+# - which way the billboard turns the quad: BILLBOARD_MIRROR False if a number reads the right way round, True if it
+#   reads mirrored.
+FLIPBOOK_SIGN = 1
+BILLBOARD_MIRROR = False
+# M2 bone flags: spherical billboard (turned to face the camera on every axis), and transformed (computed each frame)
+BONE_BILLBOARD = 0x8
+BONE_TRANSFORMED = 0x200
+
+
+def build_billboard_model(template, skin, shape, texture_path, fade=False):
+    data = bytearray(template)
+    width = float(shape['width'])
+    height = float(shape['height'])
+    elevation = float(shape.get('elevation', 0.0))
+    columns, rows = shape.get('grid', [1, 1])
+    du, dv = 1.0 / columns, 1.0 / rows
+
+    # The quad in the y-z plane, facing +x: the picture's left (u 0) at -y, which the camera sees on its left once the
+    # bone's x faces it; its top (v 0) up
+    side = -1.0 if BILLBOARD_MIRROR else 1.0
+    left, right = -side * width / 2.0, side * width / 2.0
+    bottom, top = elevation - height / 2.0, elevation + height / 2.0
+    count, vertices = array(data, 0x3C)
+    if count != 4:
+        raise SystemExit(f'{TEMPLATE}.m2 changed: {count} vertices, expected its one quad')
+    corners = [(left, bottom, 0.0, dv), (right, bottom, du, dv), (left, top, 0.0, 0.0), (right, top, du, 0.0)]
+    for index, (y, z, u, v) in enumerate(corners):
+        struct.pack_into('<3f', data, vertices + 48 * index, 0.0, y, z)
+        struct.pack_into('<3f', data, vertices + 48 * index + 20, 1.0, 0.0, 0.0)
+        struct.pack_into('<2f', data, vertices + 48 * index + 32, u, v)
+
+    # Its bone (every vertex hangs on the first) turned to the camera about the quad's middle
+    _, bones = array(data, 0x2C)
+    flags = struct.unpack_from('<I', data, bones + 4)[0]
+    struct.pack_into('<I', data, bones + 4, flags | BONE_BILLBOARD | BONE_TRANSFORMED)
+    struct.pack_into('<3f', data, bones + 76, 0.0, 0.0, elevation)
+
+    # Its texture, clamped (a flipbook's frames stay within their cells)
+    _, lookup = array(data, 0x80)
+    texture_index = struct.unpack_from('<h', data, lookup)[0]
+    _, textures = array(data, 0x50)
+    name_offset = append_block(data, texture_path.encode('ascii') + b'\0')
+    struct.pack_into('<I', data, textures + 16 * texture_index + 4, 0)
+    struct.pack_into('<II', data, textures + 16 * texture_index + 8, len(texture_path) + 1, name_offset)
+    _, materials = array(data, 0x70)
+    material_flags, _ = struct.unpack_from('<HH', data, materials)
+    struct.pack_into('<HH', data, materials, material_flags, BLEND_MODES[shape.get('blend', 'alpha')])
+
+    colors_count, colors = array(data, 0x48)
+    for color in range(colors_count):
+        for values, offset in track_values(data, colors + 40 * color):
+            for key in range(values):
+                struct.pack_into('<3f', data, offset + 12 * key, 1.0, 1.0, 1.0)
+        for values, offset in track_values(data, colors + 40 * color + 20):
+            for key in range(values):
+                struct.pack_into('<h', data, offset + 2 * key, 0x7FFF)
+    transparency_count, transparency = array(data, 0x58)
+    for item in range(transparency_count):
+        for values, offset in track_values(data, transparency + 20 * item):
+            for key in range(values):
+                struct.pack_into('<h', data, offset + 2 * key, 0x7FFF)
+    struct.pack_into('<II', data, 0x128, 0, 0)
+
+    # A breathing glow on the world's clock (`pulse`), or on its own animation (`pulseRamp`, `alphaKeys`)
+    animate(data, dict(shape, spin=0))
+    if fade:
+        fade_alpha(data)
+        hold_alpha(data, shape)
+    else:
+        own_alpha(data, shape)
+
+    # The flipbook: the first frame's cell moved onto each frame's in turn
+    timeline = shape.get('timeline')
+    if timeline:
+        def offset(frame):
+            return (FLIPBOOK_SIGN * (frame % columns) * du, FLIPBOOK_SIGN * (frame // columns) * dv, 0.0)
+        keys = [(time, offset(frame)) for time, frame in timeline]
+        if fade:
+            keys = [(0, keys[-1][1])]
+        length = int(shape.get('length', keys[-1][0] + 1000))
+        timestamps, values = stepped(keys, length)
+        transform = append_block(data, bytes(60))
+        write_sequence_track(data, transform, sequence_timelines(data, timestamps, values, length), '<3f')
+        struct.pack_into('<hh', data, transform + 20, 0, -1)
+        struct.pack_into('<hh', data, transform + 40, 0, -1)
+        struct.pack_into('<II', data, 0x60, 1, transform)
+        _, uv_lookup = array(data, 0x98)
+        struct.pack_into('<h', data, uv_lookup, 0)
+
+    reach = max(width, height) / 2.0
+    radius = math.sqrt(reach ** 2 + (elevation + reach) ** 2)
+    box = (-reach, -reach, min(0.0, bottom - reach), reach, reach, top + reach)
+    struct.pack_into('<6ff', data, 0xA0, *box, radius)
+    sequences_count, sequences = array(data, 0x1C)
+    for sequence in range(sequences_count):
+        struct.pack_into('<6ff', data, sequences + 64 * sequence + 32, *box, radius)
+
+    # Its skin: the quad drawn as a plain batch (not projected on the floor), its texture moving if it is a flipbook
+    model_skin = bytearray(skin)
+    _, submeshes = struct.unpack_from('<II', model_skin, 0x1C)
+    centre = (0.0, 0.0, elevation)
+    struct.pack_into('<3f', model_skin, submeshes + 20, *centre)
+    struct.pack_into('<3f', model_skin, submeshes + 32, *centre)
+    struct.pack_into('<f', model_skin, submeshes + 44, reach * 1.5)
+    _, batches = struct.unpack_from('<II', model_skin, 0x24)
+    batch_flags = model_skin[batches] & ~0x04
+    if timeline:
+        batch_flags &= ~0x10
+        struct.pack_into('<H', model_skin, batches + 22, 0)
+    model_skin[batches] = batch_flags
+    return bytes(data), bytes(model_skin)
+
+
+def build_billboard_texture(shape):
+    """Its picture as painted (a flipbook's atlas as its function lays it out), premultiplied for its mipmaps"""
+    picture = load_picture(shape)
+    columns, rows = shape.get('grid', [1, 1])
+    cell_aspect = (picture.width / columns) / (picture.height / rows)
+    if abs(cell_aspect - float(shape['width']) / float(shape['height'])) > 0.01:
+        raise SystemExit(f"{shape['key']}: its frames are {cell_aspect:.3f} wide for 1 high, the quad "
+                         f"{shape['width']} x {shape['height']} (never stretched)")
+    return premultiplied(picture)
 
 
 def extract_template(directory):
@@ -779,6 +1122,21 @@ def main():
                 with open(os.path.join(OUTPUT_ROOT, f'{stem}{suffix}00.skin'), 'wb') as output:
                     output.write(model_skin)
             print(f"{stem}: curtain, {texture_stem}")
+            continue
+        if shape['kind'] == 'billboard':
+            if 'texture' not in shape:
+                write_painted_blp(build_billboard_texture(shape), os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
+            # Its fading twin (a carried one goes with its aura: none)
+            looks = [('', False)] if shape.get('carried') else [('', False), ('Fade', True)]
+            if not shape.get('carried'):
+                fade_spell(shape['spell'])
+            for suffix, fade in looks:
+                model, model_skin = build_billboard_model(template, skin, shape, texture_path, fade)
+                with open(os.path.join(OUTPUT_ROOT, f'{stem}{suffix}.m2'), 'wb') as output:
+                    output.write(model)
+                with open(os.path.join(OUTPUT_ROOT, f'{stem}{suffix}00.skin'), 'wb') as output:
+                    output.write(model_skin)
+            print(f"{stem}: billboard, {texture_stem}")
             continue
         if shape['kind'] == 'texture':
             write_painted_blp(build_painted_texture(shape), os.path.join(OUTPUT_ROOT, f'{stem}.blp'))

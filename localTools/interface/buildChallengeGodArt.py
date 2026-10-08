@@ -15,7 +15,10 @@ The Hollow Voice: the Sunwell chamber, its lit stair under the figure once mirro
 and the Archbishop with the demon behind him (assets/hollowVoice). The demon fills the painting's right side, so it
 fades in less from the right than the god does: its purple runs into the chamber's.
 
-Usage: python localTools/interface/buildChallengeGodArt.py [god|voice ...]   (all of them by default)
+Gardien-chef Vorhan: Magtheridon's Lair turned into a prison, and the warden (localTools/wardenVorhan/art); a page whose
+paintings are not there yet is skipped.
+
+Usage: python localTools/interface/buildChallengeGodArt.py [god|voice|warden ...]   (all of them by default)
 """
 import importlib.util
 import os
@@ -39,6 +42,9 @@ PAGES = {
     "god": {"source": "challengeGod", "name": "ChallengeGod", "fade": (0.42, 0.3, 0.06, 0.06),
             "stale": ("ChallengeGod-Portrait",)},
     "voice": {"source": "hollowVoice", "name": "ChallengeVoice", "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
+    # Gardien-chef Vorhan: his paintings live with the fight's other art (.agents/plans/warden-vorhan ASSETS)
+    "warden": {"source": os.path.join(REPO, "localTools", "wardenVorhan", "art"), "name": "ChallengeWarden",
+               "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
 }
 
 
@@ -88,6 +94,9 @@ def backdrop(source):
 def build(page, write):
     config = PAGES[page]
     source = os.path.join(ASSETS, config["source"])
+    if not all(os.path.exists(os.path.join(source, name)) for name in ("backdrop.png", "portrait.png")):
+        print(f"{page}: its paintings are not in {source} yet, skipped")
+        return
     for name in config["stale"]:
         for extension in (".png", ".blp"):
             path = os.path.join(OUT, name + extension)

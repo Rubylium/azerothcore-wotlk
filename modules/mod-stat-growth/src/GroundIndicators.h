@@ -149,6 +149,59 @@ namespace GroundIndicators
     constexpr uint32 SPELL_SIGIL_AEGIS = 90737;
     void ShowDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs,
                    uint32 spellId);
+
+    // An upright picture turned to the camera (shapes.json kind billboard: a boss's eye over it) on a stalker at the
+    // floor under position, for durationMs; its height over the floor is the model's own (elevation). A flipbook
+    // starts on its first frame as it appears. follow: a unit it moves along with (the boss). placed: its stalker.
+    void ShowBillboard(Unit* owner, Position const& position, uint32 look, uint32 durationMs, Unit* follow = nullptr,
+                       ObjectGuid* placed = nullptr);
+    // A look worn by carrier as an aura (a carried billboard: a mark over a player's head), for durationMs (0: until
+    // taken off - it still goes when they die). False if it could not be put on.
+    bool ShowCarriedLook(Unit* carrier, uint32 look, uint32 durationMs);
+    void ClearCarriedLook(Unit* carrier, uint32 look);
+    // A ring of upright curtain tiles round center (shapes.json kind curtain, one plane, built to tileLength: never
+    // scaled), a regular polygon of `tiles` sides: their corners on the circle of radius
+    // tileLength / (2 sin(pi / tiles)), their middles at tileLength / (2 tan(pi / tiles)) from center.
+    void ShowCurtainRing(Unit* owner, Position const& center, uint32 look, uint32 tiles, float tileLength,
+                         uint32 durationMs);
+
+    // Gardien-chef Vorhan's painted marks (shapes.json VW_*, their pictures localTools/wardenVorhan/indicatorArt.py).
+    // None is an area: what they mark is the fight's to resolve.
+    constexpr uint32 SPELL_WARDEN_GAZE = 94200;             // his eye opening over 6 s (16 frames), then its burst
+    constexpr uint32 SPELL_WARDEN_NUMBER_FIRST = 94201;     // the numbers 1-8 over a player's head
+    constexpr uint32 SPELL_WARDEN_CELL_IRON = 94209;
+    constexpr uint32 SPELL_WARDEN_CELL_RUNES = 94210;
+    constexpr uint32 SPELL_WARDEN_CELL_FLARE = 94211;
+    constexpr uint32 SPELL_WARDEN_CELL_NUMBER_FIRST = 94212;
+    constexpr uint32 SPELL_WARDEN_ROLL_CALL = 94220;
+    constexpr uint32 SPELL_WARDEN_ROLL_CALL_PAIR_FIRST = 94221;  // "1-2", "3-4", "5-6", "7-8"
+    constexpr uint32 SPELL_WARDEN_WALL = 94225;
+    // The gaze's model: 6 x 6 yards, its middle this high over the floor, its burst on from GazeBurstMs
+    constexpr float WardenGazeElevation = 10.0f;
+    constexpr uint32 WardenGazeBurstMs = 6000;
+    // The electrified wall: ten tiles of 18.85 yards, 4.7 high; their corners 30.5 yards from the middle, their
+    // middles 29.0
+    constexpr uint32 WardenWallTiles = 10;
+    constexpr float WardenWallTileLength = 18.85f;
+    // The eye over owner at position (its stalker's place; the model stands WardenGazeElevation over the floor there),
+    // for durationMs: the cast's 6 s and a moment of its burst. follow: the boss, if it moves meanwhile.
+    void ShowWardenGaze(Unit* owner, Position const& position, uint32 durationMs, Unit* follow = nullptr);
+    // number (1-8) over carrier's head, for durationMs (0: until cleared); any other of the eight is taken off first
+    bool ShowCarriedNumber(Unit* carrier, uint32 number, uint32 durationMs);
+    void ClearCarriedNumber(Unit* carrier);
+    // A cell seal at center, radius yards: its iron, its fel runes turning slowly and breathing, its number (1-8)
+    // breathing in the middle, the number's top pointing orientation (from the room's middle to the cell: it reads
+    // from the middle)
+    void ShowCell(Unit* owner, Position const& center, uint32 number, float orientation, uint32 durationMs,
+                  float radius = 3.0f);
+    // The cell's runes flaring as the doors slam (a flash, then fading out over durationMs), over its seal
+    void FlareCell(Unit* owner, Position const& center, float radius = 3.0f, uint32 durationMs = 1800);
+    // A roll call mark at center, radius yards, reading pair (0: "1-2", 1: "3-4", 2: "5-6", 3: "7-8"), its top
+    // pointing orientation. Its rim and numbers breathe faster and faster over the 6 s cast from when it is put on.
+    void ShowRollCallMark(Unit* owner, Position const& center, uint32 pair, float orientation, uint32 durationMs,
+                          float radius = 2.0f);
+    // The electrified wall round center (ShowCurtainRing of the wall's tiles), flowing and flickering
+    void ShowWardenWall(Unit* owner, Position const& center, uint32 durationMs);
     // Ends every area owner has on show, for the bots too (a fight reset while a long one was still drawn). Its
     // stalkers are its summons: despawning them is the owner's business.
     void ClearAreasOf(Unit* owner);
@@ -207,6 +260,15 @@ namespace GroundIndicators
     // circle it carries away. A bot then casts nothing that moves it (a warrior's charge took it off its tower and
     // back to the boss).
     bool HasFightPlace(Unit* unit);
+    // A curfew: unit is not to move at all for durationMs (bots: mod-playerbots AvoidGroundIndicatorAction holds it,
+    // its chase stopped), whatever else it does. HoldsStill: whether one applies now.
+    void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs);
+    bool HoldsStill(Unit* unit);
+    // A gaze about to open: everyone near owner turns their back on where owner stands now, for durationMs (bots stop
+    // attacking and casting meanwhile, a swing or a cast would turn them back). LooksAway: whether unit should, and
+    // from where.
+    void SetLookAway(Unit* owner, uint32 durationMs);
+    bool LooksAway(Unit* unit, Position& from);
     // The bots given owner's soak at center (a fight's log of a soak that failed)
     std::vector<ObjectGuid> SoakAssignees(Unit* owner, Position const& center);
 

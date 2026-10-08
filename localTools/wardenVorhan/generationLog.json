@@ -1,0 +1,359 @@
+{
+  "generator": "Built-in imagegen",
+  "assets": [
+    {
+      "name": "gaze_closed",
+      "prompt": "Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. Single huge DEMONIC EYE inside a heavy BLACK-IRON LOCK PLATE shaped like a KEYHOLE, riveted iron bars and short chains around it. CENTRED same fixed framing in all states, fills most of square. Eye shut behind TWO thick IRON EYELID SHUTTERS, only thin dim RED seam glowing between them, calm cold. Front view eye exactly atcentre(256,220). Square512x512.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-9499a517-bf46-42cd-a507-7e851f8a2992.png"
+    },
+    {
+      "name": "gaze_half",
+      "prompt": "FIRST INPUT IS EDIT TARGET, other inputs STYLE ONLY. Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. Single huge DEMONIC EYE inside a heavy BLACK-IRON LOCK PLATE shaped like a KEYHOLE, riveted iron bars and short chains around it. CENTRED same fixed framing in all states, fills most of square. EDIT first target ONLY eye opening and heat: iron shutters HALF open, emberorange iris SLIT pupil staring forward, redveins smallcracks iron nearby growingredglow. Keep plate chains rivets silhouette canvas POSITION unchanged. Eye centre(256,220),512x512.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-13091837-5f7d-43ff-966e-b310f5c27744.png"
+    },
+    {
+      "name": "gaze_open",
+      "prompt": "FIRST INPUT IS EDIT TARGET, other inputs STYLE ONLY. Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. Single huge DEMONIC EYE inside a heavy BLACK-IRON LOCK PLATE shaped like a KEYHOLE, riveted iron bars and short chains around it. CENTRED same fixed framing in all states, fills most of square. EDIT first target ONLY eye opening and heat: iron shutters FULLY OPEN, iris blazing RED-WHITE, WIDE pupil, cracked hotred iron nearby STRONGredglow outward. Menacingcritical. Keepplatechainsrivets silhouette canvas POSITIONunchanged. Eye centre(256,220),512x512.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-79f3cf10-d645-491c-ba1a-236dabd4ef70.png"
+    },
+    {
+      "name": "cell_iron",
+      "prompt": "Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. Circular prison CELL SEAL DIRECTLY ABOVE FLAT ORTHOGRAPHIC view: outer ring black-iron bars laidflatcircle rivets shortchains between bars EMPTYBLACKroundinside. No disk or floor. Circle centre(512,512), OUTERDIAMETER1024 touchingall4edges EXACTly. Ring inneropeningdiameter800 leaving room for runesdiameter716. No perspectiveellipse. 1024x1024.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-914afff2-3ee5-40e8-b666-c71af3c6dbac.png"
+    },
+    {
+      "name": "cell_runes",
+      "prompt": "Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. ONLY THIN RING glowingfelGREENwardingrunessmallSIGILS evenlyspacedcircle. Noiron nofloor noobjects. Directtopdownnotellipse. Centre(512,512) runeringDIAMETER716=70%canvaswidth withBLACKspaceoutside andinside. 1024x1024. Abstractrunessymbols NO numerals/letters.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-9f1ae70d-ca14-463c-8aea-210abd8db153.png"
+    },
+    {
+      "name": "rollcall_mark",
+      "prompt": "Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. RoundIRONprisonerTAGplaque DIRECTLYABOVEorthographic flatfloor view thickironrim EXACTLY4rivets cardinalpoints, wornemberREDglowalongrim. EMPTYFLATDARKCENTRE fornumbercodewrites. Circlecentre(256,256) rimdiameter512 TOUCHESimageall4edges. Noellipse no perspective. 512x512.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-75399624-6ab8-4a5c-bf15-0108125b6e5a.png"
+    },
+    {
+      "name": "wall_band_1",
+      "prompt": "Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. HORIZONTALBAND FELGREENLIGHTNING between VERTICALBLACKIRONBARS. SEAMLESS left/right tile. EnergybrightBOTTOM fadesUPWARD. EXACT4:1 PAINTED BAND aspect1024x256, fillsstripBOTTOMTOTOP;4evenlyspacedstraightverticalbars positionsx128,384,640,896. PlainBLACKatx0and1024 withenergyjoining; consistentbargeometryforstates. No perspective. If nativecanvas constrained, paint4:1bandCENTRALwithblacktopbottommargins. No horizontalupper/lowerframe.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-93dd2669-a9b3-41aa-8197-7b8551c8aec1.png"
+    },
+    {
+      "name": "wall_band_2",
+      "prompt": "FIRST INPUT IS EDIT TARGET, other inputs STYLE ONLY. Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. EDIT FIRST paintedwallbandtarget ONLYlightning pattern flickerphase2: SAMEironbars SAMEpositions SAMEshape SAMEframing. Newfelgreenarcstensionbetweenbars energybrightbottom fadesup. Horizontaltilingseamless1024x256aspect4:1 paintedband. Noaddedbars/frames/text.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-d1fb0783-b2b8-427c-927e-8bc2f49dc57f.png"
+    },
+    {
+      "name": "wall_band_3",
+      "prompt": "FIRST INPUT IS EDIT TARGET, other inputs STYLE ONLY. Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. EDIT FIRST paintedwallbandtarget ONLYlightning pattern flickerphase3: SAMEironbars SAMEpositions SAMEshape SAMEframing. Newfelgreenarcstensionbetweenbars energybrightbottom fadesup. Horizontaltilingseamless1024x256aspect4:1 paintedband. Noaddedbars/frames/text.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-b448fa09-e185-4ae7-b518-c1deabc02ad7.png"
+    },
+    {
+      "name": "wall_band_4",
+      "prompt": "FIRST INPUT IS EDIT TARGET, other inputs STYLE ONLY. Use case: stylized-concept. World of Warcraft HAND-PAINTED Hellfire Citadel Burning Crusade: broad chunky painterly facets, heavy worn black iron, rivets, chains, fel green, ember red. Input stock icons are STYLE ONLY, do not copy their subjects. Pure BLACK RGB background for additive game effects; no floor/background/scene/text/numbers/letters, no external border/frame. EDIT FIRST paintedwallbandtarget ONLYlightning pattern flickerphase4: SAMEironbars SAMEpositions SAMEshape SAMEframing. Newfelgreenarcstensionbetweenbars energybrightbottom fadesup. Horizontaltilingseamless1024x256aspect4:1 paintedband. Noaddedbars/frames/text.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-fe004bdf-00bd-45e9-9503-4fa7dec149db.png"
+    },
+    {
+      "name": "ICON_Matricule",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a battered black-iron prisoner's tag on a short chain, its face blank and flat (I add each number, 1-8)",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-87487579-931b-4e41-b413-3a1a30520c6a.png"
+    },
+    {
+      "name": "ICON_MarqueGeolier",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a red-hot iron brand pressed into dark skin, the warden's sigil (a key in a circle) glowing",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-9e035036-ccf5-4053-8dc2-ef9126253b3e.png"
+    },
+    {
+      "name": "ICON_Isolement",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a heavy iron lock wrapped in a fel-green seal, cracks of light about to burst through",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-680e036b-03f2-43ae-8d66-91fc30e1497b.png"
+    },
+    {
+      "name": "ICON_SceauIsolement",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. the same seal bursting outward in a ring of fel-green fire",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-f4c76dc5-74e4-4492-83c8-8b847f6cec95.png"
+    },
+    {
+      "name": "ICON_Menottes",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a pair of black-iron shackles linked by a taut chain, sparks where the links strain",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-0ee9b519-38ae-4132-b896-f7d2f11985d9.png"
+    },
+    {
+      "name": "ICON_CouvreFeu",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a black-iron bell swinging at night, a red glow on it, a lantern going out beside it",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-54328d93-dabf-4fa5-95ed-3ca2bacc3d16.png"
+    },
+    {
+      "name": "ICON_Evasion",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. an empty cell, its barred door torn open, chains hanging loose, a red alarm glow",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-65cf15f1-5c6f-4413-bc2c-3775902f5f0f.png"
+    },
+    {
+      "name": "ICON_CelluleSurpeuplee",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. two shadows crushed together behind the bars of one narrow cell",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-a4f2752d-95b6-4306-8df3-9e693cc9f53f.png"
+    },
+    {
+      "name": "ICON_HorsCellule",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a cell door slamming shut, iron bars falling, a hand left outside",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-aa1bc167-345f-439b-a909-9de7c4afc025.png"
+    },
+    {
+      "name": "ICON_Regard",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a single blazing red demonic eye in a keyhole-shaped iron plate",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-80161585-2df7-49a6-b978-6f7a3c202cf6.png"
+    },
+    {
+      "name": "ICON_Appel",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. an iron plaque stamped with two blank tags side by side, a warden's finger pointing",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-92da8e39-5bf1-42d4-a7ec-b14261c5af3f.png"
+    },
+    {
+      "name": "ICON_MauvaisMatricule",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a prisoner's tag crossed out by a red slash",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-cbcbbbeb-5a1c-4878-a89d-40f53a4a6609.png"
+    },
+    {
+      "name": "ICON_Barriere",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. fel-green lightning crackling between black-iron bars",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-34e4774f-ba97-425e-9c06-aa78896b39bf.png"
+    },
+    {
+      "name": "ICON_ViolationCouvreFeu",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a running figure struck down by a red bolt under the bell",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-5c1a74ac-6889-4f45-8a23-b5335a323f6e.png"
+    },
+    {
+      "name": "ICON_Sentence",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a heavy iron gavel coming down, a shockwave of ember light",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-8daf7489-b8cf-4a44-b03c-7415835f7805.png"
+    },
+    {
+      "name": "ICON_MiseIsolement",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a fel orc's armoured fist striking, a body thrown back toward a sealed door",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-adf397de-b0ce-4235-9b14-3c56714c75f7.png"
+    },
+    {
+      "name": "ICON_Perpetuite",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. an hourglass of black iron chained shut, its sand glowing red",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-ced2a269-9bb0-4e88-b6e2-cafeb404476a.png"
+    },
+    {
+      "name": "ICON_PeineCapitale",
+      "prompt": "World of Warcraft The Burning Crusade SPELL ICON square256x256 OPAQUE. Hand-painted Blizzard stockiconstyle matching attached references STYLE ONLY. Subjectfillsframe, chunkyreadableshapes painterlytexture dramaticlight, HellfireCitadelblackiron FELGREENandEMBERRED, darkvignetteedges. NO BORDER/FRAME/TEXT/LETTERS/NUMBERS. Oneprimarysubject readable32px. a headsman's axe of fel iron over a block, red light",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-362cc71d-3711-45f7-aa03-cb4dd7a54bb0.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Head",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM.  PIECE: a heavy black fel-iron helmet with a barred cell-door visor. Head equipment only; no person. ",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-256ffd88-5df7-4ed8-8000-429649ce4a75.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Shoulders",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: PAIR shoulderGUARDS appropriate toSET, keys/padlocks hanging. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-1e692732-660e-4679-8fbc-fcc90aa712ae.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Chest",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: CHESTPIECE seenfromfront KEYHOLEEMBLEM, appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-e6de9cbb-1599-465e-bc6d-b18b8aae4e25.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Hands",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: PAIRGLOVES/GAUNTLETS SHACKLECUFFSatWRISTS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-9e4ea90e-4338-4aee-9a9a-4b7b7244e044.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Legs",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: LEG GUARDS seenfromfront appropriateSETmaterial, NO upperbody. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-da693dc9-d078-4d79-9d3f-04632e5636e7.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Wrists",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: PAIRBRACERS SHACKLEshapes brokenCHAINLINK appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-0ed775b7-9ae3-482c-944b-a1f4163f18c6.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Waist",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: BELT with RINGOFIRONKEYS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-2d70846d-9544-41f0-ab3a-c483d3ed2935.png"
+    },
+    {
+      "name": "INV_Vorhan_Plate_Feet",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Plate: Black FEL-IRON PLATE of a felorc headwarden HEAVY SPIKED emberRED seams IRONKEYS shortCHAINS KEYHOLEEMBLEM. PIECE: PAIRBOOTS shortCHAINatANKLE appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-8d12de72-e9e8-4480-baee-20866f9feed1.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Head",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint.  PIECE: a dark iron CHAIN COIF of thick linked chainmail, worn leather straps, open face, no plate helmet. Head equipment only; no person. ",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-6c79114a-ca40-4d5a-afea-b520adcde183.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Shoulders",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: PAIR shoulderGUARDS appropriate toSET, keys/padlocks hanging. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-e6b83980-bc45-4f81-88dd-75bfcd6afdd9.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Chest",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: CHESTPIECE seenfromfront KEYHOLEEMBLEM, appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-7c400040-a720-4382-b78e-cd54290a2bf5.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Hands",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: PAIRGLOVES/GAUNTLETS SHACKLECUFFSatWRISTS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-e12606f5-c6b0-421b-b3fa-b6697fdc3901.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Legs",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: LEG GUARDS seenfromfront appropriateSETmaterial, NO upperbody. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-2bbada2d-c7c1-4c32-a850-ba92ef5584b9.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Wrists",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: PAIRBRACERS SHACKLEshapes brokenCHAINLINK appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-22580f19-c636-4178-b300-936d1ebed844.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Waist",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: BELT with RINGOFIRONKEYS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-7033b91d-bc01-4de5-8521-27feb679608e.png"
+    },
+    {
+      "name": "INV_Vorhan_Mail_Feet",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Mail: Dark IRON CHAIN MAIL of prisonerchainer THICKLINKS IRONHOOKS shackleCUFFS wornLEATHERSTRAPS dullREDRUST faintFELGREENglint. PIECE: PAIRBOOTS shortCHAINatANKLE appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-7bd9a6e4-758d-48e8-aca0-52fa7cc13e94.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Head",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow.  PIECE: a lean dark brown leather hood with a leather lower-face mask, iron buckles. Head equipment only; no person. ",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-58efe1de-e2cb-4cb1-9081-b517b8cd643c.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Shoulders",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: PAIR shoulderGUARDS appropriate toSET, keys/padlocks hanging. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-20d34af7-fc77-411e-8a86-11afa62c5505.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Chest",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: CHESTPIECE seenfromfront KEYHOLEEMBLEM, appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-24361ae3-dbf1-473f-8c1f-527778d27a77.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Hands",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: PAIRGLOVES/GAUNTLETS SHACKLECUFFSatWRISTS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-7a5bc1bb-fc61-4878-8dcc-3a51617f36bc.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Legs",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: LEG GUARDS seenfromfront appropriateSETmaterial, NO upperbody. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-ccb6ce95-9565-457e-97ae-2361b1fe62a0.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Wrists",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: PAIRBRACERS SHACKLEshapes brokenCHAINLINK appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-828198d7-a545-4495-bd83-477d8683fe8c.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Waist",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: BELT with RINGOFIRONKEYS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-99885daa-43b7-45b7-a746-6dbdeb65b67d.png"
+    },
+    {
+      "name": "INV_Vorhan_Leather_Feet",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Leather: Dark BROWN BLACK TRACKER LEATHERS of escapedprisonerhunter LEAN HOODED ironBUCKLES coiledCHAIN trophyblankTAGS faintREDglow. PIECE: PAIRBOOTS shortCHAINatANKLE appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-670f4157-e11c-4670-ac5b-a2f73c55c411.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Head",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow.  PIECE: a deep black and crimson cloth hood, green warding seal on its brow. Head equipment only; no person. ",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-32bf438b-3668-4b6f-b970-3d6a47dbee79.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Shoulders",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: PAIR shoulderGUARDS appropriate toSET, keys/padlocks hanging. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-a6240198-eb2e-4ae5-aeaf-65128b1eec15.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Chest",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: CHESTPIECE seenfromfront KEYHOLEEMBLEM, appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-a89ed698-4234-4eb8-8e6e-9a6d7a770a79.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Hands",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: PAIRGLOVES/GAUNTLETS SHACKLECUFFSatWRISTS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-697010bb-be21-4d92-8703-8fb05b198e36.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Legs",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: LEG GUARDS seenfromfront appropriateSETmaterial, NO upperbody. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-007a23cd-3452-48c0-aeec-26caf1467c32.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Wrists",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: PAIRBRACERS SHACKLEshapes brokenCHAINLINK appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-b74851b5-030a-4ad7-bce3-a0b117fab619.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Waist",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: BELT with RINGOFIRONKEYS appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-c1fcacf3-9fc3-4aee-9f53-5fc36f646cc9.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloth_Feet",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. SET Cloth: BLACK DEEPRED WARLOCK cloth robes cellSEALER embroideredFELGREENWARDINGRUNES smallIRONPADLOCKS andSEALS sewnon faintGREENglow. PIECE: PAIRBOOTS shortCHAINatANKLE appropriateSETmaterial. The last reference is the SAME SET's headpiece: match its materials and colors for the requested equipment slot only.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-af380cea-a7c9-4332-b6a1-169b4383c357.png"
+    },
+    {
+      "name": "INV_Vorhan_Neck",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. LargeBLACKIRONcellKEY onaCHAIN, bitGLOWINGEMBERRED.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-9961b031-d041-439d-8b61-ba3b2f6bda51.png"
+    },
+    {
+      "name": "INV_Vorhan_Ring",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. IRONRING prisonertagHANGING, face hasanABSTRACTSCRATCHEDOUTMARK not an actualnumber.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-85c4a33b-7232-4357-9104-74c568db3635.png"
+    },
+    {
+      "name": "INV_Vorhan_Cloak",
+      "prompt": "World of Warcraft Wrath of the Lich King ITEM ICON256x256 OPAQUE. Hand-painted Blizzard stockiconstyle, refs STYLE ONLY. ItemALONE fillingframe slightangle chunkyreadableshapes broadpainterlytexture dramaticUPPERLEFTlight RICHSATURATEDcolour darkvignette faintPURPLEEPICglow. NoBORDER noFRAME noTEXT noNUMBERS noLETTERS. Single equipmentgroup strongsilhouette32px. HEAVYDARKREDcloak IRONKEYCLASP frayedCHAINEDHEM.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-e4d6a11b-3b9e-4a60-af8b-86b16af7dd1f.png"
+    },
+    {
+      "name": "backdrop",
+      "prompt": "Create a new World of Warcraft hand-painted cinematic environment painting, landscape 1536 x 1024, aspect 3:2. Reference image is STYLE AND PAGE COMPOSITION ONLY, not its architecture or palette. Magtheridon's Lair in Hellfire Citadel turned into a prison: a vast ROUND chamber of black stone and fel iron, broken columns, chains as thick as a man hanging from the vault, iron cages stacked along the walls with shadows of prisoners behind bars, fel-green light from braziers and floor runes, ember-red glow from a forge pit, drifting smoke. LEFT THIRD very dark and quiet deep shadow with a few chains; RIGHT TWO THIRDS detailed lit chamber. Keep all important details inside middle 1512 x 1024. No foreground characters, no text, no border. Broad painterly Warcraft shapes and rich atmospheric depth.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-fa876825-1265-4f54-a7c3-1e25a1eff4d7.png"
+    },
+    {
+      "name": "portrait",
+      "prompt": "Create a new World of Warcraft hand-painted cinematic boss portrait, 1024 x 1536 aspect 2:3. Reference image is STYLE AND PAGE COMPOSITION ONLY, do not copy its people or colors. Gardien-chef Vorhan, a towering massive FEL ORC head warden with Kargath Bladefist's muscular build, scarred RED skin, glowing FEL-GREEN eyes, tusked orc face, in BLACK FEL-IRON PLATE with EMBER-RED seams. Great ring of iron cell keys at belt. One forearm wrapped in chains ending in a heavy shackle. Other hand grips a HUGE IRON CELL KEY USED AS A MACE, clearly key-shaped bow and long shaft with square toothed bit. Three-quarter view FACING RIGHT, lit FROM RIGHT by fel-green and ember light. Dark smoky background fading to BLACK edges. Head and shoulders near top within y60 to450. Entire upper body, both hands, weapon and belt keys inside LEFT80% of canvas. Rightmost20% empty low-detail dark smoke for the page fade. Knees or thighs cut by y1303; bottom233rows only empty smoke. No text, no frame. Match Hellfire Citadel worn black iron and red-green palette.",
+      "generatedFile": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-1cbef181-1985-4af5-8069-5f07c551edd5.png"
+    }
+  ],
+  "corrections": [
+    {
+      "name": "cell_iron",
+      "prompt": "Edit this exact top-down iron ring. Remove ALL green rune glyphs and all green emitted light from the metal panels, replacing them with plain worn black iron. Keep every chain, rivet, spike, circular geometry and empty black centre unchanged. Same image dimensions and pure black background. The moving green runes will be a separate layer.",
+      "path": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-136511e7-7cbb-4580-a3d9-4af7a2e26b42.png"
+    },
+    {
+      "name": "ICON_MauvaisMatricule",
+      "prompt": "Edit this exact icon. Remove the numeral-like vertical carved shapes from the tag face. Make its face plain worn black iron, perfectly blank except for the existing diagonal red-hot slash. Preserve angle, short chain, lighting, colors and painterly style. No text, letters, numerals or glyphs anywhere.",
+      "path": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-98eda983-2b7e-404c-9482-a8771b6d7628.png"
+    },
+    {
+      "name": "ICON_ViolationCouvreFeu",
+      "prompt": "Edit this icon to add a large swinging black-iron curfew bell suspended in the upper-right quadrant, with ember-red rim light. Its silhouette must remain very readable at 32px. Keep the struck running figure and diagonal red bolt as the main subject. The bell hangs directly over the figure; simplify background fortresses behind it. Same hand-painted Hellfire Citadel style, no frame, no text.",
+      "path": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-5e031757-559d-4931-96b6-57e69ef046b3.png"
+    }
+  ],
+  "assembly": {
+    "sources": "source/",
+    "deliverables": "art/",
+    "commands": [
+      "python localTools/wardenVorhan/assembleArt.py",
+      "python localTools/wardenVorhan/inspectArt.py"
+    ],
+    "requirements": [
+      "Pillow",
+      "NumPy"
+    ]
+  }
+}
