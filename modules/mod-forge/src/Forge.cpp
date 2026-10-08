@@ -272,12 +272,14 @@ uint32 EntryAbove(ForgeState const* state, Item const* item, uint32 ranks)
 
 // Whether the Forge takes an item at all: gear, and a real item the generator made ranks for or a Mythic+ variant.
 // Never a legendary: too high a quality for the smith (the legendary system's items roll their own item level). The
-// ranks generated for the stock legendaries stay, so the ones already forged keep theirs.
+// ranks generated for the stock legendaries stay, so the ones already forged keep theirs. Nor a set piece
+// (mod-legendary SetPieces.cpp): its set's row has ranks of its own, statless, that would take its place.
 bool IsForgeable(Item const* item)
 {
     ItemTemplate const* proto = item->GetTemplate();
     if (!proto || (proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR) ||
-        proto->InventoryType == INVTYPE_NON_EQUIP || proto->Quality == ITEM_QUALITY_LEGENDARY)
+        proto->InventoryType == INVTYPE_NON_EQUIP || proto->Quality == ITEM_QUALITY_LEGENDARY ||
+        Mythic::IsSetPieceItem(proto->ItemId))
         return false;
     return Mythic::IsMythicGeneratedItem(proto->ItemId) ||
         sObjectMgr->GetItemTemplate(Mythic::GetForgeItemEntry(Mythic::GetBaseItemEntry(proto->ItemId), 1));

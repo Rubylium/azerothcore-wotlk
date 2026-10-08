@@ -56,6 +56,26 @@ TEST(MythicProgression, ExistingTemplatesAndForgeBlocksRemainUnchanged)
     }
 }
 
+TEST(MythicProgression, SetPieceBlocksFollowEveryOtherBlock)
+{
+    // Right after the last cap block: the client extension's bound and MythicItemTag.lua count on it
+    EXPECT_EQ(Mythic::FirstSetPieceBlock, 140u);
+    for (uint32 profile = 0; profile < Mythic::SetPieceProfiles; ++profile)
+    {
+        uint32 const entry = Mythic::GetSetPieceItemEntry(13672, profile);
+        EXPECT_EQ(entry, (140u + profile) * 65536u + 13672u);
+        EXPECT_TRUE(Mythic::IsSetPieceItem(entry));
+        EXPECT_TRUE(Mythic::IsGeneratedItem(entry));
+        EXPECT_FALSE(Mythic::IsMythicGeneratedItem(entry));
+        EXPECT_EQ(Mythic::GetForgeRank(entry), 0u);
+        EXPECT_EQ(Mythic::GetBaseItemEntry(entry), 13672u);
+    }
+    for (uint32 variant = 0; variant < Mythic::FirstCapVariant + Mythic::CapVariants; ++variant)
+        EXPECT_FALSE(Mythic::IsSetPieceItem(Mythic::GetGeneratedItemEntry(13672, variant)));
+    EXPECT_FALSE(Mythic::IsSetPieceItem(13672));
+    EXPECT_FALSE(Mythic::IsSetPieceItem(Mythic::GetSetPieceItemEntry(13672, Mythic::SetPieceProfiles)));
+}
+
 TEST(MythicProgression, BonusKeysKeepGettingHarderWithoutBetterGear)
 {
     EXPECT_FLOAT_EQ(Mythic::GetExpectedItemLevel(61.0f), 370.0f);

@@ -12,12 +12,32 @@ local GENERATED_ITEM_BASE = 0x10000     -- MythicDungeon.h, GeneratedItemBase
 local MYTHIC_VARIANTS = 128             -- MythicDungeon.h, GeneratedItemVariants
 local FORGE_RANKS = 8                   -- MythicDungeon.h, ForgeRanks: the Forge's ranks come after the variants
 local PINNACLE_VARIANT = 48             -- MythicDungeon.h, MaxPinnacleItemLevel (477): the Hollow Voice's loot
+local SET_PIECE_BLOCK = 140             -- MythicDungeon.h, FirstSetPieceBlock: set pieces after the caps
+local SET_PIECE_PROFILES = 32           -- MythicDungeon.h, SetPieceProfiles
 
 local french = GetLocale() == "frFR"
 local TAG = french and "Mythique+" or "Mythic+"
 local VOICE_TAG = french and "La Voix creuse" or "The Hollow Voice"
 local GOD_TAG = "L'Infini"
 local FORGE_TAG = french and "Forgé %d/%d" or "Forged %d/%d"
+
+-- Set pieces (mod-legendary SetPieces.cpp): a raid item's stats on a set's own row; their source is their set, by
+-- that row (the entry's base)
+local SETS = {}
+local function AddSet(set, rows)
+    for _, row in ipairs(rows) do
+        SETS[row] = french and ("Ensemble · " .. set[1]) or ("Set · " .. set[2])
+    end
+end
+AddSet({ "Harnois du Gardien-chef", "Head Warden's Battlegear" },
+    { 13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717 })
+AddSet({ "Mailles du Porte-chaînes", "Chainbearer's Mail" },
+    { 13672, 13673, 13674, 13675, 13676, 13677, 13678, 13679 })
+AddSet({ "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" },
+    { 13680, 13681, 13682, 13683, 13684, 13685, 13686, 13687 })
+AddSet({ "Atours du Lieur de sceaux", "Sealbinder's Regalia" },
+    { 13688, 13689, 13690, 13691, 13692, 13693, 13694, 13695 })
+AddSet({ "Geôle des Flammes infernales", "Hellfire Gaol" }, { 13696, 13697, 12187 })
 
 -- The source of a generated item, and its colour: the client's own green for a difficulty, the Forge's orange, the
 -- touching boss's own
@@ -28,6 +48,13 @@ local function SourceOf(tooltip, link)
     end
 
     local block = floor(id / GENERATED_ITEM_BASE)
+    if block >= SET_PIECE_BLOCK then
+        local set = block < SET_PIECE_BLOCK + SET_PIECE_PROFILES and SETS[id % GENERATED_ITEM_BASE]
+        if set then
+            return set, 0.64, 0.21, 0.93
+        end
+        return nil
+    end
     local _, touch = layout.FindTouch(tooltip)
     if touch == "infini" then
         return GOD_TAG, 0.5, 0.75, 1

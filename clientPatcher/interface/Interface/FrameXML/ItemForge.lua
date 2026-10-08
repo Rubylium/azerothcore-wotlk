@@ -312,8 +312,12 @@ local function RankOf(itemId, key)
         return 0
     end
     local block = floor(itemId / GENERATED_ITEM_BASE)
-    if block > MYTHIC_VARIANTS then
-        return min(block - MYTHIC_VARIANTS, MAX_RANK)
+    -- The Forge's own blocks say the rank; a Mythic+ variant's (the ladder's and the three caps') only the server's
+    -- list knows; a set piece (the blocks after the caps) is never forged
+    if block > MYTHIC_VARIANTS + MAX_RANK + 3 then
+        return 0
+    elseif block > MYTHIC_VARIANTS and block <= MYTHIC_VARIANTS + MAX_RANK then
+        return block - MYTHIC_VARIANTS
     end
     local item = key and state.items[key]
     return item and item.rank or 0

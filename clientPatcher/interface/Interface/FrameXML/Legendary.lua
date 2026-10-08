@@ -226,50 +226,8 @@ AddBoss(26, 16067, { "L'Infini, Défi", "The Infinite, Challenge" },
         .. "tomber.",
       "The Infinite held the stars in its hand before the first mortal walked. This one, it let fall." })
 
--- Gardien-chef Vorhan's sets (mod-legendary Definitions 101-135): epic pieces rolled as legendaries are, with no power
--- and no lore line; their source line names the set
-local function AddSet(id, item, set)
-    LEGENDARIES[id] = {
-        item = item,
-        set = true,
-        source = french and ("Ensemble · " .. set[1]) or ("Set · " .. set[2]),
-    }
-end
-AddSet(101, 13710, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(102, 13711, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(103, 13712, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(104, 13713, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(105, 13714, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(106, 13715, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(107, 13716, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(108, 13717, { "Harnois du Gardien-chef", "Head Warden's Battlegear" })
-AddSet(109, 13672, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(110, 13673, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(111, 13674, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(112, 13675, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(113, 13676, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(114, 13677, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(115, 13678, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(116, 13679, { "Mailles du Porte-chaînes", "Chainbearer's Mail" })
-AddSet(117, 13680, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(118, 13681, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(119, 13682, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(120, 13683, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(121, 13684, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(122, 13685, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(123, 13686, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(124, 13687, { "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" })
-AddSet(125, 13688, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(126, 13689, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(127, 13690, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(128, 13691, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(129, 13692, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(130, 13693, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(131, 13694, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(132, 13695, { "Atours du Lieur de sceaux", "Sealbinder's Regalia" })
-AddSet(133, 13696, { "Geôle des Flammes infernales", "Hellfire Gaol" })
-AddSet(134, 13697, { "Geôle des Flammes infernales", "Hellfire Gaol" })
-AddSet(135, 12187, { "Geôle des Flammes infernales", "Hellfire Gaol" })
+-- Gardien-chef Vorhan's sets are no legendaries: generated items as the raid's (mod-legendary SetPieces.cpp), their
+-- stats in their own record and their set named by MythicItemTag.lua
 
 local BASE_ITEMS = {}
 for id, legendary in pairs(LEGENDARIES) do
@@ -373,8 +331,6 @@ local function Write(tooltip, copy)
     end
     if legendary.unique then
         tooltip:AddLine(legendary.source, 0.91, 0.2, 0.17)
-    elseif legendary.set then
-        tooltip:AddLine(legendary.source, 0.64, 0.21, 0.93)
     else
         tooltip:AddLine(legendary.source, 1, 0.5, 0)
     end

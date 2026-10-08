@@ -41,12 +41,12 @@ A **Unique** (quality 6, red; the client extension DLL recolours it) is the same
 generator's `UNIQUE` set, a `sourceBoss`, `AddUnique` on the client and an `INV_Unique_` icon: keep it rare (one per
 pinnacle boss).
 
-**Rolled gear** (a `gear` definition, Gardien-chef Vorhan's sets) must never fall behind a raid item of its item
-level. What a copy's rolls do not carry comes from the regular loot's path, never from hand-set rows: its gear bonuses
-are rolled at the copy's item level (`TryRollPersonalLoot` reads `OnItemLevel`), and its row is fitted at startup
-(`FitSetPieces`) with the best sockets of its slot among the raid loot's bases (`IsMythicBaseItem`), their
-durability and the "Heroic" line. A row given durability later leaves old copies at 0: broken on load, so a
-characters update raises them (as `rev_1791455494552042200.sql` did).
+**Gear of a set** (Gardien-chef Vorhan's) is never a rolled copy: a copy's stats live outside its item record, so the
+client's comparison, character sheet and every addon saw a statless item, and its own budget formula fell behind the
+raid's. A set piece is a generated item (`SetPieces.cpp`): a top tier raid item grown to the set's item level by the
+raid loot's own growth (`GrowMythicItem`), in the set's row (name, look, icon, set), one entry per raid item
+(`Mythic::GetSetPieceItemEntry`, numbered for good in `legendary_set_profile`). A new set is its rows, its item level
+and its name in `MythicItemTag.lua`; the client extension already draws the blocks.
 
 ## Icons: the art direction
 

@@ -23,7 +23,7 @@ constexpr uint32 TopItemLevel = 370;
 // and theme. Its rolled value is always a percentage (of what, the mechanic says).
 enum Kind : uint32
 {
-    KIND_NONE = 0,              // no power: a set piece (gear), rolled as a legendary is
+    KIND_NONE = 0,              // no power
     KIND_BRAND = 1,             // direct damage burns the target: X% of it over the spell's duration (its school)
     KIND_OATH,                  // a killing blow leaves 1 health and heals X% of it over 4 sec; then rests
     KIND_GROUND,                // every everyMs in combat, ground where the wearer stands: X% of AP or SP a second
@@ -98,7 +98,6 @@ struct Definition
     uint32 sourceDungeon;           // where it drops: the Dungeon Finder dungeon a Mythic+ key of completes (0: none)
     Tuning tuning;
     uint32 sourceBoss = 0;          // or the boss whose death drops it (its creature entry)
-    bool gear = false;              // a set piece (Vorhan's): no power and a stock epic's stats, no premium
 };
 
 struct Copy
@@ -125,6 +124,17 @@ Item* GiveLegendary(Player* player, uint32 legendary, uint32 itemLevel, std::opt
 
 // Makes an item just created of a legendary's base item a rolled copy (the ground loot's, as it lands in the bags)
 void MakeCopy(Player* player, Item* item, uint32 legendary, uint32 itemLevel);
+
+// The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
+uint32 ArmorType(Player* player);
+
+// The primary stat a player's worn gear favours (ITEM_MOD_STRENGTH, _AGILITY or _INTELLECT, spell power counting as
+// intellect), its legendaries' rolls counted: the one a copy rolls, and a set piece's profile is chosen for
+uint32 FavouredPrimary(Player* player);
 }
+
+// Gardien-chef Vorhan's sets (SetPieces.cpp) are not legendaries: generated items as the raid's are, a raid item's
+// stats grown to item level 485 worn by the set's own row (its name, look and icon), one entry per raid item they are
+// made from (Mythic::GetSetPieceItemEntry). His win gives one of them (GiveWardenVorhanLootItem).
 
 #endif

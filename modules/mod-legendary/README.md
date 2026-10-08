@@ -59,10 +59,26 @@ slot's, and the sockets a stock epic of its slot has, with a stamina socket bonu
 
 Every copy gets the gear bonuses (health, fortune, leech...) a dropped item does (mod-stat-growth
 `TryRollPersonalLoot`), rolled at the copy's own item level (`OnItemLevel`), as a raid item's are at its variant's.
-Gardien-chef Vorhan's set pieces (`gear`) are fitted at startup as raid items (`FitSetPieces`): the sockets of the
-best-socketed item of their slot and armour type that the raid and Mythic+ loot is generated from (mod-stat-growth
-`IsMythicBaseItem`), its durability, and the "Heroic" line; a stamina socket bonus. The world SQL's sockets are only
-the fallback.
+## Gardien-chef Vorhan's sets (`SetPieces.cpp`)
+
+Not legendaries: generated items, the raid's own kind. A piece is a top tier raid item of its slot and armour type
+(mod-stat-growth `IsMythicTopBaseItem`, the bases whose variants go up the whole ladder) grown to item level 485 as
+the raid and Mythic+ loot is (`GrowMythicItem`), in the set's own row: its name, look, icon and set come from the row
+(`buildLegendaryItemSql.py`), its stats, armour, sockets, socket bonus, durability and "Heroic" line from the raid
+item. Everything the client does with an item (tooltip, comparison, character sheet, item level, bags) reads that
+record, as for any raid item; its gear bonuses roll at 485 on the regular path.
+
+- Each raid item a row can be made from is a profile, one entry each: `Mythic::GetSetPieceItemEntry(row, profile)`,
+  blocks 140-171 (the client extension's `GeneratedItems.cpp` draws them; `MythicItemTag.lua` names the set on the
+  tooltip's second line). Profiles are numbered once and kept in `legendary_set_profile` (characters): a raid item
+  added later takes the next free number, an item already dropped never changes.
+- His win (`GiveWardenVorhanLootItem`) draws one of the looter's armour type's eight pieces or a shared one, then the
+  profile that suits them as a Mythic+ reward is chosen (mod-stat-growth `SelectSuitedItem`), of the primary stat
+  their gear favours first; thrown on the floor with his loot.
+- Copies the legendary engine rolled before (`character_legendary` on a row) are turned into the nearest profile at
+  startup (their owner's class, primary stat and secondaries); their gear bonuses stay, kept by the item's guid.
+- `.setpiece list <row>` shows a row's profiles beside the Hollow Voice's 477 item of the same raid item;
+  `.setpiece give [row]` gives one as his win would.
 
 ### Powers
 

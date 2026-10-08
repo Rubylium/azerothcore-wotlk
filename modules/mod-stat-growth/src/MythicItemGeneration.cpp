@@ -68,33 +68,10 @@ int32 Grow(int32 value, float factor)
 
 ItemTemplate MakeVariant(ItemTemplate const& base, uint32 variant)
 {
-    ItemTemplate item = base;
+    ItemTemplate item = GrowMythicItem(base, Mythic::GetGeneratedItemLevel(variant));
     item.ItemId = Mythic::GetGeneratedItemEntry(base.ItemId, variant);
-    item.ItemLevel = Mythic::GetGeneratedItemLevel(variant);
     // Set bonuses count the set's own item entries
     item.ItemSet = 0;
-
-    // The power model's growth (PowerScaling.h): primary stats, stamina, weapon damage and armour linearly with the
-    // item level, ratings slower
-    float const from = static_cast<float>(base.ItemLevel);
-    float const to = static_cast<float>(item.ItemLevel);
-    float const statGrowth = Power::StatGrowth(from, to);
-    float const ratingGrowth = Power::StatGrowth(from, to, true);
-
-    for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
-        item.ItemStat[index].ItemStatValue = Grow(item.ItemStat[index].ItemStatValue,
-            Power::IsRatingStat(item.ItemStat[index].ItemStatType) ? ratingGrowth : statGrowth);
-    for (uint32 index = 0; index < MAX_ITEM_PROTO_DAMAGES; ++index)
-    {
-        item.Damage[index].DamageMin *= statGrowth;
-        item.Damage[index].DamageMax *= statGrowth;
-    }
-
-    item.Armor = static_cast<uint32>(Grow(static_cast<int32>(item.Armor), statGrowth));
-    item.Block = static_cast<uint32>(Grow(static_cast<int32>(item.Block), statGrowth));
-    for (int32* resistance : { &item.HolyRes, &item.FireRes, &item.NatureRes, &item.FrostRes, &item.ShadowRes,
-                               &item.ArcaneRes })
-        *resistance = Grow(*resistance, statGrowth);
     return item;
 }
 
@@ -141,6 +118,40 @@ public:
 bool IsMythicBaseItem(ItemTemplate const& itemTemplate)
 {
     return IsBaseItem(itemTemplate);
+}
+
+bool IsMythicTopBaseItem(ItemTemplate const& itemTemplate)
+{
+    return IsBaseItem(itemTemplate) && IsLegacyBaseItem(itemTemplate) && IsWiderBaseItem(itemTemplate);
+}
+
+ItemTemplate GrowMythicItem(ItemTemplate const& base, uint32 itemLevel)
+{
+    ItemTemplate item = base;
+    item.ItemLevel = itemLevel;
+
+    // The power model's growth (PowerScaling.h): primary stats, stamina, weapon damage and armour linearly with the
+    // item level, ratings slower
+    float const from = static_cast<float>(base.ItemLevel);
+    float const to = static_cast<float>(item.ItemLevel);
+    float const statGrowth = Power::StatGrowth(from, to);
+    float const ratingGrowth = Power::StatGrowth(from, to, true);
+
+    for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
+        item.ItemStat[index].ItemStatValue = Grow(item.ItemStat[index].ItemStatValue,
+            Power::IsRatingStat(item.ItemStat[index].ItemStatType) ? ratingGrowth : statGrowth);
+    for (uint32 index = 0; index < MAX_ITEM_PROTO_DAMAGES; ++index)
+    {
+        item.Damage[index].DamageMin *= statGrowth;
+        item.Damage[index].DamageMax *= statGrowth;
+    }
+
+    item.Armor = static_cast<uint32>(Grow(static_cast<int32>(item.Armor), statGrowth));
+    item.Block = static_cast<uint32>(Grow(static_cast<int32>(item.Block), statGrowth));
+    for (int32* resistance : { &item.HolyRes, &item.FireRes, &item.NatureRes, &item.FrostRes, &item.ShadowRes,
+                               &item.ArcaneRes })
+        *resistance = Grow(*resistance, statGrowth);
+    return item;
 }
 
 void AddMythicItemGenerationScripts()

@@ -195,7 +195,7 @@ inline bool IsMythicGeneratedItem(uint32 entry)
 // higher, up to ForgeRanks times. Each rank of a real item is generated at startup too, right after the Mythic+
 // variants: entry = GeneratedItemBase * (GeneratedItemVariants + rank) + base entry. Generated loot instead selects
 // its next template by item level, respecting the source's ceiling. The client extension draws
-// GeneratedItemBase * (GeneratedItemVariants + ForgeRanks + CapVariants + 1) - 1 entries; it must agree.
+// GeneratedItemBase * (FirstSetPieceBlock + SetPieceProfiles) - 1 entries (set pieces below); it must agree.
 constexpr uint32 ForgeItemLevelPerRank = ItemLevelPerKeyLevel;
 
 inline uint32 GetForgeItemEntry(uint32 baseEntry, uint32 rank)
@@ -215,6 +215,25 @@ inline uint32 GetForgeRank(uint32 entry)
 inline uint32 GetBaseItemEntry(uint32 entry)
 {
     return entry % GeneratedItemBase;
+}
+
+// Set pieces (mod-legendary SetPieces.cpp, Gardien-chef Vorhan's sets): a raid item's stats grown to the set's item
+// level as a Mythic+ variant's are, worn by the set's own row (its name, look and icon: the client draws a generated
+// entry with its base row). One block a profile - the raid item it is made from - after the caps: entry =
+// GeneratedItemBase * (FirstSetPieceBlock + profile) + the set's row. The client extension draws these blocks too
+// (awesome_wotlk GeneratedItems.cpp), and its interface names the set from them (MythicItemTag.lua): all must agree.
+constexpr uint32 FirstSetPieceBlock = FirstCapVariant + CapVariants + 1;
+constexpr uint32 SetPieceProfiles = 32;
+
+inline uint32 GetSetPieceItemEntry(uint32 baseEntry, uint32 profile)
+{
+    return GeneratedItemBase * (FirstSetPieceBlock + profile) + baseEntry;
+}
+
+inline bool IsSetPieceItem(uint32 entry)
+{
+    uint32 const block = entry / GeneratedItemBase;
+    return block >= FirstSetPieceBlock && block < FirstSetPieceBlock + SetPieceProfiles;
 }
 }
 

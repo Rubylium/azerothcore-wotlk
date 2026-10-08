@@ -20,7 +20,6 @@
 #include "Log.h"
 #include "Map.h"
 #include "MythicDungeon.h"
-#include "MythicItemGeneration.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -44,12 +43,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <map>
 #include <mutex>
 #include <set>
 #include <shared_mutex>
 #include <string_view>
-#include <tuple>
 #include <unordered_map>
 
 // mod-playerbots (RaidFinder.cpp, ChallengeBoard.cpp), built into the same modules library: a Défi's tier, and the
@@ -135,14 +132,12 @@ constexpr uint32 EchoMinLeftMs = 1500;
 constexpr uint32 EchoRestMs = 1000;
 
 uint32 const Floor = Mythic::GetItemLevel(2);
-// Gardien-chef Vorhan's sets: his gear's item level (mod-playerbots ChallengeBoard.cpp)
-constexpr uint32 VorhanItemLevel = 485;
 
 // Every legendary: its base item (Item.dbc rows with no template of their own, given one in the module's world SQL and
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 61> const Definitions = { {
+std::array<Definition, 26> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -243,163 +238,7 @@ std::array<Definition, 61> const Definitions = { {
     { 26, 16067, KIND_SUPERNOVA, 15.0f, 20.0f, 15.0f, 20.0f, Mythic::MaxLootItemLevel, NeckBudget, 0,
       { .spell = 97920, .spell2 = 97921, .spell3 = 97922, .everyMs = 20000, .count = 5, .radius = 8.0f },
       InfiniteGodBoss },
-
-    // --- Gardien-chef Vorhan's sets (WardenVorhan.cpp): epic pieces with no power, each copy rolled as a legendary is
-    // (its item level, the looter's primary, two secondaries), a stock epic's stats (no premium). One set an armour
-    // type - the Head Warden's Battlegear, the Chainbearer's Mail, the Escape-Hunter's Leathers, the Sealbinder's
-    // Regalia - and three shared pieces. Given by GiveWardenVorhanLootItem, never dropped by the luck rules.
-    { 101, 13710, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Head Warden's Helm
-    { 102, 13711, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Head Warden's Pauldrons
-    { 103, 13712, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Head Warden's Breastplate
-    { 104, 13713, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Head Warden's Gauntlets
-    { 105, 13714, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Head Warden's Legplates
-    { 106, 13715, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Head Warden's Bracers
-    { 107, 13716, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Head Warden's Girdle
-    { 108, 13717, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Head Warden's Sabatons
-    { 109, 13672, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Chainbearer's Coif
-    { 110, 13673, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Chainbearer's Spaulders
-    { 111, 13674, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Chainbearer's Hauberk
-    { 112, 13675, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Chainbearer's Grips
-    { 113, 13676, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Chainbearer's Legguards
-    { 114, 13677, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Chainbearer's Wristguards
-    { 115, 13678, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Chainbearer's Belt
-    { 116, 13679, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Chainbearer's Boots
-    { 117, 13680, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Escape-Hunter's Mask
-    { 118, 13681, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Escape-Hunter's Mantle
-    { 119, 13682, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Escape-Hunter's Tunic
-    { 120, 13683, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Escape-Hunter's Gloves
-    { 121, 13684, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Escape-Hunter's Leggings
-    { 122, 13685, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Escape-Hunter's Bracers
-    { 123, 13686, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Escape-Hunter's Belt
-    { 124, 13687, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Escape-Hunter's Boots
-    { 125, 13688, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, HeadBudget, 0, {}, 0, true },   // Sealbinder's Hood
-    { 126, 13689, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ShoulderBudget, 0, {}, 0, true },   // Sealbinder's Amice
-    { 127, 13690, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, ChestBudget, 0, {}, 0, true },   // Sealbinder's Robe
-    { 128, 13691, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, GlovesBudget, 0, {}, 0, true },   // Sealbinder's Gloves
-    { 129, 13692, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, LegsBudget, 0, {}, 0, true },   // Sealbinder's Leggings
-    { 130, 13693, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WristBudget, 0, {}, 0, true },   // Sealbinder's Cuffs
-    { 131, 13694, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, WaistBudget, 0, {}, 0, true },   // Sealbinder's Cord
-    { 132, 13695, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, FeetBudget, 0, {}, 0, true },   // Sealbinder's Sandals
-    { 133, 13696, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, NeckBudget, 0, {}, 0, true },   // Cell Key
-    { 134, 13697, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, RingBudget, 0, {}, 0, true },   // Inmate Ring
-    { 135, 12187, KIND_NONE, 0.0f, 0.0f, 0.0f, 0.0f, VorhanItemLevel, CloakBudget, 0, {}, 0, true },   // Jailer's Cloak
 } };
-
-// Vorhan's pieces by the looter's armour type (ArmorType: cloth, leather, mail, plate), head to feet, and the three
-// shared ones (neck, ring, cloak)
-constexpr std::array<std::array<uint32, 8>, 4> VorhanSets = { {
-    { 125, 126, 127, 128, 129, 130, 131, 132 },   // cloth
-    { 117, 118, 119, 120, 121, 122, 123, 124 },   // leather
-    { 109, 110, 111, 112, 113, 114, 115, 116 },   // mail
-    { 101, 102, 103, 104, 105, 106, 107, 108 },   // plate
-} };
-constexpr std::array<uint32, 3> VorhanShared = { 133, 134, 135 };
-
-// --- A set piece's row, fitted as a raid item's ----------------------------------------------------------------------
-// A set piece is an epic as the raid and Mythic+ loot is (mod-stat-growth MythicItemGeneration: base items grown to
-// every item level, their sockets, durability and look kept), so its row gets from that loot what a copy's rolls
-// cannot carry: the sockets of the slot's best-socketed item - never fewer than a raid item of its slot drops with -,
-// its durability, and the green "Heroic" line of the top raid tier. Its own world SQL (buildLegendaryItemSql.py) gives
-// it none of these: a row with no durability and fewer sockets read as worse than a raid item of a lower item level.
-// The socket bonus stays stamina (every wearer's), as large as the sockets are many.
-constexpr std::array<uint32, MAX_ITEM_PROTO_SOCKETS> StaminaSocketBonus = { 2868, 3307, 3766 };  // +6, +9, +12
-
-uint32 SocketCount(ItemTemplate const& itemTemplate)
-{
-    uint32 count = 0;
-    for (_Socket const& socket : itemTemplate.Socket)
-        if (socket.Color)
-            ++count;
-    return count;
-}
-
-bool HasStats(ItemTemplate const& itemTemplate)
-{
-    for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
-        if (itemTemplate.ItemStat[index].ItemStatType && itemTemplate.ItemStat[index].ItemStatValue)
-            return true;
-    return false;
-}
-
-// What a raid item is compared with: its class, its slot (a robe is a chest) and, in a slot made of an armour type,
-// that type (cloth, leather, mail or plate)
-std::tuple<uint32, uint32, uint32> PeerKey(ItemTemplate const& itemTemplate)
-{
-    uint32 const slot = itemTemplate.InventoryType == INVTYPE_ROBE ? uint32(INVTYPE_CHEST) : itemTemplate.InventoryType;
-    bool armorType = false;
-    switch (itemTemplate.InventoryType)
-    {
-        case INVTYPE_HEAD:
-        case INVTYPE_SHOULDERS:
-        case INVTYPE_CHEST:
-        case INVTYPE_ROBE:
-        case INVTYPE_WAIST:
-        case INVTYPE_LEGS:
-        case INVTYPE_FEET:
-        case INVTYPE_WRISTS:
-        case INVTYPE_HANDS:
-            armorType = itemTemplate.Class == ITEM_CLASS_ARMOR;
-            break;
-        default:
-            break;
-    }
-    return { itemTemplate.Class, slot, armorType ? itemTemplate.SubClass : 0u };
-}
-
-void FitSetPieces()
-{
-    // The raid loot's bases, one pass over the store (its generated variants are most of it): per slot, the one
-    // with the most sockets, the highest item level breaking a tie, then the lowest entry (the same every start)
-    std::map<std::tuple<uint32, uint32, uint32>, ItemTemplate const*> peers;
-    for (auto const& [entry, candidate] : *sObjectMgr->GetItemTemplateStore())
-    {
-        if (!IsMythicBaseItem(candidate) || !HasStats(candidate) || GetDefinitionByItem(entry))
-            continue;
-        ItemTemplate const*& peer = peers[PeerKey(candidate)];
-        if (!peer || std::make_tuple(SocketCount(candidate), candidate.ItemLevel, peer->ItemId) >
-                     std::make_tuple(SocketCount(*peer), peer->ItemLevel, candidate.ItemId))
-            peer = &candidate;
-    }
-
-    uint32 fitted = 0;
-    for (Definition const& definition : Definitions)
-    {
-        ItemTemplate const* base = definition.gear ? sObjectMgr->GetItemTemplate(definition.baseItem) : nullptr;
-        if (!base)
-            continue;
-        auto const found = peers.find(PeerKey(*base));
-        if (found == peers.end())
-        {
-            LOG_WARN("module", "Legendary: no raid item to fit set piece {} ({}) on", definition.id,
-                definition.baseItem);
-            continue;
-        }
-        ItemTemplate const& peer = *found->second;
-        ItemTemplate row = *base;
-        uint32 const sockets = SocketCount(peer);
-        for (uint32 index = 0; index < MAX_ITEM_PROTO_SOCKETS; ++index)
-            row.Socket[index] = { index < sockets ? peer.Socket[index].Color : 0u, 0u };
-        row.socketBonus = sockets ? StaminaSocketBonus[sockets - 1] : 0;
-        row.MaxDurability = peer.MaxDurability;
-        row.Flags = ItemFlags(row.Flags | ITEM_FLAG_HEROIC_TOOLTIP);
-        // In place: the same entry, its names its own
-        sObjectMgr->AddGeneratedItemTemplate(row, row.ItemId);
-        ++fitted;
-    }
-    LOG_INFO("server.loading", ">> Fitted {} legendary set pieces as raid items (sockets, durability)", fitted);
-}
-
-// The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
-uint32 ArmorType(Player* player)
-{
-    if (player->HasSkill(SKILL_PLATE_MAIL))
-        return 3;
-    if (player->HasSkill(SKILL_MAIL))
-        return 2;
-    if (player->HasSkill(SKILL_LEATHER))
-        return 1;
-    return 0;
-}
 
 // A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
 // every key of that source completed without one, never above the cap (bad luck protection, reset by a drop). Kept
@@ -494,35 +333,6 @@ void ForEachItem(Player* player, Visit visit)
     }
 }
 
-// The primary stat a player's gear favours: the one the copy rolls
-uint32 FavouredPrimary(Player* player)
-{
-    std::array<int64, 3> totals = {};       // strength, agility, intellect
-    ForEachItem(player, [&totals](Item* item)
-    {
-        if (!item->IsEquipped())
-            return;
-        ItemTemplate const* proto = item->GetTemplate();
-        auto add = [&totals](uint32 type, int32 value)
-        {
-            if (type == ITEM_MOD_STRENGTH)
-                totals[0] += value;
-            else if (type == ITEM_MOD_AGILITY)
-                totals[1] += value;
-            else if (type == ITEM_MOD_INTELLECT || type == ITEM_MOD_SPELL_POWER)
-                totals[2] += value;
-        };
-        for (uint32 index = 0; index < proto->StatsCount; ++index)
-            add(proto->ItemStat[index].ItemStatType, proto->ItemStat[index].ItemStatValue);
-        if (std::optional<Copy> copy = GetCopy(item))
-            for (auto const& [type, value] : copy->stats)
-                add(type, value);
-    });
-    if (totals[2] > totals[0] && totals[2] > totals[1])
-        return ITEM_MOD_INTELLECT;
-    return totals[1] > totals[0] ? ITEM_MOD_AGILITY : ITEM_MOD_STRENGTH;
-}
-
 int32 Spread(int32 value, float spread)
 {
     return std::max(1, int32(std::lround(float(value) * frand(1.0f - spread, 1.0f + spread))));
@@ -540,9 +350,8 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
     float const level = float(itemLevel);
     // A legendary's stats are a stock epic's at its item level, a little more (LegendaryPremium); its armour is the
     // slot's
-    float const premium = definition.gear ? 1.0f : LegendaryPremium;
-    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level) * premium;
-    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true) * premium;
+    float const statGrowth = ::Power::StatGrowth(budget.itemLevel, level) * LegendaryPremium;
+    float const ratingGrowth = ::Power::StatGrowth(budget.itemLevel, level, true) * LegendaryPremium;
     float const armorGrowth = ::Power::StatGrowth(budget.itemLevel, level);
     int32 const armor = budget.armor[ArmorType(player)];
     copy.armor = armor ? Spread(int32(std::lround(float(armor) * armorGrowth)), 0.0f) : 0;
@@ -1356,7 +1165,6 @@ public:
     // any script of the player could read them. A copy whose item is gone is dropped.
     void OnStartup() override
     {
-        FitSetPieces();
         uint32 const startTime = getMSTime();
         CharacterDatabase.DirectExecute("DELETE l FROM character_legendary l LEFT JOIN item_instance i "
             "ON i.guid = l.item_guid WHERE i.guid IS NULL");
@@ -1370,6 +1178,9 @@ public:
                 Field* fields = result->Fetch();
                 Copy copy;
                 copy.legendary = fields[1].Get<uint32>();
+                // A legendary no longer defined (Vorhan's set pieces, generated items now: SetPieces.cpp)
+                if (!GetDefinition(copy.legendary))
+                    continue;
                 copy.itemLevel = fields[2].Get<uint32>();
                 copy.power = fields[3].Get<float>();
                 copy.armor = fields[4].Get<int32>();
@@ -1592,7 +1403,8 @@ std::optional<Copy> GetCopy(Item const* item)
         return std::nullopt;
     std::optional<Copy> copy = FindCopy(item->GetGUID().GetCounter());
     // A reused guid of another legendary's base item: not this copy
-    if (copy && GetDefinition(copy->legendary)->baseItem != item->GetEntry())
+    Definition const* definition = copy ? GetDefinition(copy->legendary) : nullptr;
+    if (copy && (!definition || definition->baseItem != item->GetEntry()))
         return std::nullopt;
     return copy;
 }
@@ -1650,31 +1462,48 @@ void MakeCopy(Player* player, Item* item, uint32 legendary, uint32 itemLevel)
     Keep(player, item, Roll(*definition, player, itemLevel, std::nullopt));
     TryRollPersonalLoot(player, item);
 }
+
+uint32 ArmorType(Player* player)
+{
+    if (player->HasSkill(SKILL_PLATE_MAIL))
+        return 3;
+    if (player->HasSkill(SKILL_MAIL))
+        return 2;
+    if (player->HasSkill(SKILL_LEATHER))
+        return 1;
+    return 0;
 }
 
-// A piece of Gardien-chef Vorhan's sets for a player (mod-playerbots ChallengeBoard.cpp: his win): one of their armour
-// type's eight or a shared piece, at random, rolled for them; thrown on the floor with his loot (GroundLoot) as the
-// legendaries are, in the bags when it cannot be
-void GiveWardenVorhanLootItem(Player* player, uint32 itemLevel)
+uint32 FavouredPrimary(Player* player)
 {
-    using namespace Legendary;
-    if (!player)
-        return;
-    uint32 const pick = urand(0, 10);
-    uint32 const id = pick < 8 ? VorhanSets[ArmorType(player)][pick] : VorhanShared[pick - 8];
-    Definition const* definition = GetDefinition(id);
-    ItemTemplate const* base = definition ? sObjectMgr->GetItemTemplate(definition->baseItem) : nullptr;
-    if (!base)
-        return;
-    ObjectGuid const owner = player->GetGUID();
-    bool const thrown = GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
+    std::array<int64, 3> totals = {};       // strength, agility, intellect
+    ForEachItem(player, [&totals](Item* item)
     {
-        if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
-            MakeCopy(looter, item, id, itemLevel);
+        if (!item->IsEquipped())
+            return;
+        ItemTemplate const* proto = item->GetTemplate();
+        auto add = [&totals](uint32 type, int32 value)
+        {
+            if (type == ITEM_MOD_STRENGTH)
+                totals[0] += value;
+            else if (type == ITEM_MOD_AGILITY)
+                totals[1] += value;
+            else if (type == ITEM_MOD_INTELLECT || type == ITEM_MOD_SPELL_POWER)
+                totals[2] += value;
+        };
+        for (uint32 index = 0; index < proto->StatsCount; ++index)
+            add(proto->ItemStat[index].ItemStatType, proto->ItemStat[index].ItemStatValue);
+        if (std::optional<Copy> copy = GetCopy(item))
+            for (auto const& [type, value] : copy->stats)
+                add(type, value);
     });
-    if (!thrown)
-        GiveLegendary(player, id, itemLevel);
+    if (totals[2] > totals[0] && totals[2] > totals[1])
+        return ITEM_MOD_INTELLECT;
+    return totals[1] > totals[0] ? ITEM_MOD_AGILITY : ITEM_MOD_STRENGTH;
 }
+}
+
+void AddLegendarySetPieceScripts();
 
 void AddLegendaryScripts()
 {
@@ -1685,4 +1514,5 @@ void AddLegendaryScripts()
     new Legendary::LegendaryDropScript();
     new Legendary::LegendaryBossDropScript();
     new Legendary::LegendaryCommandScript();
+    AddLegendarySetPieceScripts();
 }

@@ -88,8 +88,9 @@ bool IsEquipmentInventoryType(uint32 inventoryType)
     }
 }
 
-// Worn, an item that gives nothing: no stat, armour, block, weapon damage or spell. The rows another system fills per
-// copy (mod-legendary's set pieces: epics of item level 227 whose stats are each copy's own) - as loot, an empty item.
+// Worn, an item that gives nothing: no stat, armour, block, weapon damage or spell. The rows another system dresses
+// (mod-legendary's base items and its sets' rows: epics of item level 227 with no stats of their own) - as loot, an
+// empty item.
 bool GivesNothing(ItemTemplate const& itemTemplate)
 {
     if (itemTemplate.Armor || itemTemplate.Block)
@@ -901,6 +902,38 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint3
     std::vector<SlotGroup> groups;
     std::vector<size_t> order;
     return SelectMythicLoot(player, itemLevel, givenItemLevel, groups, order, equipmentSlot).itemTemplate;
+}
+
+// One of the items given (the profiles of one set piece, mod-legendary SetPieces.cpp: each a raid item of one slot
+// grown to the set's item level) for the player, judged as a Mythic+ reward's pick is: the ones that suit them - their
+// class, proficiency, stats and way of fighting - and among them any of about the best stat score (PickBestCandidate).
+// When none suits them, the best scored one if `anyway`, else nullptr.
+ItemTemplate const* SelectSuitedItem(Player* player, std::vector<ItemTemplate const*> const& items, bool anyway)
+{
+    if (!player || items.empty())
+        return nullptr;
+
+    std::vector<SlotCandidate> suited;
+    std::vector<SlotCandidate> all;
+    for (ItemTemplate const* item : items)
+    {
+        if (!item)
+            continue;
+        SlotCandidate const candidate = { item, item->ItemLevel, GetClassStatScore(*item, player), 0, 1 };
+        all.push_back(candidate);
+        // Of one armour type already, the caller's choice (a set of the looter's own)
+        if (player->BotCanUseItem(item) == EQUIP_ERR_OK && HasEquipmentProficiency(*item, player) &&
+            HasClassAppropriateStats(*item, player) && FitsWeaponStyle(player, *item))
+            suited.push_back(candidate);
+    }
+    std::vector<SlotCandidate> const& from = suited.empty() ? all : suited;
+    if (from.empty() || (suited.empty() && !anyway))
+        return nullptr;
+
+    std::vector<SlotCandidate const*> pool;
+    for (SlotCandidate const& candidate : from)
+        pool.push_back(&candidate);
+    return PickBestCandidate(pool)->itemTemplate;
 }
 
 // The Infinite Dungeon's gear while levelling (InfiniteDungeonSystem.cpp): an item of the quality asked for, made for

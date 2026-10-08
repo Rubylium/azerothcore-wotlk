@@ -116,9 +116,11 @@ bool IsShown(Player* player)
     return !state || !state->hidden;
 }
 
+// A set piece (mod-legendary SetPieces.cpp) keeps its set's own look
 bool IsGenerated(Item const* item)
 {
-    return item && Mythic::IsGeneratedItem(item->GetEntry()) && item->GetTemplate();
+    return item && Mythic::IsGeneratedItem(item->GetEntry()) && !Mythic::IsSetPieceItem(item->GetEntry()) &&
+        item->GetTemplate();
 }
 
 void ShowGlow(Player* player, uint8 slot, Item const* item)
