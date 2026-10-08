@@ -15,10 +15,35 @@ heard before a release, and some of its paths never played (2026-10-05): don't a
 - The place: world sounds feed a reverb (Freeverb) whose size and level follow where the player is - dry outdoors, a
   room indoors (`IsIndoors()`), long and dark under water (the breath timer) with every world sound muffled.
 - The game's settings: master and effects volume, sound / effects switched off, "sound in background" (window focus).
-- Kinds: `ui` (no position, no room), `world` (positioned, room, walls), `loop` (the same, repeating).
+- Kinds: `ui` (no position, no room), `world` (positioned, room, walls), `loop` (the same, repeating), `music`
+  (below).
 
 Not yet: the place's acoustics come from three presets, not from the game's own per-area reverb data
 (`SoundProviderPreferences` through AreaTable / WMOAreaTable: needs the client's current area in the DLL).
+
+## Music
+
+- One at a time, stereo, no position nor room, looping without end; a new one cross-fades over the old (1 s), the
+  same one already playing goes on. Lua: `EvolutionsAudio_PlayMusic(key [, fadeInMs])`,
+  `EvolutionsAudio_StopMusic([fadeOutMs])` (2 s), `EvolutionsAudio_MusicPlaying()` (current key, still heard).
+  Server: `EvolutionsAudio::PlayMusic(player, key [, fadeInMs])`, `StopMusic(player [, fadeOutMs])` (`M` / `N`
+  whispers). `/eva music <key>`, `/eva stopmusic`.
+- Volume: master x the game's music volume, its music switch, all-sound and background settings, every frame.
+- The game's own music is silent while ours is heard: the glue holds it - the player's `Sound_MusicVolume` kept in
+  the DLL's saved CVar `evaGameMusicVolume`, the game's set to 0, ours played at the held value - and gives it back
+  after ours has faded out, on leaving the world, or at the first frame after a crash (both CVars are written to
+  Config.wtf together). Moving the music slider meanwhile sets the held value; the game's snaps back to 0.
+- Files: `.flac` in the bank (sample-exact; Vorbis or MP3 would pad or drift the seam), read into memory at first
+  play and decoded as it plays (a decoded 3 min track would be 60 MB in a 32-bit client). Sources: OGG.
+- Loudness: one gain, no limiter (dynamics and the seam untouched), towards -16 dBFS RMS - the game's zone and raid
+  music sits at -11 to -19, most near -16 - never past a -1 dBFS peak.
+- Loops: the file holds the intro then exactly one loop period; `"loopStart": <frame>` in the manifest is where the
+  end goes back to (0: the whole file loops). Composer files often repeat their loop: find the period by
+  autocorrelation (coarse) then cross-correlation at full rate (sample-exact, the same lag all through the file), the
+  intro's end where a window and the one a period later stop matching, cut `[0, loopStart + period)` with the last
+  200 ms cross-faded into what precedes `loopStart` (the seam then is a natural sample step), no fade. Verify: seam
+  step against the steps around it, a 3-loop render correlated with the original at the seam. First user: Gardien-chef
+  Vorhan (`wardenVorhan.json`: `Music.PrisonIdle` on the board page, `Music.WardenVorhan` the fight).
 
 ## Ambience (zones that feel alive)
 
@@ -59,13 +84,14 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
    `asc:<archive path>` (the Ascension client's: retail sounds; some of its rows name files it does not ship - it
    stops on them) or any path on disk, then `python localTools/audio/buildAudio.py --vendor`: it copies each one into
    the sources folder and rewrites the manifest. A plain build refuses a file kept elsewhere. Commit the sources.
-   World and loop sounds are written mono (one point in the world).
+   World and loop sounds are written mono (one point in the world); ui and music keep their channels.
    `loudness` (dBFS RMS) defaults to the kind's (ui and world -12, loop -16: the game's own cues sit at -12 to -25);
    a limiter holds the peaks under -1 dBFS. Sounds from another game are often mixed far quieter: leave the default.
 2. `python localTools/audio/buildAudio.py`: writes `clientPatcher/addons/EvolutionsAudio` (`Sounds/`, `sounds.txt`,
    the `.toc`), shipped by `Build-FriendPatch.ps1` as `Interface\AddOns\EvolutionsAudio`. Commit it.
 3. Server (mod-stat-growth `EvolutionsAudio.h`): `EvolutionsAudio::Play(player, key)`, `PlayOn(player, key, object)`,
-   `PlayAt(player, key, position)`, `StopOn(player, object)` - to one player (an addon whisper, prefix `EVA`).
+   `PlayAt(player, key, position)`, `StopOn(player, object)`, `PlayMusic(player, key)`, `StopMusic(player)` - to one
+   player (an addon whisper, prefix `EVA`).
    An object must already be in the player's sight (a creature summoned this tick may not be: play on something
    older, as the ground loot's loops play on the bag rather than its new beam).
 4. Client release (`deployWithProgress.ps1 -steps client,publish`, with `dll` when the engine changed).
@@ -79,11 +105,12 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
 
 ## Pieces
 
-- DLL: `EvolutionsAudio.cpp` (engine, bank, the ambience's emitters; Lua API `EvolutionsAudio_Play`, `StopOn`,
-  `SetEnvironment`, `SetZone`, `SetDaytime`, `Reload`, `Keys`), `MiniAudio.cpp` (miniaudio's implementation).
+- DLL: `EvolutionsAudio.cpp` (engine, bank, the ambience's emitters, the music; Lua API `EvolutionsAudio_Play`,
+  `StopOn`, `SetEnvironment`, `SetZone`, `SetDaytime`, `Reload`, `Keys`, `PlayMusic`, `StopMusic`, `MusicPlaying`),
+  `MiniAudio.cpp` (miniaudio's implementation).
   Build: `localTools/buildClientDll.ps1` (or the deploy tool's `dll`).
 - Client glue: `clientPatcher/interface/Interface/FrameXML/EvolutionsAudio.lua` (the server's `EVA` whispers, the
-  place, the zone and the time of day every 0.25 s, `/eva`).
+  place, the zone and the time of day every 0.25 s, the game's music held every frame, `/eva`).
 - Bank builder: `localTools/audio/buildAudio.py` (`--vendor`; `clientFiles.js` reads the game client's
   archives). Sources: `modules/*/client-assets/audio/sources/`.
 - Server helper: `modules/mod-stat-growth/src/EvolutionsAudio.*`.

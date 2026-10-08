@@ -45,6 +45,7 @@ data/sql/*    linguist-documentation
 *.ogg    binary
 *.mp3    binary
 *.wav    binary
+*.flac   binary
 *.node   binary
 *.dll    binary
 *.exe    binary

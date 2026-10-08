@@ -5,8 +5,9 @@ clientPatcher/addons/EvolutionsAudio, which Build-FriendPatch.ps1 ships as Inter
     python buildAudio.py --vendor    first brings every sound a manifest takes from elsewhere into the repository
 
 Every modules/*/client-assets/audio/*.json is read:
-    { "sounds": { "<key>": { "kind": "ui" | "world" | "loop", "files": [ "<file>", ... ],
-                              "volume": 1.0, "minDistance": 5, "maxDistance": 40, "loudness": <dBFS RMS> } },
+    { "sounds": { "<key>": { "kind": "ui" | "world" | "loop" | "music", "files": [ "<file>", ... ],
+                              "volume": 1.0, "minDistance": 5, "maxDistance": 40, "loudness": <dBFS RMS>,
+                              "loopStart": <music: the frame its loop goes back to> } },
       "emitters": [ { "zones": [ "<zone name, each locale's>", ... ], "sound": "<key>", "points": [ [x, y, z], ... ],
                       "interval": [min, max], "speed": 0, "time": "any" | "day" | "night", "volume": 1.0,
                       "place": "any" | "indoors" | "outdoors" } ] }
@@ -23,17 +24,23 @@ Every modules/*/client-assets/audio/*.json is read:
   Emitters follow the game's ambience volume and switch, the other sounds its sound effects'.
 - kind: ui is heard as an interface sound (no position, no room); world from where the server says (a point, or an
   object it follows), with the place's echo and muffled behind walls; loop the same, repeating until stopped or its
-  object gone.
+  object gone. music: not positioned, one at a time (EvolutionsAudio_PlayMusic, the server's PlayMusic), looping
+  without end: at its end it goes back to loopStart (a frame of the file, an int or one per file; 0, the default: the
+  whole file loops) - an intro before it is heard once. A music file holds the intro and exactly one loop period, cut
+  sample-exact so its end flows into the loop start (no fade: the engine fades when it stops).
 - minDistance / maxDistance (yards, world and loop): full volume within the first, fading to nothing at the second.
-- world and loop sounds are written mono (one point in the world); ui sounds keep their channels.
+- world and loop sounds are written mono (one point in the world); ui and music sounds keep their channels.
 - loudness: each file brought to that RMS level, its peaks held under -1 dBFS by a limiter. By default the kind's:
   LOUDNESS below, set against the game's own sounds (its interface cues at -12 to -25 dBFS RMS, LevelUp -12), so a
   new sound starts as loud as the rest - sounds from another game come mixed for its engine, often far quieter.
+  A music is not limited: one gain for the whole file, towards the game's own music (its zone and raid tracks sit at
+  -11 to -19 dBFS RMS, most near -16), never past a -1 dBFS peak - its dynamics, and its seam, untouched.
 - volume: what the engine plays it at on top (1 by default); tune it live in game - edit sounds.txt in the client's
   copy, /eva reload - then carry the value back here.
 
-A sound plays one of its files at random. Written: Sounds/<key>_<n>.wav, sounds.txt (the engine's bank, one sound a
-line: key, kind, volume, min and max distance, files) and the addon's .toc. Each file's level before and after is
+A sound plays one of its files at random. Written: Sounds/<key>_<n>.wav (a music's .flac: minutes long, decoded as it
+plays, sample-exact), sounds.txt (the engine's bank, one sound a line: key, kind, volume, min and max distance, files,
+a music's loop starts) and the addon's .toc. Each file's level before and after is
 printed; the folder is rebuilt whole.
 """
 import glob
@@ -52,9 +59,9 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 CLIENT_FILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'clientFiles.js')
 ASCENSION_FILES = os.path.join(REPO, 'localTools', 'ascensionImport', 'ascensionArchives.js')
 OUTPUT = os.path.join(REPO, 'clientPatcher', 'addons', 'EvolutionsAudio')
-KINDS = ('ui', 'world', 'loop')
-LOUDNESS = {'ui': -12.0, 'world': -12.0, 'loop': -16.0}
-DISTANCES = {'ui': (0.0, 0.0), 'world': (12.0, 60.0), 'loop': (3.0, 25.0)}
+KINDS = ('ui', 'world', 'loop', 'music')
+LOUDNESS = {'ui': -12.0, 'world': -12.0, 'loop': -16.0, 'music': -16.0}
+DISTANCES = {'ui': (0.0, 0.0), 'world': (12.0, 60.0), 'loop': (3.0, 25.0), 'music': (0.0, 0.0)}
 CEILING = 10 ** (-1.0 / 20)
 LOOKAHEAD = 0.003
 RELEASE = 0.060
@@ -84,6 +91,20 @@ def normalize(samples, rate, level):
         gain = uniform_filter1d(minimum_filter1d(gain, size=release), size=release)
         samples = samples * gain[:, None]
     return numpy.clip(samples, -CEILING, CEILING)
+
+
+def level_music(samples, level):
+    """one gain for the whole file towards that RMS level, never past the ceiling: no limiter, so the dynamics are
+    kept and the loop's end still flows into its start"""
+    gain = 10 ** ((level - db(rms(samples))) / 20)
+    return samples * min(gain, CEILING / max(float(numpy.max(numpy.abs(samples))), 1e-9))
+
+
+def write_blocks(path, samples, rate, **options):
+    """written a block at a time: libsndfile's encoders overflow the stack on a write of minutes"""
+    with soundfile.SoundFile(path, 'w', rate, samples.shape[1], **options) as output:
+        for start in range(0, len(samples), 65536):
+            output.write(samples[start:start + 65536])
 
 
 def extract(script, paths, directory):
@@ -195,7 +216,7 @@ def main():
             raise SystemExit(f'An emitter plays {emitter["sound"]}, which no manifest has ({emitter["manifest"]})')
     shutil.rmtree(OUTPUT, ignore_errors=True)
     os.makedirs(os.path.join(OUTPUT, 'Sounds'))
-    lines = ['# key\tkind\tvolume\tmin distance\tmax distance\tfiles (Sounds\\)'
+    lines = ['# key\tkind\tvolume\tmin distance\tmax distance\tfiles (Sounds\\)\t[music: loop starts, frames]'
              ' - written by localTools/audio/buildAudio.py']
     for key, spec in sorted(sounds.items()):
         kind = spec.get('kind', 'ui')
@@ -204,20 +225,31 @@ def main():
         minimum = float(spec.get('minDistance', minimum))
         maximum = float(spec.get('maxDistance', maximum))
         names = []
+        starts = spec.get('loopStart', 0)
+        starts = starts if isinstance(starts, list) else [starts] * len(spec['files'])
         for index, source in enumerate(spec['files']):
             samples, rate = soundfile.read(os.path.join(REPO, source), dtype='float32', always_2d=True)
             before = db(rms(samples))
             # A sound placed in the world is one point: mono (a stereo file does not sit at its place)
-            if kind != 'ui' and samples.shape[1] > 1:
+            if kind in ('world', 'loop') and samples.shape[1] > 1:
                 samples = samples.mean(axis=1, keepdims=True)
-            samples = normalize(samples, rate, level)
-            name = f'{key}_{index + 1}.wav'
-            soundfile.write(os.path.join(OUTPUT, 'Sounds', name), samples if samples.shape[1] > 1 else samples[:, 0],
-                            rate, subtype='PCM_16')
+            if kind == 'music':
+                if not 0 <= int(starts[index]) < len(samples):
+                    raise SystemExit(f'{key}: loopStart {starts[index]} is not a frame of {source}')
+                samples = level_music(samples, level)
+                name = f'{key}_{index + 1}.flac'
+                write_blocks(os.path.join(OUTPUT, 'Sounds', name), samples, rate, format='FLAC', subtype='PCM_16')
+            else:
+                samples = normalize(samples, rate, level)
+                name = f'{key}_{index + 1}.wav'
+                soundfile.write(os.path.join(OUTPUT, 'Sounds', name),
+                                samples if samples.shape[1] > 1 else samples[:, 0], rate, subtype='PCM_16')
             names.append(name)
             print(f'  {name:42} {before:6.1f} -> {db(rms(samples)):6.1f} dBFS RMS')
-        lines.append('\t'.join([key, kind, f'{float(spec.get("volume", 1.0)):g}', f'{minimum:g}', f'{maximum:g}',
-                                ';'.join(names)]))
+        fields = [key, kind, f'{float(spec.get("volume", 1.0)):g}', f'{minimum:g}', f'{maximum:g}', ';'.join(names)]
+        if kind == 'music':
+            fields.append(';'.join(str(int(start)) for start in starts))
+        lines.append('\t'.join(fields))
     with open(os.path.join(OUTPUT, 'sounds.txt'), 'w', encoding='utf-8', newline='\n') as manifest:
         manifest.write('\n'.join(lines) + '\n')
     ambience = ['# zones\tkey\tmin interval\tmax interval\tspeed\ttime\tvolume\tpoints\tplace'

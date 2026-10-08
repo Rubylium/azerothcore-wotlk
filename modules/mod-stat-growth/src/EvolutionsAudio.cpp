@@ -44,4 +44,14 @@ void StopOn(Player* player, WorldObject const* source)
     if (source)
         Send(player, Acore::StringFormat("S\t{:016X}", source->GetGUID().GetRawValue()));
 }
+
+void PlayMusic(Player* player, std::string_view key, uint32 fadeInMs)
+{
+    Send(player, fadeInMs ? Acore::StringFormat("M\t{}\t{}", key, fadeInMs) : Acore::StringFormat("M\t{}", key));
+}
+
+void StopMusic(Player* player, uint32 fadeOutMs)
+{
+    Send(player, fadeOutMs ? Acore::StringFormat("N\t{}", fadeOutMs) : std::string("N"));
+}
 }

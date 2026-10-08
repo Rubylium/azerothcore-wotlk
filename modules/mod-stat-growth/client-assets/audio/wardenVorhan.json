@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Gardien-chef Vorhan's music (a Défi board boss), played by our own sound engine as music: the game's own",
+    "music silent meanwhile. PrisonIdle while the player looks at the boss's page on the board, WardenVorhan for the",
+    "fight. Each file is its track's intro then exactly one loop period, cut sample-exact from the composer's file",
+    "(which repeats it): the engine goes back to loopStart (a frame) at the end, seamlessly."
+  ],
+  "sounds": {
+    "Music.PrisonIdle": {
+      "kind": "music",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/prison_idle_ui_music_loop.ogg"
+      ],
+      "loopStart": 343343
+    },
+    "Music.WardenVorhan": {
+      "kind": "music",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/prison_first_boss_music_loop.ogg"
+      ],
+      "loopStart": 310274
+    }
+  }
+}
