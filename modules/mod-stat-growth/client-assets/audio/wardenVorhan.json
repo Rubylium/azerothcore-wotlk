@@ -3,7 +3,8 @@
     "Gardien-chef Vorhan's music (a Défi board boss), played by our own sound engine as music: the game's own",
     "music silent meanwhile. PrisonIdle while the player looks at the boss's page on the board, WardenVorhan for the",
     "fight. Each file is its track's intro then exactly one loop period, cut sample-exact from the composer's file",
-    "(which repeats it): the engine goes back to loopStart (a frame) at the end, seamlessly."
+    "(which repeats it): the engine goes back to loopStart (a frame) at the end, seamlessly.",
+    "Its rules' sounds (WardenVorhan.cpp): the game's own files, heard from where the rule happens across the whole lair (min distance 60): a whip for the Sentence, a cage shutting on the isolated tank, its fel seal bursting, the prison doors slamming on the cells, chains, the warden's eye, the roll call's bell, lightning for the walls, the shockwave of his charge, the curfew's clock and bell, the riot's crowd."
   ],
   "sounds": {
     "Music.PrisonIdle": {
@@ -19,6 +20,182 @@
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/prison_first_boss_music_loop.ogg"
       ],
       "loopStart": 310274
+    },
+    "Vorhan.Sentence": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit2.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit3.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.Isolation": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ET_Cage_Close.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.SealBurst": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/shadowfury_impact_base.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.CellsOpen": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/G_CageOpen.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.CellDoors": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/DalaranPrisonDoor02_Close.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/DalaranPrisonDoor_01_Close.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.Chains": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/PickUpLargeChain.wav"
+      ],
+      "minDistance": 20,
+      "maxDistance": 60,
+      "volume": 1.0
+    },
+    "Vorhan.ChainTighten": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ChainHang01.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ChainHang02.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ChainHang03.wav"
+      ],
+      "minDistance": 15,
+      "maxDistance": 50,
+      "volume": 1.0
+    },
+    "Vorhan.ChainBreak": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/PutDownLArgeChain.wav"
+      ],
+      "minDistance": 15,
+      "maxDistance": 50,
+      "volume": 1.0
+    },
+    "Vorhan.GazeOpen": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/NightmareBellOpen.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.GazeBurst": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/EyeBlastVisual.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.RollCall": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BellTollHorde.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.RollCallEnd": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/KeyRingClose.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.Walls": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/CallLightning.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.Charge": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/Ulduar_KologarnShockWave.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.CurfewTick": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/Grandfather_Clock_01.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.CurfewBell": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/KharazahnBellToll.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.Violation": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit2.wav"
+      ],
+      "minDistance": 15,
+      "maxDistance": 50,
+      "volume": 1.0
+    },
+    "Vorhan.Riot": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/Arena_CrowdWalla_Horde.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.LifeSentence": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BellTollHorde.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
     }
   }
 }

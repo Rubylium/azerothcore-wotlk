@@ -283,6 +283,33 @@ def wall_band(frame):
     return painting(f'wall_band_{frame}.png')
 
 
+def shockwave_ring():
+    """The wave that raises the wall, at its full size (the model grows it from the middle): a front of fel fire at
+    its edge, dim and broken, and a band of dark iron ash just behind it - no white, nothing that flashes. 1024 x 1024,
+    RGBA, the front's outside at the picture's edge."""
+    size = 1024
+    _, _, radius = grid(size, size)
+    broken = 0.55 + 0.45 * noise(size, size, 18, 61)
+    fine = noise(size, size, 5, 62)
+    # The front: a soft band peaking just inside the edge, its outer side the sharper
+    front = numpy.where(radius < 0.95, numpy.exp(-((radius - 0.95) / 0.05) ** 2),
+                        numpy.exp(-((radius - 0.95) / 0.02) ** 2)) * broken
+    flames = numpy.clip(fine - 0.55, 0.0, 1.0) * 2.0 * smooth(0.80, 0.93, radius) * smooth(1.0, 0.96, radius)
+    glow = numpy.clip(front * 0.8 + flames * 0.5, 0.0, 1.0)
+    # The ash behind it: darkening the floor, fading out towards the middle
+    ash = smooth(0.55, 0.85, radius) * smooth(0.97, 0.9, radius) * (0.6 + 0.4 * noise(size, size, 10, 63)) * 0.55
+    cracks = numpy.clip(noise(size, size, 3, 64) - 0.8, 0.0, 1.0) * 3.0 * smooth(0.6, 0.85, radius) * \
+        smooth(0.95, 0.88, radius)
+    fel = numpy.array([0.30, 0.72, 0.12])
+    iron = numpy.array([0.05, 0.045, 0.04])
+    alpha = numpy.clip(glow * 0.8 + ash * (1 - glow) + cracks * 0.3, 0.0, 0.85)
+    weight = numpy.where(alpha > 1e-4, (glow * 0.8 + cracks * 0.3) / numpy.maximum(alpha, 1e-4), 0.0)
+    colour = iron * (1 - numpy.clip(weight, 0.0, 1.0))[..., None] + fel * numpy.clip(weight, 0.0, 1.0)[..., None]
+    alpha *= smooth(1.0, 0.985, radius)
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
 # --- Placeholders: drawn here until the paintings are in art/ ------------------------------------------------------
 
 def iron_texture(width, height, seed):

@@ -536,8 +536,8 @@ DECAY_ANIMATION = 159
 
 
 def sequence_timelines(data, timestamps, values, length):
-    """The same keys on every sequence of the model, each lasting length ms (the stock ones loop after half a second:
-    keys past that were never reached), the one played as it goes holding the last key"""
+    """The same keys on every sequence of the model, each lasting at least length ms (the stock ones loop after half a
+    second: keys past that were never reached), the one played as it goes holding the last key"""
     sequence_count, sequences = array(data, 0x1C)
     timelines = []
     for index in range(sequence_count):
@@ -545,7 +545,9 @@ def sequence_timelines(data, timestamps, values, length):
         if animation == DECAY_ANIMATION:
             timelines.append(([0], [values[-1]]))
             continue
-        struct.pack_into('<I', data, sequences + 64 * index + 4, int(length))
+        # (never shortened: another of its tracks may run longer)
+        duration = struct.unpack_from('<I', data, sequences + 64 * index + 4)[0]
+        struct.pack_into('<I', data, sequences + 64 * index + 4, max(duration, int(length)))
         timelines.append((list(timestamps), list(values)))
     return timelines
 
@@ -601,6 +603,50 @@ def hold_alpha(data, shape):
         for values, offset in track_values(data, transparency + 20 * item):
             for key in range(values):
                 struct.pack_into('<h', data, offset + 2 * key, last)
+
+
+# Whether the client scales a texture about its middle, as it turns one (GROW_CENTRED; an in-game check: a growing
+# ring then grows from the middle of its area - from a corner, set it False and the scaling is moved back onto the
+# middle by a translation)
+GROW_CENTRED = True
+# A growth's keys, eased out (fast, then settling on its full size)
+GROW_STEPS = 10
+
+
+def grow(data, shape, fade):
+    """A painting growing from the middle of its area (`grow` [first share of its size, ms]: a shockwave), on its own
+    animation from when it is put on: its texture scaled down about its middle, its outside clear (clamped to the clear
+    border). Its fading twin stays at full size."""
+    if not shape.get('grow'):
+        return
+    first, duration = shape['grow']
+    sequence_count, _ = array(data, 0x1C)
+    if fade:
+        keys = [(0, 1.0)]
+    else:
+        keys = []
+        for step in range(GROW_STEPS + 1):
+            t = step / GROW_STEPS
+            eased = 1.0 - (1.0 - t) ** 2.2
+            keys.append((int(duration * t), first + (1.0 - first) * eased))
+    length = keys[-1][0] + 1
+
+    def scaled(share):
+        return (1.0 / share, 1.0 / share, 1.0)
+
+    def moved(share):
+        offset = 0.0 if GROW_CENTRED else 0.5 * (1.0 - 1.0 / share)
+        return (offset, offset, 0.0)
+    transform = append_block(data, bytes(60))
+    times = [time for time, _ in keys]
+    write_sequence_track(data, transform + 40,
+                         sequence_timelines(data, times, [scaled(share) for _, share in keys], length), '<3f')
+    write_sequence_track(data, transform, sequence_timelines(data, times, [moved(share) for _, share in keys], length),
+                         '<3f')
+    struct.pack_into('<hh', data, transform + 20, 0, -1)
+    struct.pack_into('<II', data, 0x60, 1, transform)
+    _, uv_lookup = array(data, 0x98)
+    struct.pack_into('<h', data, uv_lookup, 0)
 
 
 # How a model is drawn over what is behind it (M2 blending modes): laid over it, or added to it (a glow)
@@ -739,6 +785,7 @@ def build_model(template, shape, texture_path, fade=False):
         hold_alpha(data, shape)
     else:
         own_alpha(data, shape)
+    grow(data, shape, fade)
 
     # Bounds of the quad, for culling
     radius = max(math.hypot(x, y) for x in (x0, x1) for y in (y0, y1))
@@ -810,6 +857,33 @@ def flicker_order(frames, steps):
         if frame != order[-1]:
             order.append(frame)
     return order
+
+
+# A curtain's coming (`appear`: ms): its alpha ramping up from nothing and the curtain rising out of the floor, eased
+# out, on its own animation from when it is put on - shown at once, a wall popped up. Its animation then lasts
+# APPEAR_HOLD_MS, so it never starts over (and rises again) while it stands.
+APPEAR_HOLD_MS = 600000
+APPEAR_STEPS = 6
+
+
+def appear(data, shape, height):
+    duration = int(shape.get('appear', 0))
+    if not duration:
+        return
+    times = [int(duration * step / APPEAR_STEPS) for step in range(APPEAR_STEPS + 1)]
+    eased = [1.0 - (1.0 - step / APPEAR_STEPS) ** 2 for step in range(APPEAR_STEPS + 1)]
+    colors_count, colors = array(data, 0x48)
+    for color in range(colors_count):
+        write_sequence_track(data, colors + 40 * color + 20,
+                             sequence_timelines(data, times, [(int(0x7FFF * min(1.0, 1.4 * share)),)
+                                                              for share in eased], APPEAR_HOLD_MS), '<h')
+    # Rising: every vertex hangs on the first bone, moved up from a curtain's height under the floor
+    _, bones = array(data, 0x2C)
+    flags = struct.unpack_from('<I', data, bones + 4)[0]
+    struct.pack_into('<I', data, bones + 4, flags | BONE_TRANSFORMED)
+    write_sequence_track(data, bones + 16,
+                         sequence_timelines(data, times, [(0.0, 0.0, -height * (1.0 - share)) for share in eased],
+                                            APPEAR_HOLD_MS), '<3f')
 
 
 def build_curtain_model(template, skin, shape, texture_path, fade=False):
@@ -914,6 +988,8 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
                            [(int(low * 0x7FFF),), (int(high * 0x7FFF),), (int(low * 0x7FFF),)], '<h')
     if fade:
         fade_alpha(data)
+    else:
+        appear(data, shape, height)
 
     top = height + rise
     radius = math.sqrt(max(abs(x0), abs(x1)) ** 2 + lean ** 2 + top ** 2)
@@ -967,6 +1043,30 @@ BILLBOARD_MIRROR = False
 # M2 bone flags: spherical billboard (turned to face the camera on every axis), and transformed (computed each frame)
 BONE_BILLBOARD = 0x8
 BONE_TRANSFORMED = 0x200
+
+
+def write_flipbook(data, shape, fade):
+    """A flipbook's texture transform (`grid`, `timeline`: see above), on the model's own animation; its fading twin
+    holds the last frame. Nothing without a timeline."""
+    timeline = shape.get('timeline')
+    if not timeline:
+        return
+    columns, rows = shape.get('grid', [1, 1])
+
+    def offset(frame):
+        return (FLIPBOOK_SIGN * (frame % columns) / columns, FLIPBOOK_SIGN * (frame // columns) / rows, 0.0)
+    keys = [(time, offset(frame)) for time, frame in timeline]
+    if fade:
+        keys = [(0, keys[-1][1])]
+    length = int(shape.get('length', keys[-1][0] + 1000))
+    timestamps, values = stepped(keys, length)
+    transform = append_block(data, bytes(60))
+    write_sequence_track(data, transform, sequence_timelines(data, timestamps, values, length), '<3f')
+    struct.pack_into('<hh', data, transform + 20, 0, -1)
+    struct.pack_into('<hh', data, transform + 40, 0, -1)
+    struct.pack_into('<II', data, 0x60, 1, transform)
+    _, uv_lookup = array(data, 0x98)
+    struct.pack_into('<h', data, uv_lookup, 0)
 
 
 def build_billboard_model(template, skin, shape, texture_path, fade=False):
@@ -1033,21 +1133,7 @@ def build_billboard_model(template, skin, shape, texture_path, fade=False):
 
     # The flipbook: the first frame's cell moved onto each frame's in turn
     timeline = shape.get('timeline')
-    if timeline:
-        def offset(frame):
-            return (FLIPBOOK_SIGN * (frame % columns) * du, FLIPBOOK_SIGN * (frame // columns) * dv, 0.0)
-        keys = [(time, offset(frame)) for time, frame in timeline]
-        if fade:
-            keys = [(0, keys[-1][1])]
-        length = int(shape.get('length', keys[-1][0] + 1000))
-        timestamps, values = stepped(keys, length)
-        transform = append_block(data, bytes(60))
-        write_sequence_track(data, transform, sequence_timelines(data, timestamps, values, length), '<3f')
-        struct.pack_into('<hh', data, transform + 20, 0, -1)
-        struct.pack_into('<hh', data, transform + 40, 0, -1)
-        struct.pack_into('<II', data, 0x60, 1, transform)
-        _, uv_lookup = array(data, 0x98)
-        struct.pack_into('<h', data, uv_lookup, 0)
+    write_flipbook(data, shape, fade)
 
     reach = max(width, height) / 2.0
     radius = math.sqrt(reach ** 2 + (elevation + reach) ** 2)
@@ -1146,7 +1232,7 @@ def main():
             else:
                 image = build_texture(shape, config['color'], config['alpha'])
             blp_writer.writeRawBlp(image, os.path.join(OUTPUT_ROOT, f'{stem}.blp'))
-        shape_skin = animated_skin(skin) if shape.get('spin') else skin
+        shape_skin = animated_skin(skin) if shape.get('spin') or shape.get('grow') else skin
         with open(os.path.join(OUTPUT_ROOT, f'{stem}.m2'), 'wb') as output:
             output.write(build_model(template, shape, texture_path))
         with open(os.path.join(OUTPUT_ROOT, f'{stem}00.skin'), 'wb') as output:

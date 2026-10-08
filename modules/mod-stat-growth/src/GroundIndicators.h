@@ -97,6 +97,10 @@ namespace GroundIndicators
     // distance past the red); the carrier then holds there until it lands (KeepsAway)
     Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0,
                            float keepAway = 0.0f);
+    // The same circle for the bots only, nothing drawn: a mark its carrier has to know (a debuff, the fight's rule),
+    // never shown on the ground
+    Area WatchCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage = 0,
+                            float keepAway = 0.0f);
     // Whether unit carries a circle of someone else's: it keeps away from the group and does not come back to fight
     // in melee until the circle lands (bots: mod-playerbots AvoidGroundIndicatorAction)
     bool KeepsAway(Unit* unit);
@@ -159,11 +163,13 @@ namespace GroundIndicators
     // taken off - it still goes when they die). False if it could not be put on.
     bool ShowCarriedLook(Unit* carrier, uint32 look, uint32 durationMs);
     void ClearCarriedLook(Unit* carrier, uint32 look);
-    // A ring of upright curtain tiles round center (shapes.json kind curtain, one plane, built to tileLength: never
-    // scaled), a regular polygon of `tiles` sides: their corners on the circle of radius
-    // tileLength / (2 sin(pi / tiles)), their middles at tileLength / (2 tan(pi / tiles)) from center.
-    void ShowCurtainRing(Unit* owner, Position const& center, uint32 look, uint32 tiles, float tileLength,
-                         uint32 durationMs);
+    // A ring of upright curtain pieces round center (shapes.json kind curtain, one plane, built to pieceLength: never
+    // scaled), a regular polygon of `pieces` sides: their corners on the circle of radius
+    // pieceLength / (2 sin(pi / pieces)), their middles at pieceLength / (2 tan(pi / pieces)) from center. Piece i
+    // wears look firstLook + i % looks: looks showing a painting's band in that many shares (`segment`), so the band
+    // runs on round the ring, counterclockwise. Enough pieces read as a circle (ten long ones read as a polygon).
+    void ShowCurtainRing(Unit* owner, Position const& center, uint32 firstLook, uint32 looks, uint32 pieces,
+                         float pieceLength, uint32 durationMs);
 
     // Gardien-chef Vorhan's painted marks (shapes.json VW_*, their pictures localTools/wardenVorhan/indicatorArt.py).
     // None is an area: what they mark is the fight's to resolve.
@@ -175,14 +181,24 @@ namespace GroundIndicators
     constexpr uint32 SPELL_WARDEN_CELL_NUMBER_FIRST = 94212;
     constexpr uint32 SPELL_WARDEN_ROLL_CALL = 94220;
     constexpr uint32 SPELL_WARDEN_ROLL_CALL_PAIR_FIRST = 94221;  // "1-2", "3-4", "5-6", "7-8"
-    constexpr uint32 SPELL_WARDEN_WALL = 94225;
+    constexpr uint32 SPELL_WARDEN_WALL_SHOCKWAVE = 94226;
+    constexpr uint32 SPELL_WARDEN_WALL_FIRST = 94227;          // its three pieces, each a third of the band
     // The gaze's model: 6 x 6 yards, its middle this high over the floor, its burst on from GazeBurstMs
     constexpr float WardenGazeElevation = 10.0f;
     constexpr uint32 WardenGazeBurstMs = 6000;
-    // The electrified wall: ten tiles of 18.85 yards, 4.7 high; their corners 30.5 yards from the middle, their
-    // middles 29.0
-    constexpr uint32 WardenWallTiles = 10;
-    constexpr float WardenWallTileLength = 18.85f;
+    // The electrified wall: 30 pieces of 6.27 yards, 4.7 high, their corners on the 30-yard circle, their middles
+    // 29.84 yards from the middle; the band (4 wide for 1 high, 18.85 yards) runs on round it, ten times. Each rises
+    // from the floor and fades in over half a second as it appears, and fades out as it goes.
+    constexpr uint32 WardenWallPieces = 30;
+    constexpr uint32 WardenWallLooks = 3;
+    constexpr float WardenWallPieceLength = 6.2717f;
+    // The wave that raises it: from the middle out to the wall's 30 yards in WardenShockwaveArriveMs (fast, settling),
+    // fading out after; shown WardenShockwaveMs. The wall is best started WardenWallRiseDelayMs after the wave, so it
+    // rises as the wave reaches it.
+    constexpr float WardenShockwaveRadius = 30.0f;
+    constexpr uint32 WardenShockwaveArriveMs = 600;
+    constexpr uint32 WardenShockwaveMs = 1400;
+    constexpr uint32 WardenWallRiseDelayMs = 400;
     // The eye over owner at position (its stalker's place; the model stands WardenGazeElevation over the floor there),
     // for durationMs: the cast's 6 s and a moment of its burst. follow: the boss, if it moves meanwhile.
     void ShowWardenGaze(Unit* owner, Position const& position, uint32 durationMs, Unit* follow = nullptr);
@@ -200,8 +216,12 @@ namespace GroundIndicators
     // pointing orientation. Its rim and numbers breathe faster and faster over the 6 s cast from when it is put on.
     void ShowRollCallMark(Unit* owner, Position const& center, uint32 pair, float orientation, uint32 durationMs,
                           float radius = 2.0f);
-    // The electrified wall round center (ShowCurtainRing of the wall's tiles), flowing and flickering
-    void ShowWardenWall(Unit* owner, Position const& center, uint32 durationMs);
+    // The electrified wall round center (ShowCurtainRing of its pieces), flowing and flickering, for durationMs from
+    // when it starts: delayMs after this call (WardenWallRiseDelayMs after the wave: it rises as the wave arrives)
+    void ShowWardenWall(Unit* owner, Position const& center, uint32 durationMs, uint32 delayMs = 0);
+    // The wave that raises the wall: a ring of fel fire and dark ash on the floor, growing from center to the wall
+    // (WardenShockwaveArriveMs), then fading. Dim on purpose: no flash.
+    void ShowWardenShockwave(Unit* owner, Position const& center, uint32 durationMs = WardenShockwaveMs);
     // Ends every area owner has on show, for the bots too (a fight reset while a long one was still drawn). Its
     // stalkers are its summons: despawning them is the owner's business.
     void ClearAreasOf(Unit* owner);
@@ -260,8 +280,16 @@ namespace GroundIndicators
     // circle it carries away. A bot then casts nothing that moves it (a warrior's charge took it off its tower and
     // back to the boss).
     bool HasFightPlace(Unit* unit);
+    // Whether unit stands on the spot of its own it was given (SetUnitSpot): it holds there (a melee bot no longer
+    // chases its target back out of it; a ranged one keeps casting from it)
+    bool HoldsUnitSpot(Unit* unit);
     // A curfew: unit is not to move at all for durationMs (bots: mod-playerbots AvoidGroundIndicatorAction holds it,
     // its chase stopped), whatever else it does. HoldsStill: whether one applies now.
+    // A beam from one unit to another that follows both (a chain between two players): spell, a beam or a channel,
+    // cast by an invisible stalker following `from` on another following `to` - never by the units themselves (a
+    // channelling bot stops in its tracks). EndTether takes it down before its time.
+    ObjectGuid ShowTether(Unit* owner, Unit* from, Unit* to, uint32 spell, uint32 durationMs);
+    void EndTether(Unit* owner, ObjectGuid tether);
     void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs);
     bool HoldsStill(Unit* unit);
     // A gaze about to open: everyone near owner turns their back on where owner stands now, for durationMs (bots stop

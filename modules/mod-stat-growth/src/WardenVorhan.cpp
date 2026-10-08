@@ -6,6 +6,7 @@
 
 #include "CellImpl.h"
 #include "Chat.h"
+#include "Containers.h"
 #include "CommandScript.h"
 #include "CreatureScript.h"
 #include "GridNotifiers.h"
@@ -38,6 +39,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Gardien-chef Vorhan, the head warden of la Geôle des Flammes infernales: a Défi board boss in Magtheridon's Lair,
@@ -94,7 +96,10 @@ constexpr float GroupHealers = 2.0f;
 // HardShare to his health - the rest goes to the rules (power-scaling.md: "hard")
 constexpr float UptimeSeconds = 205.0f;
 constexpr float HardShare = 0.87f;
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.0f);
+// Measured on bots alone (2026-10-08, e2e/local/vorhan, three full fights: 3 damage dealers beside the watching game
+// master's place dealt 46 million, 62% of 75; a group of 4 about 59 million, players 10% above a bot about 64): about
+// 62 million, the model's 0.71 - the bots alone see the enrage, a group playing well kills him in the last seconds
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 0.71f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
@@ -106,7 +111,13 @@ constexpr float RiotSentencePct = 18.0f;        // during the riot
 constexpr float LifeSentencePct = 35.0f;        // Perpétuité's first, each one LifeSentenceGrowth heavier
 constexpr float LifeSentenceGrowth = 1.2f;
 constexpr float IsolationPct = 120.0f;          // on his tank (a tank has about 1.45 times this health): never lethal
-constexpr float SealPct = 120.0f;               // the seal's burst, on anyone near the isolated tank
+// The seal's burst on everyone else, by their distance from the isolated tank: death next to it, falling to a
+// raid-wide hit from SealFar on (the tank thrown off and waiting); nearer than SealAvoidable it was theirs to avoid
+constexpr float SealNearPct = 250.0f;
+constexpr float SealFarPct = 20.0f;
+constexpr float SealNear = 8.0f;
+constexpr float SealFar = 26.0f;
+constexpr float SealAvoidable = 16.0f;
 constexpr float EscapePct = 60.0f;              // an empty cell: everyone
 constexpr float EscapeTakenPct = 25.0f;         // ... and Évasion, damage taken a stack
 constexpr uint32 EscapeMs = 10000;
@@ -136,17 +147,18 @@ constexpr float CellRadius = 3.0f;              // 6 yd across, as its seal is p
 constexpr float MarkDistance = 10.0f;
 constexpr float MarkRadius = 2.0f;              // 4 yd across
 constexpr float MarkReach = 2.5f;               // standing on a mark: within this of its middle
-constexpr float WallRadius = 30.0f;              // the walls: ten flat tiles round it, their middles at 29 yd
-constexpr float WallKillRadius = 29.0f;
+constexpr float WallRadius = 30.0f;              // the walls: thirty flat pieces round it, their middles at 29.8 yd
+constexpr float WallKillRadius = 29.8f;
 constexpr float ChargeSafeRadius = 6.0f;        // from within this of the warden, his throw lands short of the walls
 constexpr float ChainBreakDistance = 20.0f;
-constexpr float ChainSpotDistance = 12.0f;      // partners each go this far out, opposite ways: 24 yd apart
-constexpr float SealRadius = 10.0f;
+constexpr float ChainSpotDistance = 15.0f;      // partners each go this far out, opposite ways: 30 yd apart
+constexpr float SealKeepAway = 24.0f;           // bots: the isolated tank keeps this far from the others
 constexpr float TankSpotSlack = 6.0f;
 
 // Throws: a knockback's flight lasts 2 x speedZ / 19.29 s; its distance is speedXY times that
 constexpr float ThrowSpeedZ = 7.0f;
-constexpr float ThrowDistance = 20.0f;
+constexpr float ThrowDistance = 18.0f;          // the charge: from within 6 yd lands within 24, short of the walls
+constexpr float IsolationThrowDistance = 25.0f;
 constexpr float GazeThrowSpeedXY = 15.0f;
 constexpr float GazeThrowSpeedZ = 6.0f;
 float ThrowSpeedXY(float distance)
@@ -176,11 +188,11 @@ constexpr uint32 ChargeLandMs = 1300;           // where they are this long afte
 constexpr uint32 WallsLastMs = 7000;
 constexpr uint32 CurfewMs = 7000;               // with the gaze: a second after it opens
 constexpr uint32 LookAwayLeadMs = 1500;         // the bots turn their backs this long before the eye opens
+constexpr uint32 CurfewHoldLeadMs = 1500;       // the bots stand still this long before the curfew sounds
 constexpr uint32 RiotWaveMs[3] = { 2000, 11000, 20000 };   // from the riot's start
 constexpr uint32 PrisonersPerWave = 4;
 constexpr uint32 FinishPulses = 3;
 constexpr uint32 FinishPulseMs = 1000;
-constexpr Milliseconds WipeLinger = 8s;
 constexpr Seconds WipeRespawnDelay = 5s;
 constexpr uint32 DefiGraceMs = 8000;
 
@@ -243,11 +255,10 @@ constexpr uint32 SPELL_CAGE = 94451;
 // Stock spell visual kits
 enum Kits : uint32
 {
-    KIT_SLAM                    = 9168,         // Big Bang's hit: a blow landing
-    KIT_ROAR                    = 12817,
-    KIT_THROW                   = 1005,         // Phase Punch's hit
-    KIT_BURST                   = 2350,         // Black Hole's hit: a seal bursting
-    KIT_DOOR                    = 11835,        // Cosmic Smash's landing: a door slamming
+    KIT_SHOUT                   = 389,          // Intimidating Shout's: the warden bellowing his sentence
+    KIT_STRIKE                  = 2370,         // Hurtful Strike's (Gruul): a heavy blow
+    KIT_SEAL                    = 2350,         // Shadowfury's impact: a dark burst, the seal
+    KIT_SHOCKWAVE               = 9854,         // Shockwave's: the warden's charge
 };
 
 // creature_text of NPC_VORHAN (stat_growth_warden_vorhan.sql)
@@ -359,6 +370,10 @@ constexpr std::array<std::array<uint8, 4>, 3> RollCallOrders = { {
     { 1, 3, 0, 2 },     // north 3-4, east 7-8, south 1-2, west 5-6
 } };
 
+// .vorhan botsonly: the fight fought by its bots alone, a game master watching (the fight leaves game masters out): the
+// bots count as players - no finishing them off - for testing them (e2e/local/vorhan)
+bool BotsOnly = false;
+
 float Reference()
 {
     return Power::ExpectedPlayerHealth(ProfileItemLevel, ProfileParagon);
@@ -404,30 +419,32 @@ struct boss_warden_vorhan : public ScriptedAI
         me->SetReactState(REACT_PASSIVE);
     }
 
+    // A wipe is the players', never combat's: while one stands in the lair he fights on (the riot holds him away from
+    // them, untargetable, and the core would evade him). The wipe: he goes at once - nobody released and running
+    // back can pull a half-reset warden - and stands at his post again, reset, a few seconds later.
     void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
     {
         if (_lingering)
             return;
-        bool const wiped = _phase != Phase::None && _phase != Phase::Over;
-        if (wiped)
-            LogSummary("wipe");
-        ResetFight();
-        if (wiped)
-        {
-            // The end is seen: he stands WipeLinger, the music on, then it fades and he goes, back at his post a few
-            // seconds later
-            _lingering = true;
-            me->CombatStop(true);
-            me->AttackStop();
-            me->SetReactState(REACT_PASSIVE);
-            me->m_Events.AddEventAtOffset([this]()
-            {
-                EndMusic();
-                me->DespawnOnEvade(WipeRespawnDelay);
-            }, WipeLinger);
+        bool const fighting = _phase != Phase::None && _phase != Phase::Over;
+        if (fighting && !ArenaPlayers().empty())
             return;
-        }
-        ScriptedAI::EnterEvadeMode(why);
+        if (fighting)
+            Wipe();
+        else
+            ScriptedAI::EnterEvadeMode(why);
+    }
+
+    void Wipe()
+    {
+        LogSummary("wipe");
+        EndMusic();
+        ResetFight();
+        _lingering = true;
+        me->CombatStop(true);
+        me->AttackStop();
+        me->SetReactState(REACT_PASSIVE);
+        me->DespawnOnEvade(WipeRespawnDelay);
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -441,7 +458,6 @@ struct boss_warden_vorhan : public ScriptedAI
         _pullMs = getMSTime();
         _phase = Phase::One;
         Talk(SAY_AGGRO);
-        AssignNumbers();
         _fightListeners.clear();
         for (Player* player : Listeners())
         {
@@ -527,11 +543,15 @@ struct boss_warden_vorhan : public ScriptedAI
 
     void UpdateAI(uint32 diff) override
     {
-        if (!UpdateVictim())
-        {
-            UpdateOutOfCombat(diff);
-            return;
-        }
+        bool const fighting = _phase != Phase::None && _phase != Phase::Over;
+        // The riot: no victim (he stands apart, untargetable), the fight going on
+        if (!fighting || _phase != Phase::Riot)
+            if (!UpdateVictim())
+            {
+                if (!fighting)
+                    UpdateOutOfCombat(diff);
+                return;
+            }
 
         scheduler.Update(diff);
         uint32 const elapsed = Elapsed();
@@ -669,9 +689,10 @@ private:
         Acore::CreatureListSearcher<Acore::AllWorldObjectsInRange> searcher(me, found, check);
         Cell::VisitObjects(me, searcher, ClearRadius);
         for (Creature* creature : found)
-            if (creature != me && creature->IsAlive() && !creature->IsTrigger() && creature->GetEntry() != NPC_PRISONER &&
-                creature->GetEntry() != NPC_ABYSSAL && creature->GetEntry() != NPC_STALKER &&
-                !creature->IsCharmedOwnedByPlayerOrPlayer() && creature->IsHostileToPlayers())
+            if (creature != me && creature->IsAlive() && !creature->IsTrigger() &&
+                creature->GetEntry() != NPC_PRISONER && creature->GetEntry() != NPC_ABYSSAL &&
+                creature->GetEntry() != NPC_STALKER && !creature->IsCharmedOwnedByPlayerOrPlayer() &&
+                creature->IsHostileToPlayers())
                 creature->DespawnOrUnsummon(0ms, Seconds(DAY));
 
         if (InstanceScript* instance = me->GetInstanceScript())
@@ -709,8 +730,8 @@ private:
         _lifeSentences = 0;
         _rulesKept = 0;
         _rulesBroken = 0;
+        _placingUntil = 0;
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-        me->SetImmuneToPC(false);
         me->ClearEmoteState();
         me->RemoveAurasDueToSpell(SPELL_OPENING_EYE);
     }
@@ -786,55 +807,29 @@ private:
     }
 
     // --- The inmate numbers ------------------------------------------------------------------------------------------
-    // At the pull: tanks 1 and 5, healers 3 and 7, damage dealers 2, 4, 6 and 8 - each pair a tank or a healer with a
-    // damage dealer, each chain across the room. A group of another make fills what is left in order.
-    void AssignNumbers()
+    // Drawn for each rule that needs them (the cells, the shackles, the roll call), shown over the heads and as a
+    // debuff only while it runs: a new draw every time, and every pull. Rules back to back keep the same draw (the
+    // charge's and its roll call).
+    void AssignNumbers(uint32 durationMs)
     {
-        std::vector<Player*> tanks;
-        std::vector<Player*> healers;
-        std::vector<Player*> dealers;
-        for (Player* player : ArenaPlayers())
-        {
-            if (IsGroupTank(player))
-                tanks.push_back(player);
-            else if (IsHealerPlayer(player))
-                healers.push_back(player);
-            else
-                dealers.push_back(player);
-        }
-        std::array<Player*, 9> byNumber = {};
-        auto place = [&byNumber](std::vector<Player*>& from, std::initializer_list<uint8> numbers)
-        {
-            for (uint8 number : numbers)
-                if (!from.empty() && !byNumber[number])
-                {
-                    byNumber[number] = from.front();
-                    from.erase(from.begin());
-                }
-        };
-        place(tanks, { 1, 5 });
-        place(healers, { 3, 7 });
-        place(dealers, { 2, 4, 6, 8 });
-        std::vector<Player*> rest;
-        rest.insert(rest.end(), tanks.begin(), tanks.end());
-        rest.insert(rest.end(), healers.begin(), healers.end());
-        rest.insert(rest.end(), dealers.begin(), dealers.end());
-        for (uint8 number = 1; number <= 8; ++number)
-            if (!byNumber[number] && !rest.empty())
-            {
-                byNumber[number] = rest.front();
-                rest.erase(rest.begin());
-            }
-
+        std::vector<Player*> players = ArenaPlayers();
+        Acore::Containers::RandomShuffle(players);
+        ClearNumbers();
         _numbers.clear();
-        for (uint8 number = 1; number <= 8; ++number)
-            if (Player* player = byNumber[number])
-            {
-                _numbers[player->GetGUID()] = number;
-                ShowNumber(player, number);
-                LOG_INFO("module.vorhan", "Vorhan number {} {} ({})", number, player->GetName(),
-                         IsGroupTank(player) ? "tank" : IsHealerPlayer(player) ? "healer" : "damage");
-            }
+        uint8 number = 0;
+        for (Player* player : players)
+        {
+            if (++number > 8)
+                break;
+            _numbers[player->GetGUID()] = number;
+            ShowNumber(player, number, durationMs);
+        }
+        std::string drawn;
+        for (uint8 shown = 1; shown <= std::min<uint8>(number, 8); ++shown)
+            if (Player* player = PlayerOf(shown))
+                drawn += Acore::StringFormat(" {}={}", shown, player->GetName());
+        LOG_INFO("module.vorhan", "Vorhan numbers instance={} at={:.1f}s:{}", me->GetInstanceId(), Elapsed() / 1000.0f,
+                 drawn);
     }
 
     uint8 NumberOf(Player const* player) const
@@ -869,7 +864,8 @@ private:
         float factor = 1.0f;
         if (auto const mark = _marks.find(victim->GetGUID()); mark != _marks.end() && now < mark->second.until)
             factor *= 1.0f + MarkTakenPct / 100.0f;
-        if (auto const escape = _escapes.find(victim->GetGUID()); escape != _escapes.end() && now < escape->second.until)
+        if (auto const escape = _escapes.find(victim->GetGUID());
+            escape != _escapes.end() && now < escape->second.until)
             factor *= 1.0f + EscapeTakenPct / 100.0f * float(escape->second.stacks);
         return factor;
     }
@@ -961,17 +957,14 @@ private:
     }
 
     // --- His casts ---------------------------------------------------------------------------------------------------
-    // A rule on his cast bar: he stops, faces his tank and casts for as long as the rule takes; held (no melee, no
-    // chase) when the rule asks him to stand still
-    void Cast(uint32 castSpell, bool hold)
+    // A rule on his cast bar: he stops and casts for as long as the rule takes, rooted - chasing his tank broke the
+    // cast and the bar went while the rule still came
+    void Cast(uint32 castSpell)
     {
         _casting = true;
         me->StopMoving();
-        if (hold)
-        {
-            me->SetControlled(true, UNIT_STATE_ROOT);
-            _rooted = true;
-        }
+        me->SetControlled(true, UNIT_STATE_ROOT);
+        _rooted = true;
         if (sSpellMgr->GetSpellInfo(castSpell))
             me->CastSpell(me, castSpell, false);
     }
@@ -999,7 +992,7 @@ private:
             case Ability::ShacklesGaze:     Shackles(true); break;
             case Ability::Gaze:             Gaze(false); break;
             case Ability::GazeCurfew:       Gaze(true); break;
-            case Ability::RollCall:         RollCall(); break;
+            case Ability::RollCall:         RollCall(false); break;
             case Ability::Charge:           Charge(false); break;
             case Ability::ChargeRollCall:   Charge(true); break;
             case Ability::Riot:             EnterRiot(); break;
@@ -1014,8 +1007,9 @@ private:
 
     void EverySecond()
     {
-        // His tank keeps him in the middle: the rules are laid round it
-        if (CanMelee())
+        // His tank keeps him in the middle: the rules are laid round it (not while a rule places everyone: a chained
+        // tank goes to its own side)
+        if (CanMelee() && Elapsed() >= _placingUntil)
             GroundIndicators::SetTankSpot(me, ArenaCenter, 2000, TankSpotSlack);
         UpdateChains();
         if (_defiConfirmed && !_lingering)
@@ -1026,24 +1020,27 @@ private:
     void Sentence(float percent)
     {
         GroundIndicators::WarnGroupDamage(me, SentenceCastMs);
-        Cast(CAST_SENTENCE, false);
+        Cast(CAST_SENTENCE);
         scheduler.Schedule(Milliseconds(SentenceCastMs), [this, percent](TaskContext)
         {
             EndCast();
-            me->SendPlaySpellVisual(KIT_ROAR);
+            me->SendPlaySpellVisual(KIT_SHOUT);
+            Sound("Vorhan.Sentence");
             HitEveryone(SPELL_SENTENCE, percent);
         });
     }
 
     // Mise à l'isolement: a blow on his tank that never kills and throws it far off, in solitary: its seal bursts 3 s
-    // later on anyone within 10 yd. The other tank takes him (his tank's threat is gone, and the bots are told).
+    // later on everyone, by their distance from it - death next to it, a raid-wide hit from far off. Nothing on the
+    // ground says it: the tank knows the rule, or reads its debuff (the bots are told, unseen). The other tank takes
+    // him (his tank's threat is gone, and the bots are told).
     void Isolation()
     {
         Player* tank = me->GetVictim() ? me->GetVictim()->ToPlayer() : nullptr;
         if (!tank)
             return;
         ObjectGuid const guid = tank->GetGUID();
-        Cast(CAST_ISOLATION, false);
+        Cast(CAST_ISOLATION);
         if (Player* other = OtherTank(tank))
             GroundIndicators::SetBossHolder(me, other, IsolationCastMs + IsolationBurstMs + 3000);
         scheduler.Schedule(Milliseconds(IsolationCastMs), [this, guid](TaskContext)
@@ -1053,35 +1050,42 @@ private:
             if (!tank || !tank->IsAlive())
                 return;
             ++_isolations;
-            tank->SendPlaySpellVisual(KIT_THROW);
+            tank->SendPlaySpellVisual(KIT_STRIKE);
+            Sound("Vorhan.Isolation", tank);
             _isolating = guid;
             Hit(tank, SPELL_ISOLATION, IsolationPct, false);
             _isolating.Clear();
             if (!tank->IsAlive())
                 return;
             me->GetThreatMgr().ResetThreat(tank);
-            tank->KnockbackFrom(me->GetPositionX(), me->GetPositionY(), ThrowSpeedXY(ThrowDistance), ThrowSpeedZ);
+            Throw(tank, ThrowSpeedXY(IsolationThrowDistance), ThrowSpeedZ);
             AddTimedAura(tank, SPELL_ISOLATED, IsolationBurstMs);
-            // The seal's reach, drawn round the tank and carried with it: the bots keep away (KeepsAway)
-            GroundIndicators::Area const seal = GroundIndicators::ShowCarriedCircle(me, tank, SealRadius,
-                IsolationBurstMs, uint32(Reference() * SealPct / 100.0f), SealRadius);
-            scheduler.Schedule(Milliseconds(IsolationBurstMs), [this, guid, seal](TaskContext)
+            // For the bots only: the tank keeps away, the others keep out of its lethal reach (KeepsAway)
+            GroundIndicators::WatchCarriedCircle(me, tank, SealNear + 2.0f, IsolationBurstMs,
+                uint32(Reference() * SealNearPct / 100.0f), SealKeepAway);
+            scheduler.Schedule(Milliseconds(IsolationBurstMs), [this, guid](TaskContext)
             {
                 Player* tank = ObjectAccessor::GetPlayer(*me, guid);
                 if (!tank)
                     return;
-                tank->SendPlaySpellVisual(KIT_BURST);
-                std::string hit;
+                tank->SendPlaySpellVisual(KIT_SEAL);
+                Sound("Vorhan.SealBurst", tank);
+                std::string tooClose;
                 for (Player* player : ArenaPlayers())
-                    if (player != tank && GroundIndicators::CurrentArea(tank, seal).Contains(*player))
-                    {
-                        Hit(player, SPELL_SEAL, SealPct, true);
-                        hit += " " + player->GetName();
-                    }
-                if (hit.empty())
+                {
+                    if (player == tank)
+                        continue;
+                    float const distance = player->GetExactDist2d(tank);
+                    float const share = std::clamp((distance - SealNear) / (SealFar - SealNear), 0.0f, 1.0f);
+                    Hit(player, SPELL_SEAL, SealNearPct + (SealFarPct - SealNearPct) * share,
+                        distance < SealAvoidable);
+                    if (distance < SealAvoidable)
+                        tooClose += " " + player->GetName();
+                }
+                if (tooClose.empty())
                     Kept("isolation");
                 else
-                    Broken("isolation seal", hit);
+                    Broken("isolation seal", tooClose);
             });
         });
     }
@@ -1098,8 +1102,11 @@ private:
     // after the doors, still in their cell.
     void Cells(bool curfew)
     {
-        Cast(CAST_CELLS, false);
+        Cast(CAST_CELLS);
         uint32 const lasts = CellsMs + (curfew ? CurfewAfterCellsMs : 0);
+        AssignNumbers(lasts + 500);
+        Placing(lasts);
+        Sound("Vorhan.CellsOpen");
         for (uint8 number = 1; number <= 8; ++number)
         {
             ShowCell(number, CellsMs);
@@ -1117,6 +1124,7 @@ private:
 
     void SlamDoors()
     {
+        Sound("Vorhan.CellDoors");
         std::array<std::vector<Player*>, 9> inCell;
         std::vector<Player*> outside;
         for (Player* player : ArenaPlayers())
@@ -1154,8 +1162,12 @@ private:
         for (Player* player : outside)
         {
             kept = false;
+            uint8 const number = NumberOf(player);
+            Position const own = CellSpot(number ? number : 1);
             Hit(player, SPELL_OUT_OF_CELL, OutOfCellPct, true);
-            Broken("out of cell", player->GetName());
+            Broken("out of cell", Acore::StringFormat("{} number {} {:.1f} yd from its cell{}", player->GetName(),
+                number, player->GetExactDist2d(&own), player->GetSession() && player->GetSession()->IsBot() ?
+                    " (bot)" : ""));
         }
         for (uint32 escape = 0; escape < empty; ++escape)
         {
@@ -1180,19 +1192,22 @@ private:
     // little before (GroundIndicators hold).
     void Curfew(uint32 inMs)
     {
+        Sound("Vorhan.CurfewTick");
         for (Player* player : ArenaPlayers())
         {
             AddTimedAura(player, SPELL_CURFEW, inMs);
-            HoldStill(player, inMs > 2500 ? inMs - 2500 : 0, 3000);
+            HoldStill(player, inMs > CurfewHoldLeadMs ? inMs - CurfewHoldLeadMs : 0, CurfewHoldLeadMs + 1000);
         }
         scheduler.Schedule(Milliseconds(inMs), [this](TaskContext)
         {
+            Sound("Vorhan.CurfewBell");
             std::string moved;
             for (Player* player : ArenaPlayers())
             {
                 if (!player->isMoving())
                     continue;
                 Hit(player, SPELL_CURFEW_VIOLATION, CurfewPct, true);
+                Sound("Vorhan.Violation", player);
                 if (player->IsAlive())
                     AddTimedAura(player, SPELL_CURFEW_STUN, 3000);
                 moved += " " + player->GetName();
@@ -1208,7 +1223,9 @@ private:
     // break it facing away.
     void Shackles(bool gaze)
     {
-        Cast(CAST_SHACKLES, false);
+        Cast(CAST_SHACKLES);
+        AssignNumbers(ChainCastMs + ChainMaxMs);
+        Placing(ChainCastMs + ChainMaxMs);
         scheduler.Schedule(Milliseconds(ChainCastMs), [this, gaze](TaskContext)
         {
             EndCast();
@@ -1222,12 +1239,16 @@ private:
                 _chains.push_back({ first->GetGUID(), second->GetGUID(), 0, Elapsed() + ChainMaxMs });
                 AddTimedAura(first, SPELL_SHACKLED, ChainMaxMs);
                 AddTimedAura(second, SPELL_SHACKLED, ChainMaxMs);
-                first->CastSpell(second, SPELL_CHAIN_BEAM, true);
-                // Each to their own side: number n towards cell n, its partner the opposite way
+                // The chain drawn between them, by stalkers following each (cast by a player, the beam was a channel
+                // that held a bot in place)
+                ObjectGuid const tether = GroundIndicators::ShowTether(me, first, second, SPELL_CHAIN_BEAM, ChainMaxMs);
+                _chains.back().tether = tether;
+                Sound("Vorhan.Chains", first);
+                // Each to their own side: number n towards cell n, its partner the opposite way, until it breaks
                 GroundIndicators::SetUnitSpot(me, first, AtAngle(ArenaCenter, ClockAngle(float(number - 1), 8.0f),
-                    ChainSpotDistance), 1.5f, 4000);
+                    ChainSpotDistance), 1.5f, ChainMaxMs);
                 GroundIndicators::SetUnitSpot(me, second, AtAngle(ArenaCenter, ClockAngle(float(number + 3), 8.0f),
-                    ChainSpotDistance), 1.5f, 4000);
+                    ChainSpotDistance), 1.5f, ChainMaxMs);
             }
             if (gaze)
                 Gaze(false);
@@ -1240,15 +1261,16 @@ private:
         ObjectGuid second;
         uint32 ticks;
         uint32 until;
+        ObjectGuid tether = ObjectGuid::Empty;  // the chain's look (GroundIndicators::ShowTether)
     };
 
     void BreakChain(Chain const& chain)
     {
+        GroundIndicators::EndTether(me, chain.tether);
         for (ObjectGuid const& guid : { chain.first, chain.second })
             if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
             {
                 player->RemoveAurasDueToSpell(SPELL_SHACKLED);
-                player->RemoveAurasDueToSpell(SPELL_CHAIN_BEAM);
                 GroundIndicators::EndUnitSpot(me, player);
             }
     }
@@ -1265,7 +1287,10 @@ private:
             if (broken || now >= chain->until)
             {
                 if (broken && first && second && first->IsAlive() && second->IsAlive())
+                {
                     Kept("shackles");
+                    Sound("Vorhan.ChainBreak", first);
+                }
                 BreakChain(*chain);
                 chain = _chains.erase(chain);
                 continue;
@@ -1276,15 +1301,17 @@ private:
                 Broken("shackles held", first->GetName() + " " + second->GetName());
             Hit(first, SPELL_SHACKLES, pct, false);
             Hit(second, SPELL_SHACKLES, pct, false);
+            Sound("Vorhan.ChainTighten", first);
             ++chain;
         }
     }
 
-    // Regard du geôlier: his eye opens over 6 s; whoever faces him then is thrown back, hit and marked. With the curfew:
-    // still, facing away.
+    // Regard du geôlier: his eye opens over 6 s; whoever faces him then is thrown back, hit and marked. With the
+    // curfew: still, facing away.
     void Gaze(bool curfew)
     {
-        Cast(CAST_GAZE, true);
+        Cast(CAST_GAZE);
+        Sound("Vorhan.GazeOpen");
         AddTimedAura(me, SPELL_OPENING_EYE, GazeMs);
         ShowGaze(GazeMs);
         LookAway(GazeMs);
@@ -1294,15 +1321,20 @@ private:
         {
             EndCast();
             me->RemoveAurasDueToSpell(SPELL_OPENING_EYE);
-            me->SendPlaySpellVisual(KIT_ROAR);
+            Sound("Vorhan.GazeBurst");
             std::string faced;
             for (Player* player : ArenaPlayers())
             {
                 if (!player->isInFront(me, float(M_PI)))
                     continue;
+                // How far off its back to him it stood (0: turned right away, 180: facing him)
+                float const off = std::fabs(std::remainder(player->GetOrientation() - player->GetAngle(me) -
+                    float(M_PI), 2.0f * float(M_PI))) * 180.0f / float(M_PI);
+                LOG_INFO("module.vorhan", "Vorhan gaze instance={} {} faced him, {:.0f} degrees off{}",
+                         me->GetInstanceId(), player->GetName(), off, player->isMoving() ? ", moving" : "");
                 Hit(player, SPELL_GAZE, GazePct, true);
                 if (player->IsAlive())
-                    player->KnockbackFrom(me->GetPositionX(), me->GetPositionY(), GazeThrowSpeedXY, GazeThrowSpeedZ);
+                    Throw(player, GazeThrowSpeedXY, GazeThrowSpeedZ);
                 faced += " " + player->GetName();
             }
             if (faced.empty())
@@ -1314,10 +1346,14 @@ private:
 
     // Appel nominal: he stands still and calls the roll; each pair to its mark. Alone, more than two, or on another
     // number's mark: death. A player whose partner is dead stands alone legitimately.
-    void RollCall()
+    void RollCall(bool drawn = false)
     {
         std::array<uint8, 4> const order = RollCallOrders[_rollCalls++ % RollCallOrders.size()];
-        Cast(CAST_ROLL_CALL, true);
+        Cast(CAST_ROLL_CALL);
+        if (!drawn)
+            AssignNumbers(RollCallMs + 500);
+        Placing(RollCallMs);
+        Sound("Vorhan.RollCall");
         std::array<uint8, 4> pairOnMark = {};
         for (uint8 cardinal = 0; cardinal < 4; ++cardinal)
         {
@@ -1332,6 +1368,7 @@ private:
         scheduler.Schedule(Milliseconds(RollCallMs), [this, pairOnMark](TaskContext)
         {
             EndCast();
+            Sound("Vorhan.RollCallEnd");
             ResolveRollCall(pairOnMark);
         });
     }
@@ -1402,25 +1439,33 @@ private:
     // under him it lands short of the walls; farther, into them. With the Roll Call: called as they land.
     void Charge(bool rollCall)
     {
-        Cast(CAST_CHARGE, true);
+        Cast(CAST_CHARGE);
         me->NearTeleportTo(ArenaCenter.GetPositionX(), ArenaCenter.GetPositionY(), Ground(ArenaCenter).GetPositionZ(),
                            me->GetOrientation());
+        if (rollCall)
+            AssignNumbers(ChargeWallsMs + ChargeLandMs + RollCallMs + 1000);
+        Placing(ChargeWallsMs);
         ShowWalls(WallsLastMs);
-        for (Player* player : ArenaPlayers())
+        Sound("Vorhan.Walls");
+        std::vector<Player*> players = ArenaPlayers();
+        for (std::size_t index = 0; index < players.size(); ++index)
         {
-            // Under him, on their own side (their cell's way): they land spread out round the room
-            uint8 const number = NumberOf(player);
-            float const angle = number ? ClockAngle(float(number - 1), 8.0f) : ArenaCenter.GetAngle(player);
-            GroundIndicators::SetUnitSpot(me, player, AtAngle(ArenaCenter, angle, ChargeSafeRadius / 2.0f), 1.0f,
-                ChargeWallsMs + 300);
+            // Under him, each on a side of their own (their number's way): they land spread out round the room
+            uint8 const number = NumberOf(players[index]);
+            float const angle = ClockAngle(float(number ? number - 1 : index), 8.0f);
+            GroundIndicators::SetUnitSpot(me, players[index], AtAngle(ArenaCenter, angle, ChargeSafeRadius / 2.0f),
+                1.0f, ChargeWallsMs - 300);
         }
         scheduler.Schedule(Milliseconds(ChargeWallsMs), [this, rollCall](TaskContext)
         {
             EndCast();
-            me->SendPlaySpellVisual(KIT_SLAM);
+            me->SendPlaySpellVisual(KIT_SHOCKWAVE);
+            Sound("Vorhan.Charge");
             for (Player* player : ArenaPlayers())
-                player->KnockbackFrom(me->GetPositionX(), me->GetPositionY(), ThrowSpeedXY(ThrowDistance),
-                                      ThrowSpeedZ);
+            {
+                GroundIndicators::EndUnitSpot(me, player);
+                Throw(player, ThrowSpeedXY(ThrowDistance), ThrowSpeedZ);
+            }
             scheduler.Schedule(Milliseconds(ChargeLandMs), [this, rollCall](TaskContext)
             {
                 std::string walled;
@@ -1435,7 +1480,7 @@ private:
                 else
                     Broken("charge", walled);
                 if (rollCall)
-                    RollCall();
+                    RollCall(true);
             });
         });
     }
@@ -1451,15 +1496,16 @@ private:
         me->SetReactState(REACT_PASSIVE);
         me->GetMotionMaster()->Clear();
         me->GetMotionMaster()->MovePoint(0, Ground(ArenaCenter));
+        // Out of reach, still in combat with them (immune to them, he left it and evaded mid-fight)
         me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-        me->SetImmuneToPC(true);
         me->SetEmoteState(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        Sound("Vorhan.Riot");
         if (sSpellMgr->GetSpellInfo(CAST_RIOT))
             me->CastSpell(me, CAST_RIOT, false);
     }
 
-    // A wave of prisoners from the lair's edge, each straight on a tank (the fel orcs on one, the abyssal on the other):
-    // the area damage moment. Sized on the group's pack damage: a wave lasts about WaveSeconds.
+    // A wave of prisoners from the lair's edge, each straight on a tank (the fel orcs on one, the abyssal on the
+    // other): the area damage moment. Sized on the group's pack damage: a wave lasts about WaveSeconds.
     void RiotWave()
     {
         std::vector<Player*> tanks;
@@ -1500,11 +1546,15 @@ private:
         _phase = Phase::Two;
         Talk(SAY_PHASE_2);
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-        me->SetImmuneToPC(false);
         me->ClearEmoteState();
         me->InterruptNonMeleeSpells(false);
         me->SetReactState(REACT_AGGRESSIVE);
-        if (Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, 0, 0.0f, true))
+        Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, 0, 0.0f, true);
+        if (!target)
+            for (Player* player : ArenaPlayers())
+                if (IsGroupTank(player) || !target)
+                    target = player;
+        if (target)
             AttackStart(target);
     }
 
@@ -1521,14 +1571,16 @@ private:
     {
         float const percent = LifeSentencePct * std::pow(LifeSentenceGrowth, float(_lifeSentences++));
         GroundIndicators::WarnGroupDamage(me, 1000);
-        me->SendPlaySpellVisual(KIT_ROAR);
+        me->SendPlaySpellVisual(KIT_SHOUT);
+        Sound("Vorhan.LifeSentence");
         HitEveryone(SPELL_LIFE_SENTENCE, percent);
     }
 
     void HardEnrage()
     {
         Talk(SAY_HARD_ENRAGE);
-        me->SendPlaySpellVisual(KIT_SLAM);
+        me->SendPlaySpellVisual(KIT_SHOUT);
+        Sound("Vorhan.LifeSentence");
         for (Player* player : ArenaPlayers())
             Doom(player, SPELL_CAPITAL);
     }
@@ -1537,10 +1589,16 @@ private:
     // ends it, and the players do not watch their bots fight on
     void CheckPlayersStanding()
     {
+        // Nobody left at all: the wipe (combat would not tell during the riot)
+        if (ArenaPlayers().empty())
+        {
+            Wipe();
+            return;
+        }
         bool botStanding = false;
         for (Player* player : ArenaPlayers())
         {
-            if (!player->GetSession() || !player->GetSession()->IsBot())
+            if (!player->GetSession() || !player->GetSession()->IsBot() || BotsOnly)
                 return;
             botStanding = true;
         }
@@ -1550,7 +1608,7 @@ private:
         for (uint32 pulse = 0; pulse < FinishPulses; ++pulse)
             scheduler.Schedule(Milliseconds(pulse * FinishPulseMs), [this, pulse](TaskContext)
             {
-                me->SendPlaySpellVisual(KIT_ROAR);
+                me->SendPlaySpellVisual(KIT_SHOUT);
                 if (pulse + 1 != FinishPulses)
                     return;
                 _killLabel = "no player standing";
@@ -1572,19 +1630,52 @@ private:
         _fightListeners.clear();
     }
 
-    // --- The visuals: the painted marks (GroundIndicators), the cage, the bots' orders ---------------------------------
-    // The number: its debuff, and painted over the head for the whole fight
-    void ShowNumber(Player* player, uint8 number)
+    // --- The visuals: the painted marks (GroundIndicators), the cage, the bots' orders -------------------------------
+    // The number, for its rule: its debuff, and painted over the head
+    void ShowNumber(Player* player, uint8 number, uint32 durationMs)
     {
-        AddTimedAura(player, SPELL_NUMBER_FIRST + number - 1, AtHardEnrage + 60000);
-        GroundIndicators::ShowCarriedNumber(player, number, 0);
+        AddTimedAura(player, SPELL_NUMBER_FIRST + number - 1, durationMs);
+        GroundIndicators::ShowCarriedNumber(player, number, durationMs);
     }
 
     void ClearNumbers()
     {
         for (auto const& [guid, number] : _numbers)
             if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+            {
                 GroundIndicators::ClearCarriedNumber(player);
+                player->RemoveAurasDueToSpell(SPELL_NUMBER_FIRST + number - 1);
+            }
+    }
+
+    // Thrown back from him: a player's client flies the knockback, a bot is flown by the server (its client-less
+    // session took the knockback's packet late, if at all: bots were never thrown)
+    void Throw(Player* player, float speedXY, float speedZ)
+    {
+        if (player->GetSession() && player->GetSession()->IsBot())
+        {
+            player->StopMoving();
+            player->GetMotionMaster()->Clear();
+            player->GetMotionMaster()->MoveKnockbackFromForPlayer(me->GetPositionX(), me->GetPositionY(), speedXY,
+                                                                  speedZ);
+        }
+        else
+            player->KnockbackFrom(me->GetPositionX(), me->GetPositionY(), speedXY, speedZ);
+    }
+
+    // A rule places everyone for this long: his tank does not pull him back to the middle meanwhile
+    void Placing(uint32 durationMs)
+    {
+        _placingUntil = std::max(_placingUntil, Elapsed() + durationMs + 500);
+    }
+
+    // A rule's sound, to the players near the lair, heard from where it happens (our sound engine)
+    void Sound(std::string_view key, WorldObject const* from = nullptr)
+    {
+        Position const where = (from ? from : me)->GetPosition();
+        for (Player* player : Listeners())
+            if (player->GetSession() && !player->GetSession()->IsBot())
+                EvolutionsAudio::PlayAt(player, key, where);
     }
 
     // A cell's seal: its iron, its turning runes and its number, the number's top towards the cell's way out from the
@@ -1600,7 +1691,6 @@ private:
     {
         Position const spot = CellSpot(number);
         GroundIndicators::FlareCell(me, spot, CellRadius);
-        PlayKit(spot, KIT_DOOR);
         if (Creature* stalker = me->SummonCreature(NPC_STALKER, spot, TEMPSUMMON_TIMED_DESPAWN, 3000))
             if (sSpellMgr->GetSpellInfo(SPELL_CAGE))
                 stalker->AddAura(SPELL_CAGE, stalker);
@@ -1612,10 +1702,13 @@ private:
         GroundIndicators::ShowRollCallMark(me, spot, pair, ArenaCenter.GetAngle(&spot), durationMs, MarkRadius);
     }
 
-    // The electrified walls: ten tiles of lightning between iron bars round the room
+    // The electrified walls: a shockwave from the warden out to the room's edge, and the walls of lightning between
+    // iron bars rising behind it as it arrives, a circle round the room; they fade out at the end
     void ShowWalls(uint32 durationMs)
     {
-        GroundIndicators::ShowWardenWall(me, Ground(ArenaCenter), durationMs);
+        Position const center = Ground(ArenaCenter);
+        GroundIndicators::ShowWardenShockwave(me, center);
+        GroundIndicators::ShowWardenWall(me, center, durationMs, GroundIndicators::WardenWallRiseDelayMs);
     }
 
     // His eye over him, opening for the whole cast (16 painted frames, a red burst as it opens), moving with him
@@ -1646,20 +1739,7 @@ private:
         });
     }
 
-    void PlayKit(Position const& where, uint32 kit)
-    {
-        TempSummon* stalker = me->SummonCreature(NPC_STALKER, Ground(where), TEMPSUMMON_TIMED_DESPAWN, 4000);
-        if (!stalker)
-            return;
-        ObjectGuid const guid = stalker->GetGUID();
-        scheduler.Schedule(250ms, [this, guid, kit](TaskContext)
-        {
-            if (Creature* found = me->GetMap()->GetCreature(guid))
-                found->SendPlaySpellVisual(kit);
-        });
-    }
-
-    // --- The deaths, logged for tuning on evidence ---------------------------------------------------------------------
+    // --- The deaths, logged for tuning on evidence -------------------------------------------------------------------
     static std::string SpellName(uint32 spellId)
     {
         if (!spellId)
@@ -1731,6 +1811,7 @@ private:
     uint32 _lifeSentences = 0;
     uint32 _rulesKept = 0;
     uint32 _rulesBroken = 0;
+    uint32 _placingUntil = 0;                   // a rule placing everyone until then (Placing)
     std::map<ObjectGuid, uint8> _numbers;
     std::map<ObjectGuid, Marked> _marks;
     std::map<ObjectGuid, Escaped> _escapes;
@@ -1781,7 +1862,7 @@ boss_warden_vorhan* FindWarden(Player* player)
 
 using namespace Acore::ChatCommands;
 
-// .vorhan info | skip <seconds> | cast <rule> | pull: for game masters trying the fight
+// .vorhan info | skip <seconds> | cast <rule> | pull | botsonly <on|off>: for game masters trying the fight
 class WardenVorhanCommandScript final : public CommandScript
 {
 public:
@@ -1794,6 +1875,7 @@ public:
             { "skip", HandleSkip, SEC_GAMEMASTER, Console::No },
             { "cast", HandleCast, SEC_GAMEMASTER, Console::No },
             { "pull", HandlePull, SEC_GAMEMASTER, Console::No },
+            { "botsonly", HandleBotsOnly, SEC_GAMEMASTER, Console::Yes },
         };
         static ChatCommandTable commandTable = {
             { "vorhan", vorhanTable },
@@ -1828,9 +1910,19 @@ public:
         if (!warden || !warden->CastNow(what))
         {
             handler->SendErrorMessage("No fighting Vorhan within 250 yards, or no such rule (sentence, isolation, "
-                "cells, cellscurfew, shackles, shacklesgaze, gaze, gazecurfew, rollcall, charge, chargerollcall, wave).");
+                "cells, cellscurfew, shackles, shacklesgaze, gaze, gazecurfew, rollcall, charge, chargerollcall, "
+                "wave).");
             return false;
         }
+        return true;
+    }
+
+    // .vorhan botsonly <on|off>: the bots fight alone, the game master watching (testing the bots)
+    static bool HandleBotsOnly(ChatHandler* handler, bool enable)
+    {
+        BotsOnly = enable;
+        handler->SendSysMessage(enable ? "Vorhan: bots only (the bots count as players)." :
+                                         "Vorhan: players and bots.");
         return true;
     }
 

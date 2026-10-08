@@ -1103,6 +1103,9 @@ struct Goal
 std::mutex GoalLock;
 std::vector<Goal> Goals;
 
+// A unit on its own spot holds there this far from its middle past its radius (HoldsUnitSpot): it stopped as it came
+// in, and the fight's own pull (a melee's chase) took it back out, in and out every tick
+constexpr float UnitSpotHoldSlack = 0.75f;
 // A gaze turns the backs of everyone this close to the one gazing (SetLookAway)
 constexpr float LookAwayReach = 100.0f;
 // A soak is looked at by the players this close to it; a player this far inside its edge stands in it
@@ -1588,6 +1591,22 @@ Area ShowCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 duration
     return area;
 }
 
+Area WatchCarriedCircle(Unit* owner, Unit* carrier, float radius, uint32 durationMs, uint32 hitDamage, float keepAway)
+{
+    Area area = MakeArea(Area::Kind::Circle, *carrier, 0.0f, radius);
+    if (!owner || !carrier || !carrier->IsInWorld() || !carrier->IsAlive() || durationMs == 0)
+        return area;
+    uint64 const id = Register(owner, carrier, area, durationMs, hitDamage);
+    if (keepAway > radius)
+    {
+        std::lock_guard<std::mutex> guard(RegistryLock);
+        for (ActiveArea& entry : Registry)
+            if (entry.id == id)
+                entry.keepAway = keepAway;
+    }
+    return area;
+}
+
 bool KeepsAway(Unit* unit)
 {
     if (!unit || !unit->IsInWorld() || !unit->IsAlive())
@@ -1880,6 +1899,43 @@ bool HasFightPlace(Unit* unit)
     return false;
 }
 
+ObjectGuid ShowTether(Unit* owner, Unit* from, Unit* to, uint32 spell, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || !from || !to || durationMs == 0)
+        return ObjectGuid::Empty;
+    TempSummon* source = owner->SummonCreature(NPC_GROUND_INDICATOR, from->GetPosition(), TEMPSUMMON_TIMED_DESPAWN,
+                                               durationMs);
+    TempSummon* end = owner->SummonCreature(NPC_GROUND_INDICATOR, to->GetPosition(), TEMPSUMMON_TIMED_DESPAWN,
+                                            durationMs);
+    if (!source || !end)
+        return ObjectGuid::Empty;
+    source->AIM_Initialize(new FollowCarrierAI(source, from->GetGUID()));
+    end->AIM_Initialize(new FollowCarrierAI(end, to->GetGUID()));
+    // A spell cannot take a unit that cannot be selected as its target, and the stalkers are made so
+    end->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+    ObjectGuid const endGuid = end->GetGUID();
+    ObjectGuid const sourceGuid = source->GetGUID();
+    // A moment after both exist for the clients, or the beam has nothing to reach
+    source->m_Events.AddEventAtOffset([source, endGuid, spell]()
+    {
+        if (Creature* target = source->GetMap()->GetCreature(endGuid))
+            source->CastSpell(target, spell, true);
+    }, 300ms);
+    return sourceGuid;
+}
+
+void EndTether(Unit* owner, ObjectGuid tether)
+{
+    if (!owner || !owner->IsInWorld() || tether.IsEmpty())
+        return;
+    if (Creature* source = owner->GetMap()->GetCreature(tether))
+    {
+        source->InterruptNonMeleeSpells(false);
+        source->RemoveAllAuras();
+        source->DespawnOrUnsummon(100ms);
+    }
+}
+
 void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs)
 {
     if (!owner || !owner->IsInWorld() || !unit || durationMs == 0)
@@ -1898,6 +1954,17 @@ void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs)
             return entry.kind == Goal::Kind::Still && entry.owner == goal.owner && entry.tank == goal.tank;
         }), Goals.end());
     Goals.push_back(goal);
+}
+
+bool HoldsUnitSpot(Unit* unit)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::Unit && goal.tank == unit->GetGUID() &&
+            unit->GetExactDist2d(&goal.center) <= goal.radius + UnitSpotHoldSlack)
+            return true;
+    return false;
 }
 
 bool HoldsStill(Unit* unit)
@@ -2032,20 +2099,22 @@ void ClearCarriedLook(Unit* carrier, uint32 look)
         carrier->RemoveAurasDueToSpell(look);
 }
 
-void ShowCurtainRing(Unit* owner, Position const& center, uint32 look, uint32 tiles, float tileLength,
-                     uint32 durationMs)
+void ShowCurtainRing(Unit* owner, Position const& center, uint32 firstLook, uint32 looks, uint32 pieces,
+                     float pieceLength, uint32 durationMs)
 {
-    if (!owner || !owner->IsInWorld() || tiles < 3 || durationMs == 0)
+    if (!owner || !owner->IsInWorld() || pieces < 3 || looks == 0 || durationMs == 0)
         return;
-    // Straight tiles meeting at their ends: a regular polygon, each tile on its own carrier at its middle, turned
-    // along its side (the model runs along its carrier's facing)
-    float const middle = tileLength / (2.0f * std::tan(float(M_PI) / float(tiles)));
-    for (uint32 index = 0; index < tiles; ++index)
+    // Straight pieces meeting at their ends: a regular polygon, each piece on its own carrier at its middle, turned
+    // along its side counterclockwise (the model runs along its carrier's facing, its band's u with it: the next
+    // piece's share follows on)
+    float const middle = pieceLength / (2.0f * std::tan(float(M_PI) / float(pieces)));
+    for (uint32 index = 0; index < pieces; ++index)
     {
-        float const angle = 2.0f * float(M_PI) * float(index) / float(tiles);
+        float const angle = 2.0f * float(M_PI) * float(index) / float(pieces);
         Position const at = OnGround(owner, center.GetPositionX() + middle * std::cos(angle),
                                      center.GetPositionY() + middle * std::sin(angle), center.GetPositionZ());
-        Place(owner, at, Position::NormalizeOrientation(angle + float(M_PI) / 2.0f), look, 1.0f, durationMs);
+        Place(owner, at, Position::NormalizeOrientation(angle + float(M_PI) / 2.0f), firstLook + index % looks, 1.0f,
+              durationMs);
     }
 }
 
@@ -2101,9 +2170,31 @@ void ShowRollCallMark(Unit* owner, Position const& center, uint32 pair, float or
     Place(owner, at, orientation, SPELL_WARDEN_ROLL_CALL_PAIR_FIRST + pair, radius * RollCallPairShare, durationMs);
 }
 
-void ShowWardenWall(Unit* owner, Position const& center, uint32 durationMs)
+void ShowWardenWall(Unit* owner, Position const& center, uint32 durationMs, uint32 delayMs)
 {
-    ShowCurtainRing(owner, center, SPELL_WARDEN_WALL, WardenWallTiles, WardenWallTileLength, durationMs);
+    if (!owner || !owner->IsInWorld())
+        return;
+    if (delayMs)
+    {
+        // The owner's own event: it goes with the owner
+        Position const at = center;
+        owner->m_Events.AddEventAtOffset([owner, at, durationMs]()
+        {
+            ShowWardenWall(owner, at, durationMs);
+        }, Milliseconds(delayMs));
+        return;
+    }
+    ShowCurtainRing(owner, center, SPELL_WARDEN_WALL_FIRST, WardenWallLooks, WardenWallPieces, WardenWallPieceLength,
+                    durationMs);
+}
+
+void ShowWardenShockwave(Unit* owner, Position const& center, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || durationMs == 0)
+        return;
+    // The ring is drawn at its full size (the model grows it from its middle on its own animation)
+    Place(owner, OnGround(owner, center.GetPositionX(), center.GetPositionY(), center.GetPositionZ()), 0.0f,
+          SPELL_WARDEN_WALL_SHOCKWAVE, WardenShockwaveRadius, durationMs);
 }
 
 void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold, Unit* tank)
