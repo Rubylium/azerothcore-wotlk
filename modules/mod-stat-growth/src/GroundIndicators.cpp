@@ -2197,29 +2197,30 @@ void ShowWardenShockwave(Unit* owner, Position const& center, uint32 durationMs)
           SPELL_WARDEN_WALL_SHOCKWAVE, WardenShockwaveRadius, durationMs);
 }
 
-void ShowWardenStrike(Unit* owner, Position const& from, float orientation, float reach)
+void ShowWardenStrike(Unit* owner, Position const& from, float orientation)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    // Built to its size (never scaled: a scale set as it appears grows in slowly on the client)
+    Place(owner, OnGround(owner, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ()), orientation,
+          SPELL_WARDEN_STRIKE, 1.0f, WardenStrikeMs);
+}
+
+void ShowWardenPushTrail(Unit* owner, Position const& from, float orientation)
 {
     if (!owner || !owner->IsInWorld())
         return;
     Place(owner, OnGround(owner, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ()), orientation,
-          SPELL_WARDEN_STRIKE, reach, WardenStrikeMs);
+          SPELL_WARDEN_PUSH_TRAIL, 1.0f, WardenPushTrailMs);
 }
 
-void ShowWardenPushTrail(Unit* owner, Position const& from, float orientation, float length)
+void ShowWardenSealBurst(Unit* owner, Position const& center)
 {
     if (!owner || !owner->IsInWorld())
         return;
-    Place(owner, OnGround(owner, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ()), orientation,
-          SPELL_WARDEN_PUSH_TRAIL, length, WardenPushTrailMs);
-}
-
-void ShowWardenSealBurst(Unit* owner, Position const& center, float radius)
-{
-    if (!owner || !owner->IsInWorld())
-        return;
-    // Drawn at its full size: the model grows it from its middle
+    // At its full size: the model grows it from its middle
     Place(owner, OnGround(owner, center.GetPositionX(), center.GetPositionY(), center.GetPositionZ()), 0.0f,
-          SPELL_WARDEN_SEAL_BURST, radius, WardenSealBurstMs);
+          SPELL_WARDEN_SEAL_BURST, 1.0f, WardenSealBurstMs);
 }
 
 void SetOffTankSpot(Unit* owner, Position const& spot, uint32 durationMs, bool hold, Unit* tank)

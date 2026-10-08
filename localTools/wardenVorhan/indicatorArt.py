@@ -398,9 +398,11 @@ def strike_cone():
     lane = numpy.interp((angle + half * 1.2) / (half * 2.4) * 39.0, numpy.arange(40), lanes)
     lane = lane * lane * (3.0 - 2.0 * lane)
     streaks = numpy.clip(lane * 1.4 - 0.3, 0.0, 1.0) * (0.5 + 0.5 * noise(size, size, 60, 72))
-    heat = smooth(0.85, 0.05, radius)
-    front = numpy.exp(-((radius - 0.8) / 0.06) ** 2) * (0.55 + 0.45 * noise(size, size, 14, 73))
-    glow = numpy.clip(streaks * (0.35 + 0.65 * heat) + front * 0.9 + smooth(0.25, 0.0, radius) * 0.8, 0.0, 1.0)
+    heat = smooth(0.95, 0.05, radius)
+    front = numpy.exp(-((radius - 0.82) / 0.08) ** 2) * (0.6 + 0.4 * noise(size, size, 14, 73))
+    # A body of fire over the whole blow, its streaks and its front on it: seen as a blast, not a spark at the fist
+    body = 0.45 + 0.25 * noise(size, size, 30, 74)
+    glow = numpy.clip(body + streaks * 0.6 + front + smooth(0.25, 0.0, radius) * 0.5, 0.0, 1.0)
     glow *= inside
     hot = numpy.array([1.0, 0.62, 0.18])
     deep = numpy.array([0.75, 0.10, 0.03])
@@ -412,25 +414,26 @@ def strike_cone():
 
 
 def push_trail():
-    """Where the thrown tank skidded: two scorched furrows along the line (from its start, left, to where it landed,
-    right), embers still burning in them, brightest where the blow struck. 1024 x 192, RGBA."""
+    """Where the thrown tank skidded: two broad scorched furrows along the line (from its start, left, to where it
+    landed, right) over a dark burnt band, embers burning in them, brightest where the blow struck. 1024 x 192, RGBA."""
     width, height = 1024, 192
     xs = (numpy.arange(width) + 0.5) / width
     ys = (numpy.arange(height) + 0.5) / height * 2.0 - 1.0
     x, y = numpy.meshgrid(xs, ys)
     wobble = (noise(width, height, 160, 81) - 0.5) * 0.12
     furrows = numpy.zeros((height, width))
-    for middle in (-0.32, 0.32):
-        furrows = numpy.maximum(furrows, numpy.exp(-((y - middle - wobble) / 0.16) ** 2))
-    ends = smooth(0.0, 0.06, x) * smooth(1.0, 0.8, x)
-    scorch = furrows * ends * (0.6 + 0.4 * noise(width, height, 12, 82))
-    embers = numpy.clip(noise(width, height, 4, 83) - 0.62, 0.0, 1.0) * 3.0 * furrows * smooth(0.9, 0.0, x)
-    hot = smooth(0.5, 0.0, x) * furrows
-    glow = numpy.clip(embers + hot * 0.7, 0.0, 1.0) * ends
-    ash = numpy.array([0.05, 0.04, 0.035])
-    ember = numpy.array([1.0, 0.38, 0.08])
-    alpha = numpy.clip(scorch * 0.75 + glow * 0.6, 0.0, 0.85)
-    weight = numpy.where(alpha > 1e-4, glow * 0.6 / numpy.maximum(alpha, 1e-4), 0.0)
+    for middle in (-0.38, 0.38):
+        furrows = numpy.maximum(furrows, numpy.exp(-((y - middle - wobble) / 0.24) ** 2))
+    band = numpy.exp(-(y / 0.7) ** 2) * 0.55
+    ends = smooth(0.0, 0.05, x) * smooth(1.0, 0.82, x)
+    scorch = numpy.maximum(furrows, band) * ends * (0.65 + 0.35 * noise(width, height, 12, 82))
+    embers = numpy.clip(noise(width, height, 4, 83) - 0.5, 0.0, 1.0) * 3.0 * furrows * smooth(1.0, 0.0, x)
+    hot = smooth(0.6, 0.0, x) * furrows
+    glow = numpy.clip(embers + hot * 0.9, 0.0, 1.0) * ends
+    ash = numpy.array([0.06, 0.04, 0.03])
+    ember = numpy.array([1.0, 0.42, 0.08])
+    alpha = numpy.clip(scorch * 0.85 + glow * 0.8, 0.0, 0.92)
+    weight = numpy.where(alpha > 1e-4, glow * 0.8 / numpy.maximum(alpha, 1e-4), 0.0)
     weight = numpy.clip(weight, 0.0, 1.0)[..., None]
     colour = ash * (1 - weight) + ember * weight
     rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)

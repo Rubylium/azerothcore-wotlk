@@ -159,8 +159,6 @@ constexpr float TankSpotSlack = 6.0f;
 constexpr float ThrowSpeedZ = 7.0f;
 constexpr float ThrowDistance = 18.0f;          // the charge: from within 6 yd lands within 24, short of the walls
 constexpr float IsolationThrowDistance = 25.0f;
-// The isolation's blow drawn this far past the tank it throws
-constexpr float StrikePastTank = 8.0f;
 
 // His eye, drawn by the players' interface over his torso (FrameXML WardenGaze.lua: over the world and the nameplates,
 // which hid it as a model in the world): this high over his feet, this wide (yards)
@@ -1077,8 +1075,8 @@ private:
             Sound("Vorhan.Isolation", tank);
             // The blow seen: a cone of fire from his fist through the tank, and the furrows of its throw
             float const blow = me->GetAngle(tank);
-            GroundIndicators::ShowWardenStrike(me, me->GetPosition(), blow, me->GetExactDist2d(tank) + StrikePastTank);
-            GroundIndicators::ShowWardenPushTrail(me, tank->GetPosition(), blow, IsolationThrowDistance);
+            GroundIndicators::ShowWardenStrike(me, me->GetPosition(), blow);
+            GroundIndicators::ShowWardenPushTrail(me, tank->GetPosition(), blow);
             _isolating = guid;
             Hit(tank, SPELL_ISOLATION, IsolationPct, false);
             _isolating.Clear();
@@ -1097,7 +1095,7 @@ private:
                     return;
                 tank->SendPlaySpellVisual(KIT_SEAL);
                 Sound("Vorhan.SealBurst", tank);
-                GroundIndicators::ShowWardenSealBurst(me, tank->GetPosition(), SealAvoidable);
+                GroundIndicators::ShowWardenSealBurst(me, tank->GetPosition());
                 std::string tooClose;
                 for (Player* player : ArenaPlayers())
                 {
@@ -1999,8 +1997,8 @@ public:
             float const blow = Position::NormalizeOrientation(facing + float(M_PI));
             player->SendPlaySpellVisual(KIT_STRIKE);
             EvolutionsAudio::PlayAt(player, "Vorhan.Isolation", player->GetPosition());
-            GroundIndicators::ShowWardenStrike(player, fist, blow, 6.0f + StrikePastTank);
-            GroundIndicators::ShowWardenPushTrail(player, player->GetPosition(), blow, IsolationThrowDistance);
+            GroundIndicators::ShowWardenStrike(player, fist, blow);
+            GroundIndicators::ShowWardenPushTrail(player, player->GetPosition(), blow);
             ObjectGuid const guid = player->GetGUID();
             player->m_Events.AddEventAtOffset([guid]()
             {
@@ -2009,7 +2007,7 @@ public:
                     return;
                 player->SendPlaySpellVisual(KIT_SEAL);
                 EvolutionsAudio::PlayAt(player, "Vorhan.SealBurst", player->GetPosition());
-                GroundIndicators::ShowWardenSealBurst(player, player->GetPosition(), SealAvoidable);
+                GroundIndicators::ShowWardenSealBurst(player, player->GetPosition());
             }, Milliseconds(IsolationBurstMs));
             return true;
         }
