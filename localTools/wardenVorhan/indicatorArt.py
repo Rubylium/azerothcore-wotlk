@@ -6,8 +6,9 @@ Each function returns the picture of one shape. The paintings are read from art/
 the fight can be tested, and the next build picks the painting up by itself. A painting is never stretched: it is
 resized at its own aspect only, and one painted at another aspect than the brief's stops the build.
 
-- The gaze: an atlas of frames (4 x 4) built from three key paintings (closed, half open, open): the eyelids opening
-  over the eye by masks and blends, the red glow growing, breathing on the last frames, and the burst.
+- The gaze: one eye opening, 64 frames in an atlas: its lids drawn here, the eye and its halo painted (eye_open.png,
+  eye_glow.png; until they are there, the globe of gaze_open.png and a drawn halo), its glow growing, breathing on
+  the last frames, the burst.
 - The numbers 1 to 8 and the roll call pairs ("1-2" ...), rendered here (painted numerals are unreliable): ember-red
   numerals in Cinzel, a black-iron edge and a red glow round them, readable on any floor and against any sky.
 
@@ -36,6 +37,8 @@ SIZES = {
     'wall_band_2.png': (1024, 256),
     'wall_band_3.png': (1024, 256),
     'wall_band_4.png': (1024, 256),
+    'eye_open.png': (1024, 1024),
+    'eye_glow.png': (1024, 1024),
 }
 
 
@@ -60,14 +63,6 @@ def as_array(image):
 
 def to_image(array_):
     return Image.fromarray(numpy.clip(array_ * 255.0 + 0.5, 0, 255).astype(numpy.uint8))
-
-
-def keyed(rgb, knee):
-    """Black keyed to transparent: alpha from brightness (full from `knee` up), colour unpremultiplied. Dark iron
-    stays as dark iron over the scene rather than vanishing as it does added to it."""
-    alpha = numpy.clip(rgb.max(axis=2, keepdims=True) / knee, 0.0, 1.0)
-    colour = numpy.where(alpha > 1e-4, rgb / numpy.maximum(alpha, 1e-4), 0.0)
-    return numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha], axis=2)
 
 
 def blur(array_, radius):
@@ -169,100 +164,169 @@ def rollcall_number(pair):
 
 
 # --- The gaze -----------------------------------------------------------------------------------------------------
+#
+# One eye floating on the warden, nothing round it: no plate, no frame, its outside clear. Lids that part slowly (an
+# almond opening from a glowing slit), the eye behind them its painting (eye_open.png: one open eye alone on black,
+# about 55% of the width; until it is there, the globe of gaze_open.png, its iron left out), its slit pupil widening,
+# the eye heating and its red glow spreading (eye_glow.png, the halo alone on black; a drawn one until then), then
+# breathing faster, then the burst - a red glow, dim enough never to flash. 64 frames of 256 x 128 (the eye is twice
+# as wide as it is tall), 8 x 8 in a 2048 x 1024 atlas; shapes.json VW_Gaze's timeline (gaze_timeline) plays them.
 
-GAZE_FRAME = 256
-GAZE_GRID = 4
-# The opening, frame by frame: (stage, t, glow). Stage 0 the closed eye, 1 closed to half open, 2 half to open,
-# 3 open; glow the red bloom added over it. Frames 12 to 14 are the breathing (shapes.json VW_Gaze's timeline
-# alternates them faster and faster), 15 the burst.
-GAZE_FRAMES = [
-    (0, 0.0, 0.00), (0, 0.0, 0.10), (0, 0.0, 0.22),
-    (1, 0.2, 0.25), (1, 0.4, 0.30), (1, 0.6, 0.36), (1, 0.8, 0.42), (1, 1.0, 0.48),
-    (2, 0.25, 0.55), (2, 0.5, 0.62), (2, 0.75, 0.70), (2, 1.0, 0.78),
-    (3, 1.0, 0.70), (3, 1.0, 0.95), (3, 1.0, 1.20),
-    (3, 1.0, 2.20),
-]
-# A frame's border fades to clear over this share of it: the atlas's neighbours never bleed into one another
-GAZE_BORDER = 0.035
-# Alpha keying of the gaze (its black-iron plate reads as iron, not as a faint glow)
-GAZE_KNEE = 0.15
-
-
-def eye_region(closed, opened):
-    """The eye: where the open painting differs most from the closed one. (cx, cy, rx, ry) in pixels."""
-    difference = blur(numpy.abs(opened - closed).max(axis=2), closed.shape[1] * 0.01)
-    weights = numpy.clip(difference - 0.35 * difference.max(), 0.0, None)
-    ys, xs = numpy.mgrid[0:closed.shape[0], 0:closed.shape[1]]
-    total = weights.sum()
-    cx, cy = (weights * xs).sum() / total, (weights * ys).sum() / total
-    lit = weights > 0
-    rx = max(8.0, (numpy.percentile(xs[lit], 97) - numpy.percentile(xs[lit], 3)) / 2.0)
-    ry = max(8.0, (numpy.percentile(ys[lit], 97) - numpy.percentile(ys[lit], 3)) / 2.0)
-    return cx, cy, rx, ry
+GAZE_FRAME = (256, 128)
+GAZE_GRID = 8
+# Frames 0 to GAZE_OPENING - 1 open the eye; then the open eye at a growing glow (the timeline swaps them back and
+# forth, faster and faster), the last the burst
+GAZE_OPENING = 52
+GAZE_BREATHING = [0.85, 0.95, 1.05, 1.15, 1.25, 1.35, 1.45, 1.55, 1.65, 1.75, 1.85]
+GAZE_BURST = 2.4
+# The globe in gaze_open.png: its middle and the radius of it sampled, as shares of the painting's width; and the eye
+# in eye_open.png and eye_glow.png (centred, 55% of the width)
+GAZE_BALL = (0.5, 0.363, 0.244)
+EYE_PAINTED = (0.5, 0.5, 0.275)
+# A painted eye's black keyed to clear (its pupil kept: the middle of the eye stays solid)
+EYE_KNEE = 0.12
+# The eye on its frame: half its width (of the frame's width), and how far the lids open at most (of that half)
+EYE_HALF_WIDTH = 0.34
+EYE_OPEN = 0.5
+# Each frame drawn this many times bigger, then shrunk to its cell
+GAZE_SUPERSAMPLE = 3
 
 
-def lid_mask(shape, eye, opening):
-    """The eye's opening between the lids: an ellipse `opening` (0-1) of the eye's height, soft edged"""
-    cx, cy, rx, ry = eye
-    ys, xs = numpy.mgrid[0:shape[0], 0:shape[1]]
-    height = max(opening, 1e-3) * ry
-    # A lens: the lids meet at the corners, open most at the middle
-    across = numpy.clip(1.0 - ((xs - cx) / rx) ** 2, 0.0, 1.0)
-    inside = numpy.abs(ys - cy) - height * numpy.sqrt(across)
-    return smooth(2.5, -2.5, inside) * (opening > 0)
+def eye_source():
+    """What the eye is drawn from: (eye picture, its (x, y, radius) as shares of its width, keyed, halo picture or
+    None)"""
+    glow = as_array(painting('eye_glow.png')) if os.path.exists(os.path.join(ART, 'eye_glow.png')) else None
+    if os.path.exists(os.path.join(ART, 'eye_open.png')):
+        return as_array(painting('eye_open.png')), EYE_PAINTED, True, glow
+    return as_array(painting('gaze_open.png')), GAZE_BALL, False, glow
 
 
-def bloom(frame, eye, amount):
-    """Red glow from the eye's bright parts, spreading wider as it grows"""
-    if amount <= 0:
-        return frame
-    cx, cy, rx, ry = eye
-    hot = numpy.clip(frame[..., 0] - 0.55, 0.0, 1.0) * (frame[..., 0] > frame[..., 2])
-    spread = blur(hot, frame.shape[1] * (0.02 + 0.03 * amount))
-    _, _, radius = grid(frame.shape[1], frame.shape[0])
-    ys, xs = numpy.mgrid[0:frame.shape[0], 0:frame.shape[1]]
-    around = numpy.exp(-(((xs - cx) / (rx * (1.4 + amount))) ** 2 + ((ys - cy) / (ry * (1.6 + amount))) ** 2))
-    glow = numpy.clip(spread * 2.2 * amount + around * 0.35 * amount, 0.0, 1.5)
-    out = frame + glow[..., None] * numpy.array([1.0, 0.22, 0.06])
-    if amount > 1.5:
-        # The burst: a white-hot core over the eye
-        core = numpy.exp(-(((xs - cx) / (rx * 0.9)) ** 2 + ((ys - cy) / (ry * 0.9)) ** 2))
-        out = out + core[..., None] * numpy.array([1.0, 0.75, 0.55]) * (amount - 1.5)
-    return numpy.clip(out, 0.0, 1.0)
+def gaze_frame(source, opening, heat, glow, width, height):
+    """One frame (RGBA float): opening 0 (a slit) to 1, heat 0 to 1 (the eye's colour), glow the red halo"""
+    ball, place, keyed_eye, halo_picture = source
+    xs = (numpy.arange(width) + 0.5) - width / 2.0
+    ys = (numpy.arange(height) + 0.5) - height / 2.0
+    x, y = numpy.meshgrid(xs, ys)
+    half = EYE_HALF_WIDTH * width
+    u, v = x / half, y / half
+    pixel = 1.0 / half
+    across = numpy.clip(1.0 - u ** 2, 0.0, 1.0)
 
+    # The lids: an almond, open `opening` of the way, its corners pointed
+    aperture = EYE_OPEN * opening * across ** 0.8
+    inside = smooth(-1.5 * pixel, 1.5 * pixel, aperture - numpy.abs(v))
 
-def gaze_frame(closed, half, opened, eye, stage, t, glow):
-    if stage == 0:
-        frame = closed
-    elif stage == 1:
-        # The plate's cracks spread as the lids part over the half-open eye
-        base = closed * (1 - t) + half * t
-        mask = lid_mask(closed.shape, eye, 0.5 * t)[..., None]
-        frame = base * (1 - mask) + half * mask
-    elif stage == 2:
-        base = half * (1 - t) + opened * t
-        mask = lid_mask(closed.shape, eye, 0.5 + 0.5 * t)[..., None]
-        frame = base * (1 - mask) + opened * mask
+    # The eyeball behind them, its slit pupil widening as the eye opens (the globe's middle spread sideways)
+    dilation = 0.55 + 1.05 * smooth(0.15, 1.0, opening)
+    spread = numpy.exp(-(u / 0.3) ** 2)
+    su = u * (spread / dilation + (1.0 - spread))
+    bh, bw = ball.shape[:2]
+    cx, cy, radius = place[0] * bw, place[1] * bw, place[2] * bw
+    sx = numpy.clip(cx + su * radius, 0, bw - 1).astype(int)
+    sy = numpy.clip(cy + v * radius, 0, bh - 1).astype(int)
+    eye = ball[sy, sx]
+    if keyed_eye:
+        # Its painted black clear, but for the eye's middle (the pupil is black too)
+        solid = numpy.clip(eye.max(axis=2) / EYE_KNEE, 0.0, 1.0)
+        core = smooth(0.75, 0.5, numpy.hypot(u, v / 0.8))
+        inside = inside * numpy.maximum(solid, core)
+    # Cold and dim shut, hot as it opens, the pupil's rim burning
+    eye = eye * (0.45 + 0.65 * heat)
+    rim = numpy.exp(-((numpy.abs(u) * dilation - 0.06) / 0.06) ** 2) * numpy.clip(1 - numpy.abs(v) / 0.6, 0, 1)
+    eye = eye + (rim * heat * 0.55)[..., None] * numpy.array([1.0, 0.55, 0.15])
+    # Shadowed under the lids' edges
+    eye = eye * (0.55 + 0.45 * smooth(0.0, 0.25, aperture - numpy.abs(v)))[..., None]
+
+    # The lids' edge: a burning line, the slit of a shut eye
+    edge = numpy.exp(-((numpy.abs(v) - aperture) / (1.8 * pixel + 0.012)) ** 2) * smooth(1.02, 0.85, numpy.abs(u))
+    edge_colour = numpy.array([1.0, 0.28, 0.05]) * (0.6 + 0.4 * heat)
+
+    # The red glow round the eye, wider as it grows (an ellipse, fading out well inside the frame)
+    hx = 1.05 + 0.25 * min(glow, 2.0)
+    hy = 0.18 + 0.30 * opening + 0.08 * min(glow, 2.0)
+    halo = numpy.exp(-((u / hx) ** 2 + (v / hy) ** 2) * 2.2) * min(0.85, 0.28 * glow + 0.06)
+    if halo_picture is not None:
+        # The painted halo, at the eye's scale, its brightness its alpha; softly faded before the frame's edges (the
+        # frame is half as tall as the painting) rather than cut
+        gh, gw = halo_picture.shape[:2]
+        gx = numpy.clip(place[0] * gw + u * place[2] * gw, 0, gw - 1).astype(int)
+        gy = numpy.clip(place[1] * gw + v * place[2] * gw, 0, gh - 1).astype(int)
+        painted = halo_picture[gy, gx]
+        fade = numpy.exp(-((x / (0.42 * width)) ** 6 + (y / (0.4 * height)) ** 6))
+        strength = min(1.0, 0.3 * glow + 0.05) * fade
+        halo_alpha = numpy.clip(painted.max(axis=2) * 1.4, 0.0, 1.0) * strength
+        halo_colour = numpy.where(halo_alpha[..., None] > 1e-4, painted * strength[..., None], 0.0)
     else:
-        frame = opened
-    return bloom(frame, eye, glow)
+        halo_alpha = halo
+        halo_colour = numpy.array([0.85, 0.12, 0.03]) * halo[..., None]
+
+    # Back to front, premultiplied: the glow, the eye, its edge
+    colour = halo_colour
+    alpha = halo_alpha.copy()
+    colour = colour * (1 - inside[..., None]) + eye * inside[..., None]
+    alpha = alpha * (1 - inside) + inside
+    edge_alpha = numpy.clip(edge * 0.95, 0.0, 1.0)
+    colour = colour * (1 - edge_alpha[..., None]) + edge_colour * edge_alpha[..., None]
+    alpha = alpha * (1 - edge_alpha) + edge_alpha
+    if glow > 2.0:
+        # The burst: the eye itself flaring ember orange (never white)
+        colour = colour + inside[..., None] * numpy.array([0.35, 0.15, 0.02]) * (glow - 2.0)
+    # Clear at the frame's edges, whatever the glow does there
+    border = smooth(0.0, 0.06, numpy.minimum.reduce([x / width + 0.5, 0.5 - x / width, y / height + 0.5,
+                                                      0.5 - y / height]))
+    colour *= border[..., None]
+    alpha *= border
+    return numpy.concatenate([numpy.clip(colour, 0.0, 1.0), numpy.clip(alpha, 0.0, 1.0)[..., None]], axis=2)
+
+
+def gaze_frames():
+    """(opening, heat, glow) of each frame"""
+    frames = []
+    for index in range(GAZE_OPENING):
+        t = index / (GAZE_OPENING - 1)
+        # Slow at first, the lids parting faster mid-way, settling wide open
+        opening = smooth(0.04, 0.92, t) * 0.97 + 0.03 * t
+        frames.append((opening, smooth(0.0, 1.0, t), 0.15 + 0.7 * t))
+    frames += [(1.0, 1.0, glow) for glow in GAZE_BREATHING]
+    frames.append((1.0, 1.0, GAZE_BURST))
+    return frames
 
 
 def gaze_atlas():
-    """The gaze's 16 frames, 4 x 4 of 256 pixels, row by row (RGBA, alpha keyed)"""
-    closed, half, opened = (as_array(painting(f'gaze_{name}.png')) for name in ('closed', 'half', 'open'))
-    eye = eye_region(closed, opened)
-    atlas = Image.new('RGBA', (GAZE_FRAME * GAZE_GRID, GAZE_FRAME * GAZE_GRID))
-    x, y, _ = grid(GAZE_FRAME, GAZE_FRAME)
-    border = smooth(1.0, 1.0 - 2 * GAZE_BORDER, numpy.maximum(numpy.abs(x), numpy.abs(y)))
-    for index, (stage, t, glow) in enumerate(GAZE_FRAMES):
-        frame = to_image(gaze_frame(closed, half, opened, eye, stage, t, glow))
-        frame = as_array(frame.resize((GAZE_FRAME, GAZE_FRAME), Image.LANCZOS))
-        rgba = keyed(frame, GAZE_KNEE)
-        rgba[..., 3] *= border
-        tile = Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
-        atlas.paste(tile, ((index % GAZE_GRID) * GAZE_FRAME, (index // GAZE_GRID) * GAZE_FRAME))
+    """The gaze's frames, 8 x 8 of 256 x 128, row by row (RGBA)"""
+    source = eye_source()
+    width, height = GAZE_FRAME
+    frames = gaze_frames()
+    assert len(frames) == GAZE_GRID * GAZE_GRID
+    atlas = Image.new('RGBA', (width * GAZE_GRID, height * GAZE_GRID))
+    for index, (opening, heat, glow) in enumerate(frames):
+        big = gaze_frame(source, opening, heat, glow, width * GAZE_SUPERSAMPLE, height * GAZE_SUPERSAMPLE)
+        # Shrunk on premultiplied colour: the soft edges keep their colour
+        small = numpy.stack([as_float(to_l(big[..., c]).resize((width, height), Image.LANCZOS)) for c in range(4)],
+                            axis=2)
+        small[..., :3] = numpy.where(small[..., 3:4] > 1e-4, small[..., :3] / numpy.maximum(small[..., 3:4], 1e-4),
+                                     0.0)
+        tile = Image.fromarray(numpy.clip(small * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+        atlas.paste(tile, ((index % GAZE_GRID) * width, (index // GAZE_GRID) * height))
     return atlas
+
+
+def gaze_timeline():
+    """VW_Gaze's timeline (shapes.json): the opening over 5 s, the glow breathing faster to 6 s (up two, back one,
+    each swap quicker), the burst"""
+    keys = [[int(round(5000 * index / GAZE_OPENING)), index] for index in range(GAZE_OPENING)]
+    steps = []
+    for level in range(len(GAZE_BREATHING) - 1):
+        steps += [level + 1, level]
+    time, period = 5000.0, 150.0
+    for step in steps:
+        if time >= 5960:
+            break
+        keys.append([int(time), GAZE_OPENING + step])
+        time += period
+        period = max(45.0, period * 0.88)
+    keys.append([6000, GAZE_OPENING + len(GAZE_BREATHING)])
+    return keys
 
 
 # --- The other paintings ------------------------------------------------------------------------------------------

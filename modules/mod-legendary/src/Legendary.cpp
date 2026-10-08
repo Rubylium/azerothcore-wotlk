@@ -14,6 +14,7 @@
 #include "GridNotifiersImpl.h"
 #include "Group.h"
 #include "GroundLoot.h"
+#include "PersonalLootSystem.h"
 #include "Item.h"
 #include "LiveTuning.h"
 #include "Log.h"
@@ -91,6 +92,9 @@ constexpr float OverhealShieldCapPct = 20.0f;
 // What a legendary's stats have over a stock epic's of its item level (its sockets are a stock item's: the base
 // items' templates, localTools/legendary/buildLegendaryItemSql.py)
 constexpr float LegendaryPremium = 1.10f;
+// The stamina of a stock epic over its primary stat (the item level 277 epics, slot by slot: 1.25 to 1.6, the plate
+// slots' median about 1.3): a copy rolled stamina equal to its primary, a fifth under a stock epic's
+constexpr float StaminaShare = 1.3f;
 
 constexpr Budget HeadBudget = { 277.0f, 184, 212, 139, 186, 110, { 300, 564, 1253, 2239 } };
 constexpr Budget NeckBudget = { 277.0f, 105, 120, 78, 110, 63, { 0, 0, 0, 0 } };
@@ -129,7 +133,7 @@ constexpr uint32 EchoRestMs = 1000;
 
 uint32 const Floor = Mythic::GetItemLevel(2);
 // Gardien-chef Vorhan's sets: his gear's item level (mod-playerbots ChallengeBoard.cpp)
-constexpr uint32 VorhanItemLevel = 472;
+constexpr uint32 VorhanItemLevel = 485;
 
 // Every legendary: its base item (Item.dbc rows with no template of their own, given one in the module's world SQL and
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
@@ -450,7 +454,7 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
     bool const caster = primary == ITEM_MOD_INTELLECT;
     int32 const main = caster ? budget.intellect : budget.physical;
     copy.stats.emplace_back(primary, Spread(int32(std::lround(main * statGrowth)), 0.05f));
-    copy.stats.emplace_back(ITEM_MOD_STAMINA, Spread(int32(std::lround(main * statGrowth)), 0.05f));
+    copy.stats.emplace_back(ITEM_MOD_STAMINA, Spread(int32(std::lround(main * StaminaShare * statGrowth)), 0.05f));
     if (caster)
         copy.stats.emplace_back(ITEM_MOD_SPELL_POWER,
             Spread(int32(std::lround(budget.spellPower * statGrowth)), 0.05f));
@@ -1532,6 +1536,9 @@ Item* GiveLegendary(Player* player, uint32 legendary, uint32 itemLevel, std::opt
     if (!item)
         return nullptr;
     Keep(player, item, copy);
+    // A set piece is an epic as any other: its gear bonuses (health, fortune...) rolled as a dropped epic's are
+    if (definition->gear)
+        TryRollPersonalLoot(player, item);
     player->SendNewItem(item, 1, true, false);
     return item;
 }
@@ -1542,6 +1549,8 @@ void MakeCopy(Player* player, Item* item, uint32 legendary, uint32 itemLevel)
     if (!player || !item || !definition || item->GetEntry() != definition->baseItem)
         return;
     Keep(player, item, Roll(*definition, player, itemLevel, std::nullopt));
+    if (definition->gear)
+        TryRollPersonalLoot(player, item);
 }
 }
 

@@ -60,7 +60,7 @@
 //   hit, and Évasion: +25% damage taken), two in one cell both die, out of every cell the mark.
 // - Menottes: a chain binds each pair of partners; they have to get 20 yd apart to break it, or it ramps until it
 //   kills.
-// - Regard du geôlier: an eye opens over him for 6 s; anyone facing him when it opens is thrown back, hit and marked.
+// - Regard du geôlier: an eye opens on him for 6 s; anyone facing him when it opens dies, thrown back.
 // - Appel nominal: he stands still and calls the roll; four marks round him read 1-2, 3-4, 5-6, 7-8 (their order
 //   changes each call, the same sequence every pull). Alone on a mark, more than two, or on another number's: death.
 // - Charge du geôlier: electrified walls rise at the room's edge; 4 s later he throws everyone back 20 yd. From under
@@ -96,10 +96,10 @@ constexpr float GroupHealers = 2.0f;
 // HardShare to his health - the rest goes to the rules (power-scaling.md: "hard")
 constexpr float UptimeSeconds = 205.0f;
 constexpr float HardShare = 0.87f;
-// Measured on bots alone (2026-10-08, e2e/local/vorhan, three full fights: 3 damage dealers beside the watching game
-// master's place dealt 46 million, 62% of 75; a group of 4 about 59 million, players 10% above a bot about 64): about
-// 62 million, the model's 0.71 - the bots alone see the enrage, a group playing well kills him in the last seconds
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 0.71f);
+// The model's (about 87 million). Bots alone (2026-10-08, e2e/local/vorhan) deal a group of 4 about 59 million: they
+// see the enrage. A player's group dealt far more than bots (62 million in 2:54, the first kill, 0.71): the model's
+// check is theirs. The deaths log each player's damage (LogSummary) to tune it on players.
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.0f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
@@ -123,7 +123,6 @@ constexpr float EscapeTakenPct = 25.0f;         // ... and Évasion, damage take
 constexpr uint32 EscapeMs = 10000;
 constexpr float OutOfCellPct = 80.0f;
 constexpr std::array<float, 6> ChainRampPct = { 6.0f, 12.0f, 24.0f, 48.0f, 96.0f, 192.0f };
-constexpr float GazePct = 90.0f;
 constexpr float CurfewPct = 100.0f;
 
 // The warden's mark: a first mistake is held back to MarkHitPct of the player's health and never takes them under
@@ -181,10 +180,11 @@ constexpr uint32 CellsMs = 8000;                // the cells drawn, then the doo
 constexpr uint32 CurfewAfterCellsMs = 1000;     // with the cells: the curfew a second after the doors
 constexpr uint32 ChainCastMs = 1000;
 constexpr uint32 ChainMaxMs = 8000;
+constexpr uint32 ChainGraceMs = 3000;           // the chain only tightens after this: the time to walk apart
 constexpr uint32 GazeMs = 6000;
 constexpr uint32 RollCallMs = 6000;
 constexpr uint32 ChargeWallsMs = 4000;          // the walls up, then the throw
-constexpr uint32 ChargeLandMs = 1300;           // where they are this long after it: landed
+constexpr uint32 ChargeLandMs = 850;            // where they are this long after it: just landed (a 0.73 s flight)
 constexpr uint32 WallsLastMs = 7000;
 constexpr uint32 CurfewMs = 7000;               // with the gaze: a second after it opens
 constexpr uint32 LookAwayLeadMs = 1500;         // the bots turn their backs this long before the eye opens
@@ -427,7 +427,7 @@ struct boss_warden_vorhan : public ScriptedAI
         if (_lingering)
             return;
         bool const fighting = _phase != Phase::None && _phase != Phase::Over;
-        if (fighting && !ArenaPlayers().empty())
+        if (fighting && RealPlayerStanding())
             return;
         if (fighting)
             Wipe();
@@ -435,8 +435,19 @@ struct boss_warden_vorhan : public ScriptedAI
             ScriptedAI::EnterEvadeMode(why);
     }
 
+    // A player standing in the lair (the bots too with .vorhan botsonly)
+    bool RealPlayerStanding() const
+    {
+        for (Player* player : ArenaPlayers())
+            if (player->GetSession() && (!player->GetSession()->IsBot() || BotsOnly))
+                return true;
+        return false;
+    }
+
     void Wipe()
     {
+        if (_lingering)
+            return;
         LogSummary("wipe");
         EndMusic();
         ResetFight();
@@ -514,6 +525,13 @@ struct boss_warden_vorhan : public ScriptedAI
         damage = uint32(std::max(float(damage), floor) * TakenFactor(victim));
     }
 
+    // Who dealt what (a pet's to its owner), for the summary: the check is tuned on it
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
+    {
+        if (Player* player = attacker ? attacker->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr)
+            _dealt[player->GetGUID()] += damage;
+    }
+
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType type, SpellSchoolMask /*mask*/) override
     {
         Player* player = victim ? victim->ToPlayer() : nullptr;
@@ -563,7 +581,7 @@ struct boss_warden_vorhan : public ScriptedAI
             _nextSecondMs = elapsed + 1000;
             EverySecond();
         }
-        if (elapsed >= _nextStandingCheckMs && !_finishing)
+        if (elapsed >= _nextStandingCheckMs)
         {
             _nextStandingCheckMs = elapsed + 500;
             CheckPlayersStanding();
@@ -721,6 +739,7 @@ private:
         _escapes.clear();
         _lastHit.clear();
         _deaths.clear();
+        _dealt.clear();
         _chains.clear();
         _sparing.Clear();
         _isolating.Clear();
@@ -1061,7 +1080,7 @@ private:
             Throw(tank, ThrowSpeedXY(IsolationThrowDistance), ThrowSpeedZ);
             AddTimedAura(tank, SPELL_ISOLATED, IsolationBurstMs);
             // For the bots only: the tank keeps away, the others keep out of its lethal reach (KeepsAway)
-            GroundIndicators::WatchCarriedCircle(me, tank, SealNear + 2.0f, IsolationBurstMs,
+            GroundIndicators::WatchCarriedCircle(me, tank, SealAvoidable + 1.0f, IsolationBurstMs,
                 uint32(Reference() * SealNearPct / 100.0f), SealKeepAway);
             scheduler.Schedule(Milliseconds(IsolationBurstMs), [this, guid](TaskContext)
             {
@@ -1080,7 +1099,8 @@ private:
                     Hit(player, SPELL_SEAL, SealNearPct + (SealFarPct - SealNearPct) * share,
                         distance < SealAvoidable);
                     if (distance < SealAvoidable)
-                        tooClose += " " + player->GetName();
+                        tooClose += Acore::StringFormat(" {} ({:.1f} yd{})", player->GetName(), distance,
+                            player->GetSession() && player->GetSession()->IsBot() ? ", bot" : "");
                 }
                 if (tooClose.empty())
                     Kept("isolation");
@@ -1125,6 +1145,8 @@ private:
     void SlamDoors()
     {
         Sound("Vorhan.CellDoors");
+        // Their numbers go a moment after the doors
+        scheduler.Schedule(1500ms, [this](TaskContext) { ClearNumbers(); });
         std::array<std::vector<Player*>, 9> inCell;
         std::vector<Player*> outside;
         for (Player* player : ArenaPlayers())
@@ -1236,7 +1258,7 @@ private:
                 Player* second = PlayerOf(PartnerOf(number));
                 if (!first || !second || !first->IsAlive() || !second->IsAlive())
                     continue;
-                _chains.push_back({ first->GetGUID(), second->GetGUID(), 0, Elapsed() + ChainMaxMs });
+                _chains.push_back({ first->GetGUID(), second->GetGUID(), 0, Elapsed() + ChainMaxMs, Elapsed() });
                 AddTimedAura(first, SPELL_SHACKLED, ChainMaxMs);
                 AddTimedAura(second, SPELL_SHACKLED, ChainMaxMs);
                 // The chain drawn between them, by stalkers following each (cast by a player, the beam was a channel
@@ -1261,6 +1283,7 @@ private:
         ObjectGuid second;
         uint32 ticks;
         uint32 until;
+        uint32 since;                           // when it was put on
         ObjectGuid tether = ObjectGuid::Empty;  // the chain's look (GroundIndicators::ShowTether)
     };
 
@@ -1293,12 +1316,21 @@ private:
                 }
                 BreakChain(*chain);
                 chain = _chains.erase(chain);
+                if (_chains.empty())
+                    ClearNumbers();
+                continue;
+            }
+            // Time to walk apart before it bites (ChainGraceMs)
+            if (now < chain->since + ChainGraceMs)
+            {
+                ++chain;
                 continue;
             }
             float const pct = ChainRampPct[std::min<std::size_t>(chain->ticks, ChainRampPct.size() - 1)];
             ++chain->ticks;
-            if (chain->ticks >= 3)
-                Broken("shackles held", first->GetName() + " " + second->GetName());
+            if (chain->ticks >= 2)
+                Broken("shackles held", Acore::StringFormat("{} {} {:.1f} yd apart", first->GetName(),
+                    second->GetName(), first->GetExactDist2d(second)));
             Hit(first, SPELL_SHACKLES, pct, false);
             Hit(second, SPELL_SHACKLES, pct, false);
             Sound("Vorhan.ChainTighten", first);
@@ -1306,8 +1338,8 @@ private:
         }
     }
 
-    // Regard du geôlier: his eye opens over 6 s; whoever faces him then is thrown back, hit and marked. With the
-    // curfew: still, facing away.
+    // Regard du geôlier: his eye opens over 6 s; whoever faces him then dies, thrown back. With the curfew: still,
+    // facing away.
     void Gaze(bool curfew)
     {
         Cast(CAST_GAZE);
@@ -1332,9 +1364,8 @@ private:
                     float(M_PI), 2.0f * float(M_PI))) * 180.0f / float(M_PI);
                 LOG_INFO("module.vorhan", "Vorhan gaze instance={} {} faced him, {:.0f} degrees off{}",
                          me->GetInstanceId(), player->GetName(), off, player->isMoving() ? ", moving" : "");
-                Hit(player, SPELL_GAZE, GazePct, true);
-                if (player->IsAlive())
-                    Throw(player, GazeThrowSpeedXY, GazeThrowSpeedZ);
+                Throw(player, GazeThrowSpeedXY, GazeThrowSpeedZ);
+                Doom(player, SPELL_GAZE);
                 faced += " " + player->GetName();
             }
             if (faced.empty())
@@ -1370,6 +1401,7 @@ private:
             EndCast();
             Sound("Vorhan.RollCallEnd");
             ResolveRollCall(pairOnMark);
+            ClearNumbers();
         });
     }
 
@@ -1419,7 +1451,15 @@ private:
         }
         for (Player* player : nowhere)
             if (NumberOf(player))
+            {
                 doomed.emplace_back(player, SPELL_ABSENT);
+                for (uint8 cardinal = 0; cardinal < 4; ++cardinal)
+                    if (Position const spot = MarkSpot(cardinal); pairOnMark[cardinal] == PairOf(NumberOf(player)))
+                        LOG_INFO("module.vorhan", "Vorhan roll call instance={} {} number {} {:.1f} yd from its mark{}",
+                                 me->GetInstanceId(), player->GetName(), NumberOf(player),
+                                 player->GetExactDist2d(&spot), player->GetSession() &&
+                                 player->GetSession()->IsBot() ? " (bot)" : "");
+            }
 
         if (doomed.empty())
         {
@@ -1446,6 +1486,13 @@ private:
             AssignNumbers(ChargeWallsMs + ChargeLandMs + RollCallMs + 1000);
         Placing(ChargeWallsMs);
         ShowWalls(WallsLastMs);
+        // The walls for the bots: the band past them is death, never to be walked into once landed
+        GroundIndicators::Area walls;
+        walls.kind = GroundIndicators::Area::Kind::Ring;
+        walls.origin = Ground(ArenaCenter);
+        walls.radius = WallRadius + 15.0f;
+        walls.inner = WallKillRadius - 2.0f;
+        GroundIndicators::WatchArea(me, walls, WallsLastMs, uint32(Reference() * 10.0f));
         Sound("Vorhan.Walls");
         std::vector<Player*> players = ArenaPlayers();
         for (std::size_t index = 0; index < players.size(); ++index)
@@ -1454,26 +1501,31 @@ private:
             uint8 const number = NumberOf(players[index]);
             float const angle = ClockAngle(float(number ? number - 1 : index), 8.0f);
             GroundIndicators::SetUnitSpot(me, players[index], AtAngle(ArenaCenter, angle, ChargeSafeRadius / 2.0f),
-                1.0f, ChargeWallsMs - 300);
+                1.0f, ChargeWallsMs + 200);
         }
         scheduler.Schedule(Milliseconds(ChargeWallsMs), [this, rollCall](TaskContext)
         {
             EndCast();
             me->SendPlaySpellVisual(KIT_SHOCKWAVE);
             Sound("Vorhan.Charge");
+            auto const thrownFrom = std::make_shared<std::map<ObjectGuid, float>>();
             for (Player* player : ArenaPlayers())
             {
                 GroundIndicators::EndUnitSpot(me, player);
+                (*thrownFrom)[player->GetGUID()] = player->GetExactDist2d(me);
                 Throw(player, ThrowSpeedXY(ThrowDistance), ThrowSpeedZ);
             }
-            scheduler.Schedule(Milliseconds(ChargeLandMs), [this, rollCall](TaskContext)
+            scheduler.Schedule(Milliseconds(ChargeLandMs), [this, rollCall, thrownFrom](TaskContext)
             {
                 std::string walled;
                 for (Player* player : ArenaPlayers())
                     if (player->GetExactDist2d(&ArenaCenter) >= WallKillRadius)
                     {
                         Doom(player, SPELL_BARRIER);
-                        walled += " " + player->GetName();
+                        auto const from = thrownFrom->find(player->GetGUID());
+                        walled += Acore::StringFormat(" {} (thrown from {:.1f} yd{})", player->GetName(),
+                            from == thrownFrom->end() ? -1.0f : from->second, player->GetSession() &&
+                            player->GetSession()->IsBot() ? ", bot" : "");
                     }
                 if (walled.empty())
                     Kept("charge");
@@ -1583,6 +1635,7 @@ private:
         Sound("Vorhan.LifeSentence");
         for (Player* player : ArenaPlayers())
             Doom(player, SPELL_CAPITAL);
+        Wipe();
     }
 
     // No player stands, only bots: the fight is lost (RaidFinder counts the wipe from the last player), so the warden
@@ -1595,6 +1648,8 @@ private:
             Wipe();
             return;
         }
+        if (_finishing)
+            return;
         bool botStanding = false;
         for (Player* player : ArenaPlayers())
         {
@@ -1615,6 +1670,8 @@ private:
                 for (Player* player : ArenaPlayers())
                     Doom(player, SPELL_CAPITAL);
                 _killLabel = nullptr;
+                // Whatever brings anyone back (the board revives a wiped group), the attempt is over: he goes
+                Wipe();
             });
     }
 
@@ -1769,6 +1826,19 @@ private:
         std::string deaths;
         for (auto const& [what, count] : _deaths)
             deaths += Acore::StringFormat("{}{} x{}", deaths.empty() ? "" : ", ", what, count);
+        // Each player's damage on him and its share of the time he could be hit (the riot aside)
+        float const seconds = std::max(1.0f, (Elapsed() - (Elapsed() > AtPhase2 ? AtPhase2 - AtRiot : 0)) / 1000.0f);
+        std::vector<std::pair<uint64, ObjectGuid>> dealt;
+        for (auto const& [guid, amount] : _dealt)
+            dealt.emplace_back(amount, guid);
+        std::sort(dealt.rbegin(), dealt.rend());
+        for (auto const& [amount, guid] : dealt)
+        {
+            Player* player = ObjectAccessor::FindConnectedPlayer(guid);
+            LOG_INFO("module.vorhan", "Vorhan damage instance={} {}{}: {} ({:.0f} a second)", me->GetInstanceId(),
+                     player ? player->GetName() : guid.ToString(), player && player->GetSession() &&
+                     player->GetSession()->IsBot() ? " (bot)" : "", amount, float(amount) / seconds);
+        }
         LOG_INFO("module.vorhan", "Vorhan {} instance={} at={:.1f}s phase={} health={:.1f}% deaths=[{}] kept={} "
                  "broken={}", outcome, me->GetInstanceId(), Elapsed() / 1000.0f, uint32(_phase), me->GetHealthPct(),
                  deaths, _rulesKept, _rulesBroken);
@@ -1817,6 +1887,7 @@ private:
     std::map<ObjectGuid, Escaped> _escapes;
     std::map<ObjectGuid, LastHit> _lastHit;
     std::map<std::string, uint32> _deaths;
+    std::map<ObjectGuid, uint64> _dealt;
     std::vector<Chain> _chains;
     std::set<ObjectGuid> _fightListeners;
     ObjectGuid _sparing;                        // the player the hit being dealt marks rather than kills

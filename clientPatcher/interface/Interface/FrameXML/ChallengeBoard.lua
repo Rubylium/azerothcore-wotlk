@@ -248,18 +248,25 @@ local TEXT = french and {
         .. "d'objet du jeu.",
     tabWarden = "La Geôle",
     headingWarden = "La Geôle des Flammes infernales",
-    introWarden = "Au fond de la Citadelle des Flammes infernales, là où Magtheridon fut enchaîné, une prison applique "
-        .. "son règlement.",
+    introWarden = "Sous la Citadelle des Flammes infernales s'ouvre la Geôle : une prison taillée dans la roche, et "
+        .. "derrière chacune de ses portes, un gardien.",
     wardenName = "Gardien-chef Vorhan",
     wardenEpithet = "Geôle des Flammes infernales",
     wardenPlace = "Repaire de Magtheridon",
     wardenQuote = "« Vous apprendrez le règlement, ou vous apprendrez la fosse. »",
     wardenSignature = "— Gardien-chef Vorhan",
-    wardenLore = "Illidan enchaîna Magtheridon au fond de la Citadelle des Flammes infernales. Après sa chute, les orcs "
-        .. "gangrenés qui gardaient le seigneur des abîmes firent de ces profondeurs une prison pour le pire de "
-        .. "l'Outreterre : démons, renégats, ce que la Légion a laissé derrière elle. Le gardien-chef Vorhan en tient "
-        .. "toutes les clés. Il ne se bat pas pour gagner : il applique le règlement, et chaque règle enfreinte est "
-        .. "une sentence.",
+    wardenLore = "On enferme à la Geôle ce que le monde ne peut plus garder dehors, et personne n'en ressort. Le "
+        .. "gardien-chef Vorhan tient la première porte et toutes ses clés. Il ne se bat pas pour gagner : il fait "
+        .. "respecter le règlement. Ceux qui le respectent passent ; les autres rejoignent les cellules.",
+    gate = "Porte %s",
+    gateOpen = "Porte %s · %s",
+    gateSealed = "Scellée",
+    gateSealedName = "Porte %s",
+    gateSealedLore = "Cette porte reste close. Elle s'ouvrira quand la Geôle livrera ses autres gardiens.",
+    gateSealedButton = "Porte scellée",
+    gateTitle = "Les portes de la Geôle",
+    gateHelp = "La Geôle est un raid en plusieurs portes : chacune garde un gardien, un combat à part. Seule la "
+        .. "première est ouverte.",
     wardenTierHelp = "Le gardien-chef n'a pas de paliers : un seul combat, taillé pour un groupe de %d joueurs (2 tanks, "
         .. "2 soigneurs, 4 dégâts) au niveau d'objet %d avec %d points de parangon. Ses règles s'apprennent : chaque "
         .. "inscription donne trois tentatives.",
@@ -436,16 +443,24 @@ local TEXT = french and {
         .. "it wore in the Tomb of Sargeras. The highest item level in the game.",
     tabWarden = "The Gaol",
     headingWarden = "The Hellfire Gaol",
-    introWarden = "Deep in Hellfire Citadel, where Magtheridon was chained, a prison enforces its rules.",
+    introWarden = "Beneath Hellfire Citadel lies the Gaol: a prison cut into the rock, and behind each of its gates, "
+        .. "a warden.",
     wardenName = "Head Warden Vorhan",
     wardenEpithet = "Hellfire Gaol",
     wardenPlace = "Magtheridon's Lair",
     wardenQuote = "\"You will learn the rules, or you will learn the pit.\"",
     wardenSignature = "— Head Warden Vorhan",
-    wardenLore = "Illidan chained Magtheridon in the depths of Hellfire Citadel. After his fall, the fel orcs who kept "
-        .. "the pit lord made those depths a prison for the worst of Outland: demons, renegades, what the Legion left "
-        .. "behind. Head Warden Vorhan holds every key. He does not fight to win: he applies the rules, and every rule "
-        .. "broken is a sentence.",
+    wardenLore = "The Gaol holds what the world can no longer keep outside, and no one leaves it. Head Warden Vorhan "
+        .. "holds the first gate and all its keys. He does not fight to win: he enforces the rules. Those who follow "
+        .. "them pass; the others join the cells.",
+    gate = "Gate %s",
+    gateOpen = "Gate %s · %s",
+    gateSealed = "Sealed",
+    gateSealedName = "Gate %s",
+    gateSealedLore = "This gate stays shut. It will open when the Gaol gives up its other wardens.",
+    gateSealedButton = "Gate sealed",
+    gateTitle = "The Gaol's gates",
+    gateHelp = "The Gaol is a raid of several gates: each holds a warden, a fight of its own. Only the first is open.",
     wardenTierHelp = "The head warden has no tiers: one fight, made for a group of %d players (2 tanks, 2 healers, 4 "
         .. "damage) at item level %d with %d paragon points. His rules are learnt: each sign-up gives three attempts.",
     wardenFace = "Face the head warden",
@@ -1337,6 +1352,8 @@ local PAGE_SPECS = {
         epithet = TEXT.wardenEpithet, quote = TEXT.wardenQuote, signature = TEXT.wardenSignature,
         lore = TEXT.wardenLore, face = TEXT.wardenFace, once = TEXT.wardenOnce, tiers = false,
         attempts = WARDEN_ATTEMPTS,
+        -- A raid of gates, one boss each: the first his, the others sealed until their wardens come
+        gates = 4,
         text = {
             tier = TEXT.voiceTier, profile = TEXT.voiceProfile, tierTitle = TEXT.voiceTierTitle,
             tierHelp = TEXT.wardenTierHelp, itemLevel = TEXT.voiceItemLevel,
@@ -1500,6 +1517,12 @@ local function CreateGodPage(spec)
     dialArea:EnableMouse(true)
     dialArea:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        if spec.gates then
+            GameTooltip:AddLine(TEXT.gateTitle, 1, 0.82, 0.3)
+            GameTooltip:AddLine(TEXT.gateHelp, 1, 0.9, 0.7, true)
+            GameTooltip:Show()
+            return
+        end
         if not spec.tiers then
             local mission = page.rewards.mission
             GameTooltip:AddLine(spec.text.tierTitle, 1, 0.82, 0.3)
@@ -1535,6 +1558,16 @@ local function CreateGodPage(spec)
         button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
         button:SetPoint("CENTER", column, "TOP", direction * 100, dialY)
         button:SetScript("OnClick", function()
+            if spec.gates then
+                local gate = (state.gate or 1) + direction
+                if gate < 1 or gate > spec.gates then
+                    return
+                end
+                state.gate = gate
+                PlaySound("igMainMenuOptionCheckBoxOn")
+                Refresh(false)
+                return
+            end
             local tier = GodTier() + direction
             if tier < TIER_MIN or tier > state.godOpenTier then
                 return
@@ -1550,7 +1583,7 @@ local function CreateGodPage(spec)
         return button
     end
     local previousTier, nextTier
-    if spec.tiers then
+    if spec.tiers or spec.gates then
         previousTier = Arrow(-1)
         nextTier = Arrow(1)
     end
@@ -1714,6 +1747,21 @@ local function CreateGodPage(spec)
         name:SetText(spec.name or mission.name)
         place:SetText(format(TEXT.players, mission.players, PLACE_BY_BOSS[boss]))
         kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
+        -- A page of gates: the gate browsed to; a sealed one shows nothing of its warden, its way in shut
+        local gate = spec.gates and (state.gate or 1) or 1
+        local sealed = gate > 1
+        if spec.gates then
+            SetEnabled(previousTier, gate > 1)
+            SetEnabled(nextTier, gate < spec.gates)
+            epithet:SetText(sealed and TEXT.gateSealed or spec.epithet)
+            quote:SetText(sealed and "" or spec.quote)
+            signature:SetText(sealed and "" or spec.signature)
+            lore:SetText(sealed and TEXT.gateSealedLore or spec.lore)
+            scene.figure:SetVertexColor(sealed and 0.12 or 1, sealed and 0.12 or 1, sealed and 0.12 or 1)
+            if sealed then
+                name:SetText(format(TEXT.gateSealedName, TIER_ROMAN[gate]))
+            end
+        end
 
         if spec.tiers then
             tierText:SetText(TierName(tier))
@@ -1723,6 +1771,12 @@ local function CreateGodPage(spec)
             dialGlow:SetAlpha(0.18 + 0.05 * tier)
             SetEnabled(previousTier, open and tier > TIER_MIN and state.challenge == 0)
             SetEnabled(nextTier, open and tier < state.godOpenTier and state.challenge == 0)
+        elseif spec.gates then
+            -- The gate, and for the open one the profile it is made for (ChallengeTiers.h BossProfiles)
+            tierText:SetText(format(TEXT.gate, TIER_ROMAN[gate]))
+            tierInfo:SetText(sealed and TEXT.gateSealed or format(spec.text.profile, mission.requiredItemLevel or 0,
+                mission.baseParagon or 0, spec.attempts, spec.attempts > 1 and "s" or ""))
+            dialGlow:SetAlpha(sealed and 0.12 or 0.4)
         else
             -- One difficulty: the profile it is made for (ChallengeTiers.h BossProfiles)
             tierText:SetText(spec.text.tier)
@@ -1787,7 +1841,11 @@ local function CreateGodPage(spec)
 
         button:SetScript("OnClick", nil)
         status:SetText("")
-        if open then
+        if open and sealed then
+            button:Show()
+            button:SetText(TEXT.gateSealedButton)
+            SetEnabled(button, false)
+        elseif open then
             button:Show()
             button:SetText(spec.face)
             SetEnabled(button, state.challenge == 0 and not locked)

@@ -218,19 +218,24 @@ def build_texture(shape, color, alpha):
 PICTURE_MODULES = {}
 
 
+def art_function(name):
+    """A function of a fight's art module, named "path.py:function" (the path from the repository)"""
+    path, function = name.rsplit(':', 1)
+    module = PICTURE_MODULES.get(path)
+    if module is None:
+        module_spec = importlib.util.spec_from_file_location(
+            os.path.splitext(os.path.basename(path))[0], os.path.join(REPO_ROOT, *path.split('/')))
+        module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(module)
+        PICTURE_MODULES[path] = module
+    return getattr(module, function)
+
+
 def load_picture(shape, *extra):
     """A shape's source picture: its `image` file, or what its `picture` function returns (called with `args`, then
     extra), its black keyed to transparent if it is `keyed`"""
     if 'picture' in shape:
-        path, function = shape['picture'].rsplit(':', 1)
-        module = PICTURE_MODULES.get(path)
-        if module is None:
-            module_spec = importlib.util.spec_from_file_location(
-                os.path.splitext(os.path.basename(path))[0], os.path.join(REPO_ROOT, *path.split('/')))
-            module = importlib.util.module_from_spec(module_spec)
-            module_spec.loader.exec_module(module)
-            PICTURE_MODULES[path] = module
-        image = getattr(module, function)(*shape.get('args', []), *extra)
+        image = art_function(shape['picture'])(*shape.get('args', []), *extra)
     else:
         image = Image.open(os.path.join(REPO_ROOT, *shape['image'].split('/')))
     if shape.get('keyed') and image.mode != 'RGBA':
@@ -1043,14 +1048,19 @@ BILLBOARD_MIRROR = False
 # M2 bone flags: spherical billboard (turned to face the camera on every axis), and transformed (computed each frame)
 BONE_BILLBOARD = 0x8
 BONE_TRANSFORMED = 0x200
+# M2 material flag: not tested against the depth buffer
+MATERIAL_NO_DEPTH_TEST = 0x8
 
 
 def write_flipbook(data, shape, fade):
     """A flipbook's texture transform (`grid`, `timeline`: see above), on the model's own animation; its fading twin
-    holds the last frame. Nothing without a timeline."""
+    holds the last frame. Nothing without a timeline; one named "path.py:function" is what that function returns
+    (made with the frames it times)."""
     timeline = shape.get('timeline')
     if not timeline:
         return
+    if isinstance(timeline, str):
+        timeline = art_function(timeline)()
     columns, rows = shape.get('grid', [1, 1])
 
     def offset(frame):
@@ -1106,6 +1116,9 @@ def build_billboard_model(template, skin, shape, texture_path, fade=False):
     struct.pack_into('<II', data, textures + 16 * texture_index + 8, len(texture_path) + 1, name_offset)
     _, materials = array(data, 0x70)
     material_flags, _ = struct.unpack_from('<HH', data, materials)
+    # `depthTest` false: drawn over whatever stands before it (an eye on a boss, never hidden inside his body)
+    if shape.get('depthTest', True) is False:
+        material_flags |= MATERIAL_NO_DEPTH_TEST
     struct.pack_into('<HH', data, materials, material_flags, BLEND_MODES[shape.get('blend', 'alpha')])
 
     colors_count, colors = array(data, 0x48)

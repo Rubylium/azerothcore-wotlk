@@ -173,7 +173,7 @@ namespace GroundIndicators
 
     // Gardien-chef Vorhan's painted marks (shapes.json VW_*, their pictures localTools/wardenVorhan/indicatorArt.py).
     // None is an area: what they mark is the fight's to resolve.
-    constexpr uint32 SPELL_WARDEN_GAZE = 94200;             // his eye opening over 6 s (16 frames), then its burst
+    constexpr uint32 SPELL_WARDEN_GAZE = 94200;             // his eye opening over 6 s (64 frames), then its burst
     constexpr uint32 SPELL_WARDEN_NUMBER_FIRST = 94201;     // the numbers 1-8 over a player's head
     constexpr uint32 SPELL_WARDEN_CELL_IRON = 94209;
     constexpr uint32 SPELL_WARDEN_CELL_RUNES = 94210;
@@ -183,8 +183,9 @@ namespace GroundIndicators
     constexpr uint32 SPELL_WARDEN_ROLL_CALL_PAIR_FIRST = 94221;  // "1-2", "3-4", "5-6", "7-8"
     constexpr uint32 SPELL_WARDEN_WALL_SHOCKWAVE = 94226;
     constexpr uint32 SPELL_WARDEN_WALL_FIRST = 94227;          // its three pieces, each a third of the band
-    // The gaze's model: 6 x 6 yards, its middle this high over the floor, its burst on from GazeBurstMs
-    constexpr float WardenGazeElevation = 10.0f;
+    // The gaze's model: one eye, 8 x 4 yards, its middle this high over the floor (on the warden's chest and head,
+    // drawn over his body), its burst on from WardenGazeBurstMs
+    constexpr float WardenGazeElevation = 4.5f;
     constexpr uint32 WardenGazeBurstMs = 6000;
     // The electrified wall: 30 pieces of 6.27 yards, 4.7 high, their corners on the 30-yard circle, their middles
     // 29.84 yards from the middle; the band (4 wide for 1 high, 18.85 yards) runs on round it, ten times. Each rises
