@@ -1624,6 +1624,13 @@ private:
         {
             EndCast();
             Sound("Vorhan.RollCallEnd");
+            // The call answered: his blow at each of them, seen and harmless - a pair well placed lays two cones on its
+            // mark, one out of place a cone of its own across the others
+            Position const from = me->GetPosition();
+            for (Player* player : ArenaPlayers())
+                if (player->IsAlive())
+                    GroundIndicators::ShowWardenStrike(me, from, me->GetAngle(player));
+            me->SendPlaySpellVisual(KIT_STRIKE);
             ResolveRollCall(pairOnMark);
             ClearNumbers();
             Rally();
