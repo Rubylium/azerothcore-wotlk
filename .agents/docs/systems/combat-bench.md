@@ -118,8 +118,12 @@ Bots of the same spec still differ by 15-20% (Assassination: Itlonk against Busl
 - **And its stat weights**: `StatsWeightCalculator::GenerateBasicWeights` falls back to a bear tank's (stamina,
   defence, dodge) for a class it does not name. The Oathblade wore tank plate and stamina trinkets that way, on the
   bench and on the Défi board, at about two thirds of its damage; tuned on that, its factors were far off once it
-  had damage gear (2.6 times the mage at +10). The Barbarian, the Faucheur, the Necromancer and the Pestiféré still
-  have no weights of their own.
+  had damage gear (2.6 times the mage at +10). The Barbarian, the Faucheur, the Necromancer and the Pestiféré got
+  theirs on 2026-10-08: the Barbarian went from about 80% of the mage at 450 / 600 to 110%, and 1.75 times it at +10,
+  before its balance factors were measured again. Weapon speed rules in `ApplyPreferredSpecWeapons` are off in this
+  realm (`AiPlayerbot.PreferredSpecWeapons = 0`): a speed a kit needs goes in `CalculateItemTypePenalty`.
+- Content bots exist only for the classes random bots may be (`RandomPlayerbotFactory::IsRandomBotClass`): the
+  Pestiféré and the Necromancer (no bot AI) cannot be benched.
 - **Cloned DBC spells keep their clone's scaling**: a Death Knight spell cloned from Cone of Cold scales with spell
   power the class does not have (flat damage). Scale it in the class module (`ModifySpellDamageTaken`) or from attack
   power, not only in `localTools/<class>/Spells.ps1`.

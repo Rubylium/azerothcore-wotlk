@@ -613,7 +613,8 @@ namespace
 // one at 650 points (balance, measured at the Hollow Voice's 460), in between by the character's points.
 // Live: .tune set balance.<class>.<spec> <factor> / balance0.<class>.<spec> (spec: its tree, 1 to 4).
 // Assassination and the Oathblade were measured again on 2026-10-08 (Gardien-chef Vorhan's 450 / 600, 460 / 650, +30
-// and +10) on a boss dummy that stays up and on a whole kill, not on the Défi I one that dies every few seconds.
+// and +10) on a boss dummy that stays up and on a whole kill, not on the Défi I one that dies every few seconds; the
+// Barbarian on 2026-10-08 too (450 / 600 and +10), once its bots wore damage gear instead of the bear tank's.
 constexpr float SpecBalanceParagon = 650.0f;
 struct SpecBalanceRow
 {
@@ -648,7 +649,7 @@ SpecBalanceRow const SpecBalance[] = {
         { "balance.pestifere.3", 1.0f }, { "balance.pestifere.4", 1.0f } } },
     { { { "balance.necromancer.1", 1.0f }, { "balance.necromancer.2", 1.0f },
         { "balance.necromancer.3", 1.0f }, { "balance.necromancer.4", 1.0f } } },
-    { { { "balance.barbarian.1", 1.41f }, { "balance.barbarian.2", 1.25f },
+    { { { "balance.barbarian.1", 1.33f }, { "balance.barbarian.2", 1.28f },
         { "balance.barbarian.3", 1.0f }, { "balance.barbarian.4", 1.0f } } },
 };
 SpecBalanceRow const SpecBalanceLow[] = {
@@ -680,8 +681,8 @@ SpecBalanceRow const SpecBalanceLow[] = {
         { "balance0.pestifere.3", 1.0f }, { "balance0.pestifere.4", 1.0f } } },
     { { { "balance0.necromancer.1", 1.0f }, { "balance0.necromancer.2", 1.0f },
         { "balance0.necromancer.3", 1.0f }, { "balance0.necromancer.4", 1.0f } } },
-    { { { "balance0.barbarian.1", 1.22f }, { "balance0.barbarian.2", 1.19f },
-        { "balance0.barbarian.3", 1.25f }, { "balance0.barbarian.4", 1.0f } } },
+    { { { "balance0.barbarian.1", 0.7f }, { "balance0.barbarian.2", 0.66f },
+        { "balance0.barbarian.3", 0.78f }, { "balance0.barbarian.4", 1.0f } } },
 };
 
 float GetSpecBalance(Unit* attacker)
