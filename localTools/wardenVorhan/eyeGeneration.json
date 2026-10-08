@@ -1,0 +1,20 @@
+{
+  "generator": "Built-in imagegen",
+  "assets": [
+    {
+      "name": "eye_open",
+      "prompt": "Game texture painting, square 1024 x 1024 RGB on pure black (#000000). A single demonic eye, wide open, seen straight on, floating alone in pure black darkness: a burning ember-red iris with a narrow vertical slit pupil, veins of fel light in the white, the very edge of dark eyelids just framing it, World of Warcraft hand-painted style, menacing, centred, the eye filling about half the image, a soft red glow around it fading to pure black long before the edges, no face, no skin beyond the eyelid rim, no frame, no text. Composition: eye centered exactly at (512,512), its entire almond-shaped eye silhouette about 512 pixels wide, generous black space all around. No iron plate, no chains, no hardware. Outer quarter of canvas completely black. Opaque black background for additive rendering.",
+      "path": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-55d534f3-617e-448c-9f4e-2e3512001ed6.png"
+    },
+    {
+      "name": "eye_glow",
+      "prompt": "Game additive glow texture, square 1024 x 1024 RGB on pure black (#000000). Only a glow: a burst of deep red and ember-orange light radiating from the centre of the image where an eye would be, soft and smoky, fading to pure black long before the edges, no eye, no shapes, no frame, no text, on pure black, 1024 x 1024. Exact center (512,512). Soft diffuse painterly light, smooth smoky falloff, no hard contours or recognizable objects. Glow contained within central half to two-thirds of the image; outer quarter of canvas completely black. No iris, pupil, lids, face, rings, symbols, spikes, beams or hardware. Opaque black background for additive rendering.",
+      "path": "C:\\Users\\alexi\\.codex\\generated_images\\01a110c0-3cdd-7860-b6f7-0b632701acc4\\exec-d53d5940-2d4b-40be-b3fc-00b1e90e8d94.png"
+    }
+  ],
+  "assembly": {
+    "eye_open": "Uniformly scaled so the visible eye is approximately 512 px wide; centered by its painted bounds on black 1024x1024.",
+    "eye_glow": "Uniformly scaled to a 768 px source canvas, centered on black 1024x1024.",
+    "background": "RGB; values at or below 5 cleared to pure black."
+  }
+}
