@@ -578,7 +578,7 @@ def curfew_mark():
     glow). 256 x 256, RGBA. The painting art/curfew_mark.png (on pure black) takes its place once it is there."""
     if os.path.exists(os.path.join(ART, 'curfew_mark.png')):
         rgb = as_array(painting('curfew_mark.png'))[..., :3]
-        alpha = numpy.clip(rgb.max(axis=2) / 0.12, 0.0, 1.0)
+        alpha = numpy.clip(rgb.max(axis=2) / 0.04, 0.0, 1.0)
         colour = numpy.where(alpha[..., None] > 1e-4, rgb / numpy.maximum(alpha[..., None], 1e-4), 0.0)
         rgba = numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha[..., None]], axis=2)
         return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
