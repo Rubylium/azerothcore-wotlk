@@ -612,6 +612,8 @@ namespace
 // at the Hollow Voice's 650 points a fraction of it): one at no paragon (balance0, measured at +10 and its gear),
 // one at 650 points (balance, measured at the Hollow Voice's 460), in between by the character's points.
 // Live: .tune set balance.<class>.<spec> <factor> / balance0.<class>.<spec> (spec: its tree, 1 to 4).
+// Assassination and the Oathblade were measured again on 2026-10-08 (Gardien-chef Vorhan's 450 / 600, 460 / 650, +30
+// and +10) on a boss dummy that stays up and on a whole kill, not on the Défi I one that dies every few seconds.
 constexpr float SpecBalanceParagon = 650.0f;
 struct SpecBalanceRow
 {
@@ -626,7 +628,7 @@ SpecBalanceRow const SpecBalance[] = {
         { "balance.paladin.3", 1.0f }, { "balance.paladin.4", 1.0f } } },
     { { { "balance.hunter.1", 1.4f }, { "balance.hunter.2", 1.1f },
         { "balance.hunter.3", 1.0f }, { "balance.hunter.4", 1.0f } } },
-    { { { "balance.rogue.1", 1.25f }, { "balance.rogue.2", 1.5f },
+    { { { "balance.rogue.1", 1.45f }, { "balance.rogue.2", 1.5f },
         { "balance.rogue.3", 1.44f }, { "balance.rogue.4", 1.0f } } },
     { { { "balance.priest.1", 1.0f }, { "balance.priest.2", 1.0f },
         { "balance.priest.3", 0.62f }, { "balance.priest.4", 1.0f } } },
@@ -638,7 +640,7 @@ SpecBalanceRow const SpecBalance[] = {
         { "balance.mage.3", 1.22f }, { "balance.mage.4", 1.0f } } },
     { { { "balance.warlock.1", 1.0f }, { "balance.warlock.2", 0.93f },
         { "balance.warlock.3", 1.0f }, { "balance.warlock.4", 1.0f } } },
-    { { { "balance.oathblade.1", 0.66f }, { "balance.oathblade.2", 1.0f },
+    { { { "balance.oathblade.1", 0.78f }, { "balance.oathblade.2", 1.0f },
         { "balance.oathblade.3", 1.0f }, { "balance.oathblade.4", 1.0f } } },
     { { { "balance.druid.1", 1.14f }, { "balance.druid.2", 1.72f },
         { "balance.druid.3", 1.0f }, { "balance.druid.4", 1.0f } } },
@@ -670,7 +672,7 @@ SpecBalanceRow const SpecBalanceLow[] = {
         { "balance0.mage.3", 1.23f }, { "balance0.mage.4", 1.0f } } },
     { { { "balance0.warlock.1", 1.0f }, { "balance0.warlock.2", 0.84f },
         { "balance0.warlock.3", 1.0f }, { "balance0.warlock.4", 1.0f } } },
-    { { { "balance0.oathblade.1", 1.23f }, { "balance0.oathblade.2", 1.0f },
+    { { { "balance0.oathblade.1", 0.51f }, { "balance0.oathblade.2", 1.0f },
         { "balance0.oathblade.3", 1.0f }, { "balance0.oathblade.4", 1.0f } } },
     { { { "balance0.druid.1", 1.0f }, { "balance0.druid.2", 1.06f },
         { "balance0.druid.3", 1.0f }, { "balance0.druid.4", 1.0f } } },

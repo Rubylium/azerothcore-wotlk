@@ -35,9 +35,15 @@ bots brought again (the session), and no server build, restart or client release
     and drops it from the database (`--dry-run` first); spell multipliers it only lists. Then build and commit - the
     code stays the one place a number lives.
 - `.bench paragon <points|auto>` sets the bench bots' paragon whatever the dummies' scaling: a raid's or a Défi's
-  profile (the Hollow Voice: `bots 'mage fire 460 single'`, `.bench paragon 650`, `run -layouts boss -key raid`).
+  profile (the Hollow Voice: `bots 'mage fire 460 single'`, `.bench paragon 650`, then the dummies below).
   Measured that way (2026-10-01), melee specs had a fraction of the mage's damage at 650 points (Enhancement 50%,
   Combat 41%) while beating it at low paragon: compare classes at the content's own profile, not only at +10.
+- **At a high profile, measure on a boss that lives.** The `raid` boss dummy (Défi I) dies and refills every 4-8 s
+  under four bots at 450 / 600: the paragon board's execute nodes (up to +60% under 40% health, the melee boards'
+  much more than the caster's) are lit half the time, and DoTs reset. Use a dummy that stays up
+  (`run -layouts boss -key defi10-25 -seconds 60`) and a whole kill (`run boss defi10 1%`, about 75 s: a raw request
+  line, `bench.ps1 run` takes whole seconds only), and compare their mean. On 2026-10-08 Assassination measured 92%
+  of the mage on the `raid` dummy, 80% on a kill and 70% on one that stays up.
 - A server restart ends the session (`bench.ps1 start` again). Its log: `var/combatBench/session/session.log`.
 - Short runs (`-seconds 30`, `single,pack5`) to find the direction, then 60 s and the full layouts, repeated, to
   settle it (variance below).
@@ -53,7 +59,10 @@ table (`.tune set balance...` live, the table's defaults in the code). Compare a
 groups of a survey: one group's mage varies ±30% at +10.
 
 Bench content bots (Bot/ContentBotMgr.h) come fresh: logged in, specced and geared for the bench, bags emptied. A
-row at the wrong item level or without its paragon board (`.bench list` shows it) is not to be trusted.
+row at the wrong item level or without its paragon board (`.bench list` shows it) is not to be trusted, nor a damage
+dealer with a `board tank`: before 2026-10-08 the bench gave its bots no group role, and the board took one from a
+Dungeon Finder role left over or a stance - Retribution bots that had tanked keys fought at a quarter of the damage.
+Bots of the same spec still differ by 15-20% (Assassination: Itlonk against Buslill): pool several bots' runs.
 
 ## Running it headless (one run)
 
@@ -103,6 +112,11 @@ row at the wrong item level or without its paragon board (`.bench list` shows it
   `StatsWeightCalculator`, and a class without a weapon rule there takes whatever scores best. The Barbarian (no
   rule) got a fast one-hand sword and a shield: tuned on it, its weapon-percentage strikes came out 2.2 times too
   strong on the two-hander players use. Give a new class its weapon rule first (two-hander, dual wield, shield).
+- **And its stat weights**: `StatsWeightCalculator::GenerateBasicWeights` falls back to a bear tank's (stamina,
+  defence, dodge) for a class it does not name. The Oathblade wore tank plate and stamina trinkets that way, on the
+  bench and on the Défi board, at about two thirds of its damage; tuned on that, its factors were far off once it
+  had damage gear (2.6 times the mage at +10). The Barbarian, the Faucheur, the Necromancer and the Pestiféré still
+  have no weights of their own.
 - **Cloned DBC spells keep their clone's scaling**: a Death Knight spell cloned from Cone of Cold scales with spell
   power the class does not have (flat damage). Scale it in the class module (`ModifySpellDamageTaken`) or from attack
   power, not only in `localTools/<class>/Spells.ps1`.
