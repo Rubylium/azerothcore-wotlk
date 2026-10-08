@@ -28,7 +28,9 @@ local TIMELINE = {
     { 6000, 63 },
 }
 
-local frame = CreateFrame("Frame", nil, WorldFrame)
+-- On the interface, named: a nameless child of the world frame is taken for a nameplate (the client extension's
+-- NamePlates.cpp takes those over), and this one never showed
+local frame = CreateFrame("Frame", "WardenGazeFrame", UIParent)
 -- Over everything the world and the interface draw, but the dialogs and the tooltips
 frame:SetFrameStrata("FULLSCREEN")
 frame:SetSize(ASPECT * SMALLEST, SMALLEST)
@@ -78,11 +80,11 @@ frame:SetScript("OnUpdate", function(self)
         u, v, depth, tangent = UnitScreenPosition(gaze.guid, gaze.height)
     end
     if u and depth and tangent and tangent > 0 then
-        local width, height = WorldFrame:GetWidth(), WorldFrame:GetHeight()
+        local width, height = UIParent:GetWidth(), UIParent:GetHeight()
         local pixels = gaze.width / (2 * depth * tangent) * height
         pixels = math.max(SMALLEST, math.min(LARGEST, pixels))
         self:SetSize(pixels, pixels / ASPECT)
-        self:SetPoint("CENTER", WorldFrame, "TOPLEFT", u * width, -v * height)
+        self:SetPoint("CENTER", UIParent, "TOPLEFT", u * width, -v * height)
         return
     end
     local plate = C_NamePlate and C_NamePlate.GetNamePlateByGUID and C_NamePlate.GetNamePlateByGUID(gaze.guid)
@@ -90,7 +92,7 @@ frame:SetScript("OnUpdate", function(self)
     if plate and plate:IsShown() then
         self:SetPoint("TOP", plate, "BOTTOM", 0, -10)
     else
-        self:SetPoint("CENTER", WorldFrame, "TOP", 0, -WorldFrame:GetHeight() * 0.3)
+        self:SetPoint("CENTER", UIParent, "TOP", 0, -UIParent:GetHeight() * 0.3)
     end
     if not gaze.told then
         gaze.told = true
