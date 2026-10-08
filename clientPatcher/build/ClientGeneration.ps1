@@ -34,7 +34,7 @@ function Invoke-ClientGeneration {
                 'buildNecromancerClientAssets.ps1', 'patchSinisterStrike.ps1') {
                 & (Join-Path $repoRoot "localTools/$script")
             }
-            # The FX lab's light rows (map 606): the server's DBC folder is not in git
+            # The FX lab's light rows (map 451): the server's DBC folder is not in git
             Invoke-BuildTool python @((Join-Path $repoRoot 'localTools/fxLab/buildFxLab.py'), '--light-only')
         }
         # These icons must exist before patch-Z is built, not one release later.

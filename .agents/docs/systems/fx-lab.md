@@ -6,7 +6,8 @@ fight. Game masters only.
 
 ## Where
 
-- Map 606, `QA_DVD` ("QA and DVD"): a stock test map nothing uses, rewritten. Only its tile `30_26` exists.
+- Map 451, `development` (the old Programmer Isle): a stock test map nothing uses, written anew. Only its tile `30_26`
+  exists. Not QA_DVD (606), tried first: nothing wrong with it, but nothing gained either.
 - The floor is flat at height 0: 333 x 333 yards (10 x 10 map chunks), its middle at **(2933.33, 800, 0)**. Around
   it a plateau 40 yards up, one vertex (4.17 yards) away from the floor: the wall. Past the plateau, nothing.
 - Measuring: a faint line every cell (4.17 yards, the terrain texture's repeat - it cannot be 5), a strong line on
@@ -34,10 +35,10 @@ fight. Game masters only.
 Everything comes from `localTools/fxLab/buildFxLab.py` (sizes, grays, wall height, light colours are constants at
 its top):
 
-1. `python localTools/fxLab/buildFxLab.py` writes `clientPatcher/maps/World/Maps/QA_DVD/` (the WDT with its one
+1. `python localTools/fxLab/buildFxLab.py` writes `clientPatcher/maps/World/Maps/development/` (the WDT with its one
    tile, an empty WDL, the ADT written from nothing), `clientPatcher/maps/Tileset/Evolutions/FxLab*.blp`, and the
    light rows into `server/Data/dbc/Light*.dbc`.
-2. Server terrain: `powershell -File localTools/mapEditing/rebuildServerMaps.ps1 -maps 606 -skipVmaps` (no
+2. Server terrain: `powershell -File localTools/mapEditing/rebuildServerMaps.ps1 -maps 451 -skipVmaps` (no
    objects, so no collision to extract).
 3. Client and server: `localTools/deployWithProgress.ps1 -steps client,restart,publish`.
 
@@ -48,7 +49,16 @@ overwritten by the next `buildFxLab.py` run: change the generator instead.
 
 ## Limits
 
-- The map's minimap and loading screen are the stock QA_DVD ones.
+- The map's minimap and loading screen are the stock development ones.
 - Terrain cannot be perfectly vertical: the wall is a one-cell slope (about 84 degrees).
-- The server still holds the stock second tile (`server/Data/maps/6062631.map`) behind the east wall: harmless,
-  never reached.
+- Terrain textures: 512 x 512 DXT3 BLPs with an `_s` specular twin, as the stock tilesets. A BLP whose header gives
+  the wrong size (the writer once recorded the last mipmap's 1 x 1) draws bright green on terrain, while the
+  interface still shows it: the green floor of the first version.
+
+## Seeing it from here
+
+`localTools/fxLab/shots/shoot.ps1 -steps <file.lua>` logs the EVODEV account's `Evoguerrier` into the world on the dev
+client (`CleanWOTLK`), runs the steps (chat lines - game master commands - and Lua functions, `Shot()` for a
+screenshot, `Note(text)` into the chat), then quits and collects the screenshots (`.agents/plans/fx-lab/shots`). The
+dev addon is installed for the run only. Never run it while someone plays on that client: the client patch is rebuilt
+under it.

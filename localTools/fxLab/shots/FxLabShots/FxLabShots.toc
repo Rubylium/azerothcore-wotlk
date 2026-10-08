@@ -1,0 +1,6 @@
+## Interface: 30300
+## Title: FxLabShots
+## Notes: LOCAL DEV ONLY - localTools/fxLab/shots/shoot.ps1 installs it for one run and removes it
+FxLabShots.lua
+Steps.lua
+Run.lua

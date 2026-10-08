@@ -27,7 +27,7 @@ function getPatchFiles(repoRoot) {
         'WMOAreaTable.dbc',
         // L'Infini's gear: its bonuses and lore lines (patchSinisterStrike.ps1)
         'SpellItemEnchantment.dbc',
-        // The FX lab's even gray light (map 606, localTools/fxLab/buildFxLab.py)
+        // The FX lab's even gray light (map 451, localTools/fxLab/buildFxLab.py)
         'Light.dbc', 'LightParams.dbc', 'LightIntBand.dbc', 'LightFloatBand.dbc',
     ].map((name) => ({
         source: path.join(dbcRoot, name),

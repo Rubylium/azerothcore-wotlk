@@ -21,7 +21,7 @@
 #include <vector>
 
 // The FX lab (.agents/docs/systems/fx-lab.md): a plain gray room, 333 yards a side with 40-yard walls, built on the
-// unused test map QA_DVD (606) by localTools/fxLab/buildFxLab.py, to look at spell visuals with nothing else in the
+// unused test map development (451) by localTools/fxLab/buildFxLab.py, to look at spell visuals with nothing else in the
 // way. Its commands, for game masters:
 //   .fxlab                              to its middle (rings every 5 yards round it, lines every 33.3)
 //   .fxlab back                         back where .fxlab was typed from
@@ -35,7 +35,7 @@ namespace
 {
 using namespace Acore::ChatCommands;
 
-constexpr uint32 MAP_FX_LAB = 606;
+constexpr uint32 MAP_FX_LAB = 451;
 constexpr float LabX = 2933.333f;
 constexpr float LabY = 800.0f;
 constexpr float LabZ = 0.0f;
@@ -186,7 +186,7 @@ public:
             ReturnPoints[player->GetGUID()] = player->GetWorldLocation();
         if (!player->TeleportTo(MAP_FX_LAB, LabX, LabY, LabZ + 0.5f, 0.0f))
         {
-            handler->SendErrorMessage("The FX lab (map 606) could not be reached.");
+            handler->SendErrorMessage("The FX lab (map 451) could not be reached.");
             return false;
         }
         handler->SendSysMessage("FX lab: rings every 5 yards round the middle, lines every 33.3 yards. "

@@ -2,11 +2,12 @@
 
     python localTools/fxLab/buildFxLab.py
 
-It takes over map 606, QA_DVD ("QA and DVD"), a test map of the stock client nothing uses, and rewrites it:
+It takes over map 451, development (the old Programmer Isle), a test map of the stock client nothing uses, and
+writes it anew:
 
-- clientPatcher/maps/World/Maps/QA_DVD/QA_DVD.wdt: one tile only, 30_26 (the stock map had a second one, 31_26)
-- clientPatcher/maps/World/Maps/QA_DVD/QA_DVD.wdl: no distant terrain at all
-- clientPatcher/maps/World/Maps/QA_DVD/QA_DVD_30_26.adt: the room, written from nothing (ADT v18, 3.3.5)
+- clientPatcher/maps/World/Maps/development/development.wdt: one tile only, 30_26
+- clientPatcher/maps/World/Maps/development/development.wdl: no distant terrain at all
+- clientPatcher/maps/World/Maps/development/development_30_26.adt: the room, written from nothing (ADT v18, 3.3.5)
 - clientPatcher/maps/Tileset/Evolutions/FxLab*.blp: its floor, line and wall textures
 - server/Data/dbc/Light*.dbc: an even, neutral gray light for the map (no tint, no fog, the same all day). The
   server's DBC folder is not in git: the client build adds these rows again on its own (--light-only,
@@ -19,9 +20,10 @@ faint line at each repeat. A second layer paints stronger lines on every chunk e
 middle, and rings round the middle every 5 yards out to 40 (the tens stronger), for judging sizes.
 
 Then ship it: the client step of localTools/deployWithProgress.ps1, and the server's terrain with
-localTools/mapEditing/rebuildServerMaps.ps1 -maps 606 -skipVmaps (there is no object to collide with).
+localTools/mapEditing/rebuildServerMaps.ps1 -maps 451 -skipVmaps (there is no object to collide with).
 """
 import argparse
+import io
 import math
 import os
 import struct
@@ -34,8 +36,8 @@ REPO_ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 MAPS_ROOT = os.path.join(REPO_ROOT, 'clientPatcher', 'maps')
 DBC_ROOT = os.path.join(REPO_ROOT, 'server', 'Data', 'dbc')
 
-MAP_ID = 606
-MAP_DIRECTORY = 'QA_DVD'
+MAP_ID = 451
+MAP_DIRECTORY = 'development'
 TILE_X, TILE_Y = 30, 26             # the file's <x>_<y>: x runs along the world's Y axis, y along its X axis
 
 TILE_SIZE = 1600.0 / 3.0            # 533.33 yards
@@ -65,28 +67,51 @@ LIGHT_PARAMS_ID = 950
 
 # --- Textures ----------------------------------------------------------------------------------------------------
 
-def write_blp(rgb, path):
-    """Uncompressed BLP2 (BGRA, 8-bit alpha) with its mipmaps. Alpha 0: a terrain texture's alpha is its shine."""
-    image = Image.fromarray(rgb.astype(numpy.uint8), 'RGB')
-    mips = []
+# How much the floor and walls shine (the specular textures' alpha): barely, so a spell's light reads on them
+SHINE = 24
+
+
+def write_blp_raw(image, pixel_format, alpha_depth, alpha_type, path):
+    """A DXT BLP2 with all its mipmaps, as the stock tileset textures are"""
+    block = 8 if pixel_format == 'DXT1' else 16
+    # The size of the first mipmap, not the last: a header saying 1 x 1 drew bright green
+    width, height = image.size
+    mipmaps = []
     while True:
-        red, green, blue = image.split()
-        alpha = Image.new('L', image.size, 0)
-        mips.append(Image.merge('RGBA', (blue, green, red, alpha)).tobytes())
-        if max(image.size) == 1 or len(mips) == 16:
+        dds = io.BytesIO()
+        image.save(dds, format='DDS', pixel_format=pixel_format)
+        encoded = dds.getvalue()[128:]
+        expected = max(1, (image.width + 3) // 4) * max(1, (image.height + 3) // 4) * block
+        if len(encoded) != expected:
+            raise RuntimeError(f'Unexpected {pixel_format} size for {image.size}: {len(encoded)} != {expected}')
+        mipmaps.append(encoded)
+        if max(image.size) == 1 or len(mipmaps) == 16:
             break
-        image = image.resize((max(1, image.size[0] // 2), max(1, image.size[1] // 2)), Image.BOX)
+        image = image.resize((max(1, image.width // 2), max(1, image.height // 2)), Image.BOX)
     offsets, sizes = [0] * 16, [0] * 16
-    cursor = 148
-    for index, data in enumerate(mips):
+    cursor = 148 + 256 * 4
+    for index, data in enumerate(mipmaps):
         offsets[index], sizes[index] = cursor, len(data)
         cursor += len(data)
-    height, width = rgb.shape[:2]
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as output:
-        output.write(struct.pack('<4sIBBBBII16I16I', b'BLP2', 1, 3, 8, 8, 1, width, height, *offsets, *sizes))
-        for data in mips:
+        output.write(struct.pack('<4sIBBBBII16I16I', b'BLP2', 1, 2, alpha_depth, alpha_type, 1, width, height,
+                                 *offsets, *sizes))
+        output.write(bytes(256 * 4))
+        for data in mipmaps:
             output.write(data)
+
+
+def write_blp(rgb, path):
+    """A terrain texture as the stock tilesets ship them (Tileset/Elwynn/ElwynnGrassBase.blp and its Patch-S twin):
+    its colour, opaque, and its specular twin <name>_s.blp, the colour again with the shine in its alpha"""
+    # 512 x 512, DXT3, opaque - as Elwynn's grass (Tileset/Elwynn/ElwynnGrassBase.blp)
+    image = Image.fromarray(rgb.astype(numpy.uint8), 'RGB').resize((512, 512), Image.NEAREST).convert('RGBA')
+    image.putalpha(255)
+    write_blp_raw(image, 'DXT3', 8, 1, path)
+    shiny = image.copy()
+    shiny.putalpha(SHINE)
+    write_blp_raw(shiny, 'DXT3', 8, 1, path[:-4] + '_s.blp')
 
 
 def build_textures():
@@ -185,6 +210,8 @@ def build_mcnk(chunk_row, chunk_column):
     vertices = chunk_vertices(chunk_row, chunk_column)
 
     mcvt = sub_chunk(b'MCVT', struct.pack('<145f', *[height for _, _, height in vertices]))
+    # Neutral vertex shading (0x7F: times one), as the stock tiles carry it: without it the room drew bright green
+    mccv = sub_chunk(b'MCCV', bytes([0x7F, 0x7F, 0x7F, 0x7F]) * 145)
     normals = bytearray()
     for row, column, _ in vertices:
         normals += struct.pack('<3b', *[int(round(value * 127)) for value in normal_at(row, column)])
@@ -199,21 +226,20 @@ def build_mcnk(chunk_row, chunk_column):
     mcly = sub_chunk(b'MCLY', layers)
     mcrf = sub_chunk(b'MCRF', b'')
     mcal = sub_chunk(b'MCAL', alpha)
-    mclq = sub_chunk(b'MCLQ', b'')
     mcse = sub_chunk(b'MCSE', b'')
 
     header_size = 8 + 128
     offset_mcvt = header_size
-    offset_mcnr = offset_mcvt + len(mcvt)
+    offset_mccv = offset_mcvt + len(mcvt)
+    offset_mcnr = offset_mccv + len(mccv)
     offset_mcly = offset_mcnr + len(mcnr)
     offset_mcrf = offset_mcly + len(mcly)
     offset_mcal = offset_mcrf + len(mcrf)
-    offset_mclq = offset_mcal + len(mcal)
-    offset_mcse = offset_mclq + len(mclq)
+    offset_mcse = offset_mcal + len(mcal)
 
     header = bytearray(128)
     struct.pack_into('<15I', header, 0,
-                     0x8000,                     # alpha maps 64 x 64 as they are (do not fix)
+                     0x8040,                     # vertex shading (MCCV); alpha maps 64 x 64 as they are
                      chunk_column, chunk_row,
                      2 if floor else 1,          # layers
                      0,                          # doodad references
@@ -223,9 +249,12 @@ def build_mcnk(chunk_row, chunk_column):
                      0)                          # object references
     # holes 0, low quality texture map 0, no effect doodads, sound emitters at the end (none)
     struct.pack_into('<2I', header, 88, offset_mcse, 0)
-    struct.pack_into('<2I', header, 96, offset_mclq, 8)
+    # No liquid: its offset and size 0, as the stock tiles have it. An empty MCLQ declared 8 bytes long laid a liquid
+    # surface over the whole room - the floor drew bright green whatever its texture
+    struct.pack_into('<2I', header, 96, 0, 0)
     struct.pack_into('<3f', header, 104, TOP_X - chunk_row * CHUNK_SIZE, TOP_Y - chunk_column * CHUNK_SIZE, 0.0)
-    body = bytes(header) + mcvt + mcnr + mcly + mcrf + mcal + mclq + mcse
+    struct.pack_into('<I', header, 116, offset_mccv)
+    body = bytes(header) + mcvt + mccv + mcnr + mcly + mcrf + mcal + mcse
     return b'KNCM' + struct.pack('<I', len(body)) + body
 
 
@@ -268,7 +297,7 @@ def build_wdt():
     tiles = bytearray(64 * 64 * 8)
     struct.pack_into('<2I', tiles, (TILE_Y * 64 + TILE_X) * 8, 1, 0)
     mphd = bytearray(32)
-    struct.pack_into('<I', mphd, 0, 0x4)        # 8-bit alpha maps (4096 bytes a layer)
+    struct.pack_into('<I', mphd, 0, 0x6)        # vertex shading (MCCV), 8-bit alpha maps (4096 bytes a layer)
     return (sub_chunk(b'MVER', struct.pack('<I', 18)) + sub_chunk(b'MPHD', bytes(mphd)) +
             sub_chunk(b'MAIN', bytes(tiles)) + sub_chunk(b'MWMO', b''))
 
@@ -343,7 +372,7 @@ def build_light():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Builds the FX lab (map 606).')
+    parser = argparse.ArgumentParser(description='Builds the FX lab (map 451).')
     parser.add_argument('--light-only', action='store_true',
                         help='only the light rows in server/Data/dbc (the client build runs this)')
     if parser.parse_args().light_only:
