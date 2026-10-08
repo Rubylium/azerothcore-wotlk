@@ -1249,6 +1249,13 @@ $customVisualKits = @(
     # and Mark of Rimefang's reticle (its state kit, 13250) without Sindragosa_DarkmoonVengeance_Impact_Head, which went on
     # for as long as the mark
     @{ Key = 'HV_MarkReticle'; Clone = 13250; Fields = @{ 15 = 0 } }
+    # Gardien-chef Vorhan gathering his gaze (localTools/wardenVorhan/Spells.ps1, Œil entrouvert): blood-red energy
+    # swelling in his chest (Uldir's G'huun immunosuppression state), a red swirl at his feet (the Dracthyr's red cast
+    # base) and red light in his hands (the blood death knight's precast) - effect rows the Faucheur's Ascension import
+    # brought in (modules/mod-reaper/client-assets/imported). A state kit cleared of everything else, no sound.
+    @{ Key = 'VW_GazeCharge'; Clone = 12338
+       Fields = @{ 3 = 0; 4 = 80091; 5 = 80073; 6 = 80139; 7 = 80139; 8 = 0; 9 = 0; 10 = 0; 11 = 0; 12 = 0; 13 = 0
+                   14 = 0; 15 = 0; 16 = 0 } }
 )
 $visualKitSlots = @{
     Precast = 1; Cast = 2; Impact = 3; State = 4; StateDone = 5; Channel = 6; CasterImpact = 14; TargetImpact = 15

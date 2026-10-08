@@ -98,8 +98,9 @@ constexpr float UptimeSeconds = 205.0f;
 constexpr float HardShare = 0.87f;
 // The model's (about 87 million). Bots alone (2026-10-08, e2e/local/vorhan) deal a group of 4 about 59 million: they
 // see the enrage. A player's group dealt far more than bots (62 million in 2:54, the first kill, 0.71): the model's
-// check is theirs. The deaths log each player's damage (LogSummary) to tune it on players.
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.0f);
+// check is theirs. The deaths log each player's damage (LogSummary) to tune it on players. Raised by a fifth after
+// the players' kills (2026-10-08: the model's 87 million went down too fast).
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.2f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
@@ -173,7 +174,7 @@ void SendGaze(Player* player, ObjectGuid const& on, uint32 durationMs, float hei
         return;
     WorldPacket packet;
     ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player,
-        Acore::StringFormat("{}	GAZE	0x{:016X}	{}	{:.2f}	{:.2f}", GazePrefix, on.GetRawValue(), durationMs,
+        Acore::StringFormat("{}\tGAZE\t0x{:016X}\t{}\t{:.2f}\t{:.2f}", GazePrefix, on.GetRawValue(), durationMs,
                             height, width));
     player->GetSession()->SendPacket(&packet);
 }

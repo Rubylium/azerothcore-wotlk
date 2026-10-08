@@ -97,6 +97,8 @@ $spells = @(
     @{ Id = 94425; Clone = 2983; Name = 'Œil entrouvert'; Icon = 'ICON_Regard'; FallbackIconSpell = 30616; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = "L'œil du gardien-chef s'ouvre."
        AuraDescription = 'Ne lui faites pas face quand il sera grand ouvert.'
+       # Red energy gathering in him while it opens (patchSinisterStrike.ps1 VW_GazeCharge)
+       Visual = @{ Clone = 13273; State = 'VW_GazeCharge' }
        Fields = @{ 40 = 1 } },
     # Curfew broken: stunned 3 sec (Stun's own row, 56)
     @{ Id = 94426; Clone = 56; Name = 'Couvre-feu violé'; Icon = 'ICON_ViolationCouvreFeu'; FallbackIconSpell = 33912; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
