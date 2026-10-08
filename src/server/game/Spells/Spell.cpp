@@ -2393,6 +2393,7 @@ void Spell::AddUnitTarget(Unit* target, uint32 effectMask, bool checkIfValid /*=
     targetInfo.damage     = 0;
     targetInfo.damageBeforeTakenMods = 0;
     targetInfo.crit       = false;
+    targetInfo.critChance = 0.0f;
     targetInfo.scaleAura  = false;
     if (m_auraScaleMask && targetInfo.effectMask == m_auraScaleMask && m_caster != target)
     {
@@ -2770,7 +2771,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         uint32 addhealth = m_healing;
 
         if (crit)
-            addhealth = Unit::SpellCriticalHealingBonus(caster, m_spellInfo, addhealth, nullptr);
+            addhealth = Unit::SpellCriticalHealingBonus(caster, m_spellInfo, addhealth, nullptr, target->critChance);
 
         HealInfo healInfo(caster, unitTarget, addhealth, m_spellInfo, m_spellInfo->GetSchoolMask());
 
@@ -2779,7 +2780,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         {
             uint32 healBeforeTakenMods = uint32(-target->damageBeforeTakenMods);
             if (crit)
-                healBeforeTakenMods = Unit::SpellCriticalHealingBonus(caster, m_spellInfo, healBeforeTakenMods, nullptr);
+                healBeforeTakenMods = Unit::SpellCriticalHealingBonus(caster, m_spellInfo, healBeforeTakenMods, nullptr,
+                    target->critChance);
             healInfo.SetHealBeforeTakenMods(healBeforeTakenMods);
         }
         else
@@ -2839,10 +2841,12 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
             if (m_caster->GetEntry() == 27893)
             {
                 if (Unit* owner = m_caster->GetOwner())
-                    owner->CalculateSpellDamageTaken(&damageInfo, m_damage, m_spellInfo, m_attackType,  target->crit);
+                    owner->CalculateSpellDamageTaken(&damageInfo, m_damage, m_spellInfo, m_attackType,  target->crit,
+                        target->critChance);
             }
             else
-                caster->CalculateSpellDamageTaken(&damageInfo, m_damage, m_spellInfo, m_attackType,  target->crit);
+                caster->CalculateSpellDamageTaken(&damageInfo, m_damage, m_spellInfo, m_attackType,  target->crit,
+                    target->critChance);
 
             // xinef: override miss info after absorb / block calculations
             if (missInfo == SPELL_MISS_NONE && damageInfo.damage == 0)
@@ -8450,6 +8454,7 @@ void Spell::DoAllEffectOnLaunchTarget(TargetInfo& targetInfo, float* multiplier)
 
     float critChance = caster->SpellDoneCritChance(unit, m_spellInfo, m_spellSchoolMask, m_attackType, false);
     critChance = unit->SpellTakenCritChance(caster, m_spellInfo, m_spellSchoolMask, critChance, m_attackType, false);
+    targetInfo.critChance = critChance;
     targetInfo.crit = roll_chance_f(std::max(0.0f, critChance));
 }
 

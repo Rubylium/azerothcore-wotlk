@@ -311,9 +311,10 @@ void DealAbility(Player* player, Unit* target, uint32 spellId, uint32 amount)
 
     uint32 damage = player->SpellDamageBonusDone(target, spellInfo, amount, SPELL_DIRECT_DAMAGE, EFFECT_0);
     damage = target->SpellDamageBonusTaken(player, spellInfo, damage, SPELL_DIRECT_DAMAGE);
-    bool const crit = roll_chance_f(player->GetUnitCriticalChance(BASE_ATTACK, target));
+    float const critChance = player->GetUnitCriticalChance(BASE_ATTACK, target);
+    bool const crit = roll_chance_f(critChance);
     SpellNonMeleeDamage log(player, target, spellInfo, spellInfo->GetSchoolMask());
-    player->CalculateSpellDamageTaken(&log, int32(damage), spellInfo, BASE_ATTACK, crit);
+    player->CalculateSpellDamageTaken(&log, int32(damage), spellInfo, BASE_ATTACK, crit, critChance);
     Unit::DealDamageMods(target, log.damage, &log.absorb);
     player->SendSpellNonMeleeDamageLog(&log);
     player->DealSpellDamage(&log, true);

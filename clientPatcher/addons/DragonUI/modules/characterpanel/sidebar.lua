@@ -1,3 +1,8 @@
+-- Evolutions: replaces DragonUI's modules/characterpanel/sidebar.lua (clientPatcher/Build-FriendPatch.ps1 ships it
+-- over the client's copy). The stock file, plus the stat overflow (the block marked "Evolutions: stat overflow"
+-- below): crit held at its 100% cap on the sheet, each cap and what lies past it on the rows' tooltips, and a
+-- "Surplus" section, from the server's summary (.agents/docs/systems/stat-overflow.md).
+
 local addon = select(2, ...)
 local CP = addon.CharacterPanel
 
@@ -137,6 +142,380 @@ end
 
 local pane, scrollChild, ilvlRow, gsRow
 local resistRows = {}
+
+-- ============================================================================
+-- Evolutions: stat overflow (server src/server/game/Combat/StatOverflow.h,
+-- .agents/docs/systems/stat-overflow.md). Past a stock cap a stat converts into
+-- a second bonus; the server sends each player its summary against a level-83
+-- boss ("Overflow" addon messages, mod-stat-growth StatOverflowSystem.cpp) and
+-- this shows it: crit rows held at 100 %, the caps and what lies past them on
+-- the rows' tooltips, and a "Surplus" section of three rows.
+-- ============================================================================
+
+local OVERFLOW_PREFIX = "Overflow"
+local OVERFLOW_ASK_AGAIN = 5
+
+-- The stock caps, as the server has them (StatOverflow.h)
+local CRIT_CAP = 100
+local ARMOR_CAP = 75
+local AVOIDANCE_CAP = 100
+-- Before the first summary: the rates the server ships with (its LiveTuning knobs' defaults)
+local DEFAULT_RATES = { crit = 0.4, precision = 0.4, robustness = 0.3, robustnessCap = 20 }
+
+-- The order of the server's fields (StatOverflow.cpp FormatCritPrecision / FormatRobustness)
+local CRIT_FIELDS = {
+    "critRate", "precisionRate",
+    "meleeCrit", "rangedCrit", "spellCrit",
+    "meleeCritBonus", "rangedCritBonus", "spellCritBonus",
+    "meleeHitCap", "meleeHitExcess", "whiteHitCap",
+    "rangedHitCap", "rangedHitExcess",
+    "spellHitCap", "spellHitExcess",
+    "expertise", "dodgeCap", "parryCap",
+    "armorPen", "armorPenExcess",
+    "meleePrecision", "meleePrecisionFront", "rangedPrecision", "spellPrecision",
+}
+local ROBUSTNESS_FIELDS = {
+    "robustnessRate", "robustnessCap",
+    "avoidance", "avoidanceExcess",
+    "defense", "defenseCap", "critTakenExcess",
+    "armorReduction", "armorPoints",
+    "robustnessPoints", "robustness",
+}
+
+-- The board's palette: gold figures and headings, parchment text, a muted brown for what is not reached
+local GOLD = { 1, 0.82, 0.42 }
+local PARCHMENT = { 0.9, 0.85, 0.72 }
+local MUTED = { 0.6, 0.56, 0.48 }
+local GOLD_CODE = "|cffffd16b"
+local MUTED_CODE = "|cff9a8f7a"
+
+local french = GetLocale() == "frFR"
+local TEXT = french and {
+    section = "Surplus",
+    critique = "Critique",
+    precision = "Précision",
+    robustness = "Robustesse",
+    vsBoss = "Contre un boss de niveau 83",
+    critCap = "Plafond : 100 %%. Au-delà, chaque point donne +%s %% de bonus critique.",
+    critOver = "Surplus : +%s %% au-delà de 100 %%",
+    critBonus = "+%s %% de bonus critique (×%s au lieu de ×%s)",
+    critMelee = "Mêlée", critRanged = "Distance", critSpell = "Sorts et soins",
+    critLine = "%s : %s %% de critique, bonus +%s %%",
+    hitCap = "Plafond : %s %% (attaques spéciales)",
+    hitCapWhite = "Plafond : %s %% (techniques), %s %% (attaque auto à deux armes)",
+    spellHitCap = "Plafond : %s %%",
+    expertiseCap = "Plafond : %s %% d'esquive (dans le dos), %s %% de parade (de face)",
+    expertiseNow = "Expertise : %s %% d'esquive et de parade en moins",
+    armorPenNow = "Pénétration d'armure : %s %% (plafond 100 %%)",
+    over = "Surplus : +%s %% → +%s %% de dégâts",
+    overNone = "Au-delà du plafond, chaque point donne +%s %% de dégâts.",
+    precisionMelee = "Mêlée : +%s %% dans le dos, +%s %% de face",
+    precisionRanged = "Distance : +%s %%",
+    precisionSpell = "Sorts : +%s %%",
+    precisionParts = "Toucher au-delà du plafond, expertise au-delà de l'esquive (de la parade de face), "
+        .. "pénétration d'armure au-delà de 100 %% (pour moitié) : +%s %% de dégâts par point.",
+    armorLine = "Réduction des dégâts : %s %% (plafond 75 %%)",
+    armorOver = "Surplus : +%s points de Robustesse",
+    defenseLine = "Immunité aux coups critiques à %s de défense",
+    defenseOver = "Surplus : %s points de défense, +%s points de Robustesse",
+    avoidanceLine = "Évitement total : %s %% (plafond 100 %%)",
+    avoidanceOver = "Surplus : +%s points de Robustesse",
+    robustnessValue = "-%s %%",
+    robustnessParts = "Évitement %s, défense %s, armure %s : %s points",
+    robustnessRule = "Chaque point au-delà d'un plafond : %s %% de dégâts subis en moins, %s %% au plus.",
+    robustnessNow = "Dégâts subis : -%s %%",
+} or {
+    section = "Overflow",
+    critique = "Critical",
+    precision = "Precision",
+    robustness = "Robustness",
+    vsBoss = "Against a level 83 boss",
+    critCap = "Cap: 100%%. Past it, each point gives +%s%% critical bonus.",
+    critOver = "Overflow: +%s%% past 100%%",
+    critBonus = "+%s%% critical bonus (x%s instead of x%s)",
+    critMelee = "Melee", critRanged = "Ranged", critSpell = "Spells and heals",
+    critLine = "%s: %s%% crit, bonus +%s%%",
+    hitCap = "Cap: %s%% (special attacks)",
+    hitCapWhite = "Cap: %s%% (abilities), %s%% (dual-wield auto attack)",
+    spellHitCap = "Cap: %s%%",
+    expertiseCap = "Cap: %s%% dodge (from behind), %s%% parry (from the front)",
+    expertiseNow = "Expertise: %s%% less dodge and parry",
+    armorPenNow = "Armor penetration: %s%% (cap 100%%)",
+    over = "Overflow: +%s%% -> +%s%% damage",
+    overNone = "Past the cap, each point gives +%s%% damage.",
+    precisionMelee = "Melee: +%s%% from behind, +%s%% from the front",
+    precisionRanged = "Ranged: +%s%%",
+    precisionSpell = "Spells: +%s%%",
+    precisionParts = "Hit past its cap, expertise past dodge (parry from the front), armor penetration "
+        .. "past 100%% (half): +%s%% damage a point.",
+    armorLine = "Damage reduction: %s%% (cap 75%%)",
+    armorOver = "Overflow: +%s Robustness points",
+    defenseLine = "Critical strike immunity at %s defense",
+    defenseOver = "Overflow: %s defense, +%s Robustness points",
+    avoidanceLine = "Total avoidance: %s%% (cap 100%%)",
+    avoidanceOver = "Overflow: +%s Robustness points",
+    robustnessValue = "-%s%%",
+    robustnessParts = "Avoidance %s, defense %s, armor %s: %s points",
+    robustnessRule = "Each point past a cap: %s%% less damage taken, %s%% at most.",
+    robustnessNow = "Damage taken: -%s%%",
+}
+
+local overflow -- the latest summary, nil until the server sent one
+local overflowAsked = 0
+
+-- "72.4" / "72,4" (the client's own decimal mark in French), at most `decimals` decimals
+local function num(value, decimals)
+    local text = format("%." .. (decimals or 1) .. "f", value or 0)
+    if text:find("%.") then text = text:gsub("0+$", ""):gsub("%.$", "") end
+    if french then text = text:gsub("%.", ",") end
+    return text
+end
+
+local function rate(key)
+    if overflow and overflow[key] then return overflow[key] end
+    if key == "critRate" then return DEFAULT_RATES.crit end
+    if key == "precisionRate" then return DEFAULT_RATES.precision end
+    if key == "robustnessRate" then return DEFAULT_RATES.robustness end
+    return DEFAULT_RATES.robustnessCap
+end
+
+local function addLine(tooltip, text, color)
+    color = color or PARCHMENT
+    tooltip:AddLine(text, color[1], color[2], color[3], 1)
+end
+
+local function askOverflow()
+    if GetTime() - overflowAsked < OVERFLOW_ASK_AGAIN then return end
+    overflowAsked = GetTime()
+    SendAddonMessage(OVERFLOW_PREFIX, "Q", "WHISPER", UnitName("player"))
+end
+
+-- Which combat category the character leads with (the sidebar's own pick), as the server names it
+local function leadingKind()
+    local _, combatKey = CP.GetPrimaryStatProfile()
+    if combatKey == "PLAYERSTAT_RANGED_COMBAT" then return "ranged" end
+    if combatKey == "PLAYERSTAT_SPELL_COMBAT" then return "spell" end
+    if combatKey == "PLAYERSTAT_MELEE_COMBAT" then return "melee" end
+    return nil
+end
+
+-- One crit category on a tooltip: the cap and what lies past it. `base` is the stock critical multiplier.
+local function critTooltip(tooltip, chance, bonus, base)
+    addLine(tooltip, " ")
+    addLine(tooltip, TEXT.vsBoss, GOLD)
+    if bonus and bonus > 0 then
+        addLine(tooltip, format(TEXT.critOver, num(chance - CRIT_CAP)))
+        local multiplier = 1 + (base - 1) * (1 + bonus / 100)
+        addLine(tooltip, format(TEXT.critBonus, num(bonus), num(multiplier, 2), num(base, 1)), GOLD)
+    else
+        addLine(tooltip, format(TEXT.critCap, num(rate("critRate"), 2)), MUTED)
+    end
+end
+
+local function precisionTooltip(tooltip, capLine, excess)
+    addLine(tooltip, " ")
+    addLine(tooltip, TEXT.vsBoss, GOLD)
+    addLine(tooltip, capLine)
+    if excess and excess > 0 then
+        addLine(tooltip, format(TEXT.over, num(excess), num(excess * rate("precisionRate"))), GOLD)
+    else
+        addLine(tooltip, format(TEXT.overNone, num(rate("precisionRate"), 2)), MUTED)
+    end
+end
+
+local OVERFLOW_TOOLTIPS = {
+    meleeCrit = function(t) critTooltip(t, overflow.meleeCrit, overflow.meleeCritBonus, 2) end,
+    rangedCrit = function(t) critTooltip(t, overflow.rangedCrit, overflow.rangedCritBonus, 2) end,
+    spellCrit = function(t) critTooltip(t, overflow.spellCrit, overflow.spellCritBonus, 1.5) end,
+    meleeHit = function(t)
+        local cap = overflow.whiteHitCap > overflow.meleeHitCap
+            and format(TEXT.hitCapWhite, num(overflow.meleeHitCap), num(overflow.whiteHitCap))
+            or format(TEXT.hitCap, num(overflow.meleeHitCap))
+        precisionTooltip(t, cap, overflow.meleeHitExcess)
+    end,
+    rangedHit = function(t)
+        precisionTooltip(t, format(TEXT.hitCap, num(overflow.rangedHitCap)), overflow.rangedHitExcess)
+    end,
+    spellHit = function(t)
+        precisionTooltip(t, format(TEXT.spellHitCap, num(overflow.spellHitCap)), overflow.spellHitExcess)
+    end,
+    expertise = function(t)
+        local excess = overflow.expertise - overflow.dodgeCap
+        precisionTooltip(t, format(TEXT.expertiseCap, num(overflow.dodgeCap, 2), num(overflow.parryCap, 2)),
+            excess > 0 and excess or 0)
+    end,
+    armor = function(t)
+        addLine(t, " ")
+        addLine(t, TEXT.vsBoss, GOLD)
+        addLine(t, format(TEXT.armorLine, num(overflow.armorReduction)))
+        if overflow.armorPoints > 0 then
+            addLine(t, format(TEXT.armorOver, num(overflow.armorPoints)), GOLD)
+        end
+    end,
+    defense = function(t)
+        addLine(t, " ")
+        addLine(t, TEXT.vsBoss, GOLD)
+        addLine(t, format(TEXT.defenseLine, num(overflow.defenseCap, 0)))
+        if overflow.critTakenExcess > 0 then
+            addLine(t, format(TEXT.defenseOver, num(overflow.defense - overflow.defenseCap, 0),
+                num(overflow.critTakenExcess, 2)), GOLD)
+        end
+    end,
+    avoidance = function(t)
+        addLine(t, " ")
+        addLine(t, TEXT.vsBoss, GOLD)
+        addLine(t, format(TEXT.avoidanceLine, num(overflow.avoidance)))
+        if overflow.avoidanceExcess > 0 then
+            addLine(t, format(TEXT.avoidanceOver, num(overflow.avoidanceExcess)), GOLD)
+        end
+    end,
+}
+
+-- Which stock row shows what, by UpdatePaperdollStats' own layout (3.3.5a PaperDollFrame.lua), each checked
+-- against its label so a changed layout drops the extra lines rather than putting them on the wrong row
+local OVERFLOW_ROWS = {
+    PLAYERSTAT_MELEE_COMBAT = { [4] = "meleeHit", [5] = "meleeCrit", [6] = "expertise" },
+    PLAYERSTAT_RANGED_COMBAT = { [4] = "rangedHit", [5] = "rangedCrit" },
+    PLAYERSTAT_SPELL_COMBAT = { [3] = "spellHit", [4] = "spellCrit" },
+    PLAYERSTAT_DEFENSES = { [1] = "armor", [2] = "defense", [3] = "avoidance", [4] = "avoidance", [5] = "avoidance" },
+}
+local OVERFLOW_LABELS = {
+    meleeCrit = "MELEE_CRIT_CHANCE", rangedCrit = "RANGED_CRIT_CHANCE", spellCrit = "SPELL_CRIT_CHANCE",
+    meleeHit = "COMBAT_RATING_NAME6", rangedHit = "COMBAT_RATING_NAME7", spellHit = "COMBAT_RATING_NAME8",
+    expertise = "STAT_EXPERTISE", armor = "ARMOR", defense = "DEFENSE",
+}
+-- The chance each crit row shows, from the client's own figures
+local CRIT_VALUES = {
+    meleeCrit = function() return GetCritChance() end,
+    rangedCrit = function() return GetRangedCritChance() end,
+    spellCrit = function()
+        local lowest
+        for school = 2, 7 do
+            local chance = GetSpellCritChance(school)
+            lowest = lowest and min(lowest, chance) or chance
+        end
+        return lowest or 0
+    end,
+}
+
+local function overflowEnter(self)
+    if self._duiBaseEnter then self._duiBaseEnter(self) end
+    local add = self._duiOverflowKind and OVERFLOW_TOOLTIPS[self._duiOverflowKind]
+    if add and overflow and GameTooltip:IsOwned(self) then
+        add(GameTooltip)
+        GameTooltip:Show()
+    end
+end
+
+-- After Blizzard filled a section: crit held at its cap on the row, and the overflow lines on the tooltips. The
+-- setters put their own OnEnter back on some rows each time, so the wrapper goes on again over whatever is there.
+local function decorateSection(section)
+    local rows = OVERFLOW_ROWS[section.index]
+    if not rows then return end
+    for index, kind in pairs(rows) do
+        local row = _G[section.prefix .. index]
+        local label = row and _G[row:GetName() .. "Label"]
+        local expected = OVERFLOW_LABELS[kind] and _G[OVERFLOW_LABELS[kind]]
+        local matches = row and (not expected or (label and (label:GetText() or ""):find(expected, 1, true)))
+        if row then
+            row._duiOverflowKind = matches and kind or nil
+            local current = row:GetScript("OnEnter")
+            if current ~= overflowEnter then
+                row._duiBaseEnter = current
+                row:SetScript("OnEnter", overflowEnter)
+            end
+            local value = matches and CRIT_VALUES[kind] and CRIT_VALUES[kind]()
+            if value and value > CRIT_CAP then
+                _G[row:GetName() .. "StatText"]:SetText(GOLD_CODE .. format("%.2f%%", CRIT_CAP) .. "|r")
+            end
+        end
+    end
+end
+
+-- The Surplus section's three rows
+local overflowRows = {}
+
+local function setOverflowRow(row, label, value, active)
+    _G[row:GetName() .. "Label"]:SetText(format(STAT_FORMAT, label))
+    _G[row:GetName() .. "StatText"]:SetText((active and GOLD_CODE or MUTED_CODE) .. value .. "|r")
+end
+
+local function critiqueTooltip(t)
+    addLine(t, TEXT.critique, GOLD)
+    addLine(t, TEXT.vsBoss, MUTED)
+    addLine(t, format(TEXT.critLine, TEXT.critMelee, num(overflow.meleeCrit), num(overflow.meleeCritBonus)))
+    addLine(t, format(TEXT.critLine, TEXT.critRanged, num(overflow.rangedCrit), num(overflow.rangedCritBonus)))
+    addLine(t, format(TEXT.critLine, TEXT.critSpell, num(overflow.spellCrit), num(overflow.spellCritBonus)))
+    addLine(t, format(TEXT.critCap, num(rate("critRate"), 2)), MUTED)
+end
+
+local function precisionSummaryTooltip(t)
+    addLine(t, TEXT.precision, GOLD)
+    addLine(t, TEXT.vsBoss, MUTED)
+    addLine(t, format(TEXT.precisionMelee, num(overflow.meleePrecision), num(overflow.meleePrecisionFront)))
+    addLine(t, format(TEXT.precisionRanged, num(overflow.rangedPrecision)))
+    addLine(t, format(TEXT.precisionSpell, num(overflow.spellPrecision)))
+    addLine(t, format(TEXT.expertiseNow, num(overflow.expertise, 2)))
+    addLine(t, format(TEXT.armorPenNow, num(overflow.armorPen)))
+    addLine(t, format(TEXT.precisionParts, num(rate("precisionRate"), 2)), MUTED)
+end
+
+local function robustnessTooltip(t)
+    addLine(t, TEXT.robustness, GOLD)
+    addLine(t, TEXT.vsBoss, MUTED)
+    addLine(t, format(TEXT.avoidanceLine, num(overflow.avoidance)))
+    addLine(t, format(TEXT.defenseLine, num(overflow.defenseCap, 0)))
+    addLine(t, format(TEXT.armorLine, num(overflow.armorReduction)))
+    addLine(t, format(TEXT.robustnessParts, num(overflow.avoidanceExcess), num(overflow.critTakenExcess, 2),
+        num(overflow.armorPoints), num(overflow.robustnessPoints)))
+    addLine(t, format(TEXT.robustnessNow, num(overflow.robustness)), GOLD)
+    addLine(t, format(TEXT.robustnessRule, num(rate("robustnessRate"), 2), num(rate("robustnessCap"))), MUTED)
+end
+
+local SUMMARY_TOOLTIPS = { critiqueTooltip, precisionSummaryTooltip, robustnessTooltip }
+
+local function summaryEnter(self)
+    if not overflow then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    SUMMARY_TOOLTIPS[self._duiSummaryIndex](GameTooltip)
+    GameTooltip:Show()
+end
+
+local function refreshOverflow()
+    if #overflowRows == 0 or not overflow then return end
+    local kind = leadingKind()
+    local crit, precision
+    if kind == "ranged" then
+        crit, precision = overflow.rangedCritBonus, overflow.rangedPrecision
+    elseif kind == "spell" then
+        crit, precision = overflow.spellCritBonus, overflow.spellPrecision
+    elseif kind == "melee" then
+        crit, precision = overflow.meleeCritBonus, overflow.meleePrecision
+    else
+        crit = max(overflow.meleeCritBonus, overflow.rangedCritBonus, overflow.spellCritBonus)
+        precision = max(overflow.meleePrecision, overflow.rangedPrecision, overflow.spellPrecision)
+    end
+    setOverflowRow(overflowRows[1], TEXT.critique, "+" .. num(crit) .. (french and " %" or "%"), crit > 0)
+    setOverflowRow(overflowRows[2], TEXT.precision, "+" .. num(precision) .. (french and " %" or "%"), precision > 0)
+    setOverflowRow(overflowRows[3], TEXT.robustness, format(TEXT.robustnessValue, num(overflow.robustness)),
+        overflow.robustness > 0)
+end
+
+local function parseOverflow(message)
+    local fields = { strsplit("\t", message) }
+    local kind = table.remove(fields, 1)
+    local names = (kind == "C" and CRIT_FIELDS) or (kind == "R" and ROBUSTNESS_FIELDS) or nil
+    if not names then return false end
+    local summary = overflow or {}
+    for i, name in ipairs(names) do
+        summary[name] = tonumber(fields[i]) or 0
+    end
+    summary["has" .. kind] = true
+    overflow = summary
+    return true
+end
+
+-- ============================================================================
 
 -- Sections in draw order, each owning its header and rows so collapsing one can re-flow the rest.
 local layout = {}
@@ -448,6 +827,7 @@ end
 local function defaultKeyOrder()
     local out = { "itemlevel", "gearscore" }
     for _, section in ipairs(orderedSections()) do out[#out + 1] = section.index end
+    out[#out + 1] = "overflow"
     out[#out + 1] = "resistance"
     return out
 end
@@ -663,6 +1043,8 @@ local function sectionVisible(key)
     local cfg = CP:Config()
     if key == "itemlevel" then return cfg.show_item_level ~= false end
     if key == "gearscore" then return cfg.show_gear_score and true or false end
+    -- Shown once the server sent a summary (a server without it never does)
+    if key == "overflow" then return overflow ~= nil end
     return true
 end
 
@@ -838,6 +1220,14 @@ local function buildSidebar()
         addSection(section.index, _G[section.index] or section.index, rows)
     end
 
+    for i = 1, 3 do
+        local row = buildStatRow(scrollChild, "DragonUIStatOverflow" .. i, i % 2 == 0)
+        row._duiSummaryIndex = i
+        row:SetScript("OnEnter", summaryEnter)
+        overflowRows[i] = row
+    end
+    addSection("overflow", TEXT.section, overflowRows)
+
     local resists = {}
     for i, school in ipairs(RESIST_SCHOOLS) do
         resists[i] = buildResistRow(scrollChild, i, school, i % 2 == 0)
@@ -971,10 +1361,12 @@ local function refresh()
             local row = _G[section.prefix .. i]
             if row then row._duiBlizzHidden = not row:IsShown() end
         end
+        decorateSection(section)
     end
 
     refreshStatHighlight()
     refreshResistances()
+    if overflow then refreshOverflow() else askOverflow() end
     CP.RelayoutSidebar()
 end
 
@@ -1041,11 +1433,31 @@ events:RegisterEvent("COMBAT_RATING_UPDATE")
 events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 events:RegisterEvent("CHARACTER_POINTS_CHANGED")
 events:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+-- The overflow summary: asked on entering the world (a /reload forgets it), then sent by the server as it changes
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("CHAT_MSG_ADDON")
 -- Only Feral's Cat/Bear split needs this, and every other class fires it too (stances share the API).
 if select(2, UnitClass("player")) == "DRUID" then
     events:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
 end
-events:SetScript("OnEvent", function(_, event, unit)
+events:SetScript("OnEvent", function(_, event, unit, ...)
+    if event == "PLAYER_ENTERING_WORLD" then
+        askOverflow()
+        return
+    end
+    if event == "CHAT_MSG_ADDON" then
+        local message, _, sender = ...
+        if unit ~= OVERFLOW_PREFIX or sender ~= UnitName("player") then return end
+        local first = overflow == nil
+        if not parseOverflow(message) then return end
+        if first and pane then
+            -- The section was hidden until now: show it, which refreshes and re-flows
+            CP.ApplyGearSummaryVisibility()
+        elseif pane and pane:IsVisible() then
+            refreshOverflow()
+        end
+        return
+    end
     -- None of these three carry a unit arg, so they can't share the generic unit-check branch below.
     if event == "CHARACTER_POINTS_CHANGED" or event == "ACTIVE_TALENT_GROUP_CHANGED"
        or event == "UPDATE_SHAPESHIFT_FORM" then

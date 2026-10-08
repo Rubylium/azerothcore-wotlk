@@ -26,6 +26,7 @@ Read the matching doc(s) BEFORE starting the task:
 - Touching a subsystem that has a doc in `.agents/docs/systems/` → read that doc too
 - Content difficulty (a boss, a key, a tier, a DPS check), item levels, rewards or paragon → `.agents/docs/systems/power-scaling.md` (size content for an item level and a paragon, never by hand)
 - Class tuning, a new class or spec, talent / rotation / bot combat changes → `.agents/docs/systems/combat-bench.md` (measure on the combat bench, not dungeon runs)
+- Stat caps, combat ratings, crit / hit / expertise / avoidance / armour maths, or the character sheet's stats → `.agents/docs/systems/stat-overflow.md` (past a cap a stat converts into a second bonus)
 - Importing retail item models (weapons, shoulders) into the 3.3.5 client, or any custom item/display id → `.agents/docs/systems/retail-import.md`
 - A class's own resource display (the draggable class HUD, its server feed) → `.agents/docs/systems/class-hud.md`
 - Any new sound (playing one from the server, a sound bank, its volume, 3D, echo) → `.agents/docs/systems/evolutions-audio.md` (our own engine; never SoundEntries rows)

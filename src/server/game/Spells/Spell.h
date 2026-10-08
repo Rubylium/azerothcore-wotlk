@@ -276,6 +276,7 @@ struct TargetInfo
     bool   scaleAura:1;
     int32  damage;
     int32  damageBeforeTakenMods;
+    float  critChance;                  // what crit was rolled with: past 100%, a bigger critical (StatOverflow.h)
 };
 
 static const uint32 SPELL_INTERRUPT_NONPLAYER = 32747;

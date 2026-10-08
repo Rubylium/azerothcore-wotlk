@@ -846,6 +846,8 @@ void AddFrontierQuartermasterScripts();
 void AddDaytimeCommand();
 // FxLab.cpp: .fxlab, the plain gray room to look at spell visuals in (map 606)
 void AddFxLabScripts();
+// StatOverflowSystem.cpp: Robustesse on hits taken, the character sheet's overflow summary
+void AddStatOverflowScripts();
 
 void AddStatGrowthScripts()
 {
@@ -888,6 +890,8 @@ void AddStatGrowthScripts()
     AddFrontierQuartermasterScripts();
     new StatGrowthWorldScript();
     new StatGrowthGlobalScript();
+    // Before StatGrowthUnitScript: Robustesse comes off a hit before the paragon board's reduction and procs see it
+    AddStatOverflowScripts();
     new StatGrowthUnitScript();
     new StatGrowthPlayerScript();
     new EssenceItemScript("item_stat_growth_essence");

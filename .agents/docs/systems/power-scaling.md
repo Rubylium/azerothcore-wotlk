@@ -15,6 +15,9 @@ The Mythic+ keys (`MythicDungeon.h`) and the Défi tiers (`mod-playerbots Challe
   - secondary ratings (hit, crit, haste, expertise, armour penetration, defence, dodge, parry, block, resilience) grow
     by `r^0.5` (`RatingExponent`). They become percentages that cap. With the old `r^2` on everything, crit reached
     95-100% at item level 390 and damage roughly quadrupled per 1.5x item level.
+  - Past a cap (crit 100%, hit, expertise, armour penetration, avoidance, crit immunity, armour 75%) a stat converts
+    into a second bonus (bigger crits, more damage, less damage taken): `stat-overflow.md`. Paragon's flat primary
+    stats are what pushes characters there (~280% melee crit at 600 points).
 - **Paragon.** Points active on the board, spent as a bench bot spends them. The measured curve
   (`Power::ParagonCurve`): x2.0 at 85 points, x3.7 at 212, x5.4 at 255, x7.8 at 340, x9.6 at 425 and **flat past
   425** - what is left of the board is defence and other roles' nodes. Up to ~250 points it grows about as +0.65% a
@@ -175,3 +178,7 @@ To re-measure after a class or board change, run the same benches, then update t
   for a tank) and never scaled to the player they came with (mod-playerbots `ApplyChallengeBotScaling`).
 - The power index is a damage dealer's. Healing and tanking scale differently: size tank damage on the tank's 1.45x
   health, not on the index.
+- **The curves were measured before the stat overflow** (2026-10-08, `stat-overflow.md`): past-cap crit, hit,
+  expertise and armour penetration now add damage, past-cap avoidance, defence and armour take damage away (at most
+  20%, 40% with the board's reduction). Melee and crit-heavy specs at high paragon gain the most. Re-measure
+  `ParagonCurve` (and the spec balance) on the bench before sizing new content past ~300 points.

@@ -35,6 +35,7 @@
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellMgr.h"
+#include "StatOverflow.h"
 #include "Unit.h"
 #include "Util.h"
 #include "Vehicle.h"
@@ -6342,6 +6343,12 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
 
     if (GetAuraType() == SPELL_AURA_PERIODIC_DAMAGE)
     {
+        // Hit, expertise and armour penetration past their caps against this target (StatOverflow.h)
+        if (caster)
+            damage = StatOverflow::ApplyPrecision(caster, target, GetSpellInfo(),
+                GetSpellInfo()->DmgClass == SPELL_DAMAGE_CLASS_RANGED ? RANGED_ATTACK : BASE_ATTACK,
+                GetSpellInfo()->GetSchoolMask(), damage);
+
         // xinef: leave only target depending bonuses, rest is handled in calculate amount
         if (GetBase()->GetType() == DYNOBJ_AURA_TYPE && caster)
             damage = caster->SpellDamageBonusDone(target, GetSpellInfo(), damage, DOT, GetEffIndex(), 0.0f, GetBase()->GetStackAmount());
@@ -6360,7 +6367,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     // calculate crit chance
     bool crit = false;
     if ((crit = roll_chance_f(GetCritChance())))
-        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target);
+        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target, GetCritChance());
 
     // Auras reducing damage from AOE spells
     if (!GetSpellInfo()->HasAttribute(SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS))
@@ -6453,13 +6460,19 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
         target->GetAI()->OnCalculatePeriodicTickReceived(damage, caster);
     }
 
+    // Hit, expertise and armour penetration past their caps against this target (StatOverflow.h)
+    if (caster)
+        damage = StatOverflow::ApplyPrecision(caster, target, GetSpellInfo(),
+            GetSpellInfo()->DmgClass == SPELL_DAMAGE_CLASS_RANGED ? RANGED_ATTACK : BASE_ATTACK,
+            GetSpellInfo()->GetSchoolMask(), damage);
+
     if (GetBase()->GetType() == DYNOBJ_AURA_TYPE)
         damage = caster->SpellDamageBonusDone(target, GetSpellInfo(), damage, DOT, GetEffIndex(), 0.0f, GetBase()->GetStackAmount());
     damage = target->SpellDamageBonusTaken(caster, GetSpellInfo(), damage, DOT, GetBase()->GetStackAmount());
 
     bool crit = false;
     if ((crit = roll_chance_f(GetCritChance())))
-        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target);
+        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target, GetCritChance());
 
     // Calculate armor mitigation
     if (Unit::IsDamageReducedByArmor(GetSpellInfo()->GetSchoolMask(), GetSpellInfo(), m_effIndex))
@@ -6643,7 +6656,7 @@ void AuraEffect::HandlePeriodicHealAurasTick(Unit* target, Unit* caster) const
 
     bool crit = false;
     if ((crit = roll_chance_f(GetCritChance())))
-        damage = Unit::SpellCriticalHealingBonus(caster, GetSpellInfo(), damage, target);
+        damage = Unit::SpellCriticalHealingBonus(caster, GetSpellInfo(), damage, target, GetCritChance());
 
     LOG_DEBUG("spells.aura.effect", "PeriodicTick: {} heal of {} for {} health inflicted by {}",
                     GetCasterGUID().ToString(), target->GetGUID().ToString(), damage, GetId());

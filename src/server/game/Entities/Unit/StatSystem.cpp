@@ -786,7 +786,9 @@ void Player::UpdateParryPercentage()
         m_realParry = nondiminishing + diminishing * parry_cap[pclass] / (diminishing + parry_cap[pclass] * m_diminishing_k[pclass]);
         m_realParry = m_realParry < 0.0f ? 0.0f : m_realParry;
 
-        value = std::max(diminishing + nondiminishing, 0.0f);
+        // The sheet shows the chance combat rolls, after the diminishing returns: the undiminished sum read a parry
+        // the character never has (.agents/docs/systems/stat-overflow.md)
+        value = m_realParry;
 
         if (sConfigMgr->GetOption<bool>("Stats.Limits.Enable", false))
         {
@@ -828,7 +830,9 @@ void Player::UpdateDodgePercentage()
     m_realDodge = nondiminishing + (diminishing * dodge_cap[pclass] / (diminishing + dodge_cap[pclass] * m_diminishing_k[pclass]));
 
     m_realDodge = m_realDodge < 0.0f ? 0.0f : m_realDodge;
-    float value = std::max(diminishing + nondiminishing, 0.0f);
+    // The sheet shows the chance combat rolls, after the diminishing returns: the undiminished sum read 300% dodge on
+    // an agility character that dodges about 60% (.agents/docs/systems/stat-overflow.md)
+    float value = m_realDodge;
 
     if (sConfigMgr->GetOption<bool>("Stats.Limits.Enable", false))
     {

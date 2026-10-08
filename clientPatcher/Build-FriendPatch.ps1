@@ -77,6 +77,9 @@ $sources = @(
     # DragonUI's item levels read GetItemInfo, which only knows a legendary's base item (every copy shares its id);
     # ours asks FrameXML Legendary.lua for the copy's own rolled level. Replaces the stock file the same way
     'Interface\AddOns\DragonUI\modules\itemlevel.lua',
+    # The character sheet's stat sidebar with the stat overflow (crit held at its cap, each cap and what lies past it,
+    # the Surplus section: .agents/docs/systems/stat-overflow.md). Replaces the stock file the same way
+    'Interface\AddOns\DragonUI\modules\characterpanel\sidebar.lua',
     # Retail-style raid frames (Blizzard's Compact Raid Frames backported to a stock 3.3.5a client)
     'Interface\AddOns\CompactRaidFrame',
     'Interface\AddOns\Details',

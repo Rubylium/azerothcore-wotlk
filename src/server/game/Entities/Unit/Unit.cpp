@@ -64,6 +64,7 @@
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "StatOverflow.h"
 #include "TemporarySummon.h"
 #include "Totem.h"
 #include "TotemAI.h"
@@ -1509,7 +1510,7 @@ SpellCastResult Unit::CastSpell(GameObject* go, uint32 spellId, bool triggered, 
     return CastSpell(targets, spellInfo, nullptr, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE, castItem, triggeredByAura, originalCaster);
 }
 
-void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 damage, SpellInfo const* spellInfo, WeaponAttackType attackType, bool crit)
+void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 damage, SpellInfo const* spellInfo, WeaponAttackType attackType, bool crit, float critChance)
 {
     if (damage < 0)
         return;
@@ -1528,6 +1529,9 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
     {
         victim->GetAI()->OnCalculateSpellDamageReceived(damage, this);
     }
+
+    // Hit, expertise and armour penetration past their caps against this target (StatOverflow.h)
+    damage = StatOverflow::ApplyPrecision(this, victim, spellInfo, attackType, damageSchoolMask, damage);
 
     int32 cleanDamage = 0;
     if (!spellInfo->HasAttribute(SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS) && Unit::IsDamageReducedByArmor(damageSchoolMask, spellInfo))
@@ -1581,6 +1585,9 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
                     if (Player* modOwner = GetSpellModOwner())
                         modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
 
+                    // Critical strike chance past 100% grows the critical bonus (StatOverflow.h)
+                    crit_bonus = StatOverflow::ScaleCriticalBonus(this, critChance, crit_bonus);
+
                     damage = crit_bonus + damage;
                 }
 
@@ -1624,7 +1631,7 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
                 if (crit)
                 {
                     damageInfo->HitInfo |= SPELL_HIT_TYPE_CRIT;
-                    damage = Unit::SpellCriticalDamageBonus(this, spellInfo, damage, victim);
+                    damage = Unit::SpellCriticalDamageBonus(this, spellInfo, damage, victim, critChance);
                 }
 
                 int32 resilienceReduction = damage;
@@ -1785,6 +1792,9 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
             victim->GetAI()->OnCalculateMeleeDamageReceived(damage, this);
         }
 
+        // Hit, expertise and armour penetration past their caps against this target (StatOverflow.h)
+        damage = StatOverflow::ApplyPrecision(this, victim, nullptr, damageInfo->attackType, schoolMask, damage);
+
         // Calculate armor reduction
         if (IsDamageReducedByArmor((SpellSchoolMask)(damageInfo->damages[i].damageSchoolMask)))
         {
@@ -1834,9 +1844,14 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
             {
                 damageInfo->HitInfo        |= HITINFO_CRITICALHIT;
                 damageInfo->TargetState     = VICTIMSTATE_HIT;
+                // Critical strike chance past 100% grows the critical bonus (StatOverflow.h): the attacker's own
+                // chance against this target, not what the combat table left of it
+                float const critChance = IsControlledByPlayer()
+                    ? GetUnitCriticalChance(damageInfo->attackType, damageInfo->target) : 0.0f;
                 // Crit bonus calc
                 for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
                 {
+                    uint32 const normalDamage = damageInfo->damages[i].damage;
                     damageInfo->damages[i].damage *= 2;
 
                     float mod = 0.0f;
@@ -1861,6 +1876,10 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
                     {
                         AddPct(damageInfo->damages[i].damage, mod);
                     }
+
+                    if (damageInfo->damages[i].damage > normalDamage)
+                        damageInfo->damages[i].damage = normalDamage + StatOverflow::ScaleCriticalBonus(this, critChance,
+                            damageInfo->damages[i].damage - normalDamage);
                 }
                 break;
             }
@@ -2255,24 +2274,6 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
         // Apply Player CR_ARMOR_PENETRATION rating and buffs from stances\specializations etc.
         if (attacker->IsPlayer())
         {
-            float bonusPct = 0;
-            bonusPct += attacker->GetTotalAuraModifier(SPELL_AURA_MOD_ARMOR_PENETRATION_PCT, [spellInfo,attacker](AuraEffect const* aurEff)
-            {
-                if (aurEff->GetSpellInfo()->EquippedItemClass == -1)
-                {
-                    if (!spellInfo || aurEff->IsAffectedOnSpell(spellInfo) || aurEff->GetMiscValue() & spellInfo->GetSchoolMask())
-                        return true;
-                    else if (!aurEff->GetMiscValue() && !aurEff->HasSpellClassMask())
-                        return true;
-                }
-                else
-                {
-                    if (attacker->ToPlayer()->HasItemFitToSpellRequirements(aurEff->GetSpellInfo()))
-                        return true;
-                }
-                return false;
-            });
-
             float maxArmorPen = 0;
             if (victim->GetLevel() < 60)
                 maxArmorPen = float(400 + 85 * victim->GetLevel());
@@ -2282,7 +2283,7 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
             // Cap armor penetration to this number
             maxArmorPen = std::min((armor + maxArmorPen) / 3, armor);
             // Figure out how much armor do we ignore
-            float armorPen = CalculatePct(maxArmorPen, bonusPct + attacker->ToPlayer()->GetRatingBonusValue(CR_ARMOR_PENETRATION));
+            float armorPen = CalculatePct(maxArmorPen, GetArmorPenetrationPct(attacker, spellInfo));
             // Got the value, apply it
             armor -= std::min(armorPen, maxArmorPen);
         }
@@ -2304,6 +2305,31 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
         tmpvalue = 0.75f;
 
     return uint32(std::ceil(std::max(damage * (1.0f - tmpvalue), 0.0f)));
+}
+
+float Unit::GetArmorPenetrationPct(Unit const* attacker, SpellInfo const* spellInfo)
+{
+    if (!attacker || !attacker->IsPlayer())
+        return 0.0f;
+
+    float bonusPct = 0;
+    bonusPct += attacker->GetTotalAuraModifier(SPELL_AURA_MOD_ARMOR_PENETRATION_PCT, [spellInfo,attacker](AuraEffect const* aurEff)
+    {
+        if (aurEff->GetSpellInfo()->EquippedItemClass == -1)
+        {
+            if (!spellInfo || aurEff->IsAffectedOnSpell(spellInfo) || aurEff->GetMiscValue() & spellInfo->GetSchoolMask())
+                return true;
+            else if (!aurEff->GetMiscValue() && !aurEff->HasSpellClassMask())
+                return true;
+        }
+        else
+        {
+            if (attacker->ToPlayer()->HasItemFitToSpellRequirements(aurEff->GetSpellInfo()))
+                return true;
+        }
+        return false;
+    });
+    return bonusPct + attacker->ToPlayer()->GetRatingBonusValue(CR_ARMOR_PENETRATION);
 }
 
 float Unit::GetEffectiveResistChance(Unit const* owner, SpellSchoolMask schoolMask, Unit const* victim, SpellInfo const* spellInfo /*= nullptr*/)
@@ -3528,6 +3554,66 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* victim, SpellInfo const* spellInfo
         return SPELL_MISS_NONE;
     }
 
+    int32 HitChance = MagicSpellRawHitChance(victim, spellInfo);
+
+    if (HitChance < 100)
+        HitChance = 100;
+    else if (HitChance > 10000)
+        HitChance = 10000;
+
+    int32 tmp = 10000 - HitChance;
+
+    int32 rand = irand(1, 10000); // Needs to be  1 to 10000 to avoid the 1/10000 chance to miss on 100% hit rating
+
+    if (rand < tmp)
+        return SPELL_MISS_MISS;
+
+    // Chance resist mechanic (select max value from every mechanic spell effect)
+    int32 resist_chance = victim->GetMechanicResistChance(spellInfo) * 100;
+    tmp += resist_chance;
+
+    // Chance resist debuff
+    if (!spellInfo->IsPositive() && !spellInfo->HasAttribute(SPELL_ATTR4_NO_CAST_LOG))
+    {
+        bool bNegativeAura = true;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+        {
+            // Xinef: Check if effect exists!
+            if (spellInfo->Effects[i].IsEffect() && spellInfo->Effects[i].ApplyAuraName == 0)
+            {
+                bNegativeAura = false;
+                break;
+            }
+        }
+
+        if (bNegativeAura)
+        {
+            tmp += victim->GetMaxPositiveAuraModifierByMiscValue(SPELL_AURA_MOD_DEBUFF_RESISTANCE, int32(spellInfo->Dispel)) * 100;
+            tmp += victim->GetMaxNegativeAuraModifierByMiscValue(SPELL_AURA_MOD_DEBUFF_RESISTANCE, int32(spellInfo->Dispel)) * 100;
+        }
+
+        if (spellInfo->HasAttribute(SPELL_ATTR0_CU_BINARY_SPELL) && (spellInfo->GetSchoolMask() & (SPELL_SCHOOL_MASK_NORMAL | SPELL_SCHOOL_MASK_HOLY)) == 0)
+            tmp += int32(Unit::GetEffectiveResistChance(this, spellInfo->GetSchoolMask(), victim, spellInfo) * 10000.0f);
+    }
+
+    // Roll chance
+    if (rand < tmp)
+        return SPELL_MISS_RESIST;
+
+    // cast by caster in front of victim
+    if (!victim->HasUnitState(UNIT_STATE_STUNNED) && (victim->HasInArc(M_PI, this) || victim->HasIgnoreHitDirectionAura()))
+    {
+        int32 deflect_chance = victim->GetTotalAuraModifier(SPELL_AURA_DEFLECT_SPELLS) * 100;
+        tmp += deflect_chance;
+        if (rand < tmp)
+            return SPELL_MISS_DEFLECT;
+    }
+
+    return SPELL_MISS_NONE;
+}
+
+int32 Unit::MagicSpellRawHitChance(Unit const* victim, SpellInfo const* spellInfo) const
+{
     SpellSchoolMask schoolMask = spellInfo->GetSchoolMask();
     int32 thisLevel = getLevelForTarget(victim);
     if (IsCreature() && ToCreature()->IsTrigger())
@@ -3585,60 +3671,7 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* victim, SpellInfo const* spellInfo
     else
         HitChance += int32(m_modSpellHitChance * 100.0f);
 
-    if (HitChance < 100)
-        HitChance = 100;
-    else if (HitChance > 10000)
-        HitChance = 10000;
-
-    int32 tmp = 10000 - HitChance;
-
-    int32 rand = irand(1, 10000); // Needs to be  1 to 10000 to avoid the 1/10000 chance to miss on 100% hit rating
-
-    if (rand < tmp)
-        return SPELL_MISS_MISS;
-
-    // Chance resist mechanic (select max value from every mechanic spell effect)
-    int32 resist_chance = victim->GetMechanicResistChance(spellInfo) * 100;
-    tmp += resist_chance;
-
-    // Chance resist debuff
-    if (!spellInfo->IsPositive() && !spellInfo->HasAttribute(SPELL_ATTR4_NO_CAST_LOG))
-    {
-        bool bNegativeAura = true;
-        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-        {
-            // Xinef: Check if effect exists!
-            if (spellInfo->Effects[i].IsEffect() && spellInfo->Effects[i].ApplyAuraName == 0)
-            {
-                bNegativeAura = false;
-                break;
-            }
-        }
-
-        if (bNegativeAura)
-        {
-            tmp += victim->GetMaxPositiveAuraModifierByMiscValue(SPELL_AURA_MOD_DEBUFF_RESISTANCE, int32(spellInfo->Dispel)) * 100;
-            tmp += victim->GetMaxNegativeAuraModifierByMiscValue(SPELL_AURA_MOD_DEBUFF_RESISTANCE, int32(spellInfo->Dispel)) * 100;
-        }
-
-        if (spellInfo->HasAttribute(SPELL_ATTR0_CU_BINARY_SPELL) && (spellInfo->GetSchoolMask() & (SPELL_SCHOOL_MASK_NORMAL | SPELL_SCHOOL_MASK_HOLY)) == 0)
-            tmp += int32(Unit::GetEffectiveResistChance(this, spellInfo->GetSchoolMask(), victim, spellInfo) * 10000.0f);
-    }
-
-    // Roll chance
-    if (rand < tmp)
-        return SPELL_MISS_RESIST;
-
-    // cast by caster in front of victim
-    if (!victim->HasUnitState(UNIT_STATE_STUNNED) && (victim->HasInArc(M_PI, this) || victim->HasIgnoreHitDirectionAura()))
-    {
-        int32 deflect_chance = victim->GetTotalAuraModifier(SPELL_AURA_DEFLECT_SPELLS) * 100;
-        tmp += deflect_chance;
-        if (rand < tmp)
-            return SPELL_MISS_DEFLECT;
-    }
-
-    return SPELL_MISS_NONE;
+    return HitChance;
 }
 
 // Calculate spell hit result can be:
@@ -9465,7 +9498,7 @@ float Unit::SpellTakenCritChance(Unit const* caster, SpellInfo const* spellProto
     return crit_chance;
 }
 
-uint32 Unit::SpellCriticalDamageBonus(Unit const* caster, SpellInfo const* spellProto, uint32 damage, Unit const* victim)
+uint32 Unit::SpellCriticalDamageBonus(Unit const* caster, SpellInfo const* spellProto, uint32 damage, Unit const* victim, float critChance)
 {
     // Calculate critical bonus
     int32 crit_bonus = damage;
@@ -9498,13 +9531,16 @@ uint32 Unit::SpellCriticalDamageBonus(Unit const* caster, SpellInfo const* spell
         if (Player* modOwner = caster->GetSpellModOwner())
             modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
 
+        // Critical strike chance past 100% grows the critical bonus (StatOverflow.h)
+        crit_bonus = StatOverflow::ScaleCriticalBonus(caster, critChance, crit_bonus);
+
         crit_bonus += damage;
     }
 
     return crit_bonus;
 }
 
-uint32 Unit::SpellCriticalHealingBonus(Unit const* caster, SpellInfo const* spellProto, uint32 damage, Unit const* victim)
+uint32 Unit::SpellCriticalHealingBonus(Unit const* caster, SpellInfo const* spellProto, uint32 damage, Unit const* victim, float critChance)
 {
     // Calculate critical bonus
     int32 crit_bonus;
@@ -9532,6 +9568,9 @@ uint32 Unit::SpellCriticalHealingBonus(Unit const* caster, SpellInfo const* spel
         // xinef: used for death knight death coil
         if (Player* modOwner = caster->GetSpellModOwner())
             modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
+
+        // Critical strike chance past 100% grows the critical bonus (StatOverflow.h)
+        crit_bonus = StatOverflow::ScaleCriticalBonus(caster, critChance, crit_bonus);
     }
 
     if (crit_bonus > 0)
@@ -15405,6 +15444,18 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, i
         return 0.0f;
     }
 
+    float const missChance = MeleeSpellRawMissChance(victim, attType, skillDiff, spellId);
+
+    // Limit miss chance from 0 to 60%
+    if (missChance < 0.0f)
+        return 0.0f;
+    if (missChance > 60.0f)
+        return 60.0f;
+    return missChance;
+}
+
+float Unit::MeleeSpellRawMissChance(Unit const* victim, WeaponAttackType attType, int32 skillDiff, uint32 spellId) const
+{
     //calculate miss chance
     float missChance = victim->GetUnitMissChance(attType);
 
@@ -15439,11 +15490,6 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, i
     else
         missChance -= m_modMeleeHitChance;
 
-    // Limit miss chance from 0 to 60%
-    if (missChance < 0.0f)
-        return 0.0f;
-    if (missChance > 60.0f)
-        return 60.0f;
     return missChance;
 }
 
