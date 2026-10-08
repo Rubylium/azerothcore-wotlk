@@ -15,6 +15,7 @@
 #include "ItemTemplate.h"
 #include "Player.h"
 #include "Random.h"
+#include "ScriptMgr.h"
 #include "SharedDefines.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
@@ -218,12 +219,14 @@ float GetFortuneValueMultiplier(uint32 fortuneBonus)
     return 1.0f + increase / 100.0f;
 }
 
-uint32 RollAffixValue(ItemTemplate const* itemTemplate, PersonalLootAffix affix, float fortuneMultiplier)
+// An affix's value grows with the item level it is rolled at: the item's own (ItemLevelOf), not its template's
+uint32 RollAffixValue(ItemTemplate const* itemTemplate, uint32 itemLevel, PersonalLootAffix affix,
+    float fortuneMultiplier)
 {
     // Fortune cannot amplify its own rolls. Its economy budget is independent of other percentage affixes.
     if (affix == PersonalLootAffix::Fortune)
     {
-        float const value = itemTemplate->ItemLevel * EssenceTuning::FortuneItemScale *
+        float const value = itemLevel * EssenceTuning::FortuneItemScale *
             GetQualityMultiplier(itemTemplate->Quality) * frand(0.85f, 1.15f);
         return std::clamp<uint32>(std::lround(value), 1, EssenceTuning::MaxItemFortune);
     }
@@ -235,7 +238,7 @@ uint32 RollAffixValue(ItemTemplate const* itemTemplate, PersonalLootAffix affix,
         scaleKey = StatGrowthConfigKey::PersonalLootPercentScale;
 
     float const scale = statGrowthConfig.GetConfigValue<float>(scaleKey);
-    float const baseValue = std::max<uint32>(itemTemplate->ItemLevel, 1) * scale *
+    float const baseValue = std::max<uint32>(itemLevel, 1) * scale *
         GetQualityMultiplier(itemTemplate->Quality) * fortuneMultiplier;
     return std::max<uint32>(1, std::lround(baseValue * frand(0.85f, 1.15f)));
 }
@@ -271,6 +274,16 @@ bool IsEligibleEquipmentTemplate(ItemTemplate const* itemTemplate)
 bool IsEligibleEquipment(Item const* item)
 {
     return item && item->GetCount() == 1 && IsEligibleEquipmentTemplate(item->GetTemplate());
+}
+
+// The item level an item counts at: its template's, or what a script says the item itself is (a legendary or set
+// copy rolls its own: mod-legendary's OnItemLevel). Its affixes are rolled at it, as a generated item's are at its
+// variant's: a copy's, rolled at its template's (227), were half a raid item's.
+uint32 ItemLevelOf(Item const* item)
+{
+    uint32 itemLevel = item->GetTemplate()->ItemLevel;
+    sScriptMgr->OnGlobalItemLevel(item, itemLevel);
+    return itemLevel;
 }
 
 void ApplyAffix(Player* player, PersonalLootAffixRoll const& affix, bool apply)
@@ -358,7 +371,7 @@ void ApplyAffix(Player* player, PersonalLootAffixRoll const& affix, bool apply)
     }
 }
 
-PersonalLootRoll RollBonuses(Player* player, ItemTemplate const* itemTemplate)
+PersonalLootRoll RollBonuses(Player* player, ItemTemplate const* itemTemplate, uint32 itemLevel)
 {
     PersonalLootRoll roll;
     roll.itemQuality = itemTemplate->Quality;
@@ -375,7 +388,8 @@ PersonalLootRoll RollBonuses(Player* player, ItemTemplate const* itemTemplate)
         {
             uint32 const poolIndex = urand(0, pool.size() - 1);
             roll.affixes[index].type = pool[poolIndex];
-            roll.affixes[index].value = RollAffixValue(itemTemplate, pool[poolIndex], fortuneMultiplier);
+            roll.affixes[index].value = RollAffixValue(itemTemplate, itemLevel, pool[poolIndex],
+                fortuneMultiplier);
             pool.erase(pool.begin() + poolIndex);
         }
     }
@@ -392,7 +406,8 @@ PersonalLootRoll const& GetOrCreatePreRoll(Player* player, ObjectGuid lootGuid, 
     PreRollKey const key { lootGuid, lootIndex, itemTemplate->ItemId, player->getClass() };
     auto itr = preRolls.find(key);
     if (itr == preRolls.end())
-        itr = preRolls.emplace(key, PreRoll { RollBonuses(player, itemTemplate), now }).first;
+        itr = preRolls.emplace(key,
+            PreRoll { RollBonuses(player, itemTemplate, itemTemplate->ItemLevel), now }).first;
     return itr->second.roll;
 }
 
@@ -563,7 +578,7 @@ void TryRollPersonalLoot(Player* player, Item* item, ObjectGuid lootGuid, int32 
 
     ItemTemplate const* itemTemplate = item->GetTemplate();
     std::optional<PersonalLootRoll> const preRoll = TakePreRoll(player, lootGuid, lootIndex, itemTemplate->ItemId);
-    PersonalLootRoll const roll = preRoll ? *preRoll : RollBonuses(player, itemTemplate);
+    PersonalLootRoll const roll = preRoll ? *preRoll : RollBonuses(player, itemTemplate, ItemLevelOf(item));
 
     ObjectGuid::LowType const itemGuid = item->GetGUID().GetCounter();
     personalLootRolls[itemGuid] = roll;

@@ -134,7 +134,9 @@ CATHEDRAL = [24567, 996, 21428]
 
 # Sockets by slot (InventoryType), as the item level 277 epics have them most (2026-10-07): 1 meta, 2 red, 4 yellow,
 # 8 blue; and a socket bonus of stamina, which suits every wearer (SpellItemEnchantment: 2868 +6, 3307 +9, 3766 +12).
-# A trinket has none.
+# A trinket has none. The set pieces (EPIC) are fitted again at server start as raid items (mod-legendary
+# Legendary.cpp FitSetPieces: the raid loot's best sockets of the slot, its durability, the "Heroic" line): these
+# rows are only their fallback.
 SOCKETS = {
     1: ((1, 2), 3766),          # head: a meta and one
     2: ((2,), 2868),            # neck

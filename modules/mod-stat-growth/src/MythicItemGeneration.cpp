@@ -138,6 +138,11 @@ public:
 };
 }
 
+bool IsMythicBaseItem(ItemTemplate const& itemTemplate)
+{
+    return IsBaseItem(itemTemplate);
+}
+
 void AddMythicItemGenerationScripts()
 {
     new MythicItemGenerationWorldScript();

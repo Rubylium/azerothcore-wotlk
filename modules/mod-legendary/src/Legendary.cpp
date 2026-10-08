@@ -20,6 +20,7 @@
 #include "Log.h"
 #include "Map.h"
 #include "MythicDungeon.h"
+#include "MythicItemGeneration.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -43,10 +44,12 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <map>
 #include <mutex>
 #include <set>
 #include <shared_mutex>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 
 // mod-playerbots (RaidFinder.cpp, ChallengeBoard.cpp), built into the same modules library: a Défi's tier, and the
@@ -291,6 +294,100 @@ constexpr std::array<std::array<uint32, 8>, 4> VorhanSets = { {
     { 101, 102, 103, 104, 105, 106, 107, 108 },   // plate
 } };
 constexpr std::array<uint32, 3> VorhanShared = { 133, 134, 135 };
+
+// --- A set piece's row, fitted as a raid item's ----------------------------------------------------------------------
+// A set piece is an epic as the raid and Mythic+ loot is (mod-stat-growth MythicItemGeneration: base items grown to
+// every item level, their sockets, durability and look kept), so its row gets from that loot what a copy's rolls
+// cannot carry: the sockets of the slot's best-socketed item - never fewer than a raid item of its slot drops with -,
+// its durability, and the green "Heroic" line of the top raid tier. Its own world SQL (buildLegendaryItemSql.py) gives
+// it none of these: a row with no durability and fewer sockets read as worse than a raid item of a lower item level.
+// The socket bonus stays stamina (every wearer's), as large as the sockets are many.
+constexpr std::array<uint32, MAX_ITEM_PROTO_SOCKETS> StaminaSocketBonus = { 2868, 3307, 3766 };  // +6, +9, +12
+
+uint32 SocketCount(ItemTemplate const& itemTemplate)
+{
+    uint32 count = 0;
+    for (_Socket const& socket : itemTemplate.Socket)
+        if (socket.Color)
+            ++count;
+    return count;
+}
+
+bool HasStats(ItemTemplate const& itemTemplate)
+{
+    for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
+        if (itemTemplate.ItemStat[index].ItemStatType && itemTemplate.ItemStat[index].ItemStatValue)
+            return true;
+    return false;
+}
+
+// What a raid item is compared with: its class, its slot (a robe is a chest) and, in a slot made of an armour type,
+// that type (cloth, leather, mail or plate)
+std::tuple<uint32, uint32, uint32> PeerKey(ItemTemplate const& itemTemplate)
+{
+    uint32 const slot = itemTemplate.InventoryType == INVTYPE_ROBE ? uint32(INVTYPE_CHEST) : itemTemplate.InventoryType;
+    bool armorType = false;
+    switch (itemTemplate.InventoryType)
+    {
+        case INVTYPE_HEAD:
+        case INVTYPE_SHOULDERS:
+        case INVTYPE_CHEST:
+        case INVTYPE_ROBE:
+        case INVTYPE_WAIST:
+        case INVTYPE_LEGS:
+        case INVTYPE_FEET:
+        case INVTYPE_WRISTS:
+        case INVTYPE_HANDS:
+            armorType = itemTemplate.Class == ITEM_CLASS_ARMOR;
+            break;
+        default:
+            break;
+    }
+    return { itemTemplate.Class, slot, armorType ? itemTemplate.SubClass : 0u };
+}
+
+void FitSetPieces()
+{
+    // The raid loot's bases, one pass over the store (its generated variants are most of it): per slot, the one
+    // with the most sockets, the highest item level breaking a tie, then the lowest entry (the same every start)
+    std::map<std::tuple<uint32, uint32, uint32>, ItemTemplate const*> peers;
+    for (auto const& [entry, candidate] : *sObjectMgr->GetItemTemplateStore())
+    {
+        if (!IsMythicBaseItem(candidate) || !HasStats(candidate) || GetDefinitionByItem(entry))
+            continue;
+        ItemTemplate const*& peer = peers[PeerKey(candidate)];
+        if (!peer || std::make_tuple(SocketCount(candidate), candidate.ItemLevel, peer->ItemId) >
+                     std::make_tuple(SocketCount(*peer), peer->ItemLevel, candidate.ItemId))
+            peer = &candidate;
+    }
+
+    uint32 fitted = 0;
+    for (Definition const& definition : Definitions)
+    {
+        ItemTemplate const* base = definition.gear ? sObjectMgr->GetItemTemplate(definition.baseItem) : nullptr;
+        if (!base)
+            continue;
+        auto const found = peers.find(PeerKey(*base));
+        if (found == peers.end())
+        {
+            LOG_WARN("module", "Legendary: no raid item to fit set piece {} ({}) on", definition.id,
+                definition.baseItem);
+            continue;
+        }
+        ItemTemplate const& peer = *found->second;
+        ItemTemplate row = *base;
+        uint32 const sockets = SocketCount(peer);
+        for (uint32 index = 0; index < MAX_ITEM_PROTO_SOCKETS; ++index)
+            row.Socket[index] = { index < sockets ? peer.Socket[index].Color : 0u, 0u };
+        row.socketBonus = sockets ? StaminaSocketBonus[sockets - 1] : 0;
+        row.MaxDurability = peer.MaxDurability;
+        row.Flags = ItemFlags(row.Flags | ITEM_FLAG_HEROIC_TOOLTIP);
+        // In place: the same entry, its names its own
+        sObjectMgr->AddGeneratedItemTemplate(row, row.ItemId);
+        ++fitted;
+    }
+    LOG_INFO("server.loading", ">> Fitted {} legendary set pieces as raid items (sockets, durability)", fitted);
+}
 
 // The armour a player wears: 0 cloth, 1 leather, 2 mail, 3 plate (the heaviest they are trained in)
 uint32 ArmorType(Player* player)
@@ -1259,6 +1356,7 @@ public:
     // any script of the player could read them. A copy whose item is gone is dropped.
     void OnStartup() override
     {
+        FitSetPieces();
         uint32 const startTime = getMSTime();
         CharacterDatabase.DirectExecute("DELETE l FROM character_legendary l LEFT JOIN item_instance i "
             "ON i.guid = l.item_guid WHERE i.guid IS NULL");
@@ -1536,9 +1634,10 @@ Item* GiveLegendary(Player* player, uint32 legendary, uint32 itemLevel, std::opt
     if (!item)
         return nullptr;
     Keep(player, item, copy);
-    // A set piece is an epic as any other: its gear bonuses (health, fortune...) rolled as a dropped epic's are
-    if (definition->gear)
-        TryRollPersonalLoot(player, item);
+    // Its gear bonuses (health, fortune...) as a dropped item's, at the copy's item level (kept just above, read by
+    // OnItemLevel). Thrown on the floor, the mythic item's own path rolls them (MythicDungeonSystem.cpp
+    // StoreSelectedMythicItem): a legendary given straight to the bags had none.
+    TryRollPersonalLoot(player, item);
     player->SendNewItem(item, 1, true, false);
     return item;
 }
@@ -1549,8 +1648,7 @@ void MakeCopy(Player* player, Item* item, uint32 legendary, uint32 itemLevel)
     if (!player || !item || !definition || item->GetEntry() != definition->baseItem)
         return;
     Keep(player, item, Roll(*definition, player, itemLevel, std::nullopt));
-    if (definition->gear)
-        TryRollPersonalLoot(player, item);
+    TryRollPersonalLoot(player, item);
 }
 }
 

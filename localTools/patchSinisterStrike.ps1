@@ -2743,6 +2743,39 @@ if (-not (Test-Path -LiteralPath $enchantBackupPath)) {
     Copy-Item -LiteralPath $serverEnchantPath -Destination $enchantBackupPath
 }
 $enchantDbc = Read-StringDbc $enchantBackupPath 'SpellItemEnchantment.dbc' 38
+# The stock rows' names in the client's own locale, from its own copy: the server's (an English client's) has the
+# English names alone, and a French client showed every stock socket bonus, gem and enchantment blank ("Bonus de
+# sertissage :" and nothing after it).
+$enchantLocalizedPath = Join-Path $serverDbcRoot 'SpellItemEnchantment.client-localized.dbc'
+if (-not (Test-Path -LiteralPath $enchantLocalizedPath)) {
+    & node (Join-Path $repoRoot 'localTools\mpq-builder\extractEffectiveClientFile.js') `
+        'DBFilesClient\SpellItemEnchantment.dbc' $enchantLocalizedPath
+    if ($LASTEXITCODE -ne 0) { throw "Could not extract the client's SpellItemEnchantment.dbc." }
+}
+$enchantLocalized = Read-StringDbc $enchantLocalizedPath 'SpellItemEnchantment.dbc' 38
+$localizedStringBase = 20 + $enchantLocalized.RecordsSize
+$localizedNames = [Collections.Generic.Dictionary[string, uint32]]::new()    # case-sensitive, unlike @{}
+$localizedCount = 0
+foreach ($id in @($enchantDbc.Offsets.Keys)) {
+    if (-not $enchantLocalized.Offsets.ContainsKey($id)) { continue }
+    $ours = $enchantDbc.Offsets[$id]
+    $theirs = $enchantLocalized.Offsets[$id]
+    for ($locale = 1; $locale -lt 16; ++$locale) {
+        if ((Read-Field $enchantDbc.Data $ours (14 + $locale)) -ne 0) { continue }
+        $at = Read-Field $enchantLocalized.Data $theirs (14 + $locale)
+        if ($at -eq 0) { continue }
+        $start = $localizedStringBase + $at
+        $end = [Array]::IndexOf($enchantLocalized.Data, [byte]0, $start)
+        if ($end -le $start) { continue }
+        $name = [Text.Encoding]::UTF8.GetString($enchantLocalized.Data, $start, $end - $start)
+        if (-not $localizedNames.ContainsKey($name)) {
+            $localizedNames[$name] = Add-DbcString $enchantDbc.Strings $name
+        }
+        Write-Field $enchantDbc.Data $ours (14 + $locale) $localizedNames[$name]
+        ++$localizedCount
+    }
+}
+Write-Host "Gave $localizedCount stock enchantment names their client locale's text (SpellItemEnchantment.dbc)."
 foreach ($enchant in $infiniEnchants) {
     if ($enchantDbc.Offsets.ContainsKey([int]$enchant.Id)) { throw "SpellItemEnchantment.dbc already has a row $($enchant.Id)." }
     $record = [byte[]]::new($enchantDbc.RecordSize)

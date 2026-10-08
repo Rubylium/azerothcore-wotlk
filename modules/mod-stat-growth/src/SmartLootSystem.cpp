@@ -88,6 +88,24 @@ bool IsEquipmentInventoryType(uint32 inventoryType)
     }
 }
 
+// Worn, an item that gives nothing: no stat, armour, block, weapon damage or spell. The rows another system fills per
+// copy (mod-legendary's set pieces: epics of item level 227 whose stats are each copy's own) - as loot, an empty item.
+bool GivesNothing(ItemTemplate const& itemTemplate)
+{
+    if (itemTemplate.Armor || itemTemplate.Block)
+        return false;
+    for (uint32 index = 0; index < MAX_ITEM_PROTO_STATS; ++index)
+        if (itemTemplate.ItemStat[index].ItemStatType && itemTemplate.ItemStat[index].ItemStatValue)
+            return false;
+    for (uint32 index = 0; index < MAX_ITEM_PROTO_DAMAGES; ++index)
+        if (itemTemplate.Damage[index].DamageMax > 0.0f)
+            return false;
+    for (uint32 index = 0; index < MAX_ITEM_PROTO_SPELLS; ++index)
+        if (itemTemplate.Spells[index].SpellId > 0)
+            return false;
+    return true;
+}
+
 bool IsCatalogEquipment(ItemTemplate const& itemTemplate)
 {
     // Generated Mythic+ items are handed out as variants of their base item, never picked themselves
@@ -104,7 +122,7 @@ bool IsCatalogEquipment(ItemTemplate const& itemTemplate)
         return false;
 
     // Fixed-stat templates avoid turning a smart physical drop into a random caster suffix.
-    return itemTemplate.RandomProperty == 0 && itemTemplate.RandomSuffix == 0;
+    return itemTemplate.RandomProperty == 0 && itemTemplate.RandomSuffix == 0 && !GivesNothing(itemTemplate);
 }
 
 void BuildEquipmentCatalog()

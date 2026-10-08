@@ -57,6 +57,13 @@ with as much stamina and spell power - and two secondaries. A legendary has 10% 
 slot's, and the sockets a stock epic of its slot has, with a stamina socket bonus (the base items' templates,
 `localTools/legendary/buildLegendaryItemSql.py`).
 
+Every copy gets the gear bonuses (health, fortune, leech...) a dropped item does (mod-stat-growth
+`TryRollPersonalLoot`), rolled at the copy's own item level (`OnItemLevel`), as a raid item's are at its variant's.
+Gardien-chef Vorhan's set pieces (`gear`) are fitted at startup as raid items (`FitSetPieces`): the sockets of the
+best-socketed item of their slot and armour type that the raid and Mythic+ loot is generated from (mod-stat-growth
+`IsMythicBaseItem`), its durability, and the "Heroic" line; a stamina socket bonus. The world SQL's sockets are only
+the fallback.
+
 ### Powers
 
 A power is one of a handful of mechanics (`Kind`, Legendary.h), written once and taken by any number of legendaries
