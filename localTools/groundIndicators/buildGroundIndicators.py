@@ -114,6 +114,10 @@ def shape_bounds(shape):
         half = math.radians(shape['angle']) / 2
         side = math.sin(half) if half < math.pi / 2 else 1.0
         back = min(0.0, math.cos(half))
+        # `centred`: its quad round its apex both ways, the apex its middle - so a `grow` (scaled about the texture's
+        # middle) grows it out from its apex
+        if shape.get('centred'):
+            return -1.0, 1.0, -side, side
         return back, 1.0, -side, side
     raise ValueError(f"unknown shape kind {kind}")
 

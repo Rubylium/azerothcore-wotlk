@@ -196,6 +196,7 @@ namespace GroundIndicators
     constexpr uint32 SPELL_WARDEN_CURFEW_RING = 94234;         // the curfew's dial round the room
     constexpr uint32 SPELL_WARDEN_CURFEW_MARK = 94235;         // the curfew's hourglass over each head
     constexpr uint32 SPELL_WARDEN_CELL_BARS_LOW = 94236;       // the cage's side, knee-high, before the doors
+    constexpr uint32 SPELL_WARDEN_ROLL_CALL_BLOW = 94247;      // the roll call's blow at each player (harmless)
     // The gaze's model: one eye, 8 x 4 yards, its middle this high over the floor (on the warden's chest and head,
     // drawn over his body), its burst on from WardenGazeBurstMs
     constexpr float WardenGazeElevation = 4.5f;
@@ -224,6 +225,11 @@ namespace GroundIndicators
     void ShowWardenStrike(Unit* owner, Position const& from, float orientation);
     void ShowWardenPushTrail(Unit* owner, Position const& from, float orientation);
     void ShowWardenSealBurst(Unit* owner, Position const& center);
+    // The roll call answered (VW_RollCallBlow: a 56-yard cone of fire, harmless): from `from` towards orientation,
+    // growing out of its apex to its full size in WardenRollCallBlowGrowMs, held, fading out by WardenRollCallBlowMs
+    constexpr uint32 WardenRollCallBlowGrowMs = 1000;
+    constexpr uint32 WardenRollCallBlowMs = 2600;
+    void ShowWardenRollCallBlow(Unit* owner, Position const& from, float orientation);
     // A cell's cage round center: sixteen sides of red-hot bars on the cell's 3-yard circle, rising out of the floor as
     // they come, for durationMs - knee-high while the players find their cells (VW_CellBarsLow), full height once the
     // doors slam on them (tall, VW_CellBars)

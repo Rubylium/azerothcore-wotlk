@@ -99,8 +99,8 @@ constexpr float HardShare = 0.87f;
 // The model's (about 87 million). Bots alone (2026-10-08, e2e/local/vorhan) deal a group of 4 about 59 million: they
 // see the enrage. A player's group dealt far more than bots (62 million in 2:54, the first kill, 0.71): the model's
 // check is theirs. The deaths log each player's damage (LogSummary) to tune it on players. Raised by a fifth after
-// the players' kills (2026-10-08: the model's 87 million went down too fast).
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.2f);
+// the players' kills (2026-10-08: the model's 87 million went down too fast), and by a fifth again the same day.
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.44f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
@@ -1620,17 +1620,21 @@ private:
                 for (uint8 cardinal = 0; cardinal < 4; ++cardinal)
                     if (pairOnMark[cardinal] == PairOf(number))
                         GroundIndicators::SetUnitSpot(me, player, MarkSpot(cardinal), 0.8f, RollCallMs + 500);
+        // The call answered: his blow at each of them, seen and harmless, growing out of him to its full size as the
+        // call resolves - a pair well placed lays two cones on its mark, one out of place a cone of its own across
+        // the others
+        scheduler.Schedule(Milliseconds(RollCallMs - GroundIndicators::WardenRollCallBlowGrowMs), [this](TaskContext)
+        {
+            Position const from = me->GetPosition();
+            for (Player* player : ArenaPlayers())
+                if (player->IsAlive())
+                    GroundIndicators::ShowWardenRollCallBlow(me, from, me->GetAngle(player));
+            me->SendPlaySpellVisual(KIT_STRIKE);
+        });
         scheduler.Schedule(Milliseconds(RollCallMs), [this, pairOnMark](TaskContext)
         {
             EndCast();
             Sound("Vorhan.RollCallEnd");
-            // The call answered: his blow at each of them, seen and harmless - a pair well placed lays two cones on its
-            // mark, one out of place a cone of its own across the others
-            Position const from = me->GetPosition();
-            for (Player* player : ArenaPlayers())
-                if (player->IsAlive())
-                    GroundIndicators::ShowWardenStrike(me, from, me->GetAngle(player));
-            me->SendPlaySpellVisual(KIT_STRIKE);
             ResolveRollCall(pairOnMark);
             ClearNumbers();
             Rally();
@@ -2326,7 +2330,17 @@ public:
             }, Milliseconds(AxeWarnMs));
             return true;
         }
-        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew|axe>");
+        if (what == "rollcall")
+        {
+            // The roll call's blows from the game master: one to each cardinal point, two ahead (a pair on its mark)
+            Position const from = player->GetPosition();
+            float const facing = player->GetOrientation();
+            for (float turn : { 0.0f, 0.0f, float(M_PI) / 2.0f, float(M_PI), -float(M_PI) / 2.0f })
+                GroundIndicators::ShowWardenRollCallBlow(player, from, Position::NormalizeOrientation(facing + turn));
+            player->SendPlaySpellVisual(KIT_STRIKE);
+            return true;
+        }
+        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew|axe|rollcall>");
         return false;
     }
 

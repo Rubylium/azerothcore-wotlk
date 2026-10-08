@@ -2278,6 +2278,15 @@ void ShowWardenSealBurst(Unit* owner, Position const& center)
           SPELL_WARDEN_SEAL_BURST, 1.0f, WardenSealBurstMs);
 }
 
+void ShowWardenRollCallBlow(Unit* owner, Position const& from, float orientation)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    // Built to its size, its apex at its carrier (shapes.json `centred`): it grows out of it
+    Place(owner, OnGround(owner, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ()), orientation,
+          SPELL_WARDEN_ROLL_CALL_BLOW, 1.0f, WardenRollCallBlowMs);
+}
+
 void ShowWardenCellBars(Unit* owner, Position const& center, uint32 durationMs, bool tall)
 {
     // Sixteen sides 1.17 yards long: their corners on the cell's 3-yard circle

@@ -188,6 +188,7 @@
     {"key": "VW_AxeHitSeg2", "kind": "texture", "shape": "rect", "ratio": 2.0, "scale": 10, "segment": [2, 4], "blackKey": true, "band": [0.0, 1.0], "spell": 94243, "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [true]},
     {"key": "VW_AxeHitSeg3", "kind": "texture", "shape": "rect", "ratio": 2.0, "scale": 10, "segment": [3, 4], "blackKey": true, "band": [0.0, 1.0], "spell": 94244, "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [true]},
     {"key": "VW_AxeSwing", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [false, true], "shape": "rect", "ratio": 8.0, "scale": 40, "blackKey": true, "band": [0.0, 1.0], "spell": 94245, "pulse": [0.7, 1.0, 500]},
-    {"key": "VW_AxeSwingHit", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [true, true], "shape": "rect", "ratio": 8.0, "scale": 40, "blackKey": true, "band": [0.0, 1.0], "spell": 94246}
+    {"key": "VW_AxeSwingHit", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [true, true], "shape": "rect", "ratio": 8.0, "scale": 40, "blackKey": true, "band": [0.0, 1.0], "spell": 94246},
+    {"key": "VW_RollCallBlow", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:strike_cone", "shape": "cone", "angle": 44, "paintedAngle": 44, "centred": true, "scale": 56, "grow": [0.05, 1000], "alphaKeys": [[0, 0.0], [120, 0.9], [1000, 1.0], [1700, 1.0], [2500, 0.0]], "spell": 94247}
   ]
 }
