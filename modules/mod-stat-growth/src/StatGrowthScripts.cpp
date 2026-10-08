@@ -49,6 +49,9 @@
 #include <array>
 #include <limits>
 
+// RaidFinder.cpp (mod-playerbots, same modules library): whether the player's Défi board group is in the board's wipe
+bool IsChallengeWipeOnFor(Player const* player);
+
 namespace
 {
 void PlayTieredFeedback(Player* player, EssenceVisual visual, EssenceTier tier, std::string_view powerName)
@@ -458,6 +461,11 @@ public:
 
     bool OnPlayerCanRepopAtGraveyard(Player* player) override
     {
+        // A Défi board wipe: the board raises the whole group itself at its landing spot within seconds (RaidFinder
+        // UpdateChallengeWipe). A release neither brings the player back to life at the start nor sends the ghost
+        // out: it waits where it fell.
+        if (IsChallengeWipeOnFor(player))
+            return false;
         return !RespawnAtDungeonStart(player);
     }
 
