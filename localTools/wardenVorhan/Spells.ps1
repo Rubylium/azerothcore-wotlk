@@ -105,28 +105,28 @@ $spells = @(
     # The inmate numbers, for the whole fight
     (New-Debuff 94430 'Matricule 1' 'ICON_Matricule1' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 1 : votre cellule (au nord), votre marque à l''Appel nominal (avec le 2) ; enchaîné au 5.'),
+        'Matricule 1 : votre cellule (au nord), votre marque à l''Appel nominal (avec le 2).'),
     (New-Debuff 94431 'Matricule 2' 'ICON_Matricule2' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 2 : votre cellule (au nord-est), votre marque à l''Appel nominal (avec le 1) ; enchaîné au 6.'),
+        'Matricule 2 : votre cellule (au nord-est), votre marque à l''Appel nominal (avec le 1).'),
     (New-Debuff 94432 'Matricule 3' 'ICON_Matricule3' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 3 : votre cellule (à l''est), votre marque à l''Appel nominal (avec le 4) ; enchaîné au 7.'),
+        'Matricule 3 : votre cellule (à l''est), votre marque à l''Appel nominal (avec le 4).'),
     (New-Debuff 94433 'Matricule 4' 'ICON_Matricule4' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 4 : votre cellule (au sud-est), votre marque à l''Appel nominal (avec le 3) ; enchaîné au 8.'),
+        'Matricule 4 : votre cellule (au sud-est), votre marque à l''Appel nominal (avec le 3).'),
     (New-Debuff 94434 'Matricule 5' 'ICON_Matricule5' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 5 : votre cellule (au sud), votre marque à l''Appel nominal (avec le 6) ; enchaîné au 1.'),
+        'Matricule 5 : votre cellule (au sud), votre marque à l''Appel nominal (avec le 6).'),
     (New-Debuff 94435 'Matricule 6' 'ICON_Matricule6' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 6 : votre cellule (au sud-ouest), votre marque à l''Appel nominal (avec le 5) ; enchaîné au 2.'),
+        'Matricule 6 : votre cellule (au sud-ouest), votre marque à l''Appel nominal (avec le 5).'),
     (New-Debuff 94436 'Matricule 7' 'ICON_Matricule7' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 7 : votre cellule (à l''ouest), votre marque à l''Appel nominal (avec le 8) ; enchaîné au 3.'),
+        'Matricule 7 : votre cellule (à l''ouest), votre marque à l''Appel nominal (avec le 8).'),
     (New-Debuff 94437 'Matricule 8' 'ICON_Matricule8' 38505 21 1 `
         'Votre numéro de détenu.' `
-        'Matricule 8 : votre cellule (au nord-ouest), votre marque à l''Appel nominal (avec le 7) ; enchaîné au 4.'),
+        'Matricule 8 : votre cellule (au nord-ouest), votre marque à l''Appel nominal (avec le 7).'),
 
     # --- The cast bars ---
     (New-Cast 94440 'Sentence' 'ICON_Sentence' 589 5 'Le gardien-chef prononce sa sentence.'),

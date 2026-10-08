@@ -48,17 +48,16 @@
 //
 // He does not fight to win: he applies the rules, and every rule broken is a sentence. The same script every pull,
 // each rule read on his cast bar and on the players' debuffs, solved by assignment:
-// - At the pull every player gets an inmate number, 1-8, for the whole fight (Matricule n: a debuff, and a number
-//   over the head): 1 tank, 2 damage, 3 healer, 4 damage, then 5-8 the same for the other tank and healer. It sets
-//   their cell, their Roll Call mark (pairs 1-2, 3-4, 5-6, 7-8) and who they are shackled to (1-5, 2-6, 3-7, 4-8,
-//   across the room from each other).
+// - The rules that need them draw inmate numbers, 1-8, shown only while they run (Matricule n: a debuff, and a number
+//   over the head): a player's cell, their Roll Call mark (pairs 1-2, 3-4, 5-6, 7-8). The shackles pair players at
+//   random, their chain showing who is bound to whom.
 // - Sentence: raid-wide, the healers' rhythm.
 // - Mise à l'isolement: a heavy blow on his tank that never kills, throwing it far away in solitary (Isolement): 3 s
 //   later its seal bursts on anyone within 10 yd. The other tank takes him: a forced tank swap.
 // - Cellules: eight cells round the room at its clock points (cell n at the n-th, north first, clockwise); each player
 //   walks into their own - a distance check, no collision. When the doors slam: an empty cell is an escape (everyone
 //   hit, and Évasion: +25% damage taken), two in one cell both die, out of every cell the mark.
-// - Menottes: a chain binds each pair of partners; they have to get 20 yd apart to break it, or it ramps until it
+// - Menottes: a chain binds players two by two; they have to get 20 yd apart to break it, or it ramps until it
 //   kills.
 // - Regard du geôlier: an eye opens on him for 6 s; anyone facing him when it opens dies, thrown back.
 // - Appel nominal: he stands still and calls the roll; four marks round him read 1-2, 3-4, 5-6, 7-8 (their order
@@ -865,11 +864,6 @@ private:
         return nullptr;
     }
 
-    static uint8 PartnerOf(uint8 number)
-    {
-        return number <= 4 ? number + 4 : number - 4;
-    }
-
     // The Roll Call pair a number is in: 0 for 1-2, ... 3 for 7-8
     static uint8 PairOf(uint8 number)
     {
@@ -1246,18 +1240,18 @@ private:
     void Shackles(bool gaze)
     {
         Cast(CAST_SHACKLES);
-        AssignNumbers(ChainCastMs + ChainMaxMs);
         Placing(ChainCastMs + ChainMaxMs);
         scheduler.Schedule(Milliseconds(ChainCastMs), [this, gaze](TaskContext)
         {
             EndCast();
             _chains.clear();
-            for (uint8 number = 1; number <= 4; ++number)
+            // Pairs drawn at random, no number shown: the chain itself says who is bound to whom
+            std::vector<Player*> players = ArenaPlayers();
+            Acore::Containers::RandomShuffle(players);
+            for (uint8 pair = 0; pair < 4 && 2u * pair + 1 < players.size(); ++pair)
             {
-                Player* first = PlayerOf(number);
-                Player* second = PlayerOf(PartnerOf(number));
-                if (!first || !second || !first->IsAlive() || !second->IsAlive())
-                    continue;
+                Player* first = players[2 * pair];
+                Player* second = players[2 * pair + 1];
                 _chains.push_back({ first->GetGUID(), second->GetGUID(), 0, Elapsed() + ChainMaxMs, Elapsed() });
                 AddTimedAura(first, SPELL_SHACKLED, ChainMaxMs);
                 AddTimedAura(second, SPELL_SHACKLED, ChainMaxMs);
@@ -1266,10 +1260,10 @@ private:
                 ObjectGuid const tether = GroundIndicators::ShowTether(me, first, second, SPELL_CHAIN_BEAM, ChainMaxMs);
                 _chains.back().tether = tether;
                 Sound("Vorhan.Chains", first);
-                // Each to their own side: number n towards cell n, its partner the opposite way, until it breaks
-                GroundIndicators::SetUnitSpot(me, first, AtAngle(ArenaCenter, ClockAngle(float(number - 1), 8.0f),
+                // The bots each to their own side, the pairs spread round the room, until it breaks
+                GroundIndicators::SetUnitSpot(me, first, AtAngle(ArenaCenter, ClockAngle(float(pair), 8.0f),
                     ChainSpotDistance), 1.5f, ChainMaxMs);
-                GroundIndicators::SetUnitSpot(me, second, AtAngle(ArenaCenter, ClockAngle(float(number + 3), 8.0f),
+                GroundIndicators::SetUnitSpot(me, second, AtAngle(ArenaCenter, ClockAngle(float(pair + 4), 8.0f),
                     ChainSpotDistance), 1.5f, ChainMaxMs);
             }
             if (gaze)
@@ -1316,8 +1310,6 @@ private:
                 }
                 BreakChain(*chain);
                 chain = _chains.erase(chain);
-                if (_chains.empty())
-                    ClearNumbers();
                 continue;
             }
             // Time to walk apart before it bites (ChainGraceMs)
