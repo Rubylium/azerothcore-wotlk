@@ -28,10 +28,11 @@
 namespace StatOverflow
 {
 // The rates (.agents/docs/systems/stat-overflow.md, "The rates"): a point past a cap is worth about 0.4 of a point
-// below it. Critique: 0.4% of the critical bonus a point (below the cap, a point of crit adds 1% of it). Precision:
+// below it. Critique: 0.3% of the critical bonus a point (below the cap, a point of crit adds 1% of it; 0.4 sent the
+// crit-capped melee to 140-170% of the Fire mage at 460 / 650 on the combat bench, 2026-10-08). Precision:
 // 0.4% damage a point (below the cap, a point of hit lands 1% more hits). Robustesse: 0.3% less of all damage taken
 // a point (below the cap, a point of avoidance stops 1% of the swings, about 0.65% of a tank's intake), at most 20%.
-LiveTuning::Knob const CritRate("overflow.crit_rate", 0.4f);
+LiveTuning::Knob const CritRate("overflow.crit_rate", 0.3f);
 LiveTuning::Knob const PrecisionRate("overflow.precision_rate", 0.4f);
 LiveTuning::Knob const RobustnessRate("overflow.robustness_rate", 0.3f);
 LiveTuning::Knob const RobustnessCap("overflow.robustness_cap", 20.0f);

@@ -14,12 +14,12 @@ tests: `src/test/server/game/Combat/StatOverflowTest.cpp`.
 
 | Bonus | Points (per 1% past the cap) | Gives | Rate (knob) |
 |---|---|---|---|
-| Critique | crit chance past 100%: the chance the roll used, against that target | `R_crit`% more critical **bonus** (the part a crit adds over a normal hit) | `overflow.crit_rate` 0.4 |
+| Critique | crit chance past 100%: the chance the roll used, against that target | `R_crit`% more critical **bonus** (the part a crit adds over a normal hit) | `overflow.crit_rate` 0.3 |
 | Précision | hit past the cap against the target (melee or spell, as the attack rolls); expertise past the dodge cap (the parry cap where the target can parry the attack); armour penetration past 100% x 0.5 | `R_prec`% more damage | `overflow.precision_rate` 0.4 |
 | Robustesse | against a level-83 boss: avoidance (miss + dodge + parry + block) past 100%; defence past crit immunity (the boss's crit chance below 0, in %); armour past 75% (the share of what the cap lets through that the excess would still stop) | `R_rob`% less damage taken, at most `overflow.robustness_cap` | `overflow.robustness_rate` 0.3, cap 20 |
 
 - **Critique.** `bonus' = bonus x (1 + R_crit x (chance - 100) / 100)`. Melee and ranged x2 at 200% crit become
-  x2.4; a spell's x1.5 at 165% becomes x1.63; talents' bigger crits grow the same way. White swings use the
+  x2.3; a spell's x1.5 at 165% becomes x1.6; talents' bigger crits grow the same way. White swings use the
   attacker's crit chance against the target (`GetUnitCriticalChance`), not what the combat table left of it. Direct
   hits, damage and healing over time (the chance the aura rolls with), heals. Players' hits and their pets', totems'
   and guardians' (whatever crit chance their hit rolled).
@@ -39,7 +39,10 @@ tests: `src/test/server/game/Combat/StatOverflowTest.cpp`.
 Aim: a point past a cap is worth about a third to a half of a point below it.
 
 - Crit: below the cap, +1% crit adds 1% of the critical bonus to the average hit (`(M - 1) / 100`); past it, a point
-  adds `R_crit`% of the bonus. The ratio is `R_crit` itself, the same for x2 and x1.5 crits: **0.4**.
+  adds `R_crit`% of the bonus. The ratio is `R_crit` itself, the same for x2 and x1.5 crits: **0.3** (it was 0.4:
+  measured on the combat bench sweep, 2026-10-08, at 460 / 650 the crit-capped melee and hunters reached 140-170% of
+  the Fire mage with it, 80-110% without any overflow; 0.3 keeps a point past the cap a little under a third of one
+  below it, and the spec balance took the rest).
 - Hit and expertise: below the cap a point lands 1% more of the swings (1% to 1.09% damage); past it `R_prec`%:
   **0.4** (ratio 0.37-0.4).
 - Armour penetration: near its cap, against a stock level-83 boss's 10,643 armour, 1% is ~0.54% physical damage
@@ -48,7 +51,7 @@ Aim: a point past a cap is worth about a third to a half of a point below it.
   it `R_rob` = 0.3% of **all** damage taken: ratio ~0.46. Defence: 0.04% crit a skill point both sides, same ratio.
 - Armour: near the cap 1,000 armour lets 1.5% less physical damage through; past it the same 1,000 armour is 1.5
   points, 0.45% less of all damage: ratio ~0.45 (~0.3 of a point on all damage).
-- Examples: 280% melee crit: bonus +72%, a crit x2.72, about +36% damage. 165% spell crit: +26%, x1.63, +8.7%
+- Examples (at 0.4): 280% melee crit: bonus +72%, a crit x2.72, about +36% damage. 165% spell crit: +26%, x1.63, +8.7%
   healing. A tank at three times the armour cap: 60 points, 18% less damage taken (with avoidance or defence past
   theirs, the 20% cap).
 

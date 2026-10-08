@@ -8,6 +8,7 @@ lives. Spell multipliers (`.tune spell`, table `live_tuning_spell`) are listed, 
     python localTools/tuning/bakeTuning.py            # bake every override
     python localTools/tuning/bakeTuning.py --dry-run  # show what it would change
     python localTools/tuning/bakeTuning.py --keep     # bake, but leave the overrides in the database
+    python localTools/tuning/bakeTuning.py --only balance.,balance0.   # only those knobs (others stay live)
 
 A server running from the old build keeps the override's value either way; build and restart after baking.
 """
@@ -82,9 +83,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--dry-run', action='store_true', help='show the changes, write nothing')
     parser.add_argument('--keep', action='store_true', help='leave the overrides in the database')
+    parser.add_argument('--only', default='',
+                        help='bake only the knobs whose key starts with one of these (comma-separated prefixes, e.g. '
+                             '"balance.,balance0.,overflow."): the others stay live')
     arguments = parser.parse_args()
 
     overrides = query('SELECT `Key`, `Value` FROM live_tuning ORDER BY `Key`')
+    prefixes = [prefix.strip() for prefix in arguments.only.split(',') if prefix.strip()]
+    if prefixes:
+        overrides = [(key, value) for key, value in overrides if any(key.startswith(p) for p in prefixes)]
     spells = query('SELECT `SpellId`, `Multiplier` FROM live_tuning_spell ORDER BY `SpellId`')
     if not overrides and not spells:
         print('Nothing to bake: no override in live_tuning or live_tuning_spell.')
