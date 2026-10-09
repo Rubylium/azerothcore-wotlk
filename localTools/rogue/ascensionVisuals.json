@@ -19,7 +19,19 @@
     "Venthyr blood (Ascension's Rupture), retail Fan of Knives, Cold Blood's Coup de Grace hands, Vendetta's deathmark on",
     "the target, Exsanguinate's greed burst, retail's Crimson Tempest spin as Ascension plays it (CrimsonBleed: a sabre",
     "slash on each enemy it bleeds), Marked for Death's reprimand over the head, the poisons' retail sting (Deadly and",
-    "Instant Poison procs)."
+    "Instant Poison procs).",
+    "Hors-la-loi (retail Outlaw; appended after the others so their ids stay): no kit sound in any of its looks or",
+    "kits - its sounds play through our own engine (modules/mod-rogue/client-assets/audio/outlaw.json). Sinister Strike",
+    "as retail's Saber Slash (its swing, the sabre slash impact); Pistol Shot a muzzle flash at the right hand and",
+    "Skycap'n Kragg's pistol shot missile onto a bullet hit; Between the Eyes the same shot with a bigger flash onto a",
+    "fiery blast (Ascension's Between the Eyes impact) and a hit at the head; Dispatch a thrust onto the Venthyr burst",
+    "under a large sabre slash; Roll the Bones' dice at the feet, its dust and the bones over the head; Blade Flurry's",
+    "spinning swords around the rogue while it lasts (a sabre slash on each enemy its strike hits); Adrenaline Rush's",
+    "retail burst at the feet, the classic glow while it lasts; Blade Rush as Ascension plays it; Killing Spree's shadow",
+    "at the feet; Dreadblades' dark crimson glow on both weapons; Opportunity a smouldering glow at the right hand; the",
+    "Roll the Bones buffs' dice over the head.",
+    "Kits: OutlawBladeFlurryHit (a smaller sabre slash on each other enemy), OutlawKillingSpreeStrike (Killing Spree's",
+    "strike burst and a sabre slash, on the target), OutlawMainGaucheStrike (a weapon hit on the target)."
   ],
   "output": "modules/mod-rogue/client-assets/imported",
   "idBase": 77000,
@@ -31,9 +43,15 @@
     },
     "Ambush": {
       "from": 155,
-      "cast": { "from": 253, "effects": { "chest": "cfx_rogue_shadowstrike_precastworld" },
-        "sound": "spell_ro_ambush_cast_revamp_01" },
-      "impact": { "effects": { "chest": "cfx_rogue_shadowstrike_impact" }, "sound": "spell_ro_shadowstrike_cast_revamp_01" }
+      "cast": {
+        "from": 253,
+        "effects": { "chest": "cfx_rogue_shadowstrike_precastworld" },
+        "sound": "spell_ro_ambush_cast_revamp_01"
+      },
+      "impact": {
+        "effects": { "chest": "cfx_rogue_shadowstrike_impact" },
+        "sound": "spell_ro_shadowstrike_cast_revamp_01"
+      }
     },
     "Eviscerate": {
       "from": 671,
@@ -42,11 +60,18 @@
     },
     "Hemorrhage": {
       "from": 5119,
-      "impact": { "from": 4490, "effects": { "chest": "cfx_rogue_garrote_impact" }, "sound": "spell_ro_mutilate_impact_01" }
+      "impact": {
+        "from": 4490,
+        "effects": { "chest": "cfx_rogue_garrote_impact" },
+        "sound": "spell_ro_mutilate_impact_01"
+      }
     },
     "ShadowDance": {
       "from": 11827,
-      "cast": { "effects": { "base": "7fx_rogue_flickeringshadows_castbase" }, "sound": "spell_ro_envelopingshadows_cast_03" },
+      "cast": {
+        "effects": { "base": "7fx_rogue_flickeringshadows_castbase" },
+        "sound": "spell_ro_envelopingshadows_cast_03"
+      },
       "state": { "effects": { "base": "shadowdance_v2_state" } }
     },
     "SymbolsOfDeath": {
@@ -56,26 +81,45 @@
     },
     "ShurikenStorm": {
       "from": 12317,
-      "cast": { "from": 11409, "effects": { "base": "cfx_rogue_shurikenstorm_castbase", "hands": "cfx_rogue_shurikenstorm_casthand",
-        "weapons": null },
-        "sound": "spell_ro_shurikentoss_cast05" },
-      "impact": { "effects": { "chest": "cfx_rogue_shurikentoss_impact" }, "sound": "spell_ro_shurikentoss_impact_01" }
+      "cast": {
+        "from": 11409,
+        "effects": {
+          "base": "cfx_rogue_shurikenstorm_castbase",
+          "hands": "cfx_rogue_shurikenstorm_casthand",
+          "weapons": null
+        },
+        "sound": "spell_ro_shurikentoss_cast05"
+      },
+      "impact": {
+        "effects": { "chest": "cfx_rogue_shurikentoss_impact" },
+        "sound": "spell_ro_shurikentoss_impact_01"
+      }
     },
     "ShadowBlades": {
       "from": 11827,
-      "cast": { "effects": { "base": "cfx_rogue_envelopingshadows_state" }, "sound": "spell_ro_shadowblades_revamp_cast_01" },
+      "cast": {
+        "effects": { "base": "cfx_rogue_envelopingshadows_state" },
+        "sound": "spell_ro_shadowblades_revamp_cast_01"
+      },
       "impact": null,
       "state": { "effects": { "weapons": "shadow_precast_med_hand" } }
     },
     "BlackPowder": {
       "from": 671,
-      "cast": { "anim": 54, "effects": { "world": "7fx_rogue_shadownova_castworld" }, "sound": "spell_ro_envelopingshadows_cast_01" },
+      "cast": {
+        "anim": 54,
+        "effects": { "world": "7fx_rogue_shadownova_castworld" },
+        "sound": "spell_ro_envelopingshadows_cast_01"
+      },
       "targetimpact": null
     },
     "SecretTechnique": {
       "from": 671,
-      "cast": { "anim": 57, "effects": { "chest": "7fx_rogue_flickeringshadows_castbase", "base": "7fx_rogue_goremawsbite_castbase" },
-        "sound": "spell_ro_af_goremawsbite_01" },
+      "cast": {
+        "anim": 57,
+        "effects": { "chest": "7fx_rogue_flickeringshadows_castbase", "base": "7fx_rogue_goremawsbite_castbase" },
+        "sound": "spell_ro_af_goremawsbite_01"
+      },
       "targetimpact": null
     },
     "ShadowClone": {
@@ -86,33 +130,60 @@
     "Mutilate": {
       "from": 7913,
       "cast": { "from": 7637, "sound": "spell_ro_mutilate_cast_01" },
-      "impact": { "from": 6770, "effects": { "chest": "cfx_deathknight_bloodplague_impactchest" }, "sound": "spell_ro_mutilate_impact_05" }
+      "impact": {
+        "from": 6770,
+        "effects": { "chest": "cfx_deathknight_bloodplague_impactchest" },
+        "sound": "spell_ro_mutilate_impact_05"
+      }
     },
     "Envenom": {
       "from": 8144,
       "cast": { "from": 6964, "effects": { "chest": null }, "sound": "spell_ro_envenom_cast_01" },
-      "targetimpact": { "from": 6963, "effects": { "base": null, "chest": "cfx_rogue_envenom_impact" }, "sound": "spell_ro_envenom_impact_01" },
+      "targetimpact": {
+        "from": 6963,
+        "effects": { "base": null, "chest": "cfx_rogue_envenom_impact" },
+        "sound": "spell_ro_envenom_impact_01"
+      },
       "state": { "effects": { "hands": "cfx_rogue_sepsis_aura" } }
     },
     "Garrote": {
       "from": 757,
       "cast": { "from": 822, "sound": "spell_ro_nightblade_cast_revamp_01" },
-      "impact": { "from": 220, "effects": { "chest": "cfx_rogue_garrote_impact" }, "sound": "spell_ro_mutilate_impact_01" }
+      "impact": {
+        "from": 220,
+        "effects": { "chest": "cfx_rogue_garrote_impact" },
+        "sound": "spell_ro_mutilate_impact_01"
+      }
     },
     "Rupture": {
       "from": 250,
       "cast": { "from": 394, "effects": { "hands": null }, "sound": "spell_ro_saberslash_cast_01" },
-      "targetimpact": { "from": 220, "effects": { "chest": "cfx_venthyr_rogue_impact_chest" }, "sound": "spell_ro_mutilate_impact_05" }
+      "targetimpact": {
+        "from": 220,
+        "effects": { "chest": "cfx_venthyr_rogue_impact_chest" },
+        "sound": "spell_ro_mutilate_impact_05"
+      }
     },
     "FanOfKnives": {
       "from": 12317,
-      "cast": { "from": 11409, "effects": { "base": "cfx_rogue_fanofknives_castbase", "hands": "cfx_rogue_fanofknives_casthand",
-        "weapons": null }, "sound": "spell_ro_fanofknives_cast_01" },
+      "cast": {
+        "from": 11409,
+        "effects": {
+          "base": "cfx_rogue_fanofknives_castbase",
+          "hands": "cfx_rogue_fanofknives_casthand",
+          "weapons": null
+        },
+        "sound": "spell_ro_fanofknives_cast_01"
+      },
       "impact": { "effects": { "chest": "cfx_rogue_throwknife_impact" } }
     },
     "ColdBlood": {
       "from": 4371,
-      "cast": { "from": 3770, "effects": { "righthand": null, "hands": "cfx_rogue_coupdegrace_cast" }, "sound": "spell_ro_vendetta_state_01" },
+      "cast": {
+        "from": 3770,
+        "effects": { "righthand": null, "hands": "cfx_rogue_coupdegrace_cast" },
+        "sound": "spell_ro_vendetta_state_01"
+      },
       "state": { "from": 3771, "effects": { "righthand": null, "hands": "cfx_venthyr_rogue_buff_spellhandslow" } }
     },
     "Vendetta": {
@@ -125,14 +196,12 @@
     "Exsanguinate": {
       "from": 250,
       "cast": { "from": 394, "effects": { "hands": null }, "sound": "spell_ro_envenom_cast_01" },
-      "targetimpact": { "effects": { "chest": "7fx_rogue_greed_impactchest" }, "sound": "fx_blood_magic_impact_explosion_01" }
+      "targetimpact": {
+        "effects": { "chest": "7fx_rogue_greed_impactchest" },
+        "sound": "fx_blood_magic_impact_explosion_01"
+      }
     },
-    "CrimsonTempest": {
-      "from": 126687,
-      "precast": null,
-      "cast": 127384,
-      "targetimpact": null
-    },
+    "CrimsonTempest": { "from": 126687, "precast": null, "cast": 127384, "targetimpact": null },
     "CrimsonBleed": {
       "from": 250,
       "cast": null,
@@ -147,14 +216,126 @@
     },
     "PoisonSting": {
       "from": 5100,
-      "impact": { "from": 3031, "effects": { "chest": "cfx_rogue_sepsis_cast01" }, "sound": "spell_ro_poison_impact01" }
-    }
+      "impact": {
+        "from": 3031,
+        "effects": { "chest": "cfx_rogue_sepsis_cast01" },
+        "sound": "spell_ro_poison_impact01"
+      }
+    },
+    "OutlawSinisterStrike": {
+      "from": 21892,
+      "cast": { "from": 21832, "sound": null },
+      "impact": { "from": 2674, "sound": null }
+    },
+    "OutlawPistolShot": {
+      "from": 20527,
+      "missile": "8fx_skycapnkragg_pistolshot_missile",
+      "cast": {
+        "anim": 53,
+        "effects": { "righthand": { "model": "cfx_rogue_pistolshot_casthandr", "scale": 0.3 } },
+        "sound": null
+      },
+      "impact": { "from": 20934, "sound": null }
+    },
+    "OutlawDispatch": {
+      "from": 20216,
+      "cast": { "from": 20383, "anim": 85, "sound": null },
+      "impact": {
+        "from": 21831,
+        "effects": { "head": { "model": "CFX_Rogue_SabreSlash_Impact", "scale": 1.4 } },
+        "sound": null
+      }
+    },
+    "OutlawBetweenTheEyes": {
+      "from": 20527,
+      "missile": "8fx_skycapnkragg_pistolshot_missile",
+      "cast": {
+        "anim": 53,
+        "effects": { "righthand": { "model": "cfx_rogue_pistolshot_casthandr", "scale": 0.45 } },
+        "sound": null
+      },
+      "impact": {
+        "from": 997562,
+        "effects": {
+          "chest": "cfx_hunter_barrage_impactchest",
+          "head": { "model": "cfx_hunter_aimedshot_impactchest", "scale": 0.8 }
+        },
+        "sound": null
+      }
+    },
+    "OutlawRollTheBones": {
+      "from": 22091,
+      "cast": {
+        "from": 21977,
+        "effects": { "base": "cfx_rogue_rollthebones_castbasedice", "world": "cfx_rogue_rollthebones_castbasedust" },
+        "sound": null
+      },
+      "missiletarget": null,
+      "instantarea": null
+    },
+    "OutlawBladeFlurry": {
+      "from": 12981,
+      "cast": { "anim": 57, "sound": null },
+      "impact": { "effects": { "chest": { "model": "CFX_Rogue_SabreSlash_Impact", "scale": 0.75 } }, "sound": null },
+      "state": { "effects": { "chest": "rogue_bladeflurry" }, "sound": null }
+    },
+    "OutlawAdrenalineRush": {
+      "from": 8996,
+      "cast": { "from": 3853, "effects": { "base": "cfx_rogue_adrenalinerush_castbase" }, "sound": null },
+      "state": { "from": 3854, "sound": null }
+    },
+    "OutlawBladeRush": {
+      "from": 21892,
+      "cast": { "from": 998864, "sound": null },
+      "impact": { "from": 998865, "effects": { "weapons": null }, "sound": null }
+    },
+    "OutlawKillingSpree": { "from": 12981, "state": { "from": 3129, "sound": null } },
+    "OutlawDreadblades": {
+      "from": 12981,
+      "cast": { "anim": 54, "sound": null },
+      "state": {
+        "effects": { "weapons": { "model": "shadow_frost_weapon_effect", "tint": "#8c1a3c" } },
+        "sound": null
+      }
+    },
+    "OutlawOpportunity": {
+      "from": 12981,
+      "state": { "effects": { "righthand": "6_0_weaponenchant_damage_low" }, "sound": null }
+    },
+    "OutlawRtbBuff": { "from": 21741, "state": { "from": 21694, "sound": null } }
   },
   "kits": {
-    "BlackPowderHit": { "id": 77900, "effects": { "chest": "shadowstrike_impact_chest" }, "sound": "ShadowStrike_Impact_Chest" },
-    "SecretTechniqueHit": { "id": 77901, "effects": { "chest": "cfx_rogue_nightblade_impact" },
-      "sound": "spell_ro_nightblade_cast_revamp_01" },
-    "ShadowCloneStrike": { "id": 77902, "anim": 57, "effects": { "base": "7fx_rogue_flickeringshadows_castbase" },
-      "sound": "spell_ro_shadowstrike_cast_revamp_01" }
+    "BlackPowderHit": {
+      "id": 77900,
+      "effects": { "chest": "shadowstrike_impact_chest" },
+      "sound": "ShadowStrike_Impact_Chest"
+    },
+    "SecretTechniqueHit": {
+      "id": 77901,
+      "effects": { "chest": "cfx_rogue_nightblade_impact" },
+      "sound": "spell_ro_nightblade_cast_revamp_01"
+    },
+    "ShadowCloneStrike": {
+      "id": 77902,
+      "anim": 57,
+      "effects": { "base": "7fx_rogue_flickeringshadows_castbase" },
+      "sound": "spell_ro_shadowstrike_cast_revamp_01"
+    },
+    "OutlawBladeFlurryHit": {
+      "id": 77903,
+      "effects": { "chest": { "model": "CFX_Rogue_SabreSlash_Impact", "scale": 0.75 } },
+      "sound": null
+    },
+    "OutlawKillingSpreeStrike": {
+      "id": 77904,
+      "from": 10917,
+      "effects": { "chest": "CFX_Rogue_SabreSlash_Impact" },
+      "sound": null
+    },
+    "OutlawMainGaucheStrike": {
+      "id": 77905,
+      "effects": { "chest": { "model": "cfx_hunter_barrage_impactchest", "scale": 0.8 } },
+      "sound": null
+    }
   }
 }

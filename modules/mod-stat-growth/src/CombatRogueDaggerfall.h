@@ -1,6 +1,0 @@
-#ifndef MOD_STAT_GROWTH_COMBAT_ROGUE_DAGGERFALL_H
-#define MOD_STAT_GROWTH_COMBAT_ROGUE_DAGGERFALL_H
-
-void AddCombatRogueDaggerfallScripts();
-
-#endif

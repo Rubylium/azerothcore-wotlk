@@ -95,30 +95,6 @@ The character-database migration also caps saved Resource essence at 500% and Fo
 Back up `character_settings` and `mod_personal_loot_roll` and stop worldserver before applying it, then restart
 to refresh the in-memory values. The migration is idempotent; unspent essence items and existing gold stay intact.
 
-## Combat rogue rework ("Crimson Duelist")
-
-Sustained damage, no burst windows, and Energy that never blocks the rotation. The full design, numbers and
-simulations are in `.agents/plans/combat-rogue-rework/combat-rogue-rework.DESIGN.md`.
-
-- **Kit**: Sinister Strike is free and generates Energy with a chance to grant Opening (always on crit); Quick Cut
-  (lights up when Opening is available), Shadow Lunge, Riposte; AoE with Crescent Slash (pure damage) and Crimson
-  Sweep (bleeds); finishers Eviscerate (Battle Tempo), Slice and Dice, Sanguine Veil (lifesteal upkeep), Blood
-  Waltz (AoE), and Crimson Daggerfall (15-sec AoE dagger barrage with bonus damage against the rogue's DoTs).
-  Every finisher consumes up to 30 extra Energy for up to +50% damage or duration.
-- **Evolutions**: the kit upgrades itself at set levels (20, 25, 30 … 75), announced in chat.
-- **Talents**: the whole Combat tree is replaced (same grid, new talents on the WotLK talent spell ids). Rogues get
-  a free talent reset on their first login after the update.
-- **Code**: `src/CombatRogue.h` (hooks), `src/CombatRogueCommon.*` (state, talents, shared mechanics),
-  `src/CombatRogueScripts.cpp` (core spell and aura scripts), `src/CombatRogueDaggerfall.*` (Daggerfall);
-  SQL is in `data/sql/db-world/base/stat_growth_combat_rogue*.sql`.
-- **Client data**: `localTools/patchSinisterStrike.ps1` builds the spells, talents, tooltips and icon references for
-  both the server and the client DBCs.
-- **Icons**: put PNGs named as in the design doc into `client-assets/source`, then run
-  `clientPatcher/Build-FriendPatch.cmd` (it compiles them with `localTools/buildRogueClientAssets.ps1`). Any icon
-  not generated yet falls back to a stock game icon.
-- **Sounds**: custom spell sounds live in `client-assets/sounds`; the DBC generator registers them at controlled
-  volume and the MPQ builder packages them under `Sound\Spells\Custom\CombatRogue`.
-
 ## Flight-master quick travel
 
 DragonUI flight-master pins are clickable. Selecting a faction-compatible flight master starts a three-second,

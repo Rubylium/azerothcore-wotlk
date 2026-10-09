@@ -10,6 +10,7 @@
 #include "Player.h"
 #include "PlayerScript.h"
 #include "Random.h"
+#include "RogueShared.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
@@ -31,7 +32,7 @@
 // two changes every rogue gets: Backstab works from any side (20% more damage from behind), and the poisons put on
 // the weapons never wear off. A talent is its rank spell's aura on the rogue (learned by mod-custom-classes'
 // TalentTree.cpp), read here with HasAura; the abilities and auras named below are in localTools/rogue/Spells.ps1.
-// The Combat tree is the Crimson Duelist rework, scripted by mod-stat-growth; the WotLK talents the trees reuse keep
+// The third tree is Hors-la-loi (retail Outlaw), scripted in RogueOutlaw.cpp; the WotLK talents the trees reuse keep
 // their own scripts in the core.
 namespace
 {
@@ -86,6 +87,7 @@ enum Spells : uint32
     SPELL_SHADOW_CLONE          = 92327,
     SPELL_ASSASSINATION_PASSIVE = 92192,
     SPELL_SUBTLETY_PASSIVE      = 92193,
+    SPELL_OUTLAW_PASSIVE        = 92194,
     SPELL_CRIMSON_TEMPEST       = 92330,
     SPELL_CRIMSON_TEMPEST_BLEED = 92331,
     SPELL_VIRULENCE             = 92332,
@@ -141,9 +143,13 @@ LiveTuning::Knob const AreaRadius("rogue.area_radius", 10.0f);
 // Black Powder at 12 hits a cast and Secret Technique at 36, Subtlety at 2.4 to 4 times the Fire mage)
 LiveTuning::KnobUInt const AreaFullTargets("rogue.area_full_targets", 5);
 // the slash on every enemy
-LiveTuning::Knob const CrimsonTempestHitPerPoint("rogue.crimson_tempest_hit_per_point", 0.06f);
+// Fan of Knives' hit (Assassinat's pack builder, every enemy poisoned by it with Vile Poisons): taken to this share. In
+// full, with the poisons it spreads, Assassinat measured 140-170% of the Fire mage on packs for a single target at
+// 100% (the simulation bench, 2026-10-09)
+LiveTuning::Knob const FanOfKnivesFactor("rogue.fan_of_knives_factor", 0.5f);
+LiveTuning::Knob const CrimsonTempestHitPerPoint("rogue.crimson_tempest_hit_per_point", 0.03f);
 // the whole bleed, over 2 s per point
-LiveTuning::Knob const CrimsonTempestBleedPerPoint("rogue.crimson_tempest_bleed_per_point", 0.3f);
+LiveTuning::Knob const CrimsonTempestBleedPerPoint("rogue.crimson_tempest_bleed_per_point", 0.15f);
 // Assassinat lives on its bleeds: Rupture and Garrote deal this much more (WotLK's values were made for a tenth of
 // the attack power a character reaches here)
 LiveTuning::KnobInt const AssassinationBleedBonusPct("rogue.assassination_bleed_bonus_pct", 150);
@@ -520,7 +526,10 @@ void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limi
     }
 }
 
-// Assassinat: Fan of Knives puts the rogue's weapon poisons on every enemy it hits
+// Assassinat: Fan of Knives puts the rogue's lasting weapon poisons (Deadly Poison's) on every enemy it hits. Not a
+// poison that only strikes (Instant Poison): its hits still come by chance from the knives as from any weapon hit, and
+// cast on every enemy of every Fan of Knives as well they were 37% of Assassinat's damage on a pack, 150-180% of the
+// Fire mage (the simulation bench, 2026-10-09)
 void PoisonFromWeapons(Player* player, Unit* victim)
 {
     for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK })
@@ -533,7 +542,7 @@ void PoisonFromWeapons(Player* player, Unit* victim)
         for (uint8 index = 0; index < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++index)
             if (enchant->type[index] == ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
                 if (SpellInfo const* poison = sSpellMgr->GetSpellInfo(enchant->spellid[index]))
-                    if (poison->Dispel == DISPEL_POISON)
+                    if (poison->Dispel == DISPEL_POISON && !poison->HasEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
                         player->CastSpell(victim, poison->Id, TRIGGERED_FULL_MASK, item);
     }
 }
@@ -616,29 +625,16 @@ void Exsanguinate(Player* player, Unit* target)
     DealNamed(player, target, SPELL_EXSANGUINATE, total);
 }
 
-// Lames sans repos: the utility cooldowns tick faster with every finisher
-void ReduceUtilityCooldowns(Player* player, uint8 comboPoints)
-{
-    std::vector<uint32> ready;
-    for (auto const& [spellId, cooldown] : player->GetSpellCooldownMap())
-    {
-        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
-        if (HasFlag0(spellInfo, FLAG0_VANISH | FLAG0_SPRINT | FLAG0_EVASION | FLAG0_BLIND) ||
-            HasFlag1(spellInfo, FLAG1_CLOAK_OF_SHADOWS | FLAG1_SHADOWSTEP))
-            ready.push_back(spellId);
-    }
-    for (uint32 spellId : ready)
-        player->ModifySpellCooldown(spellId, -int32(1000 * comboPoints));
-}
-
 void OnFinisher(Player* player, SpellInfo const* spellInfo, Unit* target, uint8 comboPoints)
 {
     if (uint8 const alacrity = Rank(player, TALENT_ALACRITY_1, TALENT_ALACRITY_2))
         if (roll_chance_i(5 * alacrity * comboPoints))
             AddStack(player, SPELL_ALACRITY, AlacrityMaxStacks);
 
-    if (player->HasAura(TALENT_RESTLESS_BLADES))
-        ReduceUtilityCooldowns(player, comboPoints);
+    // Lames sans repos: the utility cooldowns tick faster with every finisher. Hors-la-loi has it built in, with its
+    // own cooldowns too (RogueOutlaw.cpp): the choice gives an outlaw nothing more
+    if (player->HasAura(TALENT_RESTLESS_BLADES) && !player->HasAura(SPELL_OUTLAW_PASSIVE))
+        ReduceRogueUtilityCooldowns(player, int32(1000 * comboPoints));
 
     if (uint8 const daggers = Rank(player, TALENT_DEEPER_DAGGERS_1, TALENT_DEEPER_DAGGERS_2))
     {
@@ -960,6 +956,8 @@ public:
                 share *= ShurikenStormFewEnemiesPct / 100.0f;
             damage = int32(damage * share);
         }
+        else if (spellInfo && spellInfo->Id == SPELL_FAN_OF_KNIVES)
+            damage = int32(damage * FanOfKnivesFactor);
         damage = int32(damage * DamageBonus(player, target, spellInfo, false));
     }
 
@@ -1137,6 +1135,20 @@ public:
         RefreshPoisons(player);
     }
 };
+}
+
+void ReduceRogueUtilityCooldowns(Player* player, int32 milliseconds)
+{
+    std::vector<uint32> ready;
+    for (auto const& [spellId, cooldown] : player->GetSpellCooldownMap())
+    {
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (HasFlag0(spellInfo, FLAG0_VANISH | FLAG0_SPRINT | FLAG0_EVASION | FLAG0_BLIND) ||
+            HasFlag1(spellInfo, FLAG1_CLOAK_OF_SHADOWS | FLAG1_SHADOWSTEP))
+            ready.push_back(spellId);
+    }
+    for (uint32 spellId : ready)
+        player->ModifySpellCooldown(spellId, -milliseconds);
 }
 
 void AddRogueTalentScripts()

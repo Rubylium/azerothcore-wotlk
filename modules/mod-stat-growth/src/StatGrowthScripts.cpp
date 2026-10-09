@@ -4,7 +4,6 @@
 #include "AdaptiveTrainingDummy.h"
 #include "BotCatchUpSystem.h"
 #include "BotEssenceSystem.h"
-#include "CombatRogue.h"
 #include "DungeonProgressSystem.h"
 #include "EssenceFeedback.h"
 #include "EssenceTierSystem.h"
@@ -438,7 +437,6 @@ public:
         ApplyStoredParagon(player);
 
         LearnAvailableClassSpells(player);
-        OnCombatRogueLogin(player);
         LearnGladiatorStance(player);
         ApplyEquippedPersonalLoot(player);
         BeginPersonalLootAddonHandshake(player);
@@ -486,7 +484,6 @@ public:
         UpdateBotParagon(player, diff);
         UpdateBotEssences(player, diff);
         UpdateBotCatchUp(player, diff);
-        UpdateCombatRogue(player, diff);
         UpdateMythicTankResolve(player, diff);
     }
 
@@ -509,8 +506,6 @@ public:
         }
         else if (player->GetLevel() < oldLevel)
             OnGladiatorLevelChanged(player, oldLevel);
-
-        OnCombatRogueLevelChanged(player, oldLevel);
     }
 
     void OnPlayerCreatureKill(Player* killer, Creature* killed) override
@@ -518,7 +513,6 @@ public:
         AddKillLoot(killer, killed);
         TryAwardParagonPoint(killer, killed);
         OnParagonKill(killer, killed);
-        OnCombatRogueKill(killer, killed);
     }
 
     void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
@@ -631,8 +625,8 @@ SpecBalanceRow const SpecBalance[] = {
         { "balance.paladin.3", 0.78f }, { "balance.paladin.4", 1.0f } } },
     { { { "balance.hunter.1", 1.23f }, { "balance.hunter.2", 0.77f },
         { "balance.hunter.3", 0.75f }, { "balance.hunter.4", 1.0f } } },
-    { { { "balance.rogue.1", 1.41f }, { "balance.rogue.2", 0.85f },
-        { "balance.rogue.3", 0.88f }, { "balance.rogue.4", 1.0f } } },
+    { { { "balance.rogue.1", 1.58f }, { "balance.rogue.2", 0.91f },
+        { "balance.rogue.3", 0.67f }, { "balance.rogue.4", 1.0f } } },
     { { { "balance.priest.1", 1.0f }, { "balance.priest.2", 1.0f },
         { "balance.priest.3", 0.58f }, { "balance.priest.4", 1.0f } } },
     { { { "balance.dk.1", 1.0f }, { "balance.dk.2", 1.72f },
@@ -665,8 +659,8 @@ SpecBalanceRow const SpecBalanceLow[] = {
         { "balance0.paladin.3", 0.65f }, { "balance0.paladin.4", 1.0f } } },
     { { { "balance0.hunter.1", 0.86f }, { "balance0.hunter.2", 0.8f },
         { "balance0.hunter.3", 0.78f }, { "balance0.hunter.4", 1.0f } } },
-    { { { "balance0.rogue.1", 0.98f }, { "balance0.rogue.2", 1.09f },
-        { "balance0.rogue.3", 0.84f }, { "balance0.rogue.4", 1.0f } } },
+    { { { "balance0.rogue.1", 0.98f }, { "balance0.rogue.2", 0.7f },
+        { "balance0.rogue.3", 0.48f }, { "balance0.rogue.4", 1.0f } } },
     { { { "balance0.priest.1", 1.0f }, { "balance0.priest.2", 1.0f },
         { "balance0.priest.3", 0.72f }, { "balance0.priest.4", 1.0f } } },
     { { { "balance0.dk.1", 1.0f }, { "balance0.dk.2", 1.5f },
@@ -875,7 +869,6 @@ void AddStatGrowthScripts()
 {
     AddAdaptiveTrainingDummyScripts();
     AddBotCatchUpScripts();
-    AddCombatRogueScripts();
     AddGladiatorStanceScripts();
     AddVictoryRushScripts();
     AddQuickTravelScripts();

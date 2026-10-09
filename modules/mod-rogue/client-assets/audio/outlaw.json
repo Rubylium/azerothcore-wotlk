@@ -1,0 +1,116 @@
+{
+  "_comment": [
+    "Hors-la-loi's sounds (retail Outlaw), played by mod-rogue through our own engine (EvolutionsAudio::PlayOn on the",
+    "rogue, on cast) - its looks carry none. Each is what retail's own spell plays (its SpellVisualKit sound kit): from",
+    "the Ascension client where it ships them (Pistol Shot, Saber Slash, Run Through, Between the Eyes, Roll the Bones,",
+    "Blade Flurry's blade_of_azzinoth_impact, Blade Rush's eviscerate revamp cast), else from the retail client",
+    "(Adrenaline Rush, Killing Spree's revamp, Ghostly Strike's impact)."
+  ],
+  "sounds": {
+    "Outlaw.SinisterStrike": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_saberslash_cast_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_saberslash_cast_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_saberslash_cast_03.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_saberslash_cast_04.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.PistolShot": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_pistolshot_cast_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_pistolshot_cast_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_pistolshot_cast_03.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_pistolshot_cast_04.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_pistolshot_cast_05.ogg"
+      ],
+      "minDistance": 12,
+      "maxDistance": 40
+    },
+    "Outlaw.Dispatch": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_runthrough_cast_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_runthrough_cast_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_runthrough_cast_03.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_runthrough_cast_04.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.BetweenTheEyes": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_betweentheeyes_cast_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_betweentheeyes_cast_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_betweentheeyes_cast_03.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_betweentheeyes_cast_04.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_betweentheeyes_cast_05.ogg"
+      ],
+      "minDistance": 12,
+      "maxDistance": 40
+    },
+    "Outlaw.RollTheBones": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_rollthebones_cast_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_rollthebones_cast_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_rollthebones_cast_03.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.BladeFlurry": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/blade_of_azzinoth_impact.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.AdrenalineRush": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_adrenaline_rush_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_adrenaline_rush_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_adrenaline_rush_03.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.KillingSpree": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_killingspree_cast_revamp_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_killingspree_cast_revamp_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_killingspree_cast_revamp_03.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_killingspree_cast_revamp_04.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_killingspree_cast_revamp_05.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.BladeRush": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_eviscerate_cast_revamp_01.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_eviscerate_cast_revamp_02.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_eviscerate_cast_revamp_03.ogg",
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/spell_ro_eviscerate_cast_revamp_04.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    },
+    "Outlaw.GhostlyStrike": {
+      "kind": "world",
+      "files": [
+        "modules/mod-rogue/client-assets/audio/sources/outlaw/ghostlystrikeimpact.ogg"
+      ],
+      "minDistance": 10,
+      "maxDistance": 40
+    }
+  }
+}

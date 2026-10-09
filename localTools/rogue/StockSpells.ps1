@@ -1,6 +1,7 @@
-# The stock Rogue spells localTools/patchSinisterStrike.ps1 changes in place: Finesse's and Assassinat's strikes, Shadow
-# Dance, Cold Blood and the poisons' procs take the retail looks of localTools/rogue/ascensionVisuals.json (every rank:
-# by family and English name, or by id where a name is shared). Field 131 is the SpellVisual.
+# The stock Rogue spells localTools/patchSinisterStrike.ps1 changes in place: Finesse's, Assassinat's and Hors-la-loi's
+# strikes, Shadow Dance, Cold Blood and the poisons' procs take the retail looks of
+# localTools/rogue/ascensionVisuals.json (every rank: by family and English name, or by id where a name is shared).
+# Field 131 is the SpellVisual.
 
 . (Join-Path $repoRoot 'localTools\rogue\Looks.ps1')
 $rogue = 8
@@ -10,6 +11,8 @@ $edits = @(
     @{ Family = $rogue; Name = 'Ambush'; Fields = @{ 131 = (Look 'Ambush') } },
     @{ Family = $rogue; Name = 'Eviscerate'; Fields = @{ 131 = (Look 'Eviscerate') } },
     @{ Family = $rogue; Name = 'Hemorrhage'; Fields = @{ 131 = (Look 'Hemorrhage') } },
+    # Hors-la-loi's builder: retail's Saber Slash on every rank (its cost stays the patcher's 0, 92191 puts 45 back)
+    @{ Family = $rogue; Name = 'Sinister Strike'; Fields = @{ 131 = (Look 'OutlawSinisterStrike') } },
     @{ Id = 51713; Fields = @{ 131 = (Look 'ShadowDance') } },
     # Assassinat. Mutilate by its casting ranks: the two hits it triggers share its name and carry no visual, and would
     # swing again for each dagger. Fan of Knives by the cast (52874, its thrown knives, keeps its missile).

@@ -14,6 +14,16 @@ GroundLoot.Pickup	ui	1	0	0	GroundLoot.Pickup_1.wav;GroundLoot.Pickup_2.wav
 GroundLoot.PickupGold	ui	1	0	0	GroundLoot.PickupGold_1.wav;GroundLoot.PickupGold_2.wav;GroundLoot.PickupGold_3.wav;GroundLoot.PickupGold_4.wav;GroundLoot.PickupGold_5.wav;GroundLoot.PickupGold_6.wav
 Music.PrisonIdle	music	1	0	0	Music.PrisonIdle_1.flac	343343
 Music.WardenVorhan	music	1	0	0	Music.WardenVorhan_1.flac	310274
+Outlaw.AdrenalineRush	world	1	10	40	Outlaw.AdrenalineRush_1.wav;Outlaw.AdrenalineRush_2.wav;Outlaw.AdrenalineRush_3.wav
+Outlaw.BetweenTheEyes	world	1	12	40	Outlaw.BetweenTheEyes_1.wav;Outlaw.BetweenTheEyes_2.wav;Outlaw.BetweenTheEyes_3.wav;Outlaw.BetweenTheEyes_4.wav;Outlaw.BetweenTheEyes_5.wav
+Outlaw.BladeFlurry	world	1	10	40	Outlaw.BladeFlurry_1.wav
+Outlaw.BladeRush	world	1	10	40	Outlaw.BladeRush_1.wav;Outlaw.BladeRush_2.wav;Outlaw.BladeRush_3.wav;Outlaw.BladeRush_4.wav
+Outlaw.Dispatch	world	1	10	40	Outlaw.Dispatch_1.wav;Outlaw.Dispatch_2.wav;Outlaw.Dispatch_3.wav;Outlaw.Dispatch_4.wav
+Outlaw.GhostlyStrike	world	1	10	40	Outlaw.GhostlyStrike_1.wav
+Outlaw.KillingSpree	world	1	10	40	Outlaw.KillingSpree_1.wav;Outlaw.KillingSpree_2.wav;Outlaw.KillingSpree_3.wav;Outlaw.KillingSpree_4.wav;Outlaw.KillingSpree_5.wav
+Outlaw.PistolShot	world	1	12	40	Outlaw.PistolShot_1.wav;Outlaw.PistolShot_2.wav;Outlaw.PistolShot_3.wav;Outlaw.PistolShot_4.wav;Outlaw.PistolShot_5.wav
+Outlaw.RollTheBones	world	1	10	40	Outlaw.RollTheBones_1.wav;Outlaw.RollTheBones_2.wav;Outlaw.RollTheBones_3.wav
+Outlaw.SinisterStrike	world	1	10	40	Outlaw.SinisterStrike_1.wav;Outlaw.SinisterStrike_2.wav;Outlaw.SinisterStrike_3.wav;Outlaw.SinisterStrike_4.wav
 Stormwind.Bellows	world	1	3	18	Stormwind.Bellows_1.wav;Stormwind.Bellows_2.wav
 Stormwind.Birds	world	1	5	40	Stormwind.Birds_1.wav;Stormwind.Birds_2.wav;Stormwind.Birds_3.wav;Stormwind.Birds_4.wav;Stormwind.Birds_5.wav;Stormwind.Birds_6.wav;Stormwind.Birds_7.wav;Stormwind.Birds_8.wav;Stormwind.Birds_9.wav;Stormwind.Birds_10.wav
 Stormwind.Cat	world	1	4	28	Stormwind.Cat_1.wav;Stormwind.Cat_2.wav;Stormwind.Cat_3.wav;Stormwind.Cat_4.wav;Stormwind.Cat_5.wav;Stormwind.Cat_6.wav;Stormwind.Cat_7.wav;Stormwind.Cat_8.wav;Stormwind.Cat_9.wav

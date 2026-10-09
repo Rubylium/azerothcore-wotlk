@@ -13,7 +13,7 @@ $FireMageKey = '8 2'
 $DefaultSweepSpecs = @(
     '1 1:Arms', '1 2:Fury', '1 4:Gladiator', '2 3:Retribution',
     '3 1:Beast Mastery', '3 2:Marksmanship', '3 3:Survival',
-    '4 1:Assassination', '4 2:Combat', '4 3:Subtlety', '5 3:Shadow',
+    '4 1:Assassination', '4 2:Outlaw', '4 3:Subtlety', '5 3:Shadow',
     '6 2:Frost DK', '6 3:Unholy', '7 1:Elemental', '7 2:Enhancement',
     '8 1:Arcane', '8 2:Fire', '8 3:Frost mage',
     '9 1:Affliction', '9 2:Demonology', '9 3:Destruction',

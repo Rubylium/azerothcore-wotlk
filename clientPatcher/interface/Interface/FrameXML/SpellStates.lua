@@ -17,6 +17,9 @@ local EXECUTE = { 5308, 20658, 20660, 20661, 20662, 25234, 25236, 47470, 47471 }
 local REVENGE = { 6572, 6574, 7379, 11600, 11601, 25288, 25269, 30357, 57823 }
 local SHIELD_SLAM = { 23922, 23923, 23924, 23925, 25258, 30356, 47487, 47488 }
 local SLAM = { 1464, 8820, 11604, 11605, 25241, 25242, 47474, 47475 }
+-- The Rogue's Hors-la-loi (localTools/rogue/Spells.ps1)
+local PISTOL_SHOT = { 92342 }
+local AMBUSH = { 8676, 8724, 8725, 11267, 11268, 11269, 27441, 48689, 48690, 48691 }
 
 -- The procs, by aura id
 local OPENING = 95160           -- Ouverture: Shield Slam opened Revenge (Gladiateur)
@@ -26,6 +29,9 @@ local REVANCHE = 95146          -- Revanche !: a free Revenge after a dodge, a p
 local SUDDEN_DEATH = 52437      -- Execute whatever the target's health
 local SWORD_AND_BOARD = 50227   -- Shield Slam ready and free
 local BLOODSURGE = 46916        -- Slam! : an instant Slam
+local OPPORTUNITY = 92352       -- Opportunité: the next Pistol Shot free and stronger (Hors-la-loi)
+local GREENSKINS_WICKERS = 92360 -- Mèches de Peau-Verte: the next Pistol Shot 300% stronger
+local AUDACITY = 92353          -- Audace: Ambush out of stealth
 
 local playerAuras, targetAuras = {}, {}
 local shieldSlamBack = 0        -- until when Shield Slam, back early from its cooldown (the bleed), glows
@@ -78,6 +84,8 @@ local RULES = {
       glow = function() return Has(OPENING) or Has(REVANCHE) end },
     { spells = SHIELD_SLAM, glow = function() return Has(SWORD_AND_BOARD) or GetTime() < shieldSlamBack end },
     { spells = SLAM, glow = function() return Has(BLOODSURGE) end },
+    { spells = PISTOL_SHOT, glow = function() return Has(OPPORTUNITY) or Has(GREENSKINS_WICKERS) end },
+    { spells = AMBUSH, glow = function() return Has(AUDACITY) end },
 }
 
 -- A spell's rule by its name in the client's language: a macro's spell is only known by its name
