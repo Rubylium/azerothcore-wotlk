@@ -1,6 +1,7 @@
 #include "GroundLoot.h"
 #include "EvolutionsAudio.h"
 #include "InfiniteDungeonSystem.h"
+#include "LootFit.h"
 #include "MythicDungeonSystem.h"
 
 #include "Chat.h"
@@ -543,11 +544,20 @@ void ShareCorpseLoot(Creature* corpse, std::vector<Player*> const& players)
             takers = allowed;
         else
         {
+            // Gear to one it suits (its role's stats: LootFit), else to one who can use it at all. Any of those who
+            // could use it took a trinket or a ring, and a tank was handed a caster's trinket meant for the healer.
+            bool const gear = itemTemplate->Class == ITEM_CLASS_WEAPON || itemTemplate->Class == ITEM_CLASS_ARMOR;
             std::vector<Player*> users;
+            std::vector<Player*> suited;
             for (Player* owner : allowed)
                 if (owner->CanUseItem(itemTemplate) == EQUIP_ERR_OK)
+                {
                     users.push_back(owner);
-            takers.push_back(Acore::Containers::SelectRandomContainerElement(users.empty() ? allowed : users));
+                    if (gear && LootFit::Fits(owner, *itemTemplate))
+                        suited.push_back(owner);
+                }
+            std::vector<Player*> const& from = !suited.empty() ? suited : !users.empty() ? users : allowed;
+            takers.push_back(Acore::Containers::SelectRandomContainerElement(from));
         }
 
         for (Player* taker : takers)

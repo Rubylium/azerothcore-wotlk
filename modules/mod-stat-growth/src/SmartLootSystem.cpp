@@ -6,8 +6,10 @@
 #include "Group.h"
 #include "Item.h"
 #include "ItemEnchantmentMgr.h"
+#include "LootFit.h"
 #include "LootMgr.h"
 #include "MythicDungeon.h"
+#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "Random.h"
@@ -200,60 +202,6 @@ int32 GetStatValue(ItemTemplate const& itemTemplate, ItemModType statType)
     return value;
 }
 
-int32 GetPhysicalStatScore(ItemTemplate const& itemTemplate, uint8 classId)
-{
-    int32 const agility = GetStatValue(itemTemplate, ITEM_MOD_AGILITY);
-    int32 const strength = GetStatValue(itemTemplate, ITEM_MOD_STRENGTH);
-    int32 const stamina = GetStatValue(itemTemplate, ITEM_MOD_STAMINA);
-    int32 const attackPower = GetStatValue(itemTemplate, ITEM_MOD_ATTACK_POWER);
-    int32 const rangedAttackPower = GetStatValue(itemTemplate, ITEM_MOD_RANGED_ATTACK_POWER);
-    int32 score = stamina * 2 + attackPower + rangedAttackPower;
-
-    // A custom class values the stats of the class it is built on (see mod-custom-classes)
-    switch (classId == 10 ? CLASS_WARRIOR : sObjectMgr->GetClassFormulaTemplate(classId))
-    {
-        case CLASS_ROGUE:
-        case CLASS_HUNTER:
-            score += agility * 6 + strength;
-            break;
-        default:
-            score += strength * 6 + agility * 2;
-            break;
-    }
-
-    score += GetStatValue(itemTemplate, ITEM_MOD_HIT_RATING) * 3;
-    score += GetStatValue(itemTemplate, ITEM_MOD_CRIT_RATING) * 3;
-    score += GetStatValue(itemTemplate, ITEM_MOD_HASTE_RATING) * 3;
-    score += GetStatValue(itemTemplate, ITEM_MOD_EXPERTISE_RATING) * 3;
-    score += GetStatValue(itemTemplate, ITEM_MOD_ARMOR_PENETRATION_RATING) * 3;
-    return score;
-}
-
-int32 GetCasterStatScore(ItemTemplate const& itemTemplate)
-{
-    return GetStatValue(itemTemplate, ITEM_MOD_INTELLECT) * 5 +
-        GetStatValue(itemTemplate, ITEM_MOD_SPIRIT) * 3 +
-        GetStatValue(itemTemplate, ITEM_MOD_SPELL_POWER) * 4 +
-        GetStatValue(itemTemplate, ITEM_MOD_MANA_REGENERATION) * 4 +
-        GetStatValue(itemTemplate, ITEM_MOD_HIT_SPELL_RATING) * 3 +
-        GetStatValue(itemTemplate, ITEM_MOD_CRIT_SPELL_RATING) * 3 +
-        GetStatValue(itemTemplate, ITEM_MOD_HASTE_SPELL_RATING) * 3;
-}
-
-// A custom class is physical or caster as the class it is built on (see mod-custom-classes)
-bool IsPhysicalClass(uint8 classId)
-{
-    uint8 const baseClass = sObjectMgr->GetClassFormulaTemplate(classId);
-    return baseClass == CLASS_WARRIOR || baseClass == CLASS_ROGUE || baseClass == CLASS_HUNTER ||
-        baseClass == CLASS_DEATH_KNIGHT;
-}
-
-bool IsCasterClass(uint8 classId)
-{
-    uint8 const baseClass = sObjectMgr->GetClassFormulaTemplate(classId);
-    return baseClass == CLASS_MAGE || baseClass == CLASS_PRIEST || baseClass == CLASS_WARLOCK;
-}
-
 // What a shield fighter's defensive stats are worth: a tank's on every piece; the Gladiateur's on its shield only,
 // whose defense, dodge, parry and block ratings become critical strike rating and whose block value its weapon blows
 // share (mod-warrior)
@@ -271,43 +219,19 @@ int32 GetShieldStatScore(ItemTemplate const& itemTemplate, Player const* player)
         (itemTemplate.InventoryType == INVTYPE_SHIELD ? int32(itemTemplate.Block) : 0);
 }
 
+// How good the item is for the player's role (LootFit::Score: its stats and its spells), and a shield fighter's
+// shield stats besides
 int32 GetClassStatScore(ItemTemplate const& itemTemplate, Player const* player)
 {
-    int32 const physicalScore = GetPhysicalStatScore(itemTemplate, player->getClass()) +
-        GetShieldStatScore(itemTemplate, player);
-    int32 const casterScore = GetCasterStatScore(itemTemplate);
-
-    if (IsPhysicalClass(player->getClass()))
-        return physicalScore - casterScore * 4;
-    if (IsCasterClass(player->getClass()))
-        return casterScore - physicalScore * 3;
-    return std::max(physicalScore, casterScore);
+    return LootFit::Score(const_cast<Player*>(player), itemTemplate) + GetShieldStatScore(itemTemplate, player);
 }
 
+// The item's stats and spells suit the player's role (LootFit::Fits): a tank never gets a caster's trinket - its spell
+// power is in its proc, its only listed stat a shared rating - a healer never a fighter's, a damage dealer never a
+// tank's defences. Judged on the class alone it let all of these through (2026-10-10).
 bool HasClassAppropriateStats(ItemTemplate const& itemTemplate, Player const* player)
 {
-    // Held in the off-hand (orbs, tomes) is caster gear, whatever its stats
-    if (itemTemplate.InventoryType == INVTYPE_HOLDABLE && IsPhysicalClass(player->getClass()))
-        return false;
-
-    // Judged on the primary stats only. Stamina suits every class, and hit, crit and haste rating are shared by
-    // casters and fighters in this version: a spell power cloak with crit rating is still a caster's cloak.
-    int32 const spellPower = GetStatValue(itemTemplate, ITEM_MOD_SPELL_POWER);
-    int32 const intellect = GetStatValue(itemTemplate, ITEM_MOD_INTELLECT);
-    int32 const physicalPrimary = GetStatValue(itemTemplate, ITEM_MOD_STRENGTH) +
-        GetStatValue(itemTemplate, ITEM_MOD_AGILITY) + GetStatValue(itemTemplate, ITEM_MOD_ATTACK_POWER) +
-        GetStatValue(itemTemplate, ITEM_MOD_RANGED_ATTACK_POWER) +
-        GetStatValue(itemTemplate, ITEM_MOD_EXPERTISE_RATING) +
-        GetStatValue(itemTemplate, ITEM_MOD_ARMOR_PENETRATION_RATING);
-
-    // A fighter never takes spell power, nor intellect without a fighter's stat beside it (a hunter's agility and
-    // intellect mail is theirs; a caster's intellect cloak is not)
-    if (IsPhysicalClass(player->getClass()) && (spellPower > 0 || (intellect > 0 && physicalPrimary == 0)))
-        return false;
-    // A caster never takes strength, agility or attack power without spell power or intellect beside it
-    if (IsCasterClass(player->getClass()) && physicalPrimary > 0 && spellPower == 0 && intellect == 0)
-        return false;
-    return true;
+    return LootFit::Fits(const_cast<Player*>(player), itemTemplate);
 }
 
 bool HasEquipmentProficiency(ItemTemplate const& itemTemplate, Player const* player)
@@ -832,8 +756,37 @@ public:
         static ChatCommandTable commandTable =
         {
             { "lootdebug", HandleLootDebug, SEC_GAMEMASTER, Console::No },
+            { "lootfit", HandleLootFit, SEC_GAMEMASTER, Console::Yes },
         };
         return commandTable;
+    }
+
+    // .lootfit <player | tank | strength | agility | caster | healer> <item...>: the player's loot role (or the role
+    // named), and for each item whether it suits it and its score
+    static bool HandleLootFit(ChatHandler* handler, std::string who, std::vector<uint32> items)
+    {
+        LootFit::Role role;
+        Player* player = nullptr;
+        if (!LootFit::RoleByName(who, role))
+        {
+            player = ObjectAccessor::FindPlayerByName(who);
+            if (!player)
+            {
+                handler->SendErrorMessage("No such player or role (tank, strength, agility, caster, healer).");
+                return false;
+            }
+            role = LootFit::RoleOf(player);
+        }
+        handler->PSendSysMessage("{}: {}", player ? player->GetName() : who, LootFit::RoleName(role));
+        for (uint32 entry : items)
+            if (ItemTemplate const* item = sObjectMgr->GetItemTemplate(entry))
+            {
+                bool const fits = player ? LootFit::Fits(player, *item) : LootFit::FitsRole(role, false, *item);
+                int32 const score = player ? LootFit::Score(player, *item) : LootFit::ScoreRole(role, false, *item);
+                handler->PSendSysMessage("  {} {}: {} (score {}): {}", entry, item->Name1,
+                    fits ? "fits" : "does not fit", score, LootFit::Describe(*item));
+            }
+        return true;
     }
 
     static bool HandleLootDebug(ChatHandler* handler, Optional<uint32> rewardItemLevel,

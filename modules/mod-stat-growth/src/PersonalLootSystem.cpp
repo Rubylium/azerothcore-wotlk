@@ -1,4 +1,5 @@
 #include "PersonalLootSystem.h"
+#include "LootFit.h"
 
 #include "Chat.h"
 #include "DatabaseEnv.h"
@@ -118,41 +119,36 @@ uint8 GetCustomBonusIndex(PersonalLootAffix affix)
     return static_cast<uint8>(affix) - static_cast<uint8>(PersonalLootAffix::ExperienceGain);
 }
 
-std::vector<PersonalLootAffix> GetClassAffixPool(uint8 classId)
+// The bonuses an item can roll for its looter: their role's (LootFit), not their class's - a paladin or a druid tank
+// rolled spell power and intellect, a healer attack power. A tank gets its defences, a shield fighter its block.
+std::vector<PersonalLootAffix> GetRoleAffixPool(Player* player)
 {
     std::vector<PersonalLootAffix> pool;
-    // A custom class rolls the affixes of the class it is built on (see mod-custom-classes)
-    switch (sObjectMgr->GetClassFormulaTemplate(classId))
+    switch (LootFit::RoleOf(player))
     {
-        case CLASS_WARRIOR:
-        case CLASS_DEATH_KNIGHT:
+        case LootFit::Role::Tank:
+            pool = { LootFit::PrimaryStat(player) == ITEM_MOD_AGILITY ? PersonalLootAffix::Agility :
+                PersonalLootAffix::Strength, PersonalLootAffix::Stamina, PersonalLootAffix::Defense,
+                PersonalLootAffix::Dodge, PersonalLootAffix::Expertise };
+            // A bear never parries; the shield fighters block
+            if (sObjectMgr->GetClassFormulaTemplate(player->getClass()) != CLASS_DRUID)
+                pool.push_back(PersonalLootAffix::Parry);
+            if (player->getClass() == CLASS_WARRIOR || player->getClass() == CLASS_PALADIN)
+                pool.push_back(PersonalLootAffix::Block);
+            break;
+        case LootFit::Role::Strength:
             pool = { PersonalLootAffix::Strength, PersonalLootAffix::Stamina, PersonalLootAffix::AttackPower };
             break;
-        case CLASS_PALADIN:
-            pool = { PersonalLootAffix::Strength, PersonalLootAffix::Intellect, PersonalLootAffix::Stamina,
-                PersonalLootAffix::AttackPower, PersonalLootAffix::SpellPower };
-            break;
-        case CLASS_HUNTER:
-        case CLASS_ROGUE:
+        case LootFit::Role::Agility:
             pool = { PersonalLootAffix::Agility, PersonalLootAffix::Stamina, PersonalLootAffix::AttackPower };
             break;
-        case CLASS_PRIEST:
-        case CLASS_MAGE:
-        case CLASS_WARLOCK:
+        case LootFit::Role::Caster:
             pool = { PersonalLootAffix::Intellect, PersonalLootAffix::Spirit, PersonalLootAffix::Stamina,
                 PersonalLootAffix::SpellPower };
             break;
-        case CLASS_SHAMAN:
-            pool = { PersonalLootAffix::Strength, PersonalLootAffix::Agility, PersonalLootAffix::Intellect,
-                PersonalLootAffix::Stamina, PersonalLootAffix::AttackPower, PersonalLootAffix::SpellPower };
-            break;
-        case CLASS_DRUID:
-            pool = { PersonalLootAffix::Strength, PersonalLootAffix::Agility, PersonalLootAffix::Intellect,
-                PersonalLootAffix::Spirit, PersonalLootAffix::Stamina, PersonalLootAffix::AttackPower,
-                PersonalLootAffix::SpellPower };
-            break;
-        default:
-            pool = { PersonalLootAffix::Stamina };
+        case LootFit::Role::Healer:
+            pool = { PersonalLootAffix::Intellect, PersonalLootAffix::Spirit, PersonalLootAffix::Stamina,
+                PersonalLootAffix::SpellPower, PersonalLootAffix::ManaRegeneration };
             break;
     }
 
@@ -382,7 +378,7 @@ PersonalLootRoll RollBonuses(Player* player, ItemTemplate const* itemTemplate, u
     float const fortuneMultiplier = GetFortuneValueMultiplier(fortuneBonus);
     if (roll_chance_f(std::min(GetBonusChance(itemTemplate->Quality) + GetFortuneBonusChance(fortuneBonus), 100.0f)))
     {
-        std::vector<PersonalLootAffix> pool = GetClassAffixPool(roll.rolledClass);
+        std::vector<PersonalLootAffix> pool = GetRoleAffixPool(player);
         uint8 const affixCount = std::min<uint8>(GetAffixCount(itemTemplate->Quality), roll.affixes.size());
         for (uint8 index = 0; index < affixCount; ++index)
         {

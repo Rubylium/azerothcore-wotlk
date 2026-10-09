@@ -54,6 +54,11 @@
 uint8 GetChallengeTierOf(Map const* map);
 uint32 GetChallengeGodItemLevel(uint8 tier);
 
+// mod-stat-growth (LootFit.cpp), built into the same modules library: the player's role (LootFit::Role: 0 tank,
+// 1 strength fighter, 2 agility fighter, 3 caster, 4 healer) and the primary stat its gear takes
+uint8 LootRoleOfPlayer(Player* player);
+uint32 LootPrimaryStatOf(Player* player);
+
 namespace Legendary
 {
 namespace
@@ -368,9 +373,14 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
         copy.stats.emplace_back(ITEM_MOD_ATTACK_POWER,
             Spread(int32(std::lround(budget.attackPower * statGrowth)), 0.05f));
 
-    // Two secondaries drawn from the ones that suit the primary
+    // Two secondaries drawn from the ones that suit the role: a tank's defences, a caster's or a healer's, a damage
+    // dealer's
+    constexpr uint8 TankRole = 0;
     std::vector<uint32> pool = caster ?
         std::vector<uint32>{ ITEM_MOD_CRIT_RATING, ITEM_MOD_HASTE_RATING, ITEM_MOD_HIT_RATING, ITEM_MOD_SPIRIT } :
+        LootRoleOfPlayer(player) == TankRole ?
+        std::vector<uint32>{ ITEM_MOD_DEFENSE_SKILL_RATING, ITEM_MOD_DODGE_RATING, ITEM_MOD_PARRY_RATING,
+                             ITEM_MOD_EXPERTISE_RATING, ITEM_MOD_HIT_RATING } :
         std::vector<uint32>{ ITEM_MOD_CRIT_RATING, ITEM_MOD_HASTE_RATING, ITEM_MOD_HIT_RATING,
                              ITEM_MOD_EXPERTISE_RATING, ITEM_MOD_ARMOR_PENETRATION_RATING };
     for (uint32 draw = 0; draw < 2 && !pool.empty(); ++draw)
@@ -1218,8 +1228,39 @@ public:
     }
 };
 
+// Whether a power is one for the role: healing ones for a healer, a tank's survival for a tank, the rest for
+// damage dealers (and tanks: their threat). Kinds that serve everyone (Supernova) suit every role.
+bool PowerSuitsRole(Kind kind, uint8 role)
+{
+    constexpr uint8 Tank = 0;
+    constexpr uint8 Healer = 4;
+    bool const healing = kind == KIND_RENEW_ALLIES || kind == KIND_OVERHEAL_SHIELD || kind == KIND_HEAL_SPLASH;
+    bool const survival = kind == KIND_THORNS || kind == KIND_LAST_STAND || kind == KIND_BULWARK ||
+        kind == KIND_OATH || kind == KIND_LEECH || kind == KIND_KILL_HEAL;
+    if (kind == KIND_SUPERNOVA || kind == KIND_COOLDOWN_ECHO)
+        return true;
+    if (role == Healer)
+        return healing;
+    if (role == Tank)
+        return !healing;
+    return !healing && !survival;
+}
+
+// One of the pool, among those whose power suits the player's role when there are any (a tank was given a healer's
+// power, a healer a damage dealer's)
+Definition const* PickForRole(std::vector<Definition const*> const& pool, Player* player)
+{
+    uint8 const role = LootRoleOfPlayer(player);
+    std::vector<Definition const*> suited;
+    for (Definition const* definition : pool)
+        if (PowerSuitsRole(definition->kind, role))
+            suited.push_back(definition);
+    std::vector<Definition const*> const& from = suited.empty() ? pool : suited;
+    return from[urand(0, uint32(from.size() - 1))];
+}
+
 // Every real player in a map rolls once against their luck at a source (a dungeon id or a boss entry); a drop picks
-// one of the pool and lands on the floor (GroundLoot) at the item level given.
+// one of the pool (PickForRole) and lands on the floor (GroundLoot) at the item level given.
 void RollDrops(Map* map, uint32 source, std::vector<Definition const*> const& pool, uint32 itemLevel)
 {
     map->DoForAllPlayers([&pool, itemLevel, source](Player* player)
@@ -1240,7 +1281,7 @@ void RollDrops(Map* map, uint32 source, std::vector<Definition const*> const& po
         if (!dropped)
             return;
 
-        Definition const* definition = pool[urand(0, uint32(pool.size() - 1))];
+        Definition const* definition = PickForRole(pool, player);
         uint32 const id = definition->id;
         ItemTemplate const* base = sObjectMgr->GetItemTemplate(definition->baseItem);
         ObjectGuid const owner = player->GetGUID();
@@ -1480,32 +1521,11 @@ uint32 ArmorType(Player* player)
     return 0;
 }
 
+// The primary stat a copy takes: the player's role's (mod-stat-growth LootFit). Read from the gear worn, a tank given a
+// caster's trinket or two was steered further towards intellect with every drop.
 uint32 FavouredPrimary(Player* player)
 {
-    std::array<int64, 3> totals = {};       // strength, agility, intellect
-    ForEachItem(player, [&totals](Item* item)
-    {
-        if (!item->IsEquipped())
-            return;
-        ItemTemplate const* proto = item->GetTemplate();
-        auto add = [&totals](uint32 type, int32 value)
-        {
-            if (type == ITEM_MOD_STRENGTH)
-                totals[0] += value;
-            else if (type == ITEM_MOD_AGILITY)
-                totals[1] += value;
-            else if (type == ITEM_MOD_INTELLECT || type == ITEM_MOD_SPELL_POWER)
-                totals[2] += value;
-        };
-        for (uint32 index = 0; index < proto->StatsCount; ++index)
-            add(proto->ItemStat[index].ItemStatType, proto->ItemStat[index].ItemStatValue);
-        if (std::optional<Copy> copy = GetCopy(item))
-            for (auto const& [type, value] : copy->stats)
-                add(type, value);
-    });
-    if (totals[2] > totals[0] && totals[2] > totals[1])
-        return ITEM_MOD_INTELLECT;
-    return totals[1] > totals[0] ? ITEM_MOD_AGILITY : ITEM_MOD_STRENGTH;
+    return LootPrimaryStatOf(player);
 }
 }
 
