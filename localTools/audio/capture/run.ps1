@@ -1,6 +1,6 @@
 # LOCAL DEV ONLY. EvolutionsAudio capture: the FX lab runner's client with sound on (effects only), the speakers
 # recorded (WASAPI loopback) for the run. -local: the built DLL and the repository's sounds.txt for this run only.
-param([switch]$local, [string]$wavName = 'capture.wav')
+param([switch]$local, [string]$wavName = 'capture.wav', [string]$steps = 'steps.lua')
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repo = Resolve-Path (Join-Path $here '..\..\..')
 $client = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK'
@@ -11,6 +11,11 @@ $dll = Join-Path $client 'AwesomeWotlkLib.dll'
 $bank = Join-Path $client 'Interface\AddOns\EvolutionsAudio\sounds.txt'
 $wav = Join-Path $here $wavName
 Copy-Item $config $saved -Force
+# The engine's debug log for this run (Logs\EvolutionsAudio.debug switches it on): what set each sound's level
+$debugFlag = Join-Path $client 'Logs\EvolutionsAudio.debug'
+$debugLog = Join-Path $client 'Logs\EvolutionsAudio.log'
+Remove-Item $debugLog -ErrorAction SilentlyContinue
+Set-Content $debugFlag '' -Encoding ASCII
 if ($local) {
     Copy-Item $dll (Join-Path $env:TEMP 'EvaCapture.dll') -Force
     Copy-Item $bank (Join-Path $env:TEMP 'EvaCapture.sounds.txt') -Force
@@ -19,7 +24,7 @@ if ($local) {
 }
 New-Item -ItemType Directory -Force $addon | Out-Null
 Copy-Item (Join-Path $repo 'localTools\fxLab\shots\FxLabShots\*') $addon -Force
-Copy-Item (Join-Path $here 'steps.lua') (Join-Path $addon 'Steps.lua') -Force
+Copy-Item (Join-Path $here $steps) (Join-Path $addon 'Steps.lua') -Force
 $drop = '^SET (gxResolution|gxMaximize|gxWindow|realmName|Sound_MasterVolume|Sound_MusicVolume|Sound_SFXVolume|' +
     'Sound_AmbienceVolume|Sound_EnableSFX|Sound_EnableAmbience|Sound_EnableMusic|Sound_EnableAllSound|' +
     'Sound_EnableSoundWhenGameIsInBG) '
@@ -44,6 +49,8 @@ finally {
         Copy-Item (Join-Path $env:TEMP 'EvaCapture.sounds.txt') $bank -Force
     }
     Remove-Item $addon -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item $debugFlag -ErrorAction SilentlyContinue
+    if (Test-Path $debugLog) { Move-Item $debugLog ([IO.Path]::ChangeExtension($wav, '.log')) -Force }
 }
 $recorder.WaitForExit()
 Write-Host 'done'

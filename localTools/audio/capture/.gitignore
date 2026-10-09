@@ -1,0 +1,4 @@
+# The capture rig's recordings and engine logs (run.ps1): local only
+*.wav
+*.wav.start
+*.log

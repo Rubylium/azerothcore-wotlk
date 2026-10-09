@@ -7,11 +7,17 @@ heard before a release, and some of its paths never played (2026-10-05): don't a
 
 ## What it does
 
-- 3D from the camera (the listener, every frame): a sound at a point, or following an object (it stops by itself when
+- 3D from the character: the listener stands at the character's head (1.7 yd), facing the camera's way on the
+  ground (the camera's own position with no character). From the camera, the player's own sounds faded with the
+  zoom - silent zoomed out, as raids play (the user's "pistol cut in boss fights", 2026-10-09). Sounds on the
+  player's own character are not panned nor faded at all: heard from straight below the listener, the panner gave
+  both speakers 25 dB less.
+- Positioned: a sound at a point, or following an object (it stops by itself when
   the client no longer knows the object - a drop picked up, a creature out of sight), or an interface sound.
 - Distance: full volume within a sound's min distance, linear to nothing at its max.
-- Walls: every 150 ms a world or spell sound tests the line from the camera to a yard above it (the game's own line test,
-  `0x7A3B70`, flags `0x100111`: terrain and buildings); behind one it is low-passed (1.2 kHz) and quieter, eased.
+- Walls: every 150 ms a world or spell sound tests the line from the listener to a yard above it (the game's own line
+  test, `0x7A3B70`, flags `0x100111`: terrain and buildings); behind one it is low-passed (1.2 kHz) and quieter,
+  eased.
 - The place: world sounds feed a reverb (Freeverb) whose size and level follow where the player is - dry outdoors, a
   room indoors (`IsIndoors()`), long and dark under water (the breath timer) with every world sound muffled.
 - The game's settings: master and effects volume, sound / effects switched off, "sound in background" (window focus).
@@ -56,7 +62,7 @@ Emitters in the same JSON (`"emitters": [...]`), played by the engine itself whi
 server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points": [[x, y, z], ...], "interval":
 [min, max], "speed": 0, "time": "any" | "day" | "night", "volume": 1 }`.
 - Zones by name, as `GetRealZoneText()` gives them, in every locale played (enUS and frFR at least).
-- A `loop` sound plays from the first point while the camera is within its reach (+10 yd), faded in and out over
+- A `loop` sound plays from the first point while the listener is within its reach (+10 yd), faded in and out over
   1.5 s, starting at a random point of its file (two alike never in step); any other sound every min to max seconds
   from one point at random (the first only after a first wait).
 - `speed` (yards a second): the emitter flies round its points as a closed path, its sounds following it (gulls
@@ -103,7 +109,13 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
 
 ## Checking what the client really plays
 
-A sound that "cuts" or "echoes": record it, don't guess. The capture rig (`localTools/audio/capture/run.ps1`,
+A sound that "cuts" or "echoes": record it, don't guess. Find the level a sound really played at with `match.py
+<capture.wav> <key prefix>...`: it matches the bank's files against the recording, so other programs' audio does not
+matter (it did: the PC played music during runs), and gives each sound's gain over its first 0.3 s and its tail
+(a cut tail is far below its head). The engine's own account of every sound it played - its distance, occlusion,
+volumes, cursor - is in `Logs\EvolutionsAudio.log` while `Logs\EvolutionsAudio.debug` exists (the rig sets it and
+keeps the log next to the capture). `-steps <file>` picks the steps (`zoom-steps.lua`: the camera close, zoomed out,
+then the same keys as ui sounds for the reference level). The capture rig (`localTools/audio/capture/run.ps1`,
 `-local` for the DLL just built and the repository's `sounds.txt`) logs the EVODEV character into the FX lab with
 effects only, plays the keys of `steps.lua` (`EvolutionsAudio_Play(key, "G" .. guid)` - what the server's `PlayOn`
 does), records the speakers (WASAPI loopback) and `analyse.py <wav>` gives each event's length, level and how bright its
