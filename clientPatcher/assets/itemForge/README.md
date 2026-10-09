@@ -40,6 +40,9 @@ Guide coordinates, in delivery pixels:
 - Banner text: `(224, 28, 700, 164)`.
 
 The original hammer, sparks and embers remain in `reference/launcherReuse/` at their original sizes.
+The revised forging hammer is `png/hammer.png` (RGBA, 1448 x 1086); its generation prompt is
+`source/hammerGeneration.json`. The texture packer scales it uniformly to 228 x 171 and registers the
+handle pivot at `(0.88, 0.80)` before writing `ForgeHammer.blp`.
 No painted window frame or custom button is delivered. This pack does not modify Lua or build BLP atlases.
 
 Reproduce the PNG exports with Pillow and NumPy:

@@ -1,0 +1,6 @@
+{
+  "tool": "built-in image_gen",
+  "editTarget": "reference/launcherReuse/hammer.png",
+  "output": "png/hammer.png",
+  "prompt": "Use case: precise-object-edit. Edit target: the supplied transparent game hammer sprite. Fix ONLY the hammer head geometry, retaining the same beautiful hand-painted Warcraft-like art style, worn charcoal steel, bright chipped bevels, brown leather-wrapped handle and steel pommel. The head must be a unmistakable blacksmith forging hammer: a solid elongated rectangular steel crossbar PERPENDICULAR to the handle, two opposite flat square striking faces, and the handle attached into the MIDDLE of the crossbar underside to form a clear T silhouette. Remove the bulbous cap-like axial head and excessive bulky collar. Preserve handle location, angle, length, leather wraps and pommel as closely as possible. Preserve original diagonal composition, head upper-left, handle down-right, pommel centered around 88% canvas width and 80% height; head center near 30% width and 32% height. Keep roughly original overall bounds and scale on the same 1200x900 canvas. Transparent background with real alpha, no shadow outside object, no scenery, no text. Strong readable silhouette at small UI size. Head ends extend across the handle axis, never an inline mallet cap. Three-quarter view with coherent perspective and crisp flat striking faces."
+}

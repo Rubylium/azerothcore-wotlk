@@ -65,10 +65,11 @@ def main():
     # The launcher's sheets at a half and a quarter: 4 x 4 cells of 256 (sparks) and 64 (embers)
     writeDxt3Blp(uniform(Image.open(reuse / "sparkBurst.png").convert("RGBA"), 0.5), OUT / "ForgeSparks.blp")
     writeRawBlp(uniform(Image.open(reuse / "embers.png").convert("RGBA"), 0.25), OUT / "ForgeEmbers.blp")
-    # The hammer (1200 x 900) at 0.19, with the end of its handle (HAMMER_PIVOT of it) at the centre of a 512
+    # The hammer at 228 pixels wide, with the end of its handle (HAMMER_PIVOT of it) at the centre of a 512
     # square: the code swings it by turning its texture coordinates around that centre, and every part of it stays
     # within the square's inscribed circle, so no angle clips it
-    hammer = uniform(Image.open(reuse / "hammer.png").convert("RGBA"), 0.19)
+    hammer = png("hammer")
+    hammer = uniform(hammer, 228 / hammer.width)
     pivot = (round(hammer.width * HAMMER_PIVOT[0]), round(hammer.height * HAMMER_PIVOT[1]))
     writeRawBlp(canvas((512, 512), (hammer, (256 - pivot[0], 256 - pivot[1]))), OUT / "ForgeHammer.blp")
     print("hammer", hammer.size, "pivot", pivot)
