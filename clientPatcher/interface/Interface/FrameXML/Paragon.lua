@@ -94,9 +94,13 @@ local state = {
     allocated = {},
     pending = nil,                          -- node waiting on the server's answer
     receiving = false,
+    loadouts = {},                          -- the saved configurations: { slot, points, name }
+    activeLoadout = nil,                    -- the slot the board was last taken from or saved to
+    activePreset = nil,                     -- the recommended board last applied (1 raid, 2 Mythique+)
 }
 
 local frame, canvas, board, hud, pointText, spentText, statusText
+local refreshLoadouts                       -- the configuration picker's text, once the window exists
 local pointGlow, spentFill, bonusPanel, bonusText
 local levelText, levelFill, levelBarText
 local nodeButtons, linkTextures = {}, {}
@@ -664,6 +668,7 @@ local function refreshAll()
     refreshLinks()
     refreshHeader()
     refreshBonus()
+    if refreshLoadouts then refreshLoadouts() end
 end
 
 --------------------------------------------------------------------------------
@@ -1505,7 +1510,7 @@ local function createFrame()
         whileDead = 1,
         hideOnEscape = 1,
     }
-    createButton("Réinitialiser", "BOTTOMLEFT", 24, function()
+    local resetButton = createButton("Réinitialiser", "BOTTOMLEFT", 24, function()
         StaticPopup_Show("PARAGON_RESET")
     end)
 
@@ -1583,6 +1588,184 @@ local function createFrame()
         end
     end)
     glyphButton:SetPoint("RIGHT", bonusButton, "LEFT", -8, 0)
+
+    -- The configurations, beside the reset, as the talents keep theirs: boards saved under a name, and the
+    -- recommended ones the server plans for the player's role and usable points (ParagonSystem.cpp ApplyPreset).
+    -- Switching is free: the board is cleared, then taken again; glyphs go back into their sockets where it can.
+    local PRESETS = {
+        { id = 1, label = "Raid", title = "Tableau recommandé : raid",
+          text = "Un boss, un combat long : frappes doubles, exécution, ferveur et écho passent avant ce qui " ..
+                 "agit à la mort d'un ennemi ou autour de la cible." },
+        { id = 2, label = "Mythique+", title = "Tableau recommandé : Mythique+",
+          text = "Des packs qui tombent vite : éclaboussures, arcs, explosions et séries de victimes, " ..
+                 "leur portée, et un peu plus de survie." },
+    }
+    local MAX_LOADOUTS = 10
+    local function usablePoints()
+        return math.min(state.earned or 0, state.cap or 0)
+    end
+    local function findLoadout(slot)
+        for _, loadout in ipairs(state.loadouts) do
+            if loadout.slot == slot then return loadout end
+        end
+    end
+
+    StaticPopupDialogs["PARAGON_PRESET"] = {
+        text = "Appliquer le %s ?\nVotre tableau sera réinitialisé gratuitement, puis vos %d points répartis " ..
+               "pour votre rôle.",
+        button1 = YES,
+        button2 = NO,
+        OnAccept = function(_, data)
+            state.pendingPreset = data
+            SendAddonMessage(PREFIX, "PRESET\t" .. data, "WHISPER", UnitName("player"))
+        end,
+        timeout = 0,
+        whileDead = 1,
+        hideOnEscape = 1,
+    }
+    StaticPopupDialogs["PARAGON_LOADOUT_APPLY"] = {
+        text = "Appliquer la configuration « %s » ?\nVotre tableau sera réinitialisé gratuitement, puis repris.",
+        button1 = YES,
+        button2 = NO,
+        OnAccept = function(_, data)
+            SendAddonMessage(PREFIX, "LAPPLY\t" .. data, "WHISPER", UnitName("player"))
+        end,
+        timeout = 0,
+        whileDead = 1,
+        hideOnEscape = 1,
+    }
+    StaticPopupDialogs["PARAGON_LOADOUT_DELETE"] = {
+        text = "Supprimer la configuration « %s » ?",
+        button1 = YES,
+        button2 = NO,
+        OnAccept = function(_, data)
+            if state.activeLoadout == data then state.activeLoadout = nil end
+            SendAddonMessage(PREFIX, "LDEL\t" .. data, "WHISPER", UnitName("player"))
+        end,
+        timeout = 0,
+        whileDead = 1,
+        hideOnEscape = 1,
+    }
+    local function saveAs(name)
+        name = name and name:gsub("[|\t\n]", ""):match("^%s*(.-)%s*$") or ""
+        if name == "" then return end
+        local slot
+        for candidate = 1, MAX_LOADOUTS do
+            if not findLoadout(candidate) then slot = candidate break end
+        end
+        if not slot then
+            PlaySound(SOUND_DENIED)
+            UIErrorsFrame:AddMessage("Vous avez déjà 10 configurations : supprimez-en une.", 1, 0.3, 0.3, 1, 3)
+            return
+        end
+        SendAddonMessage(PREFIX, "LSAVE\t" .. slot .. "\t" .. name, "WHISPER", UnitName("player"))
+    end
+    StaticPopupDialogs["PARAGON_LOADOUT_NAME"] = {
+        text = "Nom de la configuration (votre tableau actuel) :",
+        button1 = ACCEPT,
+        button2 = CANCEL,
+        hasEditBox = 1,
+        maxLetters = 32,
+        OnShow = function(self)
+            self.editBox:SetText("")
+            self.editBox:SetFocus()
+        end,
+        OnAccept = function(self) saveAs(self.editBox:GetText()) end,
+        EditBoxOnEnterPressed = function(self)
+            saveAs(self:GetText())
+            self:GetParent():Hide()
+        end,
+        EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+        timeout = 0,
+        whileDead = 1,
+        hideOnEscape = 1,
+    }
+
+    -- The picker shows what the board is: a saved configuration's name, a recommended board's, or its title
+    local picker = CreateFrame("Frame", "ParagonLoadoutPicker", hud, "UIDropDownMenuTemplate")
+    picker:SetPoint("LEFT", resetButton, "RIGHT", -8, -2)
+    UIDropDownMenu_SetWidth(picker, 128)
+    local saveButton, deleteButton
+    UIDropDownMenu_Initialize(picker, function()
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = "Vos configurations"
+        info.isTitle = 1
+        info.notCheckable = 1
+        UIDropDownMenu_AddButton(info)
+        for _, loadout in ipairs(state.loadouts) do
+            info = UIDropDownMenu_CreateInfo()
+            info.text = loadout.name .. "  |cff888888(" .. loadout.points .. " pts)|r"
+            info.checked = state.activeLoadout == loadout.slot
+            info.func = function()
+                local dialog = StaticPopup_Show("PARAGON_LOADOUT_APPLY", loadout.name)
+                if dialog then dialog.data = loadout.slot end
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+        info = UIDropDownMenu_CreateInfo()
+        info.text = "|cff00ccffNouvelle configuration…|r"
+        info.notCheckable = 1
+        info.func = function() StaticPopup_Show("PARAGON_LOADOUT_NAME") end
+        UIDropDownMenu_AddButton(info)
+
+        info = UIDropDownMenu_CreateInfo()
+        info.text = "Recommandé pour votre rôle"
+        info.isTitle = 1
+        info.notCheckable = 1
+        UIDropDownMenu_AddButton(info)
+        for _, preset in ipairs(PRESETS) do
+            info = UIDropDownMenu_CreateInfo()
+            info.text = preset.label
+            info.checked = state.activePreset == preset.id and not state.activeLoadout
+            info.tooltipTitle = preset.title
+            info.tooltipText = preset.text .. "\n\n" .. string.format("Avec vos %d points. Gratuit, comme " ..
+                "changer de talents.", usablePoints())
+            info.func = function()
+                local dialog = StaticPopup_Show("PARAGON_PRESET", preset.title:lower(), usablePoints())
+                if dialog then dialog.data = preset.id end
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+
+    saveButton = control("Enregistrer", 84, function()
+        local loadout = state.activeLoadout and findLoadout(state.activeLoadout)
+        if loadout then
+            SendAddonMessage(PREFIX, "LSAVE\t" .. loadout.slot .. "\t" .. loadout.name, "WHISPER",
+                UnitName("player"))
+        else
+            StaticPopup_Show("PARAGON_LOADOUT_NAME")
+        end
+    end)
+    saveButton:SetPoint("LEFT", picker, "RIGHT", -12, 2)
+    saveButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        local loadout = state.activeLoadout and findLoadout(state.activeLoadout)
+        GameTooltip:SetText(loadout and ("Enregistrer « " .. loadout.name .. " »") or "Enregistrer", 1, 0.82, 0)
+        GameTooltip:AddLine(loadout and "Votre tableau actuel remplace ce qu'elle contenait." or
+            "Enregistre votre tableau actuel sous un nom.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    saveButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    deleteButton = control("Supprimer", 76, function()
+        local loadout = state.activeLoadout and findLoadout(state.activeLoadout)
+        if loadout then
+            local dialog = StaticPopup_Show("PARAGON_LOADOUT_DELETE", loadout.name)
+            if dialog then dialog.data = loadout.slot end
+        end
+    end)
+    deleteButton:SetPoint("LEFT", saveButton, "RIGHT", 4, 0)
+
+    -- The picker's text and the delete button follow the board (refreshLoadouts, from the server's messages). A
+    -- recommended board shows its label in the menu's blue: "Recommandé : Mythique+" does not fit the picker.
+    refreshLoadouts = function()
+        local loadout = state.activeLoadout and findLoadout(state.activeLoadout)
+        local preset = state.activePreset and PRESETS[state.activePreset]
+        UIDropDownMenu_SetText(picker, loadout and loadout.name or
+            (preset and ("|cff00ccff" .. preset.label .. "|r")) or "Configurations")
+        if loadout then deleteButton:Enable() else deleteButton:Disable() end
+    end
+    refreshLoadouts()
 
     -- The summary: every stat the board gives, added up, and the major nodes by name
     bonusPanel = CreateFrame("Frame", nil, hud)
@@ -1934,6 +2117,7 @@ local function handle(message)
         state.cap, state.available = tonumber(cap), tonumber(available)
         state.earned, state.spent = tonumber(earned), tonumber(spent)
         if state.pendingReset then
+            state.activeLoadout, state.activePreset = nil, nil
             -- Glyph_MajorDestroy is audibly Glyph_MajorCreate reversed, so a board being cleared sounds like
             -- the undoing of the nodes that built it
             PlaySound(SOUND_RESET)
@@ -1981,6 +2165,46 @@ local function handle(message)
         if not id then return end
         state.available, state.spent = tonumber(available), tonumber(spent)
         onAllocated(tonumber(id))
+        -- A node taken by hand: the board is no longer the recommended one. A configuration stays picked, so
+        -- Enregistrer writes the new nodes into it.
+        if state.activePreset then
+            state.activePreset = nil
+            if refreshLoadouts then refreshLoadouts() end
+        end
+        return
+    end
+
+    -- The saved configurations come with every state (SendLoadouts): LC clears the list, an L line per one
+    if command == "LC" then
+        state.loadouts = {}
+        if refreshLoadouts then refreshLoadouts() end
+        return
+    end
+
+    if command == "L" then
+        local slot, points, name = rest:match("^(%d+)\t(%d+)\t(.*)$")
+        if slot then
+            table.insert(state.loadouts, { slot = tonumber(slot), points = tonumber(points), name = name })
+            if refreshLoadouts then refreshLoadouts() end
+        end
+        return
+    end
+
+    if command == "LSAVED" then
+        state.activeLoadout, state.activePreset = tonumber(rest), nil
+        PlaySound(SOUND_NOTABLE)
+        if refreshLoadouts then refreshLoadouts() end
+        return
+    end
+
+    if command == "LA" then
+        -- A configuration taken again: the board just redrawn (STATE) flares as a recommended one does
+        local slot = rest:match("^(%d+)")
+        state.activeLoadout, state.activePreset = tonumber(slot), nil
+        PlaySound(SOUND_NOTABLE)
+        PlaySound(SOUND_KEYSTONE)
+        if frame and frame:IsShown() then flashCanvas() end
+        if refreshLoadouts then refreshLoadouts() end
         return
     end
 
@@ -2053,9 +2277,21 @@ local function handle(message)
         return
     end
 
+    if command == "PRESETDONE" then
+        -- A recommended board applied: the board just redrawn (STATE) flares as for a keystone
+        state.pendingPreset = nil
+        state.activePreset, state.activeLoadout = tonumber(rest), nil
+        if refreshLoadouts then refreshLoadouts() end
+        PlaySound(SOUND_NOTABLE)
+        PlaySound(SOUND_KEYSTONE)
+        if frame and frame:IsShown() then flashCanvas() end
+        return
+    end
+
     if command == "ERROR" then
         state.pending = nil
         state.pendingReset = nil
+        state.pendingPreset = nil
         PlaySound(SOUND_DENIED)
         UIErrorsFrame:AddMessage(rest, 1, 0.3, 0.3, 1, 3)
         return

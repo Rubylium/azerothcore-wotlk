@@ -9,6 +9,7 @@
 #include "DatabaseEnv.h"
 #include "Group.h"
 #include "Item.h"
+#include "LiveTuning.h"
 #include "LFGMgr.h"
 #include "Log.h"
 #include "Mail.h"
@@ -28,6 +29,7 @@
 #include "StatGrowthConfig.h"
 #include "StatGrowthSystem.h"
 #include "StringFormat.h"
+#include "Tokenize.h"
 #include "World.h"
 #include "WorldSession.h"
 
@@ -434,6 +436,17 @@ struct ParagonState : public DataMap::Base
     bool bot = false;
     uint32 botBudget = 0;                   // the points the plan was built for
     uint8 botRole = 0;                      // BotRole the plan was built for
+    uint32 botPlanKey = 0;                  // and its branches and content (BotPlanKey): a knob moved, it plans again
+
+    // The boards a player saved (the window's loadouts, as talents keep theirs): character_paragon_loadout
+    struct Loadout
+    {
+        uint8 slot = 0;
+        std::string name;
+        std::vector<uint32> nodes;
+        std::vector<std::pair<uint32, uint32>> sockets;     // glyph, socket
+    };
+    std::vector<Loadout> loadouts;
 
     // Damage the procs owe, dealt on the character's next update rather than from inside the hit or the death that
     // set them off: dealing damage from within the damage hook, or from a kill, can kill a unit the core is still in
@@ -1143,11 +1156,17 @@ void SaveEarned(Player* player, ParagonState const* state)
         player->GetGUID().GetCounter(), state->earned, state->prestige, state->unlocked);
 }
 
-void SaveGlyph(Player* player, uint32 glyphId, ParagonState::GlyphState const& glyph)
+// In a transaction when the board is rebuilt with it: its rows written in the order they were changed
+void SaveGlyph(Player* player, uint32 glyphId, ParagonState::GlyphState const& glyph,
+    CharacterDatabaseTransaction transaction = nullptr)
 {
-    CharacterDatabase.Execute(
+    std::string const query = Acore::StringFormat(
         "REPLACE INTO character_paragon_glyph (guid, glyph, level, experience, socket) VALUES ({}, {}, {}, {}, {})",
         player->GetGUID().GetCounter(), glyphId, glyph.level, glyph.experience, glyph.socket);
+    if (transaction)
+        transaction->Append(query.c_str());
+    else
+        CharacterDatabase.Execute(query.c_str());
 }
 
 // A glyph as the frame reads it: id:level:experience:needed:socket (needed is 0 at the top level)
@@ -1183,6 +1202,15 @@ void SendGlyphs(Player* player, ParagonState const* state)
     Send(player, "GLYPHEND");
 }
 
+// The loadouts, after the state (LC, then one L a loadout: slot, points it holds, name)
+void SendLoadouts(Player* player, ParagonState const* state)
+{
+    Send(player, "LC");
+    for (ParagonState::Loadout const& loadout : state->loadouts)
+        Send(player, Acore::StringFormat("L\t{}\t{}\t{}", loadout.slot,
+            SpentOn(std::unordered_set<uint32>(loadout.nodes.begin(), loadout.nodes.end())), loadout.name));
+}
+
 // The whole board a character holds, as the frame needs it. Chunked because an addon whisper is capped well
 // below what a full allocation would be once the point cap is raised.
 void SendState(Player* player, bool open)
@@ -1212,6 +1240,7 @@ void SendState(Player* player, bool open)
     SendGlyphs(player, state);
     Send(player, Acore::StringFormat("PXP\t{}\t{}\t{}", state->level, state->experience,
         ExperienceForLevel(state->level)));
+    SendLoadouts(player, state);
     Send(player, "DONE");
 }
 
@@ -1268,6 +1297,15 @@ enum class BotRole : uint8
     Healer
 };
 
+// What a plan is for: any content (the bots' boards, measured on the bench), a raid (one target, a long fight) or a
+// Mythic+ key (packs, kills): the recommended boards of the window (PRESET) are the last two
+enum class BoardContent : uint8
+{
+    Any = 0,
+    Raid = 1,
+    Mythic = 2
+};
+
 // The branches, by side (buildParagonTree.py BRANCHES)
 constexpr uint8 SideForce = 0;
 constexpr uint8 SidePuissance = 1;
@@ -1286,7 +1324,7 @@ std::unordered_map<uint32, uint32> InstanceBudgets;
 
 // The walks already planned, by role and budget: the plan is deterministic, so each is worked out once
 std::mutex BotPlanLock;
-std::unordered_map<uint64, std::vector<uint32>> BotPlans;
+std::map<std::tuple<uint32, uint8, uint32>, std::vector<uint32>> BotPlans;   // plan key, role, budget
 
 struct BotParagonTimer : public DataMap::Base
 {
@@ -1294,25 +1332,99 @@ struct BotParagonTimer : public DataMap::Base
 };
 constexpr char const* BotTimerKey = "ParagonBotTimer";
 
-// The branches a role walks, first to last. A branch is finished zone by zone (the gates ask for it anyway) before
-// the next is started.
-std::array<uint8, 3> SidesFor(BotRole role)
+// The branches a role walks, first to last, by content: three digits, 1 Force, 2 Puissance, 3 Agilité, 4 Carapace,
+// 5 Arcanes, 6 Intellect. A branch is finished zone by zone (the gates ask for it anyway) before the next is started,
+// so with many points the content's weights alone change little: which branch comes second is the choice that
+// counts. Live knobs, so the simulation bench compares orders without a build (paragon.bot_content puts its bots on
+// a content's plan). Any: the bots' boards, what the spec balance is measured with.
+struct SideKnobs
 {
-    switch (role)
+    LiveTuning::KnobUInt any;
+    LiveTuning::KnobUInt raid;
+    LiveTuning::KnobUInt mythic;
+};
+
+// Measured on the simulation bench (2026-10-09, 340/300 and 460/650, the boss and packs of 5 and 12): every other
+// first or second branch cost a role 6 to 80% of its damage, but an agility fighter's packs, 2 to 8% better on
+// Puissance first. Bots keep the any order the spec balance was measured with.
+SideKnobs const StrengthSides = { { "paragon.sides.strength", 123 }, { "paragon.sides.strength.raid", 123 },
+    { "paragon.sides.strength.mythic", 123 } };
+SideKnobs const AgilitySides = { { "paragon.sides.agility", 321 }, { "paragon.sides.agility.raid", 321 },
+    { "paragon.sides.agility.mythic", 231 } };
+SideKnobs const CasterSides = { { "paragon.sides.caster", 564 }, { "paragon.sides.caster.raid", 564 },
+    { "paragon.sides.caster.mythic", 564 } };
+SideKnobs const HealerSides = { { "paragon.sides.healer", 654 }, { "paragon.sides.healer.raid", 654 },
+    { "paragon.sides.healer.mythic", 654 } };
+SideKnobs const TankSides = { { "paragon.sides.tank", 431 }, { "paragon.sides.tank.raid", 431 },
+    { "paragon.sides.tank.mythic", 431 } };
+// The content the bots' boards are planned for: 0 any (the live server), 1 a raid's, 2 a key's (the bench)
+LiveTuning::KnobUInt const BotContentKnob("paragon.bot_content", 0);
+
+uint32 SidesCode(BotRole role, BoardContent content)
+{
+    SideKnobs const& knobs = role == BotRole::Tank ? TankSides : role == BotRole::Agility ? AgilitySides :
+        role == BotRole::Caster ? CasterSides : role == BotRole::Healer ? HealerSides : StrengthSides;
+    return content == BoardContent::Raid ? knobs.raid.Get() : content == BoardContent::Mythic ? knobs.mythic.Get() :
+        knobs.any.Get();
+}
+
+std::array<uint8, 3> SidesFor(BotRole role, BoardContent content)
+{
+    uint32 const code = SidesCode(role, content);
+    std::array<uint8, 3> const digits = { uint8(code / 100 % 10), uint8(code / 10 % 10), uint8(code % 10) };
+    std::array<uint8, 3> sides = {};
+    for (std::size_t index = 0; index < digits.size(); ++index)
+        sides[index] = digits[index] >= 1 && digits[index] <= 6 ? uint8(digits[index] - 1) : SideCarapace;
+    return sides;
+}
+
+uint32 BotPlanKey(BotRole role, BoardContent content)
+{
+    return SidesCode(role, content) * 4 + uint32(content);
+}
+
+float RoleUsefulness(BotRole role, ParagonEffect effect);
+
+// What an effect is worth to a damage dealer for a content: a raid's boss is one target that lives long (a double
+// strike, an execute, a fury, a caster's echo; nothing on a kill nor beside the target), a key's packs are many that
+// die (a splash, an arc, a blast on a kill, a kill streak, their reach; and a little more to live through them)
+float ContentFactor(BotRole role, ParagonEffect effect, BoardContent content)
+{
+    if (content == BoardContent::Any || role == BotRole::Tank || role == BotRole::Healer || role == BotRole::None)
+        return 1.0f;
+    switch (effect)
     {
-        case BotRole::Tank: return { SideCarapace, SideAgilite, SideForce };
-        case BotRole::Agility: return { SideAgilite, SidePuissance, SideForce };
-        case BotRole::Caster: return { SideArcanes, SideIntellect, SideCarapace };
-        case BotRole::Healer: return { SideIntellect, SideArcanes, SideCarapace };
-        case BotRole::Strength:
+        case ParagonEffect::DoubleStrike:
+        case ParagonEffect::Execute:
+        case ParagonEffect::ExecuteReach:
+        case ParagonEffect::FuryOnHit:
+        case ParagonEffect::Echo:
+        case ParagonEffect::DamagePct:
+            return content == BoardContent::Raid ? 1.5f : 1.0f;
+        case ParagonEffect::Explosion:
+        case ParagonEffect::SurgeOnKill:
+        case ParagonEffect::KillStreak:
+        case ParagonEffect::Splash:
+        case ParagonEffect::Arc:
+        case ParagonEffect::AreaReach:
+            return content == BoardContent::Raid ? 0.3f : 1.5f;
+        case ParagonEffect::Leech:
+        case ParagonEffect::HealthPct:
+        case ParagonEffect::ReductionPct:
+            return content == BoardContent::Mythic ? 1.5f : 1.0f;
         default:
-            return { SideForce, SidePuissance, SideAgilite };
+            return 1.0f;
     }
+}
+
+float Usefulness(BotRole role, ParagonEffect effect, BoardContent content = BoardContent::Any)
+{
+    return RoleUsefulness(role, effect) * ContentFactor(role, effect, content);
 }
 
 // What an effect is worth to a role, against a plain stat: the walk reaches for what the role uses first when the
 // points do not cover a whole zone. Everything of a zone is taken in the end; only the order changes.
-float Usefulness(BotRole role, ParagonEffect effect)
+float RoleUsefulness(BotRole role, ParagonEffect effect)
 {
     constexpr float Wanted = 3.0f;
     constexpr float Neutral = 1.0f;
@@ -1369,11 +1481,11 @@ float Usefulness(BotRole role, ParagonEffect effect)
 constexpr uint8 NodeTypeNotable = 1;
 constexpr float PlainNotableWorth = 1.5f;
 
-float NodeWeight(BotRole role, ParagonNode const& node)
+float NodeWeight(BotRole role, ParagonNode const& node, BoardContent content)
 {
     ParagonEffect const effect = static_cast<ParagonEffect>(node.effect);
     bool const plain = effect == ParagonEffect::Stat || effect == ParagonEffect::Armor;
-    float const worth = plain && node.type == NodeTypeNotable ? PlainNotableWorth : Usefulness(role, effect);
+    float const worth = plain && node.type == NodeTypeNotable ? PlainNotableWorth : Usefulness(role, effect, content);
     return float(NodeCost(node)) * worth;
 }
 
@@ -1388,8 +1500,8 @@ bool IsHeld(std::unordered_set<uint32> const& held, uint32 nodeId)
 // worth the most per point spent getting there - the path's nodes' weights over their costs - so a keystone a few
 // minor nodes away is reached before the minor nodes around the hub are all bought.
 template <typename Accept>
-void WalkPhase(BotRole role, uint32 budget, std::unordered_set<uint32>& held, std::vector<uint32>& order,
-    uint32& spent, Accept const& inPhase)
+void WalkPhase(BotRole role, BoardContent content, uint32 budget, std::unordered_set<uint32>& held,
+    std::vector<uint32>& order, uint32& spent, Accept const& inPhase)
 {
     std::vector<uint32> candidates;
     for (auto const& [nodeId, node] : Board)
@@ -1429,7 +1541,7 @@ void WalkPhase(BotRole role, uint32 budget, std::unordered_set<uint32>& held, st
                 if (IsHeld(held, neighbour))
                 {
                     ParagonNode const& node = Board.at(nodeId);
-                    steps[nodeId] = { NodeCost(node), NodeWeight(role, node), 0, false };
+                    steps[nodeId] = { NodeCost(node), NodeWeight(role, node, content), 0, false };
                     break;
                 }
         }
@@ -1460,7 +1572,7 @@ void WalkPhase(BotRole role, uint32 budget, std::unordered_set<uint32>& held, st
                     continue;
                 ParagonNode const& node = Board.at(neighbour);
                 uint32 const cost = fromCost + NodeCost(node);
-                float const weight = fromWeight + NodeWeight(role, node);
+                float const weight = fromWeight + NodeWeight(role, node, content);
                 Step& to = steps[neighbour];
                 if (to.settled)
                     continue;
@@ -1523,30 +1635,30 @@ void WalkPhase(BotRole role, uint32 budget, std::unordered_set<uint32>& held, st
     }
 }
 
-std::vector<uint32> PlanBotBoard(BotRole role, uint32 budget)
+std::vector<uint32> PlanBotBoard(BotRole role, uint32 budget, BoardContent content)
 {
     std::unordered_set<uint32> held;
     std::vector<uint32> order;
     uint32 spent = 0;
 
-    std::array<uint8, 3> const sides = SidesFor(role);
+    std::array<uint8, 3> const sides = SidesFor(role, content);
     for (std::size_t index = 0; index < sides.size() && spent < budget; ++index)
     {
         uint8 const side = sides[index];
         for (uint8 tier = 0; tier < TierCount && spent < budget; ++tier)
-            WalkPhase(role, budget, held, order, spent,
+            WalkPhase(role, content, budget, held, order, spent,
                 [side, tier](ParagonNode const& node) { return node.side == side && node.tier == tier; });
 
         // The first branch done, the bridges before the next branch: they are open to anyone next to them
         if (index == 0 && spent < budget)
-            WalkPhase(role, budget, held, order, spent,
+            WalkPhase(role, content, budget, held, order, spent,
                 [](ParagonNode const& node) { return node.side == NoSide; });
     }
 
     // Whatever is left, anywhere the rules allow: the remaining branches, zone by zone
     for (uint8 tier = 0; tier < TierCount && spent < budget; ++tier)
         for (uint8 side = 0; side <= SideIntellect && spent < budget; ++side)
-            WalkPhase(role, budget, held, order, spent,
+            WalkPhase(role, content, budget, held, order, spent,
                 [side, tier](ParagonNode const& node) { return node.side == side && node.tier == tier; });
 
     return order;
@@ -1597,14 +1709,14 @@ void PlanBotGlyphs(ParagonState* state, BotRole role, uint32 budget)
     }
 }
 
-std::vector<uint32> GetBotPlan(BotRole role, uint32 budget)
+std::vector<uint32> GetBotPlan(BotRole role, uint32 budget, BoardContent content = BoardContent::Any)
 {
-    uint64 const key = uint64(role) << 32 | budget;
+    auto const key = std::make_tuple(BotPlanKey(role, content), uint8(role), budget);
     std::lock_guard<std::mutex> guard(BotPlanLock);
     auto itr = BotPlans.find(key);
     if (itr == BotPlans.end())
     {
-        itr = BotPlans.emplace(key, PlanBotBoard(role, budget)).first;
+        itr = BotPlans.emplace(key, PlanBotBoard(role, budget, content)).first;
         LOG_DEBUG("module", "Paragon: bot plan role={} budget={} nodes={} spent={}", uint32(role), budget,
             itr->second.size(), SpentOn(std::unordered_set<uint32>(itr->second.begin(), itr->second.end())));
     }
@@ -1781,7 +1893,10 @@ void RefreshBot(Player* bot, bool force = false)
     }
 
     BotRole const role = RoleOf(bot, state ? static_cast<BotRole>(state->botRole) : BotRole::None);
-    if (state && state->applied && state->botBudget == budget && state->botRole == uint8(role))
+    BoardContent const content = static_cast<BoardContent>(std::min<uint32>(BotContentKnob.Get(), 2));
+    uint32 const planKey = BotPlanKey(role, content);
+    if (state && state->applied && state->botBudget == budget && state->botRole == uint8(role) &&
+        state->botPlanKey == planKey)
         return;
 
     if (!state)
@@ -1792,7 +1907,7 @@ void RefreshBot(Player* bot, bool force = false)
     StripBotBoard(bot, state);
     state->allocated.clear();
 
-    std::vector<uint32> const plan = GetBotPlan(role, budget);
+    std::vector<uint32> const plan = GetBotPlan(role, budget, content);
     state->allocated.insert(plan.begin(), plan.end());
     for (uint32 nodeId : plan)
         if (auto const node = Board.find(nodeId); node != Board.end())
@@ -1804,6 +1919,7 @@ void RefreshBot(Player* bot, bool force = false)
     state->applied = true;
     state->botBudget = budget;
     state->botRole = uint8(role);
+    state->botPlanKey = planKey;
     bot->UpdateMaxHealth();
 
     LOG_DEBUG("module", "Paragon: bot {} role={} budget={} spent={} procs={} glyphs={}", bot->GetName(), uint32(role),
@@ -2044,6 +2160,33 @@ void LoadParagonForPlayer(Player* player)
         state->overCapReset = true;
         CharacterDatabase.Execute("DELETE FROM character_paragon WHERE guid = {}", guid);
     }
+
+    // The saved boards (loadouts): nodes and sockets as comma lists, socket pairs "glyph:socket"
+    state->loadouts.clear();
+    if (QueryResult result = CharacterDatabase.Query(
+            "SELECT slot, name, nodes, sockets FROM character_paragon_loadout WHERE guid = {} ORDER BY slot", guid))
+        do
+        {
+            Field* field = result->Fetch();
+            ParagonState::Loadout loadout;
+            loadout.slot = field[0].Get<uint8>();
+            loadout.name = field[1].Get<std::string>();
+            std::string const nodeList = field[2].Get<std::string>();
+            std::string const socketList = field[3].Get<std::string>();
+            for (std::string_view const token : Acore::Tokenize(nodeList, ',', false))
+                if (uint32 const nodeId = uint32(std::strtoul(std::string(token).c_str(), nullptr, 10));
+                    Board.count(nodeId))
+                    loadout.nodes.push_back(nodeId);
+            for (std::string_view const token : Acore::Tokenize(socketList, ',', false))
+            {
+                std::size_t const colon = token.find(':');
+                if (colon == std::string_view::npos)
+                    continue;
+                loadout.sockets.emplace_back(uint32(std::strtoul(std::string(token.substr(0, colon)).c_str(), nullptr,
+                    10)), uint32(std::strtoul(std::string(token.substr(colon + 1)).c_str(), nullptr, 10)));
+            }
+            state->loadouts.push_back(std::move(loadout));
+        } while (result->NextRow());
 
     // The glyphs known. One in a socket the board no longer holds (a reset, a reshaped board) goes back to the
     // collection: it is never lost, only unset.
@@ -2544,6 +2687,224 @@ bool UseParagonGlyphItem(Player* player, uint32 itemEntry)
     return true;
 }
 
+// The board as RESET leaves it: nodes off, buffs gone, sockets emptied (their glyphs back to the collection, levels
+// kept), its rows deleted in the transaction that rebuilds it, so no query can run ahead of another
+void ClearBoard(Player* player, ParagonState* state, CharacterDatabaseTransaction transaction)
+{
+    RemoveGlyphLayer(player, state);
+    for (uint32 nodeId : state->allocated)
+        if (auto const node = Board.find(nodeId); node != Board.end())
+            ApplyNode(player, node->second, false);
+    state->allocated.clear();
+    ClearBuffs(player, state);
+    for (auto& [glyphId, glyph] : state->glyphs)
+        if (glyph.socket)
+        {
+            glyph.socket = 0;
+            SaveGlyph(player, glyphId, glyph, transaction);
+        }
+    transaction->Append("DELETE FROM character_paragon WHERE guid = {}", player->GetGUID().GetCounter());
+}
+
+// The role a player's recommended boards are for, as the window names it
+char const* RoleName(BotRole role, bool french)
+{
+    switch (role)
+    {
+        case BotRole::Tank: return french ? "tank" : "tank";
+        case BotRole::Healer: return french ? "soigneur" : "healer";
+        case BotRole::Caster: return french ? "lanceur de sorts" : "caster";
+        case BotRole::Agility: return french ? "combattant d'agilité" : "agility fighter";
+        default: return french ? "combattant de force" : "strength fighter";
+    }
+}
+
+// The current glyph sockets, glyph and socket
+std::vector<std::pair<uint32, uint32>> CurrentSockets(ParagonState const* state)
+{
+    std::vector<std::pair<uint32, uint32>> sockets;
+    for (auto const& [glyphId, glyph] : state->glyphs)
+        if (glyph.socket)
+            sockets.emplace_back(glyphId, glyph.socket);
+    return sockets;
+}
+
+// A whole board at once, free (a recommended board, a loadout): the board cleared, then the nodes taken under the rules
+// a click obeys - each node checked as it is taken, in passes until none more can be, so a saved set needs no order -
+// as far as the usable points go; then the glyphs back into their sockets where the new board holds them. Returns the
+// points spent.
+uint32 ApplyBoard(Player* player, ParagonState* state, std::vector<uint32> const& nodes,
+    std::vector<std::pair<uint32, uint32>> const& sockets)
+{
+    CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
+    ClearBoard(player, state, transaction);
+    uint32 const guid = player->GetGUID().GetCounter();
+    std::vector<uint32> remaining = nodes;
+    bool progress = true;
+    while (progress && !remaining.empty())
+    {
+        progress = false;
+        for (auto itr = remaining.begin(); itr != remaining.end();)
+        {
+            auto const entry = Board.find(*itr);
+            if (entry == Board.end() || entry->second.free || state->allocated.count(*itr))
+            {
+                itr = remaining.erase(itr);
+                continue;
+            }
+            ParagonNode const& node = entry->second;
+            if (AvailablePoints(state) < NodeCost(node) || SpentPoints(state) < node.required ||
+                MissingForTier(state->allocated, node) || !IsReachable(state, *itr))
+            {
+                ++itr;
+                continue;
+            }
+            state->allocated.insert(*itr);
+            ApplyNode(player, node, true);
+            transaction->Append("INSERT INTO character_paragon (guid, node) VALUES ({}, {})", guid, *itr);
+            itr = remaining.erase(itr);
+            progress = true;
+        }
+    }
+
+    for (auto const& [glyphId, socket] : sockets)
+        if (state->allocated.count(socket))
+            if (auto const glyph = state->glyphs.find(glyphId); glyph != state->glyphs.end())
+            {
+                // One glyph a socket: whatever another loadout left there goes back to the collection
+                for (auto& [otherId, other] : state->glyphs)
+                    if (other.socket == socket && otherId != glyphId)
+                    {
+                        other.socket = 0;
+                        SaveGlyph(player, otherId, other, transaction);
+                    }
+                glyph->second.socket = socket;
+                SaveGlyph(player, glyphId, glyph->second, transaction);
+            }
+    CharacterDatabase.CommitTransaction(transaction);
+    RefreshGlyphs(player, state);
+    player->UpdateMaxHealth();
+    SendState(player, false);
+    return SpentPoints(state);
+}
+
+// A recommended board (the window's presets): the player's usable points spent as the planner spends them for the
+// player's role and that content (its branch order: SidesFor), applied free as talents switch
+void ApplyPreset(Player* player, ParagonState* state, BoardContent content)
+{
+    bool const french = IsFrench(player);
+    if (player->IsInCombat())
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Impossible en combat." : "Not while in combat."));
+        return;
+    }
+
+    BotRole const role = RoleOf(player, BotRole::None);
+    uint32 const usable = std::min(state->earned, PointCap(state));
+    ApplyBoard(player, state, GetBotPlan(role, usable, content), CurrentSockets(state));
+
+    ChatHandler(player->GetSession()).PSendSysMessage(french
+        ? "|cffffd100Tableau recommandé ({}, {}) appliqué :|r {} points répartis."
+        : "|cffffd100Recommended board ({}, {}) applied:|r {} points spent.",
+        content == BoardContent::Raid ? (french ? "raid" : "raid") : (french ? "Mythique+" : "Mythic+"),
+        RoleName(role, french), SpentPoints(state));
+    Send(player, Acore::StringFormat("PRESETDONE\t{}", uint32(content)));
+    RefreshGroupBots(player);
+}
+
+// --- Loadouts: boards a player saves under a name and switches to for free, as talents keep theirs (up to 10) -----
+constexpr uint8 MaxLoadouts = 10;
+constexpr std::size_t MaxLoadoutName = 32;
+
+ParagonState::Loadout* FindLoadout(ParagonState* state, uint8 slot)
+{
+    for (ParagonState::Loadout& loadout : state->loadouts)
+        if (loadout.slot == slot)
+            return &loadout;
+    return nullptr;
+}
+
+// LSAVE <slot> <name>: the board as it stands now, under that name (a slot saved again is overwritten)
+void SaveLoadout(Player* player, ParagonState* state, std::string_view arguments)
+{
+    bool const french = IsFrench(player);
+    std::size_t const tab = arguments.find('\t');
+    uint8 const slot = uint8(std::strtoul(std::string(arguments.substr(0, tab)).c_str(), nullptr, 10));
+    std::string name = tab == std::string_view::npos ? std::string() : std::string(arguments.substr(tab + 1));
+    std::erase_if(name, [](char c) { return c == '|' || c == '\t' || c == '\n' || c == '\r'; });
+    if (name.size() > MaxLoadoutName)
+        name.resize(MaxLoadoutName);
+    if (slot < 1 || slot > MaxLoadouts || name.find_first_not_of(' ') == std::string::npos)
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Configuration invalide." : "Invalid loadout."));
+        return;
+    }
+
+    ParagonState::Loadout* loadout = FindLoadout(state, slot);
+    if (!loadout)
+    {
+        state->loadouts.push_back({});
+        loadout = &state->loadouts.back();
+        loadout->slot = slot;
+        std::sort(state->loadouts.begin(), state->loadouts.end(),
+            [](auto const& left, auto const& right) { return left.slot < right.slot; });
+        loadout = FindLoadout(state, slot);
+    }
+    loadout->name = name;
+    loadout->nodes.assign(state->allocated.begin(), state->allocated.end());
+    std::sort(loadout->nodes.begin(), loadout->nodes.end());
+    loadout->sockets = CurrentSockets(state);
+
+    std::string nodes;
+    for (uint32 nodeId : loadout->nodes)
+        nodes += (nodes.empty() ? "" : ",") + std::to_string(nodeId);
+    std::string sockets;
+    for (auto const& [glyphId, socket] : loadout->sockets)
+        sockets += (sockets.empty() ? "" : ",") + Acore::StringFormat("{}:{}", glyphId, socket);
+    std::string escaped = name;
+    CharacterDatabase.EscapeString(escaped);
+    CharacterDatabase.Execute("REPLACE INTO character_paragon_loadout (guid, slot, name, nodes, sockets) "
+        "VALUES ({}, {}, '{}', '{}', '{}')", player->GetGUID().GetCounter(), slot, escaped, nodes, sockets);
+    SendLoadouts(player, state);
+    Send(player, Acore::StringFormat("LSAVED\t{}", slot));
+}
+
+void DeleteLoadout(Player* player, ParagonState* state, uint8 slot)
+{
+    std::erase_if(state->loadouts, [slot](ParagonState::Loadout const& loadout) { return loadout.slot == slot; });
+    CharacterDatabase.Execute("DELETE FROM character_paragon_loadout WHERE guid = {} AND slot = {}",
+        player->GetGUID().GetCounter(), slot);
+    SendLoadouts(player, state);
+}
+
+void ApplyLoadout(Player* player, ParagonState* state, uint8 slot)
+{
+    bool const french = IsFrench(player);
+    ParagonState::Loadout const* loadout = FindLoadout(state, slot);
+    if (!loadout)
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Cette configuration n'existe plus."
+                                                      : "That loadout no longer exists."));
+        return;
+    }
+    if (player->IsInCombat())
+    {
+        Send(player, std::string("ERROR\t") + (french ? "Impossible en combat." : "Not while in combat."));
+        return;
+    }
+    // Copied: applying sends the state, and nothing may hold on to the loadout meanwhile
+    std::vector<uint32> const nodes = loadout->nodes;
+    std::vector<std::pair<uint32, uint32>> const sockets = loadout->sockets;
+    std::string const name = loadout->name;
+    uint32 const total = SpentOn(std::unordered_set<uint32>(nodes.begin(), nodes.end()));
+    uint32 const spent = ApplyBoard(player, state, nodes, sockets);
+    ChatHandler(player->GetSession()).PSendSysMessage(french
+        ? "|cffffd100Configuration « {} » appliquée :|r {} / {} points."
+        : "|cffffd100Loadout \"{}\" applied:|r {} / {} points.", name, spent, total);
+    Send(player, Acore::StringFormat("LA\t{}\t{}\t{}", slot, spent, total));
+    RefreshGroupBots(player);
+}
+
 void HandleParagonAddonMessage(Player* player, uint32 language, std::string const& message)
 {
     if (!player || language != LANG_ADDON || !message.starts_with(Prefix))
@@ -2577,29 +2938,40 @@ void HandleParagonAddonMessage(Player* player, uint32 language, std::string cons
             return;
         }
 
-        RemoveGlyphLayer(player, state);
-        for (uint32 nodeId : state->allocated)
-            if (auto const node = Board.find(nodeId); node != Board.end())
-                ApplyNode(player, node->second, false);
-
-        state->allocated.clear();
-        ClearBuffs(player, state);
         // The sockets are gone with the rest: their glyphs go back to the collection, levels kept
-        for (auto& [glyphId, glyph] : state->glyphs)
-            if (glyph.socket)
-            {
-                glyph.socket = 0;
-                SaveGlyph(player, glyphId, glyph);
-            }
+        CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
+        ClearBoard(player, state, transaction);
+        CharacterDatabase.CommitTransaction(transaction);
         RefreshGlyphs(player, state);
         player->UpdateMaxHealth();
-        CharacterDatabase.Execute("DELETE FROM character_paragon WHERE guid = {}",
-            player->GetGUID().GetCounter());
 
         SendState(player, false);
         chat.SendSysMessage(french ? "Votre tableau de parangon a été réinitialisé."
                                    : "Your paragon board has been reset.");
         RefreshGroupBots(player);
+        return;
+    }
+
+    // A recommended board: PRESET 1 a raid's, PRESET 2 a key's
+    if (body == "PRESET\t1" || body == "PRESET\t2")
+    {
+        ApplyPreset(player, state, body.back() == '1' ? BoardContent::Raid : BoardContent::Mythic);
+        return;
+    }
+    // The loadouts: saved, deleted, applied
+    if (body.starts_with("LSAVE\t"))
+    {
+        SaveLoadout(player, state, body.substr(6));
+        return;
+    }
+    if (body.starts_with("LDEL\t"))
+    {
+        DeleteLoadout(player, state, uint8(std::strtoul(std::string(body.substr(5)).c_str(), nullptr, 10)));
+        return;
+    }
+    if (body.starts_with("LAPPLY\t"))
+    {
+        ApplyLoadout(player, state, uint8(std::strtoul(std::string(body.substr(7)).c_str(), nullptr, 10)));
         return;
     }
 
@@ -3539,19 +3911,9 @@ bool SetParagonForTest(Player* player, uint32 points)
     if (!state || player->IsInCombat())
         return false;
 
-    // The board as RESET leaves it: nodes off, sockets emptied (their glyphs back to the collection, levels kept)
-    RemoveGlyphLayer(player, state);
-    for (uint32 nodeId : state->allocated)
-        if (auto const node = Board.find(nodeId); node != Board.end())
-            ApplyNode(player, node->second, false);
-    state->allocated.clear();
-    ClearBuffs(player, state);
-    for (auto& [glyphId, glyph] : state->glyphs)
-        if (glyph.socket)
-        {
-            glyph.socket = 0;
-            SaveGlyph(player, glyphId, glyph);
-        }
+    // The board as RESET leaves it, in the transaction that spends it again
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    ClearBoard(player, state, trans);
 
     // The points earned and unlocked, at least that many
     uint32 const base = statGrowthConfig.GetConfigValue<uint32>(StatGrowthConfigKey::ParagonPointCap);
@@ -3561,8 +3923,6 @@ bool SetParagonForTest(Player* player, uint32 points)
 
     // Spent as a bot of its role spends that many (PlanBotBoard: the bench's reference)
     uint32 const guid = player->GetGUID().GetCounter();
-    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-    trans->Append("DELETE FROM character_paragon WHERE guid = {}", guid);
     for (uint32 nodeId : GetBotPlan(RoleOf(player, BotRole::None), points))
         if (auto const node = Board.find(nodeId); node != Board.end())
         {

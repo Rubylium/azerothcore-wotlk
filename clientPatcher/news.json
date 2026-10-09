@@ -1,5 +1,12 @@
 [
   {
+    "Title": "Parangon : configurations",
+    "Date": "2026-10-09",
+    "Tag": "Parangon",
+    "Image": "pantheon",
+    "Body": "Comme pour les talents, vous pouvez désormais enregistrer vos tableaux de Parangon et passer de l'un à l'autre gratuitement, depuis la fenêtre du Parangon.\n\n- Jusqu'à 10 configurations par personnage, glyphes compris.\n- Un tableau recommandé pour votre rôle, en raid ou en Mythique+, réparti selon vos points.\n- Impossible de changer de configuration en combat."
+  },
+  {
     "Title": "Équilibrage des classes et des raids",
     "Date": "2026-10-09",
     "Tag": "Classe",
