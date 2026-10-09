@@ -7,6 +7,10 @@
 -- second rank rings out; a masterwork strikes a fourth, golden blow and takes two ranks; the eighth makes the piece a
 -- masterpiece, announced across the screen. The Forge is marked on the world map, where the smith stands.
 --
+-- Legendaries and Uniques are never forged for gold: the smith reinforces them with a Cœur d'étoile captive, a few item
+-- levels a success, up to the best raid's gear (mod-legendary Legendary.h, Reinforce). The closer to it, the likelier
+-- the star goes out on the anvil; each failure makes the next attempt on that piece likelier.
+--
 -- Forged gear shows it outside the window too: its icon smoulders in the bags and on the character sheet, more with
 -- every rank, and its tooltip tells what the smith was paid for it. The smith remembers his customers: the window
 -- shows the player's standing with him, what it brings, and how far the next one is.
@@ -114,7 +118,19 @@ local TEXT = french and {
         [4] = "Vous n'avez pas assez d'or.",
         [5] = "Impossible en combat.",
         [6] = "Impossible une fois mort.",
+        [7] = "Il vous faut un Cœur d'étoile captive.",
     },
+    material = "Matériau",
+    materialCount = "Dans vos sacs : %d",
+    chance = "Chance de réussite : %s %%",
+    pity = "%d échec(s) : chance accrue",
+    reinforce = "Renforcer",
+    reinforcing = "Le forgeron fait fondre l'étoile…",
+    reinforced = "%s est renforcé : niveau d'objet %d !",
+    notReinforced = "L'étoile s'est éteinte : le renforcement a échoué.",
+    legendaryMaxed = "Au niveau du meilleur raid : plus rien ne peut le renforcer.",
+    legendaryTop = "Renforcé au maximum !",
+    legendaryTopLine = "Niveau d'objet %d",
 } or {
     title = "The Forge",
     heading = "The Forge",
@@ -161,7 +177,19 @@ local TEXT = french and {
         [4] = "You do not have enough gold.",
         [5] = "Not while in combat.",
         [6] = "Not while dead.",
+        [7] = "You need a Captive Star Heart.",
     },
+    material = "Material",
+    materialCount = "In your bags: %d",
+    chance = "Chance of success: %s%%",
+    pity = "%d failure(s): chance raised",
+    reinforce = "Reinforce",
+    reinforcing = "The blacksmith melts the star down…",
+    reinforced = "%s is reinforced: item level %d!",
+    notReinforced = "The star went out: the reinforcement failed.",
+    legendaryMaxed = "At the best raid's level: nothing can reinforce it further.",
+    legendaryTop = "Fully reinforced!",
+    legendaryTopLine = "Item level %d",
 }
 
 local state = { items = {}, maxRank = MAX_RANK, selected = nil, working = false, spent = 0, standing = 0 }
@@ -565,7 +593,15 @@ local function RefreshList()
             IsWorn(item) and TEXT.worn or TEXT.bags))
         local length = TrackLength(item)
         row.rank:SetText(format("%d/%d", item.rank, length))
-        if item.rank >= MAX_RANK then
+        if item.legendary then
+            -- Its item level out of the best raid's
+            row.rank:SetText(format("%d/%d", item.itemLevel, item.cap))
+            if item.nextItemLevel == 0 then
+                row.rank:SetTextColor(1, 0.86, 0.45)
+            else
+                row.rank:SetTextColor(1, 0.5, 0)
+            end
+        elseif item.rank >= MAX_RANK then
             row.rank:SetTextColor(1, 0.86, 0.45)
         elseif item.rank > 0 then
             row.rank:SetTextColor(1, 0.6, 0.25)
@@ -594,6 +630,45 @@ end
 
 -- The anvil --------------------------------------------------------------------------------------------------------
 
+local function MaterialCount()
+    return state.material and GetItemCount(state.material) or 0
+end
+
+-- A legendary on the anvil: no gold and no ranks - one Cœur d'étoile captive an attempt, its chance, and its item level
+-- climbing towards the best raid's
+local function ShowLegendary(item)
+    local maxed = item.nextItemLevel == 0
+    anvil.masterGlow:SetAlpha(maxed and 0.55 or 0)
+    anvil.preview:Hide()
+    for _, line in ipairs(anvil.gains) do
+        line:Hide()
+    end
+    anvil.gainsPending = false
+    anvil.gainsLabel:Hide()
+    anvil.costLabel:SetText(TEXT.material)
+    anvil.purseLabel:SetText(format(TEXT.materialCount, MaterialCount()))
+    anvil.money:SetText("")
+    anvil.invested:SetText("")
+    anvil.button:SetText(TEXT.reinforce)
+    if maxed then
+        anvil.levels:SetText(format("|cffffe0a0%d|r", item.itemLevel))
+        anvil.rank:SetText("")
+        anvil.cost:SetText("")
+        anvil.status:SetText(TEXT.legendaryMaxed)
+    else
+        anvil.levels:SetText(format("|cffc8b89a%d|r  |cffb08850>|r  |cffffd060%d|r", item.itemLevel,
+            item.nextItemLevel))
+        local chance = item.chance >= 100 and "100" or format("%.1f", item.chance)
+        anvil.rank:SetText(format(TEXT.chance, chance) ..
+            (item.fails > 0 and ("  ·  " .. format(TEXT.pity, item.fails)) or ""))
+        local name, _, icon = ItemInfo(state.material)
+        anvil.cost:SetText(format("|T%s:16|t 1 %s", icon, name or ""))
+        anvil.status:SetText(state.working and TEXT.reinforcing or "")
+    end
+    SetShown(anvil.costLabel, not maxed)
+    SetEnabled(anvil.button, not maxed and not state.working and MaterialCount() > 0)
+end
+
 function RefreshAnvil(animate)
     local item = state.selected and state.items[state.selected]
     SetShown(anvil.content, item ~= nil)
@@ -607,39 +682,47 @@ function RefreshAnvil(animate)
     anvil.icon:SetTexture(icon)
     anvil.name:SetText(name or "…")
     anvil.name:SetTextColor(QualityColor(quality))
-    SetTrack(anvil.track, item.rank, TrackLength(item))
-    anvil.rank:SetText(format(TEXT.rank, item.rank, TrackLength(item)))
-    anvil.money:SetText(GetCoinTextureString(GetMoney()))
-    anvil.invested:SetText(item.invested > 0 and format(TEXT.invested, GetCoinTextureString(item.invested)) or "")
-    anvil.masterGlow:SetAlpha(item.rank >= MAX_RANK and 0.55 or 0)
-
-    local maxed = item.nextEntry == 0
-    if maxed then
-        anvil.levels:SetText(format("|cffffe0a0%d|r", item.itemLevel))
-        anvil.cost:SetText("")
-        anvil.status:SetText(TEXT.maxed)
+    SetShown(anvil.trackHolder, not item.legendary)
+    if item.legendary then
+        ShowLegendary(item)
     else
-        anvil.levels:SetText(format("|cffc8b89a%d|r  |cffb08850>|r  |cffffd060%d|r", item.itemLevel,
-            item.nextItemLevel))
-        anvil.cost:SetText(GetCoinTextureString(item.cost))
-        anvil.status:SetText(state.working and TEXT.working or "")
-    end
-    SetShown(anvil.costLabel, not maxed)
-    SetEnabled(anvil.button, not maxed and not state.working and GetMoney() >= item.cost)
-    ShowGains(item)
+        anvil.costLabel:SetText(TEXT.price)
+        anvil.purseLabel:SetText(TEXT.purse)
+        anvil.button:SetText(TEXT.forge)
+        SetTrack(anvil.track, item.rank, TrackLength(item))
+        anvil.rank:SetText(format(TEXT.rank, item.rank, TrackLength(item)))
+        anvil.money:SetText(GetCoinTextureString(GetMoney()))
+        anvil.invested:SetText(item.invested > 0 and format(TEXT.invested, GetCoinTextureString(item.invested)) or "")
+        anvil.masterGlow:SetAlpha(item.rank >= MAX_RANK and 0.55 or 0)
 
-    -- What it becomes: the next rank's own tooltip, beside the window
-    local preview = anvil.preview
-    if maxed then
-        preview:Hide()
-    else
-        preview:SetOwner(frame, "ANCHOR_NONE")
-        preview:ClearAllPoints()
-        preview:SetPoint("TOPLEFT", frame, "TOPRIGHT", -6, -60)
-        preview:SetHyperlink("item:" .. item.nextEntry)
-        preview:AddLine(" ")
-        preview:AddLine(TEXT.preview, 1, 0.62, 0.25)
-        preview:Show()
+        local maxed = item.nextEntry == 0
+        if maxed then
+            anvil.levels:SetText(format("|cffffe0a0%d|r", item.itemLevel))
+            anvil.cost:SetText("")
+            anvil.status:SetText(TEXT.maxed)
+        else
+            anvil.levels:SetText(format("|cffc8b89a%d|r  |cffb08850>|r  |cffffd060%d|r", item.itemLevel,
+                item.nextItemLevel))
+            anvil.cost:SetText(GetCoinTextureString(item.cost))
+            anvil.status:SetText(state.working and TEXT.working or "")
+        end
+        SetShown(anvil.costLabel, not maxed)
+        SetEnabled(anvil.button, not maxed and not state.working and GetMoney() >= item.cost)
+        ShowGains(item)
+
+        -- What it becomes: the next rank's own tooltip, beside the window
+        local preview = anvil.preview
+        if maxed then
+            preview:Hide()
+        else
+            preview:SetOwner(frame, "ANCHOR_NONE")
+            preview:ClearAllPoints()
+            preview:SetPoint("TOPLEFT", frame, "TOPRIGHT", -6, -60)
+            preview:SetHyperlink("item:" .. item.nextEntry)
+            preview:AddLine(" ")
+            preview:AddLine(TEXT.preview, 1, 0.62, 0.25)
+            preview:Show()
+        end
     end
 
     if animate then
@@ -1202,6 +1285,7 @@ local function CreateForge()
     local trackHolder = CreateFrame("Frame", nil, content)
     trackHolder:SetSize(TrackWidth(24, 4), 24)
     trackHolder:SetPoint("TOP", levels, "BOTTOM", 0, -8)
+    anvil.trackHolder = trackHolder
     anvil.track = CreateTrack(trackHolder, 24, 4)
 
     -- A rank catching: its coal flares (96 x 96 painted)
@@ -1245,6 +1329,7 @@ local function CreateForge()
     purseLabel:SetPoint("TOPLEFT", costLabel, "BOTTOMLEFT", 0, -7)
     purseLabel:SetText(TEXT.purse)
     purseLabel:SetTextColor(0.8, 0.74, 0.62)
+    anvil.purseLabel = purseLabel
 
     local money = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     money:SetPoint("LEFT", purseLabel, "RIGHT", 8, 0)
@@ -1261,6 +1346,16 @@ local function CreateForge()
     button:SetText(TEXT.forge)
     button:SetScript("OnClick", function()
         local item = state.selected and state.items[state.selected]
+        if item and item.legendary then
+            if state.working or item.nextItemLevel == 0 or MaterialCount() == 0 then
+                return
+            end
+            PlaySound(SOUND_PUT_DOWN)
+            SetEnabled(button, false)
+            anvil.status:SetText(TEXT.reinforcing)
+            Send(format("R\t%d\t%d\t%d", item.bag, item.slot, item.entry))
+            return
+        end
         if not item or state.working or item.nextEntry == 0 then
             return
         end
@@ -1708,6 +1803,39 @@ local function OnForged(result)
     end)
 end
 
+-- The smith is done with a legendary: the star held, and the piece climbs a step (a banner at the top), or it went
+-- out on the anvil
+local function OnReinforced(result)
+    if not frame or not frame:IsShown() then
+        return
+    end
+    local key = Key(result.bag, result.slot)
+    state.selected = key
+    AnimateForge(state.items[key], { masterwork = false }, function()
+        local name, quality, icon = ItemInfo(result.entry)
+        if not result.success then
+            PlaySound("igQuestFailed")
+            Flash(90, 0.5, 0.45, 0.65)
+            UIErrorsFrame:AddMessage(TEXT.notReinforced, 0.8, 0.75, 0.9, 1)
+            return
+        end
+        UIErrorsFrame:AddMessage(format(TEXT.reinforced, name or "", result.itemLevel), 1, 0.5, 0, 1)
+        Tween(0.35, 0, function(p)
+            anvil.levels:SetFont(FONT, 24 + 12 * (1 - OutCubic(p)))
+        end)
+        local item = state.items[key]
+        if item and item.nextItemLevel == 0 then
+            PlaySound(SOUND_MASTERPIECE)
+            Flash(220, 1, 0.6, 0.15)
+            ShowBanner(icon, TEXT.legendaryTop, name or "", format(TEXT.legendaryTopLine, result.itemLevel),
+                QualityColor(quality))
+        else
+            PlaySound(SOUND_MILESTONE)
+            Flash(160, 1, 0.55, 0.1)
+        end
+    end)
+end
+
 local function Handle(message)
     local kind, a, b, c, d, e, f, g, h, i = strsplit("\t", message)
     if kind == "O" then
@@ -1719,12 +1847,20 @@ local function Handle(message)
             cost = tonumber(h) or 0, invested = tonumber(i) or 0,
         }
         incoming[Key(item.bag, item.slot)] = item
+    elseif kind == "G" and incoming then
+        local item = {
+            legendary = true, bag = tonumber(a) or 0, slot = tonumber(b) or 0, entry = tonumber(c) or 0,
+            itemLevel = tonumber(d) or 0, nextItemLevel = tonumber(e) or 0, cap = tonumber(f) or 0,
+            chance = (tonumber(g) or 0) / 10, fails = tonumber(h) or 0, rank = 0, nextEntry = 0, invested = 0,
+        }
+        incoming[Key(item.bag, item.slot)] = item
     elseif kind == "E" then
         state.items = incoming or {}
         incoming = nil
         state.maxRank = tonumber(b) or state.maxRank
         state.spent = tonumber(c) or 0
         state.standing = tonumber(d) or 0
+        state.material = tonumber(e) or state.material
         RefreshIcons()
         if a == "1" and not frame then
             CreateForge()
@@ -1744,6 +1880,11 @@ local function Handle(message)
         OnForged({
             bag = tonumber(a) or 0, slot = tonumber(b) or 0, entry = tonumber(c) or 0, rank = tonumber(d) or 0,
             itemLevel = tonumber(e) or 0, masterwork = f == "1", newStanding = tonumber(g) or 0,
+        })
+    elseif kind == "H" then
+        OnReinforced({
+            bag = tonumber(a) or 0, slot = tonumber(b) or 0, entry = tonumber(c) or 0, success = d == "1",
+            itemLevel = tonumber(e) or 0,
         })
     elseif kind == "X" then
         ShowError(a)

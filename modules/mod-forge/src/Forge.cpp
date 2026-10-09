@@ -9,6 +9,7 @@
 #include "ForgeVisuals.h"
 #include "Item.h"
 #include "InfiniteGodLoot.h"
+#include "Legendary.h"
 #include "Log.h"
 #include "MythicAppearance.h"
 #include "MythicDungeon.h"
@@ -31,6 +32,7 @@
 
 #include <array>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -50,13 +52,22 @@
 //
 //   client -> server   L                                       the list again
 //                      U <bag> <slot> <entry>                  forge the item there (still that entry)
+//                      R <bag> <slot> <entry>                  reinforce the legendary there with the material
 //   server -> client   O                                       a list follows
 //                      I <bag> <slot> <entry> <rank> <itemLevel> <nextEntry> <nextItemLevel> <cost> <invested>
 //                                                              one item that can be forged (nextEntry 0 at the top)
-//                      E <open> <maxRank> <spent> <standing>   end of the list; open 1: show the window
+//                      G <bag> <slot> <entry> <itemLevel> <nextItemLevel> <cap> <chance x10> <fails>
+//                                                              a legendary or a Unique (nextItemLevel 0 at the cap)
+//                      E <open> <maxRank> <spent> <standing> <material>
+//                                                              end of the list; open 1: show the window
 //                      D <bag> <slot> <entry> <rank> <itemLevel> <masterwork> <newStanding>
 //                                                              the smith is done with it (newStanding 0: no change)
+//                      H <bag> <slot> <entry> <success> <itemLevel>
+//                                                              a reinforcement held (1) or failed (0)
 //                      X <error>                               ForgeError
+//
+// Legendaries and Uniques are never forged for gold: only the material reinforces them (mod-legendary Legendary.h,
+// Reinforce), a few item levels a success, up to the best raid's gear.
 //
 // Money is in copper. A real item's rank is its entry (its forged copies are generated at startup, like the Mythic+
 // variants); a Mythic+ variant becomes the next variant instead, so its rank is kept in character_item_forge, with
@@ -120,7 +131,8 @@ enum ForgeError : uint8
     ERROR_MAX_RANK = 3,
     ERROR_NO_GOLD = 4,
     ERROR_IN_COMBAT = 5,
-    ERROR_DEAD = 6
+    ERROR_DEAD = 6,
+    ERROR_NO_MATERIAL = 7
 };
 
 // What the smith says: greeting a customer, and handing a piece back
@@ -138,6 +150,17 @@ std::array<char const*, 4> const Finished = {
 };
 char const* const MasterworkLine = "Un coup de maître ! Deux rangs pour le prix d'un, ne le dites à personne.";
 char const* const MasterpieceLine = "Un chef-d'œuvre. Je n'ai plus rien à y apprendre... et vous non plus.";
+// A legendary reinforced, or not
+std::array<char const*, 3> const Reinforced = {
+    "Le cœur de l'étoile a pris. Je n'avais jamais vu un métal pareil.",
+    "Il a bu toute la lumière de l'étoile. Prenez-en soin.",
+    "Ça a tenu ! Les forgerons de Forgefer en parleront longtemps.",
+};
+std::array<char const*, 3> const NotReinforced = {
+    "L'étoile s'est éteinte sur l'enclume... Ce métal-là ne se laisse pas faire.",
+    "Rien. Il a recraché la lumière. On recommencera.",
+    "Trop proche de ce qu'il peut devenir : il résiste. Il faudra un autre cœur.",
+};
 
 struct ForgeRecord
 {
@@ -325,13 +348,25 @@ void SendItem(Player* player, ForgeState const* state, Item* item)
 
 // Every piece of the player's gear the Forge can take, worn first, then the bags: not one it could never raise (a
 // Mythic+ item already at its item level cap, never forged) - its rank bar would show ranks it cannot have
+// A legendary or a Unique: what reinforcing it would do
+void SendLegendary(Player* player, Item* item, Legendary::Upgrade const& upgrade)
+{
+    Send(player, Acore::StringFormat("G\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", item->GetBagSlot(), item->GetSlot(),
+        item->GetEntry(), upgrade.itemLevel, upgrade.nextItemLevel, upgrade.cap, std::lround(upgrade.chance * 10.0f),
+        upgrade.fails));
+}
+
 void SendList(Player* player, bool open)
 {
     ForgeState* state = GetState(player);
     Send(player, "O");
     auto consider = [player, state](Item* item)
     {
-        if (item && IsForgeable(item) && (RankOf(state, item) || EntryAbove(state, item, 1)))
+        if (!item)
+            return;
+        if (std::optional<Legendary::Upgrade> upgrade = Legendary::GetUpgrade(item))
+            SendLegendary(player, item, *upgrade);
+        else if (IsForgeable(item) && (RankOf(state, item) || EntryAbove(state, item, 1)))
             SendItem(player, state, item);
     };
 
@@ -344,8 +379,8 @@ void SendList(Player* player, bool open)
             for (uint32 slot = 0; slot < container->GetBagSize(); ++slot)
                 consider(container->GetItemByPos(uint8(slot)));
 
-    Send(player, Acore::StringFormat("E\t{}\t{}\t{}\t{}", open ? 1 : 0, Mythic::ForgeRanks, state->spent,
-        StandingOf(state->spent)));
+    Send(player, Acore::StringFormat("E\t{}\t{}\t{}\t{}\t{}", open ? 1 : 0, Mythic::ForgeRanks, state->spent,
+        StandingOf(state->spent), Legendary::UpgradeMaterial));
 }
 
 void SendError(Player* player, ForgeError error)
@@ -506,6 +541,39 @@ void HandleForge(Player* player, uint8 bag, uint8 slot, uint32 entry)
     SendList(player, false);
 }
 
+// A legendary on the anvil: one of the material spent, the copy a step higher or as it was
+void HandleReinforce(Player* player, uint8 bag, uint8 slot, uint32 entry)
+{
+    if (!player->IsAlive())
+        return SendError(player, ERROR_DEAD);
+    if (player->IsInCombat())
+        return SendError(player, ERROR_IN_COMBAT);
+    Item* item = player->GetItemByPos(bag, slot);
+    if (!item || item->GetEntry() != entry || item->GetOwnerGUID() != player->GetGUID())
+        return SendError(player, ERROR_ITEM_CHANGED);
+
+    Legendary::ReinforceResult const result = Legendary::Reinforce(player, item);
+    switch (result)
+    {
+        case Legendary::ReinforceResult::NotLegendary:
+            return SendError(player, ERROR_NOT_FORGEABLE);
+        case Legendary::ReinforceResult::AtCap:
+            return SendError(player, ERROR_MAX_RANK);
+        case Legendary::ReinforceResult::NoMaterial:
+            return SendError(player, ERROR_NO_MATERIAL);
+        default:
+            break;
+    }
+    bool const success = result == Legendary::ReinforceResult::Success;
+    if (Creature* smith = SmithNear(player, GetState(player)))
+        SmithWorks(smith, success ? Reinforced[urand(0, Reinforced.size() - 1)] :
+            NotReinforced[urand(0, NotReinforced.size() - 1)]);
+    std::optional<Legendary::Upgrade> upgrade = Legendary::GetUpgrade(item);
+    Send(player, Acore::StringFormat("H\t{}\t{}\t{}\t{}\t{}", bag, slot, entry, success ? 1 : 0,
+        upgrade ? upgrade->itemLevel : 0));
+    SendList(player, false);
+}
+
 void HandleMessage(Player* player, std::string_view body)
 {
     std::vector<std::string_view> fields = Acore::Tokenize(body, '\t', true);
@@ -521,6 +589,14 @@ void HandleMessage(Player* player, std::string_view body)
         Optional<uint32> entry = Acore::StringTo<uint32>(fields[3]);
         if (bag && slot && entry)
             HandleForge(player, *bag, *slot, *entry);
+    }
+    else if (fields[0] == "R" && fields.size() >= 4)
+    {
+        Optional<uint8> bag = Acore::StringTo<uint8>(fields[1]);
+        Optional<uint8> slot = Acore::StringTo<uint8>(fields[2]);
+        Optional<uint32> entry = Acore::StringTo<uint32>(fields[3]);
+        if (bag && slot && entry)
+            HandleReinforce(player, *bag, *slot, *entry);
     }
 }
 

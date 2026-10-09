@@ -131,6 +131,42 @@ uint32 ArmorType(Player* player);
 // The primary stat a player's worn gear favours (ITEM_MOD_STRENGTH, _AGILITY or _INTELLECT, spell power counting as
 // intellect), its legendaries' rolls counted: the one a copy rolls, and a set piece's profile is chosen for
 uint32 FavouredPrimary(Player* player);
+
+// --- Reinforcing a copy at the Forge (mod-forge Forge.cpp, the Forge's window) ------------------------------------
+// Gold does nothing for a legendary or a Unique: only the Cœur d'étoile captive (UpgradeMaterial), dropped by high-end
+// content (RollUpgradeMaterial), reinforces one - UpgradeStep item levels a success, up to the best raid's gear
+// (UpgradeCap, rising with every new raid). Each attempt spends one; the closer to the cap, the likelier it fails. A
+// failure leaves the item as it was and makes the next attempt on it likelier (kept per item, until a success).
+constexpr uint32 UpgradeMaterial = 17854;
+constexpr uint32 UpgradeStep = 5;
+
+struct Upgrade
+{
+    uint32 itemLevel = 0;
+    uint32 nextItemLevel = 0;       // 0: at the cap
+    uint32 cap = 0;
+    float chance = 0.0f;            // percent
+    uint32 fails = 0;               // attempts failed since the last success
+};
+
+enum class ReinforceResult : uint8
+{
+    Success,
+    Failure,
+    NotLegendary,
+    AtCap,
+    NoMaterial,
+};
+
+// The best raid's gear: the item level the highest page of the Défi board gives (mod-playerbots ChallengeBoard.cpp)
+uint32 UpgradeCap();
+// What an attempt on the item would be: nullopt when it is not a copy
+std::optional<Upgrade> GetUpgrade(Item const* item);
+// One attempt, the material spent; the copy grown, saved, re-applied when worn and sent to the client on a success
+ReinforceResult Reinforce(Player* player, Item* item);
+// A high-end source's chance of the material for a player (never a bot): a boss whose gear is item level 250 or more,
+// a Mythic+ key's end at that item level. Thrown on the floor with the boss's loot, else in the bags, else by mail.
+void RollUpgradeMaterial(Player* player, uint32 itemLevel);
 }
 
 // Gardien-chef Vorhan's sets (SetPieces.cpp) are not legendaries: generated items as the raid's are, a raid item's

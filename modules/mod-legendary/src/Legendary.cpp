@@ -18,6 +18,7 @@
 #include "Item.h"
 #include "LiveTuning.h"
 #include "Log.h"
+#include "Mail.h"
 #include "Map.h"
 #include "MythicDungeon.h"
 #include "ObjectAccessor.h"
@@ -53,6 +54,14 @@
 // item level of the god's gear at it
 uint8 GetChallengeTierOf(Map const* map);
 uint32 GetChallengeGodItemLevel(uint8 tier);
+// The Défi boss of an instance (0: not a Défi's), and the item level of the board's highest page (its pinnacles')
+uint32 GetChallengeBossOf(Map const* map);
+uint32 GetChallengeTopItemLevel();
+namespace RaidFinder
+{
+// A raid mode's gear item level (0: not a raid the Défis know)
+uint32 GetChallengeItemLevel(uint16 map, uint8 difficulty);
+}
 
 // mod-stat-growth (LootFit.cpp), built into the same modules library: the player's role (LootFit::Role: 0 tank,
 // 1 strength fighter, 2 agility fighter, 3 caster, 4 healer) and the primary stat its gear takes
@@ -255,6 +264,40 @@ LiveTuning::Knob const DropCapPct("legendary.drop_cap_pct", 10.0f);
 
 std::shared_mutex StoreLock;
 std::unordered_map<ObjectGuid::LowType, Copy> Store;
+// Each copy's failed reinforcements since its last success (character_legendary_upgrade), under StoreLock
+std::unordered_map<ObjectGuid::LowType, uint32> Fails;
+
+// --- Reinforcing at the Forge ----------------------------------------------------------------------------------------
+// An attempt's chance: (item levels left to the cap / ChanceReach) squared, between ChanceFloor and ChanceCeiling -
+// 90% from 70 levels away, 51% at 50, 18% at 30, 8% at 20, 2% from 10. Each failure adds PityShare of that chance to
+// the next attempt, and the attempt after GuaranteedAfter failures always holds. From 370 to 485, a copy takes about
+// 90 of the material on average, near 40 of them for its last 10 levels.
+constexpr float ChanceReach = 70.0f;
+constexpr float ChanceFloor = 2.0f;
+constexpr float ChanceCeiling = 90.0f;
+LiveTuning::Knob const PitySharePct("legendary.upgrade_pity_pct", 12.5f);
+LiveTuning::Knob const GuaranteedAfter("legendary.upgrade_guaranteed_after", 50.0f);
+// The material's chance for each player of a high-end source (on top of its loot, never in place of any), and what
+// counts as one: gear of this item level or more
+LiveTuning::Knob const MaterialDropPct("legendary.material_drop_pct", 35.0f);
+constexpr uint32 MaterialMinItemLevel = 250;
+// The material's rolls are once per instance and source, as the drops' (FirstRoll): its sources apart from theirs
+constexpr uint32 MaterialSource = 0x80000000;
+
+float UpgradeChance(uint32 itemLevel, uint32 cap, uint32 fails)
+{
+    if (float(fails) >= float(GuaranteedAfter))
+        return 100.0f;
+    float const left = float(cap > itemLevel ? cap - itemLevel : 0) / ChanceReach;
+    float const base = std::clamp(left * left * 100.0f, ChanceFloor, ChanceCeiling);
+    return std::min(100.0f, base * (1.0f + float(PitySharePct) / 100.0f * float(fails)));
+}
+
+bool IsRating(uint32 type)
+{
+    return (type >= ITEM_MOD_DEFENSE_SKILL_RATING && type <= ITEM_MOD_EXPERTISE_RATING) ||
+        type == ITEM_MOD_ARMOR_PENETRATION_RATING;
+}
 
 std::string EncodeStats(Copy const& copy)
 {
@@ -390,6 +433,27 @@ Copy Roll(Definition const& definition, Player* player, uint32 itemLevel, std::o
         copy.stats.emplace_back(pool[index], Spread(int32(std::lround(budget.secondary * growth)), 0.10f));
         pool.erase(pool.begin() + index);
     }
+    return copy;
+}
+
+// A copy reinforced to a higher item level, its rolls kept: every stat grown as generated gear grows (ratings by the
+// square root), its armour too, and its power at the same place in the new level's window (never lower: a GM's
+// forced power above the window stays)
+Copy Grow(Definition const& definition, Copy copy, uint32 itemLevel)
+{
+    float const from = float(copy.itemLevel);
+    float const to = float(itemLevel);
+    float const statGrowth = ::Power::StatGrowth(from, to);
+    float const ratingGrowth = ::Power::StatGrowth(from, to, true);
+    copy.armor = int32(std::lround(float(copy.armor) * statGrowth));
+    for (auto& [type, value] : copy.stats)
+        value = std::max(1, int32(std::lround(float(value) * (IsRating(type) ? ratingGrowth : statGrowth))));
+
+    auto const [oldLow, oldHigh] = PowerWindow(definition, copy.itemLevel);
+    auto const [low, high] = PowerWindow(definition, itemLevel);
+    float const place = oldHigh > oldLow ? std::clamp((copy.power - oldLow) / (oldHigh - oldLow), 0.0f, 1.0f) : 1.0f;
+    copy.power = std::max(copy.power, std::round((low + (high - low) * place) * 10.0f) / 10.0f);
+    copy.itemLevel = itemLevel;
     return copy;
 }
 
@@ -1198,6 +1262,17 @@ public:
                 Store[fields[0].Get<uint32>()] = std::move(copy);
             } while (result->NextRow());
         }
+        Fails.clear();
+        CharacterDatabase.DirectExecute("DELETE u FROM character_legendary_upgrade u LEFT JOIN item_instance i "
+            "ON i.guid = u.item_guid WHERE i.guid IS NULL");
+        if (QueryResult result = CharacterDatabase.Query("SELECT item_guid, fails FROM character_legendary_upgrade"))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+                Fails[fields[0].Get<uint32>()] = fields[1].Get<uint32>();
+            } while (result->NextRow());
+        }
         LOG_INFO("server.loading", ">> Loaded {} legendary copies in {} ms", Store.size(),
             GetMSTimeDiffToNow(startTime));
     }
@@ -1223,8 +1298,10 @@ public:
     void OnItemDelFromDB(CharacterDatabaseTransaction transaction, ObjectGuid::LowType itemGuid) override
     {
         transaction->Append("DELETE FROM character_legendary WHERE item_guid = {}", itemGuid);
+        transaction->Append("DELETE FROM character_legendary_upgrade WHERE item_guid = {}", itemGuid);
         std::unique_lock lock(StoreLock);
         Store.erase(itemGuid);
+        Fails.erase(itemGuid);
     }
 };
 
@@ -1319,6 +1396,14 @@ public:
         int32 const level = map->GetMythicLevel();
         if (!dungeonCompleted || level <= 0)
             return;
+        // The reinforcing material, for every key at 250 and up, whatever its dungeon's legendaries
+        uint32 const itemLevel = Mythic::GetItemLevel(level);
+        if (itemLevel >= MaterialMinItemLevel && FirstRoll(map, MaterialSource | dungeonCompleted))
+        {
+            if (Creature* corpse = source ? source->ToCreature() : nullptr)
+                GroundLoot::Open(corpse);
+            map->DoForAllPlayers([itemLevel](Player* player) { RollUpgradeMaterial(player, itemLevel); });
+        }
         std::vector<Definition const*> pool;
         for (Definition const& definition : Definitions)
             if (definition.sourceDungeon == dungeonCompleted)
@@ -1329,7 +1414,7 @@ public:
         // ground loot had opened its corpse went straight to the bags - no beam, no sound
         if (Creature* corpse = source ? source->ToCreature() : nullptr)
             GroundLoot::Open(corpse);
-        RollDrops(map, dungeonCompleted, pool, Mythic::GetItemLevel(level));
+        RollDrops(map, dungeonCompleted, pool, itemLevel);
     }
 };
 
@@ -1345,6 +1430,7 @@ public:
         Creature* boss = unit ? unit->ToCreature() : nullptr;
         if (!boss || !boss->GetMap())
             return;
+        RollRaidBossMaterial(boss);
         uint32 const entry = boss->GetEntry();
         std::vector<Definition const*> pool;
         for (Definition const& definition : Definitions)
@@ -1357,6 +1443,21 @@ public:
         uint32 const itemLevel = entry == InfiniteGodBoss ?
             GetChallengeGodItemLevel(GetChallengeTierOf(boss->GetMap())) : pool.front()->floorItemLevel;
         RollDrops(boss->GetMap(), entry, pool, itemLevel);
+    }
+
+private:
+    // A stock raid's boss whose gear is item level 250 or more (its raid mode's, as the Défis know it: Icecrown
+    // Citadel, the Ruby Sanctum, Trial of the Grand Crusader): the material's chance for each player there. Not in a
+    // Défi's instance: the board rolls its own (ChallengeBoard.cpp).
+    static void RollRaidBossMaterial(Creature* boss)
+    {
+        Map* map = boss->GetMap();
+        if (!map->IsRaid() || (!boss->IsDungeonBoss() && !boss->isWorldBoss()) || GetChallengeBossOf(map))
+            return;
+        uint32 const itemLevel = RaidFinder::GetChallengeItemLevel(uint16(map->GetId()), uint8(map->GetDifficulty()));
+        if (itemLevel < MaterialMinItemLevel || !FirstRoll(map, MaterialSource | boss->GetEntry()))
+            return;
+        map->DoForAllPlayers([itemLevel](Player* player) { RollUpgradeMaterial(player, itemLevel); });
     }
 };
 
@@ -1526,6 +1627,115 @@ uint32 ArmorType(Player* player)
 uint32 FavouredPrimary(Player* player)
 {
     return LootPrimaryStatOf(player);
+}
+
+uint32 UpgradeCap()
+{
+    return GetChallengeTopItemLevel();
+}
+
+std::optional<Upgrade> GetUpgrade(Item const* item)
+{
+    std::optional<Copy> copy = GetCopy(item);
+    if (!copy)
+        return std::nullopt;
+    Upgrade upgrade;
+    upgrade.itemLevel = copy->itemLevel;
+    upgrade.cap = UpgradeCap();
+    {
+        std::shared_lock lock(StoreLock);
+        auto const found = Fails.find(item->GetGUID().GetCounter());
+        upgrade.fails = found != Fails.end() ? found->second : 0;
+    }
+    if (copy->itemLevel < upgrade.cap)
+    {
+        upgrade.nextItemLevel = std::min(upgrade.cap, copy->itemLevel + UpgradeStep);
+        upgrade.chance = UpgradeChance(copy->itemLevel, upgrade.cap, upgrade.fails);
+    }
+    return upgrade;
+}
+
+ReinforceResult Reinforce(Player* player, Item* item)
+{
+    std::optional<Copy> copy = GetCopy(item);
+    Definition const* definition = copy ? GetDefinition(copy->legendary) : nullptr;
+    std::optional<Upgrade> upgrade = GetUpgrade(item);
+    if (!definition || !upgrade)
+        return ReinforceResult::NotLegendary;
+    if (!upgrade->nextItemLevel)
+        return ReinforceResult::AtCap;
+    if (!player->HasItemCount(UpgradeMaterial, 1))
+        return ReinforceResult::NoMaterial;
+
+    player->DestroyItemCount(UpgradeMaterial, 1, true);
+    ObjectGuid::LowType const guid = item->GetGUID().GetCounter();
+    bool const success = roll_chance_f(upgrade->chance);
+    LOG_INFO("module", "Legendary: {} reinforced item {} (legendary {}, item level {}, {:.1f}% after {} failures): {}",
+        player->GetName(), guid, copy->legendary, copy->itemLevel, upgrade->chance, upgrade->fails,
+        success ? "success" : "failure");
+    if (!success)
+    {
+        {
+            std::unique_lock lock(StoreLock);
+            Fails[guid] = upgrade->fails + 1;
+        }
+        CharacterDatabase.Execute("REPLACE INTO character_legendary_upgrade (item_guid, fails) VALUES ({}, {})", guid,
+            upgrade->fails + 1);
+        player->SaveToDB(false, false);
+        return ReinforceResult::Failure;
+    }
+
+    // Worn: its stats taken off at the old level and put back at the new one (OnPlayerAfterApplyItemBonuses)
+    Copy const grown = Grow(*definition, *copy, upgrade->nextItemLevel);
+    bool const equipped = item->IsEquipped();
+    uint8 const slot = item->GetSlot();
+    if (equipped)
+        player->_ApplyItemMods(item, slot, false);
+    {
+        std::unique_lock lock(StoreLock);
+        Store[guid] = grown;
+        Fails.erase(guid);
+    }
+    if (equipped)
+        player->_ApplyItemMods(item, slot, true);
+    Save(guid, player->GetGUID().GetCounter(), grown);
+    CharacterDatabase.Execute("DELETE FROM character_legendary_upgrade WHERE item_guid = {}", guid);
+    SendCopy(player, guid, grown, item);
+    // Saved now: the material is gone, the copy must not come back unreinforced after a crash
+    player->SaveToDB(false, false);
+    return ReinforceResult::Success;
+}
+
+void RollUpgradeMaterial(Player* player, uint32 itemLevel)
+{
+    if (!player || !player->GetSession() || player->GetSession()->IsBot() || itemLevel < MaterialMinItemLevel ||
+        !roll_chance_f(float(MaterialDropPct)))
+        return;
+    bool const french = player->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
+    // On the floor with the boss's loot (GroundLoot.cpp: a dungeon's or a Défi's boss just killed), as a legendary
+    bool const thrown = GroundLoot::ThrowItem(player, UpgradeMaterial, 1, ITEM_QUALITY_LEGENDARY);
+    ItemPosCountVec destination;
+    if (!thrown && player->CanStoreNewItem(NULL_BAG, NULL_SLOT, destination, UpgradeMaterial, 1) == EQUIP_ERR_OK)
+    {
+        if (Item* item = player->StoreNewItem(destination, UpgradeMaterial, true))
+            player->SendNewItem(item, 1, true, false, true);
+    }
+    else if (!thrown)
+    {
+        CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
+        MailDraft draft(french ? "Cœur d'étoile captive" : "Captive Star Heart",
+            french ? "Vos sacs étaient pleins." : "Your bags were full.");
+        if (Item* item = Item::CreateItem(UpgradeMaterial, 1, player))
+        {
+            item->SaveToDB(transaction);
+            draft.AddItem(item);
+        }
+        draft.SendMailTo(transaction, MailReceiver(player, player->GetGUID().GetCounter()),
+            MailSender(MAIL_NORMAL, 0, MAIL_STATIONERY_GM));
+        CharacterDatabase.CommitTransaction(transaction);
+    }
+    LOG_INFO("module", "Legendary: {} found the reinforcing material (item level {}){}", player->GetName(),
+        itemLevel, thrown ? ", on the floor" : "");
 }
 }
 

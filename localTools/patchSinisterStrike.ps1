@@ -2258,6 +2258,15 @@ foreach ($trinket in $raidTrinkets) {
         Write-Field $itemBytes $itemOffsets[$trinket.Item] $field ([long]$values[$field - 1])
     }
 }
+# Cœur d'étoile captive (modules/mod-legendary Legendary.h, UpgradeMaterial), the material that reinforces a legendary
+# at the Forge: a free "junk" row made a trade good (ClassID 7, SubclassID 11 other, Material 4), the Greater Cosmic
+# Essence's look
+$upgradeMaterial = @{ Item = 17854; Display = 56461 }
+if (-not $itemOffsets.ContainsKey($upgradeMaterial.Item)) { throw "Item.dbc has no row $($upgradeMaterial.Item) for the upgrade material." }
+$materialValues = @(7, 11, -1, 4, $upgradeMaterial.Display, 0, 0)
+for ($field = 1; $field -le 7; ++$field) {
+    Write-Field $itemBytes $itemOffsets[$upgradeMaterial.Item] $field ([long]$materialValues[$field - 1])
+}
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------
 #

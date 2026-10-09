@@ -4,6 +4,10 @@ The Forge: high-end gear (epics and legendaries of item level 200 and up, and ev
 blacksmith comes back 4 item levels higher for gold, up to 8 times. Open it with `.forge` (the client's
 ItemForge.lua).
 
+Legendaries and Uniques are never forged for gold: the same window reinforces them with a Cœur d'étoile captive, a
+few item levels a success, up to the best raid's gear, with odds that fall near the top (mod-legendary, see
+`.agents/docs/systems/legendaries.md`, "Reinforcing at the Forge").
+
 A real item's ranks are generated at startup like the Mythic+ variants, with entries shared with the client
 extension (src/server/game/Maps/MythicDungeon.h, awesome_wotlk GeneratedItems.cpp): the client draws a forged item
 with its base item's look. A forged Mythic+ item becomes the next Mythic+ variant; its rank is kept in the

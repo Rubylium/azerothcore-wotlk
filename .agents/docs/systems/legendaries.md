@@ -48,6 +48,25 @@ raid loot's own growth (`GrowMythicItem`), in the set's row (name, look, icon, s
 (`Mythic::GetSetPieceItemEntry`, numbered for good in `legendary_set_profile`). A new set is its rows, its item level
 and its name in `MythicItemTag.lua`; the client extension already draws the blocks.
 
+## Reinforcing at the Forge
+
+A copy (a legendary or a Unique) is never forged for gold. At the Forge (`mod-forge Forge.cpp`, the window's own list:
+`G` lines, `R` to reinforce) it is reinforced with the **Cœur d'étoile captive** (item 17854, `UpgradeMaterial`):
+`UpgradeStep` (5) item levels a success, up to `UpgradeCap()` - the highest item level a page of the Défi board gives
+(`GetChallengeTopItemLevel`, ChallengeBoard.cpp: 485 with Gardien-chef Vorhan), so a new raid on the board raises it
+with no other change. `Legendary.cpp` (`Reinforce`, `Grow`):
+
+- **Chance**: (levels left to the cap / 70)², between 2% and 90%. Each failure adds 12.5% of it to the next attempt
+  on that item (`legendary.upgrade_pity_pct`), and the attempt after 50 failures always holds
+  (`legendary.upgrade_guaranteed_after`); kept per item in `character_legendary_upgrade` until a success. About 90
+  of the material from 370 to 485.
+- **A success** keeps the copy's rolls: stats grown as generated gear grows (ratings by the square root), armour
+  too, the power at the same place in the new level's window; re-applied when worn, sent to the client (`SendCopy`).
+- **The material** drops on top of the loot (never in place of it), `legendary.material_drop_pct` (35%) per player,
+  from every source of gear of item level 250 or more: a stock raid's boss (its mode's item level,
+  `RaidFinder::GetChallengeItemLevel`), a Mythic+ key's end (+12 and up), every Défi kill (`OnChallengeEvent`).
+  Thrown on the floor with the loot where the ground loot is open, else in the bags, else by mail. Bound on pickup.
+
 ## Icons: the art direction
 
 One painted icon per legendary, shared by the item and its power (its buff, its Details line). **No item frame and
