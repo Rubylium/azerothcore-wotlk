@@ -46,7 +46,7 @@
 // Gardien-chef Vorhan, the head warden of la Geôle des Flammes infernales: a Défi board boss in Magtheridon's Lair,
 // fought the way a FFXIV Extreme trial is (plan: .agents/plans/warden-vorhan). 8 players - 2 tanks, 2 healers, 4 damage
 // dealers - tuned for item level 477 and 650 paragon (the DPS check): the raid after the Hollow Voice, in what it
-// pays. About 4:00, the hard enrage at 4:00.
+// pays. About 5:50, the hard enrage at 5:50.
 //
 // He does not fight to win: he applies the rules, and every rule broken is a sentence. The same script every pull,
 // each rule read on his cast bar and on the players' debuffs, solved by assignment:
@@ -68,6 +68,18 @@
 //   him it lands short of the walls; farther out, into them: death.
 // - Couvre-feu: anyone still moving when it sounds is struck, stunned and marked.
 // - Mutinerie (the intermission): the cell doors fail and waves of prisoners pour in on the tanks.
+// - Phase 3, "Exécution des peines" (from 3:42), three rules of its own, then each with an old one:
+//   - Exécution des peines: he stands in the middle and calls the numbers 1 to 8 in order, one every 4 s (a clock's
+//     tick each second, the DOOM on each call). A cone of 44 degrees strikes from him through the player called;
+//     anyone else in it is struck and put under Sursis (30 s), a second strike under it is death. Each cone leaves
+//     its floor burnt from 5 yd out until the rule ends: the group stacks in the ring under him, the player called
+//     goes out opposite, and each call turns 40 degrees round, so the group turns with them.
+//   - Mise au cachot: a player who is not a tank is caged for 8 s; the group breaks the cage (a few seconds of its
+//     damage, the skull on it for the bots) or the prisoner dies.
+//   - Châtiment exemplaire: a cone of its own look on his tank, 4 s: nobody in it is everyone's death, one alone dies
+//     and everyone is hit, two or more share it (two tanks live through it, anyone else does not).
+//   - His axe grows wilder through the phase: three lines that split, then lines splitting in four with a blade that
+//     sweeps a third of the room, all of it faster in Perpétuité.
 // - Perpétuité: a Sentence every 4 s, each heavier, until the hard enrage, Peine capitale.
 //
 // A personal mistake (the gaze faced, moving at curfew, out of a cell, a seal's burst) hits hard and marks (Marque du
@@ -97,8 +109,8 @@ constexpr float GroupHealers = 2.0f;
 // deals there, measured on the simulation bench (Power::RaidBossHealth: the share a group playing well gives his
 // health, the rest goes to the rules). It replaced the model's check and a knob raised twice by play (x1.44,
 // 2026-10-08) on kills by players past his profile then (450 / 600). The deaths log each player's damage
-// (LogSummary).
-constexpr float UptimeSeconds = 205.0f;
+// (LogSummary). The fight but the riot: 350 s less its 30.
+constexpr float UptimeSeconds = 320.0f;
 // His group of 8 gets fewer buffs than the 10-player teams Power::RaidCurve was measured on (two healers, no priest,
 // two subgroups): 1.095 of the model against 1.18 at 477 / 650 (simBench.ps1 raid -dealers 4, 2026-10-09)
 constexpr float EightPlayerShare = 1.095f / 1.18f;
@@ -152,6 +164,46 @@ constexpr float RallyReach = 6.0f;
 constexpr uint32 RallyMs = 10000;
 constexpr std::array<float, 6> ChainRampPct = { 6.0f, 12.0f, 24.0f, 48.0f, 96.0f, 192.0f };
 constexpr float CurfewPct = 100.0f;
+
+// --- Phase 3 ---------------------------------------------------------------------------------------------------------
+// Exécution des peines: after its cast, a number called every ExecutionEveryMs (three ticks of the clock, then the
+// DOOM as its cone strikes). The way each call points turns ExecutionStepDegrees clockwise from the south (the group
+// north of him first): eight cones fill all but a sliver of the room, never over the last one's floor.
+constexpr uint32 ExecutionCastMs = 4000;
+constexpr uint32 ExecutionEveryMs = 4000;
+constexpr uint8 ExecutionCalls = 8;
+constexpr float ExecutionArcDegrees = 44.0f;    // VW_BurntFloor's painting, and the warning's stock 45
+constexpr float ExecutionReach = 40.0f;
+constexpr float ExecutionSafe = 5.0f;           // the burnt floor starts this far from him: the ring under him
+constexpr float ExecutionStepDegrees = 40.0f;
+constexpr float ExecutionCalledDistance = 9.0f; // bots: where the player called stands, out on its way
+constexpr float ExecutionGroupDistance = 2.5f;  // bots: the group under him, opposite
+constexpr uint32 BurntDelayMs = 1500;           // the floor burns this long after the strike: the time to step off
+constexpr uint32 BurntEveryMs = 1000;           // a player on it is struck at most this often
+constexpr float ExecutionPct = 60.0f;
+constexpr float BurntPct = 40.0f;
+constexpr uint32 SursisMs = 30000;
+constexpr float SursisTakenPct = 50.0f;
+// Mise au cachot: the cage holds CageMs; its health is CageBreakSeconds of the group's damage
+constexpr uint32 CageCastMs = 1500;
+constexpr uint32 CageMs = 8000;
+constexpr float CageBreakSeconds = 3.0f;
+constexpr uint32 CageCurfewMs = 5000;           // with the curfew: it sounds this long after the cage shuts
+// Châtiment exemplaire: shared by whoever stands in it (two tanks: 110% each, which a tank lives through)
+constexpr uint32 PunishmentCastMs = 4000;
+constexpr float PunishmentArcDegrees = 60.0f;   // VW_Punishment's painting
+constexpr float PunishmentReach = 14.0f;
+constexpr float PunishmentPct = 220.0f;
+constexpr float PunishmentAlonePct = 70.0f;     // one alone dies, and everyone takes this
+constexpr float PunishmentOffTankDistance = 5.0f;
+// Faux du geôlier: the axe's blade swept from his feet through SweepDegrees in SweepMs, the third of the room it sweeps
+// warned as a cone first
+constexpr float SweepDegrees = 120.0f;
+constexpr uint32 SweepMs = 2000;
+constexpr uint32 SweepCheckMs = 100;
+// The axe's pace: phase 3 and Perpétuité blow more often
+constexpr uint32 AxeEveryPhase3Ms = 5000;
+constexpr uint32 AxeEveryFrenzyMs = 4000;
 
 // The warden's mark: a first mistake is held back to MarkHitPct of the player's health and never takes them under
 // MarkFloorPct (DamageDealt), then marks them; a mistake while marked is the whole hit. Hits within MarkGraceMs of
@@ -213,8 +265,10 @@ float ThrowSpeedXY(float distance)
 // --- Timeline (ms from the pull) ------------------------------------------------------------------------------------
 constexpr uint32 AtRiot = 95000;
 constexpr uint32 AtPhase2 = 125000;
-constexpr uint32 AtLifeSentence = 220000;
-constexpr uint32 AtHardEnrage = 240000;
+constexpr uint32 AtPhase3 = 222000;
+constexpr uint32 AtSweepFromMs = 277000;        // the blade sweeps from the end of the execution
+constexpr uint32 AtLifeSentence = 330000;
+constexpr uint32 AtHardEnrage = 350000;
 constexpr uint32 LifeSentenceEveryMs = 4000;
 
 // Rules' timings
@@ -241,6 +295,7 @@ constexpr uint32 DefiGraceMs = 8000;
 constexpr uint32 NPC_VORHAN = 930200;
 constexpr uint32 NPC_PRISONER = 930201;
 constexpr uint32 NPC_ABYSSAL = 930202;
+constexpr uint32 NPC_CAGE = 930203;
 constexpr uint32 NPC_STALKER = 900104;          // GroundIndicators' invisible stalker
 
 // What hits (localTools/wardenVorhan/Spells.ps1): never cast, named in the log and the death recap
@@ -262,6 +317,11 @@ enum Hits : uint32
     SPELL_LIFE_SENTENCE         = 94413,
     SPELL_CAPITAL               = 94414,
     SPELL_AXE                   = 94415,
+    SPELL_EXECUTION             = 94416,
+    SPELL_BURNT                 = 94417,
+    SPELL_CAGE_DEATH            = 94418,
+    SPELL_PUNISHMENT            = 94419,
+    SPELL_SWEEP                 = 94452,
 };
 
 // The debuffs, shown on the players (and the warden's eye on him)
@@ -275,6 +335,8 @@ enum Marks : uint32
     SPELL_OPENING_EYE           = 94425,
     SPELL_CURFEW_STUN           = 94426,
     SPELL_RALLY                 = 94427,        // Rancœur du détenu: the melee's damage back after a rule
+    SPELL_SURSIS                = 94428,        // an execution's strike taken: the next one is death
+    SPELL_CAGED                 = 94429,        // Au cachot: rooted in the cage
     SPELL_NUMBER_FIRST          = 94430,        // Matricule 1, ... 94437 Matricule 8
 };
 
@@ -292,6 +354,9 @@ enum Casts : uint32
     CAST_CURFEW                 = 94447,
     CAST_RIOT                   = 94448,
     CAST_LIFE_SENTENCE          = 94449,
+    CAST_EXECUTION              = 94439,
+    CAST_CAGE                   = 94453,
+    CAST_PUNISHMENT             = 94454,
 };
 
 constexpr uint32 SPELL_CHAIN_BEAM = 94450;
@@ -316,6 +381,7 @@ enum Texts : uint8
     SAY_LIFE_SENTENCE           = 4,
     SAY_HARD_ENRAGE             = 5,
     SAY_DEATH                   = 6,
+    SAY_PHASE_3                 = 7,
 };
 
 enum class Phase : uint8
@@ -324,6 +390,7 @@ enum class Phase : uint8
     One,
     Riot,
     Two,
+    Three,
     LifeSentence,
     Over,
 };
@@ -345,6 +412,11 @@ enum class Ability : uint8
     RiotWave,
     RiotSentence,
     Phase2,
+    Phase3,
+    Cage,
+    CageCurfew,
+    Execution,
+    Punishment,
     LifeSentence,
     LifeSentenceHit,
     HardEnrage,
@@ -352,7 +424,8 @@ enum class Ability : uint8
 
 bool IsPhaseStep(Ability ability)
 {
-    return ability == Ability::Riot || ability == Ability::Phase2 || ability == Ability::LifeSentence;
+    return ability == Ability::Riot || ability == Ability::Phase2 || ability == Ability::Phase3 ||
+           ability == Ability::LifeSentence;
 }
 
 struct Step
@@ -361,7 +434,7 @@ struct Step
     Ability what;
 };
 
-// The whole fight, in order: each rule alone in phase 1, together in phase 2
+// The whole fight, in order: each rule alone in phase 1, together in phase 2, phase 3's own then with the old ones
 std::vector<Step> BuildTimeline()
 {
     std::vector<Step> steps = {
@@ -390,6 +463,16 @@ std::vector<Step> BuildTimeline()
         { 198000, Ability::Sentence },
         { 204000, Ability::GazeCurfew },
         { 215000, Ability::Isolation },
+        // Phase 3, "Exécution des peines"
+        { AtPhase3, Ability::Phase3 },
+        { 226000, Ability::Cage },
+        { 240000, Ability::Execution },         // its cast and eight calls: over at 4:36
+        { 279000, Ability::Sentence },
+        { 285000, Ability::Punishment },
+        { 295000, Ability::CageCurfew },
+        { 309000, Ability::Isolation },
+        { 316000, Ability::Punishment },
+        { 324000, Ability::Sentence },
         // Perpétuité, then the end
         { AtLifeSentence, Ability::LifeSentence },
         { AtHardEnrage, Ability::HardEnrage },
@@ -634,6 +717,7 @@ struct boss_warden_vorhan : public ScriptedAI
         {
             _nextStandingCheckMs = elapsed + 500;
             CheckPlayersStanding();
+            CheckBurntFloor();
         }
         if (AxeFree(elapsed))
             AxeVolley();
@@ -683,6 +767,8 @@ struct boss_warden_vorhan : public ScriptedAI
             { "shacklesgaze", Ability::ShacklesGaze }, { "gaze", Ability::Gaze },
             { "gazecurfew", Ability::GazeCurfew }, { "rollcall", Ability::RollCall }, { "charge", Ability::Charge },
             { "chargerollcall", Ability::ChargeRollCall }, { "wave", Ability::RiotWave },
+            { "cage", Ability::Cage }, { "cagecurfew", Ability::CageCurfew }, { "execution", Ability::Execution },
+            { "punishment", Ability::Punishment },
         };
         auto const found = rules.find(what);
         if (found == rules.end())
@@ -803,6 +889,11 @@ private:
         _rulesKept = 0;
         _rulesBroken = 0;
         _placingUntil = 0;
+        _executionOn = false;
+        _burnt.clear();
+        _burntStruck.clear();
+        _sursis.clear();
+        ClearCage();
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->ClearEmoteState();
         me->RemoveAurasDueToSpell(SPELL_OPENING_EYE);
@@ -814,7 +905,8 @@ private:
             if (Player* player = ref.GetSource())
             {
                 for (uint32 spell : { uint32(SPELL_MARK), uint32(SPELL_ISOLATED), uint32(SPELL_SHACKLED),
-                    uint32(SPELL_CURFEW), uint32(SPELL_ESCAPED), uint32(SPELL_CURFEW_STUN), SPELL_CHAIN_BEAM })
+                    uint32(SPELL_CURFEW), uint32(SPELL_ESCAPED), uint32(SPELL_CURFEW_STUN), SPELL_CHAIN_BEAM,
+                    uint32(SPELL_SURSIS), uint32(SPELL_CAGED) })
                     player->RemoveAurasDueToSpell(spell);
                 for (uint32 number = 0; number < 8; ++number)
                     player->RemoveAurasDueToSpell(SPELL_NUMBER_FIRST + number);
@@ -825,7 +917,8 @@ private:
     {
         if (_casting || me->HasReactState(REACT_PASSIVE) || me->HasUnitState(UNIT_STATE_CASTING))
             return false;
-        return _phase == Phase::One || _phase == Phase::Two || _phase == Phase::LifeSentence;
+        return _phase == Phase::One || _phase == Phase::Two || _phase == Phase::Three ||
+               _phase == Phase::LifeSentence;
     }
 
     // The players the fight hits: alive in the lair, not game masters
@@ -934,6 +1027,8 @@ private:
         if (auto const escape = _escapes.find(victim->GetGUID());
             escape != _escapes.end() && now < escape->second.until)
             factor *= 1.0f + EscapeTakenPct / 100.0f * float(escape->second.stacks);
+        if (auto const sursis = _sursis.find(victim->GetGUID()); sursis != _sursis.end() && now < sursis->second)
+            factor *= 1.0f + SursisTakenPct / 100.0f;
         return factor;
     }
 
@@ -1051,7 +1146,7 @@ private:
     {
         switch (what)
         {
-            case Ability::Sentence:         Sentence(SentencePct[_phase == Phase::Two ? 1 : 0]); break;
+            case Ability::Sentence:         Sentence(SentencePct[_phase == Phase::One ? 0 : 1]); break;
             case Ability::Isolation:        Isolation(); break;
             case Ability::Cells:            Cells(false); break;
             case Ability::CellsCurfew:      Cells(true); break;
@@ -1066,6 +1161,11 @@ private:
             case Ability::RiotWave:         RiotWave(); break;
             case Ability::RiotSentence:     HitEveryone(SPELL_SENTENCE, RiotSentencePct); break;
             case Ability::Phase2:           EnterPhase2(); break;
+            case Ability::Phase3:           EnterPhase3(); break;
+            case Ability::Cage:             Cage(false); break;
+            case Ability::CageCurfew:       Cage(true); break;
+            case Ability::Execution:        Execution(); break;
+            case Ability::Punishment:       Punishment(); break;
             case Ability::LifeSentence:     EnterLifeSentence(); break;
             case Ability::LifeSentenceHit:  LifeSentenceHit(); break;
             case Ability::HardEnrage:       HardEnrage(); break;
@@ -1352,25 +1452,39 @@ private:
     // Free for a blow: not casting nor placing anyone, no rule going off, the next one far enough, not in the riot
     bool AxeFree(uint32 elapsed) const
     {
-        if (_phase != Phase::One && _phase != Phase::Two && _phase != Phase::LifeSentence)
+        if (_phase != Phase::One && _phase != Phase::Two && _phase != Phase::Three && _phase != Phase::LifeSentence)
             return false;
         if (_casting || elapsed < _placingUntil || elapsed < _busyUntil || elapsed < _nextAxeMs || !me->GetVictim())
             return false;
-        return _next >= _timeline.size() || _timeline[_next].at >= elapsed + AxeWindowMs;
+        // Perpétuité's hits place nobody: the blows go on between them
+        std::size_t next = _next;
+        while (next < _timeline.size() && _timeline[next].what == Ability::LifeSentenceHit)
+            ++next;
+        return next >= _timeline.size() || _timeline[next].at >= elapsed + AxeWindowMs;
     }
 
     // How many lines, and whether they split, as the fight goes
     void AxeVolley()
     {
         uint32 const elapsed = Elapsed();
-        _nextAxeMs = elapsed + AxeEveryMs;
-        // parts: 0 a line that only lands; 2 a line that splits in two as it lands; 4 in four
+        _nextAxeMs = elapsed + (_phase == Phase::LifeSentence ? AxeEveryFrenzyMs :
+                                _phase == Phase::Three ? AxeEveryPhase3Ms : AxeEveryMs);
+        // parts: 0 a line that only lands; 2 a line that splits in two as it lands; 4 in four. sweep: a blade swept
+        // through a third of the room as they land.
         uint32 lines = 1;
         uint8 parts = 0;
+        bool sweep = false;
         if (_phase == Phase::LifeSentence)
         {
-            lines = 2;
+            lines = 3;
             parts = 4;
+            sweep = true;
+        }
+        else if (_phase == Phase::Three)
+        {
+            sweep = elapsed >= AtSweepFromMs;
+            lines = sweep ? 2 : 3;
+            parts = sweep ? 4 : 2;
         }
         else if (_phase == Phase::Two)
         {
@@ -1400,6 +1514,8 @@ private:
         std::vector<GroundIndicators::Area> areas;
         for (float direction : directions)
             areas.push_back(AxeLine(from, direction, AxeFullLine, AxeWarnMs));
+        if (sweep)
+            Sweep(from, me->GetAngle(targets[lines % targets.size()]));
         scheduler.Schedule(Milliseconds(AxeWarnMs), [this, areas, parts](TaskContext)
         {
             EndCast();
@@ -1835,6 +1951,386 @@ private:
         }
     }
 
+    // --- Phase 3, "Exécution des peines" ------------------------------------------------------------------------
+    void EnterPhase3()
+    {
+        _phase = Phase::Three;
+        Talk(SAY_PHASE_3);
+    }
+
+    // The way the call-th number is called: clockwise from the south, the group north of him first
+    static float ExecutionWay(uint8 call)
+    {
+        return ClockAngle(4.0f + float(call) * ExecutionStepDegrees * 8.0f / 360.0f, 8.0f);
+    }
+
+    GroundIndicators::Area ExecutionCone(float way) const
+    {
+        GroundIndicators::Area cone;
+        cone.kind = GroundIndicators::Area::Kind::Cone;
+        cone.origin = Ground(ArenaCenter);
+        cone.origin.SetOrientation(way);
+        cone.radius = ExecutionReach;
+        cone.arc = ExecutionArcDegrees * float(M_PI) / 180.0f;
+        return cone;
+    }
+
+    // Exécution des peines: he goes to the middle and calls the numbers in order; a clock ticks each second, the DOOM
+    // on each call's cone
+    void Execution()
+    {
+        MarkAway();
+        Cast(CAST_EXECUTION);
+        me->NearTeleportTo(ArenaCenter.GetPositionX(), ArenaCenter.GetPositionY(), Ground(ArenaCenter).GetPositionZ(),
+                           me->GetOrientation());
+        uint32 const lasts = ExecutionCastMs + uint32(ExecutionCalls) * ExecutionEveryMs;
+        AssignNumbers(lasts + 1000);
+        Placing(lasts);
+        _busyUntil = Elapsed() + lasts + 1000;
+        _executionEndMs = Elapsed() + lasts + 500;
+        _executionOn = true;
+        _burnt.clear();
+        _burntStruck.clear();
+        Sound("Vorhan.RollCall");
+        // The group under him, opposite the first call
+        PlaceExecution(nullptr, 0, ExecutionCastMs + 500);
+        // The clock: a tick each second, but on the calls (their DOOM)
+        for (uint32 second = 1; second * 1000 <= uint32(ExecutionCalls) * ExecutionEveryMs; ++second)
+        {
+            if (second % (ExecutionEveryMs / 1000) == 0)
+                continue;
+            scheduler.Schedule(Milliseconds(ExecutionCastMs + second * 1000), [this, second](TaskContext)
+            {
+                if (_executionOn)
+                    Sound(second % 2 ? "Vorhan.ExecutionTick" : "Vorhan.ExecutionTock");
+            });
+        }
+        scheduler.Schedule(Milliseconds(ExecutionCastMs), [this](TaskContext) { ExecutionCall(0); });
+    }
+
+    // The bots: the player called out on its way, everyone else under him opposite it
+    void PlaceExecution(Player* called, uint8 call, uint32 durationMs)
+    {
+        float const way = ExecutionWay(call);
+        Position const center = Ground(ArenaCenter);
+        for (Player* player : ArenaPlayers())
+            if (player == called)
+                GroundIndicators::SetUnitSpot(me, player, AtAngle(center, way, ExecutionCalledDistance), 1.2f,
+                                              durationMs);
+            else
+                GroundIndicators::SetUnitSpot(me, player, AtAngle(center, way + float(M_PI), ExecutionGroupDistance),
+                                              1.0f, durationMs);
+    }
+
+    void ExecutionCall(uint8 call)
+    {
+        if (!_executionOn)
+            return;
+        Player* called = PlayerOf(call + 1);
+        if (called && !called->IsAlive())
+            called = nullptr;
+        float const way = ExecutionWay(call);
+        uint32 const damage = uint32(Reference() * ExecutionPct / 100.0f);
+        // The warning: a cone that follows the player called (nobody to call: where they would have stood)
+        if (called)
+            GroundIndicators::ShowTrackingCone(me, Ground(ArenaCenter), ExecutionReach, ExecutionArcDegrees,
+                                               ExecutionEveryMs, called, damage);
+        else
+            GroundIndicators::ShowCone(me, Ground(ArenaCenter), way, ExecutionReach, ExecutionArcDegrees,
+                                       ExecutionEveryMs, GroundIndicators::Theme::None, damage);
+        PlaceExecution(called, call, ExecutionEveryMs + 500);
+        ObjectGuid const guid = called ? called->GetGUID() : ObjectGuid::Empty;
+        scheduler.Schedule(Milliseconds(ExecutionEveryMs), [this, call, guid](TaskContext)
+        {
+            ExecutionStrikes(call, guid);
+        });
+    }
+
+    // The call's cone: through the player called (where they stand now), everyone else in it struck; its floor burns
+    // a moment later
+    void ExecutionStrikes(uint8 call, ObjectGuid guid)
+    {
+        if (!_executionOn)
+            return;
+        Player* called = guid.IsEmpty() ? nullptr : ObjectAccessor::GetPlayer(*me, guid);
+        Position const center = Ground(ArenaCenter);
+        float const way = called && called->IsAlive() ? center.GetAngle(called) : ExecutionWay(call);
+        GroundIndicators::Area const cone = ExecutionCone(way);
+        me->SetFacingTo(way);
+        me->SendPlaySpellVisual(KIT_STRIKE);
+        Sound("Vorhan.ExecutionDoom");
+        GroundIndicators::ShowWardenRollCallBlow(me, center, way);
+        std::string struck;
+        for (Player* player : ArenaPlayers())
+            if (player != called && cone.Contains(player->GetPosition()))
+            {
+                ExecutionStrike(player, SPELL_EXECUTION, ExecutionPct);
+                struck += " " + player->GetName();
+            }
+        if (struck.empty())
+            Kept("execution");
+        else
+            Broken("execution", Acore::StringFormat("call {}:{}", call + 1, struck));
+
+        GroundIndicators::Area floor = cone;
+        floor.inner = ExecutionSafe;
+        scheduler.Schedule(Milliseconds(BurntDelayMs), [this, floor](TaskContext)
+        {
+            uint32 const now = Elapsed();
+            if (!_executionOn || now >= _executionEndMs)
+                return;
+            _burnt.push_back(floor);
+            uint32 const lasts = _executionEndMs - now;
+            GroundIndicators::ShowWardenMark(me, floor.origin, floor.origin.GetOrientation(),
+                                             GroundIndicators::SPELL_WARDEN_BURNT_FLOOR, lasts);
+            GroundIndicators::WatchArea(me, floor, lasts, uint32(Reference() * BurntPct / 100.0f));
+        });
+
+        if (call + 1 < ExecutionCalls)
+            ExecutionCall(call + 1);
+        else
+            scheduler.Schedule(Milliseconds(_executionEndMs > Elapsed() ? _executionEndMs - Elapsed() : 0),
+                               [this](TaskContext) { EndExecution(); });
+    }
+
+    // An execution's strike (its cone, or a step on its floor): the first puts the player under Sursis, a second under
+    // it is death
+    void ExecutionStrike(Player* player, uint32 spellId, float percent)
+    {
+        uint32 const now = Elapsed();
+        uint32& until = _sursis[player->GetGUID()];
+        if (now < until)
+        {
+            Doom(player, spellId);
+            return;
+        }
+        Hit(player, spellId, percent, false);
+        if (player->IsAlive())
+        {
+            until = now + SursisMs;
+            AddTimedAura(player, SPELL_SURSIS, SursisMs);
+        }
+    }
+
+    // Whoever stands on a burnt floor (not in the ring under him) is struck, at most once a second
+    void CheckBurntFloor()
+    {
+        if (!_executionOn || _burnt.empty())
+            return;
+        uint32 const now = Elapsed();
+        for (Player* player : ArenaPlayers())
+        {
+            bool on = false;
+            for (GroundIndicators::Area const& floor : _burnt)
+                if (floor.Contains(player->GetPosition()))
+                {
+                    on = true;
+                    break;
+                }
+            if (!on)
+                continue;
+            uint32& last = _burntStruck[player->GetGUID()];
+            if (last && now < last + BurntEveryMs)
+                continue;
+            last = now;
+            ExecutionStrike(player, SPELL_BURNT, BurntPct);
+            Broken("burnt floor", player->GetName());
+        }
+    }
+
+    void EndExecution()
+    {
+        if (!_executionOn)
+            return;
+        _executionOn = false;
+        _burnt.clear();
+        _burntStruck.clear();
+        EndCast();
+        ClearNumbers();
+        for (Player* player : ArenaPlayers())
+            GroundIndicators::EndUnitSpot(me, player);
+        Rally();
+    }
+
+    // Mise au cachot: a player who is not a tank caged where they stand; the group breaks the cage or they die. With
+    // the curfew: it sounds while they break it.
+    void Cage(bool curfew)
+    {
+        std::vector<Player*> candidates;
+        for (Player* player : ArenaPlayers())
+            if (!IsGroupTank(player))
+                candidates.push_back(player);
+        if (candidates.empty() || !_cage.IsEmpty())
+            return;
+        Player* prisoner = Acore::Containers::SelectRandomContainerElement(candidates);
+        ObjectGuid const guid = prisoner->GetGUID();
+        Cast(CAST_CAGE);
+        _busyUntil = std::max(_busyUntil, Elapsed() + CageCastMs + 1000);
+        if (curfew)
+            Curfew(CageCastMs + CageCurfewMs);
+        scheduler.Schedule(Milliseconds(CageCastMs), [this, guid](TaskContext)
+        {
+            EndCast();
+            Player* prisoner = ObjectAccessor::GetPlayer(*me, guid);
+            if (!prisoner || !prisoner->IsAlive())
+                return;
+            TempSummon* cage = me->SummonCreature(NPC_CAGE, prisoner->GetPosition(), TEMPSUMMON_MANUAL_DESPAWN);
+            if (!cage)
+                return;
+            float const dealers = Power::GroupDamageDealers(GroupDamage, GroupTanks, GroupHealers);
+            uint32 const health = uint32(Power::ExpectedDps(ProfileItemLevel, ProfileParagon) * dealers *
+                                         CageBreakSeconds);
+            cage->SetCreateHealth(health);
+            cage->SetMaxHealth(health);
+            cage->SetFullHealth();
+            if (sSpellMgr->GetSpellInfo(SPELL_CAGE))
+                cage->AddAura(SPELL_CAGE, cage);
+            cage->SetInCombatWithZone();
+            prisoner->StopMoving();
+            AddTimedAura(prisoner, SPELL_CAGED, CageMs);
+            Sound("Vorhan.Isolation", prisoner);
+            _cage = cage->GetGUID();
+            _caged = guid;
+            // The skull on it: the bots break it first
+            if (Group* group = prisoner->GetGroup())
+                group->SetTargetIcon(7, ObjectGuid::Empty, _cage);
+            scheduler.Schedule(Milliseconds(CageMs), [this](TaskContext) { ResolveCage(false); });
+        });
+    }
+
+    // The cage broken (its death, npc_warden_vorhan_cage), or its time over
+    void ResolveCage(bool broken)
+    {
+        if (_cage.IsEmpty())
+            return;
+        Player* prisoner = ObjectAccessor::GetPlayer(*me, _caged);
+        if (prisoner)
+        {
+            prisoner->RemoveAurasDueToSpell(SPELL_CAGED);
+            if (broken)
+                Kept("cage");
+            else if (prisoner->IsAlive())
+            {
+                Doom(prisoner, SPELL_CAGE_DEATH);
+                Broken("cage", prisoner->GetName());
+            }
+        }
+        ClearCage();
+    }
+
+    void ClearCage()
+    {
+        if (_cage.IsEmpty())
+            return;
+        Creature* cage = me->GetMap()->GetCreature(_cage);
+        if (Player* prisoner = ObjectAccessor::GetPlayer(*me, _caged))
+        {
+            prisoner->RemoveAurasDueToSpell(SPELL_CAGED);
+            if (Group* group = prisoner->GetGroup(); group && group->GetTargetIcon(7) == _cage)
+                group->SetTargetIcon(7, ObjectGuid::Empty, ObjectGuid::Empty);
+        }
+        _cage.Clear();
+        _caged.Clear();
+        if (cage && cage->IsAlive())
+            cage->DespawnOrUnsummon(0ms);
+    }
+
+public:
+    void CageBroken(Creature* cage)
+    {
+        if (cage->GetGUID() == _cage)
+            ResolveCage(true);
+    }
+
+private:
+    // Châtiment exemplaire: a cone of its own look on his tank; whoever stands in it shares it. Nobody: everyone dies;
+    // one alone dies, and everyone is hit; two or more share it.
+    void Punishment()
+    {
+        Player* tank = me->GetVictim() ? me->GetVictim()->ToPlayer() : nullptr;
+        if (!tank)
+            return;
+        Cast(CAST_PUNISHMENT);
+        _busyUntil = std::max(_busyUntil, Elapsed() + PunishmentCastMs + 500);
+        Position const from = Ground(me->GetPosition());
+        float const way = me->GetAngle(tank);
+        me->SetFacingTo(way);
+        GroundIndicators::Area cone;
+        cone.kind = GroundIndicators::Area::Kind::Cone;
+        cone.origin = from;
+        cone.origin.SetOrientation(way);
+        cone.radius = PunishmentReach;
+        cone.arc = PunishmentArcDegrees * float(M_PI) / 180.0f;
+        GroundIndicators::ShowWardenMark(me, from, way, GroundIndicators::SPELL_WARDEN_PUNISHMENT,
+                                         PunishmentCastMs + 300);
+        // The bots: the tanks stay in it (the other one goes in beside the first), everyone else leaves it
+        GroundIndicators::WatchArea(me, cone, PunishmentCastMs, uint32(Reference() * PunishmentPct / 200.0f), true);
+        if (Player* other = OtherTank(tank))
+            GroundIndicators::SetOffTankSpot(me, AtAngleFrom(from, way, PunishmentOffTankDistance),
+                                             PunishmentCastMs + 500, true, other);
+        Sound("Vorhan.Chains");
+        scheduler.Schedule(Milliseconds(PunishmentCastMs), [this, cone](TaskContext)
+        {
+            EndCast();
+            me->SendPlaySpellVisual(KIT_STRIKE);
+            Sound("Vorhan.ExecutionDoom");
+            GroundIndicators::ShowWardenStrike(me, cone.origin, cone.origin.GetOrientation());
+            std::vector<Player*> inside;
+            for (Player* player : ArenaPlayers())
+                if (cone.Contains(player->GetPosition()))
+                    inside.push_back(player);
+            if (inside.empty())
+            {
+                for (Player* player : ArenaPlayers())
+                    Doom(player, SPELL_PUNISHMENT);
+                Broken("punishment", "nobody in it");
+                return;
+            }
+            if (inside.size() == 1)
+            {
+                Doom(inside.front(), SPELL_PUNISHMENT);
+                HitEveryone(SPELL_PUNISHMENT, PunishmentAlonePct);
+                Broken("punishment", inside.front()->GetName() + " alone");
+                return;
+            }
+            for (Player* player : inside)
+                Hit(player, SPELL_PUNISHMENT, PunishmentPct / float(inside.size()), false);
+            Kept("punishment");
+        });
+    }
+
+    // Faux du geôlier: the third of the room it sweeps warned as a cone with the volley's lines, then the blade swept
+    // through it from one side to the other as they land: whoever it passes is struck, once
+    void Sweep(Position const& from, float towards)
+    {
+        float const turn = SweepDegrees * float(M_PI) / 180.0f * (urand(0, 1) ? 1.0f : -1.0f);
+        float const start = Position::NormalizeOrientation(towards - turn / 2.0f);
+        uint32 const damage = uint32(Reference() * AxePct / 100.0f);
+        GroundIndicators::ShowCone(me, from, towards, ExecutionReach, SweepDegrees, AxeWarnMs,
+                                   GroundIndicators::Theme::None, damage);
+        float const perSecond = turn * 1000.0f / float(SweepMs);
+        scheduler.Schedule(Milliseconds(AxeWarnMs), [this, from, start, perSecond](TaskContext)
+        {
+            Position origin = from;
+            origin.SetOrientation(start);
+            GroundIndicators::Area const blade = GroundIndicators::ShowSweepingLine(me, origin, start, perSecond,
+                ExecutionReach, AxeWidth, SweepMs, SPELL_AXE_SWING_HIT, uint32(Reference() * AxePct / 100.0f));
+            auto const struck = std::make_shared<std::set<ObjectGuid>>();
+            for (uint32 at = 0; at <= SweepMs; at += SweepCheckMs)
+                scheduler.Schedule(Milliseconds(at), [this, blade, perSecond, at, struck](TaskContext)
+                {
+                    GroundIndicators::Area const now = GroundIndicators::CurrentSweep(blade, perSecond, at);
+                    for (Player* player : ArenaPlayers())
+                        if (!struck->count(player->GetGUID()) && now.Contains(player->GetPosition()))
+                        {
+                            struck->insert(player->GetGUID());
+                            Hit(player, SPELL_SWEEP, AxePct, true);
+                            Broken("sweep", player->GetName());
+                        }
+                });
+        });
+    }
+
     void EnterPhase2()
     {
         _phase = Phase::Two;
@@ -2112,6 +2608,38 @@ private:
     std::set<ObjectGuid> _fightListeners;
     ObjectGuid _sparing;                        // the player the hit being dealt marks rather than kills
     ObjectGuid _isolating;                      // the tank Mise à l'isolement never kills
+    // Phase 3
+    bool _executionOn = false;
+    uint32 _executionEndMs = 0;
+    std::vector<GroundIndicators::Area> _burnt;                // the execution's burnt floors, while it lasts
+    std::map<ObjectGuid, uint32> _burntStruck;                 // when each player was last struck on one
+    std::map<ObjectGuid, uint32> _sursis;                      // until when each player is under Sursis
+    ObjectGuid _cage;                                          // the cage standing, and who is in it
+    ObjectGuid _caged;
+};
+
+// Mise au cachot's cage: it stands where it was shut and fights nothing; broken, it frees its prisoner
+struct npc_warden_vorhan_cage : public ScriptedAI
+{
+    npc_warden_vorhan_cage(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        me->SetReactState(REACT_PASSIVE);
+    }
+
+    void EnterEvadeMode(EvadeReason /*why*/) override { }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        if (TempSummon* summon = me->ToTempSummon())
+            if (Creature* warden = summon->GetSummonerCreatureBase())
+                if (boss_warden_vorhan* ai = dynamic_cast<boss_warden_vorhan*>(warden->AI()))
+                    ai->CageBroken(me);
+        me->DespawnOrUnsummon(1000ms);
+    }
+
+    void UpdateAI(uint32 /*diff*/) override { }
 };
 
 // The riot's prisoners: on their tank from the moment they come, blows sized by the warden (PrisonerDamage)
@@ -2194,7 +2722,7 @@ public:
     }
 
     // .vorhan cast <sentence|isolation|cells|cellscurfew|shackles|shacklesgaze|gaze|gazecurfew|rollcall|charge|
-    // chargerollcall|wave>: one rule now, in a fight
+    // chargerollcall|wave|cage|cagecurfew|execution|punishment>: one rule now, in a fight
     static bool HandleCast(ChatHandler* handler, std::string what)
     {
         boss_warden_vorhan* warden = FindWarden(handler->GetPlayer());
@@ -2202,7 +2730,7 @@ public:
         {
             handler->SendErrorMessage("No fighting Vorhan within 250 yards, or no such rule (sentence, isolation, "
                 "cells, cellscurfew, shackles, shacklesgaze, gaze, gazecurfew, rollcall, charge, chargerollcall, "
-                "wave).");
+                "wave, cage, cagecurfew, execution, punishment).");
             return false;
         }
         return true;
@@ -2343,7 +2871,22 @@ public:
             player->SendPlaySpellVisual(KIT_STRIKE);
             return true;
         }
-        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew|axe|rollcall>");
+        if (what == "burnt" || what == "punishment")
+        {
+            // Phase 3's marks from the game master ahead of them: an execution's burnt floor (its strike, its clock's
+            // DOOM), or the tanks' punishment cone, for 8 s
+            float const facing = player->GetOrientation();
+            bool const burnt = what == "burnt";
+            if (burnt)
+            {
+                GroundIndicators::ShowWardenRollCallBlow(player, player->GetPosition(), facing);
+                EvolutionsAudio::PlayAt(player, "Vorhan.ExecutionDoom", player->GetPosition());
+            }
+            GroundIndicators::ShowWardenMark(player, player->GetPosition(), facing, burnt ?
+                GroundIndicators::SPELL_WARDEN_BURNT_FLOOR : GroundIndicators::SPELL_WARDEN_PUNISHMENT, 8000);
+            return true;
+        }
+        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew|axe|rollcall|burnt|punishment>");
         return false;
     }
 
@@ -2378,5 +2921,6 @@ void AddWardenVorhanScripts()
 {
     RegisterCreatureAI(boss_warden_vorhan);
     RegisterCreatureAI(npc_warden_vorhan_prisoner);
+    RegisterCreatureAI(npc_warden_vorhan_cage);
     new WardenVorhanCommandScript();
 }

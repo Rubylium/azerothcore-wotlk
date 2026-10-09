@@ -30,7 +30,8 @@ namespace GroundIndicators
         float radius = 0.0f;        // a circle's, a cone's or a ring's (outer) radius, a rectangle's length
         float width = 0.0f;         // a rectangle's width, as its model draws it
         float arc = 0.0f;           // a cone's full arc, in radians, as its model draws it
-        float inner = 0.0f;         // a ring's inner radius, as its model draws it
+        float inner = 0.0f;         // a ring's inner radius, as its model draws it; a cone's clear middle (its
+                                    // first yards from the apex are not in it: the burnt floor round a boss)
 
         // Whether a point stands in the area, on the ground (height is ignored), grown by margin yards
         [[nodiscard]] bool Contains(Position const& point, float margin = 0.0f) const;
@@ -78,6 +79,10 @@ namespace GroundIndicators
                                float length, float width, uint32 durationMs, uint32 hitDamage = 0, uint32 look = 0,
                                uint32 curtain = 0);
     Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
+    // The same sweep with a painted line built to its size (shapes.json `scale`: never scaled, it would grow in on the
+    // client), its carrier at start: a blade swept round the room
+    Area ShowSweepingLine(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
+                          float width, uint32 durationMs, uint32 look, uint32 hitDamage = 0);
     // The same line for the bots only, nothing drawn: a sweep shown by its own visual (a beam)
     void WatchSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
                                 float length, float width, uint32 durationMs, uint32 hitDamage = 0);
@@ -197,6 +202,8 @@ namespace GroundIndicators
     constexpr uint32 SPELL_WARDEN_CURFEW_MARK = 94235;         // the curfew's hourglass over each head
     constexpr uint32 SPELL_WARDEN_CELL_BARS_LOW = 94236;       // the cage's side, knee-high, before the doors
     constexpr uint32 SPELL_WARDEN_ROLL_CALL_BLOW = 94247;      // the roll call's blow at each player (harmless)
+    constexpr uint32 SPELL_WARDEN_BURNT_FLOOR = 94248;         // an execution's burnt floor (from 5 yards out)
+    constexpr uint32 SPELL_WARDEN_PUNISHMENT = 94249;          // Châtiment exemplaire: the tanks' cone
     // The gaze's model: one eye, 8 x 4 yards, its middle this high over the floor (on the warden's chest and head,
     // drawn over his body), its burst on from WardenGazeBurstMs
     constexpr float WardenGazeElevation = 4.5f;
@@ -230,6 +237,9 @@ namespace GroundIndicators
     constexpr uint32 WardenRollCallBlowGrowMs = 1000;
     constexpr uint32 WardenRollCallBlowMs = 2600;
     void ShowWardenRollCallBlow(Unit* owner, Position const& from, float orientation);
+    // One of his marks built to its size (the burnt floor: 40 yards; the punishment: 14), its apex at `from`, turned
+    // to orientation, for durationMs (it fades out at its end). Drawn only: the fight registers what hits.
+    void ShowWardenMark(Unit* owner, Position const& from, float orientation, uint32 look, uint32 durationMs);
     // A cell's cage round center: sixteen sides of red-hot bars on the cell's 3-yard circle, rising out of the floor as
     // they come, for durationMs - knee-high while the players find their cells (VW_CellBarsLow), full height once the
     // doors slam on them (tall, VW_CellBars)

@@ -41,6 +41,8 @@ SIZES = {
     'eye_glow.png': (1024, 1024),
     'curfew_ring.png': (1024, 1024),
     'curfew_mark.png': (256, 256),
+    'burnt_floor.png': (1024, 1024),
+    'punishment_cone.png': (1024, 1024),
 }
 
 
@@ -517,6 +519,106 @@ def axe_line(hit, long=False):
         colour = numpy.clip(colour, 0.0, 1.0)
     rgb = numpy.clip(colour * 255.0 + 0.5, 0, 255).astype(numpy.uint8)
     return Image.fromarray(rgb, 'RGB')
+
+
+# --- Phase 3: the burnt floor and the shared punishment -------------------------------------------------------------
+
+# The execution's cone (WardenVorhan.cpp ExecutionArc) and where its burnt floor starts, over its reach (ExecutionSafe /
+# ExecutionReach): the ring under the warden stays clear, the way back for whoever was called
+EXECUTION_ANGLE = 44.0
+BURNT_INNER = 5.0 / 40.0
+PUNISHMENT_ANGLE = 60.0
+
+
+def cone_grid(size):
+    """A cone's pixels, its apex at the middle of the left edge (as strike_cone): radius 1 at the right edge, angle in
+    degrees from the axis"""
+    xs = (numpy.arange(size) + 0.5) / size
+    ys = (numpy.arange(size) + 0.5) / size * 2.0 - 1.0
+    x, y = numpy.meshgrid(xs, ys)
+    return numpy.hypot(x, y * 0.5), numpy.degrees(numpy.arctan2(y * 0.5, x))
+
+
+def with_apex(rgba):
+    """The builder finds a cone's apex as the leftmost texel it can see: a cone that leaves its apex clear (the burnt
+    floor's hole) keeps one faint texel there, too small to be seen (a twenty-fifth of a yard)"""
+    height = rgba.shape[0]
+    rgba[height // 2, 0, :3] = 0.0
+    rgba[height // 2, 0, 3] = 0.2
+    return rgba
+
+
+def cone_fill(name, size):
+    """A square painting (art/<name>, a texture seen from above, not a cone) laid over the cone as its fill: RGB in
+    [0, 1], or None while it is not there. The cone's own shape and edges are drawn here, so the painting only has to
+    be a texture."""
+    if not os.path.exists(os.path.join(ART, name)):
+        return None
+    return as_array(painting(name).resize((size, size), Image.LANCZOS))
+
+
+def burnt_floor():
+    """Where an execution struck, until the rule ends: the floor charred and cracked along the cone, embers in its
+    cracks, its edges glowing, from BURNT_INNER of its reach out (the warden's own ring stays clear). 1024 x 1024,
+    RGBA. Its fill is the painting art/burnt_floor.png once it is there (a square texture of charred floor), its
+    edges always drawn here."""
+    size = 1024
+    radius, angle = cone_grid(size)
+    half = EXECUTION_ANGLE / 2.0
+    across = numpy.abs(angle) / half
+    inside = smooth(1.02, 0.96, across) * smooth(BURNT_INNER - 0.01, BURNT_INNER + 0.02, radius) * \
+        smooth(1.0, 0.97, radius)
+    edge = numpy.clip(smooth(0.8, 1.0, across) + smooth(BURNT_INNER + 0.06, BURNT_INNER, radius) +
+                      smooth(0.92, 1.0, radius), 0.0, 1.0)
+    hot = numpy.array([1.0, 0.42, 0.10])
+    fill = cone_fill('burnt_floor.png', size)
+    if fill is not None:
+        # The painting as it is, its glowing edges over it
+        colour = fill * (1 - edge[..., None]) + hot * edge[..., None]
+        alpha = numpy.clip(0.85 + edge * 0.1, 0.0, 0.92) * inside
+    else:
+        # Cracks: the ridges of two noises, embers glowing in them
+        cracks = numpy.zeros_like(radius)
+        for seed, scale in ((81, 40), (82, 18)):
+            n = noise(size, size, scale, seed)
+            cracks = numpy.maximum(cracks, smooth(0.07, 0.0, numpy.abs(n - 0.5)))
+        char = 0.55 + 0.25 * noise(size, size, 50, 83)
+        ember = numpy.clip(cracks * 0.9 + edge * 0.8, 0.0, 1.0)
+        black = numpy.array([0.10, 0.03, 0.02])
+        colour = black * (1 - ember[..., None]) + hot * ember[..., None]
+        alpha = numpy.clip(char * 0.75 + ember * 0.4, 0.0, 0.92) * inside
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(with_apex(rgba) * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
+
+
+def punishment_cone():
+    """Châtiment exemplaire: the tanks' cone, nothing like the red ones - pale gold and steel, two heavy iron bands
+    across it and a double rim, chevrons pointing out from the warden. 1024 x 1024, RGBA. Its fill is the painting
+    art/punishment_cone.png once it is there (a square texture: gold-lit iron on pure black, its black see-through),
+    its rim always drawn here."""
+    size = 1024
+    radius, angle = cone_grid(size)
+    half = PUNISHMENT_ANGLE / 2.0
+    across = numpy.abs(angle) / half
+    inside = smooth(1.02, 0.97, across) * smooth(1.0, 0.97, radius)
+    rim = numpy.clip(smooth(0.86, 0.97, across) + smooth(0.88, 0.97, radius), 0.0, 1.0)
+    gold = numpy.array([1.0, 0.82, 0.35])
+    fill = cone_fill('punishment_cone.png', size)
+    if fill is not None:
+        shown = numpy.clip(fill.max(axis=2) / 0.25, 0.0, 1.0)
+        colour = fill * (1 - rim[..., None]) + gold * rim[..., None]
+        alpha = numpy.clip(0.25 + shown * 0.6 + rim * 0.8, 0.0, 0.92) * inside
+    else:
+        bands = numpy.exp(-((radius - 0.45) / 0.03) ** 2) + numpy.exp(-((radius - 0.72) / 0.03) ** 2)
+        chevron = numpy.abs(numpy.remainder((radius + across * 0.12) * 7.0, 1.0) - 0.5)
+        chevrons = smooth(0.08, 0.02, chevron) * 0.5
+        light = numpy.clip(rim + bands + chevrons, 0.0, 1.0)
+        haze = 0.28 + 0.1 * noise(size, size, 40, 91)
+        steel = numpy.array([0.85, 0.9, 1.0])
+        colour = gold * (1 - bands[..., None].clip(0, 1)) + steel * bands[..., None].clip(0, 1)
+        alpha = numpy.clip(haze + light * 0.8, 0.0, 0.92) * inside
+    rgba = numpy.concatenate([colour, alpha[..., None]], axis=2)
+    return Image.fromarray(numpy.clip(rgba * 255.0 + 0.5, 0, 255).astype(numpy.uint8), 'RGBA')
 
 
 # --- The cells' bars and the curfew --------------------------------------------------------------------------------

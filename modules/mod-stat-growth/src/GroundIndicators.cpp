@@ -1281,7 +1281,7 @@ bool Area::Contains(Position const& point, float margin) const
         }
         case Kind::Cone:
         {
-            if (distance > radius + margin)
+            if (distance > radius + margin || (inner > 0.0f && distance < inner - margin))
                 return false;
             if (distance <= margin)
                 return true;
@@ -1399,6 +1399,19 @@ Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation
             if (Creature* light = Place(owner, OnGround(owner, start.GetPositionX(), start.GetPositionY(),
                 start.GetPositionZ()), orientation, curtain, 1.0f, durationMs))
                 light->AIM_Initialize(new SweepAI(light, orientation, radiansPerSecond));
+    }
+    return area;
+}
+
+Area ShowSweepingLine(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
+                      float width, uint32 durationMs, uint32 look, uint32 hitDamage)
+{
+    Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
+    area.width = std::max(width, 0.5f);
+    if (Creature* stalker = Place(owner, start, orientation, look, 1.0f, durationMs))
+    {
+        stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond));
+        RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
     }
     return area;
 }
@@ -2285,6 +2298,14 @@ void ShowWardenRollCallBlow(Unit* owner, Position const& from, float orientation
     // Built to its size, its apex at its carrier (shapes.json `centred`): it grows out of it
     Place(owner, OnGround(owner, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ()), orientation,
           SPELL_WARDEN_ROLL_CALL_BLOW, 1.0f, WardenRollCallBlowMs);
+}
+
+void ShowWardenMark(Unit* owner, Position const& from, float orientation, uint32 look, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    Place(owner, OnGround(owner, from.GetPositionX(), from.GetPositionY(), from.GetPositionZ()), orientation, look,
+          1.0f, durationMs);
 }
 
 void ShowWardenCellBars(Unit* owner, Position const& center, uint32 durationMs, bool tall)

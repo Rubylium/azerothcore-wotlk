@@ -1,5 +1,5 @@
 # Gardien-chef Vorhan's spell data (modules/mod-stat-growth/src/WardenVorhan.cpp, the Défi board's prison warden;
-# plan: .agents/plans/warden-vorhan). Ids 94400-94451; 94200-94249 are its painted ground marks
+# plan: .agents/plans/warden-vorhan). Ids 94400-94454; 94200-94249 are its painted ground marks
 # (localTools/groundIndicators/shapes.json).
 #
 # The fight explains itself: every rule shows on the players as a debuff, and every hit is a spell of its own whose
@@ -78,6 +78,17 @@ $spells = @(
         'Le gardien-chef a fendu le sol de sa hache : sortez de la ligne avant qu''elle frappe.'),
     (New-Hit 94414 'Peine capitale' 'ICON_PeineCapitale' 589 $shadow `
         'Le temps est écoulé.'),
+    # Phase 3, "Exécution des peines"
+    (New-Hit 94416 'Exécution' 'ICON_Execution' 30616 $fire `
+        "Le cône d'un autre matricule vous a touché. Un second coup sous Sursis est fatal."),
+    (New-Hit 94417 'Sol calciné' 'ICON_SolCalcine' 30616 $fire `
+        "Vous marchiez sur le sol brûlé par une exécution. Un second coup sous Sursis est fatal."),
+    (New-Hit 94418 'Mort au cachot' 'ICON_Cachot' 589 $shadow `
+        "Votre cachot n'a pas été brisé à temps."),
+    (New-Hit 94419 'Châtiment exemplaire' 'ICON_Chatiment' 33813 $shadow `
+        'Le châtiment se partage entre ceux qui se tiennent dans le cône : seuls, ou personne, et il tue.'),
+    (New-Hit 94452 'Faux du geôlier' 'ICON_CoupDeHache' 845 $physical `
+        "La hache du gardien-chef balayait le sol : sortez de son chemin avant qu'elle passe."),
 
     # --- The debuffs ---
     (New-Debuff 94420 'Marque du geôlier' 'ICON_MarqueGeolier' 30616 1 1 `
@@ -112,6 +123,16 @@ $spells = @(
     @{ Id = 94426; Clone = 56; Name = 'Couvre-feu violé'; Icon = 'ICON_ViolationCouvreFeu'; FallbackIconSpell = 33912; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Vous bougiez quand le couvre-feu a sonné.'
        AuraDescription = 'Étourdi.' },
+    # The numbered execution's mark: hit once, a second hit is death (the script times it and adds the damage taken)
+    (New-Debuff 94428 'Sursis' 'ICON_Sursis' 30616 1 1 `
+        "Une exécution vous a touché." `
+        "Dégâts subis augmentés de 50 %. Un second coup d'exécution ou un pas sur le sol calciné vous sera fatal."),
+    # Mise au cachot: rooted in the cage until the group breaks it
+    @{ Id = 94429; Clone = 2983; Name = 'Au cachot'; Icon = 'ICON_Cachot'; FallbackIconSpell = 38505; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Enfermé au cachot.'
+       AuraDescription = 'Immobilisé. Le groupe doit briser le cachot avant la fin de ce temps, ou vous mourrez.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 26; TargetA = 1 })
+       Fields = @{ 4 = $debuff; 40 = 1 } },
     # The inmate numbers, for the whole fight
     (New-Debuff 94430 'Matricule 1' 'ICON_Matricule1' 38505 21 1 `
         'Votre numéro de détenu.' `
@@ -150,6 +171,10 @@ $spells = @(
     (New-Cast 94447 'Couvre-feu' 'ICON_CouvreFeu' 589 4 'Le couvre-feu va sonner.'),
     (New-Cast 94448 'Mutinerie' 'ICON_Evasion' 31458 5 'Les portes des cellules cèdent.'),
     (New-Cast 94449 'Perpétuité' 'ICON_Perpetuite' 589 5 'La peine ne finira plus.'),
+    (New-Cast 94439 'Exécution des peines' 'ICON_Execution' 30616 15 `
+        "Les matricules seront appelés dans l'ordre : chacun à l'opposé du groupe."),
+    (New-Cast 94453 'Mise au cachot' 'ICON_Cachot' 38505 16 'Le gardien-chef jette un détenu au cachot.'),
+    (New-Cast 94454 'Châtiment exemplaire' 'ICON_Chatiment' 33813 15 'Les deux gardiens dans le cône, personne d''autre.'),
 
     # --- The shackles' chain: a beam from one chained player to the other (cast by one on the other: any target,
     # any range, a dummy aura) ---

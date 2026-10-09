@@ -4,7 +4,8 @@
     "music silent meanwhile. PrisonIdle while the player looks at the boss's page on the board, WardenVorhan for the",
     "fight. Each file is its track's intro then exactly one loop period, cut sample-exact from the composer's file",
     "(which repeats it): the engine goes back to loopStart (a frame) at the end, seamlessly.",
-    "Its rules' sounds (WardenVorhan.cpp): the game's own files, heard from where the rule happens across the whole lair (min distance 60): a whip for the Sentence, a cage shutting on the isolated tank, its fel seal bursting, the prison doors slamming on the cells, chains, the warden's eye, the roll call's bell, lightning for the walls, the shockwave of his charge, the curfew's clock and bell, the riot's crowd."
+    "Its rules' sounds (WardenVorhan.cpp): the game's own files, heard from where the rule happens across the whole lair (min distance 60): a whip for the Sentence, a cage shutting on the isolated tank, its fel seal bursting, the prison doors slamming on the cells, chains, the warden's eye, the roll call's bell, lightning for the walls, the shockwave of his charge, the curfew's clock and bell, the riot's crowd.",
+    "The numbered execution (phase 3): a clock's tick and tock each second, cut from the game's grandfather clock, and its DOOM on each cone, the troll gong over the clockwork giant's ground pound (localTools/wardenVorhan/executionSounds.py)."
   ],
   "sounds": {
     "Music.PrisonIdle": {
@@ -192,6 +193,33 @@
       "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BellTollHorde.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vorhan.ExecutionTick": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/VorhanExecutionTick.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 0.7
+    },
+    "Vorhan.ExecutionTock": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/VorhanExecutionTock.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 0.7
+    },
+    "Vorhan.ExecutionDoom": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/VorhanExecutionDoom.wav"
       ],
       "minDistance": 60,
       "maxDistance": 140,

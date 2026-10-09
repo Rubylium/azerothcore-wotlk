@@ -46,6 +46,9 @@ Vorhan.Chains	spell	1	20	60	Vorhan.Chains_1.wav
 Vorhan.Charge	spell	1	60	140	Vorhan.Charge_1.wav
 Vorhan.CurfewBell	world	1	60	140	Vorhan.CurfewBell_1.wav
 Vorhan.CurfewTick	world	1	60	140	Vorhan.CurfewTick_1.wav
+Vorhan.ExecutionDoom	spell	1	60	140	Vorhan.ExecutionDoom_1.wav
+Vorhan.ExecutionTick	spell	0.7	60	140	Vorhan.ExecutionTick_1.wav
+Vorhan.ExecutionTock	spell	0.7	60	140	Vorhan.ExecutionTock_1.wav
 Vorhan.GazeBurst	spell	1	60	140	Vorhan.GazeBurst_1.wav
 Vorhan.GazeOpen	spell	1	60	140	Vorhan.GazeOpen_1.wav
 Vorhan.Isolation	spell	1	60	140	Vorhan.Isolation_1.wav
