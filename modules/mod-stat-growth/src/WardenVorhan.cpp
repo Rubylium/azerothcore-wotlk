@@ -1291,6 +1291,7 @@ private:
         }
         if (curfew)
             Curfew(CellsMs + CurfewAfterCellsMs);
+        HoldAxe(lasts);
         scheduler.Schedule(Milliseconds(CellsMs), [this](TaskContext)
         {
             EndCast();
@@ -1455,6 +1456,8 @@ private:
         if (_phase != Phase::One && _phase != Phase::Two && _phase != Phase::Three && _phase != Phase::LifeSentence)
             return false;
         if (_casting || elapsed < _placingUntil || elapsed < _busyUntil || elapsed < _nextAxeMs || !me->GetVictim())
+            return false;
+        if (_shacklesOn || _executionOn)
             return false;
         // Perpétuité's hits place nobody: the blows go on between them
         std::size_t next = _next;
@@ -1688,7 +1691,10 @@ private:
         ShowGaze(GazeMs);
         LookAway(GazeMs);
         if (curfew)
+        {
             Curfew(CurfewMs);
+            HoldAxe(CurfewMs);
+        }
         scheduler.Schedule(Milliseconds(GazeMs), [this](TaskContext)
         {
             EndCast();
@@ -1841,6 +1847,9 @@ private:
         if (rollCall)
             AssignNumbers(ChargeWallsMs + ChargeLandMs + RollCallMs + 1000);
         Placing(ChargeWallsMs);
+        // Through its landing and its roll call: an axe fitted in the gap between the throw and the call landed on
+        // the marks (2026-10-09)
+        HoldAxe(ChargeWallsMs + ChargeLandMs + (rollCall ? RollCallMs : 0));
         ShowWalls(WallsLastMs);
         // The walls for the bots: the band past them is death, never to be walked into once landed
         GroundIndicators::Area walls;
@@ -2165,7 +2174,7 @@ private:
         Player* prisoner = Acore::Containers::SelectRandomContainerElement(candidates);
         ObjectGuid const guid = prisoner->GetGUID();
         Cast(CAST_CAGE);
-        _busyUntil = std::max(_busyUntil, Elapsed() + CageCastMs + 1000);
+        HoldAxe(CageCastMs + (curfew ? CageCurfewMs : 0));
         if (curfew)
             Curfew(CageCastMs + CageCurfewMs);
         scheduler.Schedule(Milliseconds(CageCastMs), [this, guid](TaskContext)
@@ -2427,6 +2436,13 @@ private:
         }
         else
             player->KnockbackFrom(me->GetPositionX(), me->GetPositionY(), speedXY, speedZ);
+    }
+
+    // No axe blow lands while a rule goes on for this long (its placement, its curfew, its roll call): a blow in a
+    // rule asks the players to be in two places at once. A blow starting just after it is over is free.
+    void HoldAxe(uint32 durationMs)
+    {
+        _busyUntil = std::max(_busyUntil, Elapsed() + durationMs + 1000);
     }
 
     // A rule places everyone for this long: his tank does not pull him back to the middle meanwhile
