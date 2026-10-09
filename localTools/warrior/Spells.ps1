@@ -460,13 +460,16 @@ $spells = @(
            @{ Index = 1; Effect = 6; Aura = 101; TargetA = 1; Value = 10; Misc = 1 },
            @{ Index = 2; Effect = 6; Aura = $A_AddPctModifier; TargetA = 1; Value = 30; Misc = $SPELLMOD_DAMAGE })
        Fields = @{ 128 = ($maskThunderClap -bor $maskRevenge); 129 = $maskShieldSlam; 130 = 0; 208 = 4 } },
-    # Gladiateur: half the threat; Shield Slam (word 1) recharges in 12 s rather than 6; the rest is mod-warrior's
+    # Gladiateur: half the threat; Shield Slam (word 1) recharges in 12 s rather than 6; Charge (word 0, 0x1) usable in
+    # combat, as Warbringer and Juggernaut make it for Protection and Arms (aura 262, misc 1: the in-combat check
+    # lifted); the rest is mod-warrior's
     @{ Id = 95283; Clone = 2983; Name = 'Gladiateur'; Icon = 'Gladiator_Spec'; FallbackIconSpell = 23922; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false; TalentAura = $true
-       Description = "Heurt de bouclier se recharge en 12 s, vous rend 20 points de rage et rend Vengeance utilisable, sans coût. Vengeance laisse Plaie du gladiateur, un saignement qui s'additionne à chaque Vengeance et dont chaque dégât peut réinitialiser Heurt de bouclier. Dévaster renforce votre prochaine Vengeance. Exécution est utilisable sur une cible qui saigne de votre Plaie : elle dépense toute votre rage et consume la plaie. Les scores de défense, d'esquive, de parade et de blocage de votre bouclier deviennent du score de coup critique, et vous générez 50% de menace en moins."
+       Description = "Heurt de bouclier se recharge en 12 s, vous rend 20 points de rage et rend Vengeance utilisable, sans coût. Vengeance laisse Plaie du gladiateur, un saignement qui s'additionne à chaque Vengeance et dont chaque dégât peut réinitialiser Heurt de bouclier. Dévaster renforce votre prochaine Vengeance. Exécution est utilisable sur une cible qui saigne de votre Plaie : elle dépense toute votre rage et consume la plaie. Les scores de défense, d'esquive, de parade et de blocage de votre bouclier deviennent du score de coup critique, et vous générez 50% de menace en moins. Charge est utilisable en combat."
        Effects = @(
            @{ Index = 0; Effect = 6; Aura = $A_ModThreat; TargetA = 1; Value = -50; Misc = 127 },
-           @{ Index = 1; Effect = 6; Aura = $A_AddFlatModifier; TargetA = 1; Value = 6000; Misc = $SPELLMOD_COOLDOWN })
-       Fields = @{ 125 = 0; 126 = $maskShieldSlam; 127 = 0; 208 = 4 } }
+           @{ Index = 1; Effect = 6; Aura = $A_AddFlatModifier; TargetA = 1; Value = 6000; Misc = $SPELLMOD_COOLDOWN },
+           @{ Index = 2; Effect = 6; Aura = 262; TargetA = 1; BasePoints = 0; Misc = 1 })
+       Fields = @{ 125 = 0; 126 = $maskShieldSlam; 127 = 0; 128 = 0x1; 129 = 0; 130 = 0; 208 = 4 } }
 )
 
 # The rank spells of the new talents, one hidden passive per rank (modifiers, or dummies mod-warrior reads)
