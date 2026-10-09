@@ -144,9 +144,11 @@ LiveTuning::KnobUInt const RimeWindowMs("deathknight.rime_window_ms", 1000);
 // single target sat at 95-101%. The cones (Frostscythe, Glacial Advance, Fury, Breath) reach the same three enemies
 // on five or twelve and set the five's level: cut the most. Remorseless Winter and Death and Decay reach the whole
 // pack and carry the twelve: cut less.
+// Raised again 2026-10-09 once Breath of Sindragosa's and Remorseless Winter's pulses stopped setting off the paragon
+// board's strikes (ParagonSystem.h IsParagonTick): Frost's packs were tuned with those, about the median spec now.
 // Frostscythe, Glacial Advance, Fury, Breath
-LiveTuning::Knob const FrostAreaFactor("deathknight.frost_area_factor", 1.05f);
-LiveTuning::Knob const FrostWinterFactor("deathknight.frost_winter_factor", 1.75f);
+LiveTuning::Knob const FrostAreaFactor("deathknight.frost_area_factor", 1.2f);
+LiveTuning::Knob const FrostWinterFactor("deathknight.frost_winter_factor", 2.0f);
 LiveTuning::Knob const FrostDeathAndDecayFactor("deathknight.frost_death_and_decay_factor", 1.2f);
 // Obliterate, Frost Strike, Howling Blast
 LiveTuning::Knob const FrostStrikeFactor("deathknight.frost_strike_factor", 1.4f);

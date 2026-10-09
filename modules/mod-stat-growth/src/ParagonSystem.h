@@ -38,6 +38,16 @@ inline bool IsPassThroughDamage(uint32 spellId)
     return spellId == 97222 || spellId == 97224 || spellId == 97225 || spellId == 97226;
 }
 
+// A pulse of something that lasts, cast as a hit every second rather than as an aura's tick: the Death Knight's
+// Breath of Sindragosa (92645, mod-death-knight, every second while runic power lasts) and Remorseless Winter (92643).
+// The board takes them as the periodic ticks they are: their always-on bonuses, nothing that strikes again (a double
+// strike, a corpse blast). As hits, every second of a breath rolled every proc on every enemy in its cone: a Death
+// Knight's breath dealt 20-49% of its damage in play (2026-10-09).
+inline bool IsParagonTick(uint32 spellId)
+{
+    return spellId == 92645 || spellId == 92643;
+}
+
 // Re-applies a character's allocated nodes. Called on login, and after anything that changes the allocation.
 void ApplyStoredParagon(Player* player);
 void LoadParagonForPlayer(Player* player);

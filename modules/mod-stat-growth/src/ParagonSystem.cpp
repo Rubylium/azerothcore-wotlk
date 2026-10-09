@@ -2927,7 +2927,7 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     if (kind == HitKind::Spell && FightsWithWeapons(player))
         kind = HitKind::Weapon;
     // A periodic tick is not a hit of its own: it keeps the always-on bonuses, but sets off nothing that strikes again
-    bool const periodic = source.set && source.periodic;
+    bool const periodic = source.set && (source.periodic || (source.spell && IsParagonTick(source.spell->Id)));
     state->lastHitTarget = victim->GetGUID();
     state->lastHitKind = kind;
 
@@ -3038,7 +3038,7 @@ void OnParagonSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spell
 {
     Player* player = caster ? caster->ToPlayer() : nullptr;
     if (!player || !victim || !spellInfo || !damage || caster == victim || DealingProcDamage ||
-        IsPassThroughDamage(spellInfo->Id))
+        IsPassThroughDamage(spellInfo->Id) || IsParagonTick(spellInfo->Id))
         return;
     // A healer's damage is not doubled by the caster side's echoes and arcs: it walks those branches for the
     // spell power and the casts, and a Holy priest at 650 points dealt 70% of a fire mage's damage, half of it echoes
