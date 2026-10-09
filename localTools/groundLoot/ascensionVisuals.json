@@ -34,6 +34,10 @@
     {
       "model": "Spells/moonbeam_impact_base_beams.m2",
       "tint": "#ffd100"
+    },
+    {
+      "model": "Spells/moonbeam_impact_base_beams.m2",
+      "tint": "#e8332b"
     }
   ],
   "kits": {

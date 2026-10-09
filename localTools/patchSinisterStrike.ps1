@@ -2338,7 +2338,8 @@ $ownDisplays = @(
     @{ Id = 60002; CloneModel = 2816; CloneDisplay = 25334; Model = 'Spells\ashran_loot_state.mdx'; Scale = 1.0 }
     @{ Id = 60003; CloneModel = 2816; CloneDisplay = 25334; Model = 'Spells\treasuregoblin_coinpile.mdx'; Scale = 2.5 }
 )
-$beamColours = @('ffffff', '1eff00', '0070dd', 'a335ee', 'ff8000', 'ffd100')
+# White, green, blue, purple, orange (legendary), gold, red (a Unique: the client extension's quality 6 colour)
+$beamColours = @('ffffff', '1eff00', '0070dd', 'a335ee', 'ff8000', 'ffd100', 'e8332b')
 for ($index = 0; $index -lt $beamColours.Count; ++$index) {
     $ownDisplays += @{ Id = 60004 + $index; CloneModel = 2816; CloneDisplay = 25334
                        Model = ($tintedBeam -f $beamColours[$index]); Scale = 0.45 }

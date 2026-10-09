@@ -39,21 +39,25 @@ uint8 GetChallengeTierOf(Map const* map);
 namespace
 {
 // The drops (stat_growth_ground_loot.sql): a bag, a pile of gold, and the light beam over either, whose display is
-// that of the drop's quality (localTools/patchSinisterStrike.ps1: 60004 on, white, green, blue, purple, orange, gold)
+// that of the drop's quality (localTools/patchSinisterStrike.ps1: 60004 on, white, green, blue, purple, orange, gold,
+// red for a Unique)
 constexpr uint32 NPC_GROUND_LOOT = 900120;
 constexpr uint32 NPC_GROUND_GOLD = 900121;
 constexpr uint32 NPC_GROUND_LOOT_BEAM = 900122;
 constexpr uint32 DISPLAY_BEAM_FIRST = 60004;
 constexpr uint8 BeamGold = 5;
+constexpr uint8 BeamUnique = 6;     // quality 6, the Unique's red (the client extension recolours the quality)
 
 // Their sparkles, landing and picked up (localTools/groundLoot/ascensionVisuals.json)
 constexpr uint32 KIT_LAND = 81911;
 constexpr uint32 KIT_PICKUP = 81913;
 // Diablo IV's loot sounds, played by our own sound engine to the owner alone (EvolutionsAudio.h; the bank:
-// client-assets/audio/groundLoot.json): from the drop, a flip as it jumps and a landing - an item, an epic, an epic
-// with a power of its own (touched by L'Infini or the Hollow Voice), a legendary, gold - then its quality's loop as
-// long as it lies there; picked up, an item's or gold's, where the player is.
+// client-assets/audio/groundLoot.json): from the drop, a flip as it jumps and a landing - a white item, a green, a
+// blue, an epic, an epic with a power of its own (touched by L'Infini or the Hollow Voice) or a Unique, a legendary,
+// gold - then its quality's loop as long as it lies there; picked up, an item's or gold's, where the player is.
 constexpr char const* SoundFlip = "GroundLoot.Flip";
+constexpr char const* SoundLandCommon = "GroundLoot.LandCommon";
+constexpr char const* SoundLandMagic = "GroundLoot.LandMagic";
 constexpr char const* SoundLand = "GroundLoot.Land";
 constexpr char const* SoundLandEpic = "GroundLoot.LandEpic";
 constexpr char const* SoundLandUnique = "GroundLoot.LandUnique";
@@ -61,10 +65,10 @@ constexpr char const* SoundLandLegendary = "GroundLoot.LandLegendary";
 constexpr char const* SoundLandGold = "GroundLoot.LandGold";
 constexpr char const* SoundPickup = "GroundLoot.Pickup";
 constexpr char const* SoundPickupGold = "GroundLoot.PickupGold";
-// By the beam's colour (BeamIndex): white, green, blue, purple, orange, gold
+// By the beam's colour (BeamIndex): white, green, blue, purple, orange, gold, red
 constexpr char const* SoundLoops[] = { "GroundLoot.Loop.Normal", "GroundLoot.Loop.Magic", "GroundLoot.Loop.Rare",
                                        "GroundLoot.Loop.Legendary", "GroundLoot.Loop.Legendary",
-                                       "GroundLoot.Loop.Gold" };
+                                       "GroundLoot.Loop.Gold", "GroundLoot.Loop.Legendary" };
 
 // The burst: this long after the kill the first drop leaves the corpse, the next ones one after the other. Each
 // appears inside the corpse and jumps a moment later (the client has it by then), in an arc of that height, flying
@@ -225,11 +229,14 @@ std::string Describe(Drop const& drop)
     }
 }
 
-// The beam's colour: grey and white items white, then green, blue, purple, orange for legendary and above; gold its own
+// The beam's colour: grey and white items white, then green, blue, purple, orange for a legendary, red for a Unique
+// (quality 6: it showed orange, as a legendary); gold its own
 uint8 BeamIndex(Drop const& drop)
 {
     if (drop.kind == DropKind::Gold)
         return BeamGold;
+    if (drop.quality >= ITEM_QUALITY_ARTIFACT)
+        return BeamUnique;
     if (drop.quality <= ITEM_QUALITY_NORMAL)
         return 0;
     return static_cast<uint8>(std::min<uint32>(drop.quality - ITEM_QUALITY_NORMAL, 4));
@@ -362,11 +369,19 @@ char const* LandSound(Drop const& drop)
 {
     if (drop.kind == DropKind::Gold)
         return SoundLandGold;
-    if (drop.quality >= ITEM_QUALITY_LEGENDARY)
+    if (drop.quality >= ITEM_QUALITY_ARTIFACT)
+        return SoundLandUnique;
+    if (drop.quality == ITEM_QUALITY_LEGENDARY)
         return SoundLandLegendary;
     if (drop.unique)
         return SoundLandUnique;
-    return drop.quality == ITEM_QUALITY_EPIC ? SoundLandEpic : SoundLand;
+    switch (drop.quality)
+    {
+        case ITEM_QUALITY_EPIC:     return SoundLandEpic;
+        case ITEM_QUALITY_RARE:     return SoundLand;
+        case ITEM_QUALITY_UNCOMMON: return SoundLandMagic;
+        default:                    return SoundLandCommon;
+    }
 }
 
 void Land(Player* player, Creature* bag, Drop& drop, uint64 now)
@@ -784,8 +799,8 @@ namespace
 using namespace Acore::ChatCommands;
 
 // .groundloot [count]: a boss's burst thrown out of the game master, for testing its looks and sounds. With no count,
-// one drop of each kind - a white, a green, a blue, an epic, an epic with a power of its own, a legendary, two piles
-// of gold - else that many at random. Real items' tooltips, but picking them up gives nothing.
+// one drop of each kind - a white, a green, a blue, an epic, an epic with a power of its own, a legendary, a Unique,
+// two piles of gold - else that many at random. Real items' tooltips, but picking them up gives nothing.
 class GroundLootCommandScript : public CommandScript
 {
 public:
@@ -816,14 +831,15 @@ public:
     {
         Drop drop;
         drop.test = true;
-        if (kind >= 6)
+        if (kind >= 7)
         {
             drop.kind = DropKind::Gold;
             drop.gold = urand(5 * GOLD, 25 * GOLD);
             return drop;
         }
         uint8 const quality = kind == 0 ? ITEM_QUALITY_NORMAL : kind == 1 ? ITEM_QUALITY_UNCOMMON :
-            kind == 2 ? ITEM_QUALITY_RARE : kind <= 4 ? ITEM_QUALITY_EPIC : ITEM_QUALITY_LEGENDARY;
+            kind == 2 ? ITEM_QUALITY_RARE : kind <= 4 ? ITEM_QUALITY_EPIC : kind == 5 ? ITEM_QUALITY_LEGENDARY :
+            ITEM_QUALITY_ARTIFACT;
         if (ItemTemplate const* itemTemplate = SampleItem(quality))
         {
             drop.itemId = itemTemplate->ItemId;
@@ -860,9 +876,9 @@ public:
         std::vector<uint8> kinds;
         if (count)
             for (uint32 index = 0; index < std::min<uint32>(*count, 30); ++index)
-                kinds.push_back(uint8(urand(0, 7)));
+                kinds.push_back(uint8(urand(0, 8)));
         else
-            kinds = { 0, 1, 2, 3, 4, 5, 6, 7 };
+            kinds = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
         for (uint8 kind : kinds)
             Queue(*state, TestDrop(kind));
         handler->PSendSysMessage("Ground loot: {} drops thrown (a test: picking them up gives nothing).",

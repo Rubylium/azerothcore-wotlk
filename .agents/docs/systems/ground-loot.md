@@ -28,12 +28,16 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   level (dungeon), split unevenly (`TopUpWithGold`). The gear thrown later comes on top.
 - A touch decided before the item exists marks the drop "unique" (its own landing sound): `GivePinnacleLootItem`
   rolls the Hollow Voice's chance first and passes a touch only when it hits.
+- Legendaries and Uniques (mod-legendary `RollDrops`) open the corpse first (`GroundLoot::Open`) at the boss's death
+  and at a key's end: rolled before the ground loot's own death hook, `Throw` found no burst open and the item went
+  to the bags unseen - no beam, no sound (2026-10-09).
 
 ## How it looks
 
 - Per player: each drop is a `TempSummon` the player summons with `visibleBySummonerOnly`, so only they see it.
   900120 a bag (display 60002, Ascension's `ashran_loot_state`), 900121 gold (60003, the treasure goblin's coin pile),
-  900122 a light beam over it (60004-60009: Ascension's moonbeam tinted white, green, blue, purple, orange, gold).
+  900122 a light beam over it (60004-60010: Ascension's moonbeam tinted white, green, blue, purple, orange, gold, and
+  red for a Unique - quality 6, the client extension's `#e8332b`; it showed orange as a legendary until 2026-10-09).
 - The arc is `MoveJump` from inside the corpse (no missile spell): the bag appears, jumps 250 ms later, lands about
   900 ms after that, past the corpse's reach (golden-angle spread, collision-checked). Drops leave 300 ms apart. The
   landing is timed on the jump's own spline (`movespline->Duration()`, what the client draws). Each drop plays its own
@@ -41,7 +45,9 @@ the floor, each player's own, and they walk over it (or click it) to pick it up.
   was heard after a landing on the Hollow Voice (2026-10-06).
 - Sparkles are `SpellVisualKit`s sent to the owner alone (`SMSG_PLAY_SPELL_VISUAL` by direct message), landing and
   pickup. Sounds are our own sound engine's (`evolutions-audio.md`; the bank: `client-assets/audio/groundLoot.json`),
-  to the owner alone: on the bag, a flip as it jumps and a landing per tier (item, epic, unique, legendary, gold)
+  to the owner alone: on the bag, a flip as it jumps and a landing per tier (white: Diablo IV's plain landing,
+  green: the magic halo, blue: the rare one, epic: the legendary/set one, an epic touched or a Unique: the unique one,
+  a legendary: the mythic one, gold)
   50 ms before touchdown, then its quality's loop for as long as it lies there (on the bag, not on the beam just
   summoned: the client may not have that one yet; it stops with the bag); a pickup (item, gold) as an interface sound.
   History: the game's SoundEntries way - kit sounds never heard, SMSG_PLAY_SOUND barely heard and late, creature

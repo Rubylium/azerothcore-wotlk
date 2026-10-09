@@ -3,7 +3,9 @@
     "The ground loot's sounds (GroundLoot.cpp), Diablo IV's, kept in sources/groundLoot: played by our own sound",
     "engine (localTools/audio/buildAudio.py builds the bank). Flips and landings come from the drop, in the world (its",
     "echo, muffled behind a wall); the pickups are interface sounds; each beam loops its quality's sound for as long",
-    "as it stands."
+    "as it stands.",
+    "Landings by tier: a white item the plain flip landing, green the magic halo, blue the rare one, epic the",
+    "legendary/set one, an epic touched or a Unique the unique one, a legendary the mythic (uber unique) one."
   ],
   "sounds": {
     "GroundLoot.Flip": {
@@ -12,9 +14,24 @@
         "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_Item_Generic_Flippy_Media_01.wav"
       ]
     },
+    "GroundLoot.LandCommon": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_INV_FlippyLanding_Media_01.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_INV_FlippyLanding_Media_02.wav"
+      ]
+    },
+    "GroundLoot.LandMagic": {
+      "kind": "world",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_Halo_Magic_Media_01.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_Halo_Magic_Media_02.wav"
+      ]
+    },
     "GroundLoot.Land": {
       "kind": "world",
       "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_Halo_Rare_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/groundLoot/Play_UI_Halo_Rare_Media_02.wav"
       ]
     },
