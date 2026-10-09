@@ -538,6 +538,11 @@ float Reference()
     return Power::ExpectedPlayerHealth(ProfileItemLevel, ProfileParagon);
 }
 
+// What a broken rule's area is told to the bots it does (GroundIndicators hitDamage): nothing known, so always left.
+// A bot stood in an area whose hit left it above 30% of its health (SurvivableHit), but here a hit is a mistake: it
+// marks, and the next one kills. Bots stood in the axe's lines at full health and died on the next rule (2026-10-10).
+constexpr uint32 MistakeDamage = 0;
+
 // North is +x; the clock turns the way the sun does over a map seen from above: towards -y
 float ClockAngle(float steps, float perTurn)
 {
@@ -1575,7 +1580,7 @@ private:
         {
             ObjectGuid placed;
             GroundIndicators::Area const stop = GroundIndicators::ShowSwingingLine(me, area, SPELL_AXE_SWING, turn,
-                AxeSwingStartMs, AxeSwingMs, AxeSplitMs, uint32(Reference() * AxePct / 100.0f), AxeLingerMs, &placed);
+                AxeSwingStartMs, AxeSwingMs, AxeSplitMs, MistakeDamage, AxeLingerMs, &placed);
             swings->emplace_back(stop, placed);
         }
         scheduler.Schedule(Milliseconds(AxeSplitMs), [this, swings](TaskContext)
@@ -1604,7 +1609,7 @@ private:
         area.width = AxeWidth;
         Position const center = Ground(ArenaCenter);
         return GroundIndicators::ShowPaintedLine(me, area, look, warnMs, GroundIndicators::Theme::None,
-            uint32(Reference() * AxePct / 100.0f), AxeLingerMs, &center, WallRadius + 2.0f);
+            MistakeDamage, AxeLingerMs, &center, WallRadius + 2.0f);
     }
 
     // The blow: the line torn open, whoever stands in it hit
@@ -2286,7 +2291,7 @@ private:
         std::vector<uint8> const& seats = _executionCalls[doom];
         _executionGroupDegrees = ExecutionGroupDegrees(doom);
         Position const center = Ground(ArenaCenter);
-        uint32 const damage = uint32(Reference() * ExecutionPct / 100.0f);
+        uint32 const damage = MistakeDamage;
         std::vector<ObjectGuid> called;
         for (uint8 seat : seats)
         {
@@ -2310,7 +2315,7 @@ private:
         {
             if (_executionOn)
                 GroundIndicators::ShowCircle(me, Ground(ArenaCenter), ExecutionSafe, ExecutionFeetWarnMs,
-                    GroundIndicators::Theme::Fire, uint32(Reference() * ExecutionPct / 100.0f));
+                    GroundIndicators::Theme::Fire, MistakeDamage);
         });
         scheduler.Schedule(Milliseconds(ExecutionEveryMs), [this, doom](TaskContext) { ExecutionStrikes(doom); });
     }
@@ -2361,7 +2366,7 @@ private:
                         return;
                     GroundIndicators::ShowWardenMark(me, floor.origin, floor.origin.GetOrientation(),
                                                      GroundIndicators::SPELL_WARDEN_BURNT_FLOOR, until - now);
-                    GroundIndicators::WatchArea(me, floor, until - now, uint32(Reference() * BurntPct / 100.0f));
+                    GroundIndicators::WatchArea(me, floor, until - now, MistakeDamage);
                 });
             }
         }
@@ -2607,7 +2612,7 @@ private:
     {
         float const turn = SweepDegrees * float(M_PI) / 180.0f * (urand(0, 1) ? 1.0f : -1.0f);
         float const start = Position::NormalizeOrientation(towards - turn / 2.0f);
-        uint32 const damage = uint32(Reference() * AxePct / 100.0f);
+        uint32 const damage = MistakeDamage;
         GroundIndicators::ShowCone(me, from, towards, ExecutionReach, SweepDegrees, AxeWarnMs,
                                    GroundIndicators::Theme::None, damage);
         float const perSecond = turn * 1000.0f / float(SweepMs);
@@ -2616,7 +2621,7 @@ private:
             Position origin = from;
             origin.SetOrientation(start);
             GroundIndicators::Area const blade = GroundIndicators::ShowSweepingLine(me, origin, start, perSecond,
-                ExecutionReach, AxeWidth, SweepMs, SPELL_AXE_SWING_HIT, uint32(Reference() * AxePct / 100.0f));
+                ExecutionReach, AxeWidth, SweepMs, SPELL_AXE_SWING_HIT, MistakeDamage);
             auto const struck = std::make_shared<std::set<ObjectGuid>>();
             for (uint32 at = 0; at <= SweepMs; at += SweepCheckMs)
                 scheduler.Schedule(Milliseconds(at), [this, blade, perSecond, at, struck](TaskContext)
