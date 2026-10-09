@@ -26,6 +26,9 @@ bool IsMythicCreature(Creature const* creature);
 // (a map change), the second every couple of seconds from the player's update.
 void UpdateMythicTankResolve(Player* player);
 void UpdateMythicTankResolve(Player* player, uint32 diff);
+// The simulation bench's raid team (mod-playerbots CombatBench.cpp): an instance's threat rules out of one, as its
+// raid would give them (the tank's presence, everyone else's discretion)
+void SetBenchInstanceRules(Player* player, bool on);
 
 // Whether the character is its group's tank: a tank role from the Dungeon Finder or the group, else a tank stance
 bool IsGroupTank(Player* player);

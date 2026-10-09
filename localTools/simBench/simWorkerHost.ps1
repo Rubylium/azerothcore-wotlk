@@ -173,14 +173,14 @@ function Invoke-Request([string]$content) {
                 $from = $script:lines.Count
                 $clock = [System.Diagnostics.Stopwatch]::StartNew()
                 Send-ServerLine ".bench run $layout $key $seconds"
-                $at = Wait-ServerLine $from 'run (\d{6,})' $timeout
+                # A cancelled test (nobody fought, the dummies gone) never gives a run: not waited for
+                $at = Wait-ServerLine $from 'run (\d{6,})|test cancelled' $timeout
                 $until = if ($at -ge 0) { $at + 1 } else { $script:lines.Count }
                 for ($index = $from; $index -lt $until; ++$index) {
                     $text = $script:lines[$index]
                     if ($text -match '^\[bench\] ') { $out.Add("[$layout] $($text.Substring(8))") }
                 }
-                if ($at -ge 0) {
-                    $script:lines[$at] -match 'run (\d{6,})' | Out-Null
+                if ($at -ge 0 -and $script:lines[$at] -match 'run (\d{6,})') {
                     $out.Add("RESULT $layout $($Matches[1])")
                 } else {
                     $out.Add("RESULT $layout none")

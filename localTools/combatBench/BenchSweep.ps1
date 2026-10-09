@@ -162,7 +162,7 @@ function ConvertFrom-SweepRows($answer, $prof, $specs, [string]$context, [int]$i
             LowKey = $f[14]; Low = ConvertTo-Double $f[15]; HighKey = $f[16]; High = ConvertTo-Double $f[17]
             Share = ConvertTo-Double $f[18]
             Damage = $damage; Seconds = $ms / 1000.0; Dps = if ($ms -gt 0) { $damage * 1000.0 / $ms } else { 0.0 }
-            Done = $f[21] -eq '1'; Deaths = [int]$f[22]
+            Done = $f[21] -eq '1'; Deaths = [int]$f[22]; Role = if ($f.Count -ge 24) { $f[23] } else { '' }
             Trusted = $flags.Count -eq 0; Flags = $flags -join ','
         }
     }

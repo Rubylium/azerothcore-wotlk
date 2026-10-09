@@ -792,11 +792,13 @@ constexpr uint32 SPELL_RIGHTEOUS_FURY = 25780;
 constexpr uint32 SPELL_FROST_PRESENCE = 48263;
 
 // Per character: when the roles are next looked at, and whether the immunities are on (they are not an aura, so
-// dying does not take them off, and the aura being gone says nothing about them)
+// dying does not take them off, and the aura being gone says nothing about them); and whether it fights under an
+// instance's threat rules out of one (the simulation bench's raid team, SetBenchInstanceRules)
 struct MythicRoleState : public DataMap::Base
 {
     uint32 nextUpdate = 0;
     bool resolve = false;
+    bool benchInstance = false;
 };
 
 // Tanking right now: a tank stance, form or presence, or the Pestiféré's Carapace nécrosée
@@ -892,7 +894,7 @@ void UpdateMythicRoles(Player* player, bool now)
     state->nextUpdate = msNow + RoleUpdateMs;
 
     Map* map = player->FindMap();
-    bool const instance = map && map->IsDungeon();
+    bool const instance = (map && map->IsDungeon()) || state->benchInstance;
     bool const tank = instance && IsGroupTank(player);
 
     // The Infinite Dungeon's floors keep the Mythic+ rules for tanks (InfiniteDungeonSystem.cpp)
@@ -911,6 +913,14 @@ void UpdateMythicRoles(Player* player, bool now)
         tank && alive ? TankThreatPct + static_cast<int32>(GetParagonThreatPct(player)) : 0);
     SetThreatAura(player, SPELL_GROUP_DISCRETION,
         instance && alive && !tank && GroupHasTank(player) ? DiscretionThreatPct : 0);
+}
+
+void SetBenchInstanceRules(Player* player, bool on)
+{
+    if (!player)
+        return;
+    player->CustomData.GetDefault<MythicRoleState>("MythicRoles")->benchInstance = on;
+    UpdateMythicRoles(player, true);
 }
 
 void UpdateMythicTankResolve(Player* player)

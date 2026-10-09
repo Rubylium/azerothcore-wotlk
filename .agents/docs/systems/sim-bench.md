@@ -13,6 +13,7 @@ auth databases; the live realm is never touched (no restart, no bots on it, live
 .\localTools\simBench\simBench.ps1 sweep -profiles '460:650:defi10-25:boss+pack5' -specs '4 1:Assassination;8 2:Fire'
 .\localTools\simBench\simBench.ps1 tune                        # the spec balance, the factors into live_tuning
 .\localTools\simBench\simBench.ps1 check -repeats 3            # turbo against real time on the same tests
+.\localTools\simBench\simBench.ps1 raid -profiles '460:650' -seconds 120   # raid teams: what a raid boss is sized on
 .\localTools\simBench\simBench.ps1 cmd -worker 1 '.bench list' '.tune list balance0.mage'
 .\localTools\simBench\simBench.ps1 stop
 ```
@@ -28,6 +29,34 @@ auth databases; the live realm is never touched (no restart, no bots on it, live
 - After a server build: `prepare -noDatabases` (the binaries copied into `var/simBench/bin`), `stop`, `start`. After a
   schema change, or to take the live characters as they are now: `prepare` (the databases dumped and loaded again,
   ~3 min for 4 workers).
+
+## Fidelity rules (a dummy is not a fight)
+
+- **Paced dummies** (`.bench pace`, on by default): a timed test's dummies go from full to 1% over the test whatever
+  they take (every hit still counted whole: they get at least 400 million health). A dummy that stayed full never let
+  an execute talent work (below 20 or 35%), and a spec whose single-target build takes them looked up to 26% weaker
+  than its AoE build on one target (the Fire mage, 2026-10-09).
+- **A spec's single-target preset is its best single-target build.** Check it: a `-profiles '460:650:defi10-25:boss'`
+  sweep with `-preset aoe`, then `-preset single`; an AoE build ahead on one target is a preset to fix (Beast
+  Mastery's: Stampede and Brutal Companion beat its Death Chakram build by 23%, and raid bots played the AoE one).
+  Raid bots take the single-target preset (`TalentTree.cpp WantsSingleBuild`), five-man ones the AoE one.
+- **Tests last 60 s**: mana never runs out in them. The raid module's 120 s does show it.
+
+## The raid module (`simBench.ps1 raid`)
+
+Teams of a raid - the support's tanks and healers (`-support`, the Hollow Voice's: Blood and bear tanks, holy
+paladin, restoration shaman, holy priest), the Fire mage and four other damage dealers in turn (`-dealers 5`) - on
+the `raid` layout: the boss dummy fights back (its swing 8% of a tank's health, a group pulse of 10% of a damage
+dealer's every 3 s, both from the power model at the team's gear and board), all in one phase so buffs, auras and
+totems land, subgroups set for party buffs (the damage dealer sitting with the tanks turns test by test). The team
+fights under a raid's threat rules (`SetBenchInstanceRules`: the tank's presence, everyone else's discretion): out of
+an instance it had none, and damage dealers held back for threat (playerbots' 80% rule) most of the fight - a Fire
+mage wanding at 51k where it deals 131k. It prints each spec's raid damage against its own alone on the boss dummy
+(the sweep with the most specs) and each team's group damage, written to `var/combatBench/raid-*.csv`. That group
+damage over the model's is `Power::RaidCurve` (power-scaling.md, "Raid bosses").
+
+Known in a raid and not alone: the Barbarian's Ascendance counts a share of four allies' damage (its echoes go
+through its balance factor and its paragon procs): about twice a damage dealer at 460/650 (2026-10-09).
 
 ## How it works
 

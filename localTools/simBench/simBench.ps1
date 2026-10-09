@@ -10,10 +10,11 @@
 #   .\localTools\simBench\simBench.ps1 cmd -worker 1 '.bench list' '.tune list balance'
 #   .\localTools\simBench\simBench.ps1 check -repeats 3      # turbo against real time, the same tests (accuracy)
 #   .\localTools\simBench\simBench.ps1 check 2 10 -repeats 6 # turbo at a 2 ms step against a 10 ms one
+#   .\localTools\simBench\simBench.ps1 raid -profiles '460:650' -seconds 120   # raid teams on a boss that hits back
 #   .\localTools\simBench\simBench.ps1 status | stop
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('prepare', 'start', 'status', 'stop', 'cmd', 'sweep', 'tune', 'check')][string]$action,
+    [ValidateSet('prepare', 'start', 'status', 'stop', 'cmd', 'sweep', 'tune', 'check', 'raid')][string]$action,
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)][string[]]$arguments,
     [int]$workers = 4,
     [int]$worker = 1,                                      # cmd: the worker asked
@@ -37,7 +38,12 @@ param(
     [double]$damping = 0.7,
     [double]$maxStep = 0.25,
     [int]$iterations = 4,
-    [switch]$noApply                                       # tune: leave the found factors out of live_tuning
+    [switch]$noApply,                                      # tune: leave the found factors out of live_tuning
+    # raid: the team around the damage dealers (the Hollow Voice's: two tanks, three healers), how many damage
+    # dealers a team (the Fire mage one of them), and the sweep rows to compare with (default: the latest with boss rows)
+    [string]$support = '6 1:Blood tank;11 2:Bear tank;2 1:Holy paladin;7 3:Restoration shaman;5 2:Holy priest',
+    [int]$dealers = 5,
+    [string]$compare = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -336,6 +342,132 @@ function Invoke-SimValidation($checkProfiles, $specList, [string]$runGoal, [int]
     "Rows: var\combatBench\simcheck-$stamp-rows.csv"
 }
 
+# The raid module: teams of a raid (the support's tanks and healers, the Fire mage and the other damage dealers in
+# turn) on the raid layout's boss, which hits its tanks and pulses the group; all in one phase, so buffs, auras and
+# totems land as in a raid. A team a worker at a time. Then each damage spec's raid damage against its damage alone
+# on the boss dummy (a sweep's boss rows at that profile): what a raid adds to it (its raid factor), and each team's
+# group damage, what a raid boss's health is sized against (Power::DpsCheckHealth).
+function Invoke-SimRaid($raidProfiles, $specList, $supportList, [string]$runGoal, [string]$outputDirectory) {
+    $up = @(Get-UpWorkers)
+    if (-not $up.Count) { throw 'No simulation worker is up: simBench.ps1 start' }
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    $fire = @($specList | Where-Object { $_.Key -eq $FireMageKey } | Select-Object -First 1)
+    if (-not $fire) { $fire = @([pscustomobject]@{ Class = 8; Spec = 2; Name = 'Fire'; Key = $FireMageKey }) }
+    $others = @($specList | Where-Object { $_.Key -ne $FireMageKey })
+    $perTeam = [Math]::Max(1, $dealers - 1)
+    $teams = [System.Collections.Generic.List[object]]::new()
+    for ($at = 0; $at -lt [Math]::Max(1, $others.Count); $at += $perTeam) {
+        $teams.Add(@(@($supportList) + @($fire) + @($others | Select-Object -Skip $at -First $perTeam)))
+    }
+    $units = @(foreach ($index in 0..($teams.Count - 1)) {
+        foreach ($prof in $raidProfiles) { [pscustomobject]@{ Team = $index; Profile = $prof } }
+    })
+    $count = [Math]::Min($up.Count, $units.Count)
+    $parts = for ($slot = 0; $slot -lt $count; ++$slot) {
+        $mine = @($units | Where-Object { [array]::IndexOf($units, $_) % $count -eq $slot })
+        [pscustomobject]@{
+            Worker = $up[$slot]
+            Pieces = @($mine | Group-Object Team | ForEach-Object {
+                [pscustomobject]@{
+                    Heat = $teams[[int]$_.Name]; Context = "team$([int]$_.Name + 1)"
+                    Profiles = @($_.Group | ForEach-Object { $_.Profile })
+                }
+            })
+            Specs = @($specList) + @($supportList); Repeats = $repeats; Goal = $runGoal; Tolerance = $ilvlTolerance
+        }
+    }
+    $runs = 0
+    foreach ($prof in $raidProfiles) { $runs += $repeats * $teams.Count }
+    Write-Host ("Simulation raid: {0} damage specs, {1} team(s) of {2}, {3} profile(s), {4} run(s) of {5} on {6} worker(s)" -f
+        ($others.Count + 1), $teams.Count, $teams[0].Count, @($raidProfiles).Count, $runs, $runGoal, $parts.Count)
+
+    $results = Invoke-SimParts $parts {
+        param($part)
+        $clock = [System.Diagnostics.Stopwatch]::StartNew()
+        Send-Request @('.bench lanes off', '.bench pulse off') 30 | Out-Null
+        try {
+            foreach ($piece in $part.Pieces) {
+                Invoke-SweepHeat @($piece.Heat) "w$($part.Worker)/$($piece.Context)" @($piece.Profiles) $part.Specs `
+                    $part.Repeats $part.Goal 'single' $part.Tolerance $clock
+            }
+        } finally {
+            Exit-SweepLanes
+        }
+    }
+    $rows = @($results | Where-Object { $_.PSObject.Properties['Dps'] })
+    $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    New-Item -ItemType Directory -Force $outputDirectory | Out-Null
+    Export-InvariantCsv $rows (Join-Path $outputDirectory "raid-$stamp-rows.csv")
+
+    # Against the bots alone on the boss dummy: the sweep with the most specs on it, the latest of those
+    $comparePath = $compare
+    if (-not $comparePath) {
+        $best = 0
+        foreach ($file in (Get-ChildItem $outputDirectory -Filter 'sweep-*-rows.csv' | Sort-Object LastWriteTime -Descending)) {
+            if (-not (Select-String -Path $file.FullName -Pattern '"boss"' -Quiet)) { continue }
+            $keys = @(Import-Csv $file.FullName | Where-Object { $_.Layout -eq 'boss' } | Select-Object -ExpandProperty Key -Unique).Count
+            if ($keys -gt $best) { $best = $keys; $comparePath = $file.FullName }
+        }
+    }
+    $alone = @()
+    if ($comparePath) { $alone = @(Import-Csv $comparePath | Where-Object { $_.Layout -eq 'boss' -and $_.Trusted -eq 'True' }) }
+
+    $summary = foreach ($group in ($rows | Group-Object Profile)) {
+        $profileRows = @($group.Group)
+        $mage = Get-Stats @($profileRows | Where-Object { $_.Key -eq $FireMageKey } | ForEach-Object { $_.Dps })
+        $aloneRows = @($alone | Where-Object { $_.Profile -eq $group.Name })
+        $aloneMage = Get-Stats @($aloneRows | Where-Object { $_.Key -eq $FireMageKey } |
+            ForEach-Object { ConvertTo-Double $_.Dps })
+        foreach ($spec in ($profileRows | Where-Object { $_.Role -eq 'dps' } | Group-Object Key)) {
+            $stats = Get-Stats @($spec.Group | ForEach-Object { $_.Dps })
+            $solo = Get-Stats @($aloneRows | Where-Object { $_.Key -eq $spec.Name } |
+                ForEach-Object { ConvertTo-Double $_.Dps })
+            $share = if ($mage.Mean -gt 0) { $stats.Mean / $mage.Mean } else { 0.0 }
+            $soloShare = if ($aloneMage.Mean -gt 0) { $solo.Mean / $aloneMage.Mean } else { 0.0 }
+            [pscustomobject]@{
+                Profile = $group.Name; Spec = $spec.Group[-1].Spec; Key = $spec.Name; Dps = $stats.Mean; N = $stats.N
+                Spread = if ($stats.Mean -gt 0) { $stats.Sd / $stats.Mean } else { 0.0 }
+                Share = $share; AloneDps = $solo.Mean; AloneShare = $soloShare
+                RaidGain = if ($solo.Mean -gt 0) { $stats.Mean / $solo.Mean } else { 0.0 }
+                RaidFactor = if ($soloShare -gt 0) { $share / $soloShare } else { 0.0 }
+                Deaths = ($spec.Group | Measure-Object Deaths -Sum).Sum
+            }
+        }
+    }
+    $summary = @($summary)
+    Export-InvariantCsv $summary (Join-Path $outputDirectory "raid-$stamp.csv")
+    foreach ($group in ($summary | Group-Object Profile)) {
+        $mageRow = $group.Group | Where-Object { $_.Key -eq $FireMageKey } | Select-Object -First 1
+        "`n== Raid {0} - Fire mage {1} DPS in a raid, {2} alone on the boss dummy ==" -f $group.Name,
+            (Format-Number $mageRow.Dps '0'), (Format-Number $mageRow.AloneDps '0')
+        '{0,-26} {1,8} {2,6} {3,8} {4,6} {5,6} {6,7}' -f 'spec', 'raid', '%mage', 'alone', '%mage', 'gain', 'factor'
+        $group.Group | Sort-Object Share -Descending | ForEach-Object {
+            $died = if ($_.Deaths) { "  deaths $($_.Deaths)" } else { '' }
+            '{0,-26} {1,8} {2,5}% {3,8} {4,5}% {5,6} {6,7}  n={7}{8}' -f $_.Spec, (Format-Number $_.Dps '0'),
+                (Format-Number (100 * $_.Share) '0'), (Format-Number $_.AloneDps '0'),
+                (Format-Number (100 * $_.AloneShare) '0'), (Format-Number $_.RaidGain '0.00'),
+                (Format-Number $_.RaidFactor '0.00'), $_.N, $died
+        }
+        # Each run's whole team: what a raid boss of this profile is sized against
+        $teamRuns = @($rows | Where-Object { $_.Profile -eq $group.Name } | Group-Object Run | ForEach-Object {
+            [pscustomobject]@{
+                Dps = ($_.Group | Measure-Object Dps -Sum).Sum
+                Support = ($_.Group | Where-Object { $_.Role -ne 'dps' } | Measure-Object Dps -Sum).Sum
+                Deaths = ($_.Group | Measure-Object Deaths -Sum).Sum
+            }
+        })
+        $team = Get-Stats @($teamRuns | ForEach-Object { $_.Dps })
+        $helpers = Get-Stats @($teamRuns | ForEach-Object { $_.Support })
+        "Team DPS {0} (+/-{1}%), of which tanks and healers {2}; {3} death(s) over {4} run(s)" -f
+            (Format-Number $team.Mean '0'), (Format-Number (100 * $team.Sd / [Math]::Max(1, $team.Mean)) '0'),
+            (Format-Number $helpers.Mean '0'), ($teamRuns | Measure-Object Deaths -Sum).Sum, $teamRuns.Count
+    }
+    $compared = if ($comparePath) { Split-Path -Leaf $comparePath } else { 'no sweep with boss rows' }
+    "`nCompared with: $compared"
+    "Simulation raid: $runs run(s), $($rows.Count) rows, wall clock $(Format-Clock $clock.Elapsed)."
+    "CSV: var\combatBench\raid-$stamp.csv (rows: raid-$stamp-rows.csv)"
+}
+
 switch ($action) {
     'prepare' {
         Update-SimBinaries
@@ -363,6 +495,12 @@ switch ($action) {
         $checkModes = if ($arguments) { @($arguments) } else { @('off', 'on') }
         Invoke-SimValidation @(ConvertTo-SweepProfiles $checkProfiles $layouts) @(ConvertTo-SweepSpecs $checkSpecs) `
             $checkGoal $worker $checkModes
+    }
+    'raid' {
+        $raidGoal = if ($goal) { $goal } elseif ($PSBoundParameters.ContainsKey('seconds')) { "$seconds" } else { '120' }
+        $raidProfiles = if ($profiles) { $profiles } else { '460:650' }
+        Invoke-SimRaid @(ConvertTo-SweepProfiles $raidProfiles 'raid') @(ConvertTo-SweepSpecs $specs) `
+            @(ConvertTo-SweepSpecs $support) $raidGoal (Join-Path $repositoryRoot 'var\combatBench')
     }
     { $_ -in 'sweep', 'tune' } {
         $runGoal = if ($goal) { $goal } else { "$seconds" }
