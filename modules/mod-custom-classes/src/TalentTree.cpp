@@ -50,8 +50,8 @@
 // Bots have no window: each tree names the order a bot takes its nodes in (BotOrder), and a bot's build is filled
 // from it, as far as its level's points go, whenever it logs in, levels or changes specialization. A spec tree also
 // carries the class's recommended builds (SingleBuild, AoeBuild: its class and spec nodes): in a five-man dungeon,
-// where the fights are packs, a bot takes its specialization's AoE build instead, and goes back to its bot order as
-// it leaves (a tree without a bot order uses its single-target build there). They are placed as a player applying
+// where the fights are packs, a bot takes its specialization's AoE build instead (in a raid, its single-target one),
+// and goes back to its bot order as it leaves (a tree without a bot order uses its single-target build there). They are placed as a player applying
 // the build would place them, so what the level does not allow yet simply waits. A spec tree that holds a tank and a
 // damage dealer (the Druid's Combat farouche: a cat and a bear) also carries a tank build (TankBuild): a bot whose
 // build holds a node of it that neither other build holds (the guardian's path) is a tank, and keeps that build
@@ -684,6 +684,15 @@ bool WantsAoeBuild(Player* player)
     return map && map->IsNonRaidDungeon();
 }
 
+// Where a bot fights bosses: a raid (the board's own bosses included). It takes its specialization's single-target
+// build there, the one the balance is measured on (the simulation bench's single-target tests); its bot order, built
+// for levelling, put some specs on their AoE talents against a raid boss (a Beast Mastery hunter 20% over the others).
+bool WantsSingleBuild(Player* player)
+{
+    Map const* map = player->FindMap();
+    return map && map->IsRaid();
+}
+
 // A recommended build a bot keeps wherever it is (the combat bench's single-target or AoE tests), until cleared
 enum class BuildPreset : uint8
 {
@@ -745,7 +754,7 @@ bool IsOnTankBuild(ClassTrees const& data, Tree const& specTree, std::string con
 }
 
 // A bot's build: on a tank build (`tank`, or a build that already holds it) its specialization's tank build; in a
-// dungeon its AoE build; elsewhere its trees' bot orders taken in turn (or, for a spec tree without one, its
+// dungeon its AoE build, in a raid its single-target build; elsewhere its trees' bot orders taken in turn (or, for a spec tree without one, its
 // single-target build), each node ranked as far as it goes, until the level's points run out. Only the class tree
 // and the chosen specialization's tree are filled. Returns whether the build changed (it is then saved; the caller
 // makes the spells follow).
@@ -771,6 +780,8 @@ bool FillBotBuild(Player* player, ClassTrees const& data, TalentTreeState* state
             preset = nullptr;
         else if (WantsAoeBuild(player) && !specTree->aoeBuild.empty())
             preset = &specTree->aoeBuild;
+        else if (WantsSingleBuild(player) && !specTree->singleBuild.empty())
+            preset = &specTree->singleBuild;
         else if (specTree->botOrder.empty() && !specTree->singleBuild.empty())
             preset = &specTree->singleBuild;
     }
@@ -1386,7 +1397,8 @@ public:
         SendState(player, false);
     }
 
-    // A bot entering a five-man dungeon takes its AoE build, and its usual one back as it leaves. At login the map
+    // A bot entering a five-man dungeon takes its AoE build, a raid its single-target build, and its usual one back
+    // as it leaves. At login the map
     // comes before the build is loaded: OnPlayerLogin fills it then.
     void OnPlayerMapChanged(Player* player) override
     {
