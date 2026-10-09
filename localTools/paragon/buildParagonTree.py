@@ -1302,8 +1302,85 @@ GLYPH_DISPLAYS = [
 ]
 
 
-def glyph(branch, name, lore, bonus, need):
-    return {"branch": branch, "name": name, "lore": lore, "bonus": bonus, "need": need}
+def glyph(branch, name, lore, bonus, need, nodes=""):
+    """nodes: for a bonus that raises other nodes' effects, the ones it raises (named in its text)"""
+    return {"branch": branch, "name": name, "lore": lore, "bonus": bonus, "need": need, "nodes": nodes}
+
+
+def describe_glyph(effect, value=0, value2=0, chance=0.0, duration=0, cooldown=0, scope=SCOPE_ANY, nodes=""):
+    """A glyph bonus's text, for a player first: what happens, in a sentence, with no rule of the board's behind it.
+    Players found the nodes' own texts (describe) too hard to read on the glyphs (2026-10-10). The caps are only
+    named where a single glyph can meet them."""
+    weapon, spell = scope == SCOPE_WEAPON, scope == SCOPE_SPELL
+    attacks = "vos attaques d'arme" if weapon else ("vos sorts" if spell else "vos attaques et vos sorts")
+    damage = "de dégâts d'arme" if weapon else ("de dégâts des sorts" if spell else "de dégâts")
+    seconds = seconds_text(duration)
+    at_most = "" if not cooldown else (" (au plus une fois par seconde)" if cooldown == 1000 else
+                                       " (au plus une fois toutes les %s)" % seconds_text(cooldown))
+
+    if effect == E_DAMAGE:
+        return "+%d%% %s." % (value, damage)
+    if effect == E_HEALTH:
+        return "+%d%% de points de vie maximum." % value
+    if effect == E_ARMOR_PCT:
+        return "+%d%% d'armure." % value
+    if effect == E_THREAT:
+        return "+%d%% de menace générée." % value
+    if effect == E_REDUCTION:
+        return "Vous subissez %d%% de dégâts en moins." % value
+    if effect == E_HEAL_PCT:
+        return "+%d%% de soins prodigués par vos sorts." % value
+    if effect == E_LEECH:
+        return "%d%% des dégâts de %s vous soignent." % (value, attacks)
+    if effect == E_DOUBLE:
+        return "%s ont %d%% de chances de frapper deux fois." % (attacks[0].upper() + attacks[1:], chance)
+    if effect == E_FURY:
+        return "%s ont %d%% de chances de vous donner +%d%% %s pendant %s." % (
+            attacks[0].upper() + attacks[1:], chance, value, damage, seconds)
+    if effect == E_SURGE:
+        power = "puissance d'attaque" if weapon else ("puissance des sorts" if spell
+                                                       else "puissance d'attaque et des sorts")
+        return "Chaque ennemi que vous tuez vous donne +%d %s pendant %s." % (value, power, seconds)
+    if effect == E_KILL_STREAK:
+        return ("Chaque ennemi que vous tuez a %d%% de chances de vous donner +%d%% %s pendant %s, "
+                "jusqu'à %d fois (+%d%%)." % (chance, value, damage, seconds, value2, value * value2))
+    if effect == E_SPLASH:
+        return ("%s ont %d%% de chances de toucher aussi jusqu'à 4 ennemis autour de votre cible, pour %d%% des "
+                "dégâts%s." % (attacks[0].upper() + attacks[1:], chance, value, at_most))
+    if effect == E_RETALIATE:
+        return ("Quand vous êtes touché, %d%% de chances de renvoyer %d%% des dégâts à l'attaquant."
+                % (chance, value))
+    if effect == E_GRUDGE:
+        return ("Plus vous encaissez, plus vous frappez fort : %d%% des dégâts subis ces dernières secondes "
+                "s'ajoutent à votre puissance d'attaque et des sorts." % value)
+    if effect == E_ECHO:
+        return "Vos coups critiques de sort ont %d%% de chances de frapper à nouveau, pour %d%% des dégâts." % (
+            chance, value)
+    if effect == E_ARC:
+        return ("Vos sorts de dégâts ont %d%% de chances de rebondir sur jusqu'à %d ennemis proches, pour %d%% des "
+                "dégâts%s." % (chance, value2, value, at_most))
+    if effect == E_QUICKEN:
+        return "Vos sorts ont %d%% de chances d'accélérer vos incantations de %d%% pendant %s." % (
+            chance, value, seconds)
+    if effect == E_INSIGHT:
+        return "Vos sorts ont %d%% de chances de vous donner +%d puissance des sorts pendant %s." % (
+            chance, value, seconds)
+    if effect == E_WARD:
+        return ("Vos sorts ont %d%% de chances de vous entourer d'un bouclier pendant %s : il absorbe autant de "
+                "dégâts que %d%% de votre puissance des sorts%s." % (chance, seconds, value, at_most))
+    if effect == E_MANA_SURGE:
+        return "Vos sorts ont %d%% de chances de vous rendre %d%% de votre mana maximum%s." % (
+            chance, value, at_most)
+    if effect == E_HEAL_SHARE:
+        return ("Quand vous êtes soigné, l'allié le plus blessé à moins de %d mètres reçoit aussi %d%% de ce soin."
+                % (HEAL_SHARE_RANGE, value))
+    # The two that raise other nodes: nothing without them, so they are named
+    if effect == E_EXECUTE_REACH:
+        return ("Vos bonus contre les ennemis presque morts (%s) se déclenchent plus tôt : %d%% de vie en plus, "
+                "jusqu'à %d%%." % (nodes, value, MAX_EXECUTE_THRESHOLD))
+    if effect == E_AREA_REACH:
+        return ("Vos effets qui touchent plusieurs ennemis (%s) en touchent %d de plus." % (nodes, value))
+    raise ValueError(effect)
 
 
 GLYPHS = [
@@ -1311,7 +1388,7 @@ GLYPHS = [
     glyph("Force", "Glyphe de l'Enclume", "Frappé sur l'enclume de Khaz'goroth, il sonne encore quand on le serre.",
           special(E_DAMAGE, "", "", value=3), 8),
     glyph("Force", "Glyphe du Verdict", "Tyr ne frappait qu'une fois. Il n'avait jamais besoin d'une deuxième.",
-          special(E_EXECUTE_REACH, "", "", value=10), 10),
+          special(E_EXECUTE_REACH, "", "", value=10), 10, "Coup de grâce, Exécuteur, Bénédiction de Tyr"),
     glyph("Force", "Glyphe du Colosse", "Les géants de fer d'Ulduar portaient ce signe gravé sur le poing.",
           special(E_DOUBLE, "", "", value=100, chance=3.0), 10),
     glyph("Force", "Glyphe de la Forge ardente", "Une braise de la Forge des volontés, prisonnière d'une rune.",
@@ -1328,7 +1405,8 @@ GLYPHS = [
     glyph("Puissance", "Glyphe du Festin", "Le sang versé revient toujours à celui qui l'a versé.",
           special(E_LEECH, "", "", value=2), 8),
     glyph("Puissance", "Glyphe de la Horde", "Plus ils sont nombreux, plus le coup porte loin.",
-          special(E_AREA_REACH, "", "", value=2), 12),
+          special(E_AREA_REACH, "", "", value=2), 12,
+          "Apothéose : Cataclysme, Bénédiction d'Aggramar, Glyphe de la Déflagration"),
     # Agilité: blows given back, blows avoided
     glyph("Agilité", "Glyphe du Miroir", "Ce que l'on vous envoie vous appartient désormais.",
           special(E_RETALIATE, "", "", value=40, chance=10.0), 8),
@@ -1361,7 +1439,7 @@ GLYPHS = [
     glyph("Arcanes", "Glyphe de Puissance arcanique", "Il brûle les doigts de ceux qui ne savent pas le lire.",
           special(E_DAMAGE, "", "", value=3), 8),
     glyph("Arcanes", "Glyphe de la Singularité", "Tout ce qui faiblit y est attiré, puis englouti.",
-          special(E_EXECUTE_REACH, "", "", value=10), 12),
+          special(E_EXECUTE_REACH, "", "", value=10), 12, "Désintégration, Bénédiction de Tyr"),
     # Intellect: healing, wards, mana
     glyph("Intellect", "Glyphe de Sève", "Une goutte de la rosée des jardins d'Eonar.",
           special(E_HEAL_PCT, "", "", value=3), 8),
@@ -1474,8 +1552,8 @@ def build_glyphs():
             "lore": g["lore"], "need": g["need"], "effect": bonus["effect"], "value": bonus["value"],
             "value2": bonus["value2"], "chance": bonus["chance"], "duration": bonus["duration"],
             "cooldown": bonus["cooldown"],
-            "description": describe(bonus["effect"], bonus["value"], bonus["value2"], bonus["chance"],
-                                    bonus["duration"], bonus["cooldown"], scope),
+            "description": describe_glyph(bonus["effect"], bonus["value"], bonus["value2"], bonus["chance"],
+                                          bonus["duration"], bonus["cooldown"], scope, g["nodes"]),
         })
     return glyphs
 

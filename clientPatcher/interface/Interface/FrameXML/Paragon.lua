@@ -738,11 +738,13 @@ local function onNodeEnter(self)
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(string.format("%s (niveau %d)", glyph.name, known.level), LEGENDARY[1], LEGENDARY[2],
                 LEGENDARY[3])
-            GameTooltip:AddLine(string.format("Les nœuds acquis à portée gagnent +%d%% de leurs valeurs.",
+            GameTooltip:AddLine(string.format("Les nœuds pris autour de cette châsse sont renforcés de %d%%.",
                 glyphShare(known.level)), 1, 0.86, 0.55, true)
-            GameTooltip:AddLine(string.format("Bonus (%d / %d nœuds de %s à portée) : %s", own, need,
-                sideName(glyph.side), glyph.description), own >= need and 1 or 0.62, own >= need and 0.86 or 0.57,
-                own >= need and 0.55 or 0.5, true)
+            GameTooltip:AddLine("Bonus : " .. glyph.description, own >= need and 1 or 0.62,
+                own >= need and 0.86 or 0.57, own >= need and 0.55 or 0.5, true)
+            GameTooltip:AddLine(string.format(own >= need and "Bonus actif (%d / %d nœuds de la branche %s)." or
+                "Bonus inactif : %d / %d nœuds de la branche %s.", own, need, sideName(glyph.side)),
+                own >= need and 1 or 0.9, own >= need and 0.5 or 0.55, own >= need and 0 or 0.35, true)
             GameTooltip:AddLine("Clic : changer de glyphe  ·  Clic droit : retirer", 0.62, 0.57, 0.5)
         elseif isAllocated(self.nodeId) then
             GameTooltip:AddLine("Clic : sertir un glyphe", 1, 0.82, 0.3)
@@ -1831,29 +1833,32 @@ local function addGlyphLines(tooltip, glyphId, withName)
     if withName then
         tooltip:AddLine(glyph.name, LEGENDARY[1], LEGENDARY[2], LEGENDARY[3])
     end
-    tooltip:AddLine(string.format("Glyphe de parangon - %s", sideName(glyph.side)), 1, 0.82, 0.35)
+    tooltip:AddLine(string.format("Glyphe de parangon · branche %s", sideName(glyph.side)), 1, 0.82, 0.35)
     if known then
         local progress = known.needed > 0 and string.format(" (%d / %d)", known.experience, known.needed) or ""
         tooltip:AddLine(string.format("Niveau %d / %d%s", known.level, GLYPH_MAX_LEVEL, progress), 1, 1, 1)
     end
+    -- What it does, in two parts: what any socketed glyph does, then its own bonus and what turns it on
     local level = known and known.level or 1
-    tooltip:AddLine(string.format("Sertie dans une châsse du tableau de parangon, les nœuds acquis à %d liens ou "
-        .. "moins gagnent +%d%% de leurs valeurs (+10%%, +2%% par niveau).", GLYPH_RADIUS, glyphShare(level)),
-        0.9, 0.85, 0.7, true)
-    tooltip:AddLine(string.format("Bonus, avec %d nœuds de %s à sa portée : %s", glyph.need, sideName(glyph.side),
-        glyph.description), 1, 0.86, 0.55, true)
+    tooltip:AddLine(" ")
+    tooltip:AddLine(string.format("Serti dans une châsse, il renforce de %d%% les nœuds que vous avez pris autour "
+        .. "d'elle (jusqu'à %d liens).", glyphShare(level), GLYPH_RADIUS), 0.9, 0.85, 0.7, true)
+    tooltip:AddLine("Bonus : " .. glyph.description, 1, 0.86, 0.55, true)
+    tooltip:AddLine(string.format("Le bonus s'active avec %d nœuds de la branche %s pris autour de la châsse.",
+        glyph.need, sideName(glyph.side)), 0.75, 0.7, 0.6, true)
+    tooltip:AddLine(" ")
     if known and known.socket > 0 then
         local own, need = glyphCondition(glyphId, known.socket)
-        tooltip:AddLine(string.format("Sertie (%d / %d nœuds de %s)%s", own, need, sideName(glyph.side),
-            own >= need and " : bonus actif." or "."), 1, 0.5, 0)
+        tooltip:AddLine(string.format(own >= need and "Serti : bonus actif (%d / %d nœuds de la branche %s)." or
+            "Serti : bonus inactif, %d / %d nœuds de la branche %s.", own, need, sideName(glyph.side)), 1, 0.5, 0, true)
     elseif known then
         tooltip:AddLine("Dans votre collection : sertissez-le depuis le tableau de parangon.", 0.75, 0.7, 0.6, true)
     else
-        tooltip:AddLine("Pas encore appris : utilisez-le pour l'ajouter à votre collection.", 0.75, 0.7, 0.6, true)
+        tooltip:AddLine("Utilisez-le pour l'ajouter à votre collection.", 0.75, 0.7, 0.6, true)
     end
     if known and known.level < GLYPH_MAX_LEVEL then
-        tooltip:AddLine("Un double s'absorbe en expérience ; le glyphe en gagne aussi, serti, dans les clés +10, le "
-            .. "Donjon infini dès l'étage 50 et les raids héroïques.", 0.62, 0.57, 0.5, true)
+        tooltip:AddLine("Pour le monter de niveau : absorbez ses doubles, ou gardez-le serti en clé +10, au Donjon "
+            .. "infini (étage 50 et plus) ou en raid héroïque.", 0.62, 0.57, 0.5, true)
     end
 end
 
