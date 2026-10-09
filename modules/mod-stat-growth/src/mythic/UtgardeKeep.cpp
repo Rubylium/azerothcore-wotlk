@@ -642,8 +642,8 @@ enum IngvarMisc
     // What lands, beside the red: stock visual kits played on the floor (GroundIndicators::PlayKit)
     KIT_INGVAR_GROUND_SLAM          = 10546,    // Ground Slam's cracks and dust: an axe's blow
     KIT_INGVAR_SHOCKWAVE            = 9855,     // Shockwave's impact: the charge's wake
-    KIT_INGVAR_DARK_SMASH           = 687,      // Dark Smash's impact
-    KIT_INGVAR_WOE_STRIKE           = 507,      // Woe Strike's impact on the tank
+    // (His shadow blows land as the shadow theme's burst, Shadowfury's: Dark Smash's own impact kit shows nothing on
+    // the floor, Woe Strike's is a green swirl)
     // His undead phase's painted ground (localTools/hollowVoice textures: void and souls)
     LOOK_INGVAR_SOULS_CORE          = 90786,    // HV_EchoCore: a circle
     LOOK_INGVAR_SOULS_RING          = 90784,    // HV_EchoRing: a ring, inner 0.4 of the outer
@@ -1294,7 +1294,7 @@ private:
             for (float turn : { -1.0f, 0.0f, 1.0f })
                 for (Position const& point : AlongMiddle(cone.origin, orientation + turn, DarkSmashRadius))
                     if (point.GetExactDist2d(cone.origin) > DarkSmashRadius * 0.5f)
-                        GroundIndicators::PlayKit(me, point, KIT_INGVAR_DARK_SMASH, 1.3f);
+                        GroundIndicators::Burst(me, point, GroundIndicators::Theme::Shadow);
             HitAll(cone, SPELL_INGVAR_DARK_SMASH, DarkSmashPercent);
             Hold(false);
             _busy = false;
@@ -1347,7 +1347,7 @@ private:
     // Frappe du malheur: his tank, and the healing it takes halved for a while
     void WoeStrike(Unit* tank)
     {
-        tank->SendPlaySpellVisual(KIT_INGVAR_WOE_STRIKE);
+        GroundIndicators::Burst(me, tank->GetPosition(), GroundIndicators::Theme::Shadow);
         IngvarHit(tank, SPELL_INGVAR_WOE_STRIKE, WoeStrikePercent);
         me->AddAura(SPELL_INGVAR_WOE, tank);
     }

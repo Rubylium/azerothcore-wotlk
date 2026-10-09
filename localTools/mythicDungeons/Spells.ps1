@@ -33,7 +33,8 @@ function New-Cast($id, $clone, $name, $castTime, $interruptible, $description, $
 # An aura with an amount: 87 damage taken (all schools), 118 healing received, 79 damage done (all schools).
 # Duration indexes: 32 = 6 s, 18 = 20 s, 21 = until taken off.
 function New-Aura($id, $name, $fallback, $aura, $value, $duration, $stacks, $harmful, $description) {
-    $fields = @{ 40 = $duration; 49 = $stacks; 208 = 0 }
+    # Sprint's row: its speed lines (visual 6) taken off
+    $fields = @{ 40 = $duration; 49 = $stacks; 208 = 0; 131 = 0 }
     if ($harmful) { $fields[4] = $debuff }
     @{ Id = $id; Clone = 2983; Name = $name; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = $description
@@ -63,7 +64,7 @@ $spells = @(
     (New-Hit 94713 'Frappe du malheur' 42730 $shadow 'Un coup qui maudit sa cible.')
     (New-Aura 94714 'Frappe du malheur' 42730 118 -50 32 1 $true 'Soins reçus réduits de 50%.')
     (New-Hit 94715 'Tourbillon des âmes' 42729 $shadow 'Les âmes tourbillonnent autour d''Ingvar.')
-    (New-Aura 94716 'Âmes dévorées' 48613 79 10 21 3 $false 'Chaque âme vrykule qui a rejoint Ingvar augmente ses dégâts de 10%.')
+    (New-Aura 94716 'Âmes dévorées' 47855 79 10 21 3 $false 'Chaque âme vrykule qui a rejoint Ingvar augmente ses dégâts de 10%.')
 )
 
 return $spells
