@@ -102,7 +102,8 @@ constexpr float UptimeSeconds = 205.0f;
 // His group of 8 gets fewer buffs than the 10-player teams Power::RaidCurve was measured on (two healers, no priest,
 // two subgroups): 1.095 of the model against 1.18 at 477 / 650 (simBench.ps1 raid -dealers 4, 2026-10-09)
 constexpr float EightPlayerShare = 1.095f / 1.18f;
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.0f);
+// Raised by play: the first kills at the measured health were too easy (2026-10-09, +15%)
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.15f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
