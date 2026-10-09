@@ -25,6 +25,7 @@
 #include "MythicItemGeneration.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "RaidTrinkets.h"
 #include "Random.h"
 #include "ScriptMgr.h"
 #include "SmartLootSystem.h"
@@ -437,11 +438,18 @@ public:
 // A piece of Gardien-chef Vorhan's sets for a player (mod-playerbots ChallengeBoard.cpp: his win): one of their armour
 // type's eight or a shared piece, at random, of the profile that suits them; thrown on the floor with his loot
 // (GroundLoot) as any raid item, in the bags when it cannot be. Its item level is the set's (the board gives 485).
+// Sometimes one of his own trinkets instead (mod-stat-growth RaidTrinkets.cpp), of the player's role.
 void GiveWardenVorhanLootItem(Player* player, uint32 /*itemLevel*/)
 {
     using namespace Legendary;
     if (!player)
         return;
+    if (ItemTemplate const* trinket = RaidTrinkets::Roll(player, RaidTrinkets::Raid::WardenVorhan))
+    {
+        if (!GroundLoot::Throw(player, trinket, {}))
+            StoreMythicItem(player, trinket, {});
+        return;
+    }
     uint32 const row = DrawRow(player);
     ItemTemplate const* item = FitPiece(player, row);
     if (!item)

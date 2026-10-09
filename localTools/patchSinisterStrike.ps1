@@ -819,6 +819,10 @@ $customSpells += & ([ScriptBlock]::Create($hollowVoiceSpellSource))
 # rules' debuffs and its cast bars
 $wardenVorhanSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\wardenVorhan\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($wardenVorhanSpellSource))
+# The Hollow Voice's and Gardien-chef Vorhan's trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): their passives'
+# procs and buffs, their uses
+$raidTrinketSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\raidTrinkets\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($raidTrinketSpellSource))
 # Le Front du Nord, the open-world content at level 80 (modules/mod-stat-growth/src/frontier): the tier phase and its
 # abilities' names in the log
 $frontierSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\frontier\Spells.ps1') -Raw -Encoding UTF8
@@ -2223,6 +2227,36 @@ foreach ($legendary in $legendaryItems) {
         [BitConverter]::GetBytes([uint32]$legendary.Material).CopyTo($itemBytes, $itemOffsets[$legendary.Item] + 4 * 4)
     }
     $legendary.Painted = Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($legendary.Icon).tga")
+}
+
+# The raid trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): the Hollow Voice's 17836-17843 and Gardien-chef
+# Vorhan's 17844-17848 and 17851-17853, free "junk" rows made trinkets (ClassID 4, SubclassID 0, Material 4 as stock
+# trinkets, InventoryType 12), each wearing a stock trinket's look and icon
+$raidTrinkets = @(
+    @{ Item = 17836; Display = 53122 }   # Éclat du Marteau béni: Spell_Holy_SealOfSacrifice
+    @{ Item = 17837; Display = 62936 }   # Penne du Séraphin: INV_Feather_06
+    @{ Item = 17838; Display = 52633 }   # Psautier du Néant: INV_Misc_Book_13
+    @{ Item = 17839; Display = 52614 }   # Souffle du Néant: Spell_Shadow_BurningSpirit
+    @{ Item = 17840; Display = 45855 }   # Chapelet de l'Archevêque: INV_Jewelry_Necklace_31
+    @{ Item = 17841; Display = 59269 }   # Reliquaire d'Aldric: Spell_Holy_SummonLightwell
+    @{ Item = 17842; Display = 31844 }   # Pierre du Bastion: Spell_Holy_BlessingOfProtection
+    @{ Item = 17843; Display = 6498 }    # Cierge de la Dernière lumière: INV_Misc_Candle_01
+    @{ Item = 17844; Display = 38129 }   # Pierre à aiguiser du bourreau: INV_Stone_WeightStone_05
+    @{ Item = 17845; Display = 6540 }    # Cadran du couvre-feu: INV_Misc_PocketWatch_01
+    @{ Item = 17846; Display = 1317 }    # Registre d'écrou: INV_Misc_Book_11
+    @{ Item = 17847; Display = 59524 }   # Œil du Gardien-chef: INV_Misc_Eye_02
+    @{ Item = 17848; Display = 31847 }   # Lettre de grâce: INV_Scroll_08
+    @{ Item = 17851; Display = 35649 }   # Tampon de libération: INV_Misc_Token_ArgentDawn2
+    @{ Item = 17852; Display = 32335 }   # Maillon des fers: INV_Jewelry_Ring_45
+    @{ Item = 17853; Display = 64264 }   # Verrou du cachot: INV_Misc_Key_15
+)
+foreach ($trinket in $raidTrinkets) {
+    if (-not $itemOffsets.ContainsKey($trinket.Item)) { throw "Item.dbc has no row $($trinket.Item) for a raid trinket." }
+    # ClassID, SubclassID, SoundOverrideSubclassID, Material, DisplayInfoID, InventoryType, SheatheType
+    $values = @(4, 0, -1, 4, $trinket.Display, 12, 0)
+    for ($field = 1; $field -le 7; ++$field) {
+        Write-Field $itemBytes $itemOffsets[$trinket.Item] $field ([long]$values[$field - 1])
+    }
 }
 
 # --- Retail item looks (ItemDisplayInfo.dbc, Item.dbc) --------------------------------------------------------

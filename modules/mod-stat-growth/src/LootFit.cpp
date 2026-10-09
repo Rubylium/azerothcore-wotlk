@@ -201,6 +201,9 @@ void AddSpell(Gives& gives, uint32 spellId, float share, std::set<uint32>& seen,
             case SPELL_AURA_MOD_HEALING_PCT:
                 gives.healing += amount;
                 break;
+            case SPELL_AURA_MOD_HEALING_DONE_PERCENT:
+                gives.healing += amount * 10.0f;
+                break;
             case SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK:
                 gives.spellPower += amount * 10.0f;
                 break;

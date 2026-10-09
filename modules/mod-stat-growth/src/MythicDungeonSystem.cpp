@@ -22,6 +22,7 @@
 #include "MythicDungeon.h"
 #include "MythicTuning.h"
 #include "ObjectMgr.h"
+#include "RaidTrinkets.h"
 #include "Random.h"
 #include "ParagonSystem.h"
 #include "Player.h"
@@ -988,7 +989,8 @@ void GiveInfiniteGodLootItem(Player* player, uint32 itemLevel)
 }
 
 // The Hollow Voice's loot: one piece in four touched by it (TouchByHollowVoice), its bonus, frame and tooltip its own.
-// Rolled before the piece is made: thrown on the floor, a touched one lands with its own sound (GroundLoot.cpp).
+// Rolled before the piece is made: thrown on the floor, a touched one lands with its own sound (GroundLoot.cpp). A
+// piece is sometimes one of its own trinkets (RaidTrinkets.cpp), of the player's role.
 void GivePinnacleLootItem(Player* player, uint32 itemLevel)
 {
     if (!player)
@@ -996,6 +998,11 @@ void GivePinnacleLootItem(Player* player, uint32 itemLevel)
     std::function<void(Item*)> touch;
     if (roll_chance_f(InfiniteGodLoot::HollowVoice::BonusChancePct))
         touch = TouchByHollowVoice;
+    if (ItemTemplate const* trinket = RaidTrinkets::Roll(player, RaidTrinkets::Raid::HollowVoice))
+    {
+        GiveSelectedMythicItem(player, trinket, touch);
+        return;
+    }
     GiveMythicItem(player, std::min(itemLevel, Mythic::MaxPinnacleItemLevel), touch);
 }
 
