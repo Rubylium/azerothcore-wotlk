@@ -1271,7 +1271,7 @@ class LegendaryDropScript : public GlobalScript
 public:
     LegendaryDropScript() : GlobalScript("LegendaryDropScript", { GLOBALHOOK_ON_AFTER_UPDATE_ENCOUNTER_STATE }) { }
 
-    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* /*source*/,
+    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source,
         Difficulty /*difficulty*/, std::list<DungeonEncounter const*> const* /*encounters*/, uint32 dungeonCompleted,
         bool /*updated*/) override
     {
@@ -1284,6 +1284,10 @@ public:
                 pool.push_back(&definition);
         if (pool.empty() || !FirstRoll(map, dungeonCompleted))
             return;
+        // The last boss's loot opened first: the death hooks run in no set order, and a legendary rolled before the
+        // ground loot had opened its corpse went straight to the bags - no beam, no sound
+        if (Creature* corpse = source ? source->ToCreature() : nullptr)
+            GroundLoot::Open(corpse);
         RollDrops(map, dungeonCompleted, pool, Mythic::GetItemLevel(level));
     }
 };
@@ -1307,6 +1311,8 @@ public:
                 pool.push_back(&definition);
         if (pool.empty() || !FirstRoll(boss->GetMap(), entry))
             return;
+        // Its loot opened first (as above): the Hollow Voice's Unique went to the bags unseen
+        GroundLoot::Open(boss);
         uint32 const itemLevel = entry == InfiniteGodBoss ?
             GetChallengeGodItemLevel(GetChallengeTierOf(boss->GetMap())) : pool.front()->floorItemLevel;
         RollDrops(boss->GetMap(), entry, pool, itemLevel);
