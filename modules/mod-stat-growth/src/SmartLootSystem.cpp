@@ -427,11 +427,22 @@ uint32 BaseItemEntry(uint32 entry)
     return Mythic::IsGeneratedItem(entry) ? entry % Mythic::GeneratedItemBase : entry;
 }
 
+// The item level an item a player has counts at: its template's, or what a script says the item itself is - a
+// legendary's or a Unique's copy rolls its own (mod-legendary's OnItemLevel) on a template of item level 227. Read
+// from the template, a 477 Unique ring made the ring slots the furthest behind, and a Hollow Voice run gave the
+// player another 477 ring over gear far below it (2026-10-09).
+uint32 WornItemLevel(Item const* item)
+{
+    uint32 itemLevel = item->GetTemplate()->ItemLevel;
+    sScriptMgr->OnGlobalItemLevel(item, itemLevel);
+    return itemLevel;
+}
+
 // Whether the item is the candidate, as itself or as a generated variant of it, at the item level the player would get
 // or better: a copy the loot would not improve on
 bool IsSameItem(Item const* item, uint32 baseEntry, uint32 givenItemLevel)
 {
-    return item && BaseItemEntry(item->GetEntry()) == baseEntry && item->GetTemplate()->ItemLevel >= givenItemLevel;
+    return item && BaseItemEntry(item->GetEntry()) == baseEntry && WornItemLevel(item) >= givenItemLevel;
 }
 
 // Whether the player owns the candidate already at the item level it would be given at or better, as itself or as any
@@ -532,7 +543,7 @@ std::vector<SlotGroup> BuildSlotGroups(Player const* player)
             if (slot == NULL_SLOT)
                 continue;
             Item const* equipped = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
-            weakest = std::min(weakest, equipped ? equipped->GetTemplate()->ItemLevel : 0u);
+            weakest = std::min(weakest, equipped ? WornItemLevel(equipped) : 0u);
         }
         group.weakestItemLevel = weakest;
     }
