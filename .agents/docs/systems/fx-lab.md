@@ -27,6 +27,9 @@ fight. Game masters only.
   your feet, pointing at your target or ahead; anything else lies on your target or just ahead of you. Defaults:
   5 yards, 6 s (at most 120). Models built to their size (pieces, curtains, billboards) and carried looks (worn by
   your target, or you) ignore the radius.
+- `.fxlab cast <spell>` - you cast the spell, triggered (no cost, class or combo point needed), on your target, else
+  your nearest dummy: a whole spell's look without selecting anything (the screenshot runs cannot select: targeting
+  is protected in the dev addon).
 - `.fxlab kit <SpellVisualKit id>` - plays the kit (`SMSG_PLAY_SPELL_VISUAL`) on your target, else your nearest
   dummy, else you. A whole spell: `.cast` it on a dummy as usual.
 

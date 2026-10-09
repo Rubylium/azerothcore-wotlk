@@ -6,6 +6,7 @@
 #include "Map.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "SpellInfo.h"
 #include "StringFormat.h"
 #include "TemporarySummon.h"
 
@@ -172,6 +173,7 @@ public:
             { "shape", HandleShape, SEC_GAMEMASTER, Console::No },
             { "shapes", HandleShapes, SEC_GAMEMASTER, Console::No },
             { "kit", HandleKit, SEC_GAMEMASTER, Console::No },
+            { "cast", HandleCast, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "fxlab", fxlabTable },
@@ -318,7 +320,8 @@ public:
         return true;
     }
 
-    static bool HandleKit(ChatHandler* handler, uint32 kit)
+    // The unit a look is shown on: the selection, else the nearest of the player's dummies, else the player
+    static Unit* LookTarget(ChatHandler* handler)
     {
         Player* player = handler->GetPlayer();
         Unit* on = handler->getSelectedUnit();
@@ -331,6 +334,29 @@ public:
             });
             on = dummies.empty() ? static_cast<Unit*>(player) : dummies.front();
         }
+        return on;
+    }
+
+    // .fxlab cast <spell>: the player casts it (triggered: no cost, no class, no combo point needed) on its selection,
+    // else its nearest dummy - a whole spell's look with no target to click (the screenshot runs cannot select one)
+    static bool HandleCast(ChatHandler* handler, SpellInfo const* spellInfo)
+    {
+        if (!spellInfo)
+        {
+            handler->SendErrorMessage("Usage: .fxlab cast <spell id or link>");
+            return false;
+        }
+        Player* player = handler->GetPlayer();
+        Unit* on = LookTarget(handler);
+        player->SetFacingToObject(on);
+        player->CastSpell(on, spellInfo->Id, TRIGGERED_FULL_MASK);
+        handler->PSendSysMessage("Spell {} cast on {}.", spellInfo->Id, on->GetName());
+        return true;
+    }
+
+    static bool HandleKit(ChatHandler* handler, uint32 kit)
+    {
+        Unit* on = LookTarget(handler);
         on->SendPlaySpellVisual(kit);
         handler->PSendSysMessage("SpellVisualKit {} played on {}.", kit, on->GetName());
         return true;
