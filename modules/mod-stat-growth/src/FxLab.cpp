@@ -6,6 +6,7 @@
 #include "Map.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "StringFormat.h"
 #include "TemporarySummon.h"
@@ -191,9 +192,20 @@ public:
             handler->SendErrorMessage("The FX lab (map 451) could not be reached.");
             return false;
         }
+        CleanUp(player);
         handler->SendSysMessage("FX lab: rings every 5 yards round the middle, lines every 33.3 yards. "
             ".fxlab dummy [big], .fxlab shape <key> [radius] [seconds], .fxlab kit <id>, .fxlab back.");
         return true;
+    }
+
+    // A clean character to look at: whatever buff or debuff the last test left on it (a boss's debuff, a carried
+    // look - Gardien-chef Vorhan's seat number over the head) goes; its passives stay
+    static void CleanUp(Player* player)
+    {
+        player->RemoveAppliedAuras([](AuraApplication const* application)
+        {
+            return !application->GetBase()->IsPassive();
+        });
     }
 
     static bool HandleBack(ChatHandler* handler)
@@ -235,7 +247,8 @@ public:
         std::list<Creature*> dummies = OwnDummies(handler->GetPlayer());
         for (Creature* dummy : dummies)
             dummy->DespawnOrUnsummon();
-        handler->PSendSysMessage("{} dummies taken away.", dummies.size());
+        CleanUp(handler->GetPlayer());
+        handler->PSendSysMessage("{} dummies taken away, and your buffs and debuffs.", dummies.size());
         return true;
     }
 

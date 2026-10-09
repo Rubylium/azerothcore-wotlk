@@ -19,9 +19,11 @@ fight. Game masters only.
 
 ## Commands (`modules/mod-stat-growth/src/FxLab.cpp`)
 
-- `.fxlab` - to the middle (`.tele FxLab` too). `.fxlab back` - where it was typed from (until a restart).
+- `.fxlab` - to the middle (`.tele FxLab` too), every buff and debuff the last test left taken off (a boss's debuff, a
+  carried look such as Vorhan's seat number; passives stay). `.fxlab back` - where it was typed from (until a restart).
 - `.fxlab dummy [big]` - the Adaptive AoE Training Dummy (900100: no damage taken, the player's level) 10 yards
-  ahead, facing you; `big` three times its size. Gone after 2 hours or with `.fxlab clear` (only your own).
+  ahead, facing you; `big` three times its size. Gone after 2 hours or with `.fxlab clear` (only your own; it clears
+  your buffs and debuffs too).
 - `.fxlab shape <key|spell> [radius] [seconds]` - a ground indicator of `localTools/groundIndicators/shapes.json`
   (read when asked: a new shape needs no restart; `.fxlab shapes [filter]` lists them). Lines and cones start at
   your feet, pointing at your target or ahead; anything else lies on your target or just ahead of you. Defaults:
