@@ -38,8 +38,12 @@ enum class RunResult : uint8
     Abandoned = 3,
     RaidKill = 4,
     BenchCompleted = 5,     // a combat bench test that ran its course
-    BenchStopped = 6        // stopped before
+    BenchStopped = 6,       // stopped before
+    RaidWipe = 7            // a raid boss left alive, its fighters gone (a custom raid's tuning needs those too)
 };
+
+// A raid boss fought at least this long is kept when the group wipes; a pull let go at once is not
+constexpr uint32 MinRaidWipeSeconds = 20;
 
 struct AbilityTotals
 {
@@ -770,10 +774,25 @@ void AbortRaidEncounter(Unit* unit)
     if (!map || !map->IsRaid() || !boss->IsAlive() || !IsBoss(boss))
         return;
 
-    std::lock_guard lock(telemetryMutex);
-    auto itr = raidEncounters.find(GetMapKey(map->GetId(), map->GetInstanceId()));
-    if (itr != raidEncounters.end() && itr->second.bossEntry == boss->GetEntry())
+    Run wiped;
+    {
+        std::lock_guard lock(telemetryMutex);
+        auto itr = raidEncounters.find(GetMapKey(map->GetId(), map->GetInstanceId()));
+        if (itr == raidEncounters.end() || itr->second.bossEntry != boss->GetEntry())
+            return;
+        bool const fought = GameTime::GetGameTimeMS().count() - itr->second.startedGameMs >=
+            MinRaidWipeSeconds * IN_MILLISECONDS;
+        if (fought)
+        {
+            AddMapParticipants(itr->second, map);
+            itr->second.result = RunResult::RaidWipe;
+            wiped = std::move(itr->second);
+        }
         raidEncounters.erase(itr);
+        if (!fought)
+            return;
+    }
+    PersistRun(std::move(wiped));
 }
 
 void StartBench(BenchSetup const& setup)
