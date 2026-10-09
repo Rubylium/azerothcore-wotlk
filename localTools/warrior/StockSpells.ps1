@@ -23,6 +23,8 @@ function Fields($extra = @{}) {
     return $fields
 }
 
+$chargeText = "Charge un ennemi, génère `$/10;s2 points de rage et l'étourdit pendant `$7922d. Utilisable en combat."
+
 $edits = @(
     # --- Any stance ---------------------------------------------------------------------------------------------------
     @{ Family = $warrior; Name = 'Rend'; Fields = (Fields) },
@@ -33,11 +35,12 @@ $edits = @(
     @{ Family = $warrior; Name = 'Pummel'; Fields = (Fields) },
     @{ Family = $warrior; Name = 'Intercept'; Fields = (Fields) },
     @{ Family = $warrior; Name = 'Intervene'; Fields = (Fields) },
-    # Charge, Taunt, Retaliation and Sweeping Strikes cost nothing: by id (Charge stays out of combat without
-    # Warbringer or Juggernaut)
-    @{ Id = 100; Fields = (Fields) },
-    @{ Id = 6178; Fields = (Fields) },
-    @{ Id = 11578; Fields = (Fields) },
+    # Charge, Taunt, Retaliation and Sweeping Strikes cost nothing: by id. Charge is usable in combat for every
+    # specialization, as retail's (Attributes without NOT_IN_COMBAT_ONLY_PEACEFUL, 0x10000000): only Arms and
+    # Protection had a talent lifting it (Juggernaut, Warbringer), and Fury and the Gladiateur could not charge in a fight.
+    @{ Id = 100; Fields = (Fields @{ 4 = 0x20050010 }); Description = $chargeText },
+    @{ Id = 6178; Fields = (Fields @{ 4 = 0x20050010 }); Description = $chargeText },
+    @{ Id = 11578; Fields = (Fields @{ 4 = 0x20050010 }); Description = $chargeText },
     @{ Id = 355; Fields = (Fields) },
     @{ Id = 20230; Fields = (Fields @{ 1 = 0; 30 = 0 }) },
     @{ Id = 12328; Fields = (Fields) },
