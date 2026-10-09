@@ -190,6 +190,11 @@ constexpr float ExecutionSeatRadius = 2.5f;
 constexpr float ExecutionOffSeatPct = 80.0f;    // a number off its seat as it is executed
 constexpr float ExecutionGroupDistance = 12.0f; // bots: the group, in its gap
 constexpr float ExecutionRingDistance = 3.5f;   // bots: the way across, at his feet
+// The seat called, made plain: its runes flare again on every tick of the clock until it strikes, its number hangs
+// over it as the inmate numbers hang over heads, SeatNumberScale times their size, and it is announced in the middle
+// of every player's screen (its number's player told apart)
+constexpr float SeatNumberScale = 2.5f;
+constexpr uint32 SeatFlareEveryMs = 1000;
 constexpr float ExecutionBotSpeed = 7.0f;       // bots: yards a second, to time their way round
 constexpr uint32 BurntDelayMs = 1500;           // the floor burns this long after the strike: the time to step off
 constexpr uint32 BurntLastsMs = 2 * ExecutionEveryMs + 500;  // then goes out, two seconds before the next-but-two DOOM
@@ -2221,6 +2226,57 @@ private:
         });
     }
 
+    // A seat called, until its DOOM: its runes flaring on every tick, its number hanging big over it
+    void ShowSeatCall(uint8 seat, uint32 durationMs)
+    {
+        Position const spot = SeatSpot(seat);
+        for (uint32 at = 0; at < durationMs; at += SeatFlareEveryMs)
+            scheduler.Schedule(Milliseconds(at), [this, spot](TaskContext)
+            {
+                if (_executionOn)
+                    GroundIndicators::FlareCell(me, spot, ExecutionSeatRadius);
+            });
+        if (Creature* sign = me->SummonCreature(NPC_STALKER, spot, TEMPSUMMON_TIMED_DESPAWN, durationMs + 500))
+        {
+            sign->SetObjectScale(SeatNumberScale);
+            GroundIndicators::ShowCarriedNumber(sign, seat, durationMs);
+        }
+    }
+
+    // A line in the middle of the players' screens (the raid boss emote frame), in their language; whisper: to one
+    // player alone, in its own colour
+    void Announce(Player* player, std::string const& french, std::string const& english, bool whisper = false)
+    {
+        if (!player || !player->GetSession() || player->GetSession()->IsBot())
+            return;
+        bool const isFrench = player->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
+        WorldPacket packet;
+        ChatHandler::BuildChatPacket(packet, whisper ? CHAT_MSG_RAID_BOSS_WHISPER : CHAT_MSG_RAID_BOSS_EMOTE,
+            LANG_UNIVERSAL, me, player, isFrench ? french : english);
+        player->GetSession()->SendPacket(&packet);
+    }
+
+    void AnnounceSeats(std::vector<uint8> const& seats)
+    {
+        std::string numbers = std::to_string(seats.front());
+        std::string french = "Siège " + numbers;
+        std::string english = "Seat " + numbers;
+        if (seats.size() > 1)
+        {
+            french = "Sièges " + numbers + " et " + std::to_string(seats[1]);
+            english = "Seats " + numbers + " and " + std::to_string(seats[1]);
+        }
+        for (Player* player : Listeners())
+        {
+            uint8 const number = NumberOf(player);
+            if (std::find(seats.begin(), seats.end(), number) != seats.end())
+                Announce(player, Acore::StringFormat("|cffff3b1fVOTRE SIÈGE : {} !|r", number),
+                    Acore::StringFormat("|cffff3b1fYOUR SEAT: {}!|r", number), true);
+            else
+                Announce(player, "|cffffb020" + french + " !|r", "|cffffb020" + english + "!|r");
+        }
+    }
+
     // A DOOM's seats called: their numbers' players to them, their cones shown along the seats' axes, the group to its
     // gap; his feet warned just before it strikes
     void ExecutionCall(uint8 doom)
@@ -2237,7 +2293,7 @@ private:
             for (float end : { SeatDegrees(seat), SeatDegrees(seat) + 180.0f })
                 GroundIndicators::ShowCone(me, center, ClockDegrees(end), ExecutionReach, ExecutionArcDegrees,
                                            ExecutionEveryMs, GroundIndicators::Theme::None, damage);
-            GroundIndicators::FlareCell(me, SeatSpot(seat), ExecutionSeatRadius);
+            ShowSeatCall(seat, ExecutionEveryMs);
             if (Player* player = PlayerOf(seat); player && player->IsAlive())
             {
                 called.push_back(player->GetGUID());
@@ -2247,6 +2303,7 @@ private:
         for (Player* player : ArenaPlayers())
             if (std::find(called.begin(), called.end(), player->GetGUID()) == called.end())
                 RouteTo(player, _executionGroupDegrees, ExecutionGroupDistance, 2.0f, ExecutionEveryMs + 500);
+        AnnounceSeats(seats);
         if (doom == ExecutionCurfewDoom)
             Curfew(ExecutionEveryMs);
         scheduler.Schedule(Milliseconds(ExecutionEveryMs - ExecutionFeetWarnMs), [this](TaskContext)
@@ -3131,6 +3188,37 @@ public:
             player->SendPlaySpellVisual(KIT_STRIKE);
             return true;
         }
+        if (what == "seat")
+        {
+            // Seat 6 ahead of the game master, called: its seal, its runes flaring on every tick, its number big over
+            // it, the call in the middle of the screen, the clock and the DOOM
+            Position const at(player->GetPositionX() + 8.0f * std::cos(player->GetOrientation()),
+                              player->GetPositionY() + 8.0f * std::sin(player->GetOrientation()), player->GetPositionZ());
+            GroundIndicators::ShowCell(player, at, 6, player->GetAngle(&at), 6000, ExecutionSeatRadius);
+            for (uint32 tick = 0; tick < 4; ++tick)
+            {
+                ObjectGuid const guid = player->GetGUID();
+                player->m_Events.AddEventAtOffset([guid, at, tick]()
+                {
+                    if (Player* player = ObjectAccessor::FindPlayer(guid))
+                    {
+                        GroundIndicators::FlareCell(player, at, ExecutionSeatRadius);
+                        EvolutionsAudio::PlayAt(player, tick == 3 ? "Vorhan.ExecutionDoom" :
+                            (tick % 2 ? "Vorhan.ExecutionTock" : "Vorhan.ExecutionTick"), at);
+                    }
+                }, Milliseconds(tick * 1000 + 1000));
+            }
+            if (Creature* sign = player->SummonCreature(NPC_STALKER, at, TEMPSUMMON_TIMED_DESPAWN, 5000))
+            {
+                sign->SetObjectScale(SeatNumberScale);
+                GroundIndicators::ShowCarriedNumber(sign, 6, 4500);
+            }
+            WorldPacket packet;
+            ChatHandler::BuildChatPacket(packet, CHAT_MSG_RAID_BOSS_EMOTE, LANG_UNIVERSAL, player, player,
+                "|cffffb020Siège 6 !|r");
+            player->GetSession()->SendPacket(&packet);
+            return true;
+        }
         if (what == "burnt" || what == "punishment")
         {
             // Phase 3's marks from the game master ahead of them: an execution's burnt floor (its strike, its clock's
@@ -3146,7 +3234,8 @@ public:
                 GroundIndicators::SPELL_WARDEN_BURNT_FLOOR : GroundIndicators::SPELL_WARDEN_PUNISHMENT, 8000);
             return true;
         }
-        handler->SendErrorMessage("Usage: .vorhan fx <gaze|isolation|cell|curfew|axe|rollcall|burnt|punishment>");
+        handler->SendErrorMessage(
+            "Usage: .vorhan fx <gaze|isolation|cell|curfew|axe|rollcall|burnt|punishment|seat>");
         return false;
     }
 
