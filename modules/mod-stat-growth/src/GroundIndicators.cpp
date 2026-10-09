@@ -139,6 +139,7 @@ struct ActiveArea
     ObjectGuid carrier;
     ObjectGuid aimedAt;         // the one unit it is meant to land on (ShowAimedCone)
     ObjectGuid turnsTo;         // a cone turning to face this unit as it moves (ShowTrackingCone)
+    float turnOffset = 0.0f;    // ... or to face away from it (pi)
     float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
     float sweepSpeed = 0.0f;    // a sweeping rectangle (ShowSweepingRectangle): radians a second, from sweepFromMs
     uint64 sweepFromMs = 0;
@@ -166,12 +167,14 @@ uint64 NowMs()
 }
 
 uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, uint32 durationMs,
-    uint32 hitDamage = 0, ObjectGuid aimedAt = ObjectGuid::Empty, ObjectGuid turnsTo = ObjectGuid::Empty)
+    uint32 hitDamage = 0, ObjectGuid aimedAt = ObjectGuid::Empty, ObjectGuid turnsTo = ObjectGuid::Empty,
+    float turnOffset = 0.0f)
 {
     ActiveArea active;
     active.hitDamage = hitDamage;
     active.aimedAt = aimedAt;
     active.turnsTo = turnsTo;
+    active.turnOffset = turnOffset;
     if (carrier && carrier->GetObjectScale() > 0.0f)
         active.carriedBase = area.radius / carrier->GetObjectScale();
     active.mapId = owner->GetMapId();
@@ -218,8 +221,8 @@ bool Follow(ActiveArea& entry, WorldObject const& reference)
             entry.sweepSpeed * float(NowMs() - entry.sweepFromMs) / 1000.0f));
     if (!entry.turnsTo.IsEmpty())
         if (Unit* turnsTo = ObjectAccessor::GetUnit(reference, entry.turnsTo))
-            entry.area.origin.SetOrientation(entry.area.origin.GetAngle(turnsTo->GetPositionX(),
-                turnsTo->GetPositionY()));
+            entry.area.origin.SetOrientation(Position::NormalizeOrientation(entry.area.origin.GetAngle(
+                turnsTo->GetPositionX(), turnsTo->GetPositionY()) + entry.turnOffset));
     if (entry.carrier.IsEmpty())
         return true;
     Unit* carrier = ObjectAccessor::GetUnit(reference, entry.carrier);
@@ -322,7 +325,8 @@ private:
 // A cone's stalker turning to face one unit for as long as it is drawn
 struct TrackingConeAI : public NullCreatureAI
 {
-    TrackingConeAI(Creature* creature, ObjectGuid turnsTo) : NullCreatureAI(creature), _turnsTo(turnsTo) { }
+    TrackingConeAI(Creature* creature, ObjectGuid turnsTo, float offset = 0.0f)
+        : NullCreatureAI(creature), _turnsTo(turnsTo), _offset(offset) { }
 
     void UpdateAI(uint32 diff) override
     {
@@ -336,7 +340,7 @@ struct TrackingConeAI : public NullCreatureAI
         Unit* turnsTo = ObjectAccessor::GetUnit(*me, _turnsTo);
         if (!turnsTo)
             return;
-        float const facing = me->GetAngle(turnsTo);
+        float const facing = Position::NormalizeOrientation(me->GetAngle(turnsTo) + _offset);
         float turn = std::fabs(facing - me->GetOrientation());
         turn = std::min(turn, 2.0f * float(M_PI) - turn);
         if (turn > MinTurn)
@@ -346,6 +350,7 @@ struct TrackingConeAI : public NullCreatureAI
 private:
     static constexpr uint32 TurnEveryMs = 100;
     static constexpr float MinTurn = 0.02f;
+    float _offset;                              // pi: it points away from the unit
 
     ObjectGuid _turnsTo;
     uint32 _timer = TurnEveryMs;
@@ -1589,16 +1594,18 @@ Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float r
 }
 
 Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                      Unit* aimedAt, uint32 hitDamage)
+                      Unit* aimedAt, uint32 hitDamage, bool away)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
-    float const facing = apex.GetAngle(aimedAt->GetPositionX(), aimedAt->GetPositionY());
+    float const offset = away ? float(M_PI) : 0.0f;
+    float const facing = Position::NormalizeOrientation(apex.GetAngle(aimedAt->GetPositionX(),
+        aimedAt->GetPositionY()) + offset);
     Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs))
     {
-        stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID()));
-        Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID());
+        stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset));
+        Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), offset);
     }
     return area;
 }

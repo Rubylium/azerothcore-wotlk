@@ -88,8 +88,9 @@ namespace GroundIndicators
                                 float length, float width, uint32 durationMs, uint32 hitDamage = 0);
     // A cone from apex aimed at one unit, as ShowAimedCone, that turns to face it wherever it goes until it lands
     // (no particles: they would stay behind). Read where it points back with CurrentCone when it resolves.
+    // away: the cone points straight away from the unit instead (the far end of a cone through it and out behind)
     Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                          Unit* aimedAt, uint32 hitDamage = 0);
+                          Unit* aimedAt, uint32 hitDamage = 0, bool away = false);
     // Where a tracking cone points now
     Area CurrentCone(Unit* aimedAt, Area const& area);
     // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a

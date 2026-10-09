@@ -190,7 +190,7 @@
     {"key": "VW_AxeSwing", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [false, true], "shape": "rect", "ratio": 8.0, "scale": 40, "blackKey": true, "band": [0.0, 1.0], "spell": 94245, "pulse": [0.7, 1.0, 500]},
     {"key": "VW_AxeSwingHit", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:axe_line", "args": [true, true], "shape": "rect", "ratio": 8.0, "scale": 40, "blackKey": true, "band": [0.0, 1.0], "spell": 94246},
     {"key": "VW_RollCallBlow", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:strike_cone", "shape": "cone", "angle": 44, "paintedAngle": 44, "centred": true, "scale": 56, "grow": [0.05, 1000], "alphaKeys": [[0, 0.0], [120, 0.9], [1000, 1.0], [1700, 1.0], [2500, 0.0]], "spell": 94247},
-    {"key": "VW_BurntFloor", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:burnt_floor", "shape": "cone", "angle": 44, "paintedAngle": 44, "centred": true, "scale": 40, "alphaKeys": [[0, 0.0], [250, 1.0], [600, 1.0]], "spell": 94248},
+    {"key": "VW_BurntFloor", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:burnt_floor", "shape": "cone", "angle": 40, "paintedAngle": 40, "centred": true, "scale": 40, "alphaKeys": [[0, 0.0], [250, 1.0], [600, 1.0]], "spell": 94248},
     {"key": "VW_Punishment", "kind": "texture", "picture": "localTools/wardenVorhan/indicatorArt.py:punishment_cone", "shape": "cone", "angle": 60, "paintedAngle": 60, "centred": true, "scale": 14, "pulseRamp": [0.55, 1.0, 900, 250, 4000, 1000], "spell": 94249}
   ]
 }
