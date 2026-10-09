@@ -30,6 +30,8 @@ SPELL_ICONS = [
     "ICON_CelluleSurpeuplee", "ICON_HorsCellule", "ICON_Regard", "ICON_Appel", "ICON_MauvaisMatricule",
     "ICON_Barriere", "ICON_ViolationCouvreFeu", "ICON_Sentence", "ICON_MiseIsolement", "ICON_Perpetuite",
     "ICON_PeineCapitale",
+    # Phase 3
+    "ICON_Execution", "ICON_SolCalcine", "ICON_Cachot", "ICON_Chatiment", "ICON_Sursis",
 ]
 SET_ICONS = [f"INV_Vorhan_{armour}_{slot}" for armour in ("Plate", "Mail", "Leather", "Cloth")
              for slot in ("Head", "Shoulders", "Chest", "Hands", "Legs", "Wrists", "Waist", "Feet")] + \
