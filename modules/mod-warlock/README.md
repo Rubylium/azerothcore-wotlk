@@ -74,8 +74,10 @@ Warlock's. They go when their time is up, or with the Warlock.
 
 The WotLK kit keeps its numbers; the new spells carry spell power coefficients in
 `data/sql/db-world/base/warlock_spells.sql`, the shares this module works out sit at the top of
-`src/WarlockTalents.cpp`, and the specializations' passives scale what is left. Past eight enemies each area hit takes
-sqrt(8 / enemies), as the Shaman's 8 yd areas.
+`src/WarlockTalents.cpp`, and the specializations' passives scale what is left. Past five enemies each area hit takes
+sqrt(5 / enemies), the casters' falloff (the Priest's, the Hunter's Multi-Shot; it was eight until the 2026-10-09
+sweep). Rain of Fire's hits are scaled by `warlock.rain_of_fire_factor`: its shards come from every Immolate ticking,
+so it rains more often the bigger the pack.
 
 Measured on the combat bench (`localTools/combatBench/runBench.ps1`, 2026-10-01, key +10, item level ~244, 60 s, three
 rounds of the final numbers, the Fire Mage in the same runs, no tank bot; its own single target swung 4.2k-6.1k a run,

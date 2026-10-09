@@ -313,9 +313,15 @@ LiveTuning::Knob const HavocRange("warlock.havoc_range", 40.0f);
 LiveTuning::KnobUInt const RainOfFireMs("warlock.rain_of_fire_ms", 8000);
 LiveTuning::KnobUInt const RainOfFirePeriodMs("warlock.rain_of_fire_period_ms", 1000);
 LiveTuning::Knob const RainOfFireRadius("warlock.rain_of_fire_radius", 8.0f);
+// Rain of Fire's hits (packs only: the single-target build never casts it). Its shards come from every Immolate
+// ticking, so it rains more often the bigger the pack: at 1 the 2026-10-09 sweep had Destruction, when the rain
+// landed, at 1.7 to 2.2 times the Fire mage on packs of 5 and 12
+LiveTuning::Knob const RainOfFireFactor("warlock.rain_of_fire_factor", 0.75f);
 LiveTuning::Knob const InfernoFactor("warlock.inferno_factor", 1.2f);
 LiveTuning::KnobInt const InfernoFragmentChance("warlock.inferno_fragment_chance", 20);
-LiveTuning::KnobInt const RainOfChaosChance("warlock.rain_of_chaos_chance", 15);
+// a wave of Rain of Fire (Pluie de chaos, the area build's): at 15 about six infernals a minute stood beside the
+// main one on the bench's packs, a quarter of the damage
+LiveTuning::KnobInt const RainOfChaosChance("warlock.rain_of_chaos_chance", 10);
 LiveTuning::KnobUInt const DemonfirePeriodMs("warlock.demonfire_period_ms", 250);
 LiveTuning::Knob const DemonfireRange("warlock.demonfire_range", 40.0f);
 LiveTuning::Knob const CataclysmRadius("warlock.cataclysm_radius", 8.0f);
@@ -345,8 +351,10 @@ LiveTuning::Knob const SoulLeechCap("warlock.soul_leech_cap", 0.10f);
 LiveTuning::KnobInt const SacrificeChance("warlock.sacrifice_chance", 35);
 LiveTuning::KnobUInt const SacrificeCooldownMs("warlock.sacrifice_cooldown_ms", 1500);
 // Packs (the combat bench, Fire mage as the reference): each area hit whole up to AreaFullTargets enemies and
-// sqrt(AreaFullTargets / enemies) of it past them, as the Shaman's 8 yd areas
-LiveTuning::KnobInt const AreaFullTargets("warlock.area_full_targets", 8);
+// sqrt(AreaFullTargets / enemies) of it past them, the casters' five (the Priest's, the Hunter's Multi-Shot). At eight
+// the 2026-10-09 sweep had Demonology at 137% of the mage on a pack of 12 and Destruction, when its Rain of Fire
+// landed, at twice it
+LiveTuning::KnobInt const AreaFullTargets("warlock.area_full_targets", 5);
 LiveTuning::KnobInt const AreaMaxTargets("warlock.area_max_targets", 20);
 constexpr uint32 HoldCheckMs = 1000;
 
@@ -1524,7 +1532,7 @@ public:
                 factor *= float(std::max<uint8>(DotCount(player, target), 1)) * HitFactor(state, id);
                 break;
             case SPELL_RAIN_OF_FIRE_HIT:
-                factor *= HitFactor(state, id);
+                factor *= HitFactor(state, id) * RainOfFireFactor;
                 if (player->HasAura(TALENT_INFERNO))
                     factor *= InfernoFactor;
                 break;

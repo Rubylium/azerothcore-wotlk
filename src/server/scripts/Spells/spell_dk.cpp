@@ -360,10 +360,23 @@ class spell_dk_death_and_decay : public SpellScript
         SetHitDamage(damage);
     }
 
+    // One Death and Decay on the ground at a time: a new one replaces the last. Dynamic object auras always stack, so
+    // with a cooldown shorter than the duration two of them ticked on the same enemies - the retail-style trees'
+    // Unholy (mod-death-knight: 20 s, less Morbidity's 15) recast it every 5 s and dealt up to twice its damage, and
+    // Blood's Crimson Scourge resets do the same. Stock WotLK never overlaps (15 s at least for 10 s).
+    void ReplacePrevious()
+    {
+        Unit* caster = GetCaster();
+        for (SpellInfo const* rank = GetSpellInfo()->GetFirstRankSpell(); rank; rank = rank->GetNextRankSpell())
+            caster->RemoveDynObject(rank->Id);
+    }
+
     void Register() override
     {
         if (m_scriptSpellId == SPELL_DK_DEATH_AND_DECAY_TRIGGER)
             OnHit += SpellHitFn(spell_dk_death_and_decay::RecalculateDamage);
+        else
+            OnCast += SpellCastFn(spell_dk_death_and_decay::ReplacePrevious);
     }
 };
 

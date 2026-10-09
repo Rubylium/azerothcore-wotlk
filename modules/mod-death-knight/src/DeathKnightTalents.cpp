@@ -139,9 +139,15 @@ LiveTuning::KnobUInt const RimeWindowMs("deathknight.rime_window_ms", 1000);
 // less for Frost, more for Unholy, which also has Epidemic (on a pack only) and Wandering Plague
 // Retuned 2026-09-29 on the bench's packs of 3 to 12: Frost 59-84% of Fire's, Unholy 210% on three enemies (its
 // minions) but 63% on twelve. Big pulls (twenty) are what the area kit is weighed on.
-// Remorseless Winter, Frostscythe, Glacial Advance, Fury, Breath
-LiveTuning::Knob const FrostAreaFactor("deathknight.frost_area_factor", 3.2f);
-LiveTuning::Knob const FrostDeathAndDecayFactor("deathknight.frost_death_and_decay_factor", 2.2f);
+// Lowered 2026-10-09 (simulation bench sweep, every pack on the area build): with Breath of Sindragosa now fed by the
+// bot and the spec balance on top, Frost dealt 226-252% of the mage on five enemies and 143-240% on twelve while its
+// single target sat at 95-101%. The cones (Frostscythe, Glacial Advance, Fury, Breath) reach the same three enemies
+// on five or twelve and set the five's level: cut the most. Remorseless Winter and Death and Decay reach the whole
+// pack and carry the twelve: cut less.
+// Frostscythe, Glacial Advance, Fury, Breath
+LiveTuning::Knob const FrostAreaFactor("deathknight.frost_area_factor", 1.05f);
+LiveTuning::Knob const FrostWinterFactor("deathknight.frost_winter_factor", 1.75f);
+LiveTuning::Knob const FrostDeathAndDecayFactor("deathknight.frost_death_and_decay_factor", 1.2f);
 // Obliterate, Frost Strike, Howling Blast
 LiveTuning::Knob const FrostStrikeFactor("deathknight.frost_strike_factor", 1.4f);
 LiveTuning::Knob const UnholyDeathAndDecayFactor("deathknight.unholy_death_and_decay_factor", 2.6f);
@@ -791,6 +797,8 @@ public:
         switch (spellInfo->Id)
         {
             case SPELL_REMORSELESS_WINTER_DAMAGE:
+                factor *= FrostWinterFactor;
+                break;
             case SPELL_FROSTSCYTHE:
             case SPELL_GLACIAL_ADVANCE:
             case SPELL_FROSTWYRMS_FURY:

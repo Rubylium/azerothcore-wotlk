@@ -246,6 +246,9 @@ LiveTuning::KnobInt const WhisperingShadowsTargets("priest.whispering_shadows_ta
 // AreaFullTargets enemies and sqrt(AreaFullTargets / enemies) of it past them - Mind Sear too, which has no cap
 LiveTuning::KnobInt const AreaFullTargets("priest.area_full_targets", 5);
 LiveTuning::KnobInt const AreaMaxTargets("priest.area_max_targets", 12);
+// Mind Sear's ticks: Shadow's pack damage, which the simulation bench measured at 45-66% of the Fire mage on packs
+// (2026-10-09) with a single target at 100-113%; only cast on packs, so the single target keeps its level
+LiveTuning::Knob const MindSearFactor("priest.mind_sear_factor", 2.0f);
 LiveTuning::Knob const DotRange("priest.dot_range", 40.0f);  // the enemies the apparitions and Psychic Link reach
 LiveTuning::Knob const EruptionRange("priest.eruption_range", 10.0f);
 LiveTuning::Knob const MindSearRadius("priest.mind_sear_radius", 10.0f);
@@ -1355,7 +1358,7 @@ public:
         }
         // Mind Sear reaches every enemy around its target: past five, each takes less
         else if (IsPriestSpell(spellInfo, 0, FlagMindSearTick))
-            factor *= AreaFalloff(SearCount(player, state, target));
+            factor *= MindSearFactor * AreaFalloff(SearCount(player, state, target));
         // Divine Star and Halo on a pack
         else if (spellInfo->Id == SPELL_DIVINE_STAR_DAMAGE || spellInfo->Id == SPELL_HALO_DAMAGE)
         {

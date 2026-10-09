@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <list>
 #include <string>
 
@@ -310,6 +311,12 @@ LiveTuning::Knob const SoulSplinterAp("reaper.soul_splinter_ap", 0.05f);
 LiveTuning::Knob const SoulSplinterSta("reaper.soul_splinter_sta", 0.035f);
 LiveTuning::KnobUInt const SoulBoltIntervalMs("reaper.soul_bolt_interval_ms", 1000);
 LiveTuning::KnobUInt const ShudderIntervalMs("reaper.shudder_interval_ms", 300);
+// Packs: the area strikes (Vent de mort, Fracas d'âmes, Moisson des corbeaux, Battage) have no target cap, so each hit
+// is whole on up to this many enemies and sqrt(AreaFullTargets / enemies) of it past them, as the Shaman's melee areas.
+// Eight rather than the casters' five: 8 to 10 yards around the Faucheur only reach part of a big pack, and on the
+// combat bench's twelve only Vent de mort's mist (10 to 11 enemies a tick) went past it
+LiveTuning::KnobInt const AreaFullTargets("reaper.area_full_targets", 8);
+constexpr uint32 AreaCountMs = 300;
 
 constexpr char const* StateKey = "ReaperState";
 
@@ -339,6 +346,10 @@ struct ReaperState : public DataMap::Base
     uint32 redshadeCooldownUntil = 0;   // Écarlatine: once every 20 s
     uint32 chasingDeathUntil = 0;       // Mort poursuivante: its 30 s window
     ObjectGuid chasingDeathTarget;
+    // The enemies the last area strike reached, counted a few times a second rather than for every hit
+    uint32 areaSpell = 0;
+    uint32 areaStamp = 0;
+    uint8 areaCount = 0;
 };
 
 Player* Reaper(Unit* unit)
@@ -399,6 +410,41 @@ std::list<Unit*> NearbyEnemies(Player* player, WorldObject* center, float radius
     while (enemies.size() > limit)
         enemies.pop_back();
     return enemies;
+}
+
+bool IsAreaStrike(uint32 spellId)
+{
+    return spellId == SPELL_DEATHWIND || spellId == SPELL_SOULSLAM || spellId == SPELL_CROWS_HARVEST ||
+        spellId == SPELL_THRESH_HIT;
+}
+
+// An area strike's share on each enemy: whole up to AreaFullTargets of them, then sqrt(AreaFullTargets / enemies).
+// Vent de mort is counted under its mist, the others around the Faucheur.
+float AreaFalloff(Player* player, SpellInfo const* spellInfo)
+{
+    ReaperState* state = GetState(player);
+    uint32 const now = Now();
+    if (state->areaSpell != spellInfo->Id || now - state->areaStamp > AreaCountMs)
+    {
+        WorldObject* center = player;
+        float radius = 0.0f;
+        if (spellInfo->Id == SPELL_DEATHWIND)
+            if (DynamicObject* mist = player->GetDynObject(SPELL_DEATHWIND))
+            {
+                center = mist;
+                radius = mist->GetRadius();
+            }
+        if (radius <= 0.0f)
+            for (uint8 index = 0; index < MAX_SPELL_EFFECTS; ++index)
+                radius = std::max(radius, spellInfo->Effects[index].CalcRadius(player));
+        if (radius <= 0.0f)
+            radius = 8.0f;
+        state->areaSpell = spellInfo->Id;
+        state->areaStamp = now;
+        state->areaCount = uint8(std::min<std::size_t>(NearbyEnemies(player, center, radius, 255).size(), 255));
+    }
+    int32 const full = std::max<int32>(1, AreaFullTargets);
+    return state->areaCount <= full ? 1.0f : std::sqrt(float(full) / float(state->areaCount));
 }
 
 void ReduceCooldown(Player* player, uint32 spellId, uint32 ms)
@@ -1123,6 +1169,8 @@ public:
         if (!player || !target || !spellInfo || damage <= 0 || !IsReaperSpell(spellInfo))
             return;
         damage = int32(float(damage) * DamageFactor(player, target, spellInfo, false));
+        if (IsAreaStrike(spellInfo->Id))
+            damage = int32(float(damage) * AreaFalloff(player, spellInfo));
         // Volonté du Geôlier: Frappe d'âme and 30% of Strength
         if (spellInfo->Id == SPELL_SOUL_STRIKE &&
             (player->HasAura(TALENT_JAILERS_WILL) || player->HasAura(TALENT_DOMINATOR)))
@@ -1136,6 +1184,8 @@ public:
         if (!player || !target || !spellInfo || !damage || !IsReaperSpell(spellInfo))
             return;
         damage = uint32(float(damage) * DamageFactor(player, target, spellInfo, true));
+        if (IsAreaStrike(spellInfo->Id))
+            damage = uint32(float(damage) * AreaFalloff(player, spellInfo));
         ReaperState* state = GetState(player);
         switch (spellInfo->Id)
         {

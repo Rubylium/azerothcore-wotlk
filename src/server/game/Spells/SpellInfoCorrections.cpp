@@ -232,6 +232,16 @@ void SpellMgr::LoadSpellInfoCorrections()
                 spellInfo->Effects[i].ChainTarget = 12;
     });
 
+    // mod-hunter's hits on the enemies around the one struck (Death Chakram's bounces, Stampede's charges, Trick
+    // Shots' ricochets, Wailing Arrow's splash, Wildfire Bomb's burst and the Serpent Sting it spreads): the Hunter
+    // casts them, triggered, and a player's cast checks its facing even then (Spell::CheckRange): their clones' "in
+    // front" flag dropped every enemy behind the Hunter, which a Survival hunter fighting among the pack has (Wildfire
+    // Bomb's burst reached 2.9 of 11 enemies on a pack of 12 and 1.7 of 4 on a pack of 5, combat bench 2026-10-09).
+    ApplySpellFix({ 93210, 93212, 93254, 93264, 93281, 93301 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->FacingCasterFlags = 0;
+    });
+
     // Divine Storm (Damage)
     ApplySpellFix({ 53385 }, [](SpellInfo* spellInfo)
     {

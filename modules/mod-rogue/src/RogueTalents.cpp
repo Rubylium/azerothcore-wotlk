@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <list>
 #include <memory>
@@ -135,6 +136,10 @@ LiveTuning::KnobInt const ShurikenMaxPoints("rogue.shuriken_max_points", 5);
 // The specs' area kits (Assassinat: bleeds and poisons everywhere; Finesse: Shuriken Storm, Black Powder, Secret
 // Technique). Amounts are shares of the rogue's attack power per combo point spent, so they grow with the character.
 LiveTuning::Knob const AreaRadius("rogue.area_radius", 10.0f);
+// They strike every enemy around: past this many, each hit falls off as sqrt(full / enemies), as Hunter's Multi-Shot
+// and Beast Cleave do, so a pack of 12 takes about what 7.7 enemies at full damage would (the bench's pack12 had
+// Black Powder at 12 hits a cast and Secret Technique at 36, Subtlety at 2.4 to 4 times the Fire mage)
+LiveTuning::KnobUInt const AreaFullTargets("rogue.area_full_targets", 5);
 // the slash on every enemy
 LiveTuning::Knob const CrimsonTempestHitPerPoint("rogue.crimson_tempest_hit_per_point", 0.06f);
 // the whole bleed, over 2 s per point
@@ -150,24 +155,29 @@ LiveTuning::KnobUInt const CrimsonTempestTickMs("rogue.crimson_tempest_tick_ms",
 // Finesse's pack finisher. Alone, a little under Eviscerate; on a pack, it hits harder the more enemies it reaches (up
 // to three), harder still in Shadow Dance, and gives energy back for every enemy beyond the first.
 // On a pack the loop is a Shuriken Storm (five combo points) then a Black Powder: the builder carries a real share
-// of the damage (ShurikenStormPerEnemy), so the pack's damage is not all in the finisher
-LiveTuning::Knob const BlackPowderPerPoint("rogue.black_powder_per_point", 0.075f);
-LiveTuning::KnobUInt const BlackPowderFlatPerPoint("rogue.black_powder_flat_per_point", 200);
+// of the damage (ShurikenStormWeaponPct), so the pack's damage is not all in the finisher. On five enemies a Black
+// Powder hit each of them as hard as an Eviscerate (the bench, 460 / 650): now about 60% of that, as on retail
+LiveTuning::Knob const BlackPowderPerPoint("rogue.black_powder_per_point", 0.045f);
+LiveTuning::KnobUInt const BlackPowderFlatPerPoint("rogue.black_powder_flat_per_point", 120);
 LiveTuning::KnobInt const BlackPowderPerExtraEnemyPct("rogue.black_powder_per_extra_enemy_pct", 25);
 LiveTuning::KnobUInt const BlackPowderMaxExtraEnemies("rogue.black_powder_max_extra_enemies", 2);
 LiveTuning::KnobInt const BlackPowderDancePct("rogue.black_powder_dance_pct", 25);
 LiveTuning::KnobUInt const BlackPowderEnergyPerExtraEnemy("rogue.black_powder_energy_per_extra_enemy", 6);
 LiveTuning::KnobUInt const BlackPowderMaxEnergy("rogue.black_powder_max_energy", 18);
-// Shuriken Storm's hit on every enemy, a share of the attack power in place of the weapon damage it was cloned with
-// (Fan of Knives' without a dagger bonus: a few hundred, next to the finisher's thousands). About two thirds of a Black
-// Powder's hit on each enemy of a pack (the bench: physical, armour takes a share); on one or two enemies it keeps
-// ShurikenStormFewEnemiesPct of it, under Backstab, not a single-target builder
-LiveTuning::Knob const ShurikenStormPerEnemy("rogue.shuriken_storm_per_enemy", 1.8f);
+// Shuriken Storm's hit on every enemy: the weapon strike it was cloned with (Fan of Knives' 70%, no dagger bonus)
+// taken to this share, so it grows with the weapon as Backstab does - about 60% of a Backstab on each enemy, as on
+// retail. It was 180% of the attack power: 2.8 Backstabs on each enemy at 258 / 0 and 4.2 at 460 / 650 on the bench,
+// the attack power outgrowing the weapon. On one or two enemies it keeps ShurikenStormFewEnemiesPct of it, under
+// Backstab, not a single-target builder
+LiveTuning::KnobInt const ShurikenStormWeaponPct("rogue.shuriken_storm_weapon_pct", 240);
 LiveTuning::KnobUInt const ShurikenStormFullEnemies("rogue.shuriken_storm_full_enemies", 3);
 LiveTuning::KnobInt const ShurikenStormFewEnemiesPct("rogue.shuriken_storm_few_enemies_pct", 40);
 LiveTuning::Knob const SecretTechniquePerPoint("rogue.secret_technique_per_point", 0.10f);  // each of its three strikes
 LiveTuning::KnobUInt const SecretTechniqueFlatPerPoint("rogue.secret_technique_flat_per_point", 150);
 LiveTuning::KnobUInt const SecretTechniqueStrikes("rogue.secret_technique_strikes", 3);
+// Its strikes hit the target in full and the enemies around it for this share (retail's reduced damage to the others):
+// every strike hit every enemy in full, 36 hits a cast on the bench's pack12
+LiveTuning::KnobInt const SecretTechniqueOthersPct("rogue.secret_technique_others_pct", 50);
 // Its strikes, one after the other; each shadow shows up this long before its own and stays this long in all
 constexpr uint32 SecretTechniqueStrikeGapMs = 300;
 constexpr uint32 ShadowLeadMs = 150;
@@ -301,6 +311,23 @@ std::list<Unit*> EnemiesAround(Player* player, WorldObject* center, float range)
     return enemies;
 }
 
+// An area hit's share on each of that many enemies: whole up to AreaFullTargets, sqrt(full / enemies) past them
+float AreaFalloff(std::size_t enemies)
+{
+    std::size_t const full = std::max<std::size_t>(1, AreaFullTargets.Get());
+    return enemies > full ? std::sqrt(float(full) / float(enemies)) : 1.0f;
+}
+
+// The enemies the Shuriken Storm being cast strikes: its own targets while it hits (the cast is the rogue's current
+// spell until it ends), else those around the rogue
+std::size_t ShurikenStormTargets(Player* player)
+{
+    if (Spell* spell = player->GetCurrentSpell(CURRENT_GENERIC_SPELL))
+        if (spell->GetSpellInfo()->Id == SPELL_SHURIKEN_STORM && !spell->GetUniqueTargetInfo()->empty())
+            return spell->GetUniqueTargetInfo()->size();
+    return EnemiesAround(player, player, AreaRadius).size();
+}
+
 // Damage an ability of the kit works out, dealt as that ability: the rogue's damage bonuses (Symbols of Death,
 // Virulence, ...) and the target's, a critical strike on the rogue's melee chance, armour for physical ones
 void DealAbility(Player* player, Unit* target, uint32 spellId, uint32 amount)
@@ -340,20 +367,25 @@ void PlaceBleed(Player* player, Unit* target, uint32 spellId, int32 amount, int3
                 effect->ChangeAmount(amount);
 }
 
-void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limit);
+void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limit, float share);
 
-// Tempête cramoisie: a slash and a bleed on every enemy around the rogue, the bleed longer with every point
+// Tempête cramoisie: a slash and a bleed on every enemy around the rogue, the bleed longer with every point. Past
+// AreaFullTargets enemies the slash, its bleed and the bleeds it spreads fall off (the bench's pack12: 12 slashes and
+// the target's Rupture on all 12 a cast)
 void CrimsonTempest(Player* player, Unit* target, uint8 comboPoints)
 {
+    std::list<Unit*> const enemies = EnemiesAround(player, player, AreaRadius);
+    float const falloff = AreaFalloff(enemies.size());
+
     // The target's Rupture and Garrote go to everything around first, then the slash and its own bleed
     if (target)
-        SpreadBleeds(player, target, player, std::numeric_limits<uint32>::max());
+        SpreadBleeds(player, target, player, std::numeric_limits<uint32>::max(), falloff);
 
     int32 const durationMs = int32(2000 * (1 + comboPoints));
     uint32 const ticks = std::max<uint32>(1, uint32(durationMs) / CrimsonTempestTickMs);
-    uint32 const hit = PerPoint(player, CrimsonTempestHitPerPoint, 0, comboPoints);
-    int32 const tick = int32(PerPoint(player, CrimsonTempestBleedPerPoint, 0, comboPoints) / ticks);
-    for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+    uint32 const hit = uint32(PerPoint(player, CrimsonTempestHitPerPoint, 0, comboPoints) * falloff);
+    int32 const tick = int32(PerPoint(player, CrimsonTempestBleedPerPoint, 0, comboPoints) * falloff / ticks);
+    for (Unit* enemy : enemies)
     {
         DealAbility(player, enemy, SPELL_CRIMSON_TEMPEST, hit);
         PlaceBleed(player, enemy, SPELL_CRIMSON_TEMPEST_BLEED, std::max(tick, 1), durationMs);
@@ -361,8 +393,8 @@ void CrimsonTempest(Player* player, Unit* target, uint8 comboPoints)
 }
 
 // Poudre noire: shadow damage to every enemy around the rogue, worked out once for the cast: more for every enemy
-// beyond the first (up to BlackPowderMaxExtraEnemies) and in Shadow Dance, and energy back for the enemies beyond
-// the first
+// beyond the first (up to BlackPowderMaxExtraEnemies) and in Shadow Dance, less on each past AreaFullTargets, and
+// energy back for the enemies beyond the first
 void BlackPowder(Player* player, uint8 comboPoints)
 {
     std::list<Unit*> const enemies = EnemiesAround(player, player, AreaRadius);
@@ -373,6 +405,7 @@ void BlackPowder(Player* player, uint8 comboPoints)
     float multiplier = 1.0f + std::min(extra, BlackPowderMaxExtraEnemies.Get()) * BlackPowderPerExtraEnemyPct / 100.0f;
     if (player->HasAura(SPELL_SHADOW_DANCE))
         multiplier *= 1.0f + BlackPowderDancePct / 100.0f;
+    multiplier *= AreaFalloff(enemies.size());
     uint32 const damage = uint32(PerPoint(player, BlackPowderPerPoint, BlackPowderFlatPerPoint, comboPoints) *
         multiplier);
 
@@ -413,7 +446,8 @@ ObjectGuid SummonShadow(Player* player, Unit* enemy, float side)
 }
 
 // Technique secrète: the rogue strikes every enemy around, then two shadows of it, one on each side of its target,
-// one after the other
+// one after the other. Each strike hits the target in full and the others for SecretTechniqueOthersPct, all of them
+// less past AreaFullTargets enemies.
 void SecretTechnique(Player* player, Unit* target, uint8 comboPoints)
 {
     uint32 const damage = PerPoint(player, SecretTechniquePerPoint, SecretTechniqueFlatPerPoint, comboPoints);
@@ -433,24 +467,30 @@ void SecretTechnique(Player* player, Unit* target, uint8 comboPoints)
                 *shadowGuid = SummonShadow(player, enemy, strike % 2 ? 2.2f : -2.2f);
             }, Milliseconds(SecretTechniqueStrikeGapMs * strike - ShadowLeadMs));
 
-        player->m_Events.AddEventAtOffset([player, damage, shadowGuid]()
+        player->m_Events.AddEventAtOffset([player, damage, targetGuid, shadowGuid]()
         {
             if (!player->IsAlive() || !player->IsInWorld())
                 return;
             if (Creature* shadow = ObjectAccessor::GetCreature(*player, *shadowGuid))
                 shadow->SendPlaySpellVisual(KIT_SHADOW_CLONE_STRIKE);
-            for (Unit* enemy : EnemiesAround(player, player, AreaRadius))
+            std::list<Unit*> const enemies = EnemiesAround(player, player, AreaRadius);
+            float const falloff = AreaFalloff(enemies.size());
+            for (Unit* enemy : enemies)
             {
+                float share = falloff;
+                if (enemy->GetGUID() != targetGuid)
+                    share *= SecretTechniqueOthersPct / 100.0f;
                 enemy->SendPlaySpellVisual(KIT_SECRET_TECHNIQUE_HIT);
-                DealAbility(player, enemy, SPELL_SECRET_TECHNIQUE, damage);
+                DealAbility(player, enemy, SPELL_SECRET_TECHNIQUE, uint32(damage * share));
             }
         }, Milliseconds(SecretTechniqueStrikeGapMs * strike));
     }
 }
 
 // Assassinat: Envenom and Crimson Tempest carry the target's bleeds to the enemies around (around the target for
-// Envenom, around the rogue for Crimson Tempest) that do not have them yet, with the time and damage they have left
-void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limit)
+// Envenom, around the rogue for Crimson Tempest) that do not have them yet, with the time they have left and that share
+// of the damage
+void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limit, float share)
 {
     struct Bleed
     {
@@ -474,7 +514,7 @@ void SpreadBleeds(Player* player, Unit* target, WorldObject* center, uint32 limi
                 break;
             if (enemy == target || enemy->HasAura(bleed.spellId, player->GetGUID()))
                 continue;
-            PlaceBleed(player, enemy, bleed.spellId, bleed.amount, bleed.duration);
+            PlaceBleed(player, enemy, bleed.spellId, std::max(int32(bleed.amount * share), 1), bleed.duration);
             ++spread;
         }
     }
@@ -547,18 +587,28 @@ bool IsPoisonedBy(Unit* target, Player* player)
     return false;
 }
 
-// Exsanguiner: the caster's Rupture and Garrote on the target deal what they had left, at once
+float DamageBonus(Player* player, Unit* target, SpellInfo const* spellInfo, bool autoAttack);
+
+// Exsanguiner: the caster's Rupture and Garrote on the target deal what they had left, at once: each tick as it would
+// have landed, the target's and the rogue's bonuses on it (Assassinat's bleed bonus, Vendetta) - the bare amounts were
+// a third of the ticks it took away (the bench: 24k an Exsanguinate for a Rupture of 92k at 460 / 650)
 void Exsanguinate(Player* player, Unit* target)
 {
     uint32 total = 0;
     std::vector<uint32> spent;
     for (AuraEffect const* effect : target->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
     {
-        if (effect->GetCasterGUID() != player->GetGUID() || !IsBleed(effect->GetSpellInfo()))
+        SpellInfo const* spellInfo = effect->GetSpellInfo();
+        if (effect->GetCasterGUID() != player->GetGUID() || !IsBleed(spellInfo))
             continue;
         int32 const ticks = effect->GetTotalTicks() - int32(effect->GetTickNumber());
         if (ticks > 0)
-            total += uint32(std::max(effect->GetAmount(), 0)) * uint32(ticks);
+        {
+            uint32 tick = target->SpellDamageBonusTaken(player, spellInfo, uint32(std::max(effect->GetAmount(), 0)),
+                DOT, effect->GetBase()->GetStackAmount());
+            tick = uint32(tick * DamageBonus(player, target, spellInfo, false));
+            total += tick * uint32(ticks);
+        }
         spent.push_back(effect->GetId());
     }
     for (uint32 spellId : spent)
@@ -623,7 +673,7 @@ void OnFinisher(Player* player, SpellInfo const* spellInfo, Unit* target, uint8 
 
     // Assassinat: Envenom carries the bleeds to the enemies around
     if (target && HasFlag1(spellInfo, FLAG1_ENVENOM) && IsAssassination(player))
-        SpreadBleeds(player, target, target, SpreadTargets);
+        SpreadBleeds(player, target, target, SpreadTargets, 1.0f);
 }
 
 // Maître des armes: the strike again, a moment later (a triggered cast: no cost, and it does not roll again)
@@ -682,7 +732,7 @@ bool IsPoisonEnchant(uint32 enchantId)
 }
 
 // Assassinat keeps its weapons poisoned (as on retail, where poisons are simply on): a weapon with no temporary
-// enchantment gets Deadly Poison (main hand) or Instant Poison (off hand), the best rank the level allows. A poison
+// enchantment gets Deadly Poison (off hand) or Instant Poison (main hand), the best rank the level allows. A poison
 // the rogue put on (Wound Poison, ...) is never replaced. Envenom needs Deadly Poison on its target, and scales with it.
 struct PoisonRank
 {
@@ -707,19 +757,37 @@ uint32 BestPoison(std::array<PoisonRank, N> const& ranks, uint8 level)
     return enchant;
 }
 
+template <std::size_t N>
+bool IsPoisonRank(std::array<PoisonRank, N> const& ranks, uint32 enchant)
+{
+    return std::any_of(ranks.begin(), ranks.end(),
+        [enchant](PoisonRank const& rank) { return rank.enchant == enchant; });
+}
+
+// Deadly Poison goes on the off hand and Instant Poison on the main hand, as the playerbots put them (they poison the
+// main hand first), and a bare weapon takes Deadly Poison while neither weapon has it. With Deadly Poison on the main
+// hand here, a bot's Instant Poison and this one's met on both weapons: no Deadly Poison, so never an Envenom (it needs
+// the poison on its target) - Assassination's bench bots spent every finisher on Eviscerate
 void EnsureAssassinationPoisons(Player* player)
 {
-    for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK })
+    Item* const mainHand = player->GetWeaponForAttack(BASE_ATTACK);
+    Item* const offHand = player->GetWeaponForAttack(OFF_ATTACK);
+    bool deadly = false;
+    for (Item* item : { mainHand, offHand })
+        if (item && IsPoisonRank(DeadlyPoisonRanks, item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT)))
+            deadly = true;
+
+    for (Item* item : { offHand, mainHand })
     {
-        Item* item = player->GetWeaponForAttack(attackType);
         if (!item || item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT))
             continue;
-        uint32 const enchant = attackType == BASE_ATTACK ? BestPoison(DeadlyPoisonRanks, player->GetLevel()) :
-            BestPoison(InstantPoisonRanks, player->GetLevel());
+        uint32 const enchant = deadly ? BestPoison(InstantPoisonRanks, player->GetLevel()) :
+            BestPoison(DeadlyPoisonRanks, player->GetLevel());
         if (!enchant || !sSpellItemEnchantmentStore.LookupEntry(enchant))
             continue;
         item->SetEnchantment(TEMP_ENCHANTMENT_SLOT, enchant, PoisonDurationMs, 0);
         player->ApplyEnchantment(item, TEMP_ENCHANTMENT_SLOT, true);
+        deadly = true;
     }
 }
 
@@ -883,14 +951,14 @@ public:
         if (!player || !target || damage <= 0)
             return;
 
-        // Shuriken Storm: its hit from the attack power, with the rogue's and the target's bonuses (as DealAbility)
+        // Shuriken Storm: its weapon strike (the rogue's and the target's bonuses on it already) taken to
+        // ShurikenStormWeaponPct, less on one or two enemies and on each past AreaFullTargets
         if (spellInfo && spellInfo->Id == SPELL_SHURIKEN_STORM)
         {
-            uint32 amount = uint32(player->GetTotalAttackPowerValue(BASE_ATTACK) * ShurikenStormPerEnemy);
+            float share = ShurikenStormWeaponPct / 100.0f * AreaFalloff(ShurikenStormTargets(player));
             if (EnemiesAround(player, player, AreaRadius).size() < ShurikenStormFullEnemies)
-                amount = amount * ShurikenStormFewEnemiesPct / 100;
-            uint32 const done = player->SpellDamageBonusDone(target, spellInfo, amount, SPELL_DIRECT_DAMAGE, EFFECT_0);
-            damage = int32(target->SpellDamageBonusTaken(player, spellInfo, done, SPELL_DIRECT_DAMAGE));
+                share *= ShurikenStormFewEnemiesPct / 100.0f;
+            damage = int32(damage * share);
         }
         damage = int32(damage * DamageBonus(player, target, spellInfo, false));
     }

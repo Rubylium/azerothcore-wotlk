@@ -76,6 +76,13 @@ void RestoreEquipmentTraining(Player* player)
 // The global cooldown while Flawless Form is up, against the 900 ms the spell data carries
 LiveTuning::KnobUInt const FLAWLESS_FORM_GCD("oathblade.flawless_form_gcd", 650);
 
+// The area abilities' damage on each enemy when they strike two or more (Sweeping Arc, Blade Dance, Crescent Sweep,
+// Grand Flourish). Every one of them is on a cooldown and stops at 6 enemies (8 with Crescent Mastery), and with their
+// tooltips' weapon percentages the Oathblade had half of the Fire mage's damage on the combat bench's packs of five
+// and a quarter to a half on its packs of twelve (sweep 2026-10-09), while its single target sat at 86-113%. One
+// target is left as it is: the single-target rotation, and the raid balance, never see the factor.
+LiveTuning::Knob const SWEEP_PACK_FACTOR("oathblade.sweep_pack_factor", 1.8f);
+
 bool IsFinisher(uint32 spellId)
 {
     return spellId == SPELL_NOBLE_VERDICT || spellId == SPELL_CRESCENT_SWEEP ||
@@ -353,7 +360,9 @@ class OathbladeAbilitySpellScript : public SpellScript
         float const weaponScale = spellId == SPELL_SWEEPING_ARC ? 0.70f :
             spellId == SPELL_BLADE_DANCE ? 0.85f :
             spellId == SPELL_CRESCENT_SWEEP ? 0.55f + 0.42f * flow : 0.95f + 0.65f * flow;
-        int32 const damage = GetStrikeDamage(player, weaponScale, 0.11f + 0.04f * flow, spellId);
+        int32 damage = GetStrikeDamage(player, weaponScale, 0.11f + 0.04f * flow, spellId);
+        if (enemies.size() >= 2)
+            damage = int32(float(damage) * float(SWEEP_PACK_FACTOR));
         uint32 const carrier = GetSweepCarrier(spellId);
         // Tempest Form: during Flawless Form the sweep lands twice, the second time for a third
         bool const tempest = InFlawlessForm(player) && player->HasAura(SPELL_TALENT_TEMPEST_FORM);
