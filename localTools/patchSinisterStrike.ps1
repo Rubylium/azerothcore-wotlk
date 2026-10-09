@@ -823,6 +823,9 @@ $customSpells += & ([ScriptBlock]::Create($wardenVorhanSpellSource))
 # procs and buffs, their uses
 $raidTrinketSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\raidTrinkets\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($raidTrinketSpellSource))
+# The Mythic+ dungeons' reworked bosses (modules/mod-stat-growth/src/mythic): their hits, cast bars and debuffs
+$mythicDungeonSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\mythicDungeons\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($mythicDungeonSpellSource))
 # Le Front du Nord, the open-world content at level 80 (modules/mod-stat-growth/src/frontier): the tier phase and its
 # abilities' names in the log
 $frontierSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\frontier\Spells.ps1') -Raw -Encoding UTF8

@@ -1345,6 +1345,15 @@ void Burst(Unit* owner, Position const& where, Theme theme)
                  3000);
 }
 
+void PlayKit(Unit* owner, Position const& where, uint32 kit, float scale, uint32 intervalMs, uint32 durationMs)
+{
+    if (!kit || !owner || !owner->IsInWorld())
+        return;
+
+    SpawnEmitter(owner, OnGround(owner, where.GetPositionX(), where.GetPositionY(), where.GetPositionZ()), kit,
+                 intervalMs, durationMs, scale);
+}
+
 Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme,
                 uint32 hitDamage)
 {

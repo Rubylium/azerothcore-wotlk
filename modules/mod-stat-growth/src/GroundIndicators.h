@@ -55,6 +55,10 @@ namespace GroundIndicators
     void ShowParticles(Unit* owner, Area const& area, Theme theme, uint32 durationMs);
     // The theme's burst on the ground at where: for the moment something lands
     void Burst(Unit* owner, Position const& where, Theme theme);
+    // A stock spell visual kit (SpellVisualKit) played on the ground at where, scale times its size: once, or every
+    // intervalMs while it lasts (durationMs). The impact of a hit no theme fits (a weapon's dust and cracks).
+    void PlayKit(Unit* owner, Position const& where, uint32 kit, float scale = 1.0f, uint32 intervalMs = 0,
+                 uint32 durationMs = 3000);
 
     // Each draws the area for durationMs and returns it as drawn. owner is the unit the indicator belongs to (it
     // is summoned by it). With a theme, particles of it rise over the area while it is drawn.
