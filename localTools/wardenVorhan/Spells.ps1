@@ -1,5 +1,5 @@
 # Gardien-chef Vorhan's spell data (modules/mod-stat-growth/src/WardenVorhan.cpp, the Défi board's prison warden;
-# plan: .agents/plans/warden-vorhan). Ids 94400-94454; 94200-94249 are its painted ground marks
+# plan: .agents/plans/warden-vorhan). Ids 94400-94455; 94200-94249 are its painted ground marks
 # (localTools/groundIndicators/shapes.json).
 #
 # The fight explains itself: every rule shows on the players as a debuff, and every hit is a spell of its own whose
@@ -87,6 +87,8 @@ $spells = @(
         "Votre cachot n'a pas été brisé à temps."),
     (New-Hit 94419 'Châtiment exemplaire' 'ICON_Chatiment' 33813 $shadow `
         'Le châtiment se partage entre ceux qui se tiennent dans le cône : seuls, ou personne, et il tue.'),
+    (New-Hit 94455 'Hors de son siège' 'ICON_Execution' 30616 $shadow `
+        "Votre numéro a été exécuté et vous n'étiez pas sur votre siège."),
     (New-Hit 94452 'Faux du geôlier' 'ICON_CoupDeHache' 845 $physical `
         "La hache du gardien-chef balayait le sol : sortez de son chemin avant qu'elle passe."),
 

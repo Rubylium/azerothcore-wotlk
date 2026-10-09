@@ -69,12 +69,12 @@
 // - Couvre-feu: anyone still moving when it sounds is struck, stunned and marked.
 // - Mutinerie (the intermission): the cell doors fail and waves of prisoners pour in on the tanks.
 // - Phase 3, "Exécution des peines" (from 3:42), three rules of its own, then each with an old one:
-//   - Exécution des peines: he stands in the middle and calls the numbers in a drawn order, one a DOOM every 4 s (a
-//     clock's tick each second), the last two DOOMs two at once. Each draws a double cone of 40 degrees through him:
-//     one through the player called, one straight behind him; anyone else in one is struck and put under Sursis
-//     (30 s), a second strike under it is death. Each cone burns its floor from his feet for the next two DOOMs: the
-//     axis turns 30 degrees a DOOM and the group follows its gap round the room, tighter and tighter. The curfew
-//     sounds with the fourth DOOM.
+//   - Exécution des peines: eight numbered seats round him; he calls them in an order drawn each time (and always
+//     solvable), one a DOOM every 4 s (a clock's tick each second), the last DOOM two at once. Each seat called fires
+//     a double cone of 40 degrees along its axis: its number stands on it, everyone else out of both cones and away
+//     from his feet; a strike puts a player under Sursis (30 s), a second under it is death. Each cone's floor burns
+//     from 6 yd out for the next two DOOMs: the group reads the next seat and moves to the gap that leaves, crossing
+//     through the ring at his feet. The curfew sounds with the fourth DOOM.
 //   - Mise au cachot: a player who is not a tank is caged for 8 s; the group breaks the cage (a few seconds of its
 //     damage, the skull on it for the bots) or the prisoner dies.
 //   - Châtiment exemplaire: a cone of its own look on his tank, 4 s: nobody in it is everyone's death, one alone dies
@@ -167,23 +167,29 @@ constexpr std::array<float, 6> ChainRampPct = { 6.0f, 12.0f, 24.0f, 48.0f, 96.0f
 constexpr float CurfewPct = 100.0f;
 
 // --- Phase 3 ---------------------------------------------------------------------------------------------------------
-// Exécution des peines: after its cast, a DOOM every ExecutionEveryMs (three ticks of the clock, then the DOOM as its
-// cones strike), the numbers called in an order drawn each time, one a DOOM, then two at once on the last two. Each
-// called number draws a double cone through Vorhan along its way: one through the player, one straight behind him.
-// The cones' axis turns ExecutionStepDegrees clockwise a DOOM from north-south (a pair's second axis square to the
-// first), and each cone's floor burns from his feet for the next two DOOMs (BurntLastsMs), then goes out: the group
-// walks round, in the gap the floors and the new cones leave it - wide at the first DOOM, 19 degrees at the last
-// (solved with the ARC, LIFE and pair gap below; scratch execGeometry.py). The curfew sounds with the fourth DOOM.
+// Exécution des peines: eight numbered seats round him at the clock (seat n at (n - 1) x 45 degrees from north), a
+// DOOM every ExecutionEveryMs (three ticks of the clock, then the DOOM as its cones strike). Each DOOM calls seats -
+// one at a time, two at once on the last - in an order drawn each time among those that can be solved (every seat
+// called off the burning floors, the group a gap of ExecutionMinGapDegrees at every DOOM). A seat called fires a
+// double cone along its axis (through it and the seat opposite); its number must stand on it (spared by its own
+// cones), everyone else out of them; anyone at his feet as it strikes is struck too. Each cone's floor burns from
+// ExecutionSafe out for the next two DOOMs (BurntLastsMs): the ring at his feet is the way across, never a place to
+// stand. The curfew sounds with the fourth DOOM.
 constexpr uint32 ExecutionCastMs = 4000;
 constexpr uint32 ExecutionEveryMs = 4000;
-constexpr std::array<uint8, 6> ExecutionDooms = { 1, 1, 1, 1, 2, 2 };   // the numbers called at each DOOM
+constexpr std::array<uint8, 7> ExecutionDooms = { 1, 1, 1, 1, 1, 1, 2 };   // the seats called at each DOOM
 constexpr uint8 ExecutionCurfewDoom = 3;        // its index: the curfew's bell with that DOOM
 constexpr float ExecutionArcDegrees = 40.0f;    // VW_BurntFloor's painting (the warning is the stock 45)
 constexpr float ExecutionReach = 40.0f;
-constexpr float ExecutionStepDegrees = 30.0f;
-constexpr float ExecutionPairDegrees = 90.0f;
-constexpr float ExecutionCalledDistance = 12.0f; // bots: where a player called stands, out on its way
-constexpr float ExecutionGroupDistance = 14.0f;  // bots: the group, in its gap
+constexpr int32 ExecutionMinGapDegrees = 15;
+constexpr float ExecutionSafe = 6.0f;           // his feet: no floor burns there, the DOOM strikes there
+constexpr uint32 ExecutionFeetWarnMs = 1500;
+constexpr float ExecutionSeatDistance = 10.0f;
+constexpr float ExecutionSeatRadius = 2.5f;
+constexpr float ExecutionOffSeatPct = 80.0f;    // a number off its seat as it is executed
+constexpr float ExecutionGroupDistance = 12.0f; // bots: the group, in its gap
+constexpr float ExecutionRingDistance = 3.5f;   // bots: the way across, at his feet
+constexpr float ExecutionBotSpeed = 7.0f;       // bots: yards a second, to time their way round
 constexpr uint32 BurntDelayMs = 1500;           // the floor burns this long after the strike: the time to step off
 constexpr uint32 BurntLastsMs = 2 * ExecutionEveryMs + 500;  // then goes out, two seconds before the next-but-two DOOM
 constexpr uint32 BurntEveryMs = 1000;           // a player on it is struck at most this often
@@ -329,6 +335,7 @@ enum Hits : uint32
     SPELL_CAGE_DEATH            = 94418,
     SPELL_PUNISHMENT            = 94419,
     SPELL_SWEEP                 = 94452,
+    SPELL_OFF_SEAT              = 94455,
 };
 
 // The debuffs, shown on the players (and the warden's eye on him)
@@ -473,7 +480,7 @@ std::vector<Step> BuildTimeline()
         // Phase 3, "Exécution des peines"
         { AtPhase3, Ability::Phase3 },
         { 226000, Ability::Cage },
-        { 240000, Ability::Execution },         // its cast and six DOOMs: over at 4:28
+        { 240000, Ability::Execution },         // its cast and seven DOOMs: over at 4:32
         { 279000, Ability::Sentence },
         { 285000, Ability::Punishment },
         { 295000, Ability::CageCurfew },
@@ -1980,29 +1987,33 @@ private:
         return ClockAngle(degrees, 360.0f);
     }
 
-    // The axes of a DOOM, in degrees clockwise from north (0: north-south): one, or a pair square to each other
-    static std::vector<float> ExecutionAxes(uint8 doom)
+    // Seat n at the clock: (n - 1) x 45 degrees clockwise from north; its cones' axis the same modulo 180
+    static float SeatDegrees(uint8 seat)
     {
-        float const axis = std::fmod(float(doom) * ExecutionStepDegrees, 180.0f);
-        std::vector<float> axes = { axis };
-        if (ExecutionDooms[doom] > 1)
-            axes.push_back(std::fmod(axis + ExecutionPairDegrees, 180.0f));
-        return axes;
+        return float((seat - 1) * 45 % 360);
     }
 
-    // Where the group stands at a DOOM, in degrees: the middle of a gap outside its cones and the floors still burning
-    // then (the two DOOMs before), the gap nearest where the group stood (the widest at the first)
-    float ExecutionGroupDegrees(uint8 doom) const
+    Position SeatSpot(uint8 seat) const
+    {
+        return AtAngle(ArenaCenter, ClockDegrees(SeatDegrees(seat)), ExecutionSeatDistance);
+    }
+
+    // The degrees round him (1-degree bins) the double cones along these seats' axes cover
+    static std::array<bool, 360> CoveredDegrees(std::vector<uint8> const& seats)
     {
         std::array<bool, 360> covered = {};
         int32 const half = int32(ExecutionArcDegrees / 2.0f);
-        for (uint8 earlier = doom >= 2 ? uint8(doom - 2) : uint8(0); earlier <= doom; ++earlier)
-            for (float axis : ExecutionAxes(earlier))
-                for (float end : { axis, axis + 180.0f })
-                    for (int32 offset = -half; offset <= half; ++offset)
-                        covered[((int32(std::lround(end)) + offset) % 360 + 360) % 360] = true;
-        float best = _executionGroupDegrees;
-        float bestScore = 1.0e9f;
+        for (uint8 seat : seats)
+            for (int32 end : { int32(SeatDegrees(seat)), int32(SeatDegrees(seat)) + 180 })
+                for (int32 offset = -half; offset <= half; ++offset)
+                    covered[((end + offset) % 360 + 360) % 360] = true;
+        return covered;
+    }
+
+    // The gaps of a cover: their middle and width, in degrees
+    static std::vector<std::pair<float, int32>> GapsOf(std::array<bool, 360> const& covered)
+    {
+        std::vector<std::pair<float, int32>> gaps;
         for (int32 start = 0; start < 360; ++start)
         {
             if (covered[start] || !covered[(start + 359) % 360])
@@ -2010,8 +2021,76 @@ private:
             int32 length = 0;
             while (length < 360 && !covered[(start + length) % 360])
                 ++length;
-            float const middle = std::fmod(float(start) + float(length) / 2.0f, 360.0f);
-            float const score = doom == 0 ? -float(length) :
+            gaps.emplace_back(std::fmod(float(start) + float(length) / 2.0f, 360.0f), length);
+        }
+        return gaps;
+    }
+
+    // The seats whose floors burn at a DOOM (the two before it), and with its own the cones then
+    std::vector<uint8> BurningSeats(std::vector<std::vector<uint8>> const& calls, uint8 doom) const
+    {
+        std::vector<uint8> seats;
+        for (uint8 earlier = doom >= 2 ? uint8(doom - 2) : uint8(0); earlier < doom; ++earlier)
+            seats.insert(seats.end(), calls[earlier].begin(), calls[earlier].end());
+        return seats;
+    }
+
+    // An order of the seats cut into DOOMs that can be solved: every seat called off the burning floors, the group a
+    // gap of ExecutionMinGapDegrees at every DOOM (288 of the 40320 orders; scratch seatOrders.py). Drawn at random
+    // until one is; a known one if none turns up.
+    std::vector<std::vector<uint8>> DrawExecutionOrder() const
+    {
+        auto cut = [](std::vector<uint8> const& order)
+        {
+            std::vector<std::vector<uint8>> calls;
+            std::size_t index = 0;
+            for (uint8 count : ExecutionDooms)
+            {
+                calls.emplace_back(order.begin() + index, order.begin() + index + count);
+                index += count;
+            }
+            return calls;
+        };
+        auto solvable = [this](std::vector<std::vector<uint8>> const& calls)
+        {
+            for (uint8 doom = 0; doom < calls.size(); ++doom)
+            {
+                std::vector<uint8> seats = BurningSeats(calls, doom);
+                std::array<bool, 360> const burning = CoveredDegrees(seats);
+                for (uint8 seat : calls[doom])
+                    if (burning[int32(SeatDegrees(seat))])
+                        return false;
+                seats.insert(seats.end(), calls[doom].begin(), calls[doom].end());
+                bool gap = false;
+                for (auto const& [middle, width] : GapsOf(CoveredDegrees(seats)))
+                    gap = gap || width >= ExecutionMinGapDegrees;
+                if (!gap)
+                    return false;
+            }
+            return true;
+        };
+        std::vector<uint8> order = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        for (uint32 attempt = 0; attempt < 5000; ++attempt)
+        {
+            Acore::Containers::RandomShuffle(order);
+            std::vector<std::vector<uint8>> calls = cut(order);
+            if (solvable(calls))
+                return calls;
+        }
+        return cut({ 1, 2, 5, 6, 3, 4, 7, 8 });
+    }
+
+    // Where the group stands at a DOOM, in degrees: the middle of a gap outside its cones and the floors burning then,
+    // the gap nearest where the group stood (the widest at the first)
+    float ExecutionGroupDegrees(uint8 doom) const
+    {
+        std::vector<uint8> seats = BurningSeats(_executionCalls, doom);
+        seats.insert(seats.end(), _executionCalls[doom].begin(), _executionCalls[doom].end());
+        float best = _executionGroupDegrees;
+        float bestScore = 1.0e9f;
+        for (auto const& [middle, width] : GapsOf(CoveredDegrees(seats)))
+        {
+            float const score = doom == 0 ? -float(width) :
                 std::fabs(std::remainder(middle - _executionGroupDegrees, 360.0f));
             if (score < bestScore)
             {
@@ -2033,8 +2112,8 @@ private:
         return cone;
     }
 
-    // Exécution des peines: he goes to the middle and calls the numbers, in an order drawn each time; a clock ticks
-    // each second, the DOOM on each call's cones
+    // Exécution des peines: the seats shown round him, an order of them drawn; a clock ticks each second, the DOOM
+    // on each call's cones
     void Execution()
     {
         MarkAway();
@@ -2050,19 +2129,26 @@ private:
         _executionOn = true;
         _burnt.clear();
         _burntStruck.clear();
-        _executionOrder.clear();
-        for (uint8 number = 1; number <= 8; ++number)
-            if (PlayerOf(number))
-                _executionOrder.push_back(number);
-        Acore::Containers::RandomShuffle(_executionOrder);
-        _executionGroupDegrees = 0.0f;
+        _executionCalls = DrawExecutionOrder();
+        std::string drawn;
+        for (std::vector<uint8> const& call : _executionCalls)
+        {
+            drawn += " ";
+            for (uint8 seat : call)
+                drawn += std::to_string(seat);
+        }
+        LOG_INFO("module.vorhan", "Vorhan execution instance={} order:{}", me->GetInstanceId(), drawn);
         Sound("Vorhan.RollCall");
+        for (uint8 seat = 1; seat <= 8; ++seat)
+        {
+            Position const spot = SeatSpot(seat);
+            GroundIndicators::ShowCell(me, spot, seat, ArenaCenter.GetAngle(&spot), lasts, ExecutionSeatRadius);
+        }
         // The group to its first gap during the cast
+        _executionGroupDegrees = 0.0f;
         _executionGroupDegrees = ExecutionGroupDegrees(0);
-        Position const center = Ground(ArenaCenter);
         for (Player* player : ArenaPlayers())
-            GroundIndicators::SetUnitSpot(me, player, AtAngle(center, ClockDegrees(_executionGroupDegrees),
-                ExecutionGroupDistance), 2.0f, ExecutionCastMs + 500);
+            RouteTo(player, _executionGroupDegrees, ExecutionGroupDistance, 2.0f, ExecutionCastMs + 500);
         // The clock: a tick each second, but on the DOOMs
         for (uint32 second = 1; second * 1000 <= dooms * ExecutionEveryMs; ++second)
         {
@@ -2077,112 +2163,151 @@ private:
         scheduler.Schedule(Milliseconds(ExecutionCastMs), [this](TaskContext) { ExecutionCall(0); });
     }
 
-    // A DOOM's numbers called: their cones follow them (and point straight behind him) until it strikes; the bots
-    // go, the players called out on their axes, everyone else to the group's gap
+    // Whether a straight walk from a player to a spot crosses a floor burning (or about to)
+    bool CrossesFloor(Position const& from, Position const& to) const
+    {
+        float const length = from.GetExactDist2d(&to);
+        uint32 const steps = std::max<uint32>(1, uint32(length / 1.0f));
+        for (uint32 step = 0; step <= steps; ++step)
+        {
+            float const t = float(step) / float(steps);
+            Position const at(from.GetPositionX() + (to.GetPositionX() - from.GetPositionX()) * t,
+                              from.GetPositionY() + (to.GetPositionY() - from.GetPositionY()) * t, from.GetPositionZ());
+            for (BurntFloor const& floor : _burnt)
+                if (floor.area.Contains(at, 0.5f))
+                    return true;
+        }
+        return false;
+    }
+
+    // A bot's way to its spot (degrees round him, at distance): straight there when that crosses no floor, else in
+    // through the ring at his feet (no floor burns there), round it, and out
+    void RouteTo(Player* player, float degrees, float distance, float radius, uint32 durationMs)
+    {
+        Position const center = Ground(ArenaCenter);
+        Position const spot = AtAngle(center, ClockDegrees(degrees), distance);
+        if (!CrossesFloor(player->GetPosition(), spot))
+        {
+            GroundIndicators::SetUnitSpot(me, player, spot, radius, durationMs);
+            return;
+        }
+        float const from = center.GetAngle(player);
+        GroundIndicators::SetUnitSpot(me, player, AtAngle(center, from, ExecutionRingDistance), 1.0f, durationMs);
+        ObjectGuid const guid = player->GetGUID();
+        float const inward = std::max(0.0f, player->GetExactDist2d(&center) - ExecutionRingDistance);
+        uint32 const inMs = uint32(inward / ExecutionBotSpeed * 1000.0f) + 200;
+        scheduler.Schedule(Milliseconds(inMs), [this, guid, degrees, durationMs, inMs](TaskContext)
+        {
+            if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && _executionOn)
+                GroundIndicators::SetUnitSpot(me, player, AtAngle(Ground(ArenaCenter), ClockDegrees(degrees),
+                    ExecutionRingDistance), 1.0f, durationMs > inMs ? durationMs - inMs : 500);
+        });
+        uint32 const roundMs = inMs + uint32(2.0f * ExecutionRingDistance / ExecutionBotSpeed * 1000.0f) + 200;
+        scheduler.Schedule(Milliseconds(roundMs), [this, guid, spot, radius, durationMs, roundMs](TaskContext)
+        {
+            if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && _executionOn)
+                GroundIndicators::SetUnitSpot(me, player, spot, radius, durationMs > roundMs ? durationMs - roundMs : 500);
+        });
+    }
+
+    // A DOOM's seats called: their numbers' players to them, their cones shown along the seats' axes, the group to its
+    // gap; his feet warned just before it strikes
     void ExecutionCall(uint8 doom)
     {
         if (!_executionOn)
             return;
-        std::size_t first = 0;
-        for (uint8 earlier = 0; earlier < doom; ++earlier)
-            first += ExecutionDooms[earlier];
-        std::vector<ObjectGuid> called;
-        for (uint8 slot = 0; slot < ExecutionDooms[doom]; ++slot)
-            if (first + slot < _executionOrder.size())
-                if (Player* player = PlayerOf(_executionOrder[first + slot]); player && player->IsAlive())
-                    called.push_back(player->GetGUID());
-
-        std::vector<float> const axes = ExecutionAxes(doom);
+        std::vector<uint8> const& seats = _executionCalls[doom];
         _executionGroupDegrees = ExecutionGroupDegrees(doom);
         Position const center = Ground(ArenaCenter);
         uint32 const damage = uint32(Reference() * ExecutionPct / 100.0f);
-        for (std::size_t index = 0; index < axes.size(); ++index)
+        std::vector<ObjectGuid> called;
+        for (uint8 seat : seats)
         {
-            Player* player = index < called.size() ? ObjectAccessor::GetPlayer(*me, called[index]) : nullptr;
-            if (player)
+            for (float end : { SeatDegrees(seat), SeatDegrees(seat) + 180.0f })
+                GroundIndicators::ShowCone(me, center, ClockDegrees(end), ExecutionReach, ExecutionArcDegrees,
+                                           ExecutionEveryMs, GroundIndicators::Theme::None, damage);
+            GroundIndicators::FlareCell(me, SeatSpot(seat), ExecutionSeatRadius);
+            if (Player* player = PlayerOf(seat); player && player->IsAlive())
             {
-                GroundIndicators::ShowTrackingCone(me, center, ExecutionReach, ExecutionArcDegrees, ExecutionEveryMs,
-                                                   player, damage);
-                GroundIndicators::ShowTrackingCone(me, center, ExecutionReach, ExecutionArcDegrees, ExecutionEveryMs,
-                                                   player, damage, true);
-                // Its axis' end nearer the group: the shorter walk
-                float end = axes[index];
-                if (std::fabs(std::remainder(end + 180.0f - _executionGroupDegrees, 360.0f)) <
-                    std::fabs(std::remainder(end - _executionGroupDegrees, 360.0f)))
-                    end += 180.0f;
-                GroundIndicators::SetUnitSpot(me, player, AtAngle(center, ClockDegrees(end), ExecutionCalledDistance),
-                                              1.2f, ExecutionEveryMs + 500);
+                called.push_back(player->GetGUID());
+                RouteTo(player, SeatDegrees(seat), ExecutionSeatDistance, 1.0f, ExecutionEveryMs + 500);
             }
-            else
-                // Nobody to call: its cones strike where they would have pointed
-                for (float end : { axes[index], axes[index] + 180.0f })
-                    GroundIndicators::ShowCone(me, center, ClockDegrees(end), ExecutionReach, ExecutionArcDegrees,
-                                               ExecutionEveryMs, GroundIndicators::Theme::None, damage);
         }
         for (Player* player : ArenaPlayers())
             if (std::find(called.begin(), called.end(), player->GetGUID()) == called.end())
-                GroundIndicators::SetUnitSpot(me, player, AtAngle(center, ClockDegrees(_executionGroupDegrees),
-                    ExecutionGroupDistance), 2.0f, ExecutionEveryMs + 500);
+                RouteTo(player, _executionGroupDegrees, ExecutionGroupDistance, 2.0f, ExecutionEveryMs + 500);
         if (doom == ExecutionCurfewDoom)
             Curfew(ExecutionEveryMs);
-        scheduler.Schedule(Milliseconds(ExecutionEveryMs), [this, doom, called](TaskContext)
+        scheduler.Schedule(Milliseconds(ExecutionEveryMs - ExecutionFeetWarnMs), [this](TaskContext)
         {
-            ExecutionStrikes(doom, called);
+            if (_executionOn)
+                GroundIndicators::ShowCircle(me, Ground(ArenaCenter), ExecutionSafe, ExecutionFeetWarnMs,
+                    GroundIndicators::Theme::Fire, uint32(Reference() * ExecutionPct / 100.0f));
         });
+        scheduler.Schedule(Milliseconds(ExecutionEveryMs), [this, doom](TaskContext) { ExecutionStrikes(doom); });
     }
 
-    // The DOOM: each called player's double cone, through them (where they stand now) and straight behind him;
-    // everyone else in a cone struck, once a cone (two at once: Sursis, then death). The floors burn a moment later.
-    void ExecutionStrikes(uint8 doom, std::vector<ObjectGuid> const& called)
+    // The DOOM: each seat's double cone along its axis; everyone in one struck but the seat's own number on it (two at
+    // once: Sursis, then death), whoever stands at his feet struck too, a number off its seat punished. The floors
+    // burn a moment later, from ExecutionSafe out.
+    void ExecutionStrikes(uint8 doom)
     {
         if (!_executionOn)
             return;
         Position const center = Ground(ArenaCenter);
-        std::vector<float> const axes = ExecutionAxes(doom);
-        std::vector<std::pair<GroundIndicators::Area, ObjectGuid>> cones;   // a cone, and who it goes through
-        for (std::size_t index = 0; index < axes.size(); ++index)
-        {
-            Player* player = index < called.size() ? ObjectAccessor::GetPlayer(*me, called[index]) : nullptr;
-            if (player && !player->IsAlive())
-                player = nullptr;
-            float const way = player ? center.GetAngle(player) : ClockDegrees(axes[index]);
-            cones.emplace_back(ExecutionCone(way), player ? player->GetGUID() : ObjectGuid::Empty);
-            cones.emplace_back(ExecutionCone(way + float(M_PI)), ObjectGuid::Empty);
-        }
-        me->SetFacingTo(cones.front().first.origin.GetOrientation());
+        std::vector<uint8> const& seats = _executionCalls[doom];
+        me->SetFacingTo(ClockDegrees(SeatDegrees(seats.front())));
         me->SendPlaySpellVisual(KIT_STRIKE);
         Sound("Vorhan.ExecutionDoom");
-        for (auto const& [cone, through] : cones)
-            GroundIndicators::ShowWardenRollCallBlow(me, center, cone.origin.GetOrientation());
 
         std::string struck;
-        for (Player* player : ArenaPlayers())
-            for (auto const& [cone, through] : cones)
-                if (through != player->GetGUID() && player->IsAlive() && cone.Contains(player->GetPosition()))
+        for (uint8 seat : seats)
+        {
+            Player* owner = PlayerOf(seat);
+            Position const spot = SeatSpot(seat);
+            if (owner && owner->IsAlive() && owner->GetExactDist2d(&spot) > ExecutionSeatRadius)
+            {
+                Hit(owner, SPELL_OFF_SEAT, ExecutionOffSeatPct, true);
+                Broken("execution seat", Acore::StringFormat("{} number {} {:.1f} yd from it", owner->GetName(), seat,
+                    owner->GetExactDist2d(&spot)));
+            }
+            for (float end : { SeatDegrees(seat), SeatDegrees(seat) + 180.0f })
+            {
+                GroundIndicators::Area const cone = ExecutionCone(ClockDegrees(end));
+                GroundIndicators::ShowWardenRollCallBlow(me, center, cone.origin.GetOrientation());
+                for (Player* player : ArenaPlayers())
+                    if (player->IsAlive() && !SparedBy(player, seat, seats) && cone.Contains(player->GetPosition()))
+                    {
+                        ExecutionStrike(player, SPELL_EXECUTION, ExecutionPct);
+                        struck += " " + player->GetName();
+                    }
+                GroundIndicators::Area floor = cone;
+                floor.inner = ExecutionSafe;
+                uint32 const now = Elapsed();
+                uint32 const until = std::min(now + BurntDelayMs + BurntLastsMs, _executionEndMs);
+                _burnt.push_back({ floor, now + BurntDelayMs, until });
+                scheduler.Schedule(Milliseconds(BurntDelayMs), [this, floor, until](TaskContext)
                 {
-                    ExecutionStrike(player, SPELL_EXECUTION, ExecutionPct);
-                    struck += " " + player->GetName();
-                }
+                    uint32 const now = Elapsed();
+                    if (!_executionOn || now >= until)
+                        return;
+                    GroundIndicators::ShowWardenMark(me, floor.origin, floor.origin.GetOrientation(),
+                                                     GroundIndicators::SPELL_WARDEN_BURNT_FLOOR, until - now);
+                    GroundIndicators::WatchArea(me, floor, until - now, uint32(Reference() * BurntPct / 100.0f));
+                });
+            }
+        }
+        // His feet: never there when the DOOM strikes
+        for (Player* player : ArenaPlayers())
+            if (player->IsAlive() && player->GetExactDist2d(&center) < ExecutionSafe)
+            {
+                ExecutionStrike(player, SPELL_EXECUTION, ExecutionPct);
+                struck += " " + player->GetName() + "(feet)";
+            }
         if (struck.empty())
             Kept("execution");
         else
             Broken("execution", Acore::StringFormat("doom {}:{}", doom + 1, struck));
-
-        for (auto const& [cone, through] : cones)
-        {
-            GroundIndicators::Area const floor = cone;
-            scheduler.Schedule(Milliseconds(BurntDelayMs), [this, floor](TaskContext)
-            {
-                uint32 const now = Elapsed();
-                if (!_executionOn || now >= _executionEndMs)
-                    return;
-                uint32 const lasts = std::min(BurntLastsMs, _executionEndMs - now);
-                _burnt.emplace_back(floor, now + lasts);
-                GroundIndicators::ShowWardenMark(me, floor.origin, floor.origin.GetOrientation(),
-                                                 GroundIndicators::SPELL_WARDEN_BURNT_FLOOR, lasts);
-                GroundIndicators::WatchArea(me, floor, lasts, uint32(Reference() * BurntPct / 100.0f));
-            });
-        }
 
         if (doom + 1u < ExecutionDooms.size())
             ExecutionCall(uint8(doom + 1));
@@ -2191,8 +2316,17 @@ private:
                                [this](TaskContext) { EndExecution(); });
     }
 
-    // An execution's strike (a cone, or a step on its floor): the first puts the player under Sursis, a second under
-    // it is death
+    // A number called at this DOOM is spared by the cones along its own seat's axis (two seats called opposite each
+    // other share one: each stands in the other's)
+    bool SparedBy(Player const* player, uint8 seat, std::vector<uint8> const& seats) const
+    {
+        uint8 const number = NumberOf(player);
+        return number && std::find(seats.begin(), seats.end(), number) != seats.end() &&
+               int32(SeatDegrees(number)) % 180 == int32(SeatDegrees(seat)) % 180;
+    }
+
+    // An execution's strike (a cone, his feet, or a step on its floor): the first puts the player under Sursis, a
+    // second under it is death
     void ExecutionStrike(Player* player, uint32 spellId, float percent)
     {
         uint32 const now = Elapsed();
@@ -2216,12 +2350,12 @@ private:
         if (!_executionOn || _burnt.empty())
             return;
         uint32 const now = Elapsed();
-        std::erase_if(_burnt, [now](auto const& floor) { return now >= floor.second; });
+        std::erase_if(_burnt, [now](BurntFloor const& floor) { return now >= floor.until; });
         for (Player* player : ArenaPlayers())
         {
             bool on = false;
-            for (auto const& [floor, until] : _burnt)
-                if (floor.Contains(player->GetPosition()))
+            for (BurntFloor const& floor : _burnt)
+                if (now >= floor.from && floor.area.Contains(player->GetPosition()))
                 {
                     on = true;
                     break;
@@ -2244,7 +2378,7 @@ private:
         _executionOn = false;
         _burnt.clear();
         _burntStruck.clear();
-        _executionOrder.clear();
+        _executionCalls.clear();
         EndCast();
         ClearNumbers();
         for (Player* player : ArenaPlayers())
@@ -2718,9 +2852,15 @@ private:
     // Phase 3
     bool _executionOn = false;
     uint32 _executionEndMs = 0;
-    std::vector<std::pair<GroundIndicators::Area, uint32>> _burnt;  // the execution's burnt floors, until when each
+    struct BurntFloor
+    {
+        GroundIndicators::Area area;
+        uint32 from;                                           // it burns from then (a moment after its DOOM)
+        uint32 until;
+    };
+    std::vector<BurntFloor> _burnt;                            // the execution's floors, burning or about to
     std::map<ObjectGuid, uint32> _burntStruck;                 // when each player was last struck on one
-    std::vector<uint8> _executionOrder;                        // the numbers in the order they are called
+    std::vector<std::vector<uint8>> _executionCalls;           // the seats called at each DOOM, drawn each time
     float _executionGroupDegrees = 0.0f;                       // where the group's gap was at the last DOOM
     std::map<ObjectGuid, uint32> _sursis;                      // until when each player is under Sursis
     ObjectGuid _cage;                                          // the cage standing, and who is in it

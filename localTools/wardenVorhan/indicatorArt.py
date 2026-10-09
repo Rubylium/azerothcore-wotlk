@@ -523,10 +523,10 @@ def axe_line(hit, long=False):
 
 # --- Phase 3: the burnt floor and the shared punishment -------------------------------------------------------------
 
-# The execution's cone (WardenVorhan.cpp ExecutionArcDegrees); its floor burns right from the warden's feet (a sliver
-# at the apex left clear only so the builder finds it)
+# The execution's cone (WardenVorhan.cpp ExecutionArcDegrees) and where its floor starts burning over its reach
+# (ExecutionSafe / ExecutionReach): the ring at the warden's feet stays clear, the way across
 EXECUTION_ANGLE = 40.0
-BURNT_INNER = 0.01
+BURNT_INNER = 6.0 / 40.0
 PUNISHMENT_ANGLE = 60.0
 
 
