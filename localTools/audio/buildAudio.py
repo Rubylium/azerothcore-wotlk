@@ -5,7 +5,7 @@ clientPatcher/addons/EvolutionsAudio, which Build-FriendPatch.ps1 ships as Inter
     python buildAudio.py --vendor    first brings every sound a manifest takes from elsewhere into the repository
 
 Every modules/*/client-assets/audio/*.json is read:
-    { "sounds": { "<key>": { "kind": "ui" | "world" | "loop" | "music", "files": [ "<file>", ... ],
+    { "sounds": { "<key>": { "kind": "ui" | "world" | "spell" | "loop" | "music", "files": [ "<file>", ... ],
                               "volume": 1.0, "minDistance": 5, "maxDistance": 40, "loudness": <dBFS RMS>,
                               "loopStart": <music: the frame its loop goes back to> } },
       "emitters": [ { "zones": [ "<zone name, each locale's>", ... ], "sound": "<key>", "points": [ [x, y, z], ... ],
@@ -23,7 +23,8 @@ Every modules/*/client-assets/audio/*.json is read:
   indoors (an inn's room: its glasses are not for the street), outdoors, or anywhere. Written to ambience.txt.
   Emitters follow the game's ambience volume and switch, the other sounds its sound effects'.
 - kind: ui is heard as an interface sound (no position, no room); world from where the server says (a point, or an
-  object it follows), with the place's echo and muffled behind walls; loop the same, repeating until stopped or its
+  object it follows), with the place's echo and muffled behind walls; spell the same but dry (no echo, no water: a
+  spell's cast or impact, a boss's ability); loop as world, repeating until stopped or its
   object gone. music: not positioned, one at a time (EvolutionsAudio_PlayMusic, the server's PlayMusic), looping
   without end: at its end it goes back to loopStart (a frame of the file, an int or one per file; 0, the default: the
   whole file loops) - an intro before it is heard once. A music file holds the intro and exactly one loop period, cut
@@ -59,9 +60,9 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 CLIENT_FILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'clientFiles.js')
 ASCENSION_FILES = os.path.join(REPO, 'localTools', 'ascensionImport', 'ascensionArchives.js')
 OUTPUT = os.path.join(REPO, 'clientPatcher', 'addons', 'EvolutionsAudio')
-KINDS = ('ui', 'world', 'loop', 'music')
-LOUDNESS = {'ui': -12.0, 'world': -12.0, 'loop': -16.0, 'music': -16.0}
-DISTANCES = {'ui': (0.0, 0.0), 'world': (12.0, 60.0), 'loop': (3.0, 25.0), 'music': (0.0, 0.0)}
+KINDS = ('ui', 'world', 'spell', 'loop', 'music')
+LOUDNESS = {'ui': -12.0, 'world': -12.0, 'spell': -12.0, 'loop': -16.0, 'music': -16.0}
+DISTANCES = {'ui': (0.0, 0.0), 'world': (12.0, 60.0), 'spell': (12.0, 60.0), 'loop': (3.0, 25.0), 'music': (0.0, 0.0)}
 CEILING = 10 ** (-1.0 / 20)
 LOOKAHEAD = 0.003
 RELEASE = 0.060
@@ -231,7 +232,7 @@ def main():
             samples, rate = soundfile.read(os.path.join(REPO, source), dtype='float32', always_2d=True)
             before = db(rms(samples))
             # A sound placed in the world is one point: mono (a stereo file does not sit at its place)
-            if kind in ('world', 'loop') and samples.shape[1] > 1:
+            if kind in ('world', 'spell', 'loop') and samples.shape[1] > 1:
                 samples = samples.mean(axis=1, keepdims=True)
             if kind == 'music':
                 if not 0 <= int(starts[index]) < len(samples):

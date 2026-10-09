@@ -10,13 +10,18 @@ heard before a release, and some of its paths never played (2026-10-05): don't a
 - 3D from the camera (the listener, every frame): a sound at a point, or following an object (it stops by itself when
   the client no longer knows the object - a drop picked up, a creature out of sight), or an interface sound.
 - Distance: full volume within a sound's min distance, linear to nothing at its max.
-- Walls: every 150 ms a world sound tests the line from the camera to a yard above it (the game's own line test,
+- Walls: every 150 ms a world or spell sound tests the line from the camera to a yard above it (the game's own line test,
   `0x7A3B70`, flags `0x100111`: terrain and buildings); behind one it is low-passed (1.2 kHz) and quieter, eased.
 - The place: world sounds feed a reverb (Freeverb) whose size and level follow where the player is - dry outdoors, a
   room indoors (`IsIndoors()`), long and dark under water (the breath timer) with every world sound muffled.
 - The game's settings: master and effects volume, sound / effects switched off, "sound in background" (window focus).
-- Kinds: `ui` (no position, no room), `world` (positioned, room, walls), `loop` (the same, repeating), `music`
-  (below).
+- Kinds: `ui` (no position, no room), `world` (positioned, room, walls), `spell` (positioned, walls, but dry: no
+  room, no water), `loop` (as world, repeating), `music` (below). **A spell's sound (a class's cast or impact, a
+  boss's ability) is `spell`**: the place's reverb on them was heard as an echo "for no reason" (user, 2026-10-09).
+  A place's own sound (doors, bells, a crowd, ambience) stays `world`.
+- Sounds on the player's own character are never muffled by walls: the camera's line test hit on its side of the
+  character and cut every one of them about 30 dB after its first instant (a pistol shot heard as its first frame;
+  measured with the capture rig, `localTools/audio/capture`, 2026-10-09).
 
 Not yet: the place's acoustics come from three presets, not from the game's own per-area reverb data
 (`SoundProviderPreferences` through AreaTable / WMOAreaTable: needs the client's current area in the DLL).
@@ -95,6 +100,14 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
    An object must already be in the player's sight (a creature summoned this tick may not be: play on something
    older, as the ground loot's loops play on the bag rather than its new beam).
 4. Client release (`deployWithProgress.ps1 -steps client,publish`, with `dll` when the engine changed).
+
+## Checking what the client really plays
+
+A sound that "cuts" or "echoes": record it, don't guess. The capture rig (`localTools/audio/capture/run.ps1`,
+`-local` for the DLL just built and the repository's `sounds.txt`) logs the EVODEV character into the FX lab with
+effects only, plays the keys of `steps.lua` (`EvolutionsAudio_Play(key, "G" .. guid)` - what the server's `PlayOn`
+does), records the speakers (WASAPI loopback) and `analyse.py <wav>` gives each event's length, level and how bright its
+attack is (muffled: almost nothing above 2 kHz). Compare with the same key played as `ui`.
 
 ## Tuning in game
 

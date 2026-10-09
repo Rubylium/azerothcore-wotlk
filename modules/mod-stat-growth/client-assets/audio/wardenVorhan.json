@@ -22,7 +22,7 @@
       "loopStart": 310274
     },
     "Vorhan.Sentence": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit2.wav",
@@ -33,7 +33,7 @@
       "volume": 1.0
     },
     "Vorhan.Isolation": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ET_Cage_Close.wav"
       ],
@@ -42,7 +42,7 @@
       "volume": 1.0
     },
     "Vorhan.SealBurst": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/shadowfury_impact_base.wav"
       ],
@@ -70,7 +70,7 @@
       "volume": 1.0
     },
     "Vorhan.Chains": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/PickUpLargeChain.wav"
       ],
@@ -79,7 +79,7 @@
       "volume": 1.0
     },
     "Vorhan.ChainTighten": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ChainHang01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/ChainHang02.wav",
@@ -90,7 +90,7 @@
       "volume": 1.0
     },
     "Vorhan.ChainBreak": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/PutDownLArgeChain.wav"
       ],
@@ -99,7 +99,7 @@
       "volume": 1.0
     },
     "Vorhan.GazeOpen": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/NightmareBellOpen.wav"
       ],
@@ -108,7 +108,7 @@
       "volume": 1.0
     },
     "Vorhan.GazeBurst": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/EyeBlastVisual.wav"
       ],
@@ -135,7 +135,7 @@
       "volume": 1.0
     },
     "Vorhan.Walls": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/CallLightning.wav"
       ],
@@ -144,7 +144,7 @@
       "volume": 1.0
     },
     "Vorhan.Charge": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/Ulduar_KologarnShockWave.wav"
       ],
@@ -171,7 +171,7 @@
       "volume": 1.0
     },
     "Vorhan.Violation": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BullWhipHit2.wav"
       ],
@@ -189,7 +189,7 @@
       "volume": 1.0
     },
     "Vorhan.LifeSentence": {
-      "kind": "world",
+      "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/wardenVorhan/BellTollHorde.wav"
       ],
