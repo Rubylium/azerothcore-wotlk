@@ -182,6 +182,55 @@ inline float DpsCheckHealth(float itemLevel, float paragonPoints, float damageDe
     return ExpectedDps(itemLevel, paragonPoints, pack) * damageDealers * seconds;
 }
 
+// A raid group's damage over the model's (DpsCheckHealth), measured on the simulation bench's raid layout
+// (localTools/simBench/simBench.ps1 raid: 10-player teams - 2 tanks, 3 healers, 5 damage dealers, every damage spec in
+// turn - in one phase with their buffs, auras and totems, on a boss that hits its tanks and pulses the group, each spec
+// on its single-target build and tuned to the Fire mage; a raid's bots take that build too). By the profile's power
+// index, between the points measured. Measured 2026-10-09 (raid-2026-10-09_13-15-58: 7 teams a profile, every damage
+// spec, 2 runs of 120 s): the team's mean damage dealer x5 and its tanks and healers, over 5.97 x ExpectedDps.
+struct RaidPoint
+{
+    float itemLevel;
+    float paragon;
+    float factor;
+};
+
+constexpr RaidPoint RaidCurve[] = {
+    { 300.0f, 100.0f, 1.048f },     // L'Infini, Défi I: 97k
+    { 340.0f, 300.0f, 0.911f },     // Défi V: 290k (the mid-paragon sag)
+    { 390.0f, 550.0f, 1.000f },     // Défi X: 523k
+    { 450.0f, 600.0f, 1.087f },     // Vorhan's: 653k
+    { 460.0f, 650.0f, 1.105f },     // the Hollow Voice's: 678k
+};
+
+inline float RaidDpsFactor(float itemLevel, float paragonPoints)
+{
+    constexpr std::size_t count = std::size(RaidCurve);
+    float const power = PowerIndex(itemLevel, paragonPoints);
+    auto const at = [](RaidPoint const& point) { return PowerIndex(point.itemLevel, point.paragon); };
+    if (power <= at(RaidCurve[0]))
+        return RaidCurve[0].factor;
+    if (power >= at(RaidCurve[count - 1]))
+        return RaidCurve[count - 1].factor;
+    std::size_t upper = 1;
+    while (power > at(RaidCurve[upper]))
+        ++upper;
+    float const low = at(RaidCurve[upper - 1]);
+    float const t = (power - low) / (at(RaidCurve[upper]) - low);
+    return RaidCurve[upper - 1].factor + (RaidCurve[upper].factor - RaidCurve[upper - 1].factor) * t;
+}
+
+// A raid boss of the board's own (the Hollow Voice, Vorhan, L'Infini) is cleared just before its enrage, no one dead,
+// by a group at its profile: its health is what that group deals over the seconds it can be hit, of which a group
+// playing well gives RaidClearShare - the rest goes to mechanics and movement (the bench's group stands still).
+constexpr float RaidClearShare = 0.85f;
+
+inline float RaidBossHealth(float itemLevel, float paragonPoints, float damageDealers, float seconds)
+{
+    return DpsCheckHealth(itemLevel, paragonPoints, damageDealers, seconds) * RaidDpsFactor(itemLevel, paragonPoints) *
+        RaidClearShare;
+}
+
 // Stamina of a full set of gear at an item level. The game's own items (up to 284) grow about with the square of
 // their item level (a real set: 2036 stamina at item level 298); generated ones linearly from there (StatExponent).
 constexpr float GearStaminaPerSquaredItemLevel = 0.0229f;

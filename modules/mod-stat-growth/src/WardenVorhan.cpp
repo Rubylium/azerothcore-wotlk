@@ -92,15 +92,12 @@ constexpr float ProfileParagon = 600.0f;
 constexpr float GroupDamage = 4.0f;
 constexpr float GroupTanks = 2.0f;
 constexpr float GroupHealers = 2.0f;
-// The DPS check: the seconds the warden can be hit (the fight but the riot), of which a group playing well gives
-// HardShare to his health - the rest goes to the rules (power-scaling.md: "hard")
+// The DPS check: the seconds the warden can be hit (the fight but the riot), against what a raid group of the profile
+// deals there, measured on the simulation bench (Power::RaidBossHealth: the share a group playing well gives his
+// health, the rest goes to the rules). It replaced the model's check and a knob raised twice by play (x1.44,
+// 2026-10-08): the model underrated a raid group at 600 paragon. The deaths log each player's damage (LogSummary).
 constexpr float UptimeSeconds = 205.0f;
-constexpr float HardShare = 0.87f;
-// The model's (about 87 million). Bots alone (2026-10-08, e2e/local/vorhan) deal a group of 4 about 59 million: they
-// see the enrage. A player's group dealt far more than bots (62 million in 2:54, the first kill, 0.71): the model's
-// check is theirs. The deaths log each player's damage (LogSummary) to tune it on players. Raised by a fifth after
-// the players' kills (2026-10-08: the model's 87 million went down too fast), and by a fifth again the same day.
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.44f);
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.0f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
@@ -734,13 +731,13 @@ private:
         }
     }
 
-    // His health from the power model: the DPS check of the profile's group over the seconds he can be hit, the
-    // "hard" share of them (power-scaling.md), and the live knob over it
+    // His health from the power model: a raid group of the profile over the seconds he can be hit
+    // (Power::RaidBossHealth), and the live knob over it
     void SetModelHealth()
     {
         float const dealers = Power::GroupDamageDealers(GroupDamage, GroupTanks, GroupHealers);
-        float const health = Power::DpsCheckHealth(ProfileItemLevel, ProfileParagon, dealers,
-                                                   UptimeSeconds * HardShare) * float(HealthScale);
+        float const health = Power::RaidBossHealth(ProfileItemLevel, ProfileParagon, dealers, UptimeSeconds) *
+            float(HealthScale);
         me->SetCreateHealth(uint32(health));
         me->SetMaxHealth(uint32(health));
         me->SetFullHealth();

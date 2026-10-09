@@ -12,6 +12,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
+#include "LiveTuning.h"
 #include "Log.h"
 #include "Group.h"
 #include "Map.h"
@@ -99,6 +100,26 @@ namespace
 // factor on top
 constexpr float ProfileItemLevel = 460.0f;
 constexpr float ProfileParagon = 650.0f;
+// Their health, set on the pull: what a raid group of the profile (10 players: 2 tanks, 3 healers, 5 damage dealers)
+// deals over the Archbishop's check, Last Rites at 1:57.5 (Power::RaidBossHealth, measured on the simulation bench);
+// the demon VelthazarHealthRatio of his, as hard as the Archbishop and 7.5% more (measured on bots, power-scaling.md).
+// The live knob over both. The templates' own health (HealthModifier) is only what the bosses show before a pull.
+constexpr float AldricSeconds = 117.5f;
+constexpr float VelthazarHealthRatio = 2.524f;
+LiveTuning::Knob const HealthScale("hollowvoice.health_scale", 1.0f);
+
+uint32 AldricModelHealth()
+{
+    return uint32(Power::RaidBossHealth(ProfileItemLevel, ProfileParagon, Power::GroupDamageDealers(5.0f, 2.0f, 3.0f),
+        AldricSeconds) * float(HealthScale));
+}
+
+void SetModelHealth(Creature* creature, uint32 health)
+{
+    creature->SetCreateHealth(health);
+    creature->SetMaxHealth(health);
+    creature->SetFullHealth();
+}
 constexpr float AldricMeleeFloorPct = 10.0f;    // his melee on a player: at least this, whatever their armour
 constexpr float VelthazarMeleeFloorPct = 14.0f;
 constexpr float InfernalMeleeFloorPct = 9.0f;
@@ -1091,6 +1112,7 @@ struct boss_hollow_voice_aldric : public ScriptedAI
         DoZoneInCombat(me, ArenaReach);
         _pullMs = getMSTime();
         _phase = Phase::Aldric;
+        SetModelHealth(me, AldricModelHealth());
         _aldricHealth = me->GetMaxHealth();
         _stats.clear();
         _timeline = BuildTimeline();
@@ -3113,6 +3135,7 @@ private:
                       me->GetInstanceId());
             return;
         }
+        SetModelHealth(demon, uint32(float(AldricModelHealth()) * VelthazarHealthRatio));
         demon->SendPlaySpellVisual(KIT_METAMORPHOSIS);
         demon->AI()->Talk(SAY_VELTHAZAR_REVEAL);
         demon->SetReactState(REACT_AGGRESSIVE);
