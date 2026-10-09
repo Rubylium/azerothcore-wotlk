@@ -55,7 +55,8 @@
 //   random, their chain showing who is bound to whom.
 // - Sentence: raid-wide, the healers' rhythm.
 // - Mise à l'isolement: a heavy blow on his tank that never kills, throwing it far away in solitary (Isolement): 3 s
-//   later its seal bursts on anyone within 10 yd. The other tank takes him: a forced tank swap.
+//   later its seal bursts on everyone, lethal within 20 yd, 80% just past it. The other tank takes him: a forced
+//   tank swap.
 // - Cellules: eight cells round the room at its clock points (cell n at the n-th, north first, clockwise); each player
 //   walks into their own - a distance check, no collision. When the doors slam: an empty cell is an escape (everyone
 //   hit, and Évasion: +25% damage taken), two in one cell both die, out of every cell the mark.
@@ -129,13 +130,13 @@ constexpr float LifeSentencePct = 50.0f;        // Perpétuité's first, each on
 constexpr float LifeSentenceGrowth = 1.2f;
 constexpr float IsolationPct = 120.0f;          // on his tank (a tank has about 1.45 times this health): never lethal
 // The seal's burst on everyone else, by their distance from the isolated tank - he carries a bomb: death within
-// SealAvoidable (its lethal ring), half one's health just past it, falling to SealFarPct at SealFar (the room's far
-// side) and beyond
+// SealAvoidable (its lethal ring), most of one's health just past it, falling to SealFarPct at SealFar (the room's far
+// side) and beyond. Raised by play (2026-10-09): a tank 17-20 yd away, a shield on, read as no damage at all.
 constexpr float SealNearPct = 250.0f;
-constexpr float SealEdgePct = 50.0f;
-constexpr float SealFarPct = 20.0f;
-constexpr float SealFar = 40.0f;
-constexpr float SealAvoidable = 16.0f;
+constexpr float SealEdgePct = 80.0f;
+constexpr float SealFarPct = 30.0f;
+constexpr float SealFar = 45.0f;
+constexpr float SealAvoidable = 20.0f;
 constexpr float EscapePct = 60.0f;              // an empty cell: everyone
 constexpr float EscapeTakenPct = 25.0f;         // ... and Évasion, damage taken a stack
 constexpr uint32 EscapeMs = 10000;
@@ -209,8 +210,8 @@ constexpr float PunishmentReach = 14.0f;
 constexpr float PunishmentPct = 220.0f;
 constexpr float PunishmentAlonePct = 70.0f;     // one alone dies, and everyone takes this
 constexpr float PunishmentOffTankDistance = 5.0f;
-// Faux du geôlier: the axe's blade swept from his feet through SweepDegrees in SweepMs, the third of the room it sweeps
-// warned as a cone first
+// Faux du geôlier: the axe's blade swept from his feet through SweepDegrees in SweepMs, the third of the room it
+// sweeps warned as a cone first
 constexpr float SweepDegrees = 120.0f;
 constexpr uint32 SweepMs = 2000;
 constexpr uint32 SweepCheckMs = 100;
@@ -244,7 +245,7 @@ constexpr float WallKillRadius = 29.8f;
 constexpr float ChargeSafeRadius = 6.0f;        // from within this of the warden, his throw lands short of the walls
 constexpr float ChainBreakDistance = 20.0f;
 constexpr float ChainSpotDistance = 15.0f;      // partners each go this far out, opposite ways: 30 yd apart
-constexpr float SealKeepAway = 24.0f;           // bots: the isolated tank keeps this far from the others
+constexpr float SealKeepAway = 28.0f;           // bots: the isolated tank keeps this far from the others
 constexpr float TankSpotSlack = 6.0f;
 
 // Throws: a knockback's flight lasts 2 x speedZ / 19.29 s; its distance is speedXY times that
@@ -1241,6 +1242,8 @@ private:
             _isolating = guid;
             Hit(tank, SPELL_ISOLATION, IsolationPct, false);
             _isolating.Clear();
+            LOG_INFO("module.vorhan", "Vorhan isolation instance={} at={:.1f}s tank={} {}", me->GetInstanceId(),
+                     Elapsed() / 1000.0f, tank->GetName(), tank->IsAlive() ? "thrown" : "dead");
             if (!tank->IsAlive())
                 return;
             me->GetThreatMgr().ResetThreat(tank);
@@ -1258,6 +1261,7 @@ private:
                 Sound("Vorhan.SealBurst", tank);
                 GroundIndicators::ShowWardenSealBurst(me, tank->GetPosition());
                 std::string tooClose;
+                std::string burst;
                 for (Player* player : ArenaPlayers())
                 {
                     if (player == tank)
@@ -1265,12 +1269,18 @@ private:
                     float const distance = player->GetExactDist2d(tank);
                     float const share = std::clamp((distance - SealAvoidable) / (SealFar - SealAvoidable), 0.0f,
                                                    1.0f);
-                    Hit(player, SPELL_SEAL, distance < SealAvoidable ? SealNearPct :
-                        SealEdgePct + (SealFarPct - SealEdgePct) * share, distance < SealAvoidable);
+                    float const pct = distance < SealAvoidable ? SealNearPct :
+                        SealEdgePct + (SealFarPct - SealEdgePct) * share;
+                    uint32 const before = player->GetHealth();
+                    Hit(player, SPELL_SEAL, pct, distance < SealAvoidable);
+                    burst += Acore::StringFormat(" {} {:.1f}yd {:.0f}%:{}", player->GetName(), distance, pct,
+                        player->IsAlive() ? int64(before) - int64(player->GetHealth()) : -1);
                     if (distance < SealAvoidable)
                         tooClose += Acore::StringFormat(" {} ({:.1f} yd{})", player->GetName(), distance,
                             player->GetSession() && player->GetSession()->IsBot() ? ", bot" : "");
                 }
+                LOG_INFO("module.vorhan", "Vorhan seal instance={} at={:.1f}s tank={}:{}", me->GetInstanceId(),
+                         Elapsed() / 1000.0f, tank->GetName(), burst);
                 if (tooClose.empty())
                     Kept("isolation");
                 else
@@ -2206,7 +2216,8 @@ private:
         scheduler.Schedule(Milliseconds(roundMs), [this, guid, spot, radius, durationMs, roundMs](TaskContext)
         {
             if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && _executionOn)
-                GroundIndicators::SetUnitSpot(me, player, spot, radius, durationMs > roundMs ? durationMs - roundMs : 500);
+                GroundIndicators::SetUnitSpot(me, player, spot, radius,
+                                              durationMs > roundMs ? durationMs - roundMs : 500);
         });
     }
 
