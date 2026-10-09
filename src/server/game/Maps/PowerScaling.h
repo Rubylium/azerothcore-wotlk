@@ -201,6 +201,7 @@ constexpr RaidPoint RaidCurve[] = {
     { 390.0f, 550.0f, 1.000f },     // Défi X: 523k
     { 450.0f, 600.0f, 1.087f },     // Vorhan's: 653k
     { 460.0f, 650.0f, 1.105f },     // the Hollow Voice's: 678k
+    { 477.0f, 650.0f, 1.180f },     // its loot (Vorhan's profile): 748k; 8 players (2 / 2 / 4) 1.095, 567k
 };
 
 inline float RaidDpsFactor(float itemLevel, float paragonPoints)

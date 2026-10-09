@@ -55,8 +55,9 @@ mage wanding at 51k where it deals 131k. It prints each spec's raid damage again
 (the sweep with the most specs) and each team's group damage, written to `var/combatBench/raid-*.csv`. That group
 damage over the model's is `Power::RaidCurve` (power-scaling.md, "Raid bosses").
 
-Known in a raid and not alone: the Barbarian's Ascendance counts a share of four allies' damage (its echoes go
-through its balance factor and its paragon procs): about twice a damage dealer at 460/650 (2026-10-09).
+A support spec is tuned on the raid module, not alone: the Barbarian's Ascendance counts a share of four allies'
+damage (its echoes). Alone it sits at 0.85 of the mage on purpose; in a team about 1.1 of the average damage dealer
+(power-scaling.md, "Raid bosses"). `-dealers 4 -support '<2 tanks>;<2 healers>'` measures an 8-player group.
 
 ## How it works
 

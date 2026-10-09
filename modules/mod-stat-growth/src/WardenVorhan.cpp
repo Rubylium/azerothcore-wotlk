@@ -45,7 +45,8 @@
 
 // Gardien-chef Vorhan, the head warden of la Geôle des Flammes infernales: a Défi board boss in Magtheridon's Lair,
 // fought the way a FFXIV Extreme trial is (plan: .agents/plans/warden-vorhan). 8 players - 2 tanks, 2 healers, 4 damage
-// dealers - tuned for item level 450 and 600 paragon (the DPS check), about 4:00, the hard enrage at 4:00.
+// dealers - tuned for item level 477 and 650 paragon (the DPS check): the raid after the Hollow Voice, in what it
+// pays. About 4:00, the hard enrage at 4:00.
 //
 // He does not fight to win: he applies the rules, and every rule broken is a sentence. The same script every pull,
 // each rule read on his cast bar and on the players' debuffs, solved by assignment:
@@ -86,8 +87,8 @@ namespace
 // --- Tuning ---------------------------------------------------------------------------------------------------------
 // The profile it is made for (mod-playerbots ChallengeTiers.h BossProfiles): hits are shares of the health of a
 // damage dealer at it (Power::ExpectedPlayerHealth), the Défi tier's damage factor on top
-constexpr float ProfileItemLevel = 450.0f;
-constexpr float ProfileParagon = 600.0f;
+constexpr float ProfileItemLevel = 477.0f;
+constexpr float ProfileParagon = 650.0f;
 // The group it is made for: 4 damage dealers, 2 tanks, 2 healers (Power::GroupDamageDealers)
 constexpr float GroupDamage = 4.0f;
 constexpr float GroupTanks = 2.0f;
@@ -95,8 +96,12 @@ constexpr float GroupHealers = 2.0f;
 // The DPS check: the seconds the warden can be hit (the fight but the riot), against what a raid group of the profile
 // deals there, measured on the simulation bench (Power::RaidBossHealth: the share a group playing well gives his
 // health, the rest goes to the rules). It replaced the model's check and a knob raised twice by play (x1.44,
-// 2026-10-08): the model underrated a raid group at 600 paragon. The deaths log each player's damage (LogSummary).
+// 2026-10-08) on kills by players past his profile then (450 / 600). The deaths log each player's damage
+// (LogSummary).
 constexpr float UptimeSeconds = 205.0f;
+// His group of 8 gets fewer buffs than the 10-player teams Power::RaidCurve was measured on (two healers, no priest,
+// two subgroups): 1.095 of the model against 1.18 at 477 / 650 (simBench.ps1 raid -dealers 4, 2026-10-09)
+constexpr float EightPlayerShare = 1.095f / 1.18f;
 LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.0f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
@@ -737,7 +742,7 @@ private:
     {
         float const dealers = Power::GroupDamageDealers(GroupDamage, GroupTanks, GroupHealers);
         float const health = Power::RaidBossHealth(ProfileItemLevel, ProfileParagon, dealers, UptimeSeconds) *
-            float(HealthScale);
+            EightPlayerShare * float(HealthScale);
         me->SetCreateHealth(uint32(health));
         me->SetMaxHealth(uint32(health));
         me->SetFullHealth();
