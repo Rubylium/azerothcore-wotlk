@@ -28,6 +28,16 @@ class Unit;
 
 void LoadParagonBoard();
 
+// Damage that is a share of another character's hit, dealt in someone else's name: the Barbarian's Ascendance echoes
+// (mod-barbarian, 97222-97226: a buffed ally's hit, part of it dealt again as the Barbarian's). That hit already went
+// through its own dealer's balance, board and procs: the echo takes none of the Barbarian's (StatGrowthScripts.cpp's
+// spec balance, the board's procs; its caster bonuses are off in SpellInfoCorrections.cpp). Counted on, they made an
+// Ascendance Barbarian worth two damage dealers in a raid (2026-10-09).
+inline bool IsPassThroughDamage(uint32 spellId)
+{
+    return spellId == 97222 || spellId == 97224 || spellId == 97225 || spellId == 97226;
+}
+
 // Re-applies a character's allocated nodes. Called on login, and after anything that changes the allocation.
 void ApplyStoredParagon(Player* player);
 void LoadParagonForPlayer(Player* player);

@@ -174,6 +174,10 @@ LiveTuning::KnobInt const AncestralCombatChance("barbarian.ancestral_combat_chan
 LiveTuning::Knob const MightEchoPct("barbarian.might_echo_pct", 8.0f);
 LiveTuning::Knob const CheersEchoPct("barbarian.cheers_echo_pct", 6.0f);
 LiveTuning::Knob const ChantEchoPct("barbarian.chant_echo_pct", 5.0f);
+// Over every echo (Splash Zone's included): sized on the simulation bench's raid teams (2026-10-09). The Ascendance is
+// tuned to 0.85 of a damage dealer alone (its spec balance) and its echoes on four allies add about a quarter of one:
+// 1.07-1.2 of the team's average damage dealer at 460-477 / 650. At 1.0 it was worth 1.6.
+LiveTuning::Knob const EchoScale("barbarian.echo_scale", 0.38f);
 LiveTuning::KnobUInt const MightTargets("barbarian.might_targets", 4);
 LiveTuning::KnobUInt const MightMs("barbarian.might_ms", 12000);
 LiveTuning::KnobUInt const MightMaxMs("barbarian.might_max_ms", 20000);
@@ -370,7 +374,7 @@ void Echo(Unit* ally, Unit* victim, uint32 damage)
         Player* barbarian = ObjectAccessor::GetPlayer(*ally, casterGuid);
         if (!barbarian || pct <= 0.0f || !barbarian->IsAlive() || !barbarian->IsValidAttackTarget(victim))
             continue;
-        int32 const amount = int32(float(damage) * pct / 100.0f);
+        int32 const amount = int32(float(damage) * pct * float(EchoScale) / 100.0f);
         if (amount <= 0)
             continue;
         InEcho = true;

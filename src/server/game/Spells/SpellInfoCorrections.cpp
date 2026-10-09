@@ -242,6 +242,13 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->FacingCasterFlags = 0;
     });
 
+    // The Barbarian's Ascendance echoes (mod-barbarian): a share of a buffed ally's hit, which carries the ally's own
+    // bonuses; the Barbarian's damage modifiers (talents, auras, paragon) were added on top of it
+    ApplySpellFix({ 97222, 97224, 97225, 97226 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->AttributesEx3 |= SPELL_ATTR3_IGNORE_CASTER_MODIFIERS;
+    });
+
     // Divine Storm (Damage)
     ApplySpellFix({ 53385 }, [](SpellInfo* spellInfo)
     {

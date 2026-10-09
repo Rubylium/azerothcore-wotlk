@@ -646,7 +646,7 @@ SpecBalanceRow const SpecBalance[] = {
     { { { "balance.necromancer.1", 1.0f }, { "balance.necromancer.2", 1.0f },
         { "balance.necromancer.3", 1.0f }, { "balance.necromancer.4", 1.0f } } },
     { { { "balance.barbarian.1", 1.12f }, { "balance.barbarian.2", 0.96f },
-        { "balance.barbarian.3", 1.78f }, { "balance.barbarian.4", 1.0f } } },
+        { "balance.barbarian.3", 1.67f }, { "balance.barbarian.4", 1.0f } } },
     { { { "balance.reaper.1", 1.01f }, { "balance.reaper.2", 0.93f },
         { "balance.reaper.3", 1.0f }, { "balance.reaper.4", 1.0f } } },
 };
@@ -680,7 +680,7 @@ SpecBalanceRow const SpecBalanceLow[] = {
     { { { "balance0.necromancer.1", 1.0f }, { "balance0.necromancer.2", 1.0f },
         { "balance0.necromancer.3", 1.0f }, { "balance0.necromancer.4", 1.0f } } },
     { { { "balance0.barbarian.1", 1.01f }, { "balance0.barbarian.2", 1.04f },
-        { "balance0.barbarian.3", 1.37f }, { "balance0.barbarian.4", 1.0f } } },
+        { "balance0.barbarian.3", 1.18f }, { "balance0.barbarian.4", 1.0f } } },
     { { { "balance0.reaper.1", 0.88f }, { "balance0.reaper.2", 0.86f },
         { "balance0.reaper.3", 1.0f }, { "balance0.reaper.4", 1.0f } } },
 };
@@ -773,8 +773,10 @@ public:
         ScaleByCatchUp(attacker, target, damage);
     }
 
-    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* /*spellInfo*/) override
+    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
     {
+        if (spellInfo && IsPassThroughDamage(spellInfo->Id))
+            return;
         ScaleByCatchUp(attacker, target, damage);
     }
 

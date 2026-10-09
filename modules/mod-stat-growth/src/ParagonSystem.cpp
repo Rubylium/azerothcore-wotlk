@@ -2912,6 +2912,8 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
     Player* player = attacker ? attacker->ToPlayer() : nullptr;
     if (!player || !damage || !victim || attacker == victim || DealingProcDamage)
         return;
+    if (source.set && source.spell && IsPassThroughDamage(source.spell->Id))
+        return;
 
     ParagonState* state = GetState(player);
     if (!HasCombatEffects(state))
@@ -3035,7 +3037,8 @@ void OnParagonDamageDealt(Unit* attacker, Unit* victim, uint32& damage)
 void OnParagonSpellDamageDone(Unit* caster, Unit* victim, SpellInfo const* spellInfo, uint32 damage, bool critical)
 {
     Player* player = caster ? caster->ToPlayer() : nullptr;
-    if (!player || !victim || !spellInfo || !damage || caster == victim || DealingProcDamage)
+    if (!player || !victim || !spellInfo || !damage || caster == victim || DealingProcDamage ||
+        IsPassThroughDamage(spellInfo->Id))
         return;
     // A healer's damage is not doubled by the caster side's echoes and arcs: it walks those branches for the
     // spell power and the casts, and a Holy priest at 650 points dealt 70% of a fire mage's damage, half of it echoes
