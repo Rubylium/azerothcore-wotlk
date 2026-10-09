@@ -7,7 +7,7 @@ collision and pathing.
 ```
 Noggit ──saves──> clientPatcher/maps/World/Maps/<Map>/<Map>_<x>_<y>.adt
                       │
-                      ├── client build (deployWithProgress -steps client,publish): packed into patch-Z.MPQ
+                      ├── client build (deployWithProgress -steps client,publish): packed into patch-X.MPQ
                       └── rebuildServerMaps.ps1: server/Data/maps, vmaps, mmaps (then restart the world server)
 ```
 
@@ -37,7 +37,7 @@ Noggit ──saves──> clientPatcher/maps/World/Maps/<Map>/<Map>_<x>_<y>.adt
 
 ## Shipping
 
-- **Players**: a client build packs `clientPatcher/maps` into patch-Z (`localTools/mpq-builder/patchFiles.js`, first of
+- **Players**: a client build packs `clientPatcher/maps` into patch-X (`localTools/mpq-builder/patchFiles.js`, first of
   the archive-path folders): `deployWithProgress.ps1 -steps client,publish`.
 - **The server**: `powershell -File localTools/mapEditing/rebuildServerMaps.ps1`, then restart the world server
   (`-steps restart`). It finds the edited maps and tiles itself from the saved file names (Map.dbc's directory names).

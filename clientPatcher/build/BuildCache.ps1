@@ -1,73 +1,152 @@
 # Content-based cache shared by generation, payload staging and release bundling.
 $buildCacheVersion = '1'
 
-function Get-BuildFiles([string[]]$paths) {
-    $files = @{}
-    foreach ($path in $paths) {
-        foreach ($item in @(Get-Item -Path $path -ErrorAction SilentlyContinue)) {
-            $children = if ($item.PSIsContainer) {
-                $directories = [Collections.Generic.Stack[string]]::new()
-                $directories.Push($item.FullName)
-                while ($directories.Count) {
-                    foreach ($child in Get-ChildItem -LiteralPath $directories.Pop() -Force) {
-                        if ($child.PSIsContainer) {
-                            if ($child.Name -notin 'node_modules', '.git', '__pycache__', '.deps', '.kilo', '.vscode', '.idea') {
-                                $directories.Push($child.FullName)
-                            }
-                        } else { $child }
-                    }
-                }
-            } else { @($item) }
-            foreach ($file in $children) {
-                if ($file.FullName -notmatch '\\(node_modules|\.git|__pycache__|\.deps)\\') {
-                    $files[$file.FullName] = $file
-                }
-            }
+# Folders never part of a build, wherever they are
+$script:skippedBuildFolders = @('node_modules', '.git', '__pycache__', '.deps', '.kilo', '.vscode', '.idea')
+
+# The walks and the hash table in C#: a fingerprint of the release (13 000 files) took 4.5 s a time through
+# PowerShell functions, and a build takes two. Compiled once (%LOCALAPPDATA%\Evolutions\build), then loaded from there.
+# - Files: every file under the roots (files or folders), the skipped folders aside, sorted ordinally.
+# - Hash: a file's SHA-256, remembered with its size and write time (file-hashes.tsv: path, size, write ticks, hash,
+#   when it was hashed): a build hashes the same thousands of files several times over and most never change. As
+#   git does with its index, a hash taken less than two seconds after the file's last write is not trusted again: a
+#   file rewritten within that moment at the same size keeps its write time, and would read as unchanged.
+$script:buildHashesSource = @'
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+
+public static class EvolutionsBuildHashes
+{
+    class Entry { public long Size; public long Ticks; public string Hash; public long HashedAt; }
+
+    static Dictionary<string, Entry> cache;
+    static bool dirty;
+    static readonly long RacyTicks = TimeSpan.FromSeconds(2).Ticks;
+
+    public static void Load(string path)
+    {
+        if (cache != null) return;
+        cache = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
+        if (!File.Exists(path)) return;
+        foreach (string line in File.ReadAllLines(path))
+        {
+            string[] fields = line.Split('\t');
+            if (fields.Length != 5) continue;
+            cache[fields[0]] = new Entry { Size = long.Parse(fields[1]), Ticks = long.Parse(fields[2]),
+                Hash = fields[3], HashedAt = long.Parse(fields[4]) };
         }
     }
-    @($files.Values | Sort-Object FullName)
-}
 
-# A file's SHA-256, remembered with its size and write time (as git's index does): a build hashes the same thousands of
-# files several times over - fingerprints, payload copies, the manifest, the release check - and most never change.
-# The table lives in the build cache (file-hashes.json), loaded on first use and saved by Save-FileHashCache.
-$script:fileHashCache = $null
-$script:fileHashCacheDirty = $false
+    public static string Hash(FileInfo file)
+    {
+        file.Refresh();
+        if (!file.Exists) throw new FileNotFoundException("Cannot hash a missing file: " + file.FullName);
+        long written = file.LastWriteTimeUtc.Ticks;
+        Entry known;
+        if (cache.TryGetValue(file.FullName, out known) && known.Size == file.Length && known.Ticks == written &&
+            known.HashedAt - written >= RacyTicks)
+            return known.Hash;
+        string hash;
+        using (SHA256 sha = SHA256.Create())
+        using (FileStream stream = File.OpenRead(file.FullName))
+            hash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "");
+        cache[file.FullName] = new Entry { Size = file.Length, Ticks = written, Hash = hash,
+            HashedAt = DateTime.UtcNow.Ticks };
+        dirty = true;
+        return hash;
+    }
+
+    public static void Save(string path)
+    {
+        if (!dirty || cache == null) return;
+        List<string> lines = new List<string>();
+        foreach (KeyValuePair<string, Entry> entry in cache)
+            if (File.Exists(entry.Key))
+                lines.Add(entry.Key + "\t" + entry.Value.Size + "\t" + entry.Value.Ticks + "\t" + entry.Value.Hash +
+                    "\t" + entry.Value.HashedAt);
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        File.WriteAllLines(path + ".tmp", lines.ToArray());
+        if (File.Exists(path)) File.Delete(path);
+        File.Move(path + ".tmp", path);
+        dirty = false;
+    }
+
+    public static FileInfo[] Files(string[] roots, string[] skipped)
+    {
+        HashSet<string> skip = new HashSet<string>(skipped, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, FileInfo> files = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (string root in roots)
+        {
+            if (File.Exists(root)) { FileInfo file = new FileInfo(root); files[file.FullName] = file; continue; }
+            if (!Directory.Exists(root)) continue;
+            Stack<DirectoryInfo> directories = new Stack<DirectoryInfo>();
+            directories.Push(new DirectoryInfo(root));
+            while (directories.Count > 0)
+            {
+                DirectoryInfo directory = directories.Pop();
+                foreach (FileInfo file in directory.EnumerateFiles()) files[file.FullName] = file;
+                foreach (DirectoryInfo child in directory.EnumerateDirectories())
+                    if (!skip.Contains(child.Name)) directories.Push(child);
+            }
+        }
+        List<FileInfo> sorted = new List<FileInfo>(files.Values);
+        sorted.Sort((left, right) => string.CompareOrdinal(left.FullName, right.FullName));
+        return sorted.ToArray();
+    }
+
+    // The fingerprint's file lines, "\n<path>=<hash>" each
+    public static string FileLines(FileInfo[] files)
+    {
+        StringBuilder text = new StringBuilder();
+        foreach (FileInfo file in files) text.Append('\n').Append(file.FullName).Append('=').Append(Hash(file));
+        return text.ToString();
+    }
+}
+'@
+
+function Initialize-BuildHashes {
+    if (-not ('EvolutionsBuildHashes' -as [type])) {
+        # Outside any build cache: a loaded assembly cannot be deleted with its folder
+        $assemblyRoot = Join-Path $env:LOCALAPPDATA 'Evolutions\build'
+        $version = (Get-TextHash $script:buildHashesSource).Substring(0, 12)
+        $assembly = Join-Path $assemblyRoot "EvolutionsBuildHashes-$version.dll"
+        if (-not (Test-Path -LiteralPath $assembly)) {
+            New-Item -ItemType Directory -Force -Path $assemblyRoot | Out-Null
+            Add-Type -TypeDefinition $script:buildHashesSource -OutputAssembly $assembly -OutputType Library
+        }
+        Add-Type -Path $assembly
+    }
+    [EvolutionsBuildHashes]::Load((Get-FileHashCachePath))
+}
 
 function Get-FileHashCachePath {
     $root = if ($buildCacheRoot) { $buildCacheRoot } else { Join-Path $env:TEMP 'evolutions-build-cache' }
-    Join-Path $root 'file-hashes.json'
+    Join-Path $root 'file-hashes.tsv'
 }
 
-function Get-CachedFileHash([string]$path) {
-    if ($null -eq $script:fileHashCache) {
-        $script:fileHashCache = @{}
-        $saved = Read-BuildJson (Get-FileHashCachePath)
-        if ($saved) {
-            foreach ($entry in $saved.PSObject.Properties) { $script:fileHashCache[$entry.Name] = $entry.Value }
-        }
+# Every file under the paths (a path may be a file, a folder or a wildcard), sorted
+function Get-BuildFiles([string[]]$paths) {
+    Initialize-BuildHashes
+    $roots = foreach ($path in $paths) {
+        if ($path -match '[\*\?\[]') {
+            @(Get-Item -Path $path -Force -ErrorAction SilentlyContinue) | ForEach-Object { $_.FullName }
+        } else { $path }
     }
-    $file = Get-Item -LiteralPath $path -Force
-    $known = $script:fileHashCache[$file.FullName]
-    if ($known -and $known.size -eq $file.Length -and $known.ticks -eq $file.LastWriteTimeUtc.Ticks) {
-        return $known.hash
-    }
-    $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
-    $script:fileHashCache[$file.FullName] = [pscustomobject]@{ size = $file.Length
-        ticks = $file.LastWriteTimeUtc.Ticks; hash = $hash }
-    $script:fileHashCacheDirty = $true
-    return $hash
+    [EvolutionsBuildHashes]::Files([string[]]@($roots), [string[]]$script:skippedBuildFolders)
+}
+
+# path: a file's path, or its FileInfo
+function Get-CachedFileHash($path) {
+    Initialize-BuildHashes
+    $file = if ($path -is [IO.FileInfo]) { $path } else { [IO.FileInfo]::new([string]$path) }
+    [EvolutionsBuildHashes]::Hash($file)
 }
 
 function Save-FileHashCache {
-    if (-not $script:fileHashCacheDirty) { return }
-    # Only files that still exist: the table never grows past what the builds read
-    $kept = [ordered]@{}
-    foreach ($name in @($script:fileHashCache.Keys | Sort-Object)) {
-        if (Test-Path -LiteralPath $name) { $kept[$name] = $script:fileHashCache[$name] }
-    }
-    Write-BuildJson (Get-FileHashCachePath) $kept
-    $script:fileHashCacheDirty = $false
+    if ('EvolutionsBuildHashes' -as [type]) { [EvolutionsBuildHashes]::Save((Get-FileHashCachePath)) }
 }
 
 function Get-TextHash([string]$text) {
@@ -83,10 +162,8 @@ function Get-BuildFingerprint([string[]]$paths, [string]$salt = '') {
     foreach ($path in @($paths | Sort-Object -Unique)) {
         $lines.Add("root=$path;exists=$(Test-Path -Path $path)")
     }
-    foreach ($file in @(Get-BuildFiles $paths)) {
-        $lines.Add("$($file.FullName)=$(Get-CachedFileHash $file.FullName)")
-    }
-    Get-TextHash ($lines -join "`n")
+    $files = @(Get-BuildFiles $paths)
+    Get-TextHash (($lines -join "`n") + [EvolutionsBuildHashes]::FileLines($files))
 }
 
 function Write-BuildJson([string]$path, $value) {
@@ -113,6 +190,7 @@ function Invoke-CachedBuildStep {
     if (-not $force -and $state -and $state.inputs -eq $inputHash -and
         $state.outputs -eq (Get-BuildFingerprint $outputs)) {
         Write-Host ("Cached {0} ({1:N1}s)" -f $name, $timer.Elapsed.TotalSeconds)
+        Add-BuildTiming $name $timer.Elapsed.TotalSeconds 'cached'
         return
     }
     # Never retain a valid record for a failed or partially completed generation.
@@ -132,10 +210,35 @@ function Invoke-CachedBuildStep {
     Write-BuildJson $statePath @{ inputs = (Get-BuildFingerprint $inputs $salt)
         outputs = (Get-BuildFingerprint $outputs) }
     Write-Host ("Built {0} ({1:N1}s)" -f $name, $timer.Elapsed.TotalSeconds)
+    Add-BuildTiming $name $timer.Elapsed.TotalSeconds 'step'
 }
 
-function Invoke-BuildTool([string]$program, [string[]]$arguments) {
+# How long each step and tool of the build took, written to .build/timings.json by Save-BuildTimings: where a slow
+# build spends its time, without guessing
+$script:buildTimings = [Collections.Generic.List[object]]::new()
+
+function Add-BuildTiming([string]$name, [double]$seconds, [string]$kind = 'tool') {
+    $script:buildTimings.Add([pscustomobject]@{ name = $name; kind = $kind; seconds = [math]::Round($seconds, 1) })
+}
+
+function Invoke-Timed([string]$name, [scriptblock]$action) {
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    try { & $action | Out-Host }
+    finally { Add-BuildTiming $name $timer.Elapsed.TotalSeconds }
+}
+
+function Save-BuildTimings([string]$path, [double]$totalSeconds) {
+    Write-BuildJson $path @{ finishedUtc = (Get-Date).ToUniversalTime().ToString('o')
+        totalSeconds = [math]::Round($totalSeconds, 1); entries = @($script:buildTimings) }
+    $slowest = @($script:buildTimings | Where-Object { $_.kind -ne 'cached' } | Sort-Object seconds -Descending |
+        Select-Object -First 6 | ForEach-Object { "$($_.name) $($_.seconds)s" })
+    if ($slowest) { Write-Host ("Slowest: " + ($slowest -join ', ')) }
+}
+
+function Invoke-BuildTool([string]$program, [string[]]$arguments, [string]$label = '') {
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     & $program @arguments | Out-Host
+    Add-BuildTiming $(if ($label) { $label } else { $program }) $timer.Elapsed.TotalSeconds
     if ($LASTEXITCODE -ne 0) { throw "$program failed (exit $LASTEXITCODE)." }
 }
 

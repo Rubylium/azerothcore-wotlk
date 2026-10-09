@@ -99,7 +99,9 @@ server: `{ "zones": ["Stormwind City", "Hurlevent"], "sound": "<key>", "points":
    `loudness` (dBFS RMS) defaults to the kind's (ui and world -12, loop -16: the game's own cues sit at -12 to -25);
    a limiter holds the peaks under -1 dBFS. Sounds from another game are often mixed far quieter: leave the default.
 2. `python localTools/audio/buildAudio.py`: writes `clientPatcher/addons/EvolutionsAudio` (`Sounds/`, `sounds.txt`,
-   the `.toc`), shipped by `Build-FriendPatch.ps1` as `Interface\AddOns\EvolutionsAudio`. Commit it.
+   the `.toc`), shipped by `Build-FriendPatch.ps1` as `Interface\AddOns\EvolutionsAudio`. The client build runs it
+   itself when a manifest or a source changed (`clientPatcher/build/stages.json`); run it by hand to hear a sound
+   before a build. Commit its output.
 3. Server (mod-stat-growth `EvolutionsAudio.h`): `EvolutionsAudio::Play(player, key)`, `PlayOn(player, key, object)`,
    `PlayAt(player, key, position)`, `StopOn(player, object)`, `PlayMusic(player, key)`, `StopMusic(player)` - to one
    player (an addon whisper, prefix `EVA`).

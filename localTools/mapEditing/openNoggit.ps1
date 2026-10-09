@@ -1,6 +1,6 @@
 # Opens the map editor (Noggit 3, localTools/mapEditing/.deps/noggit, README.md here) set up for this server: it reads
 # the game client's archives (ours included) and saves what is edited, at its archive path, into clientPatcher/maps -
-# which the client build packs into patch-Z, and rebuildServerMaps.ps1 gives the server.
+# which the client build packs into patch-X, and rebuildServerMaps.ps1 gives the server.
 param(
     [string]$clientPath = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK',
     # Noggit's faster renderer, on the graphics cards that support it (bindless textures)
@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Force -Path $projectPath | Out-Null
 
 # What Noggit reads: a view of the client - its archives hard linked, and only the locale folders that hold a locale
 # (the launcher leaves a realmlist.wtf in an enUS folder; Noggit takes any locale folder for the game's, tries enUS
-# first and dies on DBC files it does not have). Made again every time: a rebuilt patch-Z is a new file.
+# first and dies on DBC files it does not have). Made again every time: a rebuilt patch-X is a new file.
 $viewPath = Join-Path $PSScriptRoot '.view'
 if (Test-Path -LiteralPath $viewPath) {
     # Remove the junctions without following them into the client

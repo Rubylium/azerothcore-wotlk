@@ -1,6 +1,6 @@
-// Extracts the copy of one file the game client actually reads, before our own patch-Z: the highest-priority
+// Extracts the copy of one file the game client actually reads, before our own base patches: the highest-priority
 // archive that holds it. 3.3.5 ranks the lettered base patches (Data/patch-?.MPQ, later letters first) above the
-// locale patches, which rank above the numbered base patches and the base game; patch-Z itself is skipped.
+// locale patches, which rank above the numbered base patches and the base game; ours (patch-X, -Y and -Z) are skipped.
 //
 //   node extractEffectiveClientFile.js <archive path> <outFile> [--client <path>]
 //
@@ -28,7 +28,7 @@ const list = (directory, pattern) => fs.readdirSync(directory).filter((name) => 
 
 // Highest priority first
 const archives = [
-    ...list(data, /^patch-[a-y]\.mpq$/i),
+    ...list(data, /^patch-[a-w]\.mpq$/i),
     ...list(path.join(data, locale), new RegExp(`^patch-${locale}-[a-z]\\.mpq$`, 'i')),
     ...list(path.join(data, locale), new RegExp(`^patch-${locale}-[2-9]\\.mpq$`, 'i')),
     path.join(data, locale, `patch-${locale}.MPQ`),

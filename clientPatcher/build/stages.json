@@ -1,0 +1,71 @@
+{
+  "comment": [
+    "The client build's generators (clientPatcher/build/ClientGeneration.ps1), each a cached step run on every build:",
+    "it runs again only when one of its inputs (or outputs) changed, so nothing has to be run by hand before a deploy.",
+    "Run in this order, before the class data (their icons are read by it) and the archives.",
+    "name: the cache's record and the progress window's marker (Building <name> / Cached <name>); label: the window's",
+    "text. command: the program and its arguments, {client} the game client's folder, {awesome} awesome_wotlk's.",
+    "inputs / outputs: paths from the repository root, folders and wildcards allowed; inputsFrom: inputs worked out",
+    "by the build itself (groundIndicators: every script and painting shapes.json names; detailsIcons: the icons",
+    "classes.json names)."
+  ],
+  "generators": [
+    {
+      "name": "audio",
+      "label": "Sons",
+      "command": ["python", "localTools/audio/buildAudio.py"],
+      "inputs": ["localTools/audio/buildAudio.py", "localTools/audio/clientFiles.js", "modules/*/client-assets/audio"],
+      "outputs": ["clientPatcher/addons/EvolutionsAudio"]
+    },
+    {
+      "name": "groundIndicators",
+      "label": "Marques au sol",
+      "command": ["python", "localTools/groundIndicators/buildGroundIndicators.py"],
+      "inputs": ["localTools/groundIndicators"],
+      "inputsFrom": "groundIndicators",
+      "outputs": ["modules/mod-stat-growth/client-assets/compiled/indicators"]
+    },
+    {
+      "name": "vorhanIcons",
+      "label": "Icônes de Vorhan",
+      "command": ["python", "localTools/wardenVorhan/buildIcons.py"],
+      "inputs": ["localTools/wardenVorhan/buildIcons.py", "localTools/interface/buildLegendaryClientArt.py",
+                 "localTools/wardenVorhan/art/ICON_*.png", "localTools/wardenVorhan/art/INV_*.png"],
+      "outputs": ["modules/mod-stat-growth/client-assets/compiled/ICON_*.tga",
+                  "modules/mod-stat-growth/client-assets/compiled/INV_Vorhan_*.tga"]
+    },
+    {
+      "name": "vorhanGaze",
+      "label": "Œil de Vorhan",
+      "command": ["python", "localTools/wardenVorhan/buildGazeUi.py"],
+      "inputs": ["localTools/wardenVorhan/buildGazeUi.py", "localTools/wardenVorhan/indicatorArt.py",
+                 "localTools/wardenVorhan/art/eye_*.png", "localTools/wardenVorhan/art/gaze_*.png"],
+      "outputs": ["clientPatcher/interface/Interface/WardenVorhan"]
+    },
+    {
+      "name": "paragonIcons",
+      "label": "Icônes du parangon",
+      "command": ["python", "localTools/paragon/buildParagonIcons.py"],
+      "inputs": ["localTools/paragon/buildParagonIcons.py", "modules/mod-stat-growth/client-assets/source/icons"],
+      "outputs": ["modules/mod-stat-growth/client-assets/compiled/ParagonNode_*.tga"]
+    },
+    {
+      "name": "wowExe",
+      "label": "Patchs de Wow.exe",
+      "command": ["python", "localTools/clientExe/buildWowExePatch.py", "--awesome-wotlk", "{awesome}"],
+      "inputs": ["localTools/clientExe", "{awesome}/src/AwesomeWotlkPatch/Patch.h",
+                 "{client}/Wow.exe.before-custom-classes"],
+      "outputs": ["clientPatcher/template/WowExePatch.json"]
+    },
+    {
+      "name": "detailsIcons",
+      "label": "Icônes de classe (Details)",
+      "command": ["python", "localTools/interface/buildDetailsClassIcons.py", "--client", "{client}"],
+      "inputsFrom": "detailsIcons",
+      "inputs": ["localTools/interface/buildDetailsClassIcons.py", "localTools/customClasses/classes.json",
+                 "{client}/Interface/AddOns/Details/images/classes_small*.tga",
+                 "{client}/Interface/AddOns/Details/images/spec_icons_normal*.tga"],
+      "outputs": ["clientPatcher/addons/Details/images"]
+    }
+  ]
+}

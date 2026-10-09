@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Everything shipped in patch-Z.MPQ: the patched DBCs and every compiled custom icon
+// Everything shipped in our base patches (patch-X, -Y and -Z.MPQ, packOf): the patched DBCs, every compiled custom
+// icon, the models, sounds and music
 function getPatchFiles(repoRoot) {
     const dbcRoot = path.join(repoRoot, 'server', 'Data', 'dbc');
     const iconRoot = path.join(repoRoot, 'modules', 'mod-stat-growth', 'client-assets', 'compiled');
@@ -219,6 +220,26 @@ function getPatchFiles(repoRoot) {
     return files;
 }
 
+// Which of our base patches a file goes in, by how often it changes, so a change rebuilds and uploads only its own:
+// - Z: the DBCs, the icons and the talent frames (every spell edit)
+// - Y: the ground indicators (each boss's new marks)
+// - X: everything else, heavy and stable (imported and retail models, music, sounds, effects, maps)
+// Paths never repeat across them, so their order does not matter between them; all three load after the stock and
+// vendor patches (D, L), as patch-Z alone did.
+const PACKS = ['X', 'Y', 'Z'];
+function packOf(file) {
+    const source = file.source.split(path.sep).join('/').toLowerCase();
+    const archive = file.archive.toLowerCase();
+    if (source.includes('/client-assets/compiled/indicators/')) {
+        return 'Y';
+    }
+    if (source.includes('/server/data/dbc/') || archive.startsWith('interface\\icons\\')
+        || archive.startsWith('interface\\talentframe\\')) {
+        return 'Z';
+    }
+    return 'X';
+}
+
 // How a file goes into an archive. Sound (music above all) is stored as it is, neither compressed nor encrypted, as
 // the game's own archives store it: the client streams music straight out of the archive, and StormLib's default
 // (compressed and encrypted) left a track it would not play. Anything else takes the default.
@@ -227,4 +248,4 @@ function addOptions(archiveName) {
     return AUDIO.test(archiveName) ? { flags: 0 } : undefined;
 }
 
-module.exports = { getPatchFiles, addOptions };
+module.exports = { getPatchFiles, addOptions, packOf, PACKS };

@@ -8,8 +8,11 @@ const { archiveCache } = require('./archiveCache');
 // Builds the client interface patches from clientPatcher/interface and clientPatcher/vendor:
 // - Data/<locale>/patch-<locale>-R.MPQ: the retail glue package (clientPatcher/vendor/retail-glue, Noa-1995's
 //   "WoW Retail Interface", used and adapted with the author's permission: the login, realm, character select
-//   and character creation screens), then every file under clientPatcher/interface on top of it (RetailUI window
-//   chrome, and the glue files adapted for Evolutions), plus the client's own FrameXML.toc with our files added.
+//   and character creation screens), then the art of clientPatcher/interface on top of it (RetailUI window chrome,
+//   our windows' textures, the glue art adapted for Evolutions).
+// - Data/<locale>/patch-<locale>-S.MPQ: our interface's code (every .lua, .xml and .toc of clientPatcher/interface,
+//   and the client's own FrameXML.toc with our files added) and its DBCs. Loaded after R, it wins over the glue
+//   package's own code. Kept apart from the art so a Lua edit repacks and ships a few MB, not hundreds.
 // - Data/patch-L.MPQ: the Shadowlands login screen assets (Patch-C.mpq of "Shadowlands character creator mix" by
 //   gongel, based on warfoll02's work, modification permitted) without its GlueXML (replaced by ours) and with
 //   the custom menu music from clientPatcher/vendor/music.
@@ -235,12 +238,17 @@ const shippable = (files) => files.filter((file) => !/\.png$/i.test(file.archive
 
 const vendorGlue = vendorGlueFiles();
 console.log(`Retail glue package: ${vendorGlue.length} files`);
-const interfaceFiles = mergeByArchive(vendorGlue, [{ source: frameXmlToc, archive: tocName }],
-    shippable(walk(interfaceRoot)), [{ source: logoSource, archive: logoName }]);
-writeArchive(path.join(dataPath, locale, `patch-${locale}-R.MPQ`), interfaceFiles);
-// What this patch owns. The client reads patch-L before it, so anything it also packs would win over ours --
+// Our code and the client's DBCs we ship: what changes with nearly every edit
+const isCode = (file) => /\.(lua|xml|toc)$/i.test(file.archive) || /^DBFilesClient\\/i.test(file.archive);
+const ours = shippable(walk(interfaceRoot));
+const interfaceArt = mergeByArchive(vendorGlue, ours.filter((file) => !isCode(file)),
+    [{ source: logoSource, archive: logoName }]);
+const interfaceCode = mergeByArchive([{ source: frameXmlToc, archive: tocName }], ours.filter(isCode));
+writeArchive(path.join(dataPath, locale, `patch-${locale}-R.MPQ`), interfaceArt);
+writeArchive(path.join(dataPath, locale, `patch-${locale}-S.MPQ`), interfaceCode);
+// What these patches own. The client reads patch-L before them, so anything it also packs would win over ours --
 // that is how the mix's character creation art ended up under the retail screens.
-const interfaceOwned = new Set(interfaceFiles.map((file) => file.archive.toLowerCase()));
+const interfaceOwned = new Set([...interfaceArt, ...interfaceCode].map((file) => file.archive.toLowerCase()));
 
 // --- patch-L: Shadowlands login screen assets + menu music ---
 // The mod ships 430 MB, most of it never loaded by 3.3.5 (Worgen/Goblin/Pandaria/allied race scenes, older
@@ -283,6 +291,18 @@ function stockFileNames() {
     return names;
 }
 
+// The interface paths our code names (with the extensions a reference can drop): what makes a mod file reachable
+function referencedInterfacePaths() {
+    const bases = new Set();
+    for (const file of walk(interfaceRoot).filter((entry) => /\.(lua|xml)$/i.test(entry.source))) {
+        const text = fs.readFileSync(file.source, 'latin1');
+        for (const match of text.matchAll(/Interface[\\/]+[A-Za-z0-9_\-\\/ ().']+/g)) {
+            bases.add(match[0].replace(/[\\/]+/g, '\\').toLowerCase());
+        }
+    }
+    return [...bases].sort();
+}
+
 function buildShadowlandsPatch() {
     const source = path.join(vendorRoot, 'shadowlands-charcreate', 'extracted', 'Shadowlands login screen mix',
         'Patch-C.mpq');
@@ -297,6 +317,29 @@ function buildShadowlandsPatch() {
     }
     const replaced = (lower) => replacedNames.has(lower) || lower.startsWith('interface\\gluexml\\')
         || interfaceOwned.has(lower);
+
+    // Nothing it is made from changed (the mod, what is packed over it, the paths our code names, what R and S own, the
+    // stock archives): it stands, without reading the mod's thousands of files and the stock listfiles again
+    const outputPath = path.join(dataPath, 'patch-L.MPQ');
+    const referenced = referencedInterfacePaths();
+    const loadingBarSources = ['Loading-BarBorder.blp', 'Loading-BarFill.blp']
+        .map((leaf) => path.join(glueVendorRoot, 'Glues', 'LoadingBar', leaf));
+    // The stock archives (ours aside: patch-L to -Z, the locale's M to Z), by size and time
+    const stockNames = fs.readdirSync(dataPath).filter((name) => /\.mpq$/i.test(name)
+        && !/^patch-[l-z]\.mpq$/i.test(name)).concat(fs.readdirSync(path.join(dataPath, locale))
+        .filter((name) => /\.mpq$/i.test(name) && !/-[m-z]\.mpq$/i.test(name)).map((name) => path.join(locale, name)));
+    const stockStamp = stockNames.map((name) => {
+        const stat = fs.statSync(path.join(dataPath, name));
+        return `${name}:${stat.size}:${stat.mtimeMs}`;
+    });
+    const madeFrom = [source, musicSource, classIconSource, logoSource, ...loadingBarSources]
+        .filter((file) => fs.existsSync(file)).map((file) => ({ source: file, archive: file }));
+    const precheck = archiveCache(outputPath, madeFrom, __filename,
+        JSON.stringify({ referenced, owned: [...interfaceOwned].sort(), stock: stockStamp }), `${outputPath}|sources`);
+    if (precheck.current) {
+        console.log(`Cached ${outputPath} (its sources unchanged)`);
+        return;
+    }
 
     const stock = stockFileNames();
     const archive = Archive.open(source);
@@ -345,13 +388,9 @@ function buildShadowlandsPatch() {
                 mark(lower);
             }
         }
-        for (const file of walk(interfaceRoot).filter((entry) => /\.(lua|xml)$/i.test(entry.source))) {
-            const text = fs.readFileSync(file.source, 'latin1');
-            for (const match of text.matchAll(/Interface[\\/]+[A-Za-z0-9_\-\\/ ().']+/g)) {
-                const base = match[0].replace(/[\\/]+/g, '\\').toLowerCase();
-                for (const extension of ['', '.blp', '.m2', '.tga']) {
-                    mark(base + extension);
-                }
+        for (const base of referenced) {
+            for (const extension of ['', '.blp', '.m2', '.tga']) {
+                mark(base + extension);
             }
         }
         // Converted models name their textures with either slash ("interface/glues/models/...")
@@ -405,7 +444,8 @@ function buildShadowlandsPatch() {
             files.push({ source: loadingBarSource, archive: `Interface\\Glues\\LoadingBar\\${leaf}` });
         }
         console.log(`Shadowlands assets: ${reachable.size} of ${names.size} files are used by the client`);
-        writeArchive(path.join(dataPath, 'patch-L.MPQ'), files);
+        writeArchive(outputPath, files);
+        precheck.save();
     } finally {
         archive.close();
         fs.rmSync(stage, { recursive: true, force: true });

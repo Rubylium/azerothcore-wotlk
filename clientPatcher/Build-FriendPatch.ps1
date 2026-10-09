@@ -1,7 +1,7 @@
 param(
     [string]$version,
     [string]$clientPath = 'C:\Users\alexi\Documents\GitHub\CleanWOTLK',
-    # Package the current patch-Z.MPQ as is, without regenerating the spell data first
+    # Package the installed patch-X, -Y and -Z.MPQ as they are, without regenerating the spell data first
     [switch]$skipSpellData,
     # Reuse the installed glue/interface MPQs. Useful while WoW has its stock locale archives locked.
     [switch]$skipInterfacePatches,
@@ -31,20 +31,33 @@ $buildCacheRoot = Join-Path $buildRoot 'cache'
 . (Join-Path $patcherRoot 'build/ClientPayload.ps1')
 $buildLock = Open-BuildLock $buildRoot
 $previousForce = $env:EVOLUTIONS_FORCE_REBUILD
+$buildTimer = [Diagnostics.Stopwatch]::StartNew()
 try {
 if ($forceRebuild) { $env:EVOLUTIONS_FORCE_REBUILD = '1' }
 $readyPath = Join-Path $buildRoot 'ready.json'
-# Invalidate before touching any output: a failed build must never be publishable.
-if (Test-Path -LiteralPath $readyPath) { Remove-Item -LiteralPath $readyPath -Force }
 $templatePath = Join-Path $patcherRoot 'template'
 $stagePath = Join-Path $buildRoot 'current'
 $payloadPath = Join-Path $stagePath 'payload'
-$clientMpqPath = Join-Path $clientPath 'Data/patch-Z.MPQ'
-$builtMpqPath = Join-Path $repoRoot 'localTools/mpq-builder/patch-Z.MPQ'
-$packageMpqPath = if ($skipSpellData) { $clientMpqPath } else { $builtMpqPath }
+# Our base patches (localTools/mpq-builder/buildPatch.js): built there, then copied into the client
+$builtMpqRoot = Join-Path $repoRoot 'localTools/mpq-builder'
+$basePatchNames = @('patch-X.MPQ', 'patch-Y.MPQ', 'patch-Z.MPQ')
 if (-not (Test-Path -LiteralPath (Join-Path $clientPath 'Wow.exe'))) {
     throw "WotLK client not found at: $clientPath"
 }
+
+# Nothing changed since the last build (its sources, its payload): it stands as it is, in a few seconds. A deploy of
+# the news or the launcher alone no longer rebuilds the client.
+$ready = Read-BuildJson $readyPath
+if (-not $forceRebuild -and -not $version -and -not $skipSpellData -and -not $skipInterfacePatches -and $ready -and
+    $ready.clientPath -eq $clientPath -and $ready.awesomeWotlkPath -eq $awesomeWotlkPath -and
+    $ready.sources -eq (Get-ClientReleaseFingerprint) -and $ready.payload -eq (Get-BuildFingerprint @($stagePath))) {
+    Write-Host ("Client unchanged since build {0} ({1:N1}s)" -f $ready.version, $buildTimer.Elapsed.TotalSeconds)
+    Write-Host "Client build ready: $($ready.version)"
+    Write-Host "Payload: $payloadPath"
+    return
+}
+# Invalidate before touching any output: a failed build must never be publishable.
+if (Test-Path -LiteralPath $readyPath) { Remove-Item -LiteralPath $readyPath -Force }
 if ([string]::IsNullOrWhiteSpace($version)) {
     $current = Read-BuildJson (Join-Path $stagePath 'manifest.json')
     $latest = if ($current) { [version]$current.version } else {
@@ -56,10 +69,14 @@ if ([string]::IsNullOrWhiteSpace($version)) {
     $version = if ($latest) { "$($latest.Major).$($latest.Minor).$($latest.Build + 1)" } else { '1.0.0' }
 }
 Invoke-ClientGeneration
+$phase = [Diagnostics.Stopwatch]::StartNew()
 New-Item -ItemType Directory -Path $payloadPath -Force | Out-Null
 Copy-BuildFile (Join-Path $templatePath 'WowExePatch.json') (Join-Path $stagePath 'WowExePatch.json')
 
 $sources = @(
+    # Our base patches, split by how often they change (localTools/mpq-builder/patchFiles.js packOf)
+    'Data\patch-X.MPQ',
+    'Data\patch-Y.MPQ',
     'Data\patch-Z.MPQ',
     'Interface\AddOns\DungeonBots',
     'Interface\AddOns\PersonalLoot',
@@ -100,8 +117,10 @@ $sources = @(
     # WDM-patch 2.4.5 (Trimitor, github.com/Trimitor/WDM-patch): built-in world map (M) for Classic and TBC
     # instances. Client-only map data and textures; it touches none of the DBCs in patch-Z.MPQ
     'Data\frFR\patch-frFR-M.MPQ',
-    # RetailUI window chrome and the Shadowlands character creation screen with retail round icons
+    # RetailUI window chrome and the Shadowlands character creation screen with retail round icons (the art), then
+    # our interface's code over it (S: a Lua edit repacks a few MB, not the art's hundreds)
     'Data\frFR\patch-frFR-R.MPQ',
+    'Data\frFR\patch-frFR-S.MPQ',
     # Shadowlands login screen assets (gongel / warfoll02) and the custom menu music
     'Data\patch-L.MPQ',
     # awesome_wotlk: loaded by Wow.exe once Patch-WowExe.ps1 has patched it in. skia.dll is its renderer and
@@ -120,8 +139,9 @@ $repoAddonPath = Join-Path $patcherRoot 'addons'
 $payloadSources = @{}
 foreach ($relativePath in $sources) {
     $repoSourcePath = Join-Path $repoAddonPath ($relativePath -replace '^Interface\\AddOns\\', '')
-    $sourcePath = if ($relativePath -eq 'Data\patch-Z.MPQ') {
-        $packageMpqPath
+    $sourcePath = if ($relativePath -match '^Data\\patch-[XYZ]\.MPQ$') {
+        $name = Split-Path -Leaf $relativePath
+        if ($skipSpellData) { Join-Path $clientPath "Data\$name" } else { Join-Path $builtMpqRoot $name }
     }
     elseif ($externalSources.ContainsKey($relativePath)) {
         $externalSources[$relativePath]
@@ -144,6 +164,8 @@ foreach ($relativePath in $sources) {
     Add-PayloadSource $payloadSources $sourcePath $relativePath
 }
 Sync-ClientPayload $payloadSources $payloadPath
+Add-BuildTiming 'payload' $phase.Elapsed.TotalSeconds 'phase'
+$phase.Restart()
 
 $files = Get-ChildItem -LiteralPath $payloadPath -File -Recurse | Sort-Object FullName | ForEach-Object {
     [ordered]@{
@@ -162,6 +184,8 @@ $manifest = [ordered]@{
 }
 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stagePath 'manifest.json') -Encoding UTF8
+Add-BuildTiming 'manifest' $phase.Elapsed.TotalSeconds 'phase'
+$phase.Restart()
 
 Write-BuildJson $readyPath @{
     version = $version
@@ -170,7 +194,9 @@ Write-BuildJson $readyPath @{
     sources = (Get-ClientReleaseFingerprint)
     payload = (Get-BuildFingerprint @($stagePath))
 }
-Write-Host "Client build ready: $version"
+Add-BuildTiming 'readyRecord' $phase.Elapsed.TotalSeconds 'phase'
+Save-BuildTimings (Join-Path $buildRoot 'timings.json') $buildTimer.Elapsed.TotalSeconds
+Write-Host ("Client build ready: {0} ({1:N1}s)" -f $version, $buildTimer.Elapsed.TotalSeconds)
 Write-Host "Payload: $payloadPath"
 }
 finally {

@@ -38,6 +38,29 @@ function Marker($match, $label) { @{ Match = $match; Label = $label } }
 $serverArguments = @()
 if ($reconfigure) { $serverArguments = @('-configure') }
 
+# The client build's parts: its generators as clientPatcher/build/stages.json lists them, then the class data, the
+# archives and the interface (clientPatcher/build/ClientGeneration.ps1)
+$clientMarkers = @((Marker 'Client unchanged since build' 'Client inchangé'))
+$stageManifest = Join-Path $repoRoot 'clientPatcher\build\stages.json'
+if (Test-Path -LiteralPath $stageManifest) {
+    foreach ($stage in @((Get-Content -LiteralPath $stageManifest -Raw -Encoding UTF8 | ConvertFrom-Json).generators)) {
+        $clientMarkers += (Marker "Building $($stage.name)" $stage.label)
+        $clientMarkers += (Marker "Cached $($stage.name)" "$($stage.label) : inchangé")
+    }
+}
+$clientMarkers += @(
+    (Marker 'Compiling custom icons' 'Icônes des sorts'), (Marker 'Patching spell data' 'Données des sorts'),
+    (Marker 'Generating custom classes' 'Classes'), (Marker 'Generating talent trees' 'Arbres de talents'),
+    (Marker 'Cached classData' 'Données inchangées'),
+    (Marker 'Building patch-X, -Y and -Z' 'Archives de base'), (Marker 'Compiling Evolutions Glue' 'Logo'),
+    (Marker 'Cached glueLogo' 'Logo inchangé'),
+    (Marker 'Compiling Paragon interface art' 'Plateau du parangon'),
+    (Marker 'Cached paragonArt' 'Plateau inchangé'), (Marker 'Compiling talent tree art' 'Art des talents'),
+    (Marker 'Cached talentArt' 'Art des talents inchangé'), (Marker 'Building interface patches' 'Interface'),
+    (Marker 'Cached interfacePatches' 'Interface inchangée'),
+    (Marker 'patch-Z.MPQ (' 'Archives de base terminées'),
+    (Marker 'Client build ready' 'Client prêt'))
+
 $catalog = [ordered]@{
     server  = @{
         Label = 'Serveur'; Caption = 'Compilation'; Expected = 240; Initial = 'Dépendances'
@@ -56,19 +79,7 @@ $catalog = [ordered]@{
     client  = @{
         Label = 'Patch client'; Caption = 'Données, modèles et interface'; Expected = 170; Initial = 'Préparation'
         Script = Join-Path $repoRoot 'clientPatcher\Build-FriendPatch.ps1'; Arguments = @(); NeedsWowClosed = $true
-        Markers = @(
-            (Marker 'Compiling custom icons' 'Icônes des sorts'), (Marker 'Patching spell data' 'Données des sorts'),
-            (Marker 'Compiling Paragon node icons' 'Icônes du parangon'), (Marker 'Generating custom classes' 'Classes'),
-            (Marker 'Generating talent trees' 'Arbres de talents'),
-            (Marker 'Generating the Wow.exe' 'Patchs de Wow.exe'),
-            (Marker 'Painting custom class icons' 'Icônes de classe'), (Marker 'Cached classData' 'Données inchangées'),
-            (Marker 'Building patch-Z.MPQ' 'Archive patch-Z'), (Marker 'Compiling Evolutions Glue' 'Logo'),
-            (Marker 'Cached glueLogo' 'Logo inchangé'),
-            (Marker 'Compiling Paragon interface art' 'Plateau du parangon'),
-            (Marker 'Cached paragonArt' 'Plateau inchangé'), (Marker 'Compiling talent tree art' 'Art des talents'),
-            (Marker 'Cached talentArt' 'Art des talents inchangé'), (Marker 'Building interface patches' 'Interface'),
-            (Marker 'Cached interfacePatches' 'Interface inchangée'),
-            (Marker 'Client build ready' 'Client prêt'))
+        Markers = $clientMarkers
     }
     restart = @{
         Label = 'Redémarrage du serveur'; Caption = 'Installation et relance'; Expected = 60; Initial = 'Préparation'
@@ -737,6 +748,12 @@ $timer.Add_Tick({
                             $found = Select-String -LiteralPath $step.Log -Pattern $versionPattern[$step.Name] |
                                 Select-Object -Last 1
                             if ($found) { $step.Version = $found.Matches[0].Groups[1].Value }
+                        }
+                        # The client build rewrote the server's DBCs (a spell's data): a server that is not
+                        # restarted in this run keeps the old ones, and the two disagree
+                        if ($step.Name -eq 'client' -and $steps -notcontains 'restart' -and
+                            (Select-String -LiteralPath $step.Log -Pattern 'Server DBCs changed' -Quiet)) {
+                            $step.Summary = 'DBC du serveur modifiées : redémarrez le serveur (étape restart)'
                         }
                     }
                     else {

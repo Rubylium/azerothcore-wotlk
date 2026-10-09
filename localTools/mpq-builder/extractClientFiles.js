@@ -1,5 +1,5 @@
 // Extracts files from the game client's archives, the highest-priority copy of each (patches over the base game,
-// the locale archives over the common ones, our own patch-Z last).
+// the locale archives over the common ones, our own patch-X, -Y and -Z last).
 //
 //   node extractClientFiles.js <list.json> <outDir> [--client <path>]
 //
@@ -26,7 +26,7 @@ const locale = fs.readdirSync(data).find((name) => /^[a-z]{2}[A-Z]{2}$/.test(nam
 const archives = ['common.MPQ', 'common-2.MPQ', 'expansion.MPQ', 'lichking.MPQ', 'patch.MPQ', 'patch-2.MPQ',
     'patch-3.MPQ', `${locale}/locale-${locale}.MPQ`, `${locale}/expansion-locale-${locale}.MPQ`,
     `${locale}/lichking-locale-${locale}.MPQ`, `${locale}/patch-${locale}.MPQ`, `${locale}/patch-${locale}-2.MPQ`,
-    `${locale}/patch-${locale}-3.MPQ`, 'patch-Z.MPQ']
+    `${locale}/patch-${locale}-3.MPQ`, 'patch-X.MPQ', 'patch-Y.MPQ', 'patch-Z.MPQ']
     .map((name) => path.join(data, name))
     .filter((file) => fs.existsSync(file));
 
