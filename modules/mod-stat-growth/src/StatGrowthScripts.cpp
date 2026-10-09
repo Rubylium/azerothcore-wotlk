@@ -625,7 +625,7 @@ SpecBalanceRow const SpecBalance[] = {
         { "balance.paladin.3", 0.69f }, { "balance.paladin.4", 1.0f } } },
     { { { "balance.hunter.1", 1.06f }, { "balance.hunter.2", 0.74f },
         { "balance.hunter.3", 0.75f }, { "balance.hunter.4", 1.0f } } },
-    { { { "balance.rogue.1", 1.48f }, { "balance.rogue.2", 1.11f },
+    { { { "balance.rogue.1", 1.48f }, { "balance.rogue.2", 1.28f },
         { "balance.rogue.3", 0.72f }, { "balance.rogue.4", 1.0f } } },
     { { { "balance.priest.1", 1.0f }, { "balance.priest.2", 1.0f },
         { "balance.priest.3", 0.65f }, { "balance.priest.4", 1.0f } } },
