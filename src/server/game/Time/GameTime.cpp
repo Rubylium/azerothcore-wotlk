@@ -16,7 +16,10 @@
  */
 
 #include "GameTime.h"
+#include "Config.h"
 #include "Timer.h"
+#include <algorithm>
+#include <atomic>
 
 namespace GameTime
 {
@@ -62,9 +65,48 @@ namespace GameTime
 
     void UpdateGameTimers()
     {
-        GameTime = GetEpochTime();
+        // The simulation bench's warp (Timer.h, 0 on a live server) moves every one of them alike
+        Milliseconds const warp(Acore::Time::GetWarpMS());
+        GameTimeSystemPoint = system_clock::now() + warp;
+        GameTime = duration_cast<Seconds>(GameTimeSystemPoint.time_since_epoch());
         GameMSTime = GetTimeMS();
-        GameTimeSystemPoint = system_clock::now();
-        GameTimeSteadyPoint = steady_clock::now();
+        GameTimeSteadyPoint = steady_clock::now() + warp;
+    }
+
+    bool Simulation = false;
+    std::atomic<uint32> SimulationStepMs{ 10 };
+    std::atomic<bool> SimulationTurbo{ false };
+
+    void LoadSimulationSettings()
+    {
+        Simulation = sConfigMgr->GetOption<bool>("Sim.Enable", false);
+        // Creatures update on the maps' full updates only, one in about four world updates: a step much past 10 ms
+        // makes their timing coarser than a live server's
+        SimulationStepMs = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("Sim.StepMs", 10));
+    }
+
+    bool IsSimulation()
+    {
+        return Simulation;
+    }
+
+    uint32 GetSimulationStepMs()
+    {
+        return SimulationStepMs;
+    }
+
+    void SetSimulationStepMs(uint32 stepMs)
+    {
+        SimulationStepMs = std::max<uint32>(1, stepMs);
+    }
+
+    void SetSimulationTurbo(bool turbo)
+    {
+        SimulationTurbo.store(turbo, std::memory_order_relaxed);
+    }
+
+    bool IsSimulationTurbo()
+    {
+        return Simulation && SimulationTurbo.load(std::memory_order_relaxed);
     }
 }

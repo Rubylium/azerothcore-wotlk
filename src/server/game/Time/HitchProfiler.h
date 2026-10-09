@@ -8,6 +8,7 @@
 #include "Define.h"
 #include <atomic>
 #include <chrono>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -43,6 +44,10 @@ public:
     void SetThreshold(uint32 thresholdMs);
     bool IsEnabled() const { return _enabled.load(); }
     HitchProfilerSnapshot GetSnapshot() const;
+
+    // Every section's and map's time summed since the last call, the costliest first, and the ticks and their time
+    // (the simulation bench's "#simprofile": where an update's time goes, not only in hitches)
+    std::string TakeTotals(uint32 top);
 
 private:
     struct SectionTiming
@@ -87,6 +92,9 @@ private:
     mutable std::mutex _dataMutex;
     std::vector<SectionTiming> _sections;
     std::vector<MapTiming> _maps;
+    std::map<std::string, uint64> _totals;
+    uint64 _totalTicks = 0;
+    uint64 _totalTickUs = 0;
     std::thread _watchdog;
     uint64 _lastCpuTime100ns = 0;
     uint64 _lastCpuWallNs = 0;

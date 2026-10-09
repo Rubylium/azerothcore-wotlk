@@ -12161,7 +12161,7 @@ void Player::ApplyEquipCooldown(Item* pItem)
                 continue;
 
             if (Aura* itemAura = GetAura(spellData.SpellId, GetGUID(), pItem->GetGUID()))
-                itemAura->AddProcCooldown(std::chrono::steady_clock::now() + procEntry->Cooldown);
+                itemAura->AddProcCooldown(GameTime::Now() + procEntry->Cooldown);
             continue;
         }
 

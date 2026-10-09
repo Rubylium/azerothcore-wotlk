@@ -1,7 +1,8 @@
 # The combat bench's sweep and auto-tune (bench.ps1 sweep / tune): every damage spec measured at once, each bot alone
 # on its own dummies (`.bench lanes`, a phase a lane), at a list of profiles (item level : paragon), then summed up
 # against the Fire mage; the auto-tune moves the spec balance knobs (balance0.* from the no-paragon profile, balance.*
-# from the 650 one) toward the mage, live. Dot-sourced by bench.ps1 after its Send-Request.
+# from the 650 one) toward the mage, live. Dot-sourced by bench.ps1 after its Send-Request, and by the simulation bench
+# (localTools/simBench/simBench.ps1: a heat a simulation worker, Invoke-SweepHeat / Invoke-TuneHeat).
 # Guide: .agents/docs/systems/combat-bench.md ("Fast survey: the sweep").
 
 $Invariant = [System.Globalization.CultureInfo]::InvariantCulture
@@ -83,8 +84,16 @@ function New-SweepHeats($specs, [int]$copies, [int]$lanes) {
 
 # --- Session steps ---------------------------------------------------------------------------------------------------
 
+# The bots' talent build: single, aoe, auto, or layout (the default) - each layout fought on its own build, the packs
+# on the area one and the single targets on the other (.bench preset switches them in place between runs)
+function Get-LayoutBuild([string]$layout) {
+    if ($layout -match '^(pack\d+|spread\d+|tankpack)$') { 'aoe' } else { 'single' }
+}
+
 function Send-SweepBots($heat, [int]$ilvl, [string]$preset) {
-    $line = ($heat | ForEach-Object { "$($_.Class) $($_.Spec) $ilvl $preset" }) -join ';'
+    $script:SweepPreset = $preset
+    $script:SweepBuild = if ($preset -eq 'layout') { 'single' } else { $preset }
+    $line = ($heat | ForEach-Object { "$($_.Class) $($_.Spec) $ilvl $($script:SweepBuild)" }) -join ';'
     $answer = Send-Request @("bots $line") (180 + 8 * $heat.Count)
     $state = $answer | Where-Object { $_ -match '#benchstate;bots=(\d+)' } | Select-Object -Last 1
     $count = if ($state -match 'bots=(\d+)') { [int]$Matches[1] } else { -1 }
@@ -108,7 +117,12 @@ function Set-SweepProfile($prof, [ref]$currentIlvl) {
 
 function Invoke-SweepRun([string]$layout, $prof, [string]$goal) {
     $timeout = if ($goal.EndsWith('%')) { 900 } else { [int]$goal.TrimEnd('s') + 240 }
-    Send-Request @("run $layout $($prof.Scaling) $goal") $timeout
+    $lines = @()
+    if ($script:SweepPreset -eq 'layout' -and $script:SweepBuild -ne (Get-LayoutBuild $layout)) {
+        $script:SweepBuild = Get-LayoutBuild $layout
+        $lines += ".bench preset $($script:SweepBuild)"
+    }
+    Send-Request ($lines + @("run $layout $($prof.Scaling) $goal")) $timeout
 }
 
 function Exit-SweepLanes {
@@ -232,6 +246,36 @@ function Format-Clock([TimeSpan]$span) { '{0}:{1:00}' -f [int][Math]::Floor($spa
 
 # --- The sweep -------------------------------------------------------------------------------------------------------
 
+# One heat (lanes on): its bots brought once, then every profile (geared in place, its board), layout and repeat.
+# Returns its rows.
+function Invoke-SweepHeat($heat, [string]$context, $profiles, $specs, [int]$repeats, [string]$goal, [string]$preset,
+    [int]$ilvlTolerance, $clock) {
+    $heatClock = [System.Diagnostics.Stopwatch]::StartNew()
+    Write-Host ("[{0}] bringing {1} bots at ilvl {2}..." -f $context, $heat.Count, $profiles[0].Ilvl)
+    Send-SweepBots $heat $profiles[0].Ilvl $preset
+    Write-Host "[$context] bots in after $(Format-Clock $heatClock.Elapsed)"
+    # Geared again in place for the first profile too: a content bot can keep a former login's gear (one at
+    # 270 asked 258, another at 225)
+    $currentIlvl = 0
+    foreach ($prof in $profiles) {
+        Set-SweepProfile $prof ([ref]$currentIlvl)
+        foreach ($layout in $prof.Layouts) {
+            for ($repeat = 1; $repeat -le $repeats; ++$repeat) {
+                $answer = Invoke-SweepRun $layout $prof $goal
+                $found = @(ConvertFrom-SweepRows $answer $prof $specs $context $ilvlTolerance)
+                if (-not $found.Count) {
+                    Write-Warning 'No sweep row in that run:'
+                    $answer | Select-Object -Last 8 | ForEach-Object { Write-Warning $_ }
+                }
+                $found
+                $untrusted = @($found | Where-Object { -not $_.Trusted }).Count
+                Write-Host ("[{0}] {1} {2} #{3}: {4} rows, {5} untrusted ({6})" -f $context, $prof.Label, $layout,
+                    $repeat, $found.Count, $untrusted, (Format-Clock $clock.Elapsed))
+            }
+        }
+    }
+}
+
 function Invoke-BenchSweep($profiles, $specs, [int]$copies, [int]$repeats, [int]$lanes, [int]$laneHealth,
     [string]$goal, [string]$preset, [int]$ilvlTolerance, [string]$outputDirectory) {
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
@@ -244,30 +288,8 @@ function Invoke-BenchSweep($profiles, $specs, [int]$copies, [int]$repeats, [int]
     Send-Request @(".bench lanes on $laneHealth") 30 | Out-Null
     try {
         for ($index = 0; $index -lt $heats.Count; ++$index) {
-            $heat = $heats[$index]
-            $heatClock = [System.Diagnostics.Stopwatch]::StartNew()
-            Write-Host ("[heat {0}/{1}] bringing {2} bots at ilvl {3}..." -f ($index + 1), $heats.Count, $heat.Count,
-                $profiles[0].Ilvl)
-            Send-SweepBots $heat $profiles[0].Ilvl $preset
-            Write-Host "[heat $($index + 1)] bots in after $(Format-Clock $heatClock.Elapsed)"
-            $currentIlvl = $profiles[0].Ilvl
-            foreach ($prof in $profiles) {
-                Set-SweepProfile $prof ([ref]$currentIlvl)
-                foreach ($layout in $prof.Layouts) {
-                    for ($repeat = 1; $repeat -le $repeats; ++$repeat) {
-                        $answer = Invoke-SweepRun $layout $prof $goal
-                        $found = @(ConvertFrom-SweepRows $answer $prof $specs "heat$($index + 1)" $ilvlTolerance)
-                        if (-not $found.Count) {
-                            Write-Warning 'No sweep row in that run:'
-                            $answer | Select-Object -Last 8 | ForEach-Object { Write-Warning $_ }
-                        }
-                        $found | ForEach-Object { $rows.Add($_) }
-                        $untrusted = @($found | Where-Object { -not $_.Trusted }).Count
-                        Write-Host ("[heat {0}] {1} {2} #{3}: {4} rows, {5} untrusted ({6})" -f ($index + 1),
-                            $prof.Label, $layout, $repeat, $found.Count, $untrusted, (Format-Clock $clock.Elapsed))
-                    }
-                }
-            }
+            Invoke-SweepHeat $heats[$index] "heat$($index + 1)" $profiles $specs $repeats $goal $preset $ilvlTolerance `
+                $clock | ForEach-Object { $rows.Add($_) }
         }
     } finally {
         Exit-SweepLanes
@@ -412,36 +434,56 @@ function Invoke-BenchTune($tuneProfiles, $validateProfiles, $specs, $settings, [
     Send-Request @(".bench lanes on $($settings.LaneHealth)") 30 | Out-Null
     try {
         for ($index = 0; $index -lt $heats.Count; ++$index) {
-            $heat = $heats[$index]
-            $context = "heat$($index + 1)"
-            $first = @($tuneProfiles)[0]
-            Write-Host ("`n[{0}] bringing {1} bots at ilvl {2}... ({3})" -f $context, $heat.Count, $first.Ilvl,
-                (Format-Clock $clock.Elapsed))
-            Send-SweepBots $heat $first.Ilvl $settings.Preset
-            $currentIlvl = $first.Ilvl
-            foreach ($prof in $tuneProfiles) {
-                $profileClock = [System.Diagnostics.Stopwatch]::StartNew()
-                Set-SweepProfile $prof ([ref]$currentIlvl)
-                Invoke-TuneProfile $prof $heat $specs $mageSamples[$prof.Label] $rows $settings $context |
-                    ForEach-Object { $changes.Add($_) }
-                Write-Host "[$context] $($prof.Label) tuned in $(Format-Clock $profileClock.Elapsed)"
-            }
-            foreach ($prof in $validateProfiles) {
-                Set-SweepProfile $prof ([ref]$currentIlvl)
-                foreach ($layout in $prof.Layouts) {
-                    for ($repeat = 1; $repeat -le $settings.Repeats; ++$repeat) {
-                        $answer = Invoke-SweepRun $layout $prof $settings.Goal
-                        ConvertFrom-SweepRows $answer $prof $specs "$context/validate" $settings.IlvlTolerance |
-                            ForEach-Object { $rows.Add($_) }
-                    }
-                }
-            }
-            Write-Host "[$context] done after $(Format-Clock $clock.Elapsed)"
+            Invoke-TuneHeat $heats[$index] "heat$($index + 1)" $tuneProfiles $validateProfiles $specs $settings `
+                $mageSamples $rows $changes $clock
         }
     } finally {
         Exit-SweepLanes
     }
 
+    Show-TuneResults $changes $rows
+    $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
+    New-Item -ItemType Directory -Force $outputDirectory | Out-Null
+    Export-InvariantCsv $rows (Join-Path $outputDirectory "tune-$stamp-rows.csv")
+    Export-InvariantCsv $changes (Join-Path $outputDirectory "tune-$stamp.csv")
+    "`nAuto-tune: wall clock $(Format-Clock $clock.Elapsed)."
+    "CSV: var\combatBench\tune-$stamp.csv (rows: tune-$stamp-rows.csv)"
+    'Overrides stay live (.tune list balance). Check, then: python localTools/tuning/bakeTuning.py --dry-run'
+}
+
+# One heat of the auto-tune (lanes on): its bots brought once, each tune profile settled in turn, then the validation
+# profiles measured once. Adds to rows and changes; the Fire mage's samples pool by profile over the heats given.
+function Invoke-TuneHeat($heat, [string]$context, $tuneProfiles, $validateProfiles, $specs, $settings, $mageSamples,
+    $rows, $changes, $clock) {
+    $first = @($tuneProfiles)[0]
+    Write-Host ("`n[{0}] bringing {1} bots at ilvl {2}... ({3})" -f $context, $heat.Count, $first.Ilvl,
+        (Format-Clock $clock.Elapsed))
+    Send-SweepBots $heat $first.Ilvl $settings.Preset
+    # Geared again in place for the first profile too: a content bot can keep a former login's gear (one at
+    # 270 asked 258, another at 225)
+    $currentIlvl = 0
+    foreach ($prof in $tuneProfiles) {
+        $profileClock = [System.Diagnostics.Stopwatch]::StartNew()
+        Set-SweepProfile $prof ([ref]$currentIlvl)
+        Invoke-TuneProfile $prof $heat $specs $mageSamples[$prof.Label] $rows $settings $context |
+            ForEach-Object { $changes.Add($_) }
+        Write-Host "[$context] $($prof.Label) tuned in $(Format-Clock $profileClock.Elapsed)"
+    }
+    foreach ($prof in $validateProfiles) {
+        Set-SweepProfile $prof ([ref]$currentIlvl)
+        foreach ($layout in $prof.Layouts) {
+            for ($repeat = 1; $repeat -le $settings.Repeats; ++$repeat) {
+                $answer = Invoke-SweepRun $layout $prof $settings.Goal
+                ConvertFrom-SweepRows $answer $prof $specs "$context/validate" $settings.IlvlTolerance |
+                    ForEach-Object { $rows.Add($_) }
+            }
+        }
+    }
+    Write-Host "[$context] done after $(Format-Clock $clock.Elapsed)"
+}
+
+# The tune's summary: every knob moved (old -> new, the last share), then the validation profiles' sweep
+function Show-TuneResults($changes, $rows) {
     "`n== Spec balance factors (live overrides; bake: python localTools/tuning/bakeTuning.py --dry-run) =="
     "   moved: its last step not measured again; in noise: off the band by less than its standard error (more"
     "   -repeats); stuck: its gap grew twice running (look at its rotation and rows first)"
@@ -456,11 +498,4 @@ function Invoke-BenchTune($tuneProfiles, $validateProfiles, $specs, $settings, [
         "`n== Validation (no tuning) =="
         Show-SweepSummary @(Measure-Sweep $checks)
     }
-    $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-    New-Item -ItemType Directory -Force $outputDirectory | Out-Null
-    Export-InvariantCsv $rows (Join-Path $outputDirectory "tune-$stamp-rows.csv")
-    Export-InvariantCsv $changes (Join-Path $outputDirectory "tune-$stamp.csv")
-    "`nAuto-tune: wall clock $(Format-Clock $clock.Elapsed)."
-    "CSV: var\combatBench\tune-$stamp.csv (rows: tune-$stamp-rows.csv)"
-    'Overrides stay live (.tune list balance). Check, then: python localTools/tuning/bakeTuning.py --dry-run'
 }

@@ -17,8 +17,24 @@
 
 #include "Timer.h"
 #include "StringFormat.h"
+#include <atomic>
 #include <iomanip>
 #include <sstream>
+
+namespace
+{
+    std::atomic<int64> WarpMS{ 0 };
+}
+
+int64 Acore::Time::GetWarpMS()
+{
+    return WarpMS.load(std::memory_order_relaxed);
+}
+
+void Acore::Time::AddWarpMS(int64 milliseconds)
+{
+    WarpMS.fetch_add(milliseconds, std::memory_order_relaxed);
+}
 
 namespace Acore::TimeDiff // in us
 {

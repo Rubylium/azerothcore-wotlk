@@ -36,7 +36,7 @@ param(
     [int]$lanes = 30,                                      # lanes a heat (the bench's phases: 30 at most)
     [string]$goal = '',                                    # '1%': a whole kill a lane instead of -seconds
     [int]$laneHealth = 0,                                  # lanes' dummies' health %, default 100 (25 for a kill)
-    [string]$preset = 'single',                            # the bots' talent build: single, aoe or auto
+    [string]$preset = 'layout',                            # the bots' build: layout (packs aoe), single, aoe, auto
     [int]$ilvlTolerance = 10,                              # a row further from the asked item level is untrusted
     [double]$target = 1.0,                                 # tune: the share of the Fire mage aimed at
     [double]$band = 0.05,                                  # tune: settled within target +/- band

@@ -1,5 +1,9 @@
 # Combat bench (class tuning, rotations, AoE / single-target balance)
 
+**Surveys, sweeps and the auto-tune run on the simulation bench** (`sim-bench.md`: the same bench on world servers of
+its own, the real code many times faster than real time, several at once, the live realm untouched). The live bench
+below stays for watching one spec in game and for what needs a client.
+
 The in-game test ground (`.bench`, GM Island) measures damage, healing and damage taken on dummies scaled exactly
 like Mythic+ creatures. **Use it for any class tuning, new class or spec, talent / rotation change, or bot AI combat
 change** instead of dungeon runs. **Every damage spec at once: the sweep** (each bot alone on its own dummies, 30 at a

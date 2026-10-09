@@ -18,6 +18,7 @@
 #include "MapMgr.h"
 #include "Chat.h"
 #include "DatabaseEnv.h"
+#include "GameTime.h"
 #include "GridDefines.h"
 #include "GridTerrainLoader.h"
 #include "Group.h"
@@ -273,9 +274,18 @@ void MapMgr::Update(uint32 diff)
         }
     }
 
+    // The simulation bench (GameTime::IsSimulation): a world map no player stands on is left alone - its creatures,
+    // transports and events take nothing from the bench's fights, and they took most of its update time
+    auto const skipped = [](Map const* map)
+    {
+        return GameTime::IsSimulation() && !map->Instanceable() && !map->HavePlayers();
+    };
+
     MapMapType::iterator iter = i_maps.begin();
     for (; iter != i_maps.end(); ++iter)
     {
+        if (skipped(iter->second))
+            continue;
         bool full = mapUpdateStep < 3 && ((mapUpdateStep == 0 && !iter->second->IsBattlegroundOrArena() && !iter->second->IsDungeon()) || (mapUpdateStep == 1 && iter->second->IsBattlegroundOrArena()) || (mapUpdateStep == 2 && iter->second->IsDungeon()));
         if (m_updater.activated())
             m_updater.schedule_update(*iter->second, uint32(full ? i_timer[mapUpdateStep].GetCurrent() : 0), diff);
@@ -291,7 +301,7 @@ void MapMgr::Update(uint32 diff)
         for (iter = i_maps.begin(); iter != i_maps.end(); ++iter)
         {
             bool full = ((mapUpdateStep == 0 && !iter->second->IsBattlegroundOrArena() && !iter->second->IsDungeon()) || (mapUpdateStep == 1 && iter->second->IsBattlegroundOrArena()) || (mapUpdateStep == 2 && iter->second->IsDungeon()));
-            if (full)
+            if (full && !skipped(iter->second))
                 iter->second->DelayedUpdate(uint32(i_timer[mapUpdateStep].GetCurrent()));
         }
 

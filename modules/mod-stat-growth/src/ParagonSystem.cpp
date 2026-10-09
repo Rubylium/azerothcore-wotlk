@@ -2154,12 +2154,12 @@ std::string DescribeBotParagon(Player* bot)
     return Acore::StringFormat("board {} {} pts, {} procs", roles[role], state->botBudget, state->procs.size());
 }
 
-void SetBotParagonBudgetOverride(Player* bot, uint32 points)
+void SetBotParagonBudgetOverride(Player* bot, std::optional<uint32> points)
 {
     if (!bot || !bot->GetSession() || !bot->GetSession()->IsBot())
         return;
     if (points)
-        bot->CustomData.GetDefault<BotBudgetOverride>(BotBudgetOverrideKey)->points = points;
+        bot->CustomData.GetDefault<BotBudgetOverride>(BotBudgetOverrideKey)->points = *points;
     else
         bot->CustomData.Erase(BotBudgetOverrideKey);
     RefreshBot(bot, true);

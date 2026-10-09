@@ -17,6 +17,7 @@
 
 #include "LiveTuning.h"
 #include "DatabaseEnv.h"
+#include "GameTime.h"
 #include "QueryResult.h"
 #include "Log.h"
 #include <map>
@@ -44,6 +45,13 @@ Registry& GetRegistry()
 std::shared_mutex SpellLock;
 std::unordered_map<uint32, float> Spells;
 std::atomic<bool> AnySpell = false;
+
+// A simulation worker (Sim.Enable, localTools/simBench) shares the live realm's world database: its overrides stay in
+// its memory, never written where the live server reads them at its next start
+bool Persist()
+{
+    return !GameTime::IsSimulation();
+}
 }
 
 namespace LiveTuning
@@ -79,6 +87,8 @@ bool SetOverride(std::string_view key, double value)
     knob->Apply(value);
     if (!knob->IsOverridden())
         return ResetOverride(key);
+    if (!Persist())
+        return true;
 
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_LIVE_TUNING);
     stmt->SetData(0, std::string(knob->Key()));
@@ -94,6 +104,8 @@ bool ResetOverride(std::string_view key)
         return false;
 
     knob->Apply(knob->Default());
+    if (!Persist())
+        return true;
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_LIVE_TUNING);
     stmt->SetData(0, std::string(knob->Key()));
     WorldDatabase.Execute(stmt);
@@ -121,6 +133,8 @@ void SetSpellMultiplier(uint32 spellId, float multiplier)
         AnySpell.store(!Spells.empty(), std::memory_order_relaxed);
     }
 
+    if (!Persist())
+        return;
     if (drop)
     {
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_DEL_LIVE_TUNING_SPELL);

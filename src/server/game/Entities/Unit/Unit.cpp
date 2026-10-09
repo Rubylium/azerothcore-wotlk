@@ -12960,7 +12960,7 @@ void Unit::ProcSkillsAndReactives(bool isVictim, Unit* target, uint32 procFlag, 
 
 void Unit::GetProcAurasTriggeredOnEvent(AuraApplicationProcContainer& aurasTriggeringProc, std::list<AuraApplication*>* procAuras, ProcEventInfo eventInfo)
 {
-    TimePoint now = std::chrono::steady_clock::now();
+    TimePoint now = GameTime::Now();
 
     auto processAuraApplication = [&](AuraApplication* aurApp)
     {

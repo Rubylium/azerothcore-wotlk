@@ -56,6 +56,18 @@ namespace GameTime
 
     /// Update all timers
     void UpdateGameTimers();
+
+    /// The simulation bench (Sim.Enable, a world server that is no live realm): in turbo the world loop no longer waits
+    /// for the real clock, each update moving every game clock by Sim.StepMs (Timer.h's warp). Off on a live server.
+    AC_GAME_API void LoadSimulationSettings();
+    AC_GAME_API bool IsSimulation();
+    AC_GAME_API uint32 GetSimulationStepMs();
+    AC_GAME_API void SetSimulationStepMs(uint32 stepMs);
+
+    /// Turbo, asked by the simulation's job while its fights run (bots logged in, nothing waited from the database);
+    /// IsSimulationTurbo is false whenever the simulation is off
+    AC_GAME_API void SetSimulationTurbo(bool turbo);
+    AC_GAME_API bool IsSimulationTurbo();
 }
 
 #endif

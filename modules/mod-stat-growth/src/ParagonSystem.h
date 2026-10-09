@@ -4,6 +4,7 @@
 #include "DatabaseEnvFwd.h"
 #include "Define.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -73,8 +74,9 @@ void RefreshBotParagon(Player* bot);
 void SetParagonInstanceBudget(uint32 instanceId, uint32 points);
 
 // The combat bench's (mod-playerbots Script/CombatBench.cpp): a bench bot's board sized for the key or tier the bench
-// scales its dummies to, wherever it stands. 0 hands the bot back to its content's size.
-void SetBotParagonBudgetOverride(Player* bot, uint32 points);
+// scales its dummies to, wherever it stands (0 is no board, whatever its group's players carry). None hands the bot
+// back to its content's size.
+void SetBotParagonBudgetOverride(Player* bot, std::optional<uint32> points);
 
 // The extra threat the board's tank nodes give, in percent (mod-stat-growth's tank aura applies it)
 uint32 GetParagonThreatPct(Player* player);

@@ -30,6 +30,7 @@
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
+#include "GameTime.h"
 #include "GitRevision.h"
 #include "IoContext.h"
 #include "MapMgr.h"
@@ -91,7 +92,7 @@ class FreezeDetector
 {
 public:
     FreezeDetector(Acore::Asio::IoContext& ioContext, uint32 maxCoreStuckTime)
-        : _timer(ioContext), _worldLoopCounter(0), _lastChangeMsTime(getMSTime()), _maxCoreStuckTimeInMs(maxCoreStuckTime) { }
+        : _timer(ioContext), _worldLoopCounter(0), _lastChangeMsTime(getRealMSTime()), _maxCoreStuckTimeInMs(maxCoreStuckTime) { }
 
     static void Start(std::shared_ptr<FreezeDetector> const& freezeDetector)
     {
@@ -580,7 +581,12 @@ void WorldUpdateLoop()
 {
     uint32 minUpdateDiff = uint32(sConfigMgr->GetOption<int32>("MinWorldUpdateTime", 1));
     uint32 realCurrTime = 0;
-    uint32 realPrevTime = getMSTime();
+    uint32 realPrevTime = getRealMSTime();
+
+    GameTime::LoadSimulationSettings();
+    if (GameTime::IsSimulation())
+        LOG_INFO("server.worldserver", "Simulation bench: the world loop runs its clock {} ms an update in turbo",
+            GameTime::GetSimulationStepMs());
 
     uint32 maxCoreStuckTime = uint32(sConfigMgr->GetOption<int32>("MaxCoreStuckTime", 60)) * 1000;
     uint32 halfMaxCoreStuckTime = maxCoreStuckTime / 2;
@@ -597,10 +603,20 @@ void WorldUpdateLoop()
     while (!World::IsStopped())
     {
         ++World::m_worldLoopCounter;
-        realCurrTime = getMSTime();
+        realCurrTime = getRealMSTime();
 
         uint32 diff = getMSTimeDiff(realPrevTime, realCurrTime);
-        if (diff < minUpdateDiff)
+        if (GameTime::IsSimulationTurbo())
+        {
+            // The simulation bench: no wait, the game's clocks jump to a whole step ahead (the warp, Timer.h)
+            uint32 const step = GameTime::GetSimulationStepMs();
+            if (diff < step)
+            {
+                Acore::Time::AddWarpMS(step - diff);
+                diff = step;
+            }
+        }
+        else if (diff < minUpdateDiff)
         {
             uint32 sleepTime = minUpdateDiff - diff;
             if (sleepTime >= halfMaxCoreStuckTime)
@@ -641,7 +657,7 @@ void FreezeDetector::Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, bo
     {
         if (std::shared_ptr<FreezeDetector> freezeDetector = freezeDetectorRef.lock())
         {
-            uint32 curtime = getMSTime();
+            uint32 curtime = getRealMSTime();
 
             uint32 worldLoopCounter = World::m_worldLoopCounter;
             if (freezeDetector->_worldLoopCounter != worldLoopCounter)

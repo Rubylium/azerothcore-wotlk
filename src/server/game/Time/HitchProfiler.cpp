@@ -6,6 +6,7 @@
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "StringFormat.h"
 #include <algorithm>
 #include <sstream>
 
@@ -108,8 +109,14 @@ void HitchProfiler::EndTick()
     }
 
     uint64 const startNs = _tickStartNs.load();
-    uint32 const elapsedMs = uint32((NowNs() - startNs) / 1000000);
+    uint64 const elapsedNs = NowNs() - startNs;
+    uint32 const elapsedMs = uint32(elapsedNs / 1000000);
     _tickActive = false;
+    {
+        std::lock_guard<std::mutex> lock(_dataMutex);
+        ++_totalTicks;
+        _totalTickUs += elapsedNs / 1000;
+    }
     _currentSection = "idle";
 
     if (elapsedMs >= _thresholdMs)
@@ -124,19 +131,23 @@ void HitchProfiler::EnterSection(char const* name, char const*& previousSection)
 void HitchProfiler::LeaveSection(char const* name, char const* previousSection, uint64 durationUs)
 {
     _currentSection = previousSection ? previousSection : "world update";
+    std::lock_guard<std::mutex> lock(_dataMutex);
+    _totals[name] += durationUs;
     if (durationUs < uint64(_sectionThresholdMs.load()) * 1000)
         return;
 
-    std::lock_guard<std::mutex> lock(_dataMutex);
     _sections.push_back({ name, durationUs });
 }
 
 void HitchProfiler::RecordMapUpdate(uint32 mapId, uint32 instanceId, uint64 durationUs)
 {
-    if (!_enabled || durationUs < uint64(_sectionThresholdMs.load()) * 1000)
+    if (!_enabled)
         return;
 
     std::lock_guard<std::mutex> lock(_dataMutex);
+    _totals[Acore::StringFormat("map {}", mapId)] += durationUs;
+    if (durationUs < uint64(_sectionThresholdMs.load()) * 1000)
+        return;
     _maps.push_back({ mapId, instanceId, durationUs });
 }
 
@@ -284,4 +295,21 @@ HitchProfilerSectionScope::~HitchProfilerSectionScope()
     uint64 const durationUs = uint64(std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now() - _start).count());
     sHitchProfiler.LeaveSection(_name, _previousSection, durationUs);
+}
+
+std::string HitchProfiler::TakeTotals(uint32 top)
+{
+    std::lock_guard<std::mutex> lock(_dataMutex);
+    std::vector<std::pair<std::string, uint64>> sorted(_totals.begin(), _totals.end());
+    std::sort(sorted.begin(), sorted.end(), [](auto const& left, auto const& right)
+    {
+        return left.second > right.second;
+    });
+    std::string text = Acore::StringFormat("ticks={};tickms={:.1f}", _totalTicks, _totalTickUs / 1000.0);
+    for (std::size_t index = 0; index < sorted.size() && index < top; ++index)
+        text += Acore::StringFormat(";{}={:.1f}", sorted[index].first, sorted[index].second / 1000.0);
+    _totals.clear();
+    _totalTicks = 0;
+    _totalTickUs = 0;
+    return text;
 }

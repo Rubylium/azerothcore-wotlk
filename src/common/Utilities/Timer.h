@@ -72,6 +72,16 @@ namespace Acore::Time
 
 AC_COMMON_API struct tm* localtime_r(time_t const* time, struct tm* result);
 
+namespace Acore::Time
+{
+    // The simulation bench's clock (Sim.Enable: a world server that is no live realm, its world loop running faster
+    // than the real clock): how far that loop has gone ahead of the real clock, in milliseconds. The game's clocks
+    // add it - getMSTime, GetTimeMS, GetGameClockNow and so GameTime - and only the world loop moves it, between two
+    // updates. Always 0 on a live server: game time is real time.
+    AC_COMMON_API int64 GetWarpMS();
+    AC_COMMON_API void AddWarpMS(int64 milliseconds);
+}
+
 inline TimePoint GetApplicationStartTime()
 {
     using namespace std::chrono;
@@ -81,11 +91,29 @@ inline TimePoint GetApplicationStartTime()
     return ApplicationStartTime;
 }
 
-inline Milliseconds GetTimeMS()
+// The real clock, for what runs in real time whatever the game's clock does: the world loop's pacing, the freeze
+// detector, database retries
+inline Milliseconds GetRealTimeMS()
 {
     using namespace std::chrono;
 
     return duration_cast<milliseconds>(steady_clock::now() - GetApplicationStartTime());
+}
+
+inline uint32 getRealMSTime()
+{
+    return uint32(GetRealTimeMS().count());
+}
+
+// The game's steady clock (a steady_clock time point, ahead of the real one by the simulation's warp)
+inline TimePoint GetGameClockNow()
+{
+    return std::chrono::steady_clock::now() + Milliseconds(Acore::Time::GetWarpMS());
+}
+
+inline Milliseconds GetTimeMS()
+{
+    return GetRealTimeMS() + Milliseconds(Acore::Time::GetWarpMS());
 }
 
 inline Milliseconds GetMSTimeDiff(Milliseconds oldMSTime, Milliseconds newMSTime)
@@ -102,9 +130,7 @@ inline Milliseconds GetMSTimeDiff(Milliseconds oldMSTime, Milliseconds newMSTime
 
 inline uint32 getMSTime()
 {
-    using namespace std::chrono;
-
-    return uint32(duration_cast<milliseconds>(steady_clock::now() - GetApplicationStartTime()).count());
+    return uint32(GetTimeMS().count());
 }
 
 inline uint32 getMSTimeDiff(uint32 oldMSTime, uint32 newMSTime)
