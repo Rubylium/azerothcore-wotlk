@@ -1,5 +1,19 @@
 [
   {
+    "Title": "Donjon d'Utgarde : Ingvar le Pillard",
+    "Date": "2026-10-11",
+    "Tag": "Donjons",
+    "Image": "mythicplus",
+    "Body": "Ingvar le Pillard a été entièrement repensé. Ses attaques sont désormais annoncées avant de frapper et restent aussi dangereuses à chaque niveau de clé Mythique+, et sa résurrection ne se déroule plus sans encombre."
+  },
+  {
+    "Title": "Guerrier : Charge en combat",
+    "Date": "2026-10-11",
+    "Tag": "Classe",
+    "Image": "talents",
+    "Body": "La Charge du guerrier est désormais utilisable en combat dans toutes les spécialisations, y compris Fureur et Gladiateur."
+  },
+  {
     "Title": "La Forge : renforcer les légendaires",
     "Date": "2026-10-10",
     "Tag": "Forge",
