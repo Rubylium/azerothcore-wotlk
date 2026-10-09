@@ -235,8 +235,8 @@ LiveTuning::KnobUInt const KeepItRollingMs("rogue.outlaw_keep_it_rolling_ms", 30
 // for each one short of the maximum; Acier dansant: one more, and longer; Déluge amélioré: more, per rank); its first
 // strike on the enemies around (Manœuvres habiles: a combo point for each enemy struck, up to its first rank's count,
 // all five at its second)
-LiveTuning::KnobInt const BladeFlurryPct("rogue.outlaw_blade_flurry_pct", 45);
-LiveTuning::KnobUInt const BladeFlurryTargets("rogue.outlaw_blade_flurry_targets", 6);
+LiveTuning::KnobInt const BladeFlurryPct("rogue.outlaw_blade_flurry_pct", 70);
+LiveTuning::KnobUInt const BladeFlurryTargets("rogue.outlaw_blade_flurry_targets", 8);
 LiveTuning::Knob const BladeFlurryRange("rogue.outlaw_blade_flurry_range", 8.0f);
 LiveTuning::KnobInt const BladeFlurryStrikeWeaponPct("rogue.outlaw_blade_flurry_strike_weapon_pct", 50);
 LiveTuning::KnobInt const PreciseCutsPct("rogue.outlaw_precise_cuts_pct", 2);

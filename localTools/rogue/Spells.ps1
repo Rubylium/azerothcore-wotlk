@@ -224,11 +224,11 @@ $spells = @(
        Description = "Lancez les os : vos effets de Jeter les os disparaissent et vous en gagnez un au hasard pendant 30 s, parfois deux (25% de chances) - Bordée, Trésor enfoui, Grande mêlée, Précision impitoyable, Tête de mort ou Cap assuré."
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 1 })
        Fields = @{ 1 = 0; 40 = 9; 131 = (Look 'OutlawRollTheBones'); 205 = 133; 206 = 1000; 209 = 0; 210 = 0; 211 = $flagRollTheBones; 213 = 0 } },
-    # Déluge de lames: a 10 s dummy buff every 30 s; mod-rogue strikes up to 6 enemies around on use
+    # Déluge de lames: a 10 s dummy buff every 30 s; mod-rogue strikes up to 8 enemies around on use
     # (rogue.outlaw_blade_flurry_targets) and repeats the rogue's single-target damage on them while it lasts
     @{ Id = 92346; Clone = 2983; Name = 'Déluge de lames'; IconPath = 'Interface\Icons\Ability_Warrior_PunishingBlow'; FallbackIconSpell = 13877; Cost = 15; Cooldown = 30000; Level = 1; Spellbook = $true; SkillLine = $combat; ClassMask = $classMask
-       Description = "Frappe jusqu'à 6 ennemis proches pour 50% des dégâts de votre arme principale. Pendant 10 s, les dégâts que vous infligez à une seule cible sont répétés sur jusqu'à 6 autres ennemis à 8 m, pour 45% de leur montant."
-       AuraDescription = "Vos dégâts sur une seule cible sont répétés sur jusqu'à 6 ennemis proches, pour 45%."
+       Description = "Frappe jusqu'à 8 ennemis proches pour 50% des dégâts de votre arme principale. Pendant 10 s, les dégâts que vous infligez à une seule cible sont répétés sur jusqu'à 8 autres ennemis à 8 m, pour 70% de leur montant."
+       AuraDescription = "Vos dégâts sur une seule cible sont répétés sur jusqu'à 8 ennemis proches, pour 70%."
        Effects = @(@{ Index = 0; Effect = 6; Aura = $A_Dummy; TargetA = 1 })
        Fields = @{ 1 = 0; 40 = 1; 131 = (Look 'OutlawBladeFlurry'); 205 = 133; 206 = 1000; 209 = 0; 210 = 0; 211 = $flagBladeFlurry; 213 = 0 } },
     # Poussée d'adrénaline: real auras, Energy regeneration doubled and attack speed +20% for 20 s, every 3 min
