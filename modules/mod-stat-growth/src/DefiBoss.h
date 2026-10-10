@@ -3,18 +3,24 @@
 
 #include "EvolutionsAudio.h"
 #include "FightMusic.h"
+#include "MythicTuning.h"
 
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
+#include "Group.h"
 #include "LiveTuning.h"
 #include "Log.h"
 #include "Map.h"
+#include "PathGenerator.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PowerScaling.h"
 #include "ScriptedCreature.h"
+#include "SpellAuras.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "Timer.h"
 #include "WorldSession.h"
 
@@ -84,6 +90,16 @@ public:
 
     void JustSummoned(Creature* summon) override { _summons.Summon(summon); }
     void SummonedCreatureDespawn(Creature* summon) override { _summons.Despawn(summon); }
+
+private:
+    static float PathLength(PathGenerator const& path)
+    {
+        Movement::PointsArray const& points = path.GetPath();
+        float length = 0.0f;
+        for (size_t index = 1; index < points.size(); ++index)
+            length += (points[index] - points[index - 1]).length();
+        return length;
+    }
 
 protected:
     // --- To give ---------------------------------------------------------------------------------------------------
@@ -212,6 +228,78 @@ protected:
 
     Room const& GetRoom() const { return _room; }
 
+    // Whether a spot of the room is walked to from its middle in a straight enough line (not past a wall, not off
+    // the floor): where an add may stand
+    bool Reachable(Position const& at) const
+    {
+        Position const center = Ground(_room.center);
+        float const distance = center.GetExactDist2d(&at);
+        PathGenerator path(me);
+        path.SetUseRaycast(false);
+        if (!path.CalculatePath(center.GetPositionX(), center.GetPositionY(), center.GetPositionZ(),
+                at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(), false) ||
+            path.GetPathType() != PATHFIND_NORMAL)
+            return false;
+        return PathLength(path) <= distance * 1.15f + 2.0f &&
+            std::hypot(path.GetActualEndPosition().x - at.GetPositionX(),
+                path.GetActualEndPosition().y - at.GetPositionY()) <= 1.5f &&
+            std::fabs(path.GetActualEndPosition().z - at.GetPositionZ()) <= 3.0f;
+    }
+
+    // A spot distance from the room's middle the players can reach, at a random angle (from angle on, if given);
+    // nearer in, a yard at a time, where the room is narrower
+    Position EdgeSpot(float distance, float angle = -1.0f) const
+    {
+        float const first = angle < 0.0f ? frand(0.0f, 2.0f * float(M_PI)) : angle;
+        for (float reach = distance; reach >= 5.0f; reach -= 3.0f)
+            for (uint32 step = 0; step < 12; ++step)
+            {
+                Position const at = AtAngle(_room.center, first + float(step) * 2.0f * float(M_PI) / 12.0f, reach);
+                if (Reachable(at))
+                    return at;
+            }
+        return Ground(_room.center);
+    }
+
+public:
+    // How far the room's floor reaches from its middle, in `directions` directions (clockwise from north): a yard at a
+    // time until the floor drops or rises more than 2 yards, or a wall stands in the line of sight - for laying a fight
+    // out (a game master's command)
+    std::vector<float> MeasureRoom(uint32 directions = 36, float maxReach = 80.0f) const
+    {
+        std::vector<float> reach;
+        Position const center = Ground(_room.center);
+        for (uint32 index = 0; index < directions; ++index)
+        {
+            float const angle = Position::NormalizeOrientation(-float(index) * 2.0f * float(M_PI) / float(directions));
+            float last = center.GetPositionZ();
+            float distance = 1.0f;
+            for (; distance <= maxReach; distance += 1.0f)
+            {
+                float const x = center.GetPositionX() + std::cos(angle) * distance;
+                float const y = center.GetPositionY() + std::sin(angle) * distance;
+                float const z = me->GetMap()->GetHeight(me->GetPhaseMask(), x, y, last + 5.0f, true, 15.0f);
+                if (z <= INVALID_HEIGHT || std::fabs(z - last) > 2.0f)
+                    break;
+                Position const at(x, y, z);
+                // Walked to, not seen: a path from the middle no longer straight is past a wall (the line of sight
+                // went through the Blood Furnace's walls)
+                PathGenerator path(me);
+                path.SetUseRaycast(false);
+                if (!path.CalculatePath(center.GetPositionX(), center.GetPositionY(), center.GetPositionZ(),
+                        at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(), false) ||
+                    path.GetPathType() != PATHFIND_NORMAL || PathLength(path) > distance * 1.15f + 2.0f ||
+                    std::hypot(path.GetActualEndPosition().x - x, path.GetActualEndPosition().y - y) > 1.5f)
+                    break;
+                last = at.GetPositionZ();
+            }
+            reach.push_back(distance - 1.0f);
+        }
+        return reach;
+    }
+
+protected:
+
     // --- The music -------------------------------------------------------------------------------------------------
     // Its track to everyone near (the bots too are claimed: their owner's music is not theirs to end), from its start
     void StartMusic(char const* key, uint32 fadeInMs = 0)
@@ -237,6 +325,131 @@ protected:
         _musicListeners.clear();
     }
 
+    // --- What it deals ----------------------------------------------------------------------------------------------
+    // The reference health its hits are shares of: a player of its profile (Power::ExpectedPlayerHealth)
+    float Reference() const
+    {
+        return Power::ExpectedPlayerHealth(GetSizing().itemLevel, GetSizing().paragon);
+    }
+
+    // What makes a player take more (a fight's own debuffs): 1 by default
+    virtual float TakenFactor(Unit const* /*victim*/) const { return 1.0f; }
+
+    // A share of the reference health as spell (its name in the log and the death recap): the Défi tier's factor
+    // applies on the way (MythicTuning::DealAbilityDamage), then the player's defences
+    void Hit(Player* player, uint32 spellId, float percent)
+    {
+        if (!player || !player->IsAlive())
+            return;
+        float const amount = Reference() * percent / 100.0f * TakenFactor(player);
+        MythicTuning::DealAbilityDamage(me, player, spellId, uint32(std::max(1.0f, amount)));
+    }
+
+    void HitEveryone(uint32 spellId, float percent)
+    {
+        for (Player* player : ArenaPlayers())
+            Hit(player, spellId, percent);
+    }
+
+    // A rule broken where the rule is binary: death, whatever protects them, the spell named in the log
+    void Doom(Player* player, uint32 spellId)
+    {
+        if (!player || !player->IsAlive())
+            return;
+        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId))
+        {
+            SpellNonMeleeDamage log(me, player, info, info->GetSchoolMask());
+            log.damage = player->GetHealth();
+            me->SendSpellNonMeleeDamageLog(&log);
+        }
+        Unit::Kill(me, player, true, BASE_ATTACK, sSpellMgr->GetSpellInfo(spellId));
+    }
+
+    // A debuff of the fight's (a dummy aura) for durationMs, with stacks
+    void AddTimedAura(Unit* target, uint32 spellId, uint32 durationMs, uint8 stacks = 1)
+    {
+        if (!target || !sSpellMgr->GetSpellInfo(spellId))
+            return;
+        Aura* aura = target->GetAura(spellId);
+        if (!aura)
+            aura = me->AddAura(spellId, target);
+        if (!aura)
+            return;
+        aura->SetMaxDuration(int32(durationMs));
+        aura->SetDuration(int32(durationMs));
+        aura->SetStackAmount(std::max<uint8>(1, stacks));
+    }
+
+    uint8 StacksOf(Unit const* target, uint32 spellId) const
+    {
+        Aura const* aura = target ? target->GetAura(spellId) : nullptr;
+        return aura ? aura->GetStackAmount() : 0;
+    }
+
+    // --- Its casts -----------------------------------------------------------------------------------------------
+    // A step on its cast bar: it stops and casts for as long as the step takes, rooted (chasing its tank broke the
+    // cast and the bar went while the step still came)
+    void CastBar(uint32 castSpell)
+    {
+        me->StopMoving();
+        me->SetControlled(true, UNIT_STATE_ROOT);
+        _rooted = true;
+        if (sSpellMgr->GetSpellInfo(castSpell))
+            me->CastSpell(me, castSpell, false);
+    }
+
+    void EndCastBar()
+    {
+        if (_rooted)
+        {
+            _rooted = false;
+            me->SetControlled(false, UNIT_STATE_ROOT);
+        }
+    }
+
+    bool CastingBar() const { return _rooted; }
+
+    // --- Its adds ------------------------------------------------------------------------------------------------
+    // An add's health: the seconds it lasts against the profile's group - alone (its single-target damage), or as one
+    // of a pack (its share of the group's area damage: Power::ExpectedDps's pack is the damage on five, all of them)
+    void SizeAdd(Creature* add, float seconds, bool pack) const
+    {
+        Sizing const& sizing = GetSizing();
+        float const dealers = Power::GroupDamageDealers(sizing.damageDealers, sizing.tanks, sizing.healers);
+        float const dps = Power::ExpectedDps(sizing.itemLevel, sizing.paragon, pack) / (pack ? PackOf : 1.0f);
+        uint32 const health = uint32(std::max(1.0f, dps * dealers * seconds));
+        add->SetCreateHealth(health);
+        add->SetMaxHealth(health);
+        add->SetFullHealth();
+    }
+
+    // The skull of the room's group on target (the bots attack it first), or taken off (target nullptr)
+    void SetSkull(Unit* target)
+    {
+        for (Player* player : ArenaPlayers())
+            if (Group* group = player->GetGroup())
+            {
+                group->SetTargetIcon(7, ObjectGuid::Empty, target ? target->GetGUID() : ObjectGuid::Empty);
+                return;
+            }
+    }
+
+    // --- A beat of its music -------------------------------------------------------------------------------------
+    // fn on that beat of grid (at once if it is past)
+    template <typename Fn>
+    void AtBeat(BeatGrid const& grid, uint32 beat, Fn fn)
+    {
+        uint32 const at = grid.At(beat);
+        uint32 const now = Elapsed();
+        scheduler.Schedule(Milliseconds(at > now ? at - now : 0), [fn](TaskContext) { fn(); });
+    }
+
+    uint32 CurrentBeat(BeatGrid const& grid) const
+    {
+        float const beat = grid.BeatOf(Elapsed());
+        return beat > 0.0f ? uint32(std::ceil(beat - 0.05f)) : 0;
+    }
+
     // A kill's yell, at most every 10 s
     bool KillYellReady()
     {
@@ -251,7 +464,8 @@ protected:
     char const* _logName;
 
 private:
-    static constexpr uint32 GraceMs = 8000;     // an instance not known as a challenge's this long: the boss goes
+    static constexpr uint32 GraceMs = 8000;
+    static constexpr float PackOf = 5.0f;       // the targets Power::ReferencePackDps is measured on     // an instance not known as a challenge's this long: the boss goes
 
     Room _room;
     uint32 _pullMs = 0;
@@ -260,6 +474,7 @@ private:
     uint32 _defiWaitMs = 0;
     uint32 _lastKillYellMs = 0;
     bool _defiConfirmed = false;
+    bool _rooted = false;
     std::set<ObjectGuid> _musicListeners;
 };
 }
