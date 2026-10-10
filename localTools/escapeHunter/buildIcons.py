@@ -52,7 +52,8 @@ def main():
         write_icon_tga(image, ICONS / f"{name}.tga")
         built.append(name)
     # What was built, the stage's output even before any icon is painted (a stock icon until then: never a placeholder)
-    STAMP.write_text(json.dumps({"built": built}, indent=2) + "\n", encoding="utf-8")
+    with open(STAMP, "w", encoding="utf-8", newline="\n") as stamp:
+        stamp.write(json.dumps({"built": built}, indent=2) + "\n")
     print(f"Traqueur: {len(built)} of {len(SPELL_ICONS)} icons built")
 
 
