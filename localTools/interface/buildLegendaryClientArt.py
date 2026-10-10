@@ -106,6 +106,7 @@ ICON_ONLY_NAMES = [
     "INV_Legendary_JambieresDevoreur", "INV_Legendary_HeaumeBronjahm", "INV_Legendary_AnneauAmeRefletee",
     "INV_Legendary_EtincelleIonar", "INV_Legendary_PoingsLoken", "INV_Legendary_ChevaliereBjarngrim",
     "INV_Unique_EchoDuNeant", "INV_Legendary_EtoileCaptive", "INV_Unique_SablierPerpetuite",
+    "INV_Legendary_TropheeTraqueur",
 ]
 
 

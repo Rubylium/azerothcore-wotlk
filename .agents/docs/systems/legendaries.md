@@ -25,7 +25,7 @@ legendary is mostly data: a definition, a spell, an Item.dbc row's look, two cli
    between 97005 and 97700). The wearer casts it, so Details and the combat log credit it on a line of its own. Its
    look is the source's own (the boss's spell visual) where one fits. Never let it feed a power again.
 4. **The item's look** (`localTools/patchSinisterStrike.ps1`, `$legendaryItems`): the base item, the next display id
-   (71063 on; 71062 is the last), the look it clones (an item its own dungeon's bosses drop in that slot) and its icon
+   (71065 on; 71064 is the last), the look it clones (an item its own dungeon's bosses drop in that slot) and its icon
    name.
 5. **The template** (`localTools/legendary/buildLegendaryItemSql.py`, `LEGENDARIES`): the base item, the look's item,
    its French and English names; run it to regenerate `modules/mod-legendary/data/sql/db-world/base/legendary_items.sql`

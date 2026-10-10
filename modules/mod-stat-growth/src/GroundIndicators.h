@@ -60,6 +60,10 @@ namespace GroundIndicators
     void PlayKit(Unit* owner, Position const& where, uint32 kit, float scale = 1.0f, uint32 intervalMs = 0,
                  uint32 durationMs = 3000);
 
+    // owner's marks shown at their size at once (a boss's fight that asks it), not grown into place from a yard as
+    // everyone's are by default (the client eases a scale it is told of after a mark shows); cones still grow from
+    // their apex
+    void DrawInstantly(Unit* owner, bool instantly = true);
     // Each draws the area for durationMs and returns it as drawn. owner is the unit the indicator belongs to (it
     // is summoned by it). With a theme, particles of it rise over the area while it is drawn.
     // hitDamage: what one hit does to a player in it (before their defences), if known - a bot stays in an area it

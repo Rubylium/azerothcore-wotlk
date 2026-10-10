@@ -1,0 +1,257 @@
+{
+  "generator": "built-in image_gen",
+  "assets": [
+    {
+      "name": "quarry_mark.png",
+      "prompt": "Create one game texture asset quarry_mark.png. Use case: stylized-concept. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background (exact RGB 0,0,0; additive game texture), opaque, no text, frame, border, watermark or environment. Subject: A hunter's target mark: a ring of exactly three curved felhound fangs pointing inward around a blood-red crosshair, glowing blood red, centred, filling the square edge to edge with only minimal breathing room. Dominant BLOOD RED; reads immediately at 32 pixels. Front-facing flat billboard emblem, no perspective. Output square PNG, target 256 x 256.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-c3ff4a73-17b4-4c37-85a4-71c07bddd44f.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/quarry_mark.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "prey_mark.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. A single huge felhound paw print burning ember orange, claws sharp, a small iron jaw-trap glinting inside the pad, centred, filling the frame. Dominant EMBER ORANGE. Square 256 x 256.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-df4de0e9-61a7-4f81-8a26-8102fe3f67c5.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/prey_mark.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "track_mark.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. A hunter's tracking eye: a slit-pupilled fel-green eye inside a ring of tracking runes, centred, filling the frame. Dominant FEL GREEN. The runes are abstract fantasy symbols, not readable words. Square 256 x 256.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-5c04398d-b2d0-42f5-9b76-9be73ad19776.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/track_mark.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "lantern.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. A beater's lantern on a short black-iron pole: a caged iron lantern with a bright amber flame inside, warm light spilling from its bars, the pole's foot at the bottom edge, the lantern in the upper half. Front-facing billboard, entire pole visible. Dominant AMBER. Tall upright canvas EXACT 1:2 aspect ratio, 256 x 512. Fill the height, do not crop pole.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-b31a94c4-9383-4620-88ff-083b5baa7663.png",
+      "width": 256,
+      "height": 512,
+      "destination": "localTools/escapeHunter/art/lantern.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "rustle.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. Two narrow fel-green eyes glowing in pitch darkness at a beast's height, a faint glint of fangs below them, wisps of green breath, everything else lost in pure black. No visible head or body. Dominant FEL GREEN. Wide canvas EXACT 2:1 aspect ratio, target 512 x 256. Eyes spread across the width.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-0d39ee51-9973-4ee8-9b6a-0ace9e636883.png",
+      "width": 512,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/rustle.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "snare_ring.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. A huge snare seen from directly above: a VERY THICK filled annulus of tightly coiled rope and black-iron jaw teeth pointing inward, glowing bright AMBER, from 40% of the total image width out to the image's edge; the central perfectly circular hole is EXACTLY 40% of the image width in DIAMETER, empty PURE BLACK including no glow, debris or teeth inside the hole. Outer circle diameter 100% of canvas width; inner circle diameter 40%. This is an area-of-danger floor marker: the entire annular band must be lit and filled to read as the outside danger area at a glance. Orthographic top view, true circle not ellipse. 1024 x 1024.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-af18fc8c-857b-49d7-8ade-a289398a1f05.png",
+      "previousSource": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-00df962b-fac6-49fd-a991-cf0cb8a4a85e.png",
+      "editPrompt": "Edit the attached snare_ring game texture. Keep its black iron, rope, amber glowing teeth, painted style, square canvas, outer circle size, and pure black background. Change ONLY the inner opening: it is too large. Thicken the ring INWARD with additional coiled rope and iron so the black central hole is an exact clean circle of DIAMETER 40% OF THE IMAGE WIDTH. In a 1024x1024 image, the hole is centred at (512,512), radius 205 pixels, occupying x=307..717 and y=307..717. Inner tooth tips stop at that circle; do not protrude into the safe hole. The whole band from radius 205 through radius 512 is filled with glowing amber rope and iron texture. No extra black gaps around the hole. Black centre is exact RGB 0,0,0 with no glow. Outer circle touches the four canvas edges. Orthographic perfectly round top-down floor texture. Opaque PNG, no labels, words, border or perspective.",
+      "width": 1024,
+      "height": 1024,
+      "destination": "localTools/escapeHunter/art/snare_ring.png",
+      "exportNotes": "Exact 40% diameter black safe-area mask; near-black RGB channels keyed to zero.",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "snare_circle.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. A closing iron jaw-trap seen from directly above: a FULL DISC of interlocking black-iron teeth, its spring and chain in the middle, glowing AMBER, filling the image. Entire disc dangerous and filled, no central black hole. Outer circle touches all four canvas edges. Orthographic top view, true circle, no perspective. 1024 x 1024.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-9b7d7bbf-15d8-4843-b0de-52873639cb22.png",
+      "width": 1024,
+      "height": 1024,
+      "destination": "localTools/escapeHunter/art/snare_circle.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "pack_sigil.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. A felhound pack's sigil seen from directly above: a ring of running felhound silhouettes chasing each other round a circle, a wolf's skull in the middle, glowing GOLD, filling the image. Clear running hound silhouettes, central wolf skull obvious at small sizes. Outer circle touches all four edges. Pure black gaps. Orthographic top view, perfectly circular, 1024 x 1024.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-d0ed5dc9-7fff-489d-8f4b-b26ea28ab94b.png",
+      "width": 1024,
+      "height": 1024,
+      "destination": "localTools/escapeHunter/art/pack_sigil.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "hunt_sigil.png",
+      "prompt": "Use case: stylized-concept. Single game texture asset. World of Warcraft hand-painted style, The Burning Crusade, Hellfire Peninsula's Blood Furnace: a fel orc huntsman's gear — black iron, rivets, worn leather, bone, rope. Bold chunky readable shapes, strong silhouette, glowing edges, rich saturated colour. Pure black background EXACT RGB 0,0,0 (additive game texture), opaque PNG. No text, frame, border, watermark, environment, ground plane, perspective or cast shadows. Flat graphic composition. Subject fills its specified canvas edge to edge, minimal margins; readable at 32 pixels. The Traqueur's own mark seen from directly above: two crossed hunting spears over a ring of fangs and hooks, glowing FEL GREEN with EMBER ORANGE spear tips, filling the image. Crossed spears read instantly. Outer circle touches all four edges. Pure black gaps. Orthographic top view, perfectly circular, 1024 x 1024.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-58e37f22-f89e-4cf4-a071-146e98f50d66.png",
+      "width": 1024,
+      "height": 1024,
+      "destination": "localTools/escapeHunter/art/hunt_sigil.png",
+      "blackKeyThreshold": 8
+    },
+    {
+      "name": "ICON_Traqueur_Taillade.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A wide curved hunting cleaver slashing FORWARD, a fel-green arc of motion in FRONT of it. Heavy chipped curved black-iron blade, leather grip, chunky rivets. Tight action closeup.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-4fb19edf-4e99-4611-9405-d6d5c5af4f09.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Taillade.png"
+    },
+    {
+      "name": "ICON_Traqueur_Revers.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A wide curved hunting cleaver swung BACKWARD over a fel orc's shoulder, the arc trailing BEHIND, ember sparks. Heavy chipped curved black-iron blade, leather grip, chunky rivets. Rear shoulder closeup; blade is the focal point.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-d1a1725a-d597-425a-bb66-0441b6632c98.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Revers.png"
+    },
+    {
+      "name": "ICON_Traqueur_Laceration.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. Three deep parallel claw gashes torn through riveted plate armour, blood and fel-green glow in them. Tight closeup of THREE broad unmistakable diagonal gashes.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-a44c35a8-1c2f-457e-8b48-a1a87dad7790.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Laceration.png"
+    },
+    {
+      "name": "ICON_Traqueur_Moulinet.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. Two heavy black-iron chains whirling in a cross around a hooked weight, motion blur in a circle. The circular spinning motion and heavy hooks are immediately readable.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-49a541df-84bb-42ec-9461-9da75cc41d99.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Moulinet.png"
+    },
+    {
+      "name": "ICON_Traqueur_Pistage.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A trail of glowing fel-green footprints on dark earth, the last one frozen in a ring of frost-like green light. One large luminous foreground print and two smaller receding prints; no landscape or buildings.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-99215253-ce8e-487a-b214-61f458cbdeb7.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Pistage.png"
+    },
+    {
+      "name": "ICON_Traqueur_Battue.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A row of beaters' staves and amber torches sweeping across tall dark grass, a SINGLE CLEAR GAP in the line. The empty gap is readily visible between the torches. Compact simple composition, no buildings.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-b7427f1f-2b2f-4caa-8063-33cafa250f62.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Battue.png"
+    },
+    {
+      "name": "ICON_Traqueur_Collet.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A rope snare noose snapping tight around an iron jaw-trap, amber glow. One large chunky rope loop and trap filling the square; abstract dark background, no scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-486c93df-496c-4dbf-8757-4c1008bf4005.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Collet.png"
+    },
+    {
+      "name": "ICON_Traqueur_Lanternes.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A caged iron lantern blazing amber, its light thrown in a wide cone into darkness. Large lantern on one side and strongly defined amber light cone across the square. No scenery or buildings.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-80e7362f-05f0-4b1e-8c66-8733b9b4a76d.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Lanternes.png"
+    },
+    {
+      "name": "ICON_Traqueur_Hallali.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A felhound leaping straight at the viewer, jaws open, a blood-red crosshair behind it. Huge fanged maw and lunging foreclaws, strong blood-red backlight. Tight single-beast closeup, abstract dark background.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-acb34e28-e5f4-4a6a-8e3d-f59d5f19fee3.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Hallali.png"
+    },
+    {
+      "name": "ICON_Traqueur_CureeMeute.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A pack of THREE felhound heads biting together into ONE CENTRAL POINT, fel-green fire where they meet. Radial composition converging on one bright impact point. Heads fill the frame, no scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-92e89721-5cb7-49d7-ad11-f3f70c906369.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_CureeMeute.png"
+    },
+    {
+      "name": "ICON_Traqueur_Proie.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A burning ember-orange paw print with a small iron jaw-trap inside its large central pad. One large paw with four sharp claws, instantly readable, dark background.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-0c1e1126-f714-4d03-995a-3b444009ddcd.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Proie.png"
+    },
+    {
+      "name": "ICON_Traqueur_PiegeProie.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. An iron jaw-trap snapping shut on a leather boot, sparks and amber glow. Single large boot caught between jagged jaws, tight crop, no landscape.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-c08b519f-fd13-4ac7-be73-ae9e84c05ce7.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_PiegeProie.png"
+    },
+    {
+      "name": "ICON_Traqueur_Traque.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A fel orc huntsman's silhouette dissolving into black smoke, only two fel-green eyes left. Upper body silhouette with tusks and spiked shoulders disappearing into darkness. The glowing eyes are the focal point; almost everything else dark. No buildings or landscape.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-63b07bff-8042-4501-96c6-bb54f4766fcf.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Traque.png"
+    },
+    {
+      "name": "ICON_Traqueur_Charge.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. Two fel-green eyes and a blur of claws rushing straight out of pitch darkness, a streak of green motion. Foreshortened charging attack, sharp claws lunging toward viewer, glowing eyes above them. No scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-fbeabe71-6309-4c03-8188-b6979bcb47be.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Charge.png"
+    },
+    {
+      "name": "ICON_Traqueur_Hurlement.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A fel orc's head roaring, mouth wide, a shockwave of fel-green sound rings bursting from it. Huge tusks, wide roaring mouth, unmistakable expanding green sound rings. Head fills the frame, no scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-5b430e19-54f5-449d-a8eb-85d6800323b3.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Hurlement.png"
+    },
+    {
+      "name": "ICON_Traqueur_Cor.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A great curved hunting horn of black iron and bone, a burst of ember-orange SOUND WAVES from its bell. Large horn diagonal across the square, glowing concentric arcs expanding from the bell, dark abstract background.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-85a56165-5d66-44ce-9735-20070dc4340c.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Cor.png"
+    },
+    {
+      "name": "ICON_Traqueur_Curee.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A hunting spear driven down through a felhound skull, a blood-red and fel-green explosion. Large ivory canine skull, iron spear piercing downward, bright central impact. Skull and spear fill the icon, no scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-1c394042-e62a-4aa8-80bb-722fbef62c29.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Curee.png"
+    },
+    {
+      "name": "ICON_Traqueur_Debusque.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. A hare-like silhouette flushed out of tall grass, a fel-green crosshair locked on it. Large clearly readable leaping hare silhouette in side profile, long ears, unmistakable bright green crosshair centred on its torso. Dark grass around the lower edge, no distant scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-92052770-120a-43c5-bf83-91ef1d24f652.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Debusque.png"
+    },
+    {
+      "name": "ICON_Traqueur_Croc.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. Item icon subject: a single huge felhound fang on a leather thong, fel-green glint. Chunky curved ivory fang with a rugged iron cap, taut leather loop, diagonal composition, dark vignette. Fang fills frame. No scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-80979552-758f-4bbc-8276-db4a2c7c4fd1.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_Croc.png"
+    },
+    {
+      "name": "ICON_Traqueur_CorHallali.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: The Burning Crusade spell icon, square, hand-painted in Blizzard's icon style: the subject filling the frame, chunky readable shapes, painterly texture, dramatic light, Hellfire Peninsula's fel orc huntsman — black iron, leather, bone, fel green and ember orange, a dark vignette at the edges. No border, no frame, no text, no watermark. Target 256 x 256. Opaque image. Single icon, no contact sheet. Readable at 32 pixels; one strong focal silhouette. Item icon subject: a war horn wrapped in leather straps, a blood-red pennant hanging from the horn. Curved black-iron and bone horn, large readable RED pennant, dramatic diagonal composition. No sound waves. Dark vignette and plain background, no scenery.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-a8b42ed1-d210-458b-ab74-84d4e69915c9.png",
+      "width": 256,
+      "height": 256,
+      "destination": "localTools/escapeHunter/art/ICON_Traqueur_CorHallali.png"
+    },
+    {
+      "name": "INV_Legendary_TropheeTraqueur.png",
+      "prompt": "Use case: stylized-concept. A World of Warcraft: Wrath of the Lich King item icon, square, hand-painted in Blizzard's icon style: the subject filling the frame at a slight angle, chunky readable shapes, painterly texture, dramatic light from the upper left, rich saturated colour, a dark vignette at the edges, a faint legendary ORANGE glow around the subject. No border, no frame, no text, no watermark. Target 256 x 256 opaque PNG. Subject: a hunter's trophy NECKLACE of felhound fangs and small iron hooks strung on a leather cord, the biggest fang in the middle carved with a fel-green crosshair rune, a faint hunter's mark glowing on it. Necklace silhouette reads instantly, large central ivory fang dominant, orange rim glow with GREEN etched crosshair. Single item, no scenery. The attached stock WoW skull icon is a STYLE REFERENCE only: use chunky painted bone shading and compact icon composition, do not copy the skull subject.",
+      "source": "C:\\Users\\alexi\\.codex\\generated_images\\01a12707-ef71-7ea2-bdd0-c6a6698026cd\\exec-23bb4e47-f593-404e-811a-c6bb0213acb8.png",
+      "width": 256,
+      "height": 256,
+      "destination": "clientPatcher/assets/legendaryIcons/png/INV_Legendary_TropheeTraqueur.png"
+    }
+  ]
+}

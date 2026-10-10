@@ -1,0 +1,182 @@
+[
+    {
+        "name":  "quarry_mark.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "B712C53182A86D4A5B3A63D0C6D574172A4960717CA6A94A12B00F4C268AC066"
+    },
+    {
+        "name":  "prey_mark.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "2F733B9F9080F1DA67AC4A1AF9369F281648480C79287C5E92CE97585E892C34"
+    },
+    {
+        "name":  "track_mark.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "2A376EB7C98B877B8A81BF3EA63A1A7D34C6AA73D156CA52C4D9A56E98F358F5"
+    },
+    {
+        "name":  "lantern.png",
+        "width":  256,
+        "height":  512,
+        "sha256":  "07897BDC9238FAD0E93C11B8347411EA9B0591F414925FE9B1FA56B305E9E160"
+    },
+    {
+        "name":  "rustle.png",
+        "width":  512,
+        "height":  256,
+        "sha256":  "FC38C61547E1871CDF4A1C9ED46E1DB433F4371F9DF2366D28473F9CE1DE7774"
+    },
+    {
+        "name":  "snare_ring.png",
+        "width":  1024,
+        "height":  1024,
+        "sha256":  "C93E5418D85AB892DC8AD89D8C1ADF6C9D8BF899DDDD5137EE6EBDA00443D28D"
+    },
+    {
+        "name":  "snare_circle.png",
+        "width":  1024,
+        "height":  1024,
+        "sha256":  "D0D450EF14D797A5D42ED9EB7CA79D013027931EDA060A0A9F6E91AC4177A910"
+    },
+    {
+        "name":  "pack_sigil.png",
+        "width":  1024,
+        "height":  1024,
+        "sha256":  "1FBD7188776F66692382788147C1DE404E6F4F34F300074670998480DCEBEC0B"
+    },
+    {
+        "name":  "hunt_sigil.png",
+        "width":  1024,
+        "height":  1024,
+        "sha256":  "B28E978E7B053E968F6FAAB89C72BF3311B8A242258A94AEBBD5B5716980600E"
+    },
+    {
+        "name":  "ICON_Traqueur_Taillade.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "FC5DB80774FE5B206F9D3FBD8A05924B65C87E616607A1DD2BC7EC57E6ECA726"
+    },
+    {
+        "name":  "ICON_Traqueur_Revers.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "33282A211F025056D306EC0AAE8D9A10DB39F249ABF7A73046135221AD50823F"
+    },
+    {
+        "name":  "ICON_Traqueur_Laceration.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "EC03062DA149C1C4BF4E5173A0573F92641224FA5D366E20B34EE25E3033DB38"
+    },
+    {
+        "name":  "ICON_Traqueur_Moulinet.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "4082CC3430265B3D8E07631FB824326515EEB4AACFAA562727570551385A3490"
+    },
+    {
+        "name":  "ICON_Traqueur_Pistage.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "5890813C33CB16EED431D1FAE3835587509C2A63978682466F6CA703443D01D2"
+    },
+    {
+        "name":  "ICON_Traqueur_Battue.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "3CA7B068C459541032099EF2E3BD5796B6D63109A1B7C13451F6E51E1FEDE009"
+    },
+    {
+        "name":  "ICON_Traqueur_Collet.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "1C925A222CF1EEA3890D6E65D485CCE123003CE190C78E8AA70B6BB2E5FD9252"
+    },
+    {
+        "name":  "ICON_Traqueur_Lanternes.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "3117CC981E892E8DE82A7B925A93A45B9F45E82F0F3A23488FE4F783800CBAF7"
+    },
+    {
+        "name":  "ICON_Traqueur_Hallali.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "5425D67578F663D8AD53CAC3B46DECC18BF3644AB7DD40B35AC3C6AB46343394"
+    },
+    {
+        "name":  "ICON_Traqueur_CureeMeute.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "107488CE13AD27E8044957BF323507232BA63AEE64A8F7F5576FA5B8027CB2D1"
+    },
+    {
+        "name":  "ICON_Traqueur_Proie.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "92D530D9239574F595A564C5372608EDC8586DA6F9080A7D245D4D50BF65305A"
+    },
+    {
+        "name":  "ICON_Traqueur_PiegeProie.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "9D333C55396EC1BF34B4A1BC052AB05DEAD358472B53BD179AA31326FE61FFAF"
+    },
+    {
+        "name":  "ICON_Traqueur_Traque.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "98190179A5DBB58BF38E982BD942154436979AF6A86B6353DE7E85F760A57357"
+    },
+    {
+        "name":  "ICON_Traqueur_Charge.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "B944DF544CCFBFC5BBE6CA32BA8915D8C9FA1C11DAB38FA24C023819663ED1E3"
+    },
+    {
+        "name":  "ICON_Traqueur_Hurlement.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "580C871AA85973436017677A15FFBC77425B26C134A38D3665E581606C51EA83"
+    },
+    {
+        "name":  "ICON_Traqueur_Cor.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "1FD233563B87875F51F62487BCCE9C97564ABBFDF2AF95088157D1B0EDFBF894"
+    },
+    {
+        "name":  "ICON_Traqueur_Curee.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "955B0EEF2BABB77DCE40D22A8068EA529EE38ED292775E0E5BD4CB798D764D0D"
+    },
+    {
+        "name":  "ICON_Traqueur_Debusque.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "0CACF52119237E68912C78222356CF57F1E0E7D68F0B680EC27841743B7C64D4"
+    },
+    {
+        "name":  "ICON_Traqueur_Croc.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "A22D9C0384DDCB7858E479194810DD77F1725798D5097397A8C0E4A910C41A8F"
+    },
+    {
+        "name":  "ICON_Traqueur_CorHallali.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "4C24866CF4266BCA10321498873C3B2B45B7364B6BF3B5DAEF7F8DCB817D893F"
+    },
+    {
+        "name":  "INV_Legendary_TropheeTraqueur.png",
+        "width":  256,
+        "height":  256,
+        "sha256":  "7F5ED44737CD96ADCA05962818DFB55B3C61E514F99E579151D3F3AFD2BAB957"
+    }
+]

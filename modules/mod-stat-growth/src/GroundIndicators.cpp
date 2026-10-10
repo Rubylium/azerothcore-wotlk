@@ -598,23 +598,63 @@ uint32 FadeLookOf(uint32 look)
     return 0;
 }
 
+// The owners whose marks show at their size at once (DrawInstantly): their stalkers are scaled before the client sees
+// them. The others' grow into place from a yard - the client eases a scale it is told of after a unit shows.
+std::mutex InstantLock;
+std::set<ObjectGuid> InstantOwners;
+
+bool DrawsInstantly(Unit* owner)
+{
+    std::lock_guard<std::mutex> guard(InstantLock);
+    return InstantOwners.contains(owner->GetGUID());
+}
+
+// A stalker at its size before the client is told of it (Map::SummonCreature's steps, its scale set before AddToMap):
+// it appears as it is, with no growth
+TempSummon* SummonScaled(Unit* owner, Position const& placed, float scale, uint32 durationMs)
+{
+    Map* map = owner->GetMap();
+    TempSummon* stalker = new TempSummon(nullptr, owner->GetGUID());
+    if (!stalker->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, owner->GetPhaseMask(), NPC_GROUND_INDICATOR, 0,
+            placed.GetPositionX(), placed.GetPositionY(), placed.GetPositionZ(), placed.GetOrientation()))
+    {
+        delete stalker;
+        return nullptr;
+    }
+    stalker->SetHomePosition(placed);
+    stalker->InitStats(durationMs);
+    stalker->SetTempSummonType(TEMPSUMMON_TIMED_DESPAWN);
+    if (scale != 1.0f)
+        stalker->SetObjectScale(scale);
+    if (!map->AddToMap(stalker->ToCreature()))
+    {
+        delete stalker;
+        return nullptr;
+    }
+    stalker->InitSummon();
+    return stalker;
+}
+
 // The stalker that shows spellId at a size of scale yards; it goes away by itself after durationMs, its look turned
 // to its fading twin FadeMs before (gone at once, a painting popped off the floor). A look changed meanwhile (a warning
-// to its hit) fades the same way.
+// to its hit) fades the same way. mayGrow: a cone may grow into place all the same (out from its apex: it reads as a
+// swing coming) where the owner draws instantly.
 Creature* Place(Unit* owner, Position const& position, float orientation, uint32 spellId, float scale,
-                uint32 durationMs)
+                uint32 durationMs, bool mayGrow = false)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return nullptr;
 
     Position placed(position.GetPositionX(), position.GetPositionY(), position.GetPositionZ(), orientation);
-    TempSummon* stalker = owner->SummonCreature(NPC_GROUND_INDICATOR, placed, TEMPSUMMON_TIMED_DESPAWN, durationMs);
+    bool const instant = !mayGrow && DrawsInstantly(owner);
+    TempSummon* stalker = instant ? SummonScaled(owner, placed, scale, durationMs) :
+        owner->SummonCreature(NPC_GROUND_INDICATOR, placed, TEMPSUMMON_TIMED_DESPAWN, durationMs);
     if (!stalker)
         return nullptr;
 
     // A model built to its size (a line's piece) is never scaled: a unit's scale set after it shows grows into
     // place on the client, and the pieces of a line grew from their middles, the line cut up until they had
-    if (scale != 1.0f)
+    if (!instant && scale != 1.0f)
         stalker->SetObjectScale(scale);
     stalker->AddAura(spellId, stalker);
     if (durationMs > FadeMs * 2)
@@ -1616,7 +1656,7 @@ Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     area.inner = clearMiddle;
-    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
+    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs, true))
     {
         Register(owner, nullptr, area, durationMs, hitDamage);
         ShowParticles(owner, area, theme, durationMs);
@@ -1631,7 +1671,7 @@ Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float r
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     area.inner = clearMiddle;
-    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
+    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs, true))
     {
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt ? aimedAt->GetGUID() : ObjectGuid::Empty);
         ShowParticles(owner, area, theme, durationMs);
@@ -1648,7 +1688,7 @@ Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arc
         aimedAt->GetPositionY()) + offset);
     Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
-    if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs))
+    if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs, true))
     {
         stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset));
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), offset);
@@ -2452,6 +2492,17 @@ bool LeavesToOtherTank(Unit* unit, Unit* target)
         if (goal.kind == Goal::Kind::Holder && goal.owner == target->GetGUID() && goal.tank != unit->GetGUID())
             return true;
     return false;
+}
+
+void DrawInstantly(Unit* owner, bool instantly)
+{
+    if (!owner)
+        return;
+    std::lock_guard<std::mutex> guard(InstantLock);
+    if (instantly)
+        InstantOwners.insert(owner->GetGUID());
+    else
+        InstantOwners.erase(owner->GetGUID());
 }
 
 uint32 FadingTwinOf(uint32 look)

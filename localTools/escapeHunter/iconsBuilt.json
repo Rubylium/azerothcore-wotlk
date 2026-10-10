@@ -1,3 +1,24 @@
 {
-  "built": []
+  "built": [
+    "ICON_Traqueur_Taillade",
+    "ICON_Traqueur_Revers",
+    "ICON_Traqueur_Laceration",
+    "ICON_Traqueur_Moulinet",
+    "ICON_Traqueur_Pistage",
+    "ICON_Traqueur_Battue",
+    "ICON_Traqueur_Collet",
+    "ICON_Traqueur_Lanternes",
+    "ICON_Traqueur_Hallali",
+    "ICON_Traqueur_CureeMeute",
+    "ICON_Traqueur_Proie",
+    "ICON_Traqueur_PiegeProie",
+    "ICON_Traqueur_Traque",
+    "ICON_Traqueur_Charge",
+    "ICON_Traqueur_Hurlement",
+    "ICON_Traqueur_Cor",
+    "ICON_Traqueur_Curee",
+    "ICON_Traqueur_Debusque",
+    "ICON_Traqueur_Croc",
+    "ICON_Traqueur_CorHallali"
+  ]
 }

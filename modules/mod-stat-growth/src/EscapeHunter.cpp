@@ -28,8 +28,8 @@
 //   nothing else on the floor. A wipe the first time, easy once the safe spot is learned:
 //   - le Collet: two flashes (three later) show an order - the snare's ring or its circle; two bars later they spring
 //     in that order, unseen: out-in or in-out, remembered;
-//   - les Lanternes des rabatteurs: lanterns stand at the hall's edge; two bars later each throws its light over the
-//     hall, and he strikes whatever it shows: only beside a lantern is dark (later: two volleys, turned);
+//   - les Lanternes des rabatteurs: lanterns stand close round him; two bars later each throws a beam through the
+//     middle, and he strikes whatever it shows: behind a lantern is dark (later: four lanterns - between two);
 //   - l'Hallali: quarries marked; the pack leaps on them, the others share a blow under him;
 //   - la Proie: two marked players leave a trail of snapping traps behind them, a beat apart: led along the wall;
 //   - la Traque (the breakdown, an intermission): he is gone in the dark; a rustle at the hall's edge, and two bars
@@ -93,10 +93,13 @@ constexpr uint32 ChainTurnBeats = 8;
 constexpr float TrackRadius = 6.0f;         // le Pistage
 constexpr uint32 TrackedPlayers = 3;
 constexpr float SnareRadius = 16.0f;        // le Collet: its circle; its ring from there to the hall's edge
-constexpr float LanternDistance = 34.0f;    // les Lanternes: where they stand, their light's reach and spread
-constexpr float LanternReach = 45.0f;
-constexpr float LanternArc = 120.0f;
-constexpr float LanternWideArc = 150.0f;
+// les Lanternes: they stand close round him, each throwing a beam through the middle to the far wall; behind a lantern
+// is dark (the others' beams cross the middle away from it). Four (the second volley): behind one is in the beam of
+// the one across, between two is dark.
+constexpr float LanternDistance = 12.0f;
+constexpr float LanternReach = 40.0f;
+constexpr float LanternArc = 60.0f;
+constexpr float LanternNarrowArc = 45.0f;
 constexpr float TrapRadius = 5.0f;          // la Proie: the traps its trail leaves
 constexpr uint32 TrailBeats = 8;
 constexpr float ChargeWidth = 10.0f;        // la Traque: his charges through the middle
@@ -357,14 +360,18 @@ struct boss_escape_hunter : public Defi::BossAI
             return;
         me->SetReactState(REACT_AGGRESSIVE);
         DoZoneInCombat(me, GetRoom().reach);
+        // Sized on who is there: a group past his profile reaches his hold as late as one at it (the whole track)
+        float const ratio = SetGroupHealth();
+        // His marks shown at their size at once (no growing into place), his cones still swept out
+        GroundIndicators::DrawInstantly(me);
         _timeline = BuildTimeline();
         _next = 0;
         StartClock();
         _phase = Phase::Hunt;
         Talk(SAY_AGGRO);
         StartMusic("Music.EscapeHunter");
-        LOG_INFO(_logName, "Traqueur pulled instance={} health={} tier factor={}", me->GetInstanceId(),
-                 me->GetMaxHealth(), GetChallengeDamageFactorOf(me));
+        LOG_INFO(_logName, "Traqueur pulled instance={} health={} group power x{:.2f} tier factor={}",
+                 me->GetInstanceId(), me->GetMaxHealth(), ratio, GetChallengeDamageFactorOf(me));
     }
 
     void KilledUnit(Unit* victim) override
@@ -832,10 +839,10 @@ private:
         }
     }
 
-    // --- Les Lanternes des rabatteurs: lanterns at the edge, then their light over the hall -----------------------------
-    // In the middle from beat `lands`: lanterns stand at the hall's edge, facing the middle; two bars later each throws
-    // its light, a cone over the hall, and he strikes whatever it shows - only beside a lantern is dark. A second
-    // volley: more lanterns, turned, their light wider.
+    // --- Les Lanternes des rabatteurs: lanterns round him, then their beams through the middle --------------------------
+    // In the middle from beat `lands`: lanterns stand close round him, facing the middle; two bars later each throws a
+    // beam through the middle to the far wall, and he strikes whatever it shows - behind a lantern is dark. A second
+    // volley: four lanterns, turned - behind one is in the beam of the one across, between two is dark.
     void Lanterns(uint32 lands, uint32 volleys)
     {
         uint32 const until = lands + 2 + 8 * volleys + 2;
@@ -849,7 +856,7 @@ private:
             uint32 const lit = lands + 2 + 8 * volley;
             uint32 const strikes = lit + 8;
             uint32 const count = volley ? 4 : 3;
-            float const arc = volley ? LanternWideArc : LanternArc;
+            float const arc = volley ? LanternNarrowArc : LanternArc;
             float const turn = volley ? float(M_PI) / 4.0f : 0.0f;
             AtBeat(Grid, lit, [this, strikes, count, arc, base, turn]()
             {
@@ -1136,6 +1143,7 @@ private:
 
     void ResetFight()
     {
+        GroundIndicators::DrawInstantly(me, false);
         scheduler.CancelAll();
         EndCastBar();
         _held = false;

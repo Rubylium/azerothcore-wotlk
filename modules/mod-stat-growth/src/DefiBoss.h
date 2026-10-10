@@ -4,6 +4,7 @@
 #include "EvolutionsAudio.h"
 #include "FightMusic.h"
 #include "MythicTuning.h"
+#include "ParagonSystem.h"
 
 #include "CellImpl.h"
 #include "Chat.h"
@@ -159,6 +160,37 @@ protected:
         me->SetCreateHealth(uint32(health));
         me->SetMaxHealth(uint32(health));
         me->SetFullHealth();
+    }
+
+    // The group's power over the profile's: each player's equipped item level and spent paragon as a raid group's
+    // measure (Power::PowerIndex and Power::RaidDpsFactor, as the board's tiers weigh a profile), their mean over the
+    // profile's; never below 1 (a group under its profile meets the profile's health)
+    float GroupPowerRatio(std::vector<Player*> const& players) const
+    {
+        auto const power = [](float itemLevel, float paragon)
+        {
+            return Power::PowerIndex(itemLevel, paragon) * Power::RaidDpsFactor(itemLevel, paragon);
+        };
+        if (players.empty())
+            return 1.0f;
+        float sum = 0.0f;
+        for (Player* player : players)
+            sum += power(player->GetAverageItemLevel(), float(GetParagonSpent(player)));
+        Sizing const& sizing = GetSizing();
+        return std::max(1.0f, sum / float(players.size()) / power(sizing.itemLevel, sizing.paragon));
+    }
+
+    // The model's health (SetModelHealth) times the group's power over the profile's (GroupPowerRatio): sized on who
+    // is there, at the pull. The ratio, for the log.
+    float SetGroupHealth()
+    {
+        SetModelHealth();
+        float const ratio = GroupPowerRatio(ArenaPlayers());
+        uint32 const health = uint32(float(me->GetMaxHealth()) * ratio);
+        me->SetCreateHealth(health);
+        me->SetMaxHealth(health);
+        me->SetFullHealth();
+        return ratio;
     }
 
     // The room is the boss's: its hostile occupants go (triggers and the boss's own stay); no stock encounter is

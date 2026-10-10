@@ -30,6 +30,8 @@ SPELL_ICONS = [
     "ICON_Traqueur_Hallali", "ICON_Traqueur_CureeMeute", "ICON_Traqueur_Proie", "ICON_Traqueur_PiegeProie",
     "ICON_Traqueur_Traque", "ICON_Traqueur_Charge", "ICON_Traqueur_Hurlement", "ICON_Traqueur_Cor",
     "ICON_Traqueur_Curee", "ICON_Traqueur_Debusque",
+    # His two raid trinkets' (mod-stat-growth RaidTrinkets.cpp: their items' looks and their spells)
+    "ICON_Traqueur_Croc", "ICON_Traqueur_CorHallali",
 ]
 
 

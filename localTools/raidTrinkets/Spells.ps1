@@ -144,12 +144,12 @@ $spells = @(
     # --- Le Traqueur d'évadés (item level 485), for every damage dealer ---
     # Croc du gangrechien: every blow or harmful spell a stack, 1% more damage done each, up to 5, for 10 s (the pack
     # closing in: a fighter's and a caster's alike, as Vorhan's whetstone's stacks)
-    (New-Passive 94624 'Croc du gangrechien' 'INV_Misc_MonsterFang_01' ($weaponBlows -bor $harmfulSpells) 94625 `
+    (New-Passive 94624 'Croc du gangrechien' 'ICON_Traqueur_Croc' ($weaponBlows -bor $harmfulSpells) 94625 `
         "Chacune de vos attaques et chacun de vos sorts de dégâts augmentent les dégâts que vous infligez de 1% pendant 10 sec. Cumulable jusqu'à 5 fois.")
-    (New-Buff 94625 75456 'Meute en chasse' 'INV_Misc_MonsterFang_01' 1 (New-Aura 79 1) `
+    (New-Buff 94625 75456 'Meute en chasse' 'ICON_Traqueur_Croc' 1 (New-Aura 79 1) `
         'Dégâts infligés augmentés de 1% par application.' 5)
     # Cor de l'hallali: 600 critical strike rating for 20 s (as the Penne's haste), x1.31
-    (New-Active 94626 "Sonner l'hallali" 'INV_Misc_Horn_01' 18 (New-Rating $critRating 786) `
+    (New-Active 94626 "Sonner l'hallali" 'ICON_Traqueur_CorHallali' 18 (New-Rating $critRating 786) `
         'Augmente votre score de coup critique de 786 pendant 20 sec.' 'Score de coup critique augmenté de 786.')
 )
 
