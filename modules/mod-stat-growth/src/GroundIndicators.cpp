@@ -637,16 +637,15 @@ TempSummon* SummonScaled(Unit* owner, Position const& placed, float scale, uint3
 
 // The stalker that shows spellId at a size of scale yards; it goes away by itself after durationMs, its look turned
 // to its fading twin FadeMs before (gone at once, a painting popped off the floor). A look changed meanwhile (a warning
-// to its hit) fades the same way. mayGrow: a cone may grow into place all the same (out from its apex: it reads as a
-// swing coming) where the owner draws instantly.
+// to its hit) fades the same way.
 Creature* Place(Unit* owner, Position const& position, float orientation, uint32 spellId, float scale,
-                uint32 durationMs, bool mayGrow = false)
+                uint32 durationMs)
 {
     if (!owner || !owner->IsInWorld() || durationMs == 0)
         return nullptr;
 
     Position placed(position.GetPositionX(), position.GetPositionY(), position.GetPositionZ(), orientation);
-    bool const instant = !mayGrow && DrawsInstantly(owner);
+    bool const instant = DrawsInstantly(owner);
     TempSummon* stalker = instant ? SummonScaled(owner, placed, scale, durationMs) :
         owner->SummonCreature(NPC_GROUND_INDICATOR, placed, TEMPSUMMON_TIMED_DESPAWN, durationMs);
     if (!stalker)
@@ -1656,7 +1655,7 @@ Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     area.inner = clearMiddle;
-    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs, true))
+    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
     {
         Register(owner, nullptr, area, durationMs, hitDamage);
         ShowParticles(owner, area, theme, durationMs);
@@ -1671,7 +1670,7 @@ Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float r
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
     area.inner = clearMiddle;
-    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs, true))
+    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
     {
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt ? aimedAt->GetGUID() : ObjectGuid::Empty);
         ShowParticles(owner, area, theme, durationMs);
@@ -1688,7 +1687,7 @@ Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arc
         aimedAt->GetPositionY()) + offset);
     Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
-    if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs, true))
+    if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs))
     {
         stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset));
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), offset);

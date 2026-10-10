@@ -4,7 +4,6 @@
 #include "EvolutionsAudio.h"
 #include "FightMusic.h"
 #include "MythicTuning.h"
-#include "ParagonSystem.h"
 
 #include "CellImpl.h"
 #include "Chat.h"
@@ -118,6 +117,8 @@ protected:
         if (_checkTimer < 1000)
             return;
         _checkTimer = 0;
+        if (_rehearsal)
+            return;
         if (_defiConfirmed)
         {
             ClearRoom();
@@ -150,6 +151,19 @@ protected:
 
     bool DefiConfirmed() const { return _defiConfirmed; }
 
+    // --- A rehearsal (the FX lab: a game master looking at its patterns) ----------------------------------------------
+    // Shown and kept wherever it stands, its room centred on center: its patterns are drawn there for real and strike
+    // nobody (the boss's script reads Rehearsing)
+    void StartRehearsal(Position const& center)
+    {
+        _rehearsal = true;
+        _defiConfirmed = true;
+        _room.center = center;
+        me->SetVisible(true);
+    }
+
+    bool Rehearsing() const { return _rehearsal; }
+
     // The health of the profile's group over its seconds (Power::RaidBossHealth), times HealthScale
     void SetModelHealth()
     {
@@ -160,37 +174,6 @@ protected:
         me->SetCreateHealth(uint32(health));
         me->SetMaxHealth(uint32(health));
         me->SetFullHealth();
-    }
-
-    // The group's power over the profile's: each player's equipped item level and spent paragon as a raid group's
-    // measure (Power::PowerIndex and Power::RaidDpsFactor, as the board's tiers weigh a profile), their mean over the
-    // profile's; never below 1 (a group under its profile meets the profile's health)
-    float GroupPowerRatio(std::vector<Player*> const& players) const
-    {
-        auto const power = [](float itemLevel, float paragon)
-        {
-            return Power::PowerIndex(itemLevel, paragon) * Power::RaidDpsFactor(itemLevel, paragon);
-        };
-        if (players.empty())
-            return 1.0f;
-        float sum = 0.0f;
-        for (Player* player : players)
-            sum += power(player->GetAverageItemLevel(), float(GetParagonSpent(player)));
-        Sizing const& sizing = GetSizing();
-        return std::max(1.0f, sum / float(players.size()) / power(sizing.itemLevel, sizing.paragon));
-    }
-
-    // The model's health (SetModelHealth) times the group's power over the profile's (GroupPowerRatio): sized on who
-    // is there, at the pull. The ratio, for the log.
-    float SetGroupHealth()
-    {
-        SetModelHealth();
-        float const ratio = GroupPowerRatio(ArenaPlayers());
-        uint32 const health = uint32(float(me->GetMaxHealth()) * ratio);
-        me->SetCreateHealth(health);
-        me->SetMaxHealth(health);
-        me->SetFullHealth();
-        return ratio;
     }
 
     // The room is the boss's: its hostile occupants go (triggers and the boss's own stay); no stock encounter is
@@ -358,6 +341,61 @@ protected:
         _musicListeners.clear();
     }
 
+    // --- Paced health (the Hollow Voice's first phase, HollowVoice.cpp ShownHealth) ------------------------------------
+    // Its true health is kept here; the bar shows the higher of it and the pace - a straight line from full at the pull
+    // to holdPct at the check - so a group ahead of the fight sees it come down with the music and holdPct only at the
+    // end, never a boss standing at its floor. Its true health never goes under holdPct while paced (EndPace lets it
+    // die). paceMs / checkMs: the fight's time and the check's on the clock the boss paces by (its time it can be hit).
+    void StartPace(float holdPct)
+    {
+        _paced = true;
+        _holdPct = holdPct;
+        _trueHealth = me->GetMaxHealth();
+    }
+
+    void EndPace() { _paced = false; }
+    bool Paced() const { return _paced; }
+
+    uint32 PaceFloor() const
+    {
+        return std::max<uint32>(1, uint32(float(me->GetMaxHealth()) * _holdPct / 100.0f));
+    }
+
+    // Its true health at its floor: the check passed
+    bool AtPaceFloor() const { return _trueHealth <= PaceFloor(); }
+    float TrueHealthPct() const { return float(_trueHealth) * 100.0f / float(std::max<uint32>(1, me->GetMaxHealth())); }
+
+    uint32 ShownHealth(uint32 paceMs, uint32 checkMs) const
+    {
+        uint64 const max = me->GetMaxHealth();
+        uint64 const floor = PaceFloor();
+        uint64 const left = checkMs > paceMs ? checkMs - paceMs : 0;
+        uint64 const pace = floor + (max - floor) * left / std::max<uint32>(1, checkMs);
+        return uint32(std::max<uint64>(_trueHealth, pace));
+    }
+
+    // In DamageTaken: the true health takes the hit (down to the floor); what the bar loses is down to what it shows
+    void PaceDamage(uint32& damage, uint32 paceMs, uint32 checkMs)
+    {
+        if (!_paced)
+            return;
+        uint64 const floor = PaceFloor();
+        _trueHealth = _trueHealth > floor + damage ? _trueHealth - damage : floor;
+        uint32 const health = uint32(me->GetHealth());
+        uint32 const shown = ShownHealth(paceMs, checkMs);
+        damage = health > shown ? health - shown : 0;
+    }
+
+    // In UpdateAI: the bar follows the pace down between hits
+    void UpdatePace(uint32 paceMs, uint32 checkMs)
+    {
+        if (!_paced)
+            return;
+        uint32 const shown = ShownHealth(paceMs, checkMs);
+        if (me->GetHealth() > shown)
+            me->SetHealth(shown);
+    }
+
     // --- What it deals ----------------------------------------------------------------------------------------------
     // The reference health its hits are shares of: a player of its profile (Power::ExpectedPlayerHealth)
     float Reference() const
@@ -396,6 +434,24 @@ protected:
             me->SendSpellNonMeleeDamageLog(&log);
         }
         Unit::Kill(me, player, true, BASE_ATTACK, sSpellMgr->GetSpellInfo(spellId));
+    }
+
+    // A share of the player's own maximum health, exactly - no defence, no absorb: a mistake costs the same at any gear
+    // (the spell named in the log and the death recap)
+    void HitOwnHealth(Player* player, uint32 spellId, float percent)
+    {
+        if (!player || !player->IsAlive())
+            return;
+        SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
+        SpellSchoolMask const school = info ? info->GetSchoolMask() : SPELL_SCHOOL_MASK_NORMAL;
+        uint32 const amount = std::max<uint32>(1, uint32(float(player->GetMaxHealth()) * percent / 100.0f));
+        if (info)
+        {
+            SpellNonMeleeDamage log(me, player, info, school);
+            log.damage = amount;
+            me->SendSpellNonMeleeDamageLog(&log);
+        }
+        Unit::DealDamage(me, player, amount, nullptr, SPELL_DIRECT_DAMAGE, school, info, false);
     }
 
     // A debuff of the fight's (a dummy aura) for durationMs, with stacks
@@ -529,6 +585,10 @@ private:
     uint32 _lastKillYellMs = 0;
     bool _defiConfirmed = false;
     bool _rooted = false;
+    bool _rehearsal = false;
+    bool _paced = false;
+    float _holdPct = 1.0f;
+    uint64 _trueHealth = 0;
     std::set<ObjectGuid> _musicListeners;
 };
 }
