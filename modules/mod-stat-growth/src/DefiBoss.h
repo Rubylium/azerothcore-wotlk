@@ -321,13 +321,19 @@ protected:
     void StartMusic(char const* key, uint32 fadeInMs = 0)
     {
         _musicListeners.clear();
+        std::string heard;
         for (Player* player : Listeners())
         {
             if (player->GetSession() && !player->GetSession()->IsBot())
+            {
                 EvolutionsAudio::PlayMusic(player, key, fadeInMs);
+                heard += (heard.empty() ? "" : " ") + player->GetName();
+            }
             _musicListeners.insert(player->GetGUID());
             FightMusic::Claim(player->GetGUID(), me->GetGUID());
         }
+        LOG_INFO(_logName, "{} music {} instance={} sent to: {}", me->GetName(), key, me->GetInstanceId(),
+                 heard.empty() ? "nobody" : heard);
     }
 
     // Silence for whoever still hears this fight's track

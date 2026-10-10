@@ -1,4 +1,5 @@
 #include "DefiBoss.h"
+#include "EvolutionsAudio.h"
 #include "GroundIndicators.h"
 
 #include "Chat.h"
@@ -20,15 +21,17 @@
 // prisoners wear. 8 players - 2 tanks, 2 healers, 4 damage dealers - tuned for item level 477 and 650 paragon, as
 // Gardien-chef Vorhan, the first gate.
 //
-// **A walled arena on his music.** On the pull a ring of wall rises round the hall's middle, ArenaRadius across: the
+// He stands at the arena's middle all fight, rooted (HoldMiddle): he leaves it only for la Trempe's walk to a prop.
+//
+// **A walled arena on his music.** A few seconds into the pull a ring of wall rises round the hall's middle: the
 // wall kills on contact, and every pattern covers the whole arena or targets every player - nothing is outranged.
 // Every step lands on a beat of his track (its drums are his hammer), two layers in turns, never on top of each
 // other:
 // - the WoW layer, dodges while he is tanked, one at a time in the same cycle every pull: Coup d'enclume (a cone on his
-//   tank, then its shockwave in three rings running out a beat apart), Coulée (half the arena, then the other half),
+//   tank), l'Onde de choc (three rings round him shown together, struck from the middle out), Coulée (half the arena, then the other half),
 //   Étincelles (a circle under everyone), Chaînes (chains through him to the wall spin, freeze, strike), le Laminoir
 //   (rollers sweep the arena strip by strip, a gap in each); group hits on the music's big hits;
-// - the FFXIV layer, puzzles: for each he goes to the middle and holds still, nothing else on the floor -
+// - the FFXIV layer, puzzles, nothing else on the floor -
 //   la Trempe (he dips his hammer in the quench trough or the crucible at the arena's edge: steam bursts in the middle,
 //   or iron floods the outer ring, two bars after he is back; later both, in that order), les Soufflets (two adjacent
 //   bellows of four glow, each then blasts the half on its side: the quarter opposite both), les Lingots (four ingots
@@ -55,11 +58,13 @@ constexpr float HoldPct = 1.0f;
 
 // Keli'dan's hall, its middle; the arena round it: a ring of WallPieces of Vorhan's wall pieces
 // (GroundIndicators::WardenWallPieceLength each), ArenaRadius from the middle
-Defi::Room const Room = { Position(326.5f, -86.0f, -24.6f, 0.0f), 30.0f, 120.0f, 60.0f };
+// reach: the whole hall (a group standing back at the landing spot is drawn in by the wall); its music, the instance
+Defi::Room const Room = { Position(326.5f, -86.0f, -24.6f, 0.0f), 55.0f, 1000.0f, 60.0f };
 constexpr uint32 WallPieces = 16;
 float const ArenaRadius = GroundIndicators::WardenWallPieceLength / (2.0f * std::sin(float(M_PI) / float(WallPieces)));
 constexpr float WallMargin = 0.6f;          // past ArenaRadius less this: in the wall
-constexpr uint32 WallRiseBeats = 8;         // the wall kills from this beat on (time to step in)
+constexpr uint32 WallShowBeats = 8;         // the wall rises this long after the pull
+constexpr uint32 WallRiseBeats = 8;         // and kills this long after it rose (time to step in)
 
 // The FX lab (map 451, FxLab.cpp): his rehearsal's place
 constexpr uint32 MapFxLab = 451;
@@ -160,18 +165,14 @@ enum Spells : uint32
     CAST_SPARKS             = 94851,
 };
 
-// The props of the arena's edge, stock objects until painted: the quench trough (a cauldron), the crucible (a forge),
-// four bellows (braziers)
-enum Props : uint32
-{
-    GO_TROUGH               = 3315,     // Boiling Cauldron
-    GO_CRUCIBLE             = 174824,   // Black Forge
-    GO_BELLOWS              = 175297,   // Brazier
-};
-
 enum Npcs : uint32
 {
     NPC_VROGAR              = 930400,
+    // The props of the arena's edge: creatures wearing stock objects' models (their own displays, 60011-60013), so that
+    // nobody is blocked by them - the quench trough (a cauldron), the crucible (a forge), four bellows (braziers)
+    NPC_TROUGH              = 930401,
+    NPC_CRUCIBLE            = 930402,
+    NPC_BELLOWS             = 930403,
 };
 
 enum Says : uint8
@@ -196,6 +197,7 @@ enum class Phase : uint8
 enum class Event : uint8
 {
     Anvil,
+    Shockwave,
     Pour,
     Sparks,
     Chains,
@@ -215,6 +217,7 @@ char const* EventName(Event what)
     switch (what)
     {
         case Event::Anvil: return "anvil";
+        case Event::Shockwave: return "shockwave";
         case Event::Pour: return "pour";
         case Event::Sparks: return "sparks";
         case Event::Chains: return "chains";
@@ -242,25 +245,27 @@ struct Step
 std::vector<Step> BuildTimeline()
 {
     return {
-        // Every pattern's first red shows WarnBeats (3.1 s) before it strikes; their lengths from their start:
-        // anvil, pour, chains 15 beats; sparks 9; laminoir 12 (back: 19); bellows 13 (2: 23); ingots 13 (2: 25);
-        // hammer 17; trempe 25 (2: 39). The group hit draws nothing on the floor.
+        // Every pattern's first red shows WarnBeats (3.1 s) before it strikes; their lengths from their start: anvil 9
+        // beats, shockwave 13, pour and chains 15, sparks 9, laminoir 12 (back: 19), bellows 13 (2: 23), ingots 13
+        // (2: 25), hammer 17, trempe 25 (2: 39); none starts before the last one's last strike. The group hit draws
+        // nothing on the floor. The wall rises on beat WallShowBeats.
         // Intro (bars 0-11): his dodges, learnt
-        { 6, Event::Anvil }, { 22, Event::Sparks }, { 31, Event::Pour },
+        { 10, Event::Anvil }, { 20, Event::Shockwave }, { 34, Event::Sparks },
         // Build-up (bars 12-27): his hammer on its first beat; la Trempe, his dip on the 0:21.4 hit
         { 45, Event::HammerGroup }, { 49, Event::Trempe, 1 },
-        { 74, Event::Anvil }, { 90, Event::Chains }, { 106, Event::Sparks },
+        { 75, Event::Anvil }, { 85, Event::Chains }, { 101, Event::Pour },
         // Section A (bars 28-75)
-        { 116, Event::Pour }, { 132, Event::Bellows, 1 }, { 146, Event::Sparks }, { 156, Event::Anvil },
+        { 117, Event::Shockwave }, { 132, Event::Bellows, 1 }, { 146, Event::Sparks }, { 156, Event::Anvil },
+        { 165, Event::Sparks },
         { 174, Event::Laminoir },               // its rollers from the 1:10.6 hit (beat 182)
-        { 188, Event::Anvil }, { 204, Event::Ingots, 1 }, { 217, Event::Sparks },
+        { 188, Event::Anvil }, { 198, Event::Ingots, 1 }, { 212, Event::Sparks },
         { 226, Event::Laminoir, 1 },            // from the 1:30.7 hit (beat 234), and back
-        { 246, Event::Anvil }, { 262, Event::Pour }, { 278, Event::Chains },
+        { 246, Event::Shockwave }, { 260, Event::Pour }, { 276, Event::Chains },
         { 296, Event::Hammer },                 // landing on the peak (beat 310)
         // La Fonte (bars 80-103), his return on beat 416
         { FonteStartBeat, Event::FonteStart }, { FonteEndBeat, Event::FonteEnd },
         // The rebuild and section B (bars 104-155)
-        { 422, Event::Anvil }, { 438, Event::Chains },
+        { 422, Event::Anvil }, { 432, Event::Shockwave }, { 446, Event::Sparks },
         { 460, Event::Laminoir },               // from the 3:01.3 hit (beat 468)
         { 473, Event::Sparks }, { 484, Event::Trempe, 2 },
         { 514, Event::HammerGroup },            // on the 3:20.3 hit (beat 517)
@@ -268,7 +273,7 @@ std::vector<Step> BuildTimeline()
         { 554, Event::Laminoir },               // from the 3:37.7 hit (beat 562)
         { 566, Event::Sparks },
         { 575, Event::Bellows, 2 },             // on the 3:42.7 hit
-        { 598, Event::Anvil },
+        { 599, Event::Anvil },
         { 612, Event::Check },                  // landing on the climax (beat 630)
     };
 }
@@ -279,18 +284,19 @@ struct Rule
     uint32 spell;
     float percent;
     char const* name;
+    char const* sound = nullptr;    // played as it strikes (client-assets/audio/vrogar.json)
 };
 
 Rule const RuleAnvil = { SPELL_ANVIL, DodgePct, "anvil cone" };
-Rule const RuleShockwave = { SPELL_SHOCKWAVE, DodgePct, "shockwave" };
-Rule const RulePour = { SPELL_POUR, DodgePct, "pour" };
-Rule const RuleSparks = { SPELL_SPARKS, DodgePct, "sparks" };
-Rule const RuleChains = { SPELL_CHAINS, DodgePct, "chains" };
-Rule const RuleLaminoir = { SPELL_LAMINOIR, DodgePct, "laminoir" };
-Rule const RuleSteam = { SPELL_STEAM, 100.0f, "steam" };
-Rule const RuleFlood = { SPELL_FLOOD, 100.0f, "flood" };
-Rule const RuleBellows = { SPELL_BELLOWS, 100.0f, "bellows" };
-Rule const RuleFonte = { SPELL_FONTE, 100.0f, "fonte" };
+Rule const RuleShockwave = { SPELL_SHOCKWAVE, DodgePct, "shockwave", "Vrogar.Shockwave" };
+Rule const RulePour = { SPELL_POUR, DodgePct, "pour", "Vrogar.Pour" };
+Rule const RuleSparks = { SPELL_SPARKS, DodgePct, "sparks", "Vrogar.Sparks" };
+Rule const RuleChains = { SPELL_CHAINS, DodgePct, "chains", "Vrogar.Chains" };
+Rule const RuleLaminoir = { SPELL_LAMINOIR, DodgePct, "laminoir", "Vrogar.Laminoir" };
+Rule const RuleSteam = { SPELL_STEAM, 100.0f, "steam", "Vrogar.Steam" };
+Rule const RuleFlood = { SPELL_FLOOD, 100.0f, "flood", "Vrogar.Flood" };
+Rule const RuleBellows = { SPELL_BELLOWS, 100.0f, "bellows", "Vrogar.BellowsFire" };
+Rule const RuleFonte = { SPELL_FONTE, 100.0f, "fonte", "Vrogar.Fonte" };
 
 bool IsTank(Player* player)
 {
@@ -305,7 +311,11 @@ using Areas = std::vector<GroundIndicators::Area>;
 
 struct boss_forge_master : public Defi::BossAI
 {
-    boss_forge_master(Creature* creature) : Defi::BossAI(creature, Room, "module.vrogar") { }
+    boss_forge_master(Creature* creature) : Defi::BossAI(creature, Room, "module.vrogar")
+    {
+        // Held at the arena's middle all fight (HoldMiddle): his tanks come to him
+        me->SetCombatMovement(false);
+    }
 
     void Reset() override
     {
@@ -425,8 +435,7 @@ struct boss_forge_master : public Defi::BossAI
             EndMusic();
         }
         UpdatePace(PaceMs(), CheckPaceMs());
-        if (_held && _landed && !me->HasUnitState(UNIT_STATE_ROOT))
-            me->SetControlled(true, UNIT_STATE_ROOT);
+        HoldMiddle();
         if (elapsed >= _nextCheckMs)
         {
             _nextCheckMs = elapsed + 200;
@@ -471,7 +480,7 @@ struct boss_forge_master : public Defi::BossAI
         if (!me->IsInCombat() && _phase != Phase::Rehearsal)
             return false;
         static std::map<std::string, Step> const steps = {
-            { "anvil", { 0, Event::Anvil } }, { "pour", { 0, Event::Pour } }, { "sparks", { 0, Event::Sparks } },
+            { "anvil", { 0, Event::Anvil } }, { "shockwave", { 0, Event::Shockwave } }, { "pour", { 0, Event::Pour } }, { "sparks", { 0, Event::Sparks } },
             { "chains", { 0, Event::Chains } }, { "laminoir", { 0, Event::Laminoir } },
             { "laminoir2", { 0, Event::Laminoir, 1 } }, { "trempe", { 0, Event::Trempe, 1 } },
             { "trempe2", { 0, Event::Trempe, 2 } }, { "bellows", { 0, Event::Bellows, 1 } },
@@ -549,6 +558,7 @@ private:
         switch (step.what)
         {
             case Event::Anvil: Anvil(at); break;
+            case Event::Shockwave: Shockwave(at); break;
             case Event::Pour: Pour(at); break;
             case Event::Sparks: Sparks(at); break;
             case Event::Chains: Chains(at); break;
@@ -585,6 +595,8 @@ private:
     // logged (its floor sampled a yard apart)
     void Strike(Areas const& areas, Rule const& rule)
     {
+        if (rule.sound && !areas.empty())
+            Sound(rule.sound, areas.front().origin);
         if (_phase == Phase::Rehearsal)
         {
             LogSafe(rule.name, areas);
@@ -630,6 +642,13 @@ private:
 
     Position Middle() const { return Ground(GetRoom().center); }
 
+    // One of his sounds (client-assets/audio/vrogar.json) at where, for everyone hearing the fight
+    void Sound(char const* key, Position const& where)
+    {
+        for (Player* player : Listeners())
+            EvolutionsAudio::PlayAt(player, key, where);
+    }
+
     Position OnArena(float angle, float distance) const { return AtAngle(GetRoom().center, angle, distance); }
 
     static GroundIndicators::Area MakeCircle(Position const& center, float radius)
@@ -663,42 +682,47 @@ private:
     {
         Position const middle = Middle();
         uint32 const lasts = MusicEndMs + 30000;
-        GroundIndicators::ShowWardenShockwave(me, middle);
-        GroundIndicators::ShowCurtainRing(me, middle, GroundIndicators::SPELL_WARDEN_WALL_FIRST,
-            GroundIndicators::WardenWallLooks, WallPieces, GroundIndicators::WardenWallPieceLength, lasts);
-        _wallFrom = Grid.At(WallRiseBeats);
+        // The wall a few seconds into the fight (at once in the lab)
+        uint32 const shows = _phase == Phase::Rehearsal ? 0 : WallShowBeats;
+        AtBeat(Grid, shows, [this, middle, lasts]()
+        {
+            GroundIndicators::ShowWardenShockwave(me, middle);
+            GroundIndicators::ShowCurtainRing(me, middle, GroundIndicators::SPELL_WARDEN_WALL_FIRST,
+                GroundIndicators::WardenWallLooks, WallPieces, GroundIndicators::WardenWallPieceLength, lasts);
+            Sound("Vrogar.WallRise", middle);
+        });
+        _wallFrom = Grid.At(shows + WallRiseBeats);
         // As it closes, anyone still outside (a pull from range) is drawn in: the wall kills only from then on
-        AtBeat(Grid, WallRiseBeats, [this]() { DrawIn(); });
+        AtBeat(Grid, shows + WallRiseBeats, [this]() { DrawIn(); });
         // The props: the trough and the crucible across from each other, the bellows at the four points
         _troughAngle = float(M_PI) / 4.0f;
         _crucibleAngle = _troughAngle + float(M_PI);
-        Prop(GO_TROUGH, _troughAngle, PropDistance, lasts);
-        Prop(GO_CRUCIBLE, _crucibleAngle, PropDistance, lasts);
+        Prop(NPC_TROUGH, _troughAngle, PropDistance);
+        Prop(NPC_CRUCIBLE, _crucibleAngle, PropDistance);
         for (uint32 index = 0; index < 4; ++index)
-            Prop(GO_BELLOWS, BellowsAngle(index), BellowsDistance, lasts);
-        KeepBotsIn();
+            Prop(NPC_BELLOWS, BellowsAngle(index), BellowsDistance);
+        KeepBotsIn(lasts);
     }
 
-    void Prop(uint32 entry, float angle, float distance, uint32 lastsMs)
+    void Prop(uint32 entry, float angle, float distance)
     {
-        Position const at = OnArena(angle, distance);
-        if (GameObject* prop = me->SummonGameObject(entry, at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(),
-                angle + float(M_PI), 0.0f, 0.0f, 0.0f, 0.0f, lastsMs / IN_MILLISECONDS))
+        Position at = Ground(OnArena(angle, distance));
+        at.SetOrientation(Position::NormalizeOrientation(angle + float(M_PI)));
+        if (Creature* prop = me->SummonCreature(entry, at, TEMPSUMMON_MANUAL_DESPAWN))
             _props.push_back(prop->GetGUID());
     }
 
     static float BellowsAngle(uint32 index) { return float(index) * float(M_PI) / 2.0f; }
 
-    // The bots keep out of everything past the wall, refreshed every 10 s
-    void KeepBotsIn()
+    // The bots keep out of everything past the wall, the whole fight (one area: it never strikes before the others)
+    void KeepBotsIn(uint32 lastsMs)
     {
         GroundIndicators::Area outside;
         outside.kind = GroundIndicators::Area::Kind::Ring;
         outside.origin = Middle();
         outside.radius = 60.0f;
         outside.inner = ArenaRadius - WallMargin - 0.5f;
-        GroundIndicators::WatchArea(me, outside, 11000, MistakeDamage);
-        scheduler.Schedule(10s, [this](TaskContext) { if (_phase != Phase::Over) KeepBotsIn(); });
+        GroundIndicators::WatchArea(me, outside, lastsMs, MistakeDamage);
     }
 
     // Everyone past the wall set just inside it, where they stood round it
@@ -731,6 +755,26 @@ private:
             }
     }
 
+    // --- The middle: he stands there all fight, rooted; his walk to la Trempe's props is the only time he leaves it,
+    // and anything moving him (a knockback, a grip) has him leap straight back
+    void HoldMiddle()
+    {
+        if (_walking || _phase == Phase::Fonte || _phase == Phase::None || _phase == Phase::Over)
+            return;
+        Position const middle = Middle();
+        if (me->GetExactDist2d(&middle) > 1.5f)
+        {
+            if (!me->HasUnitState(UNIT_STATE_JUMPING))
+            {
+                me->SetControlled(false, UNIT_STATE_ROOT);
+                me->GetMotionMaster()->MoveJump(middle, 20.0f, 4.0f);
+            }
+            return;
+        }
+        if (!me->HasUnitState(UNIT_STATE_ROOT))
+            me->SetControlled(true, UNIT_STATE_ROOT);
+    }
+
     // --- The middle: for a puzzle he goes there and holds still until it resolves -----------------------------------
     void TakeMiddle(uint32 lands, uint32 until)
     {
@@ -759,7 +803,7 @@ private:
             me->SetControlled(false, UNIT_STATE_ROOT);
     }
 
-    // --- Coup d'enclume: his tank's cone, then its shockwave in three rings, AnvilRingBeats apart ----------------------
+    // --- Coup d'enclume: his tank's cone ------------------------------------------------------------------------------
     void Anvil(uint32 start)
     {
         Unit* victim = me->GetVictim();
@@ -776,23 +820,11 @@ private:
         uint32 const lands = start + WarnBeats;
         GroundIndicators::Area const cone = GroundIndicators::ShowAimedCone(me, apex, facing, ArenaRadius + 1.0f,
             AnvilArc, MsTo(lands), tank, GroundIndicators::Theme::None, MistakeDamage);
-        // The shockwave after it, drawn with it from the start: the middle, then the ring round it, then out to the
-        // wall, AnvilRingBeats apart from the cone's blow
-        Areas rings;
-        rings.push_back(GroundIndicators::ShowCircle(me, apex, AnvilInner, MsTo(lands + AnvilRingBeats),
-            GroundIndicators::Theme::Fire, MistakeDamage));
-        rings.push_back(GroundIndicators::ShowRing(me, apex, AnvilMiddle, AnvilInner, MsTo(lands + 2 * AnvilRingBeats),
-            GroundIndicators::Theme::Fire, MistakeDamage));
-        rings.push_back(GroundIndicators::ShowRing(me, apex, ArenaRadius + 1.0f, AnvilMiddle,
-            MsTo(lands + 3 * AnvilRingBeats), GroundIndicators::Theme::Fire, MistakeDamage));
-        for (uint32 index = 0; index < rings.size(); ++index)
-        {
-            GroundIndicators::Area const ring = rings[index];
-            AtBeat(Grid, lands + AnvilRingBeats * (index + 1), [this, ring]() { Strike({ ring }, RuleShockwave); });
-        }
+        Sound("Vrogar.AnvilCast", me->GetPosition());
         AtBeat(Grid, lands, [this, cone, tankGuid]()
         {
             EndCastBar();
+            Sound("Vrogar.Anvil", cone.origin);
             if (_phase == Phase::Rehearsal)
                 LogSafe("anvil cone", { cone });
             else
@@ -808,6 +840,31 @@ private:
                         Mistake(player, RuleAnvil);
                 }
         });
+    }
+
+    // --- Onde de choc: three rings round him shown together - the middle, the ring round it, out to the wall - struck
+    // in that order, AnvilRingBeats apart, the first WarnBeats after they show
+    void Shockwave(uint32 start)
+    {
+        if (_phase == Phase::Fonte)
+            return;
+        CastBar(CAST_ANVIL);
+        Sound("Vrogar.AnvilCast", me->GetPosition());
+        Position const center = Middle();
+        uint32 const first = start + WarnBeats;
+        AtBeat(Grid, first, [this]() { EndCastBar(); });
+        Areas rings;
+        rings.push_back(GroundIndicators::ShowCircle(me, center, AnvilInner, MsTo(first),
+            GroundIndicators::Theme::Fire, MistakeDamage));
+        rings.push_back(GroundIndicators::ShowRing(me, center, AnvilMiddle, AnvilInner, MsTo(first + AnvilRingBeats),
+            GroundIndicators::Theme::Fire, MistakeDamage));
+        rings.push_back(GroundIndicators::ShowRing(me, center, ArenaRadius + 1.0f, AnvilMiddle,
+            MsTo(first + 2 * AnvilRingBeats), GroundIndicators::Theme::Fire, MistakeDamage));
+        for (uint32 index = 0; index < rings.size(); ++index)
+        {
+            GroundIndicators::Area const ring = rings[index];
+            AtBeat(Grid, first + AnvilRingBeats * index, [this, ring]() { Strike({ ring }, RuleShockwave); });
+        }
     }
 
     // The tanks: him held at the arena's middle, the other tank at his flank; the swap at SwapStacks of Brûlure
@@ -877,6 +934,7 @@ private:
     void Chains(uint32 start)
     {
         CastBar(CAST_CHAINS);
+        Sound("Vrogar.ChainsSpin", me->GetPosition());
         Position const center = Ground(me->GetPosition());
         float const facing = frand(0.0f, 2.0f * float(M_PI));
         float const way = urand(0, 1) ? 1.0f : -1.0f;
@@ -967,6 +1025,7 @@ private:
                 Position const prop = OnArena(angle, PropDistance);
                 // Steam from the trough, fire from the crucible: what is coming
                 GroundIndicators::Burst(me, prop, trough ? GroundIndicators::Theme::Frost : GroundIndicators::Theme::Fire);
+                Sound(trough ? "Vrogar.DipTrough" : "Vrogar.DipCrucible", prop);
                 GroundIndicators::ShowParticles(me, MakeCircle(prop, 2.5f),
                     trough ? GroundIndicators::Theme::Frost : GroundIndicators::Theme::Fire, uint32(Grid.beatMs * 4));
             });
@@ -1063,6 +1122,7 @@ private:
                             GroundIndicators::Burst(me, bellows, GroundIndicators::Theme::Fire);
                         });
                     Watch(half, strikes);
+                    Sound("Vrogar.BellowsLit", bellows);
                 });
                 AtBeat(Grid, strikes - 4, [this, half, strikes]()
                 {
@@ -1070,7 +1130,11 @@ private:
                         MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
                 });
             }
-            AtBeat(Grid, strikes, [this, halves]() { Strike(halves, RuleBellows); });
+            AtBeat(Grid, strikes, [this, halves]()
+            {
+                Sound("Vrogar.BellowsBlast", Middle());
+                Strike(halves, RuleBellows);
+            });
         }
     }
 
@@ -1101,6 +1165,7 @@ private:
                     GroundIndicators::ShowSoak(me, spot, IngotRadius, MsTo(strikes), 2,
                         GroundIndicators::Theme::Holy, true, false);
                 }
+                Sound("Vrogar.Ingots", Middle());
                 AtBeat(Grid, strikes, [this, spots]() { StrikeIngots(spots); });
             });
         }
@@ -1116,6 +1181,7 @@ private:
                 if (player->GetExactDist2d(&spot) <= IngotRadius)
                     under.push_back(player);
             GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Fire);
+            Sound("Vrogar.IngotsLand", spot);
             if (_phase == Phase::Rehearsal)
                 continue;
             if (under.size() == 2)
@@ -1157,6 +1223,7 @@ private:
             AtBeat(Grid, strikes, [this, marked, soak]()
             {
                 EndCastBar();
+                Sound("Vrogar.Hammer", soak);
                 StrikeHammer(marked, soak);
             });
         });
@@ -1201,6 +1268,7 @@ private:
         AtBeat(Grid, start + 3, [this]()
         {
             EndCastBar();
+            Sound("Vrogar.HammerGroup", me->GetPosition());
             if (_phase != Phase::Rehearsal)
                 HitEveryone(SPELL_HAMMER_GROUP, HammerGroupPct);
         });
@@ -1270,6 +1338,7 @@ private:
         me->SetReactState(REACT_AGGRESSIVE);
         _phase = Phase::Quench;
         GroundIndicators::Burst(me, middle, GroundIndicators::Theme::Fire);
+        Sound("Vrogar.Return", middle);
         HitEveryone(SPELL_RETURN, ReturnPct);
     }
 
@@ -1290,6 +1359,7 @@ private:
             if (_phase == Phase::Rehearsal)
                 return;
             bool const passed = AtPaceFloor();
+            Sound(passed ? "Vrogar.Return" : "Vrogar.Flood", Middle());
             LOG_INFO(_logName, "Vrogar check instance={} at={:.1f}s true={:.1f}% alive={} passed={}",
                      me->GetInstanceId(), Elapsed() / 1000.0f, TrueHealthPct(), ArenaPlayers().size(), passed);
             if (!passed)
@@ -1364,8 +1434,8 @@ private:
         EndPace();
         me->SetControlled(false, UNIT_STATE_ROOT);
         for (ObjectGuid const& guid : _props)
-            if (GameObject* prop = me->GetMap()->GetGameObject(guid))
-                prop->Delete();
+            if (Creature* prop = me->GetMap()->GetCreature(guid))
+                prop->DespawnOrUnsummon();
         _props.clear();
         _summons.DespawnAll();
         GroundIndicators::ClearAreasOf(me);

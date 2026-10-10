@@ -4,7 +4,9 @@
 -- 930400 Vrogar: Goraluk Anvilcrack's look (10899, display 10222, the Blackrock Spire's orc blacksmith) and hammer,
 --        until his own; a level 83 boss. His health is set by his script from the power model when his instance is
 --        known to be a challenge's.
--- (930401-930403, the Traqueur d'évadés's pack and beaters, are gone with the hunt.)
+-- 930401-930403 his arena's props, summoned by his script: the quench trough, the crucible, the bellows - creatures
+--        (copies of the stock Invisible Stalker, 32780, never selected) wearing stock objects' models, displays
+--        60011-60013 added by localTools/patchSinisterStrike.ps1: a creature blocks nobody, an object would.
 -- His static spawn stands where Keli'dan the Breaker channels, in every Blood Furnace; his script hides him and removes
 -- him from any instance that is not a challenge's, and clears the room of its own occupants.
 
@@ -53,6 +55,42 @@ UPDATE `tmp_stat_growth_forge_master` SET
 WHERE `entry` = 10899;
 INSERT INTO `creature_template` SELECT * FROM `tmp_stat_growth_forge_master`;
 DROP TEMPORARY TABLE `tmp_stat_growth_forge_master`;
+
+-- The props: never selected (unit_flags 33554434: non attackable, never selected), no AI
+DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 60011 AND 60013;
+DROP TEMPORARY TABLE IF EXISTS `tmp_stat_growth_forge_props`;
+CREATE TEMPORARY TABLE `tmp_stat_growth_forge_props` LIKE `creature_template`;
+INSERT INTO `tmp_stat_growth_forge_props` SELECT * FROM `creature_template` WHERE `entry` = 32780;
+UPDATE `tmp_stat_growth_forge_props` SET `entry` = 930401, `name` = 'Quench Trough' WHERE `entry` = 32780;
+INSERT INTO `tmp_stat_growth_forge_props` SELECT * FROM `creature_template` WHERE `entry` = 32780;
+UPDATE `tmp_stat_growth_forge_props` SET `entry` = 930402, `name` = 'Crucible' WHERE `entry` = 32780;
+INSERT INTO `tmp_stat_growth_forge_props` SELECT * FROM `creature_template` WHERE `entry` = 32780;
+UPDATE `tmp_stat_growth_forge_props` SET `entry` = 930403, `name` = 'Bellows' WHERE `entry` = 32780;
+UPDATE `tmp_stat_growth_forge_props` SET `subname` = '', `npcflag` = 0, `unit_flags` = 33554434, `flags_extra` = 0,
+    `AIName` = '', `ScriptName` = '', `VerifiedBuild` = NULL;
+INSERT INTO `creature_template` SELECT * FROM `tmp_stat_growth_forge_props`;
+DROP TEMPORARY TABLE `tmp_stat_growth_forge_props`;
+
+INSERT INTO `creature_template_model`
+    (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
+VALUES
+    (930401, 0, 60011, 1, 1, NULL),
+    (930402, 0, 60012, 1, 1, NULL),
+    (930403, 0, 60013, 1, 1, NULL);
+
+INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`,
+    `VerifiedBuild`)
+VALUES
+    (60011, 1.0, 1, 2, 0, NULL),
+    (60012, 1.0, 1, 2, 0, NULL),
+    (60013, 0.5, 1, 2, 0, NULL);
+
+INSERT INTO `creature_template_movement`
+    (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`)
+VALUES
+    (930401, 1, 0, 0, 1, 0, 0, NULL),
+    (930402, 1, 0, 0, 1, 0, 0, NULL),
+    (930403, 1, 0, 0, 1, 0, 0, NULL);
 
 -- The forge-master a head taller than a smith
 INSERT INTO `creature_template_model`

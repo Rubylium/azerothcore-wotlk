@@ -2399,6 +2399,14 @@ $ownDisplays = @(
     @{ Id = 60001; CloneModel = 3064; CloneDisplay = 28641; Model = 'Creature\Evolutions\Infini\Infini.mdx' }
     @{ Id = 60002; CloneModel = 2816; CloneDisplay = 25334; Model = 'Spells\ashran_loot_state.mdx'; Scale = 1.0 }
     @{ Id = 60003; CloneModel = 2816; CloneDisplay = 25334; Model = 'Spells\treasuregoblin_coinpile.mdx'; Scale = 2.5 }
+    # Vrogar's props (modules/mod-stat-growth/src/ForgeMaster.cpp): stock objects' models worn by creatures, which block
+    # nobody - the quench trough (a cauldron), the crucible (a forge), the bellows (a brazier)
+    @{ Id = 60011; CloneModel = 2816; CloneDisplay = 25334
+       Model = 'World\Generic\Human\Passive Doodads\Cauldrons\Cauldron.mdx'; Scale = 1.75 }
+    @{ Id = 60012; CloneModel = 2816; CloneDisplay = 25334
+       Model = 'World\SkillActivated\TradeskillEnablers\Tradeskill_Forge_01.mdx'; Scale = 1.0 }
+    @{ Id = 60013; CloneModel = 2816; CloneDisplay = 25334
+       Model = 'World\Generic\Orc\Passive Doodads\Braziers\SmallBrazierPurple01.mdx'; Scale = 1.0 }
 )
 # White, green, blue, purple, orange (legendary), gold, red (a Unique: the client extension's quality 6 colour)
 $beamColours = @('ffffff', '1eff00', '0070dd', 'a335ee', 'ff8000', 'ffd100', 'e8332b')

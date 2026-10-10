@@ -1,0 +1,230 @@
+{
+  "_comment": [
+    "Vrogar's sounds (ForgeMaster.cpp): the game's own files, heard from where the pattern happens across the whole",
+    "arena (min distance 60): the wall's rumble, a smith's hammering as he raises his for the anvil, the anvil's clang",
+    "and its shockwave, lava splashing for the pour, scorches for the sparks, chains rattling as they spin and slammed",
+    "down, giant stone steps for the rollers, steam or molten iron as he dips, the geyser or the flame crash as they",
+    "strike, the bellows breathing in then out with a blast of fire, ingots clanking, the hammer's quake, Onyxia's lava",
+    "traps for la Fonte, a molten blast for his return."
+  ],
+  "sounds": {
+    "Vrogar.WallRise": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/EarthquakeCameraShake.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.AnvilCast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingA.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingB.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingC.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingD.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Anvil": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/2hMaceMetalHitMetalShieldCrit.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Shockwave": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Warrior_ShockWave_Area.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Pour": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Shadowmoon_lavasplash01.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Sparks": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/ScorchImpact.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.ChainsSpin": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/ChainFoley01.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/ChainFoley02.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/ChainFoley03.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/ChainFoley04.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Chains": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/PutDownLArgeChain.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Laminoir": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/mFootHugeGiantStoneA.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/mFootHugeGiantStoneB.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/mFootHugeGiantStoneC.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/mFootHugeGiantStoneD.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.DipTrough": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/WaterSteam_Impact1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/WaterSteam_Impact2.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/WaterSteam_Impact3.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.DipCrucible": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Shaman_LavaBurstImpact1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Shaman_LavaBurstImpact2.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Shaman_LavaBurstImpact3.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Steam": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/SteamGeyserVar1.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Flood": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/IllidanFlameCrashVar1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/IllidanFlameCrashVar2.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/IllidanFlameCrashVar3.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/IllidanFlameCrashVar4.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.BellowsLit": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/OrcBellow_In.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.BellowsBlast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/OrcBellow_Out.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.BellowsFire": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/FireNova.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Ingots": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/1hMaceMetalHitPlateCrit.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.IngotsLand": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/2hMaceMetalHitPlate1a.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/2hMaceMetalHitPlate1b.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/2hMaceMetalHitPlate1c.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Hammer": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Ulduar_KologarnShockWave.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.HammerGroup": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/ThunderClap.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Fonte": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/OnyziasLairLavaTrapCustom0A.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/OnyziasLairLavaTrapCustom0B.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/OnyziasLairLavaTrapCustom0C.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    },
+    "Vrogar.Return": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/MoltenBlastImpact.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0
+    }
+  }
+}
