@@ -65,6 +65,7 @@ float const ArenaRadius = GroundIndicators::WardenWallPieceLength / (2.0f * std:
 constexpr float WallMargin = 0.6f;          // past ArenaRadius less this: in the wall
 constexpr uint32 WallShowBeats = 8;         // the wall rises this long after the pull
 constexpr uint32 WallRiseBeats = 8;         // and kills this long after it rose (time to step in)
+constexpr uint32 WallDrawInGraceMs = 1500;  // ... and this long after those still outside are drawn in
 
 // The FX lab (map 451, FxLab.cpp): his rehearsal's place
 constexpr uint32 MapFxLab = 451;
@@ -104,7 +105,7 @@ constexpr uint32 ScaldMs = 10000;
 constexpr float AnvilArc = 90.0f;
 constexpr float AnvilInner = 6.0f;          // the shockwave's rings: 0-6, 6-10, 10 to the wall
 constexpr float AnvilMiddle = 10.0f;
-constexpr uint32 AnvilRingBeats = 2;        // a ring strikes this long after the one inside it: time to step in
+constexpr uint32 AnvilRingBeats = 4;        // a ring strikes this long after the one inside it: time to step in
 // A shape's first red: at least this long before it strikes (a follow-up of a pattern already read may come faster)
 constexpr uint32 WarnBeats = 8;
 constexpr uint32 FollowBeats = 6;
@@ -246,26 +247,27 @@ std::vector<Step> BuildTimeline()
 {
     return {
         // Every pattern's first red shows WarnBeats (3.1 s) before it strikes; their lengths from their start: anvil 9
-        // beats, shockwave 13, pour and chains 15, sparks 9, laminoir 12 (back: 19), bellows 13 (2: 23), ingots 13
+        // beats, shockwave 17, pour and chains 15, sparks 9, laminoir 12 (back: 19), bellows 13 (2: 23), ingots 13
         // (2: 25), hammer 17, trempe 25 (2: 39); none starts before the last one's last strike. The group hit draws
         // nothing on the floor. The wall rises on beat WallShowBeats.
-        // Intro (bars 0-11): his dodges, learnt
-        { 10, Event::Anvil }, { 20, Event::Shockwave }, { 34, Event::Sparks },
+        // Intro (bars 0-11): his dodges, learnt - from after the wall's draw-in (beat 16: anyone still outside is set
+        // just inside it, and must not land in a red already about to strike)
+        { 17, Event::Anvil }, { 27, Event::Shockwave }, { 44, Event::Sparks },
         // Build-up (bars 12-27): his hammer on its first beat; la Trempe, his dip on the 0:21.4 hit
         { 45, Event::HammerGroup }, { 49, Event::Trempe, 1 },
         { 75, Event::Anvil }, { 85, Event::Chains }, { 101, Event::Pour },
         // Section A (bars 28-75)
-        { 117, Event::Shockwave }, { 132, Event::Bellows, 1 }, { 146, Event::Sparks }, { 156, Event::Anvil },
-        { 165, Event::Sparks },
+        { 117, Event::Shockwave }, { 134, Event::Bellows, 1 }, { 148, Event::Sparks }, { 157, Event::Anvil },
+        { 166, Event::Sparks },
         { 174, Event::Laminoir },               // its rollers from the 1:10.6 hit (beat 182)
         { 188, Event::Anvil }, { 198, Event::Ingots, 1 }, { 212, Event::Sparks },
         { 226, Event::Laminoir, 1 },            // from the 1:30.7 hit (beat 234), and back
-        { 246, Event::Shockwave }, { 260, Event::Pour }, { 276, Event::Chains },
+        { 246, Event::Shockwave }, { 263, Event::Pour }, { 278, Event::Chains },
         { 296, Event::Hammer },                 // landing on the peak (beat 310)
         // La Fonte (bars 80-103), his return on beat 416
         { FonteStartBeat, Event::FonteStart }, { FonteEndBeat, Event::FonteEnd },
         // The rebuild and section B (bars 104-155)
-        { 422, Event::Anvil }, { 432, Event::Shockwave }, { 446, Event::Sparks },
+        { 422, Event::Anvil }, { 432, Event::Shockwave }, { 449, Event::Sparks },
         { 460, Event::Laminoir },               // from the 3:01.3 hit (beat 468)
         { 473, Event::Sparks }, { 484, Event::Trempe, 2 },
         { 514, Event::HammerGroup },            // on the 3:20.3 hit (beat 517)
@@ -450,9 +452,12 @@ struct boss_forge_master : public Defi::BossAI
     std::string Describe() const
     {
         uint32 const elapsed = Elapsed();
+        // Whether the bots are kept in: a spot past the wall red to them (KeepBotsIn)
+        Position const past = AtAngle(Middle(), 0.0f, ArenaRadius + 4.0f);
+        bool const keptIn = GroundIndicators::KeepsOutOf(me, past);
         return Acore::StringFormat("Vrogar: phase {} at {:.1f}s (beat {:.1f}), shown health {:.1f}%, true {:.1f}%, next "
-            "step {}/{}, held {}", uint32(_phase), elapsed / 1000.0f, Grid.BeatOf(elapsed), me->GetHealthPct(),
-            TrueHealthPct(), _next, _timeline.size(), _held);
+            "step {}/{}, held {}, bots kept in {}", uint32(_phase), elapsed / 1000.0f, Grid.BeatOf(elapsed),
+            me->GetHealthPct(), TrueHealthPct(), _next, _timeline.size(), _held, keptIn);
     }
 
     // Jumps the fight forward (the music is not: it goes on from where it was); the phase changes passed over run
@@ -580,6 +585,7 @@ private:
         AtBeat(Grid, shown, [this, lands, draw, &rule]()
         {
             Areas const areas = draw(MsTo(lands));
+            AtBeat(Grid, lands - 1, [this, areas, &rule]() { Probe(areas, rule.name); });
             AtBeat(Grid, lands, [this, areas, &rule]() { Strike(areas, rule); });
         });
     }
@@ -607,6 +613,31 @@ private:
                 if (area.Contains(player->GetPosition()))
                 {
                     Mistake(player, rule);
+                    break;
+                }
+    }
+
+    // A beat before a strike: every bot still in it, what it is doing and whether it sees a way out (the log's account
+    // of a miss to come)
+    void Probe(Areas const& areas, char const* name)
+    {
+        if (_phase == Phase::Rehearsal)
+            return;
+        Position const middle = Middle();
+        for (Player* player : ArenaPlayers())
+            for (GroundIndicators::Area const& area : areas)
+                if (area.Contains(player->GetPosition()))
+                {
+                    Position escape;
+                    bool const escaping = GroundIndicators::FindEscape(player, escape, IsTank(player));
+                    LOG_INFO(_logName, "Vrogar probe instance={} at={:.1f}s {}: {} class={} tank={} at={:.1f}yd/{:.0f}deg "
+                             "moving={} motion={} escape={} to={:.1f}yd/{:.0f}deg keepsOut={}", me->GetInstanceId(),
+                             Elapsed() / 1000.0f, name, player->GetName(), player->getClass(), IsTank(player),
+                             player->GetExactDist2d(&middle), middle.GetAbsoluteAngle(player) * 180.0f / float(M_PI),
+                             player->isMoving(), uint32(player->GetMotionMaster()->GetCurrentMovementGeneratorType()),
+                             escaping, escaping ? escape.GetExactDist2d(&middle) : -1.0f,
+                             escaping ? middle.GetAbsoluteAngle(&escape) * 180.0f / float(M_PI) : 0.0f,
+                             GroundIndicators::KeepsOutOf(player, player->GetPosition()));
                     break;
                 }
     }
@@ -691,7 +722,8 @@ private:
                 GroundIndicators::WardenWallLooks, WallPieces, GroundIndicators::WardenWallPieceLength, lasts);
             Sound("Vrogar.WallRise", middle);
         });
-        _wallFrom = Grid.At(shows + WallRiseBeats);
+        // From a moment after the draw-in: a player teleported in is only there once its client has answered
+        _wallFrom = Grid.At(shows + WallRiseBeats) + WallDrawInGraceMs;
         // As it closes, anyone still outside (a pull from range) is drawn in: the wall kills only from then on
         AtBeat(Grid, shows + WallRiseBeats, [this]() { DrawIn(); });
         // The props: the trough and the crucible across from each other, the bellows at the four points
@@ -749,9 +781,19 @@ private:
         for (Player* player : ArenaPlayers())
             if (player->GetExactDist2d(&middle) > ArenaRadius - WallMargin)
             {
+                // How it got there: its spot, its movement (type), its target's distance, what the indicators tell it
+                Position escape;
+                bool const escaping = GroundIndicators::FindEscape(player, escape, IsTank(player));
+                Unit* victim = player->GetVictim();
+                LOG_INFO(_logName, "Vrogar wall instance={} at={:.1f}s {} class={} at={:.1f}yd/{:.0f}deg moving={} motion={} "
+                         "victim={:.1f}yd escape={} to={:.1f}yd keepsOut={}", me->GetInstanceId(), Elapsed() / 1000.0f,
+                         player->GetName(), player->getClass(), player->GetExactDist2d(&middle),
+                         middle.GetAbsoluteAngle(player) * 180.0f / float(M_PI), player->isMoving(),
+                         uint32(player->GetMotionMaster()->GetCurrentMovementGeneratorType()),
+                         victim ? player->GetExactDist2d(victim) : -1.0f, escaping,
+                         escaping ? escape.GetExactDist2d(&middle) : -1.0f,
+                         GroundIndicators::KeepsOutOf(player, player->GetPosition()));
                 Doom(player, SPELL_WALL);
-                LOG_INFO(_logName, "Vrogar wall instance={} at={:.1f}s {}", me->GetInstanceId(), Elapsed() / 1000.0f,
-                         player->GetName());
             }
     }
 
@@ -863,22 +905,23 @@ private:
         for (uint32 index = 0; index < rings.size(); ++index)
         {
             GroundIndicators::Area const ring = rings[index];
+            AtBeat(Grid, first + AnvilRingBeats * index - 1, [this, ring]() { Probe({ ring }, "shockwave"); });
             AtBeat(Grid, first + AnvilRingBeats * index, [this, ring]() { Strike({ ring }, RuleShockwave); });
         }
     }
 
-    // The tanks: him held at the arena's middle, the other tank at his flank; the swap at SwapStacks of Brûlure
+    // The tanks: him rooted at the middle (no tank spot: his tank only has to reach him), the other tank behind him;
+    // the swap at SwapStacks of Brûlure
     void UpdateTanks()
     {
         if (_phase == Phase::Fonte)
             return;
-        GroundIndicators::SetTankSpot(me, Middle(), 1000, 3.0f);
         Unit* victim = me->GetVictim();
         Player* tank = victim ? victim->ToPlayer() : nullptr;
         if (!tank)
             return;
-        GroundIndicators::SetOffTankSpot(me, AtAngle(me->GetPosition(), me->GetAngle(tank) + float(M_PI) / 2.0f,
-            4.0f), 1000);
+        // Behind him from his tank: never in the cone aimed at it (a tank does not run from a cone on the other)
+        GroundIndicators::SetOffTankSpot(me, AtAngle(me->GetPosition(), me->GetAngle(tank) + float(M_PI), 4.0f), 1000);
         if (StacksOf(tank, SPELL_BURN) < SwapStacks)
             return;
         for (Player* player : ArenaPlayers())
@@ -1047,8 +1090,11 @@ private:
             area.origin = middle;
             area.radius = trough ? SteamRadius : ArenaRadius * 2.0f;
             area.inner = trough ? 0.0f : SteamRadius;
-            // The bots are told from his return
-            AtBeat(Grid, beat, [this, area, strikes]() { Watch(area, strikes); });
+            // The bots are told from his dip into that prop (what the players see: the steam or the fire there), so
+            // that they keep out of the middle as he walks back to it
+            uint32 const dips = start + 6 + 10 * index;
+            AtBeat(Grid, dips, [this, area, strikes]() { Watch(area, strikes); });
+            AtBeat(Grid, strikes - 1, [this, area, trough]() { Probe({ area }, trough ? "steam" : "flood"); });
             AtBeat(Grid, strikes, [this, area, trough, middle]()
             {
                 // Seen as it strikes: the steam's burst or the iron's flood
@@ -1392,8 +1438,21 @@ private:
             if (player->IsAlive())
                 AddTimedAura(player, SPELL_SCALD, ScaldMs);
         }
-        LOG_INFO(_logName, "Vrogar rule broken instance={} at={:.1f}s {}: {}", me->GetInstanceId(),
-                 Elapsed() / 1000.0f, rule.name, player->GetName());
+        // Where and doing what: a bot's miss read from the log (its class, its spot from the middle, moving, casting)
+        Position const middle = Middle();
+        Position escape;
+        bool const escaping = GroundIndicators::FindEscape(player, escape, IsTank(player));
+        Spell const* casting = player->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+        Spell const* channel = player->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+        LOG_INFO(_logName, "Vrogar rule broken instance={} at={:.1f}s {}: {} bot={} class={} tank={} at={:.1f}yd/{:.0f}deg "
+                 "moving={} casting={} channel={} rooted={} speed={:.1f} motion={} escape={}", me->GetInstanceId(),
+                 Elapsed() / 1000.0f, rule.name,
+                 player->GetName(), player->GetSession() && player->GetSession()->IsBot(), player->getClass(),
+                 IsTank(player), player->GetExactDist2d(&middle),
+                 middle.GetAbsoluteAngle(player) * 180.0f / float(M_PI), player->isMoving(),
+                 casting ? casting->GetSpellInfo()->Id : 0, channel ? channel->GetSpellInfo()->Id : 0,
+                 player->HasUnitState(UNIT_STATE_ROOT), player->GetSpeed(MOVE_RUN),
+                 uint32(player->GetMotionMaster()->GetCurrentMovementGeneratorType()), escaping);
     }
 
     void WatchDeaths()
