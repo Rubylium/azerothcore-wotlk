@@ -38,6 +38,9 @@ AddSet({ "Cuirs du Traqueur d'évadés", "Escape-Hunter's Leathers" },
 AddSet({ "Atours du Lieur de sceaux", "Sealbinder's Regalia" },
     { 13688, 13689, 13690, 13691, 13692, 13693, 13694, 13695 })
 AddSet({ "Geôle des Flammes infernales", "Hellfire Gaol" }, { 13696, 13697, 12187 })
+-- His weapons (SetPieces.cpp WeaponRows)
+AddSet({ "Geôle des Flammes infernales", "Hellfire Gaol" },
+    { 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996 })
 
 -- The source of a generated item, and its colour: the client's own green for a difficulty, the Forge's orange, the
 -- touching boss's own

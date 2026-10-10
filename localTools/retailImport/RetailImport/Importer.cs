@@ -25,6 +25,8 @@ public sealed class DisplaySpec
     // A helmet's HelmetGeosetVisData ids (male, female: the hair and ears it hides); the clone's when absent
     public int[] HelmetVis { get; set; }
     public string Note { get; set; }
+    // A wow-retail-backport project's folder (see ImportBackport): the look comes from its conversion, not ours
+    public string Backport { get; set; }
 }
 
 public sealed class ItemSpec
@@ -150,6 +152,8 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
 
     private Row ImportDisplay(DisplaySpec spec)
     {
+        if (!string.IsNullOrEmpty(spec.Backport))
+            return ImportBackport(spec);
         var display = retail.Table("ItemDisplayInfo")[spec.RetailDisplay];
         var modelResources = (uint[])display["ModelResourcesID"];
         var materialResources = (int[])display["ModelMaterialResourcesID"];
@@ -228,6 +232,85 @@ public sealed class Importer(Retail retail, string repoRoot, string workDir)
             textures = retailTextures.Select(fdid => $"{fdid} {retail.NameOf(fdid)}"),
             icon = iconFile != 0 ? $"{iconFile} {retail.NameOf(iconFile)}" : null,
         });
+    }
+
+    // A weapon, shield or off-hand converted by a wow-retail-backport project (github.com/Kirazul/wow-retail-backport,
+    // run outside this repository: it has no license, nothing of it is copied here). It reads models newer than
+    // MultiConverter does (Midnight's) and keeps their particles, baking each colourway's particle colours into a
+    // model file of its own. Its build folder holds the converted files at their archive paths, under its private
+    // Backport\ folders, and its build\plan.json each retail display's row: the files that row reaches are copied as
+    // they are, and the row is ours (our display id, a stock clone for sounds and flags).
+    private Row ImportBackport(DisplaySpec spec)
+    {
+        if (spec.Slot != "weapon")
+            throw new Exception($"display {spec.Id}: a backport import is a weapon, shield or off-hand");
+        var buildRoot = Path.Combine(spec.Backport, "build");
+        using var plan = JsonDocument.Parse(File.ReadAllText(Path.Combine(buildRoot, "plan.json")));
+        if (!plan.RootElement.TryGetProperty(spec.RetailDisplay.ToString(), out var entry)
+            || !entry.GetProperty("ok").GetBoolean())
+            throw new Exception($"display {spec.Id}: {spec.Backport} has not converted retail display {spec.RetailDisplay}");
+        report.Add($"display {spec.Id} <- retail display {spec.RetailDisplay}, converted by {spec.Backport} ({spec.Note})");
+        var row = entry.GetProperty("row");
+        var folder = entry.GetProperty("inv").GetInt32() == 14 ? "Shield" : "Weapon";
+        var modelNames = new[] { "", "" };
+        var modelTextures = new[] { "", "" };
+        for (var slot = 0; slot < 2; ++slot)
+        {
+            var model = row.GetProperty("model")[slot].GetString();
+            if (!string.IsNullOrEmpty(model))
+            {
+                modelNames[slot] = model;
+                CopyBackportModel(buildRoot, $@"Item\ObjectComponents\{folder}\{model[..^4]}");
+            }
+            var texture = row.GetProperty("tex")[slot].GetString();
+            if (!string.IsNullOrEmpty(texture))
+            {
+                modelTextures[slot] = texture;
+                CopyBackportFile(buildRoot, $@"Item\ObjectComponents\{folder}\{texture}.blp");
+            }
+        }
+        var icon = row.GetProperty("icon").GetString() ?? "";
+        if (icon.Length > 0)
+            CopyBackportFile(buildRoot, $@"Interface\Icons\{icon}.blp");
+        var geosets = row.GetProperty("gg335").EnumerateArray().Select(group => group.GetInt32()).ToArray();
+        return new Row(spec.Id, spec.Clone, modelNames, modelTextures, icon, Enumerable.Repeat("", 8).ToArray(),
+            geosets, spec.HelmetVis, spec.Note, new { backport = spec.Backport, display = spec.RetailDisplay });
+    }
+
+    // A converted model: its .m2, its skins, its .anim files, and every texture it names itself
+    private void CopyBackportModel(string buildRoot, string stem)
+    {
+        var body = CopyBackportFile(buildRoot, stem + ".m2");
+        CopyBackportFile(buildRoot, stem + "00.skin");
+        for (var view = 1; view < 4; ++view)
+            if (File.Exists(Path.Combine(buildRoot, $"{stem}{view:D2}.skin")))
+                CopyBackportFile(buildRoot, $"{stem}{view:D2}.skin");
+        var directory = Path.GetDirectoryName(Path.Combine(buildRoot, stem))!;
+        foreach (var anim in Directory.GetFiles(directory, Path.GetFileName(stem) + "*.anim"))
+            CopyBackportFile(buildRoot, Path.GetRelativePath(buildRoot, anim));
+        // Version 264: the texture array's count and offset at 0x50; an entry is type, flags, name length, name offset
+        var count = BitConverter.ToInt32(body, 0x50);
+        var offset = BitConverter.ToInt32(body, 0x54);
+        for (var i = 0; i < count; ++i)
+        {
+            var entryOffset = offset + i * 16;
+            var length = BitConverter.ToInt32(body, entryOffset + 8);
+            if (BitConverter.ToInt32(body, entryOffset) != 0 || length <= 1)
+                continue;
+            var name = Encoding.ASCII.GetString(body, BitConverter.ToInt32(body, entryOffset + 12), length).TrimEnd('\0');
+            CopyBackportFile(buildRoot, name);
+        }
+    }
+
+    private byte[] CopyBackportFile(string buildRoot, string archivePath)
+    {
+        var path = Path.Combine(buildRoot, archivePath.Replace('\\', Path.DirectorySeparatorChar));
+        if (!File.Exists(path))
+            throw new Exception($"{archivePath} is not in {buildRoot}");
+        var bytes = File.ReadAllBytes(path);
+        WriteOutput(archivePath, bytes);
+        report.Add($"  {archivePath} ({bytes.Length} bytes, as converted)");
+        return bytes;
     }
 
     // Weapons and shoulders: one rigid model a hand or a shoulder, with its texture

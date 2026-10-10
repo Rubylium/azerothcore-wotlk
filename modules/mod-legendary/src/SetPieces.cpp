@@ -17,6 +17,7 @@
 #include "Chat.h"
 #include "ChatCommand.h"
 #include "CommandScript.h"
+#include "Containers.h"
 #include "DatabaseEnv.h"
 #include "GroundLoot.h"
 #include "Log.h"
@@ -60,6 +61,26 @@ constexpr std::array<std::array<uint32, 8>, 4> ArmourSets = { {
     { 13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717 },   // Harnois du Gardien-chef
 } };
 constexpr std::array<uint32, 3> SharedPieces = { 13696, 13697, 12187 };   // Clé de cellule, Anneau de matricule, Cape
+// His weapons, one a kind: Midnight's raid and dungeon weapons in their green colourway (localTools/retailImport
+// items.json: a free Item.dbc row each, its look converted by a wow-retail-backport project)
+constexpr std::array<uint32, 16> WeaponRows = {
+    5551,   // Couperet du geôlier, one-hand axe
+    5552,   // Hache du bourreau, two-hand axe
+    5553,   // Arc du Traqueur d'évadés, bow
+    5554,   // Fusil de la ronde de nuit, gun
+    5555,   // Masse de la discipline, one-hand mace
+    5556,   // Marteau de la sentence, two-hand mace
+    5557,   // Hallebarde du couvre-feu, polearm
+    5558,   // Lame du verdict, one-hand sword
+    5560,   // Espadon de la peine capitale, two-hand sword
+    5561,   // Brasero de la Geôle, staff
+    4899,   // Griffes de l'interrogateur, fist weapon
+    4900,   // Surin de cellule, dagger
+    4912,   // Arbalète du mirador, crossbow
+    4956,   // Baguette du regard du geôlier, wand
+    4985,   // Rempart de la Geôle, shield
+    4996,   // Code pénal de la Geôle, held in the off-hand
+};
 
 std::vector<uint32> AllRows()
 {
@@ -67,6 +88,7 @@ std::vector<uint32> AllRows()
     for (auto const& set : ArmourSets)
         rows.insert(rows.end(), set.begin(), set.end());
     rows.insert(rows.end(), SharedPieces.begin(), SharedPieces.end());
+    rows.insert(rows.end(), WeaponRows.begin(), WeaponRows.end());
     return rows;
 }
 
@@ -97,9 +119,24 @@ int32 StatOf(ItemTemplate const& itemTemplate, uint32 type)
     return value;
 }
 
-// What a piece is made from: its class, its slot (a robe is a chest) and, in a slot made of an armour type, that type
+// What a piece is made from: its class, its slot (a robe is a chest) and, in a slot made of an armour type, that type.
+// A weapon: its kind, one-hand, main-hand and off-hand alike (the row's slot is the piece's: a caster's main-hand
+// mace gives a one-hand mace its stats), and a bow, gun or crossbow from any of the three - the raids' only gun is a
+// gladiator's, never a base.
 std::tuple<uint32, uint32, uint32> PeerKey(ItemTemplate const& itemTemplate)
 {
+    if (itemTemplate.Class == ITEM_CLASS_WEAPON)
+    {
+        uint32 subclass = itemTemplate.SubClass;
+        uint32 slot = itemTemplate.InventoryType;
+        if (slot == INVTYPE_WEAPONMAINHAND || slot == INVTYPE_WEAPONOFFHAND)
+            slot = INVTYPE_WEAPON;
+        if (subclass == ITEM_SUBCLASS_WEAPON_GUN || subclass == ITEM_SUBCLASS_WEAPON_CROSSBOW)
+            subclass = ITEM_SUBCLASS_WEAPON_BOW;
+        if (subclass == ITEM_SUBCLASS_WEAPON_BOW)
+            slot = INVTYPE_RANGED;
+        return { itemTemplate.Class, slot, subclass };
+    }
     uint32 const slot = itemTemplate.InventoryType == INVTYPE_ROBE ? uint32(INVTYPE_CHEST) : itemTemplate.InventoryType;
     bool armorType = false;
     switch (itemTemplate.InventoryType)
@@ -351,10 +388,34 @@ ItemTemplate const* FitPiece(Player* player, uint32 rowEntry)
     return SelectSuitedItem(player, all, true);
 }
 
-// One of the player's armour type's eight pieces or a shared one, at random
+// A weapon for the player: one of the kinds with a profile that suits them (their class, proficiency, stats and way
+// of fighting), at random; 0 when none does
+uint32 DrawWeaponRow(Player* player)
+{
+    std::vector<uint32> suited;
+    for (uint32 row : WeaponRows)
+    {
+        auto const found = Pieces.find(row);
+        if (found == Pieces.end())
+            continue;
+        std::vector<ItemTemplate const*> items;
+        for (Profile const& profile : found->second)
+            items.push_back(profile.item);
+        if (SelectSuitedItem(player, items, false))
+            suited.push_back(row);
+    }
+    return suited.empty() ? 0 : Acore::Containers::SelectRandomContainerElement(suited);
+}
+
+// One of the player's armour type's eight pieces, a shared one or a weapon (as likely as any one piece), at random
 uint32 DrawRow(Player* player)
 {
-    uint32 const pick = urand(0, uint32(ArmourSets[0].size() + SharedPieces.size() - 1));
+    uint32 const pick = urand(0, uint32(ArmourSets[0].size() + SharedPieces.size()));
+    if (pick == ArmourSets[0].size() + SharedPieces.size())
+        if (uint32 const weapon = DrawWeaponRow(player))
+            return weapon;
+    if (pick >= ArmourSets[0].size() + SharedPieces.size())
+        return ArmourSets[ArmorType(player)][urand(0, uint32(ArmourSets[0].size() - 1))];
     return pick < ArmourSets[0].size() ? ArmourSets[ArmorType(player)][pick] :
         SharedPieces[pick - ArmourSets[0].size()];
 }

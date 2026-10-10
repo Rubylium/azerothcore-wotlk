@@ -14,7 +14,7 @@ Retail WoW item looks (weapons, shoulders) are converted into 3.3.5a client file
 | Chest, legs, hands, feet, wrist, waist | ✅ `slot: body`: the body textures only (see below) |
 | Cloaks | ✅ `slot: cape`: the cape texture, its cut hem filled (below) |
 | Collections models (retail Legion+: chest, legs, gloves, boots, belt buckle; Midnight: helmets too) | ❌ 3.3.5 has no slot that draws a model rigged to the character skeleton |
-| Models newer than Shadowlands | ⚠️ outside MultiConverter's range; the structural check fails the import rather than shipping a crashing model |
+| Models newer than Shadowlands | ⚠️ outside MultiConverter's range; the structural check fails the import rather than shipping a crashing model. Weapons, shields and off-hands: through a wow-retail-backport project (below) |
 
 Conversion losses: particle emitters are dropped (a flame, a mist), retail shader effects become two 3.3.5 passes
 (glows and reflections close, not identical), only the Stand sequence is kept (stock item models have one).
@@ -89,6 +89,22 @@ wear it: one retail item batch, 144780-145030, the same look on all eight armour
 classes wear the set of a class of their armour (`CUSTOM_CLASSES` there). A look reaches the client through a real
 item: the rogue's are its test items, the others "Hollow Voice look" items (16102-17835 in items.json) that no one is
 given.
+
+### Newer weapons: a wow-retail-backport project
+
+[wow-retail-backport](https://github.com/Kirazul/wow-retail-backport) (Kirazul; no license: run from its own clone,
+`C:\Users\alexi\Documents\GitHub\wow-retail-backport`, nothing of it copied here) converts retail models up to
+Midnight and keeps their particles, each colourway's particle colours baked into a model file of its own. A display
+entry with `"backport": "<project folder>"` takes that project's conversion of its `retailDisplay`
+(`Importer.ImportBackport`: the files its `build\plan.json` row reaches, copied as they are under its `Backport\`
+folders; the row is ours). Weapons, shields and off-hands only. Gardien-chef Vorhan's weapons (70101-70116) come from
+`C:\backport\vorhan`:
+- `bp.py init --work C:\backport\vorhan --client <Data>`, then in its `bp.json` `"locale": "frFR"` and `client_data` a
+  folder of hard links to the stock archives only (`C:\backport\stockData`: our patch-Z's tables are encrypted, which
+  its reader cannot open; weapons need nothing of ours);
+- `scan`, `select --item <retail item>...`, `fetch`, `newtech`, `measure`, `build`, `tables`, `audit`, `prove-gates`,
+  `sheet`, and look at every sheet (a weapon's colourways are displays of their own: `build\plan.json`);
+- its rule against textures over 1024 px is the client's own limit (an addon's 2048 x 1024 texture crashed it).
 
 ## Adding a look (checklist)
 

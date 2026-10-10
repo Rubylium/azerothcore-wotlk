@@ -78,6 +78,10 @@ record, as for any raid item; its gear bonuses roll at 485 on the regular path.
   their gear favours first; thrown on the floor with his loot.
 - Copies the legendary engine rolled before (`character_legendary` on a row) are turned into the nearest profile at
   startup (their owner's class, primary stat and secondaries); their gear bonuses stay, kept by the item's guid.
+- His weapons (`WeaponRows`, one a kind: Midnight's in their green colourway, `localTools/retailImport` items
+  5551-5561 and 4899-4996) are made the same way, from the raid weapons of their kind - one-hand, main-hand and
+  off-hand alike, and a bow, gun or crossbow from any of the three (the raids' only gun is a gladiator's). His win
+  draws a weapon as often as any one piece, of a kind with a profile that suits the looter.
 - `.setpiece list <row>` shows a row's profiles beside the Hollow Voice's 477 item of the same raid item;
   `.setpiece give [row]` gives one as his win would.
 

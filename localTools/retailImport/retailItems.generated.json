@@ -4160,6 +4160,550 @@
         ],
         "icon": "1608768 interface/icons/inv_cape_raidwarlockmythic_r_01.blp"
       }
+    },
+    {
+      "id": 70101,
+      "cloneOf": 64472,
+      "modelName": [
+        "Backport\\axe_1h_amani_c_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7389572",
+        ""
+      ],
+      "icon": "bp_7389567",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Soulblight Cleaver (Maisara Caverns), green: Jailer\u0027s Cleaver",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726072
+      }
+    },
+    {
+      "id": 70102,
+      "cloneOf": 64879,
+      "modelName": [
+        "Backport\\axe_2h_raidmidnight_d_01__e5df6246.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7390181",
+        ""
+      ],
+      "icon": "bp_7390185",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Alah\u0027endal, the Dawnsong (March on Quel\u0027Danas), green: Executioner\u0027s Axe",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726107
+      }
+    },
+    {
+      "id": 70103,
+      "cloneOf": 64356,
+      "modelName": [
+        "Backport\\bow_1h_raidmidnight_d_02__00c711c4.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7431988",
+        ""
+      ],
+      "icon": "bp_7431982",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Ranger-Captain\u0027s Lethal Recurve (the Voidspire), green: Escape-Hunter\u0027s Bow",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726172
+      }
+    },
+    {
+      "id": 70104,
+      "cloneOf": 65365,
+      "modelName": [
+        "Backport\\firearm_2h_raidmidnight_d_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7439089",
+        ""
+      ],
+      "icon": "bp_7525805",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Sunstrike Rifle (the Voidspire), green: Night Watch Rifle",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726375
+      }
+    },
+    {
+      "id": 70105,
+      "cloneOf": 64313,
+      "modelName": [
+        "Backport\\mace_1h_raidmidnight_d_02__d5115c6f.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7456187",
+        ""
+      ],
+      "icon": "bp_7456191",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Weight of Command (the Voidspire), green: Mace of Discipline",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726456
+      }
+    },
+    {
+      "id": 70106,
+      "cloneOf": 63834,
+      "modelName": [
+        "Backport\\mace_2h_raidmidnight_d_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7451501",
+        ""
+      ],
+      "icon": "bp_7451506",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Bellamy\u0027s Final Judgement (the Voidspire), green: Hammer of the Sentence",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726462
+      }
+    },
+    {
+      "id": 70107,
+      "cloneOf": 64390,
+      "modelName": [
+        "Backport\\polearm_2h_raidmidnight_d_01__9c72a6ae.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7439635",
+        ""
+      ],
+      "icon": "bp_7439627",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Inescapable Reach (the Voidspire), green: Curfew Halberd",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726413
+      }
+    },
+    {
+      "id": 70108,
+      "cloneOf": 64536,
+      "modelName": [
+        "Backport\\sword_1h_raidmidnight_d_01__90a232bf.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7456173",
+        ""
+      ],
+      "icon": "bp_7490210",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Blade of the Blind Verdict (the Voidspire), green: Blade of the Verdict",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 727187
+      }
+    },
+    {
+      "id": 70109,
+      "cloneOf": 64557,
+      "modelName": [
+        "Backport\\sword_2h_dungeonharronir_c_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\6994571",
+        ""
+      ],
+      "icon": "bp_6994575",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Liferipper\u0027s Cutlass (Maisara Caverns), green: Greatsword of Capital Punishment",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 708760
+      }
+    },
+    {
+      "id": 70110,
+      "cloneOf": 64334,
+      "modelName": [
+        "Backport\\staff_2h_raidmidnight_d_02__40e27b45.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7374931",
+        ""
+      ],
+      "icon": "bp_7374933",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Brazier of the Dissonant Dirge (March on Quel\u0027Danas), green: Brazier of the Gaol",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 727203
+      }
+    },
+    {
+      "id": 70111,
+      "cloneOf": 64462,
+      "modelName": [
+        "Backport\\fist_1h_raidmidnight_d_01__247a0e67.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7428140",
+        ""
+      ],
+      "icon": "bp_7428132",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Tormentor\u0027s Bladed Fists (the Voidspire), green: Interrogator\u0027s Claws",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 727158
+      }
+    },
+    {
+      "id": 70112,
+      "cloneOf": 64678,
+      "modelName": [
+        "Backport\\knife_1h_raidmidnight_d_02__7d3ba61a.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7428164",
+        ""
+      ],
+      "icon": "bp_7428175",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Hungering Victory (the Voidspire), green: Cell Shiv",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 727417
+      }
+    },
+    {
+      "id": 70113,
+      "cloneOf": 64371,
+      "modelName": [
+        "Backport\\crossbow_2h_dungeonharronir_c_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7355018",
+        ""
+      ],
+      "icon": "bp_7355019",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Amirdrassil\u0027s Reach (the Blinding Vale), green: Watchtower Crossbow",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 715456
+      }
+    },
+    {
+      "id": 70114,
+      "cloneOf": 64360,
+      "modelName": [
+        "Backport\\wand_1h_draenordungeon_c_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\1003640",
+        ""
+      ],
+      "icon": "bp_1003750",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Wand of Saprish\u0027s Gaze (Seat of the Triumvirate), green: Wand of the Jailer\u0027s Gaze",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 136391
+      }
+    },
+    {
+      "id": 70115,
+      "cloneOf": 65029,
+      "modelName": [
+        "Backport\\shield_1h_raidmidnight_d_01__d3788488.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7412725",
+        ""
+      ],
+      "icon": "bp_7412729",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Bulwark of Noble Resolve (the Voidspire), green: Bulwark of the Gaol",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 727119
+      }
+    },
+    {
+      "id": 70116,
+      "cloneOf": 64441,
+      "modelName": [
+        "Backport\\offhand_1h_raidmidnight_d_01__8372e2da.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "Backport\\7427988",
+        ""
+      ],
+      "icon": "bp_7427980",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Grimoire of the Eternal Light (the Voidspire), green: The Gaol\u0027s Penal Code",
+      "retail": {
+        "backport": "C:\\backport\\vorhan",
+        "display": 726401
+      }
     }
   ],
   "items": [
@@ -5070,6 +5614,150 @@
       "material": 7,
       "display": 70100,
       "inventoryType": 16,
+      "sheath": 0
+    },
+    {
+      "entry": 5551,
+      "class": 2,
+      "subclass": 0,
+      "material": 1,
+      "display": 70101,
+      "inventoryType": 13,
+      "sheath": 3
+    },
+    {
+      "entry": 5552,
+      "class": 2,
+      "subclass": 1,
+      "material": 1,
+      "display": 70102,
+      "inventoryType": 17,
+      "sheath": 1
+    },
+    {
+      "entry": 5553,
+      "class": 2,
+      "subclass": 2,
+      "material": 1,
+      "display": 70103,
+      "inventoryType": 15,
+      "sheath": 0
+    },
+    {
+      "entry": 5554,
+      "class": 2,
+      "subclass": 3,
+      "material": 1,
+      "display": 70104,
+      "inventoryType": 26,
+      "sheath": 0
+    },
+    {
+      "entry": 5555,
+      "class": 2,
+      "subclass": 4,
+      "material": 1,
+      "display": 70105,
+      "inventoryType": 13,
+      "sheath": 3
+    },
+    {
+      "entry": 5556,
+      "class": 2,
+      "subclass": 5,
+      "material": 1,
+      "display": 70106,
+      "inventoryType": 17,
+      "sheath": 1
+    },
+    {
+      "entry": 5557,
+      "class": 2,
+      "subclass": 6,
+      "material": 1,
+      "display": 70107,
+      "inventoryType": 17,
+      "sheath": 1
+    },
+    {
+      "entry": 5558,
+      "class": 2,
+      "subclass": 7,
+      "material": 1,
+      "display": 70108,
+      "inventoryType": 13,
+      "sheath": 3
+    },
+    {
+      "entry": 5560,
+      "class": 2,
+      "subclass": 8,
+      "material": 1,
+      "display": 70109,
+      "inventoryType": 17,
+      "sheath": 1
+    },
+    {
+      "entry": 5561,
+      "class": 2,
+      "subclass": 10,
+      "material": 2,
+      "display": 70110,
+      "inventoryType": 17,
+      "sheath": 2
+    },
+    {
+      "entry": 4899,
+      "class": 2,
+      "subclass": 13,
+      "material": 1,
+      "display": 70111,
+      "inventoryType": 13,
+      "sheath": 7
+    },
+    {
+      "entry": 4900,
+      "class": 2,
+      "subclass": 15,
+      "material": 1,
+      "display": 70112,
+      "inventoryType": 13,
+      "sheath": 3
+    },
+    {
+      "entry": 4912,
+      "class": 2,
+      "subclass": 18,
+      "material": 2,
+      "display": 70113,
+      "inventoryType": 26,
+      "sheath": 0
+    },
+    {
+      "entry": 4956,
+      "class": 2,
+      "subclass": 19,
+      "material": 2,
+      "display": 70114,
+      "inventoryType": 26,
+      "sheath": 0
+    },
+    {
+      "entry": 4985,
+      "class": 4,
+      "subclass": 6,
+      "material": 6,
+      "display": 70115,
+      "inventoryType": 14,
+      "sheath": 4
+    },
+    {
+      "entry": 4996,
+      "class": 4,
+      "subclass": 0,
+      "material": 3,
+      "display": 70116,
+      "inventoryType": 23,
       "sheath": 0
     }
   ]

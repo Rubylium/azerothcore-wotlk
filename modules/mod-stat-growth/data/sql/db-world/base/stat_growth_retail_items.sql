@@ -7,8 +7,8 @@
 -- and already in the client's Item.dbc with no template on the server before these;
 -- localTools/patchSinisterStrike.ps1 gives those Item.dbc rows the class, slot and display
 -- written here.
-DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835);
-DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835);
+DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835, 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996);
+DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835, 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_retail_item`;
 CREATE TEMPORARY TABLE `tmp_retail_item` LIKE `item_template`;
@@ -1932,6 +1932,310 @@ UPDATE `tmp_retail_item` SET
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
 
+-- Jailer's Cleaver: stats of item 50654, display 70101
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50654;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5551,
+    `name` = 'Jailer''s Cleaver',
+    `class` = 2,
+    `subclass` = 0,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70101,
+    `InventoryType` = 13,
+    `sheath` = 3,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Executioner's Axe: stats of item 50709, display 70102
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50709;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5552,
+    `name` = 'Executioner''s Axe',
+    `class` = 2,
+    `subclass` = 1,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70102,
+    `InventoryType` = 17,
+    `sheath` = 1,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Escape-Hunter's Bow: stats of item 50638, display 70103
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50638;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5553,
+    `name` = 'Escape-Hunter''s Bow',
+    `class` = 2,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70103,
+    `InventoryType` = 15,
+    `sheath` = 0,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Night Watch Rifle: stats of item 49981, display 70104
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 49981;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5554,
+    `name` = 'Night Watch Rifle',
+    `class` = 2,
+    `subclass` = 3,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70104,
+    `InventoryType` = 26,
+    `sheath` = 0,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Mace of Discipline: stats of item 50738, display 70105
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50738;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5555,
+    `name` = 'Mace of Discipline',
+    `class` = 2,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70105,
+    `InventoryType` = 13,
+    `sheath` = 3,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Hammer of the Sentence: stats of item 50603, display 70106
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50603;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5556,
+    `name` = 'Hammer of the Sentence',
+    `class` = 2,
+    `subclass` = 5,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70106,
+    `InventoryType` = 17,
+    `sheath` = 1,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Curfew Halberd: stats of item 50425, display 70107
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50425;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5557,
+    `name` = 'Curfew Halberd',
+    `class` = 2,
+    `subclass` = 6,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70107,
+    `InventoryType` = 17,
+    `sheath` = 1,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Blade of the Verdict: stats of item 50672, display 70108
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50672;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5558,
+    `name` = 'Blade of the Verdict',
+    `class` = 2,
+    `subclass` = 7,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70108,
+    `InventoryType` = 13,
+    `sheath` = 3,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Greatsword of Capital Punishment: stats of item 50070, display 70109
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50070;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5560,
+    `name` = 'Greatsword of Capital Punishment',
+    `class` = 2,
+    `subclass` = 8,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70109,
+    `InventoryType` = 17,
+    `sheath` = 1,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Brazier of the Gaol: stats of item 50429, display 70110
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50429;
+UPDATE `tmp_retail_item` SET
+    `entry` = 5561,
+    `name` = 'Brazier of the Gaol',
+    `class` = 2,
+    `subclass` = 10,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 2,
+    `displayid` = 70110,
+    `InventoryType` = 17,
+    `sheath` = 2,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Interrogator's Claws: stats of item 50692, display 70111
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50692;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4899,
+    `name` = 'Interrogator''s Claws',
+    `class` = 2,
+    `subclass` = 13,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70111,
+    `InventoryType` = 13,
+    `sheath` = 7,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Cell Shiv: stats of item 50621, display 70112
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50621;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4900,
+    `name` = 'Cell Shiv',
+    `class` = 2,
+    `subclass` = 15,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70112,
+    `InventoryType` = 13,
+    `sheath` = 3,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Watchtower Crossbow: stats of item 49981, display 70113
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 49981;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4912,
+    `name` = 'Watchtower Crossbow',
+    `class` = 2,
+    `subclass` = 18,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 2,
+    `displayid` = 70113,
+    `InventoryType` = 26,
+    `sheath` = 0,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Wand of the Jailer's Gaze: stats of item 50631, display 70114
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50631;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4956,
+    `name` = 'Wand of the Jailer''s Gaze',
+    `class` = 2,
+    `subclass` = 19,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 2,
+    `displayid` = 70114,
+    `InventoryType` = 26,
+    `sheath` = 0,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Bulwark of the Gaol: stats of item 50616, display 70115
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50616;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4985,
+    `name` = 'Bulwark of the Gaol',
+    `class` = 4,
+    `subclass` = 6,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 6,
+    `displayid` = 70115,
+    `InventoryType` = 14,
+    `sheath` = 4,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- The Gaol's Penal Code: stats of item 50635, display 70116
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50635;
+UPDATE `tmp_retail_item` SET
+    `entry` = 4996,
+    `name` = 'The Gaol''s Penal Code',
+    `class` = 4,
+    `subclass` = 0,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 3,
+    `displayid` = 70116,
+    `InventoryType` = 23,
+    `sheath` = 0,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
 DROP TEMPORARY TABLE `tmp_retail_item`;
 
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
@@ -2035,4 +2339,20 @@ INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `Veri
 (17832, 'frFR', 'Apparence de la Voix creuse : bottes (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
 (17833, 'frFR', 'Apparence de la Voix creuse : ceinture (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
 (17834, 'frFR', 'Apparence de la Voix creuse : brassards (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
-(17835, 'frFR', 'Apparence de la Voix creuse : cape (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL);
+(17835, 'frFR', 'Apparence de la Voix creuse : cape (Démoniste)', 'L''apparence de l''équipement de la Voix creuse.', NULL),
+(5551, 'frFR', 'Couperet du geôlier', '', NULL),
+(5552, 'frFR', 'Hache du bourreau', '', NULL),
+(5553, 'frFR', 'Arc du Traqueur d''évadés', '', NULL),
+(5554, 'frFR', 'Fusil de la ronde de nuit', '', NULL),
+(5555, 'frFR', 'Masse de la discipline', '', NULL),
+(5556, 'frFR', 'Marteau de la sentence', '', NULL),
+(5557, 'frFR', 'Hallebarde du couvre-feu', '', NULL),
+(5558, 'frFR', 'Lame du verdict', '', NULL),
+(5560, 'frFR', 'Espadon de la peine capitale', '', NULL),
+(5561, 'frFR', 'Brasero de la Geôle', '', NULL),
+(4899, 'frFR', 'Griffes de l''interrogateur', '', NULL),
+(4900, 'frFR', 'Surin de cellule', '', NULL),
+(4912, 'frFR', 'Arbalète du mirador', '', NULL),
+(4956, 'frFR', 'Baguette du regard du geôlier', '', NULL),
+(4985, 'frFR', 'Rempart de la Geôle', '', NULL),
+(4996, 'frFR', 'Code pénal de la Geôle', '', NULL);
