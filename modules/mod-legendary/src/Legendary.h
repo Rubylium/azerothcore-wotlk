@@ -51,6 +51,8 @@ enum Kind : uint32
                                 // count most hurt allies around, each shared between them
     KIND_SENTENCE,              // every everyMs in combat, a sentence on the wearer's target: n / count of X% of what
                                 // they dealt it since the last, n the sentences on it so far (up to count)
+    KIND_QUARRY,                // the enemy the wearer strikes (their selection first) is their quarry: the wearer and
+                                // their group deal X% more damage to it while its mark lasts
 };
 
 // Which blows a damage power takes: every direct one, weapon blows only, or spells only

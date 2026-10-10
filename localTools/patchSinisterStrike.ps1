@@ -2222,6 +2222,9 @@ $legendaryItems = @(
     # Gardien-chef Vorhan's Unique (mod-legendary 27), Sablier de Perpétuité: a free "junk" row made a trinket, as his
     # raid trinkets; the Eye of Magtheridon's look until its icon (a trinket shows nothing else)
     @{ Item = 17855; Display = 71061; CloneOf = 28789; Icon = 'INV_Unique_SablierPerpetuite'; Class = 4; Subclass = 0; Material = 4; InventoryType = 12 }
+    # Le Traqueur d'évadés's Unique (mod-legendary 28), Trophée du Traqueur: a free "junk" row made a necklace; Loque'Nahak's
+    # Severed Fang's look until its icon is painted
+    @{ Item = 17858; Display = 71062; CloneOf = 44688; Icon = 'INV_Unique_TropheeTraqueur'; Class = 4; Subclass = 0; Material = 4; InventoryType = 2 }
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }
@@ -2239,8 +2242,8 @@ foreach ($legendary in $legendaryItems) {
     $legendary.Painted = Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($legendary.Icon).tga")
 }
 
-# The raid trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): the Hollow Voice's 17836-17843 and Gardien-chef
-# Vorhan's 17844-17848 and 17851-17853, free "junk" rows made trinkets (ClassID 4, SubclassID 0, Material 4 as stock
+# The raid trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): the Hollow Voice's 17836-17843, Gardien-chef
+# Vorhan's 17844-17848 and 17851-17853 and the Traqueur d'évadés's 17856-17857, free "junk" rows made trinkets (ClassID 4, SubclassID 0, Material 4 as stock
 # trinkets, InventoryType 12), each wearing a stock trinket's look and icon
 $raidTrinkets = @(
     @{ Item = 17836; Display = 53122 }   # Éclat du Marteau béni: Spell_Holy_SealOfSacrifice
@@ -2259,6 +2262,8 @@ $raidTrinkets = @(
     @{ Item = 17851; Display = 35649 }   # Tampon de libération: INV_Misc_Token_ArgentDawn2
     @{ Item = 17852; Display = 32335 }   # Maillon des fers: INV_Jewelry_Ring_45
     @{ Item = 17853; Display = 64264 }   # Verrou du cachot: INV_Misc_Key_15
+    @{ Item = 17856; Display = 959 }     # Croc du gangrechien: INV_Misc_MonsterFang_01
+    @{ Item = 17857; Display = 13081 }   # Cor de l'hallali: INV_Misc_Horn_01
 )
 foreach ($trinket in $raidTrinkets) {
     if (-not $itemOffsets.ContainsKey($trinket.Item)) { throw "Item.dbc has no row $($trinket.Item) for a raid trinket." }

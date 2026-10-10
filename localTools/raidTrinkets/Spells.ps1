@@ -1,6 +1,7 @@
 # The raid trinkets' spell data (modules/mod-stat-growth/src/RaidTrinkets.cpp): eight trinkets of the Hollow Voice
 # (items 17836-17843, item level 477) and eight of Gardien-chef Vorhan (17844-17848, 17851-17853, item level 485), one
-# passive and one active for each role - a fighter, a caster, a healer, a tank. Ids 94600-94623. Items and procs:
+# passive and one active for each role - a fighter, a caster, a healer, a tank; two of the Traqueur d'évadés (17856,
+# 17857, item level 485), a passive and an active for every damage dealer. Ids 94600-94626. Items and procs:
 # data/sql/updates/pending_db_world (item_template, spell_proc).
 #
 # What a trinket gives is sized as the raid's generated gear grows (power-scaling.md): a stock trinket's at item level
@@ -39,9 +40,10 @@ function New-Rating($mask, $value) {
     , @(@{ Index = 0; Effect = 6; Aura = 189; TargetA = 1; Misc = $mask; Value = $value })
 }
 
-# One aura with an amount: 87 damage taken (all schools), 133 maximum health, 136 healing done, 65 casting speed
+# One aura with an amount: 87 damage taken, 79 damage done (both all schools), 133 maximum health, 136 healing done,
+# 65 casting speed
 function New-Aura($aura, $value) {
-    , @(@{ Index = 0; Effect = 6; Aura = $aura; TargetA = 1; Misc = $(if ($aura -eq 87) { 127 } else { 0 }); Value = $value })
+    , @(@{ Index = 0; Effect = 6; Aura = $aura; TargetA = 1; Misc = $(if ($aura -eq 87 -or $aura -eq 79) { 127 } else { 0 }); Value = $value })
 }
 
 # A passive: a hidden equip aura that triggers $trigger when $procFlags happen (Sharpened Twilight Scale's row)
@@ -138,6 +140,17 @@ $spells = @(
     # Verrou du cachot: 25% less damage taken for 12 s
     (New-Active 94623 'Verrouillé' 'INV_Misc_Key_15' 29 (New-Aura 87 -25) `
         'Réduit les dégâts que vous subissez de 25% pendant 12 sec.' 'Dégâts subis réduits de 25%.')
+
+    # --- Le Traqueur d'évadés (item level 485), for every damage dealer ---
+    # Croc du gangrechien: every blow or harmful spell a stack, 1% more damage done each, up to 5, for 10 s (the pack
+    # closing in: a fighter's and a caster's alike, as Vorhan's whetstone's stacks)
+    (New-Passive 94624 'Croc du gangrechien' 'INV_Misc_MonsterFang_01' ($weaponBlows -bor $harmfulSpells) 94625 `
+        "Chacune de vos attaques et chacun de vos sorts de dégâts augmentent les dégâts que vous infligez de 1% pendant 10 sec. Cumulable jusqu'à 5 fois.")
+    (New-Buff 94625 75456 'Meute en chasse' 'INV_Misc_MonsterFang_01' 1 (New-Aura 79 1) `
+        'Dégâts infligés augmentés de 1% par application.' 5)
+    # Cor de l'hallali: 600 critical strike rating for 20 s (as the Penne's haste), x1.31
+    (New-Active 94626 "Sonner l'hallali" 'INV_Misc_Horn_01' 18 (New-Rating $critRating 786) `
+        'Augmente votre score de coup critique de 786 pendant 20 sec.' 'Score de coup critique augmenté de 786.')
 )
 
 return $spells

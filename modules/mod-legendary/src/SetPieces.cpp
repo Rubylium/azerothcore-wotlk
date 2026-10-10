@@ -548,13 +548,20 @@ void GiveWardenVorhanLootItem(Player* player, uint32 /*itemLevel*/)
 }
 
 // A piece of the Gaol's gear the Traqueur d'évadés keeps (mod-playerbots ChallengeBoard.cpp: his win), of the profile
-// that suits the player, thrown on the floor with his loot as any raid item
+// that suits the player, thrown on the floor with his loot as any raid item. Sometimes, for a damage dealer, one of his
+// own trinkets instead (mod-stat-growth RaidTrinkets.cpp).
 void GiveEscapeHunterLootItem(Player* player, uint32 /*itemLevel*/)
 {
     using namespace Legendary;
     if (!player)
         return;
     LootFit::DrawnRole const drawn(player);
+    if (ItemTemplate const* trinket = RaidTrinkets::Roll(player, RaidTrinkets::Raid::EscapeHunter))
+    {
+        if (!GroundLoot::Throw(player, trinket, {}))
+            StoreMythicItem(player, trinket, {});
+        return;
+    }
     uint32 const row = DrawRow(player, Gate::EscapeHunter);
     ItemTemplate const* item = FitPiece(player, row);
     if (!item)

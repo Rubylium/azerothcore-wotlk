@@ -243,6 +243,14 @@ $spells += @(
     @{ Id = 97931; Clone = 2983; Name = 'Perpétuité'; Icon = 'INV_Unique_SablierPerpetuite'; FallbackIconSpell = 48158; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 5; Spellbook = $false
        Description = 'Condamné à perpétuité : chaque sentence est plus lourde que la précédente.'
        AuraDescription = 'Condamné : chaque sentence est plus lourde que la précédente.'
+       Fields = @{ 4 = 0x04000000; 40 = 18 } },
+
+    # --- Le Traqueur d'évadés: Trophée du Traqueur, the Unique ---
+    # The quarry's mark: a debuff on the enemy the wearer strikes, timed by mod-legendary (Sprint's row made a dummy
+    # debuff, as the hourglass's mark); the wearer's group deals more damage to what wears it
+    @{ Id = 97940; Clone = 2983; Name = 'Proie du Traqueur'; Icon = 'INV_Unique_TropheeTraqueur'; FallbackIconSpell = 1130; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
+       Description = 'Marqué comme proie : le Traqueur et sa meute s''acharnent sur lui.'
+       AuraDescription = 'Proie : subit davantage de dégâts du porteur du trophée et de son groupe.'
        Fields = @{ 4 = 0x04000000; 40 = 18 } }
 )
 

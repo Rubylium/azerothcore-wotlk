@@ -236,6 +236,14 @@ AddUnique(27, 17855, { "Gardien-chef Vorhan", "Head Warden Vorhan" },
     { "À la Geôle, on ne retourne jamais le sablier. Chaque grain tombé alourdit la peine.",
       "In the Gaol, the hourglass is never turned. Every grain that falls makes the sentence heavier." })
 
+AddUnique(28, 17858, { "Le Traqueur d'évadés", "The Escape-Hunter" },
+    { "L'ennemi que vous frappez devient votre proie (votre cible d'abord) : vous et votre groupe lui infligez %s "
+        .. "de dégâts en plus tant que sa marque dure.",
+      "The enemy you strike becomes your quarry (your target first): you and your group deal %s more damage to it "
+        .. "while its mark lasts." },
+    { "Un croc pour chaque évadé repris. Le Traqueur n'a jamais manqué de place sur le cordon.",
+      "A fang for every escapee brought back. The Hunter never ran out of room on the cord." })
+
 -- Gardien-chef Vorhan's sets are no legendaries: generated items as the raid's (mod-legendary SetPieces.cpp), their
 -- stats in their own record and their set named by MythicItemTag.lua
 

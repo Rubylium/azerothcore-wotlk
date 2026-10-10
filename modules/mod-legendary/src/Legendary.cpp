@@ -140,6 +140,9 @@ constexpr uint32 InfiniteGodBoss = 930000;
 // level (mod-playerbots ChallengeBoard.cpp, his page)
 constexpr uint32 WardenVorhanBoss = 930200;
 constexpr uint32 WardenVorhanItemLevel = 485;
+// Le Traqueur d'évadés, the Geôle's second gate (mod-stat-growth EscapeHunter.cpp): his Unique drops at his gear's item
+// level, the Geôle's (mod-playerbots ChallengeBoard.cpp, his page)
+constexpr uint32 EscapeHunterBoss = 930400;
 // L'Étoile captive: how far around the wearer the star finds a target when they have none, and their allies to heal
 constexpr float SupernovaTargetReach = 30.0f;
 constexpr float SupernovaHealReach = 40.0f;
@@ -150,6 +153,10 @@ constexpr uint32 EchoMinLeftMs = 1500;
 constexpr uint32 EchoRestMs = 1000;
 // Sablier de Perpétuité: how long a sentence's mark outlasts the time to the next
 constexpr int32 SentenceMarkGraceMs = 1500;
+// Trophée du Traqueur: how long the quarry's mark lasts once the wearer stops striking it, and how often a blow on it
+// renews the mark
+constexpr int32 QuarryMarkMs = 6000;
+constexpr uint32 QuarryRenewMs = 1000;
 
 uint32 const Floor = Mythic::GetItemLevel(2);
 
@@ -157,7 +164,7 @@ uint32 const Floor = Mythic::GetItemLevel(2);
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 27> const Definitions = { {
+std::array<Definition, 28> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -265,6 +272,13 @@ std::array<Definition, 27> const Definitions = { {
     // a fifth of 20-25% the first time, the whole from the fifth. Only from his death (item level 485): one window
     { 27, 17855, KIND_SENTENCE, 20.0f, 25.0f, 20.0f, 25.0f, WardenVorhanItemLevel, NeckBudget, 0,
       { .spell = 97930, .spell2 = 97931, .everyMs = 4000, .count = 5 }, WardenVorhanBoss },
+
+    // --- Le Traqueur d'évadés: the Unique ---
+    // Trophée du Traqueur, a necklace (17858, a free row made one): his hunt, the enemy the wearer strikes (their
+    // selection first) marked as their quarry, the wearer and their group dealing 4-5% more damage to it. Only from
+    // his death (item level 485): one window
+    { 28, 17858, KIND_QUARRY, 4.0f, 5.0f, 4.0f, 5.0f, WardenVorhanItemLevel, NeckBudget, 0,
+      { .spell = 97940 }, EscapeHunterBoss },
 } };
 
 // A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
@@ -496,7 +510,7 @@ struct PowerState
     float pending = 0.0f;
     float healing = 0.0f;           // healing waiting to land (the star's)
     bool running = false;           // a timed power's cycle under way
-    ObjectGuid target;              // the enemy under sentence (the hourglass's)
+    ObjectGuid target;              // the enemy under sentence (the hourglass's), the quarry (the trophy's)
 };
 
 struct Worn : public DataMap::Base
@@ -1122,6 +1136,8 @@ public:
                 if (player->HasAura(definition.tuning.spell))
                     bonus += percent;
             });
+            if (target)
+                bonus += QuarryBonus(player, target);
             if (bonus > 0.0f)
                 damage = uint32(std::lround(float(damage) * (1.0f + bonus / 100.0f)));
             uint32 const dealt = damage;
@@ -1179,6 +1195,71 @@ public:
     }
 
 private:
+    // Trophée du Traqueur: the mark its quarry wears (the definition's spell)
+    static uint32 QuarryMarkSpell()
+    {
+        static uint32 const spell = []()
+        {
+            for (Definition const& definition : Definitions)
+                if (definition.kind == KIND_QUARRY)
+                    return definition.tuning.spell;
+            return 0u;
+        }();
+        return spell;
+    }
+
+    // What a player's blow on a marked quarry gains: the best of the marks on it put there by them or by a member of
+    // their group, each its wearer's rolled share
+    static float QuarryBonus(Player* player, Unit* victim)
+    {
+        uint32 const mark = QuarryMarkSpell();
+        if (!mark || !victim->HasAura(mark))
+            return 0.0f;
+        float best = 0.0f;
+        auto const bounds = victim->GetAppliedAuras().equal_range(mark);
+        for (auto it = bounds.first; it != bounds.second; ++it)
+        {
+            Player* hunter = ObjectAccessor::GetPlayer(*victim, it->second->GetBase()->GetCasterGUID());
+            if (!hunter || (hunter != player && !hunter->IsInSameRaidWith(player)))
+                continue;
+            GetWorn(hunter)->ForEach(KIND_QUARRY, [&best](Definition const&, float percent, PowerState&)
+            {
+                best = std::max(best, percent);
+            });
+        }
+        return best;
+    }
+
+    // Trophée du Traqueur: a blow on the enemy the wearer has selected (with none selected, the first one struck)
+    // makes it their quarry - the mark moving off the last one - and a blow on the quarry renews its mark
+    static void MarkQuarry(Player* player, Worn* worn, Unit* victim)
+    {
+        worn->ForEach(KIND_QUARRY, [player, victim](Definition const& definition, float, PowerState& state)
+        {
+            uint32 const mark = definition.tuning.spell;
+            ObjectGuid const guid = victim->GetGUID();
+            uint32 const now = getMSTime();
+            if (guid != state.target && (state.target.IsEmpty() || player->GetTarget() == guid))
+            {
+                if (Unit* last = state.target.IsEmpty() ? nullptr : ObjectAccessor::GetUnit(*player, state.target))
+                    last->RemoveAurasDueToSpell(mark, player->GetGUID());
+                state.target = guid;
+                state.readyAt = now;
+            }
+            if (guid != state.target || !Ready(state.readyAt, now))
+                return;
+            state.readyAt = now + QuarryRenewMs;
+            Aura* aura = victim->GetAura(mark, player->GetGUID());
+            if (!aura)
+                aura = player->AddAura(mark, victim);
+            if (aura)
+            {
+                aura->SetMaxDuration(QuarryMarkMs);
+                aura->SetDuration(QuarryMarkMs);
+            }
+        });
+    }
+
     // Sablier de Perpétuité: the wearer's target is the one under sentence - a blow on the enemy they have selected
     // moves the sentence onto it, the count starting over (with none selected, the first enemy struck) - and what it
     // takes from them is kept for its next sentence
@@ -1210,9 +1291,12 @@ private:
             if (player->HasAura(definition.tuning.spell))
                 bonus += percent;
         });
+        bonus += QuarryBonus(player, victim);
         if (bonus > 0.0f)
             damage = uint32(std::lround(float(damage) * (1.0f + bonus / 100.0f)));
         float const dealt = float(damage);
+        // Trophée du Traqueur: the blow marks the wearer's quarry
+        MarkQuarry(player, worn, victim);
 
         // Brands (Marque de l'Inquisiteur, Brassards de Sepethrea, Griffes du roi Dred): the share burns over the
         // spell's duration; the core's Ignite rolls what is left of the burn into the new one
