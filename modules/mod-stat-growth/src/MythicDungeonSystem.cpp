@@ -601,6 +601,26 @@ public:
         if (creature->GetRespawnDelay() < MythicRespawnDelay)
             creature->SetRespawnDelay(MythicRespawnDelay);
     }
+
+    // A scaled creature enters the world whole. Its maximum is the key's from SelectLevel, but its health is not always:
+    // what the core does after (a spawn's saved health, an entry updated and its old health put back, an aura raising
+    // the maximum alone) left adds and trash at a share of their health. Once more a moment later, when its auras and
+    // its summoner's script have had their say (an add thrown into the fight at once included); never once a player
+    // has hurt it.
+    void OnCreatureAddWorld(Creature* creature) override
+    {
+        if (!creature->CustomData.Get<MythicCreatureData>(MythicDataKey))
+            return;
+        MakeWhole(creature);
+        creature->m_Events.AddEventAtOffset([creature]() { MakeWhole(creature); }, 500ms);
+    }
+
+private:
+    static void MakeWhole(Creature* creature)
+    {
+        if (creature->IsAlive() && !creature->hasLootRecipient() && creature->GetHealth() < creature->GetMaxHealth())
+            creature->SetFullHealth();
+    }
 };
 
 class MythicDungeonUnitScript : public UnitScript

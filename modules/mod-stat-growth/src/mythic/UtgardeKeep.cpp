@@ -707,7 +707,7 @@ struct boss_ingvar_evolutions : public ScriptedAI
         _spirits.clear();
         _valkyr.Clear();
         _axe.Clear();
-        _busy = _charging = _fallen = false;
+        _busy = _charging = _fallen = _risen = false;
         _devoured = 0;
         me->SetDisplayId(DISPLAY_INGVAR_HUMAN);
         me->LoadEquipment(1);
@@ -784,7 +784,8 @@ struct boss_ingvar_evolutions : public ScriptedAI
                 damage = me->GetHealth() - 1;
             return;
         }
-        if (_fallen || damage < me->GetHealth())
+        // Risen, he dies for good
+        if (_risen || _fallen || damage < me->GetHealth())
             return;
 
         damage = me->GetHealth() - 1;
@@ -1234,6 +1235,9 @@ private:
             case EVENT_INGVAR_RESURRECTION_HEAL:
                 me->RemoveAura(SPELL_INGVAR_RESURRECTION_BALL);
                 me->CastSpell(me, SPELL_INGVAR_RESURRECTION_HEAL, true);
+                // Whole again: the stock heal is a fixed amount, and a key caps a creature's heals besides - he rose
+                // with 2-3% of his health
+                me->SetFullHealth();
                 FeignDeath(false);
                 events.ScheduleEvent(EVENT_INGVAR_MORPH, 3s);
                 break;
@@ -1259,6 +1263,8 @@ private:
         if (Creature* valkyr = ObjectAccessor::GetCreature(*me, _valkyr))
             valkyr->DespawnOrUnsummon();
         _fallen = false;
+        _risen = true;
+        me->SetFullHealth();
         ShowDevoured();
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         if (Unit* victim = me->GetVictim())
@@ -1402,6 +1408,7 @@ private:
     bool _busy = false;
     bool _charging = false;
     bool _fallen = false;
+    bool _risen = false;            // past his resurrection: his next death is his last
     uint32 _devoured = 0;
 };
 
