@@ -84,18 +84,18 @@ $spells = @(
         "Son marteau va tomber sur vous." "Son marteau va tomber sur vous : éloignez-vous de tous."),
 
     # --- His cast bars ---
-    (New-Cast 94840 "Coup d'enclume" 25203 16 "Le Maître-fondeur lève son marteau."),
+    (New-Cast 94840 "Coup d'enclume" 25203 152 "Le Maître-fondeur lève son marteau."),
     (New-Cast 94841 "Frappe de l'enclume" 16244 4 "Le marteau va frapper l'enclume."),
-    (New-Cast 94842 'Laminoir' 5246 5 "Les rouleaux se mettent en marche."),
+    (New-Cast 94842 'Laminoir' 5246 152 "Les rouleaux se mettent en marche."),
     (New-Cast 94843 'Marteau' 25203 15 "Le Maître-fondeur marque le fer rouge."),
     (New-Cast 94844 'Fonte' 11366 5 "Le Maître-fondeur rentre dans sa fournaise."),
     (New-Cast 94845 'Coulée finale' 11366 171 "Le moule va se remplir."),
     (New-Cast 94846 'Trempe' 10 4 "Le Maître-fondeur trempe son marteau."),
     (New-Cast 94847 'Soufflets' 2120 15 "Les soufflets s'emballent."),
     (New-Cast 94848 'Lingots' 25203 15 "Les lingots vont tomber."),
-    (New-Cast 94849 'Coulée' 11366 16 "La fonte va couler."),
+    (New-Cast 94849 'Coulée' 11366 152 "La fonte va couler."),
     (New-Cast 94850 'Chaînes' 6533 5 "Le Maître-fondeur fait tournoyer ses chaînes."),
-    (New-Cast 94851 'Étincelles' 2120 16 "Les étincelles vont jaillir.")
+    (New-Cast 94851 'Étincelles' 2120 152 "Les étincelles vont jaillir.")
 )
 
 return $spells

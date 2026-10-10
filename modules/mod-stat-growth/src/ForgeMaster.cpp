@@ -100,13 +100,16 @@ constexpr float AnvilArc = 90.0f;
 constexpr float AnvilInner = 6.0f;          // the shockwave's rings: 0-6, 6-10, 10 to the wall
 constexpr float AnvilMiddle = 10.0f;
 constexpr uint32 AnvilRingBeats = 2;        // a ring strikes this long after the one inside it: time to step in
+// A shape's first red: at least this long before it strikes (a follow-up of a pattern already read may come faster)
+constexpr uint32 WarnBeats = 8;
+constexpr uint32 FollowBeats = 6;
 constexpr float SparkRadius = 4.0f;
 constexpr float ChainWidth = 4.0f;
 constexpr uint32 ChainTurnBeats = 8;
 constexpr uint32 LaminoirStrips = 4;
 constexpr float LaminoirDepth = 8.0f;
 constexpr float LaminoirGap = 7.0f;
-constexpr uint32 LaminoirWarnBeats = 6;
+constexpr uint32 LaminoirWarnBeats = WarnBeats;
 constexpr float SteamRadius = 7.0f;         // la Trempe: the trough's steam in the middle; the crucible's iron outside it
 constexpr float PropDistance = 12.0f;       // the trough and the crucible from the middle
 constexpr float BellowsDistance = 14.5f;
@@ -239,30 +242,33 @@ struct Step
 std::vector<Step> BuildTimeline()
 {
     return {
+        // Every pattern's first red shows WarnBeats (3.1 s) before it strikes; their lengths from their start:
+        // anvil, pour, chains 15 beats; sparks 9; laminoir 12 (back: 19); bellows 13 (2: 23); ingots 13 (2: 25);
+        // hammer 17; trempe 25 (2: 39). The group hit draws nothing on the floor.
         // Intro (bars 0-11): his dodges, learnt
-        { 6, Event::Anvil }, { 18, Event::Sparks }, { 26, Event::Pour }, { 38, Event::Anvil },
+        { 6, Event::Anvil }, { 22, Event::Sparks }, { 31, Event::Pour },
         // Build-up (bars 12-27): his hammer on its first beat; la Trempe, his dip on the 0:21.4 hit
         { 45, Event::HammerGroup }, { 49, Event::Trempe, 1 },
-        { 74, Event::Anvil }, { 86, Event::Chains }, { 100, Event::Sparks },
+        { 74, Event::Anvil }, { 90, Event::Chains }, { 106, Event::Sparks },
         // Section A (bars 28-75)
-        { 110, Event::Anvil }, { 120, Event::Pour }, { 132, Event::Bellows, 1 }, { 146, Event::Sparks },
-        { 154, Event::Anvil }, { 162, Event::Chains },
-        { 176, Event::Laminoir },               // its rollers from the 1:10.6 hit (beat 182)
-        { 190, Event::Anvil }, { 198, Event::Ingots, 1 }, { 214, Event::Sparks },
-        { 228, Event::Laminoir, 1 },            // from the 1:30.7 hit (beat 234), and back
-        { 252, Event::Anvil }, { 262, Event::Pour }, { 276, Event::Chains }, { 288, Event::Sparks },
+        { 116, Event::Pour }, { 132, Event::Bellows, 1 }, { 146, Event::Sparks }, { 156, Event::Anvil },
+        { 174, Event::Laminoir },               // its rollers from the 1:10.6 hit (beat 182)
+        { 188, Event::Anvil }, { 204, Event::Ingots, 1 }, { 217, Event::Sparks },
+        { 226, Event::Laminoir, 1 },            // from the 1:30.7 hit (beat 234), and back
+        { 246, Event::Anvil }, { 262, Event::Pour }, { 278, Event::Chains },
         { 296, Event::Hammer },                 // landing on the peak (beat 310)
         // La Fonte (bars 80-103), his return on beat 416
         { FonteStartBeat, Event::FonteStart }, { FonteEndBeat, Event::FonteEnd },
         // The rebuild and section B (bars 104-155)
-        { 422, Event::Anvil }, { 432, Event::Chains }, { 444, Event::Sparks },
-        { 462, Event::Laminoir },               // from the 3:01.3 hit (beat 468)
-        { 474, Event::Anvil }, { 484, Event::Trempe, 2 },
+        { 422, Event::Anvil }, { 438, Event::Chains },
+        { 460, Event::Laminoir },               // from the 3:01.3 hit (beat 468)
+        { 473, Event::Sparks }, { 484, Event::Trempe, 2 },
         { 514, Event::HammerGroup },            // on the 3:20.3 hit (beat 517)
         { 521, Event::Ingots, 2 },              // its first wave on the 3:26.5 hit (beat 533)
-        { 556, Event::Laminoir },               // from the 3:37.7 hit (beat 562)
+        { 554, Event::Laminoir },               // from the 3:37.7 hit (beat 562)
+        { 566, Event::Sparks },
         { 575, Event::Bellows, 2 },             // on the 3:42.7 hit
-        { 598, Event::Anvil }, { 606, Event::Sparks },
+        { 598, Event::Anvil },
         { 612, Event::Check },                  // landing on the climax (beat 630)
     };
 }
@@ -767,10 +773,24 @@ private:
         Position apex = Ground(me->GetPosition());
         apex.SetOrientation(facing);
         ObjectGuid const tankGuid = tank ? tank->GetGUID() : ObjectGuid::Empty;
-        uint32 const lands = start + 4;
+        uint32 const lands = start + WarnBeats;
         GroundIndicators::Area const cone = GroundIndicators::ShowAimedCone(me, apex, facing, ArenaRadius + 1.0f,
             AnvilArc, MsTo(lands), tank, GroundIndicators::Theme::None, MistakeDamage);
-        AtBeat(Grid, lands, [this, cone, tankGuid, apex]()
+        // The shockwave after it, drawn with it from the start: the middle, then the ring round it, then out to the
+        // wall, AnvilRingBeats apart from the cone's blow
+        Areas rings;
+        rings.push_back(GroundIndicators::ShowCircle(me, apex, AnvilInner, MsTo(lands + AnvilRingBeats),
+            GroundIndicators::Theme::Fire, MistakeDamage));
+        rings.push_back(GroundIndicators::ShowRing(me, apex, AnvilMiddle, AnvilInner, MsTo(lands + 2 * AnvilRingBeats),
+            GroundIndicators::Theme::Fire, MistakeDamage));
+        rings.push_back(GroundIndicators::ShowRing(me, apex, ArenaRadius + 1.0f, AnvilMiddle,
+            MsTo(lands + 3 * AnvilRingBeats), GroundIndicators::Theme::Fire, MistakeDamage));
+        for (uint32 index = 0; index < rings.size(); ++index)
+        {
+            GroundIndicators::Area const ring = rings[index];
+            AtBeat(Grid, lands + AnvilRingBeats * (index + 1), [this, ring]() { Strike({ ring }, RuleShockwave); });
+        }
+        AtBeat(Grid, lands, [this, cone, tankGuid]()
         {
             EndCastBar();
             if (_phase == Phase::Rehearsal)
@@ -787,21 +807,6 @@ private:
                     else if (cone.Contains(player->GetPosition()))
                         Mistake(player, RuleAnvil);
                 }
-            // The shockwave from him: the middle, then the ring round it, then out to the wall, a beat apart - all
-            // three shown at once
-            Areas rings;
-            uint32 const now = CurrentBeat(Grid);
-            rings.push_back(GroundIndicators::ShowCircle(me, apex, AnvilInner, MsTo(now + AnvilRingBeats),
-                GroundIndicators::Theme::Fire, MistakeDamage));
-            rings.push_back(GroundIndicators::ShowRing(me, apex, AnvilMiddle, AnvilInner, MsTo(now + 2 * AnvilRingBeats),
-                GroundIndicators::Theme::Fire, MistakeDamage));
-            rings.push_back(GroundIndicators::ShowRing(me, apex, ArenaRadius + 1.0f, AnvilMiddle,
-                MsTo(now + 3 * AnvilRingBeats), GroundIndicators::Theme::Fire, MistakeDamage));
-            for (uint32 index = 0; index < rings.size(); ++index)
-            {
-                GroundIndicators::Area const ring = rings[index];
-                AtBeat(Grid, now + AnvilRingBeats * (index + 1), [this, ring]() { Strike({ ring }, RuleShockwave); });
-            }
         });
     }
 
@@ -831,12 +836,13 @@ private:
     void Pour(uint32 start)
     {
         CastBar(CAST_POUR);
-        AtBeat(Grid, start + 4, [this]() { EndCastBar(); });
+        AtBeat(Grid, start + WarnBeats, [this]() { EndCastBar(); });
         float const facing = frand(0.0f, 2.0f * float(M_PI));
         for (uint32 half = 0; half < 2; ++half)
         {
             float const towards = facing + float(half) * float(M_PI);
-            Wave(half ? start + 6 : start, half ? start + 10 : start + 6, [this, towards](uint32 ms)
+            uint32 const shown = half ? start + WarnBeats : start;
+            Wave(shown, shown + (half ? FollowBeats : WarnBeats), [this, towards](uint32 ms)
             {
                 Position apex = Middle();
                 apex.SetOrientation(towards);
@@ -850,8 +856,8 @@ private:
     void Sparks(uint32 start)
     {
         CastBar(CAST_SPARKS);
-        AtBeat(Grid, start + 4, [this]() { EndCastBar(); });
-        Wave(start, start + 5, [this](uint32 ms)
+        AtBeat(Grid, start + WarnBeats, [this]() { EndCastBar(); });
+        Wave(start, start + WarnBeats, [this](uint32 ms)
         {
             Areas areas;
             std::vector<Position> spots;
@@ -867,7 +873,7 @@ private:
         }, RuleSparks);
     }
 
-    // --- Chaînes: four arms from him to the wall turning, stopped dead on a beat: a bar later they strike -----------------
+    // --- Chaînes: four arms from him to the wall turning, stopped dead on a beat: two bars later they strike -----------------
     void Chains(uint32 start)
     {
         CastBar(CAST_CHAINS);
@@ -882,7 +888,7 @@ private:
             spinning.push_back(GroundIndicators::ShowSweepingRectangle(me, center,
                 facing + float(arm) * float(M_PI) / 2.0f, radiansPerSecond, ArenaRadius + 1.0f, ChainWidth, spinMs,
                 MistakeDamage));
-        Wave(stops, stops + 4, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
+        Wave(stops, stops + WarnBeats, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
         {
             EndCastBar();
             Areas areas;
@@ -900,7 +906,7 @@ private:
     void Laminoir(uint32 start, bool back)
     {
         CastBar(CAST_LAMINOIR);
-        AtBeat(Grid, start + 5, [this]() { EndCastBar(); });
+        AtBeat(Grid, start + LaminoirWarnBeats, [this]() { EndCastBar(); });
         uint32 const first = start + LaminoirWarnBeats;
         float const seed = frand(0.0f, 2.0f * float(M_PI));
         Position const middle = Middle();
@@ -1058,7 +1064,7 @@ private:
                         });
                     Watch(half, strikes);
                 });
-                AtBeat(Grid, strikes - 2, [this, half, strikes]()
+                AtBeat(Grid, strikes - 4, [this, half, strikes]()
                 {
                     GroundIndicators::ShowCone(me, half.origin, half.origin.GetOrientation(), half.radius, 180.0f,
                         MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
@@ -1227,10 +1233,10 @@ private:
     {
         uint32 safe = urand(0, 7);
         uint32 const half = from + (to - from) / 2;
-        for (uint32 lands = from + 7; lands + 1 < to; lands += 8)
+        for (uint32 lands = from + WarnBeats; lands + 1 < to; lands += 8)
         {
             bool const jumps = lands >= half;
-            uint32 const warn = jumps ? 6 : 4;
+            uint32 const warn = lands == from + WarnBeats || jumps ? WarnBeats : FollowBeats;
             uint32 const pair = safe;
             Wave(lands - warn, lands, [this, pair](uint32 ms)
             {
