@@ -2,6 +2,8 @@
 -- pause it, resume it or turn it off. The server whispers the state on the "Rotation" addon prefix (STATE 0 off,
 -- 1 running, 2 paused); the buttons whisper PAUSE, RESUME and OFF back, and HELLO asks for the state after a login
 -- or a reload. Dragged anywhere with the left button; the client keeps where it was left (a named, user-placed frame).
+-- TARGET <guid> is the enemy the rotation picked: the client targets it too (the client extension's SetTargetByGUID;
+-- an addon cannot target on its own).
 
 local PREFIX = "Rotation"
 local french = GetLocale() == "frFR"
@@ -117,5 +119,7 @@ listener:SetScript("OnEvent", function(_, event, prefix, message, _, sender)
     local kind, state = strsplit("\t", message)
     if kind == "STATE" then
         Show(state)
+    elseif kind == "TARGET" and SetTargetByGUID then
+        SetTargetByGUID(state)
     end
 end)
