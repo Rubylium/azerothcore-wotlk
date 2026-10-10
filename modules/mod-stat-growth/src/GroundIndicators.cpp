@@ -25,6 +25,7 @@
 #include <set>
 #include <atomic>
 #include <cmath>
+#include <limits>
 #include <mutex>
 #include <vector>
 
@@ -97,6 +98,14 @@ constexpr float EscapeStep = 3.0f;
 constexpr float EscapeReach = 36.0f;
 // No spot clear of every area: those striking within this of the first are left, the later ones not yet
 constexpr uint64 SoonestWindowMs = 500;
+// A way out through an area striking before the unit is across (its run speed, this much to spare) is no way out
+constexpr uint64 CrossSpareMs = 300;
+// Out of the first to strike into one striking later: yards of walk a second of time it gives (up to the cap) is
+// worth - the ring striking last, not the next one round (from there no time to step back in)
+constexpr float LaterStrikeYardsPerSecond = 10.0f;
+constexpr float LaterStrikeCapSeconds = 3.0f;
+// ... but never into one striking this long after the first, or never (a wall's outside, a pool): a place to keep out of
+constexpr uint64 StagedHorizonMs = 4000;
 constexpr uint32 EscapeDirections = 16;
 // No way out at EscapeDirections: once more, finer - a lane between areas (Supernova's, 30 degrees) is narrower than
 // the gap between two coarse directions once the margins are taken off, and the bot stayed in and died
@@ -603,12 +612,13 @@ uint32 FadeLookOf(uint32 look)
 // The owners whose marks show at their size at once (DrawInstantly): their stalkers are scaled before the client sees
 // them. The others' grow into place from a yard - the client eases a scale it is told of after a unit shows.
 std::mutex InstantLock;
-std::set<ObjectGuid> InstantOwners;
+// Owners drawing instantly, by guid and instance (a creature's guid is its map's: two instances' bosses share it)
+std::set<std::pair<ObjectGuid, uint32>> InstantOwners;
 
 bool DrawsInstantly(Unit* owner)
 {
     std::lock_guard<std::mutex> guard(InstantLock);
-    return InstantOwners.contains(owner->GetGUID());
+    return InstantOwners.contains({ owner->GetGUID(), owner->GetInstanceId() });
 }
 
 // A stalker at its size before the client is told of it (Map::SummonCreature's steps, its scale set before AddToMap):
@@ -1094,7 +1104,8 @@ bool HeldByTank(Unit* tank, ActiveArea const& entry)
         return false;
 
     Creature* owner = ObjectAccessor::GetCreature(*tank, entry.owner);
-    if (!owner || !owner->IsAlive() || owner->GetVictim() != tank || owner->IsDungeonBoss() || owner->isWorldBoss())
+    if (!owner || !owner->IsAlive() || owner->GetVictim() != tank || owner->IsDungeonBoss() || owner->isWorldBoss() ||
+        owner->GetCreatureTemplate()->rank == CREATURE_ELITE_WORLDBOSS)
         return false;
 
     // Around the creature itself, not a spot it aimed at elsewhere
@@ -1237,7 +1248,8 @@ void AddGoal(Goal goal, bool replaceOwnersOfKind)
     Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [&goal, now, replaceOwnersOfKind](Goal const& entry)
         {
             return entry.endMs <= now ||
-                (replaceOwnersOfKind && entry.owner == goal.owner && entry.kind == goal.kind);
+                (replaceOwnersOfKind && entry.owner == goal.owner && entry.kind == goal.kind &&
+                 entry.mapId == goal.mapId && entry.instanceId == goal.instanceId);
         }), Goals.end());
     Goals.push_back(goal);
 }
@@ -1726,11 +1738,13 @@ void ClearAreasOf(Unit* owner)
     if (!owner)
         return;
 
+    // Its own instance's only: a creature's guid is its map's, the same boss in two instances (a static spawn) has
+    // the same one - a wipe in one ended the other's areas (its arena's wall: the bots walked out through it)
     ObjectGuid const guid = owner->GetGUID();
     uint64 const now = NowMs();
     std::lock_guard<std::mutex> guard(RegistryLock);
     for (ActiveArea& entry : Registry)
-        if (entry.owner == guid)
+        if (entry.owner == guid && entry.mapId == owner->GetMapId() && entry.instanceId == owner->GetInstanceId())
             entry.endMs = std::min(entry.endMs, now);
 }
 
@@ -1917,8 +1931,11 @@ bool CrossesAreas(Unit* unit, Position const& spot)
         PathCrosses(areas, unit->GetPosition(), spot, unit->GetGUID()));
 }
 
-// The nearest spot out of areas for unit (FindEscape's search)
-bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, Position& escape, bool tank)
+// The nearest spot out of areas for unit (FindEscape's search). all: every area it keeps out of (areas, or more): no
+// way through one of them striking before the unit is across and before where it stands strikes. staged: the spot
+// may be in a later one of all - the later the better
+bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, std::vector<ActiveArea> const& all, Position& escape,
+                 bool tank, bool staged)
 {
     // A circle this unit carries: it is the others who must not be in it. A tank does not run from its group
     // with one; they step away from it.
@@ -1933,6 +1950,18 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, Position& esc
     bool const crowding = carried > 0.0f && OtherPlayerNear(unit, here, carried + InsideMargin);
     if (!inside && !crowding)
         return false;
+
+    // When where it stands strikes (the first of the areas it is in): crossing anything striking before that is
+    // worse than waiting
+    uint64 const now = NowMs();
+    uint64 hereStrikes = std::numeric_limits<uint64>::max();
+    for (ActiveArea const& entry : areas)
+        if (entry.carrier != unit->GetGUID() && entry.area.Contains(here, InsideMargin))
+            hereStrikes = std::min(hereStrikes, entry.endMs);
+    uint64 soonest = std::numeric_limits<uint64>::max();
+    for (ActiveArea const& entry : areas)
+        soonest = std::min(soonest, entry.endMs);
+    float const speed = std::max(unit->GetSpeed(MOVE_RUN), 1.0f);
 
     Unit* victim = unit->GetVictim();
     // A bot given a soak dodges within it (a hammer rolling through a Sentence): stepping out of it, the soak fell
@@ -1950,7 +1979,9 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, Position& esc
         if (foundClean)
             break;
         float const angleOffset = UnitSpread(unit, 1) * 2.0f * float(M_PI) / directions;
-        for (float ring = EscapeStep; ring <= EscapeReach; ring += EscapeStep)
+        // The fine pass in half steps too: a gap a few yards wide (a roller's) falls between two coarse rings
+        float const step = directions == EscapeDirectionsFine ? EscapeStep / 2.0f : EscapeStep;
+        for (float ring = step; ring <= EscapeReach; ring += step)
         {
             float const distance = ring + distanceOffset;
             for (uint32 direction = 0; direction < directions; ++direction)
@@ -1969,10 +2000,37 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, Position& esc
                 if (carried > 0.0f && OtherPlayerNear(unit, spot, carried + CarrierClearance))
                     continue;
 
+                // Never through an area striking on the way, before where it stands does: it waits for it instead
+                uint64 const arrives = now + uint64(here.GetExactDist2d(&spot) / speed * 1000.0f) + CrossSpareMs;
+                bool struckOnTheWay = false;
+                for (ActiveArea const& entry : all)
+                    if (entry.endMs < arrives && entry.endMs < hereStrikes &&
+                        PathCrosses({ entry }, here, spot, unit->GetGUID()))
+                        struckOnTheWay = true;
+                if (struckOnTheWay)
+                    continue;
+
                 // The shortest way out, and not too far from what it is fighting; never through another area when a
                 // way round it exists (fire on both sides: the middle, not through the fire)
                 bool const crosses = PathCrosses(areas, here, spot, unit->GetGUID());
                 float cost = here.GetExactDist2d(&spot);
+                if (staged)
+                {
+                    // Standing in one striking later: the later, the longer before it has to move again
+                    uint64 covered = std::numeric_limits<uint64>::max();
+                    bool keptOut = false;
+                    for (ActiveArea const& entry : all)
+                        if (entry.area.Contains(spot, EscapeMargin))
+                        {
+                            covered = std::min(covered, entry.endMs);
+                            keptOut = keptOut || entry.endMs > soonest + StagedHorizonMs;
+                        }
+                    if (keptOut)
+                        continue;
+                    float const seconds = covered == std::numeric_limits<uint64>::max() ? LaterStrikeCapSeconds :
+                        std::min(LaterStrikeCapSeconds, float(covered > soonest ? covered - soonest : 0) / 1000.0f);
+                    cost -= seconds * LaterStrikeYardsPerSecond;
+                }
                 if (crosses)
                     cost += PathCrossCost;
                 if (victim)
@@ -1996,7 +2054,7 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, Position& esc
             // The nearest ring with a clean way out, and the one after it (an empty spot a step further beats a
             // crowded one), are enough: any further only costs more. A way through an area is kept only when no
             // ring within reach has a clean one.
-            if (foundClean && ring >= foundRing + EscapeStep &&
+            if (!staged && foundClean && ring >= foundRing + EscapeStep &&
                 (!soaking || best.spot.GetExactDist2d(&soak.center) <= soakInside || ring > 2.0f * soak.radius))
                 break;
         }
@@ -2015,7 +2073,7 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     std::vector<ActiveArea> const areas = AreasToLeave(unit, tank);
     if (areas.empty())
         return false;
-    if (EscapeAmong(unit, areas, escape, tank))
+    if (EscapeAmong(unit, areas, areas, escape, tank, false))
         return true;
 
     // Nowhere clear of them all (rings round a boss covering the whole floor, struck in turn): out of those striking
@@ -2027,7 +2085,7 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     for (ActiveArea const& entry : areas)
         if (entry.endMs <= soonest + SoonestWindowMs)
             first.push_back(entry);
-    return first.size() < areas.size() && EscapeAmong(unit, first, escape, tank);
+    return first.size() < areas.size() && EscapeAmong(unit, first, areas, escape, tank, true);
 }
 
 void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted, Theme theme,
@@ -2068,7 +2126,8 @@ void SetUnitSpot(Unit* owner, Unit* unit, Position const& spot, float radius, ui
     std::lock_guard<std::mutex> guard(GoalLock);
     Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [&goal](Goal const& entry)
         {
-            return entry.kind == Goal::Kind::Unit && entry.owner == goal.owner && entry.tank == goal.tank;
+            return entry.kind == Goal::Kind::Unit && entry.owner == goal.owner && entry.tank == goal.tank &&
+                entry.instanceId == goal.instanceId;
         }), Goals.end());
     Goals.push_back(goal);
 }
@@ -2149,7 +2208,8 @@ void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs)
     std::lock_guard<std::mutex> guard(GoalLock);
     Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [&goal](Goal const& entry)
         {
-            return entry.kind == Goal::Kind::Still && entry.owner == goal.owner && entry.tank == goal.tank;
+            return entry.kind == Goal::Kind::Still && entry.owner == goal.owner && entry.tank == goal.tank &&
+                entry.instanceId == goal.instanceId;
         }), Goals.end());
     Goals.push_back(goal);
 }
@@ -2210,7 +2270,7 @@ std::vector<ObjectGuid> SoakAssignees(Unit* owner, Position const& center)
     std::lock_guard<std::mutex> guard(GoalLock);
     for (Goal const& goal : Goals)
         if (goal.kind == Goal::Kind::Soak && goal.owner == owner->GetGUID() &&
-            goal.center.GetExactDist2d(&center) < 0.5f)
+            goal.instanceId == owner->GetInstanceId() && goal.center.GetExactDist2d(&center) < 0.5f)
             return goal.assigned;
     return {};
 }
@@ -2248,7 +2308,7 @@ void EndSoak(Unit* owner, Position const& center)
     Goals.erase(std::remove_if(Goals.begin(), Goals.end(), [owner, &center](Goal const& goal)
         {
             return goal.kind == Goal::Kind::Soak && goal.owner == owner->GetGUID() &&
-                goal.center.GetExactDist2d(&center) < 0.5f;
+                goal.instanceId == owner->GetInstanceId() && goal.center.GetExactDist2d(&center) < 0.5f;
         }), Goals.end());
 }
 
@@ -2518,9 +2578,9 @@ void DrawInstantly(Unit* owner, bool instantly)
         return;
     std::lock_guard<std::mutex> guard(InstantLock);
     if (instantly)
-        InstantOwners.insert(owner->GetGUID());
+        InstantOwners.insert({ owner->GetGUID(), owner->GetInstanceId() });
     else
-        InstantOwners.erase(owner->GetGUID());
+        InstantOwners.erase({ owner->GetGUID(), owner->GetInstanceId() });
 }
 
 uint32 FadingTwinOf(uint32 look)
@@ -2603,6 +2663,27 @@ Position RouteAround(Unit* unit, bool tank, Position const& goal)
     return found ? best.spot : goal;
 }
 
+bool StruckOnTheWay(Unit* unit, Position const& goal)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Player* player = unit->ToPlayer();
+    std::vector<ActiveArea> const areas = AreasToLeave(unit, player && IsGroupTank(player));
+    if (areas.empty())
+        return false;
+    Position const here = unit->GetPosition();
+    uint64 hereStrikes = std::numeric_limits<uint64>::max();
+    for (ActiveArea const& entry : areas)
+        if (entry.carrier != unit->GetGUID() && entry.area.Contains(here, InsideMargin))
+            hereStrikes = std::min(hereStrikes, entry.endMs);
+    float const speed = std::max(unit->GetSpeed(MOVE_RUN), 1.0f);
+    uint64 const arrives = NowMs() + uint64(here.GetExactDist2d(&goal) / speed * 1000.0f) + CrossSpareMs;
+    for (ActiveArea const& entry : areas)
+        if (entry.endMs < arrives && entry.endMs < hereStrikes && PathCrosses({ entry }, here, goal, unit->GetGUID()))
+            return true;
+    return false;
+}
+
 bool Detour(Unit* unit, Position const& goal, Position& waypoint)
 {
     if (!unit || !unit->IsInWorld() || !unit->IsAlive())
@@ -2642,10 +2723,12 @@ bool FindGoalSpot(Unit* unit, Position& spot, bool tank)
 
         if (goal.kind == Goal::Kind::OffTank)
         {
-            // The tank it names, or a tank the owner is not hitting: the one it is stays where it holds it
+            // The tank it names, or a tank the owner is not hitting: the one it is stays where it holds it. Not while
+            // the spot is red: it stepped out of it, and would walk straight back in
             bool const forUnit = goal.tank.IsEmpty() ? owner->GetVictim() != unit : goal.tank == unit->GetGUID();
             if (!tank || !owner->IsInCombat() || !forUnit ||
-                unit->GetExactDist2d(&goal.center) <= (goal.hold ? OffTankHoldSlack : OffTankSlack))
+                unit->GetExactDist2d(&goal.center) <= (goal.hold ? OffTankHoldSlack : OffTankSlack) ||
+                KeepsOutOf(unit, goal.center))
                 continue;
             spot = goal.center;
             return true;
@@ -2655,7 +2738,7 @@ bool FindGoalSpot(Unit* unit, Position& spot, bool tank)
         if (goal.kind == Goal::Kind::Tank)
         {
             if (!tank || !owner->IsInCombat() || owner->GetVictim() != unit ||
-                unit->GetExactDist2d(&goal.center) <= goal.radius)
+                unit->GetExactDist2d(&goal.center) <= goal.radius || KeepsOutOf(unit, goal.center))
                 continue;
             spot = goal.center;
             return true;

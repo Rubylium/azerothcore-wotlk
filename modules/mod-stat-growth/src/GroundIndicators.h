@@ -385,6 +385,10 @@ namespace GroundIndicators
     // A walk to goal that would cross an area unit is to keep out of: the waypoint to go round by first (false: the
     // straight walk is clean, or no way round was found)
     bool Detour(Unit* unit, Position const& goal, Position& waypoint);
+    // Whether a straight walk of unit to goal crosses an area striking before it is across (at its run speed), sooner
+    // than where it stands strikes: an ordinary move waits for it to strike instead (rings struck in turn: back to its
+    // boss through the next one)
+    bool StruckOnTheWay(Unit* unit, Position const& goal);
 
     // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
     // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it
