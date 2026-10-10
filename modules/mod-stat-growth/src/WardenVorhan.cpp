@@ -116,8 +116,10 @@ constexpr float UptimeSeconds = 320.0f;
 // His group of 8 gets fewer buffs than the 10-player teams Power::RaidCurve was measured on (two healers, no priest,
 // two subgroups): 1.095 of the model against 1.18 at 477 / 650 (simBench.ps1 raid -dealers 4, 2026-10-09)
 constexpr float EightPlayerShare = 1.095f / 1.18f;
-// Raised by play: the first kills at the measured health were too easy (2026-10-09, +15%)
-LiveTuning::Knob const HealthScale("vorhan.health_scale", 1.15f);
+// Raised by play to 1.15: the first kills at the measured health were too easy (2026-10-09). Measured on bots alone
+// (e2e/local/vorhan, three full runs, 2026-10-11): at 1.15 they reached the life sentence with 38-41% of his health
+// left, at 0.86 with 0-20% (11% on average, one kill); the fight is meant to leave about 20% there
+LiveTuning::Knob const HealthScale("vorhan.health_scale", 0.95f);
 // The riot's waves: each about this many seconds of the group's pack damage
 constexpr float WaveSeconds = 8.0f;
 
@@ -2537,6 +2539,14 @@ private:
     {
         if (_cage.IsEmpty())
             return;
+        // A cage already dead or gone when its time is over was broken: its death did not always reach him, and the
+        // bots who broke it saw its prisoner die all the same (every cage of three runs, "at 0%")
+        Creature* cage = me->GetMap()->GetCreature(_cage);
+        if (!broken && (!cage || !cage->IsAlive()))
+            broken = true;
+        LOG_INFO("module.vorhan", "Vorhan cage instance={} at={:.1f}s {} ({})", me->GetInstanceId(),
+                 Elapsed() / 1000.0f, broken ? "broken" : "held",
+                 !cage ? "gone" : Acore::StringFormat("{:.0f}%", cage->GetHealthPct()));
         Player* prisoner = ObjectAccessor::GetPlayer(*me, _caged);
         if (prisoner)
         {
@@ -2546,7 +2556,8 @@ private:
             else if (prisoner->IsAlive())
             {
                 Doom(prisoner, SPELL_CAGE_DEATH);
-                Broken("cage", prisoner->GetName());
+                Broken("cage", Acore::StringFormat("{} (cage at {:.0f}%)", prisoner->GetName(),
+                    cage ? cage->GetHealthPct() : 0.0f));
             }
         }
         ClearCage();
@@ -2840,6 +2851,11 @@ private:
         scheduler.Schedule(Milliseconds(from), [this, opensInMs, from](TaskContext)
         {
             GroundIndicators::SetLookAway(me, opensInMs - from + 300);
+            // Still too: walking back to him (the isolation's seal had scattered them 40 yards out just before), the
+            // bots kept turning to face him, and all seven were struck
+            for (Player* player : ArenaPlayers())
+                if (player->GetSession() && player->GetSession()->IsBot())
+                    GroundIndicators::SetHoldStill(me, player, opensInMs - from + 300);
         });
     }
 
