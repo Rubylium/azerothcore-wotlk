@@ -6,6 +6,7 @@
 #include "MythicTuning.h"
 
 #include "CellImpl.h"
+#include "Chat.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "InstanceScript.h"
@@ -448,6 +449,27 @@ protected:
     {
         float const beat = grid.BeatOf(Elapsed());
         return beat > 0.0f ? uint32(std::ceil(beat - 0.05f)) : 0;
+    }
+
+    // --- What it tells the players ---------------------------------------------------------------------------------
+    // A line in the middle of a player's screen (the raid boss emote frame), in their language; whisper: to them
+    // alone, in its own colour (what hit them). Bots are told nothing.
+    void Announce(Player* player, std::string const& french, std::string const& english, bool whisper = false) const
+    {
+        if (!player || !player->GetSession() || player->GetSession()->IsBot())
+            return;
+        bool const isFrench = player->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
+        WorldPacket packet;
+        ChatHandler::BuildChatPacket(packet, whisper ? CHAT_MSG_RAID_BOSS_WHISPER : CHAT_MSG_RAID_BOSS_EMOTE,
+            LANG_UNIVERSAL, me, player, isFrench ? french : english);
+        player->GetSession()->SendPacket(&packet);
+    }
+
+    // The same line to everyone who hears the fight
+    void AnnounceAll(std::string const& french, std::string const& english) const
+    {
+        for (Player* player : Listeners())
+            Announce(player, french, english);
     }
 
     // A kill's yell, at most every 10 s

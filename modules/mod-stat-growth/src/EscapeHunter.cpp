@@ -7,9 +7,9 @@
 #include "LFG.h"
 #include "Random.h"
 #include "StringFormat.h"
-#include "TemporarySummon.h"
 
 #include <array>
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -18,86 +18,98 @@
 // Breaker's hall (plan: .agents/plans/escape-hunter). 8 players - 2 tanks, 2 healers, 4 damage dealers - tuned for
 // item level 477 and 650 paragon, as Gardien-chef Vorhan, the first gate.
 //
-// A mix of the gates before it: WoW-speed fighting between FFXIV set pieces, **all of it on his music**. The track is
-// played once from the pull and every step lands on a beat of it: the script holds the beat grid measured on the track
-// (155 BPM) and places each step on a beat number, never on a time of its own.
-// - His rotation (WoW): Taillade on his tank (a cone that stacks Lacération: the tank swap), and in turn his traps
-//   (under players; armed, they catch a player - or a hound dragged into one), an archer beater (its arrow
-//   interrupted, the skull on it), a net (a player rooted until the hound holding it dies), his horn (a group hit and
-//   a pack for the second tank).
-// - The set pieces (FFXIV): la Battue (strips of the hall swept one a beat, a gap in each to stand in, sometimes a
-//   second pass back with other gaps), l'Hallali on the music's peak (marked quarries away from everyone, the others
-//   together to share the pack's blow), la Traque on the breakdown (he is gone; torchlight pools move round the hall,
-//   whoever stands out of one on a strike's beat is caught), la Curée on the climax (above CureePct of his health,
-//   the group dies).
-// - A mistake (a strip, a trap, a quarry's leap, out of the light) marks: Débusqué, and a second one under it is
-//   death. The music ends at 4:25.5: the silence, then the hard enrage.
+// **A dance on his music.** The track is played once from the pull and every step lands on a beat of it - most on the
+// snare (the third beat of a bar), the Traque's on the kick: the script holds the beat grid measured on the track
+// (155 BPM) and places each step on a beat number, never on a time of its own. Something lands every bar or two:
+// patterns drawn in red a bar ahead, each with its own rhythm to learn (surprising once, readable after):
+// - Taillade (a cone on his tank, stacking Lacération: the tank swap) and its Revers behind him: stand at his flanks;
+// - Volée de flèches: circles under players and around the hall;
+// - le Collet: the snare closing around him, a ring then a circle then a ring...: in, out, in, out, a bar each;
+// - l'Encerclement: arrows from three sides, the quarter spared turning clockwise a bar at a time;
+// - le Rabattage: the hall's lanes swept, the odd ones then the even ones, then the same across;
+// - la Charge de la meute: lines through players, one a beat;
+// - le Bond: he leaps on the farthest player, then its shockwave everywhere but where he landed;
+// - les Pièges, then their Déclenchement: traps under everyone, armed; later they burst one a beat;
+// - le Moulinet: his chains turning round him, stopped dead on a beat - they strike where they stopped;
+// - le Pistage: marks follow three players, freeze on the snare and strike where they froze;
+// - la Battue: strips swept one a beat, a gap in each, sometimes back again;
+// - l'Hallali on the peak: quarries away from all, the others under him to share the blow;
+// - la Traque on the breakdown: he is gone in the dark - pounces, charges through the hall, then marks under everyone;
+//   he comes back on the track's hardest hit, howling;
+// - la Curée on the climax: above CureePct of his health, the group dies. The silence at 4:25.5 ends the hunt.
+// A mistake marks (Débusqué: more damage taken for a while); each is told to the player it hit, in their language.
 //
-// What every Défi boss does alike (a challenge's instance only, the hall cleared, its health, its music, its hits) is
-// Defi::BossAI's (DefiBoss.h).
+// What every Défi boss does alike (a challenge's instance only, the hall cleared, its health, its music, its hits, its
+// lines to the players) is Defi::BossAI's (DefiBoss.h).
 
 namespace
 {
 // --- Tuning ---------------------------------------------------------------------------------------------------------
 // As Vorhan's profile (mod-playerbots ChallengeTiers.h): 477 / 650, 2 tanks, 2 healers, 4 damage dealers. He can be hit
-// from the pull to the Curée (4:04.0) but during la Traque (2:04.0-2:41.2, he is away), less the seconds his pack
-// takes (AddSeconds: the horns' hounds, the nets', the archers'). Checked on three 8-bot groups, 2026-10-10: at this
-// health they would stand at the Curée at 3%, 15% and 30% - the middle one on its line.
-constexpr float AddSeconds = 45.0f;
-Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 244.0f - 37.2f - AddSeconds, 1.095f / 1.18f };
+// from the pull to the Curée (4:04.0) but during la Traque (2:04.0-2:41.2, he is away), and only part of that time on
+// him (OnHimShare: a pattern every bar or two keeps the group on its feet). Measured on two 8-bot groups, 2026-10-10:
+// one dealt 34M by the Curée, the other killed him (49.8M) at 3:34 - between them, the Curée's line at 15%.
+constexpr float OnHimShare = 0.54f;
+Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (244.0f - 37.2f) * OnHimShare, 1.095f / 1.18f };
 LiveTuning::Knob const HealthScale("traqueur.health_scale", 1.0f);
 
 // Keli'dan's hall: open floor 55 yd and more round its middle (measured on the navigation mesh, 2026-10-10), an exit
-// to the south. The fight keeps within FightRadius.
+// to the south. The patterns keep within HallRadius of its middle.
 Defi::Room const Room = { Position(326.5f, -86.0f, -24.6f, 0.0f), 55.0f, 120.0f, 60.0f };
-constexpr float FightRadius = 40.0f;
+constexpr float HallRadius = 40.0f;
 
 // --- The music ------------------------------------------------------------------------------------------------------
-// prison_first_boss_music_2 (Music.EscapeHunter): 155 BPM, a line fitted to its 684 beats (95% within 42 ms). Its
-// sections start on bars (4 beats): the build-up on bar 12, section A on 28, the peak on 76, the breakdown on 80, the
-// rebuild on 104, section B on 116, the outro on 160. The strongest hits are on beats 55, 182, 234, 310 (the peak),
-// 468, 517, 533, 562, 575 and 630 (the climax). The track ends at MusicEndMs.
+// prison_first_boss_music_2 (Music.EscapeHunter): 155 BPM, a line fitted to its 684 beats (95% within 42 ms). A bar is
+// 4 beats; its snare on the third (beat 4b + 2), in the breakdown its kick on the second. Sections start on bars: the
+// build-up on bar 12, section A on 28, the peak on 76, the breakdown on 80, the rebuild on 104 (beat 416: the track's
+// hardest hit), section B on 116, the outro on 160. Other hits: beats 55, 468, 517, 533, 575, 630 (the climax). The
+// track ends at MusicEndMs.
 constexpr Defi::BeatGrid Grid = { 168.2f, 387.09f };
 constexpr uint32 MusicEndMs = 265460;
 
-// --- His abilities --------------------------------------------------------------------------------------------------
-// Hits are shares of the reference health (a damage dealer of the profile)
+// --- His blows ------------------------------------------------------------------------------------------------------
+// Shares of the reference health (a damage dealer of the profile)
 constexpr float MeleeFloorPct = 10.0f;      // his swing on a player: at least this
-constexpr float HoundMeleePct = 4.0f;       // a hound's
-// Taillade: a cone on his tank after its cast; the tank takes TailladeTankPct and a stack of Lacération (taken
-// LacerationTakenPct more a stack, for LacerationMs), anyone else in it a mistake. At SwapStacks the other tank takes him.
-constexpr float TailladeTankPct = 55.0f;
-constexpr uint32 ToolBeats = 6;              // his next tool, this many beats after Taillade's start
+// Taillade: his tank takes TailladeTankPct and a stack of Lacération (LacerationTakenPct more taken a stack, for
+// LacerationMs); at SwapStacks the other tank takes him. Its Revers follows behind him two beats later.
+constexpr float TailladeTankPct = 50.0f;
 constexpr float TailladeRadius = 12.0f;
-constexpr float TailladeArc = 100.0f;
-constexpr uint32 TailladeCastMs = 2000;
+constexpr float TailladeArc = 120.0f;
 constexpr float LacerationTakenPct = 15.0f;
 constexpr uint32 LacerationMs = 25000;
 constexpr uint8 SwapStacks = 3;
-// Cor de chasse: everyone, and a pack (each hound lasting PackSeconds of the group's area damage), the hounds alive
-// topped up to MaxHounds at most
-constexpr float HornPct = 20.0f;
-constexpr float PackSeconds = 6.0f;
-constexpr uint32 MaxHounds = 6;
-// La Traque's hounds, on a healer each: HuntingSeconds of one target's damage; gone back to the dark at its end
-constexpr float HuntingSeconds = 2.5f;
-// Filet: a player rooted for NetMs, freed when the hound holding it dies (NetHoundSeconds of one target's damage)
-constexpr uint32 NetMs = 9000;
-constexpr float NetHoundSeconds = 3.5f;
-constexpr float NetStranglePct = 90.0f;
-// Pièges à mâchoires: TrapCount traps under players, armed after TrapWarnMs, for TrapArmedMs
-constexpr uint32 TrapCount = 3;
-constexpr uint32 TrapWarnMs = 2000;
-constexpr uint32 TrapArmedMs = 25000;
+constexpr float HornPct = 15.0f;
+constexpr float HowlPct = 35.0f;            // Hurlement: his return from the dark, on everyone
+// What a mistake takes, by pattern
+constexpr float ConePct = 70.0f;            // Taillade on another than his tank, Revers
+constexpr float VolleyPct = 45.0f;
+constexpr float PatternPct = 60.0f;         // Collet, Encerclement, Rabattage, Moulinet, Pistage
+constexpr float ChargePct = 60.0f;          // la meute, les griffes
+constexpr float LeapPct = 70.0f;            // le Bond, its shockwave
+constexpr float TrapPct = 40.0f;            // an armed trap stepped in: and held TrapRootMs
+constexpr float BurstPct = 55.0f;           // a trap bursting
+constexpr float BattuePct = 70.0f;
+constexpr float DarkPct = 60.0f;            // la Traque's pounces and marks
+// The patterns' sizes
+constexpr float VolleyRadius = 5.0f;
+constexpr uint32 VolleyAround = 5;          // circles round the hall besides those under players
+constexpr uint32 EncircleWaves = 4;
+constexpr float SnareRadius = 16.0f;        // le Collet: its circle; its ring from there to the hall's edge
+constexpr float LaneWidth = 10.0f;          // le Rabattage: five lanes across the hall
+constexpr float ChargeWidth = 7.0f;
+constexpr float ChargeLength = 44.0f;
+constexpr float LeapRadius = 8.0f;
+constexpr uint32 ShockwaveBeats = 8;
 constexpr float TrapRadius = 3.0f;
-constexpr float TrapPct = 40.0f;
+constexpr float BurstRadius = 7.0f;
 constexpr uint32 TrapRootMs = 3000;
-constexpr uint32 TrapHoundRootMs = 6000;
-constexpr float TrappedHoundTakenPct = 50.0f;
-// An archer beater: ArcherSeconds of one target's damage, its arrow every ArcherEveryMs (a 4 s cast)
-constexpr float ArcherSeconds = 4.0f;
-constexpr uint32 ArcherEveryMs = 7000;
-constexpr float ArrowPct = 55.0f;
+constexpr float ChainLength = 40.0f;        // le Moulinet: two chains through him, a full turn in ChainTurnBeats
+constexpr float ChainWidth = 6.0f;
+constexpr uint32 ChainTurnBeats = 8;
+constexpr float TrackRadius = 6.0f;         // le Pistage
+constexpr uint32 TrackedPlayers = 3;
+constexpr float PounceRadius = 7.0f;
+constexpr float DarkMarkRadius = 6.0f;
 // La Battue: BattueStrips strips across the hall, BattueStripDepth deep, a gap BattueGap wide in each; a strip lands a
 // beat after the one before, shown BattueWarnBeats ahead
 constexpr uint32 BattueStrips = 9;
@@ -105,7 +117,6 @@ constexpr float BattueStripDepth = 8.0f;
 constexpr float BattueHalfWidth = 40.0f;
 constexpr float BattueGap = 10.0f;
 constexpr uint32 BattueWarnBeats = 8;
-constexpr float BattuePct = 70.0f;
 // L'Hallali: the quarries' circles (HallaliRadius), the group's share (HallaliSoakPct split among those in its circle)
 constexpr float HallaliRadius = 8.0f;
 constexpr float HallaliQuarryPct = 45.0f;
@@ -113,20 +124,9 @@ constexpr float HallaliMistakePct = 80.0f;
 constexpr float HallaliSoakRadius = 7.0f;
 constexpr float HallaliSoakPct = 160.0f;
 constexpr uint32 HallaliMarkBeats = 12;
-// La Traque: TorchCount pools round the hall, moved every TorchMoveBeats (the next shown TorchPreviewBeats ahead, the
-// old ones lit until they go), a strike every TraqueStrikeBeats between the moves (off the move's own beats: none from
-// a set's preview until TraqueStrikeBeats / 2 after it is in place) on whoever stands out of every pool
-constexpr uint32 TorchCount = 3;
-constexpr float TorchRadius = 7.0f;
-constexpr float TorchDistance = 22.0f;
-constexpr uint32 TorchMoveBeats = 32;
-constexpr uint32 TorchPreviewBeats = 8;
-constexpr uint32 TraqueStrikeBeats = 8;
-constexpr float TraquePct = 60.0f;
-constexpr uint32 InvisibleDisplay = 11686;     // the invisible trigger's
-// A mistake: Débusqué for DebusqueMs, MistakeTakenPct more taken; a mistake under it is death
-constexpr uint32 DebusqueMs = 15000;
-constexpr float MistakeTakenPct = 100.0f;
+// A mistake: Débusqué for DebusqueMs, MistakeTakenPct more taken (a second mistake under it hurts all the more)
+constexpr uint32 DebusqueMs = 8000;
+constexpr float MistakeTakenPct = 50.0f;
 // La Curée: above this share of his health as it lands, the group dies; under it, a group hit
 constexpr float CureePct = 15.0f;
 constexpr float CureeHitPct = 40.0f;
@@ -137,35 +137,49 @@ enum Spells : uint32
 {
     SPELL_TAILLADE          = 94800,
     SPELL_HORN              = 94801,
-    SPELL_STRANGLE          = 94802,
+    SPELL_LANES             = 94802,
     SPELL_TRAP              = 94803,
-    SPELL_ARROW_HIT         = 94804,
+    SPELL_VOLLEY            = 94804,
     SPELL_BATTUE            = 94805,
     SPELL_HALLALI           = 94806,
     SPELL_PACK_SHARE        = 94807,
-    SPELL_TRAQUE            = 94808,
+    SPELL_POUNCE            = 94808,
     SPELL_CUREE             = 94809,
     SPELL_HUNT_OVER         = 94810,
+    SPELL_REVERS            = 94811,
+    SPELL_SNARE             = 94812,
+    SPELL_ENCIRCLE          = 94813,
+    SPELL_CHARGE            = 94814,
+    SPELL_LEAP              = 94815,
+    SPELL_SHOCKWAVE         = 94816,
+    SPELL_BURST             = 94817,
+    SPELL_HOWL              = 94818,
+    SPELL_DARK_CHARGE       = 94819,
+    SPELL_CHAINS            = 94825,
+    SPELL_TRACKED           = 94826,
     SPELL_LACERATION        = 94820,
     SPELL_DEBUSQUE          = 94821,
     SPELL_QUARRY            = 94822,
     SPELL_JAWS              = 94823,
-    SPELL_NET               = 94824,
     CAST_TAILLADE           = 94840,
     CAST_HORN               = 94841,
     CAST_BATTUE             = 94842,
     CAST_HALLALI            = 94843,
     CAST_TRAQUE             = 94844,
     CAST_CUREE              = 94845,
-    SPELL_ARROW             = 94846,
+    CAST_LEAP               = 94846,
+    CAST_SNARE              = 94847,
+    CAST_ENCIRCLE           = 94848,
+    CAST_LANES              = 94849,
+    CAST_CHARGE             = 94850,
+    CAST_TRAPS              = 94851,
+    CAST_CHAINS             = 94852,
+    CAST_TRACKING           = 94853,
 };
 
 enum Npcs : uint32
 {
     NPC_TRAQUEUR            = 930400,
-    NPC_FELHOUND            = 930401,
-    NPC_ARCHER              = 930402,
-    NPC_BEATER              = 930403,
 };
 
 enum Says : uint8
@@ -179,88 +193,98 @@ enum Says : uint8
     SAY_DEATH               = 6,
 };
 
+// An invisible model: his, during la Traque (hidden, the players' combat with him would drop)
+constexpr uint32 InvisibleDisplay = 11686;
+
 enum class Phase : uint8
 {
     None,
-    Intro,          // 0:00, bar 0: him alone
-    Hunt,           // 0:43.5, bar 28: section A, his rotation
+    Intro,          // 0:00, bar 0
+    Hunt,           // 0:18.7, bar 12: the build-up and section A
     Traque,         // 2:04.0, bar 80: the breakdown, the hunt in the dark
-    Rebuild,        // 2:41.2, bar 104: back with his pack
-    Frenzy,         // 2:59.8, bar 116: section B, everything faster
-    Outro,          // 4:07.9, bar 160: the kill window
+    Rebuild,        // 2:41.2, bar 104
+    Frenzy,         // 2:59.8, bar 116: section B
+    Outro,          // 4:07.9, bar 160
     Over,
 };
 
-// What happens on a beat
+// What starts on a beat (each pattern's first red is drawn then; it lands FirstWarn beats later)
 enum class Event : uint8
 {
+    Taillade,
+    Volley,
+    Snare,          // le Collet
+    Encircle,       // l'Encerclement
+    Lanes,          // le Rabattage
+    Pack,           // la Charge de la meute
+    Leap,           // le Bond
+    Traps,          // les Pièges
+    Burst,          // leur Déclenchement
+    Chains,         // le Moulinet
+    Tracking,       // le Pistage
+    Battue,         // one pass (arg 1: and back)
+    Hallali,        // arg: its quarries
     Horn,
-    Net,
-    Rotation,       // Taillade and the next of his tools
-    Battue,         // two passes
-    BattueOnce,     // one pass
-    Hallali,        // its marks, 12 beats before the beat it lands on
     TraqueStart,
-    TraqueEnd,
+    Pounce,         // la Traque: on two players
+    DarkCharge,     // la Traque: arg 1: two crossing
+    DarkMarks,      // la Traque: under everyone
+    TraqueEnd,      // Hurlement
     FrenzyStart,
-    NetAndHorn,
-    Curee,          // its cast, 16 beats before the beat it lands on
+    Curee,
     Outro,
-    MusicEnd,
 };
 
-struct Step
+uint32 FirstWarn(Event what)
 {
-    uint32 beat;
-    Event what;
-};
-
-// The fight, on the music: every step on a beat of the grid
-std::vector<Step> BuildTimeline()
-{
-    std::vector<Step> steps = {
-        { 48, Event::Horn },                    // 0:18.7, the build-up
-        { 55, Event::Net },                     // 0:21.4, the first hit
-        { 174, Event::Battue },                 // its strips from beat 182 (1:10.6), back by 200
-        { 226, Event::BattueOnce },             // from beat 234 (1:30.7)
-        { 310 - HallaliMarkBeats, Event::Hallali },     // lands on 310, the peak (2:00.1)
-        { 320, Event::TraqueStart },            // 2:04.0, the breakdown
-        { 416, Event::TraqueEnd },              // 2:41.2, the rebuild: back with his pack
-        { 464, Event::FrenzyStart },            // 2:59.8, section B
-        { 460, Event::BattueOnce },             // its strips from 468 (3:01.3)
-        { 517, Event::NetAndHorn },             // 3:20.3
-        { 533 - HallaliMarkBeats, Event::Hallali },     // lands on 533 (3:26.5)
-        { 554, Event::BattueOnce },             // from 562 (3:37.7)
-        { 575, Event::Net },                    // 3:42.7: then the run to the Curée, his pack spared
-        { 630 - 16, Event::Curee },             // lands on 630, the climax (4:04.0)
-        { 640, Event::Outro },                  // 4:07.9
-    };
-    // Section A: his rotation every 8 bars (32 beats) from bar 28; section B every 4 bars, from bar 120
-    for (uint32 beat = 112; beat < 304; beat += 32)
-        steps.push_back({ beat, Event::Rotation });
-    for (uint32 beat = 480; beat < 612; beat += 16)
-        steps.push_back({ beat, Event::Rotation });
-    std::stable_sort(steps.begin(), steps.end(), [](Step const& a, Step const& b) { return a.beat < b.beat; });
-    return steps;
+    switch (what)
+    {
+        case Event::Leap: return 6;
+        case Event::Chains: return 8;
+        case Event::Tracking: return 6;
+        case Event::Burst: return 3;
+        case Event::Battue: return BattueWarnBeats;
+        case Event::Hallali: return HallaliMarkBeats;
+        case Event::Horn: return 3;
+        case Event::Pounce: return 4;
+        case Event::DarkCharge: return 3;
+        case Event::Curee: return 16;
+        case Event::TraqueStart:
+        case Event::TraqueEnd:
+        case Event::FrenzyStart:
+        case Event::Outro:
+            return 0;
+        default:
+            return 4;
+    }
 }
 
 char const* EventName(Event what)
 {
     switch (what)
     {
-        case Event::Horn: return "horn";
-        case Event::Net: return "net";
-        case Event::Rotation: return "rotation";
+        case Event::Taillade: return "taillade";
+        case Event::Volley: return "volley";
+        case Event::Snare: return "snare";
+        case Event::Encircle: return "encircle";
+        case Event::Lanes: return "lanes";
+        case Event::Pack: return "pack";
+        case Event::Leap: return "leap";
+        case Event::Traps: return "traps";
+        case Event::Burst: return "burst";
+        case Event::Chains: return "chains";
+        case Event::Tracking: return "tracking";
         case Event::Battue: return "battue";
-        case Event::BattueOnce: return "battue once";
         case Event::Hallali: return "hallali";
+        case Event::Horn: return "horn";
         case Event::TraqueStart: return "traque start";
+        case Event::Pounce: return "pounce";
+        case Event::DarkCharge: return "dark charge";
+        case Event::DarkMarks: return "dark marks";
         case Event::TraqueEnd: return "traque end";
         case Event::FrenzyStart: return "frenzy";
-        case Event::NetAndHorn: return "net and horn";
         case Event::Curee: return "curee";
         case Event::Outro: return "outro";
-        case Event::MusicEnd: return "music end";
     }
     return "?";
 }
@@ -271,6 +295,180 @@ bool IsPhaseStep(Event what)
         what == Event::Outro;
 }
 
+struct Step
+{
+    uint32 beat;    // its first red
+    Event what;
+    uint32 arg = 0;
+};
+
+// The fight, on the music. Most patterns are placed by the bar whose snare (beat 4b + 2) their first wave lands on.
+std::vector<Step> BuildTimeline()
+{
+    std::vector<Step> steps;
+    auto lands = [&steps](uint32 beat, Event what, uint32 arg = 0) { steps.push_back({ beat - FirstWarn(what), what, arg }); };
+    auto bar = [&lands](uint32 b, Event what, uint32 arg = 0) { lands(4 * b + 2, what, arg); };
+
+    // Intro (bars 0-11): him alone, learning his blows
+    bar(2, Event::Taillade);
+    bar(4, Event::Volley);
+    bar(6, Event::Taillade);
+    bar(8, Event::Tracking);
+    bar(10, Event::Leap);
+    // Build-up (bars 12-27): his horn on its first beat, then a pattern a bar or two
+    lands(48, Event::Horn);
+    bar(12, Event::Encircle);
+    bar(15, Event::Traps);
+    bar(16, Event::Taillade);
+    bar(17, Event::Lanes);
+    bar(21, Event::Burst);
+    bar(23, Event::Taillade);
+    bar(24, Event::Pack);
+    bar(27, Event::Chains);
+    // Section A (bars 28-75), la Battue on its hits (beats 182, 234: the second one back again), the Hallali on the
+    // peak (beat 310)
+    bar(28, Event::Snare);
+    bar(32, Event::Taillade);
+    bar(33, Event::Leap);
+    bar(35, Event::Volley);
+    bar(36, Event::Pack);
+    bar(38, Event::Taillade);
+    bar(39, Event::Tracking);
+    bar(40, Event::Traps);
+    bar(41, Event::Encircle);
+    lands(182, Event::Battue);
+    bar(48, Event::Taillade);
+    bar(49, Event::Burst);
+    bar(50, Event::Chains);
+    bar(52, Event::Taillade);
+    bar(53, Event::Lanes);
+    lands(234, Event::Battue, 1);
+    bar(65, Event::Taillade);
+    bar(66, Event::Snare);
+    bar(70, Event::Leap);
+    bar(72, Event::Taillade);
+    bar(73, Event::Volley);
+    lands(310, Event::Hallali, 4);
+    bar(78, Event::Volley);
+    // La Traque (bars 80-103): pounces on the kick (beat 4b + 1) and charges between; in its quiet second half, marks
+    // under everyone and crossed charges, a bar each. He comes back howling on beat 416.
+    steps.push_back({ 320, Event::TraqueStart });
+    for (uint32 b = 81; b < 92; ++b)
+    {
+        lands(4 * b + 1, Event::Pounce);
+        if (b % 2 == 0)
+            lands(4 * b + 3, Event::DarkCharge);
+    }
+    for (uint32 b = 92; b < 104; ++b)
+        lands(4 * b + 1, b % 2 ? Event::DarkCharge : Event::DarkMarks, 1);
+    steps.push_back({ 416, Event::TraqueEnd });
+    // The rebuild (bars 104-115)
+    bar(105, Event::Taillade);
+    bar(106, Event::Encircle);
+    bar(109, Event::Traps);
+    bar(110, Event::Pack);
+    bar(112, Event::Taillade);
+    bar(113, Event::Tracking);
+    lands(468, Event::Battue);
+    steps.push_back({ 464, Event::FrenzyStart });
+    // Section B (bars 116-155): the hits combined (517: horn and pack; 533: the Hallali, two quarries; 562: la Battue;
+    // 575: his leap)
+    bar(120, Event::Taillade);
+    bar(121, Event::Snare);
+    bar(125, Event::Leap);
+    bar(127, Event::Burst);
+    lands(517, Event::Horn);
+    lands(517, Event::Pack);
+    lands(533, Event::Hallali, 2);
+    bar(134, Event::Taillade);
+    bar(135, Event::Lanes);
+    lands(562, Event::Battue);
+    lands(575, Event::Leap);
+    bar(145, Event::Taillade);
+    bar(146, Event::Chains);
+    bar(147, Event::Encircle);
+    bar(150, Event::Traps);
+    bar(151, Event::Tracking);
+    bar(152, Event::Taillade);
+    lands(630, Event::Curee);
+    bar(154, Event::Burst);
+    bar(156, Event::Volley);
+    // The outro (bars 160-170): the kill window, still dancing
+    steps.push_back({ 640, Event::Outro });
+    bar(160, Event::Encircle);
+    bar(163, Event::Volley);
+    bar(164, Event::Snare);
+    bar(168, Event::Chains);
+    std::stable_sort(steps.begin(), steps.end(), [](Step const& a, Step const& b) { return a.beat < b.beat; });
+    return steps;
+}
+
+// What a mistake tells the player it hit (and the log)
+struct Rule
+{
+    uint32 spell;
+    float percent;
+    char const* name;
+    char const* french;
+    char const* english;
+};
+
+Rule const RuleCone = { SPELL_TAILLADE, ConePct, "taillade",
+    "Taillade : tenez-vous sur ses flancs, jamais devant lui si vous ne le tenez pas.",
+    "Taillade: stand at his flanks, never in front of him unless you tank him." };
+Rule const RuleRevers = { SPELL_REVERS, ConePct, "revers",
+    "Revers : après sa taille, il frappe derrière lui. Tenez-vous sur ses flancs.",
+    "Backswing: after his slash he strikes behind him. Stand at his flanks." };
+Rule const RuleVolley = { SPELL_VOLLEY, VolleyPct, "volley",
+    "Volée de flèches : sortez des cercles avant qu'elle tombe.",
+    "Arrow Volley: leave the circles before it lands." };
+Rule const RuleSnare = { SPELL_SNARE, PatternPct, "snare",
+    "Collet : dedans, dehors, dedans, dehors - une mesure chacun.",
+    "Snare: in, out, in, out - a bar each." };
+Rule const RuleEncircle = { SPELL_ENCIRCLE, PatternPct, "encircle",
+    "Encerclement : le quart épargné tourne d'un huitième à chaque mesure, dans le sens des aiguilles d'une montre. "
+    "Restez dans sa moitié avant.",
+    "Encirclement: the spared quarter turns an eighth every bar, clockwise. Stay in its leading half." };
+Rule const RuleLanes = { SPELL_LANES, PatternPct, "lanes",
+    "Rabattage : les couloirs impairs, puis les pairs, puis en travers. Changez de couloir à chaque vague.",
+    "Beating: the odd lanes, then the even ones, then across. Change lanes every wave." };
+Rule const RuleCharge = { SPELL_CHARGE, ChargePct, "pack",
+    "Charge de la meute : écartez-vous de la ligne qui passe par vous.",
+    "Pack Charge: step off the line running through you." };
+Rule const RuleLeap = { SPELL_LEAP, LeapPct, "leap",
+    "Bond du Traqueur : quittez le cercle avant qu'il retombe.",
+    "Hunter's Leap: leave the circle before he lands." };
+Rule const RuleShockwave = { SPELL_SHOCKWAVE, LeapPct, "shockwave",
+    "Onde de choc : rejoignez le Traqueur là où il est retombé.",
+    "Shockwave: join the Hunter where he landed." };
+Rule const RuleTrap = { SPELL_TRAP, TrapPct, "trap",
+    "Piège à mâchoires : un piège armé reste au sol. Contournez-les.",
+    "Jaw Trap: an armed trap stays on the floor. Walk around them." };
+Rule const RuleBurst = { SPELL_BURST, BurstPct, "burst",
+    "Déclenchement : les pièges sautent l'un après l'autre. Éloignez-vous d'eux.",
+    "Trigger: the traps burst one after the other. Keep away from them." };
+Rule const RuleChains = { SPELL_CHAINS, PatternPct, "chains",
+    "Moulinet : ses chaînes frappent là où elles s'arrêtent. Regardez où elles se figent.",
+    "Chain Whirl: his chains strike where they stop. Watch where they freeze." };
+Rule const RuleTracked = { SPELL_TRACKED, PatternPct, "tracking",
+    "Pistage : votre marque vous suit, puis se fige. Quittez-la dès qu'elle s'arrête.",
+    "Tracking: your mark follows you, then freezes. Leave it as soon as it stops." };
+Rule const RuleBattue = { SPELL_BATTUE, BattuePct, "battue",
+    "Battue : tenez-vous dans la trouée de votre rangée quand elle passe.",
+    "Beat: stand in your row's gap as it sweeps past." };
+Rule const RulePounce = { SPELL_POUNCE, DarkPct, "pounce",
+    "Bond dans l'ombre : sortez du cercle sous vous.",
+    "Pounce from the Dark: leave the circle under you." };
+Rule const RuleDarkCharge = { SPELL_DARK_CHARGE, ChargePct, "dark charge",
+    "Griffes dans le noir : écartez-vous de la ligne qui passe par vous.",
+    "Claws in the Dark: step off the line running through you." };
+Rule const RuleHallaliLeap = { SPELL_HALLALI, HallaliMistakePct, "hallali leap",
+    "Hallali : éloignez-vous des proies marquées.",
+    "Mort: keep away from the marked quarries." };
+Rule const RuleHallaliAstray = { SPELL_PACK_SHARE, HallaliMistakePct, "hallali astray",
+    "Hallali : sans proie, rejoignez le groupe sous le Traqueur pour partager le coup.",
+    "Mort: without a mark, join the group under the Hunter to share the blow." };
+
 bool IsTank(Player* player)
 {
     if (Group* group = player->GetGroup())
@@ -280,8 +478,7 @@ bool IsTank(Player* player)
     return player->HasTankSpec();
 }
 
-struct boss_escape_hunter;
-boss_escape_hunter* HunterOf(Creature* add);
+using Areas = std::vector<GroundIndicators::Area>;
 
 struct boss_escape_hunter : public Defi::BossAI
 {
@@ -307,11 +504,12 @@ struct boss_escape_hunter : public Defi::BossAI
         me->SetReactState(REACT_PASSIVE);
     }
 
-    // A wipe is the players', never combat's: while one stands in the hall he fights on (la Traque holds him away
-    // from them). The board resets him once they are down.
+    // Combat's own evade (no one left to hit: la Traque holds him away from them) never ends the fight while a player
+    // stands in the hall; the board's reset (a wipe: EVADE_REASON_OTHER) always does - refused, his music played on
+    // after the wipe
     void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
     {
-        if (_phase != Phase::None && _phase != Phase::Over && !ArenaPlayers().empty())
+        if (why != EVADE_REASON_OTHER && _phase != Phase::None && _phase != Phase::Over && !ArenaPlayers().empty())
             return;
         Defi::BossAI::EnterEvadeMode(why);
     }
@@ -341,6 +539,7 @@ struct boss_escape_hunter : public Defi::BossAI
     void JustDied(Unit* /*killer*/) override
     {
         Talk(SAY_DEATH);
+        WatchDeaths();
         LOG_INFO(_logName, "Traqueur killed instance={} at={:.1f}s deaths={}", me->GetInstanceId(),
                  Elapsed() / 1000.0f, DeathsText());
         EndMusic();
@@ -371,15 +570,18 @@ struct boss_escape_hunter : public Defi::BossAI
         scheduler.Update(diff);
         uint32 const elapsed = Elapsed();
         while (_next < _timeline.size() && Grid.At(_timeline[_next].beat) <= elapsed && _phase != Phase::Over)
-            Execute(_timeline[_next++].what);
+        {
+            Step const step = _timeline[_next++];
+            Execute(step.what, step.arg);
+        }
         if (elapsed >= MusicEndMs && !_musicOver)
         {
             _musicOver = true;
-            Execute(Event::MusicEnd);
+            HuntOver();
         }
         if (elapsed >= _nextCheckMs)
         {
-            _nextCheckMs = elapsed + 250;
+            _nextCheckMs = elapsed + 200;
             CheckTraps();
             UpdateTanks();
         }
@@ -387,75 +589,18 @@ struct boss_escape_hunter : public Defi::BossAI
             DoMeleeAttackIfReady();
     }
 
-    // --- The pack's callbacks ----------------------------------------------------------------------------------------
-    void PackDamage(Creature* add, Unit* victim, uint32& damage)
-    {
-        if (!victim || !victim->IsPlayer() || add->GetEntry() != NPC_FELHOUND)
-            return;
-        float const floor = Reference() * HoundMeleePct / 100.0f * std::max(GetChallengeDamageFactorOf(me), 1.0f);
-        damage = uint32(std::max(float(damage), floor) * TakenFactor(victim));
-    }
-
-    void PackDied(Creature* add)
-    {
-        if (add->GetGUID() == _netHound)
-            FreeNet(false);
-        if (add->GetGUID() == _skulled)
-        {
-            _skulled.Clear();
-            SetSkull(NextSkull());
-        }
-    }
-
-    // An archer's arrow landed (its cast not interrupted)
-    void ArrowHit(Unit* target)
-    {
-        if (Player* player = target ? target->ToPlayer() : nullptr)
-        {
-            Hit(player, SPELL_ARROW_HIT, ArrowPct);
-            LOG_INFO(_logName, "Traqueur arrow instance={} at={:.1f}s on {}", me->GetInstanceId(), Elapsed() / 1000.0f,
-                     player->GetName());
-        }
-    }
-
-    // A player for an archer to shoot: anyone but a tank, at random
-    Player* ArrowTarget()
-    {
-        std::vector<Player*> targets;
-        for (Player* player : ArenaPlayers())
-            if (!IsTank(player))
-                targets.push_back(player);
-        return targets.empty() ? nullptr : Acore::Containers::SelectRandomContainerElement(targets);
-    }
-
     // --- Testing ---------------------------------------------------------------------------------------------------
     std::string Describe() const
     {
         uint32 const elapsed = Elapsed();
-        uint32 hounds = 0;
-        uint32 archers = 0;
-        for (ObjectGuid const& guid : _summons)
-            if (Creature* add = ObjectAccessor::GetCreature(*me, guid); add && add->IsAlive())
-            {
-                if (add->GetEntry() == NPC_ARCHER)
-                    ++archers;
-                else if (add->GetEntry() == NPC_FELHOUND)
-                    ++hounds;
-            }
-        // Who fights him: the players hitting him, those on his pack
         uint32 onHim = 0;
-        uint32 onPack = 0;
         for (Player* player : ArenaPlayers())
-            if (Unit* target = player->GetVictim())
-                ++(target == me ? onHim : onPack);
-        Creature* skulled = _skulled.IsEmpty() ? nullptr : ObjectAccessor::GetCreature(*me, _skulled);
+            if (player->GetVictim() == me)
+                ++onHim;
         return Acore::StringFormat("Traqueur: phase {} at {:.1f}s (beat {:.1f}), health {}/{} ({:.1f}%), next step "
-            "{}/{}, hounds {}, archers {}, on him {}, on his pack {}, his victim {}, skull {}", uint32(_phase),
-            elapsed / 1000.0f, Grid.BeatOf(elapsed), me->GetHealth(), me->GetMaxHealth(), me->GetHealthPct(), _next,
-            _timeline.size(), hounds, archers, onHim, onPack, me->GetVictim() ? me->GetVictim()->GetName() : "none",
-            skulled ? Acore::StringFormat("{} {:.0f} yd out at {:.0f}%{}", skulled->GetName(),
-                skulled->GetExactDist2d(&GetRoom().center), skulled->GetHealthPct(),
-                skulled->IsEvadingAttacks() ? " EVADING" : "") : std::string("none"));
+            "{}/{}, on him {}, his victim {}, traps {}", uint32(_phase), elapsed / 1000.0f, Grid.BeatOf(elapsed),
+            me->GetHealth(), me->GetMaxHealth(), me->GetHealthPct(), _next, _timeline.size(), onHim,
+            me->GetVictim() ? me->GetVictim()->GetName() : "none", _traps.size());
     }
 
     // Jumps the fight forward (the music is not: it goes on from where it was); the phase changes passed over run
@@ -468,36 +613,39 @@ struct boss_escape_hunter : public Defi::BossAI
         AdvanceClock(seconds * IN_MILLISECONDS);
         uint32 const elapsed = Elapsed();
         while (_next < _timeline.size() && Grid.At(_timeline[_next].beat) <= elapsed)
-            if (Event const what = _timeline[_next++].what; IsPhaseStep(what))
-                Execute(what);
+        {
+            Step const step = _timeline[_next++];
+            if (IsPhaseStep(step.what))
+                Execute(step.what, step.arg);
+        }
         return true;
     }
 
-    // One step now, the fight going on
+    // One pattern now, the fight going on
     bool CastNow(std::string const& what)
     {
         if (!me->IsInCombat())
             return false;
-        static std::map<std::string, Event> const steps = {
-            { "horn", Event::Horn }, { "net", Event::Net }, { "rotation", Event::Rotation },
-            { "battue", Event::Battue }, { "battueonce", Event::BattueOnce }, { "hallali", Event::Hallali },
-            { "curee", Event::Curee },
+        static std::map<std::string, std::pair<Event, uint32>> const steps = {
+            { "taillade", { Event::Taillade, 0 } }, { "volley", { Event::Volley, 0 } },
+            { "snare", { Event::Snare, 0 } }, { "encircle", { Event::Encircle, 0 } },
+            { "lanes", { Event::Lanes, 0 } }, { "pack", { Event::Pack, 0 } }, { "leap", { Event::Leap, 0 } },
+            { "traps", { Event::Traps, 0 } }, { "burst", { Event::Burst, 0 } }, { "chains", { Event::Chains, 0 } },
+            { "tracking", { Event::Tracking, 0 } }, { "battue", { Event::Battue, 1 } },
+            { "hallali", { Event::Hallali, 4 } }, { "horn", { Event::Horn, 0 } }, { "curee", { Event::Curee, 0 } },
+            { "pounce", { Event::Pounce, 0 } }, { "darkcharge", { Event::DarkCharge, 1 } },
+            { "darkmarks", { Event::DarkMarks, 0 } },
         };
         auto const found = steps.find(what);
         if (found == steps.end())
             return false;
-        Execute(found->second);
+        Execute(found->second.first, found->second.second);
         return true;
     }
 
 protected:
     Defi::Sizing const& GetSizing() const override { return Sizing; }
     float HealthScale() const override { return float(::HealthScale); }
-    bool IsOwn(Creature const* creature) const override
-    {
-        uint32 const entry = creature->GetEntry();
-        return entry == NPC_FELHOUND || entry == NPC_ARCHER || entry == NPC_BEATER;
-    }
 
     float TakenFactor(Unit const* victim) const override
     {
@@ -511,89 +659,106 @@ protected:
 
 private:
     // --- The timeline ----------------------------------------------------------------------------------------------
-    void Execute(Event what)
+    void Execute(Event what, uint32 arg)
     {
         uint32 const elapsed = Elapsed();
+        uint32 const start = CurrentBeat(Grid);
         LOG_INFO(_logName, "Traqueur {} instance={} at={:.2f}s beat={:.1f} health={:.1f}%", EventName(what),
                  me->GetInstanceId(), elapsed / 1000.0f, Grid.BeatOf(elapsed), me->GetHealthPct());
+        if (_phase == Phase::Intro && what != Event::Taillade && what != Event::Volley && start >= 48)
+            _phase = Phase::Hunt;
         switch (what)
         {
-            case Event::Horn: Horn(2); break;
-            case Event::Net: Net(); break;
-            case Event::Rotation: Rotation(); break;
-            case Event::Battue: Battue(true); break;
-            case Event::BattueOnce: Battue(false); break;
-            case Event::Hallali: Hallali(_phase == Phase::Frenzy ? 2 : 4); break;
+            case Event::Taillade: Taillade(start); break;
+            case Event::Volley: Volley(start); break;
+            case Event::Snare: Snare(start); break;
+            case Event::Encircle: Encircle(start); break;
+            case Event::Lanes: Lanes(start); break;
+            case Event::Pack: Pack(start); break;
+            case Event::Leap: Leap(start); break;
+            case Event::Traps: Traps(start); break;
+            case Event::Burst: Burst(start); break;
+            case Event::Chains: Chains(start); break;
+            case Event::Tracking: Tracking(start); break;
+            case Event::Battue: Battue(start, arg != 0); break;
+            case Event::Hallali: Hallali(start, arg); break;
+            case Event::Horn: Horn(start); break;
             case Event::TraqueStart: StartTraque(); break;
+            case Event::Pounce: Pounce(start); break;
+            case Event::DarkCharge: DarkCharge(start, arg != 0); break;
+            case Event::DarkMarks: DarkMarks(start); break;
             case Event::TraqueEnd: EndTraque(); break;
             case Event::FrenzyStart: _phase = Phase::Frenzy; break;
-            case Event::NetAndHorn: Net(); Horn(3); break;
-            case Event::Curee: Curee(); break;
+            case Event::Curee: Curee(start); break;
             case Event::Outro: _phase = Phase::Outro; break;
-            case Event::MusicEnd: HuntOver(); break;
         }
     }
 
-    // Taillade, and the next of his tools: in section A his traps, an archer, a net, his horn in turn; in section B
-    // (Taillade twice as often) traps and an archer every other turn (the nets and horns come on the music's hits)
-    void Rotation()
+    // --- A wave: red drawn on a beat, struck on a later one ----------------------------------------------------------
+    // draw(durationMs) draws the wave's areas (the time left to its beat) and returns them as drawn; whoever stands in
+    // any of them on the beat it lands is struck by rule (a mistake)
+    void Wave(uint32 shown, uint32 lands, std::function<Areas(uint32)> draw, Rule const& rule)
     {
-        if (_phase == Phase::Intro)
-            _phase = Phase::Hunt;
-        // A set piece running (a Battue's strips, an Hallali's marks): nothing of his rotation - a net or a trap in it is
-        // death, and the Hallali's pack gathers under him, in Taillade's way
-        if (CurrentBeat(Grid) + ToolBeats < _setPieceUntil)
-            return;
-        Taillade();
-        // His tool ToolBeats after Taillade has landed, never with it (a trap under a player in the cone)
-        uint32 const turn = _rotation++;
-        bool const frenzy = _phase == Phase::Frenzy || _phase == Phase::Outro;
-        AtBeat(Grid, CurrentBeat(Grid) + ToolBeats, [this, turn, frenzy]()
+        AtBeat(Grid, shown, [this, lands, draw, &rule]()
         {
-            if (_phase == Phase::Traque || CurrentBeat(Grid) < _setPieceUntil)
-                return;
-            if (frenzy)
-            {
-                // Taillade every 4 bars, a tool every 8: traps, then an archer
-                if (turn % 4 == 0)
-                    Traps();
-                else if (turn % 4 == 2)
-                    Archer();
-                return;
-            }
-            switch (turn % 4)
-            {
-                case 0: Traps(); break;
-                case 1: Archer(); break;
-                case 2: Net(); break;
-                case 3: Horn(2); break;
-            }
+            uint32 const at = Grid.At(lands);
+            uint32 const now = Elapsed();
+            Areas const areas = draw(at > now ? at - now : 0);
+            AtBeat(Grid, lands, [this, areas, &rule]() { Strike(areas, rule); });
         });
     }
 
-    // --- Taillade: his tank's cone, the tank swap --------------------------------------------------------------------
-    void Taillade()
+    void Strike(Areas const& areas, Rule const& rule)
+    {
+        for (Player* player : ArenaPlayers())
+            for (GroundIndicators::Area const& area : areas)
+                if (area.Contains(player->GetPosition()))
+                {
+                    Mistake(player, rule);
+                    break;
+                }
+    }
+
+    Position Middle() const { return Ground(GetRoom().center); }
+
+    // Players at random, the tanks last (a pattern on players: the tanks hold him)
+    std::vector<Player*> Targets(uint32 count, bool tanks = false)
+    {
+        std::vector<Player*> others;
+        std::vector<Player*> held;
+        for (Player* player : ArenaPlayers())
+            (IsTank(player) ? held : others).push_back(player);
+        Acore::Containers::RandomShuffle(others);
+        if (tanks)
+            others.insert(others.end(), held.begin(), held.end());
+        if (others.size() > count)
+            others.resize(count);
+        return others;
+    }
+
+    // --- Taillade, its Revers: his tank's cone, then behind him -------------------------------------------------------
+    void Taillade(uint32 start)
     {
         Unit* victim = me->GetVictim();
         Player* tank = victim ? victim->ToPlayer() : nullptr;
-        if (!tank)
+        if (!tank || _phase == Phase::Traque)
             return;
         CastBar(CAST_TAILLADE);
         me->SetFacingToObject(tank);
-        float const orientation = me->GetAngle(tank);
-        Position const apex = Ground(me->GetPosition());
-        GroundIndicators::ShowAimedCone(me, apex, orientation, TailladeRadius, TailladeArc, TailladeCastMs, tank,
-            GroundIndicators::Theme::None, MistakeDamage);
+        float const facing = me->GetAngle(tank);
+        Position apex = Ground(me->GetPosition());
+        apex.SetOrientation(facing);
         ObjectGuid const tankGuid = tank->GetGUID();
-        scheduler.Schedule(Milliseconds(TailladeCastMs), [this, apex, orientation, tankGuid](TaskContext)
+        uint32 const lands = start + 4;
+        uint32 const ms = Grid.At(lands) - Elapsed();
+        GroundIndicators::Area const cone = GroundIndicators::ShowAimedCone(me, apex, facing, TailladeRadius,
+            TailladeArc, ms, tank, GroundIndicators::Theme::None, MistakeDamage);
+        // The Revers drawn at once behind him: the flanks are the only place clear of both
+        GroundIndicators::Area const back = GroundIndicators::ShowCone(me, apex, facing + float(M_PI), TailladeRadius,
+            TailladeArc, Grid.At(lands + 2) - Elapsed(), GroundIndicators::Theme::None, MistakeDamage);
+        AtBeat(Grid, lands, [this, cone, tankGuid]()
         {
             EndCastBar();
-            GroundIndicators::Area cone;
-            cone.kind = GroundIndicators::Area::Kind::Cone;
-            cone.origin = apex;
-            cone.origin.SetOrientation(orientation);
-            cone.radius = TailladeRadius;
-            cone.arc = TailladeArc * float(M_PI) / 180.0f;
             for (Player* player : ArenaPlayers())
             {
                 if (player->GetGUID() == tankGuid)
@@ -603,25 +768,26 @@ private:
                         uint8(std::min(10, StacksOf(player, SPELL_LACERATION) + 1)));
                 }
                 else if (cone.Contains(player->GetPosition()))
-                    Mistake(player, SPELL_TAILLADE, TailladeTankPct, "taillade");
+                    Mistake(player, RuleCone);
             }
         });
+        AtBeat(Grid, lands + 2, [this, back]() { Strike({ back }, RuleRevers); });
     }
 
-    // The tanks: him held at the hall's middle, and the swap - the tank with SwapStacks of Lacération leaves him to
-    // the other (bots: GroundIndicators::SetBossHolder)
+    // The tanks: him held at the hall's middle, the other tank beside him out of his cones; the swap - the tank with
+    // SwapStacks of Lacération leaves him to the other (bots: GroundIndicators::SetBossHolder)
     void UpdateTanks()
     {
         if (_phase == Phase::Traque)
             return;
-        GroundIndicators::SetTankSpot(me, Ground(GetRoom().center), 1000, 8.0f);
+        GroundIndicators::SetTankSpot(me, Middle(), 1000, 8.0f);
         Unit* victim = me->GetVictim();
         Player* tank = victim ? victim->ToPlayer() : nullptr;
-        // The other tank: at his back, out of Taillade's cone, ready to take him
-        if (tank)
-            GroundIndicators::SetOffTankSpot(me, AtAngle(me->GetPosition(), me->GetAngle(tank) + float(M_PI), 4.0f),
-                1000);
-        if (!tank || StacksOf(tank, SPELL_LACERATION) < SwapStacks)
+        if (!tank)
+            return;
+        GroundIndicators::SetOffTankSpot(me, AtAngle(me->GetPosition(), me->GetAngle(tank) + float(M_PI) / 2.0f,
+            4.0f), 1000);
+        if (StacksOf(tank, SPELL_LACERATION) < SwapStacks)
             return;
         for (Player* player : ArenaPlayers())
             if (player != tank && IsTank(player) && StacksOf(player, SPELL_LACERATION) < SwapStacks)
@@ -631,126 +797,190 @@ private:
             }
     }
 
-    // --- Cor de chasse: a group hit and a pack ---------------------------------------------------------------------
-    void Horn(uint32 hounds)
+    // --- Volée de flèches: circles under players and round the hall --------------------------------------------------
+    void Volley(uint32 start)
     {
-        CastBar(CAST_HORN);
-        Talk(SAY_HORN);
-        scheduler.Schedule(1000ms, [this, hounds](TaskContext)
+        Wave(start, start + 4, [this](uint32 ms)
+        {
+            Areas areas;
+            for (Player* player : Targets(3))
+                areas.push_back(GroundIndicators::ShowCircle(me, Ground(player->GetPosition()), VolleyRadius, ms,
+                    GroundIndicators::Theme::None, MistakeDamage));
+            for (uint32 index = 0; index < VolleyAround; ++index)
+                areas.push_back(GroundIndicators::ShowCircle(me, AtAngle(GetRoom().center,
+                    frand(0.0f, 2.0f * float(M_PI)), frand(6.0f, HallRadius - 8.0f)), VolleyRadius, ms,
+                    GroundIndicators::Theme::None, MistakeDamage));
+            return areas;
+        }, RuleVolley);
+    }
+
+    // --- Le Collet: a ring, then a circle, a ring, a circle - out, in, out, in -----------------------------------------
+    // Around him where he stands; each wave drawn as the last one lands, a bar each
+    void Snare(uint32 start)
+    {
+        CastBar(CAST_SNARE);
+        AtBeat(Grid, start + 4, [this]() { EndCastBar(); });
+        Position const center = Ground(me->GetPosition());
+        for (uint32 wave = 0; wave < 4; ++wave)
+        {
+            uint32 const shown = wave ? start + 4 * wave : start;
+            Wave(shown, start + 4 + 4 * wave, [this, center, wave](uint32 ms)
+            {
+                if (wave % 2 == 0)
+                    return Areas{ GroundIndicators::ShowRing(me, center, HallRadius, SnareRadius, ms,
+                        GroundIndicators::Theme::None, MistakeDamage) };
+                return Areas{ GroundIndicators::ShowCircle(me, center, SnareRadius, ms, GroundIndicators::Theme::None,
+                    MistakeDamage) };
+            }, RuleSnare);
+        }
+    }
+
+    // --- L'Encerclement: three quarters of the hall shot at, the quarter spared turning clockwise an eighth a bar --------
+    // Each spared quarter shares its clockwise half with the next: who stands there stays safe
+    void Encircle(uint32 start)
+    {
+        CastBar(CAST_ENCIRCLE);
+        AtBeat(Grid, start + 4, [this]() { EndCastBar(); });
+        Position const center = Middle();
+        float const spared = frand(0.0f, 2.0f * float(M_PI));
+        for (uint32 wave = 0; wave < EncircleWaves; ++wave)
+        {
+            // Clockwise: the orientation falls an eighth of a turn a wave; the spared quarter is two eighths from it
+            float const safe = spared - float(wave) * float(M_PI) / 4.0f;
+            Wave(wave ? start + 4 * wave : start, start + 4 + 4 * wave, [this, center, safe](uint32 ms)
+            {
+                Areas areas;
+                for (uint32 eighth = 2; eighth < 8; ++eighth)
+                {
+                    Position apex = center;
+                    float const facing = safe + (float(eighth) + 0.5f) * float(M_PI) / 4.0f;
+                    apex.SetOrientation(facing);
+                    areas.push_back(GroundIndicators::ShowCone(me, apex, facing, HallRadius, 45.0f, ms,
+                        GroundIndicators::Theme::None, MistakeDamage));
+                }
+                return areas;
+            }, RuleEncircle);
+        }
+    }
+
+    // --- Le Rabattage: the hall's five lanes swept - the odd ones, the even ones, then across - a bar a wave --------------
+    void Lanes(uint32 start)
+    {
+        CastBar(CAST_LANES);
+        AtBeat(Grid, start + 4, [this]() { EndCastBar(); });
+        bool const acrossFirst = urand(0, 1);
+        for (uint32 wave = 0; wave < 4; ++wave)
+        {
+            bool const across = (wave >= 2) != acrossFirst;
+            bool const odd = wave % 2 == 0;
+            Wave(wave ? start + 4 * wave : start, start + 4 + 4 * wave, [this, across, odd](uint32 ms)
+            {
+                Areas areas;
+                Position const center = Middle();
+                for (int32 lane = -2; lane <= 2; ++lane)
+                {
+                    if ((lane % 2 == 0) != odd)
+                        continue;
+                    // A lane along the hall (north-south: orientation 0) or across it, drawn from the middle out both
+                    // ways (a rectangle reaches HallRadius at most)
+                    float const along = across ? float(M_PI) / 2.0f : 0.0f;
+                    float const offset = float(lane) * LaneWidth;
+                    Position const middle(center.GetPositionX() + std::cos(along + float(M_PI) / 2.0f) * offset,
+                        center.GetPositionY() + std::sin(along + float(M_PI) / 2.0f) * offset, center.GetPositionZ());
+                    for (float facing : { along, along + float(M_PI) })
+                        areas.push_back(GroundIndicators::ShowRectangle(me, Ground(middle), facing, HallRadius,
+                            LaneWidth, ms, GroundIndicators::Theme::None, MistakeDamage));
+                }
+                return areas;
+            }, RuleLanes);
+        }
+    }
+
+    // A line ChargeLength long through a point, at an angle: drawn from one end
+    Areas Line(Position const& through, float angle, float width, uint32 ms)
+    {
+        Position const from(through.GetPositionX() - std::cos(angle) * ChargeLength / 2.0f,
+            through.GetPositionY() - std::sin(angle) * ChargeLength / 2.0f, through.GetPositionZ());
+        return { GroundIndicators::ShowRectangle(me, Ground(from), angle, ChargeLength, width, ms,
+            GroundIndicators::Theme::None, MistakeDamage) };
+    }
+
+    // --- La Charge de la meute: six lines through players, one a beat ------------------------------------------------
+    void Pack(uint32 start)
+    {
+        CastBar(CAST_CHARGE);
+        AtBeat(Grid, start + 4, [this]() { EndCastBar(); });
+        for (uint32 charge = 0; charge < 6; ++charge)
+            Wave(start + charge, start + 4 + charge, [this](uint32 ms)
+            {
+                std::vector<Player*> target = Targets(1, true);
+                if (target.empty())
+                    return Areas{};
+                return Line(Ground(target.front()->GetPosition()), frand(0.0f, 2.0f * float(M_PI)), ChargeWidth, ms);
+            }, RuleCharge);
+    }
+
+    // --- Le Bond: he leaps on the farthest player, then his shockwave everywhere but where he landed -------------------
+    void Leap(uint32 start)
+    {
+        if (_phase == Phase::Traque)
+            return;
+        Player* prey = nullptr;
+        for (Player* player : ArenaPlayers())
+            if (!IsTank(player) && (!prey || me->GetExactDist2d(player) > me->GetExactDist2d(prey)))
+                prey = player;
+        if (!prey)
+            return;
+        CastBar(CAST_LEAP);
+        AnnounceAll(Acore::StringFormat("Le Traqueur va bondir sur {} !", prey->GetName()),
+            Acore::StringFormat("The Hunter is about to leap on {}!", prey->GetName()));
+        Position const spot = Ground(prey->GetPosition());
+        uint32 const lands = start + 6;
+        GroundIndicators::Area const circle = GroundIndicators::ShowCircle(me, spot, LeapRadius,
+            Grid.At(lands) - Elapsed(), GroundIndicators::Theme::None, MistakeDamage);
+        // The jump itself, two beats long, landing on the beat
+        AtBeat(Grid, lands - 2, [this, spot]()
         {
             EndCastBar();
-            HitEveryone(SPELL_HORN, HornPct);
-            Pack(hounds);
+            float const jumpSeconds = Grid.beatMs * 2.0f / 1000.0f;
+            me->GetMotionMaster()->MoveJump(spot, std::max(10.0f, me->GetExactDist2d(&spot) / jumpSeconds), 8.0f);
         });
-    }
-
-    // Hounds from the hall's edge, on the tank he is not hitting (the second tank picks them up)
-    void Pack(uint32 hounds)
-    {
-        Player* offTank = nullptr;
-        for (Player* player : ArenaPlayers())
-            if (IsTank(player) && player != me->GetVictim())
-                offTank = player;
-        float const base = frand(0.0f, 2.0f * float(M_PI));
-        uint32 alive = 0;
-        for (ObjectGuid const& guid : _summons)
-            if (Creature* add = ObjectAccessor::GetCreature(*me, guid);
-                add && add->IsAlive() && add->GetEntry() == NPC_FELHOUND)
-                ++alive;
-        hounds = std::min(hounds, MaxHounds > alive ? MaxHounds - alive : 0u);
-        for (uint32 index = 0; index < hounds; ++index)
+        AtBeat(Grid, lands, [this, circle]() { Strike({ circle }, RuleLeap); });
+        // Its shockwave two bars later: time to run back to him from wherever the leap was dodged
+        Wave(lands, lands + ShockwaveBeats, [this, spot](uint32 ms)
         {
-            Position const spawn = EdgeSpot(FightRadius, base + float(index) * 0.5f);
-            Creature* hound = me->SummonCreature(NPC_FELHOUND, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
-            if (!hound)
-                continue;
-            SizeAdd(hound, PackSeconds, true);
-            hound->SetInCombatWithZone();
-            if (Player* target = offTank ? offTank : ArrowTarget())
-            {
-                hound->GetThreatMgr().AddThreat(target, 1000000.0f);
-                hound->AI()->AttackStart(target);
-            }
-        }
+            return Areas{ GroundIndicators::ShowRing(me, spot, HallRadius, LeapRadius, ms,
+                GroundIndicators::Theme::None, MistakeDamage) };
+        }, RuleShockwave);
     }
 
-    // --- Filet: a player held until the hound holding the net dies ---------------------------------------------------
-    void Net()
+    // --- Les Pièges: under everyone but his tanks, armed on the beat, on the floor until they burst ---------------------
+    void Traps(uint32 start)
     {
-        if (!_netTarget.IsEmpty())
-            return;
-        Player* target = ArrowTarget();
-        if (!target)
-            return;
-        Position const spawn = AtAngle(target->GetPosition(), target->GetOrientation(), 3.0f);
-        Creature* hound = me->SummonCreature(NPC_FELHOUND, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
-        if (!hound)
-            return;
-        SizeAdd(hound, NetHoundSeconds, false);
-        hound->SetInCombatWithZone();
-        hound->GetThreatMgr().AddThreat(target, 1000000.0f);
-        hound->AI()->AttackStart(target);
-        _netTarget = target->GetGUID();
-        _netHound = hound->GetGUID();
-        target->SetControlled(true, UNIT_STATE_ROOT);
-        AddTimedAura(target, SPELL_NET, NetMs);
-        Skull(hound);
-        LOG_INFO(_logName, "Traqueur net instance={} at={:.1f}s on {}", me->GetInstanceId(), Elapsed() / 1000.0f,
-                 target->GetName());
-        ObjectGuid const houndGuid = hound->GetGUID();
-        scheduler.Schedule(Milliseconds(NetMs), [this, houndGuid](TaskContext)
-        {
-            if (_netHound == houndGuid)
-                FreeNet(true);
-        });
-    }
-
-    void FreeNet(bool strangled)
-    {
-        Player* target = _netTarget.IsEmpty() ? nullptr : ObjectAccessor::GetPlayer(*me, _netTarget);
-        if (target)
-        {
-            target->SetControlled(false, UNIT_STATE_ROOT);
-            target->RemoveAurasDueToSpell(SPELL_NET);
-            if (strangled && target->IsAlive())
-            {
-                Hit(target, SPELL_STRANGLE, NetStranglePct);
-                Broken("net", target->GetName());
-            }
-        }
-        _netTarget.Clear();
-        _netHound.Clear();
-    }
-
-    // --- Pièges à mâchoires: under players, then armed ---------------------------------------------------------------
-    void Traps()
-    {
-        std::vector<Player*> players;
-        for (Player* player : ArenaPlayers())
-            if (!IsTank(player))
-                players.push_back(player);
-        Acore::Containers::RandomResize(players, TrapCount);
-        uint32 const now = Elapsed();
-        for (Player* player : players)
+        CastBar(CAST_TRAPS);
+        uint32 const armed = start + 4;
+        for (Player* player : Targets(8))
         {
             Position const at = Ground(player->GetPosition());
-            GroundIndicators::ShowCircle(me, at, TrapRadius, TrapWarnMs, GroundIndicators::Theme::None, MistakeDamage);
-            _traps.push_back({ at, now + TrapWarnMs, now + TrapWarnMs + TrapArmedMs });
-            scheduler.Schedule(Milliseconds(TrapWarnMs), [this, at](TaskContext)
-            {
-                GroundIndicators::ShowCircle(me, at, TrapRadius, TrapArmedMs, GroundIndicators::Theme::Fire,
-                    MistakeDamage);
-            });
+            GroundIndicators::ShowCircle(me, at, TrapRadius, Grid.At(armed) - Elapsed(), GroundIndicators::Theme::None,
+                MistakeDamage);
+            _traps.push_back({ at, Grid.At(armed) });
         }
+        AtBeat(Grid, armed, [this, armed]()
+        {
+            EndCastBar();
+            // Armed: red until they burst (a minute at most)
+            for (Trap& trap : _traps)
+                if (trap.armedAt == Grid.At(armed))
+                    trap.area = GroundIndicators::ShowCircle(me, trap.at, TrapRadius, 60000,
+                        GroundIndicators::Theme::Fire, MistakeDamage);
+        });
     }
 
-    // An armed trap catches whoever steps in: a player (hit, held), or a hound (held, and wounded more)
+    // An armed trap catches whoever steps in: struck, held
     void CheckTraps()
     {
-        if (_traps.empty())
-            return;
         uint32 const now = Elapsed();
-        std::erase_if(_traps, [now](Trap const& trap) { return now >= trap.until; });
         for (Trap& trap : _traps)
         {
             if (now < trap.armedAt || trap.sprung)
@@ -759,88 +989,109 @@ private:
                 if (player->GetExactDist2d(&trap.at) <= TrapRadius)
                 {
                     trap.sprung = true;
-                    Mistake(player, SPELL_TRAP, TrapPct, "trap");
+                    Mistake(player, RuleTrap);
                     player->SetControlled(true, UNIT_STATE_ROOT);
                     AddTimedAura(player, SPELL_JAWS, TrapRootMs);
                     ObjectGuid const guid = player->GetGUID();
                     scheduler.Schedule(Milliseconds(TrapRootMs), [this, guid](TaskContext)
                     {
                         if (Player* caught = ObjectAccessor::GetPlayer(*me, guid))
-                            if (guid != _netTarget)
-                                caught->SetControlled(false, UNIT_STATE_ROOT);
-                    });
-                    break;
-                }
-            if (trap.sprung)
-                continue;
-            for (ObjectGuid const& guid : _summons)
-                if (Creature* hound = ObjectAccessor::GetCreature(*me, guid);
-                    hound && hound->IsAlive() && hound->GetEntry() == NPC_FELHOUND &&
-                    hound->GetExactDist2d(&trap.at) <= TrapRadius)
-                {
-                    trap.sprung = true;
-                    hound->SetControlled(true, UNIT_STATE_ROOT);
-                    AddTimedAura(hound, SPELL_JAWS, TrapHoundRootMs);
-                    scheduler.Schedule(Milliseconds(TrapHoundRootMs), [this, guid](TaskContext)
-                    {
-                        if (Creature* caught = ObjectAccessor::GetCreature(*me, guid))
                             caught->SetControlled(false, UNIT_STATE_ROOT);
                     });
-                    LOG_INFO(_logName, "Traqueur trap instance={} at={:.1f}s caught a hound", me->GetInstanceId(),
-                             Elapsed() / 1000.0f);
                     break;
                 }
         }
+        std::erase_if(_traps, [](Trap const& trap) { return trap.sprung && !trap.bursting; });
     }
 
-    // --- An archer beater ----------------------------------------------------------------------------------------
-    void Archer()
+    // --- Leur Déclenchement: the traps on the floor burst one a beat, in the order they were laid ---------------------
+    void Burst(uint32 start)
     {
-        Position const spawn = EdgeSpot(FightRadius - 8.0f);
-        Creature* archer = me->SummonCreature(NPC_ARCHER, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
-        if (!archer)
-            return;
-        SizeAdd(archer, ArcherSeconds, false);
-        archer->SetInCombatWithZone();
-        archer->SetControlled(true, UNIT_STATE_ROOT);
-        Skull(archer);
-        LOG_INFO(_logName, "Traqueur archer instance={} at={:.1f}s spot=({:.1f}, {:.1f}, {:.1f}) {:.0f} yd out",
-                 me->GetInstanceId(), Elapsed() / 1000.0f, spawn.GetPositionX(), spawn.GetPositionY(),
-                 spawn.GetPositionZ(), spawn.GetExactDist2d(&GetRoom().center));
-    }
-
-    // The skull on an add the group is to kill first (the net's hound before an archer)
-    void Skull(Creature* add)
-    {
-        Creature* current = _skulled.IsEmpty() ? nullptr : ObjectAccessor::GetCreature(*me, _skulled);
-        if (current && current->IsAlive() && current->GetGUID() == _netHound)
-            return;
-        _skulled = add->GetGUID();
-        SetSkull(add);
-    }
-
-    Creature* NextSkull()
-    {
-        for (ObjectGuid const& guid : _summons)
-            if (Creature* add = ObjectAccessor::GetCreature(*me, guid);
-                add && add->IsAlive() && (add->GetGUID() == _netHound || add->GetEntry() == NPC_ARCHER))
+        uint32 beat = start;
+        for (Trap& trap : _traps)
+        {
+            if (trap.bursting)
+                continue;
+            trap.bursting = true;
+            Position const at = trap.at;
+            Wave(beat, beat + 3, [this, at](uint32 ms)
             {
-                _skulled = add->GetGUID();
-                return add;
-            }
-        return nullptr;
+                return Areas{ GroundIndicators::ShowCircle(me, at, BurstRadius, ms, GroundIndicators::Theme::Fire,
+                    MistakeDamage) };
+            }, RuleBurst);
+            // Gone with its burst
+            AtBeat(Grid, beat + 3, [this, at]()
+            {
+                std::erase_if(_traps, [&at](Trap const& trap) { return trap.at.GetExactDist2d(&at) < 0.1f; });
+            });
+            ++beat;
+        }
     }
 
-    // --- La Battue: strips swept one a beat, a gap in each ------------------------------------------------------------
+    // --- Le Moulinet: two chains through him turning, stopped dead on a beat: they strike where they stopped ----------
+    void Chains(uint32 start)
+    {
+        CastBar(CAST_CHAINS);
+        Position const center = Ground(me->GetPosition());
+        float const facing = frand(0.0f, 2.0f * float(M_PI));
+        // A turn in ChainTurnBeats, either way; it stops a few beats in, somewhere between a quarter and three
+        float const way = urand(0, 1) ? 1.0f : -1.0f;
+        float const radiansPerSecond = way * 2.0f * float(M_PI) / (Grid.beatMs * float(ChainTurnBeats) / 1000.0f);
+        uint32 const spinBeats = urand(3, 6);
+        uint32 const stops = start + spinBeats;
+        uint32 const spinMs = Grid.At(stops) - Elapsed();
+        // Four arms from him (a line sweeps round its start): two chains through him, square
+        Areas spinning;
+        for (uint32 arm = 0; arm < 4; ++arm)
+            spinning.push_back(GroundIndicators::ShowSweepingRectangle(me, center,
+                facing + float(arm) * float(M_PI) / 2.0f, radiansPerSecond, ChainLength / 2.0f, ChainWidth, spinMs,
+                MistakeDamage));
+        // Frozen where they are, struck two beats later
+        Wave(stops, start + 8, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
+        {
+            Areas areas;
+            for (GroundIndicators::Area const& arm : spinning)
+            {
+                GroundIndicators::Area const stopped = GroundIndicators::CurrentSweep(arm, radiansPerSecond, spinMs);
+                areas.push_back(GroundIndicators::ShowRectangle(me, stopped.origin, stopped.origin.GetOrientation(),
+                    stopped.radius, ChainWidth, ms, GroundIndicators::Theme::None, MistakeDamage));
+            }
+            EndCastBar();
+            return areas;
+        }, RuleChains);
+    }
+
+    // --- Le Pistage: marks follow three players, freeze on a snare and strike where they froze on the next ------------
+    void Tracking(uint32 start)
+    {
+        CastBar(CAST_TRACKING);
+        uint32 const freezes = start + 4;
+        std::vector<std::pair<ObjectGuid, GroundIndicators::Area>> marks;
+        for (Player* player : Targets(TrackedPlayers))
+            marks.push_back({ player->GetGUID(), GroundIndicators::ShowCarriedCircle(me, player, TrackRadius,
+                Grid.At(freezes) - Elapsed(), MistakeDamage) });
+        Wave(freezes, freezes + 4, [this, marks](uint32 ms)
+        {
+            EndCastBar();
+            Areas areas;
+            for (auto const& [guid, mark] : marks)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                    areas.push_back(GroundIndicators::ShowCircle(me,
+                        Ground(GroundIndicators::CurrentArea(player, mark).origin), TrackRadius, ms,
+                        GroundIndicators::Theme::None, MistakeDamage));
+            return areas;
+        }, RuleTracked);
+    }
+
+    // --- La Battue: strips swept one a beat, a gap in each -----------------------------------------------------------
     // From the north wall south (and back, a second pass, the gaps elsewhere): each strip lands on its beat, shown
     // BattueWarnBeats ahead, its gap left open
-    void Battue(bool back)
+    void Battue(uint32 start, bool back)
     {
         CastBar(CAST_BATTUE);
         Talk(SAY_BATTUE);
-        scheduler.Schedule(2000ms, [this](TaskContext) { EndCastBar(); });
-        uint32 const first = CurrentBeat(Grid) + BattueWarnBeats;
-        _setPieceUntil = std::max(_setPieceUntil, first + (back ? 2 : 1) * (BattueStrips + BattueWarnBeats));
+        AtBeat(Grid, start + 5, [this]() { EndCastBar(); });
+        uint32 const first = start + BattueWarnBeats;
         float const seed = frand(0.0f, 2.0f * float(M_PI));
         Position const center = GetRoom().center;
         for (uint32 pass = 0; pass < (back ? 2u : 1u); ++pass)
@@ -856,74 +1107,57 @@ private:
                 gap = std::clamp(gap, center.GetPositionY() - BattueHalfWidth + BattueGap,
                     center.GetPositionY() + BattueHalfWidth - BattueGap);
                 uint32 const lands = first + pass * (BattueStrips + BattueWarnBeats) + index;
-                AtBeat(Grid, lands - BattueWarnBeats, [this, x, gap, lands]()
+                Wave(lands - BattueWarnBeats, lands, [this, x, gap](uint32 ms)
                 {
-                    ShowStrip(lands, x, gap, Grid.At(lands) - Grid.At(lands - BattueWarnBeats));
-                });
-                AtBeat(Grid, lands, [this, lands]() { StrikeStrip(lands); });
+                    return Strip(x, gap, ms);
+                }, RuleBattue);
             }
     }
 
-    // A strip's two halves round its gap, warned for durationMs; it strikes what was drawn
-    void ShowStrip(uint32 lands, float x, float gap, uint32 durationMs)
+    // A strip's two halves round its gap
+    Areas Strip(float x, float gap, uint32 ms)
     {
-        std::vector<GroundIndicators::Area>& strip = _strips[lands];
+        Areas strip;
         float const west = GetRoom().center.GetPositionY() + BattueHalfWidth;
         float const east = GetRoom().center.GetPositionY() - BattueHalfWidth;
         float const halfGap = BattueGap / 2.0f;
         // A rectangle from start along its orientation: +y is the hall's west (orientation pi/2)
         if (gap - halfGap > east)
             strip.push_back(GroundIndicators::ShowRectangle(me, Ground(Position(x, east, 0.0f)), float(M_PI) / 2.0f,
-                gap - halfGap - east, BattueStripDepth, durationMs, GroundIndicators::Theme::None, MistakeDamage));
+                gap - halfGap - east, BattueStripDepth, ms, GroundIndicators::Theme::None, MistakeDamage));
         if (west > gap + halfGap)
-            strip.push_back(GroundIndicators::ShowRectangle(me, Ground(Position(x, gap + halfGap, 0.0f)), float(M_PI) / 2.0f,
-                west - gap - halfGap, BattueStripDepth, durationMs, GroundIndicators::Theme::None, MistakeDamage));
+            strip.push_back(GroundIndicators::ShowRectangle(me, Ground(Position(x, gap + halfGap, 0.0f)),
+                float(M_PI) / 2.0f, west - gap - halfGap, BattueStripDepth, ms, GroundIndicators::Theme::None,
+                MistakeDamage));
+        return strip;
     }
 
-    void StrikeStrip(uint32 lands)
+    // --- L'Hallali: quarries away from everyone, the others together -------------------------------------------------
+    void Hallali(uint32 start, uint32 quarries)
     {
-        auto const found = _strips.find(lands);
-        if (found == _strips.end())
-            return;
-        for (Player* player : ArenaPlayers())
-            for (GroundIndicators::Area const& half : found->second)
-                if (half.Contains(player->GetPosition()))
-                {
-                    Mistake(player, SPELL_BATTUE, BattuePct, "battue");
-                    break;
-                }
-        _strips.erase(found);
-    }
-
-    // --- L'Hallali: quarries away from everyone, the others together --------------------------------------------------
-    void Hallali(uint32 quarries)
-    {
-        uint32 const lands = CurrentBeat(Grid) + HallaliMarkBeats;
-        _setPieceUntil = std::max(_setPieceUntil, lands + 1);
-        std::vector<Player*> candidates;
-        for (Player* player : ArenaPlayers())
-            if (!IsTank(player))
-                candidates.push_back(player);
-        Acore::Containers::RandomResize(candidates, quarries);
+        uint32 const lands = start + HallaliMarkBeats;
+        std::vector<Player*> marked = Targets(quarries);
         uint32 const durationMs = Grid.At(lands) - Elapsed();
-        std::vector<ObjectGuid> marked;
-        for (Player* quarry : candidates)
+        std::vector<ObjectGuid> guids;
+        for (Player* quarry : marked)
         {
             AddTimedAura(quarry, SPELL_QUARRY, durationMs);
             GroundIndicators::ShowCarriedCircle(me, quarry, HallaliRadius, durationMs, MistakeDamage, 2.0f);
-            marked.push_back(quarry->GetGUID());
+            guids.push_back(quarry->GetGUID());
+            Announce(quarry, "Vous êtes une proie : éloignez-vous de tous !", "You are a quarry: get away from everyone!",
+                true);
         }
-        // The others' meeting point: on him, his tank in it
+        AnnounceAll("L'Hallali ! Les proies à l'écart, les autres sous le Traqueur !",
+            "The Mort! Quarries away, everyone else under the Hunter!");
+        // The others' meeting point: on him, his tank in it; everyone not a quarry is sent (a quarry never is)
         Position const soak = Ground(me->GetPosition());
-        // Everyone not a quarry is wanted in it (a bot that keeps a quarry's circle is never sent)
-        uint32 const wanted = uint32(ArenaPlayers().size());
-        GroundIndicators::ShowSoak(me, soak, HallaliSoakRadius, durationMs, wanted, GroundIndicators::Theme::Holy,
-            true);
+        GroundIndicators::ShowSoak(me, soak, HallaliSoakRadius, durationMs, uint32(ArenaPlayers().size()),
+            GroundIndicators::Theme::Holy, true);
         AtBeat(Grid, lands - 10, [this]() { CastBar(CAST_HALLALI); });
-        AtBeat(Grid, lands, [this, marked, soak]()
+        AtBeat(Grid, lands, [this, guids, soak]()
         {
             EndCastBar();
-            StrikeHallali(marked, soak);
+            StrikeHallali(guids, soak);
         });
     }
 
@@ -934,7 +1168,6 @@ private:
             if (Player* quarry = ObjectAccessor::GetPlayer(*me, guid); quarry && quarry->IsAlive())
                 quarries.push_back(quarry);
         std::vector<Player*> sharing;
-        std::vector<Player*> astray;
         for (Player* player : ArenaPlayers())
         {
             if (std::find(quarries.begin(), quarries.end(), player) != quarries.end())
@@ -944,30 +1177,42 @@ private:
                 if (player->GetExactDist2d(quarry) <= HallaliRadius)
                     leapt = true;
             if (leapt)
-                Mistake(player, SPELL_HALLALI, HallaliMistakePct, "hallali leap");
+                Mistake(player, RuleHallaliLeap);
             else if (player->GetExactDist2d(&soak) <= HallaliSoakRadius)
                 sharing.push_back(player);
             else
-                astray.push_back(player);
+                Mistake(player, RuleHallaliAstray);
         }
         for (Player* quarry : quarries)
             Hit(quarry, SPELL_HALLALI, HallaliQuarryPct);
         float const share = HallaliSoakPct / float(std::max<size_t>(1, sharing.size()));
         for (Player* player : sharing)
             Hit(player, SPELL_PACK_SHARE, share);
-        for (Player* player : astray)
-            Mistake(player, SPELL_PACK_SHARE, HallaliMistakePct, "hallali astray");
-        LOG_INFO(_logName, "Traqueur hallali instance={} at={:.1f}s quarries={} sharing={} astray={}",
-                 me->GetInstanceId(), Elapsed() / 1000.0f, quarries.size(), sharing.size(), astray.size());
+        LOG_INFO(_logName, "Traqueur hallali instance={} at={:.1f}s quarries={} sharing={}", me->GetInstanceId(),
+                 Elapsed() / 1000.0f, quarries.size(), sharing.size());
     }
 
-    // --- La Traque: gone in the dark, torchlight pools to stand in ----------------------------------------------------
+    // --- Cor de chasse: a group hit on the beat ------------------------------------------------------------------------
+    void Horn(uint32 start)
+    {
+        CastBar(CAST_HORN);
+        Talk(SAY_HORN);
+        GroundIndicators::WarnGroupDamage(me, Grid.At(start + 3) - Elapsed());
+        AtBeat(Grid, start + 3, [this]()
+        {
+            EndCastBar();
+            HitEveryone(SPELL_HORN, HornPct);
+        });
+    }
+
+    // --- La Traque: gone in the dark, everything red -----------------------------------------------------------------
     void StartTraque()
     {
         _phase = Phase::Traque;
         Talk(SAY_TRAQUE);
+        AnnounceAll("Le Traqueur disparaît dans le noir... Guettez le rouge sous vos pieds.",
+            "The Hunter vanishes into the dark... Watch for the red under your feet.");
         CastBar(CAST_TRAQUE);
-        uint32 const start = CurrentBeat(Grid);
         scheduler.Schedule(2000ms, [this](TaskContext)
         {
             EndCastBar();
@@ -976,107 +1221,77 @@ private:
             me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
             // Out of sight, not out of the fight: an invisible model (hidden, the players' combat with him dropped)
             me->SetDisplayId(InvisibleDisplay);
-            me->NearTeleportTo(GetRoom().center.GetPositionX(), GetRoom().center.GetPositionY(),
-                Ground(GetRoom().center).GetPositionZ(), me->GetOrientation());
+            Position const middle = Middle();
+            me->NearTeleportTo(middle.GetPositionX(), middle.GetPositionY(), middle.GetPositionZ(),
+                me->GetOrientation());
         });
-        // The pools: a set every TorchMoveBeats, each shown TorchPreviewBeats before its own (the first at once)
-        uint32 const end = 416;
-        for (uint32 set = start; set < end; set += TorchMoveBeats)
-        {
-            float const base = frand(0.0f, 2.0f * float(M_PI));
-            std::vector<Position> pools;
-            for (uint32 index = 0; index < TorchCount; ++index)
-                pools.push_back(EdgeSpot(TorchDistance, base + float(index) * 2.0f * float(M_PI) / TorchCount));
-            uint32 const shownAt = set > start + TorchPreviewBeats ? set - TorchPreviewBeats : start;
-            uint32 const until = std::min(set + TorchMoveBeats, end);
-            AtBeat(Grid, shownAt, [this, pools, shownAt, until]()
-            {
-                // The bots leave the old pools for the new at once (the old stay lit until they go)
-                for (Position const& old : _soaked)
-                    GroundIndicators::EndSoak(me, old);
-                _soaked = pools;
-                uint32 const durationMs = Grid.At(until) - Grid.At(shownAt);
-                for (Position const& pool : pools)
-                    GroundIndicators::ShowSoak(me, pool, TorchRadius, durationMs, 3, GroundIndicators::Theme::Holy,
-                        true);
-                _torches.push_back({ pools, Grid.At(shownAt), Grid.At(until) });
-            });
-        }
-        // The strikes: half a strike's beats off the grid of moves, none while the pools change places
-        for (uint32 offset = TraqueStrikeBeats + TraqueStrikeBeats / 2; start + offset < end;
-             offset += TraqueStrikeBeats)
-        {
-            uint32 const sinceMove = offset % TorchMoveBeats;
-            if (sinceMove >= TorchMoveBeats - TorchPreviewBeats)
-                continue;
-            AtBeat(Grid, start + offset, [this]() { StrikeTraque(); });
-        }
-        // Hounds hunting in the dark, on the healers
-        for (uint32 beat : { start + 24, start + 56 })
-            AtBeat(Grid, beat, [this]() { HuntingHounds(); });
     }
 
-    void StrikeTraque()
+    // Pounces: a circle under two players
+    void Pounce(uint32 start)
     {
-        uint32 const now = Elapsed();
-        std::erase_if(_torches, [now](Torches const& torches) { return now >= torches.until; });
-        for (Player* player : ArenaPlayers())
+        Wave(start, start + 4, [this](uint32 ms)
         {
-            bool lit = false;
-            for (Torches const& torches : _torches)
-                for (Position const& pool : torches.pools)
-                    if (player->GetExactDist2d(&pool) <= TorchRadius)
-                        lit = true;
-            if (!lit)
-                Mistake(player, SPELL_TRAQUE, TraquePct, "traque");
-        }
+            Areas areas;
+            for (Player* player : Targets(2, true))
+                areas.push_back(GroundIndicators::ShowCircle(me, Ground(player->GetPosition()), PounceRadius, ms,
+                    GroundIndicators::Theme::Shadow, MistakeDamage));
+            return areas;
+        }, RulePounce);
     }
 
-    void HuntingHounds()
+    // A charge through a player out of the dark; crossed: a second one through them, square to it
+    void DarkCharge(uint32 start, bool crossed)
     {
-        std::vector<Player*> healers;
-        for (Player* player : ArenaPlayers())
-            if (!IsTank(player))
-                healers.push_back(player);
-        Acore::Containers::RandomResize(healers, 2);
-        for (Player* target : healers)
+        Wave(start, start + 3, [this, crossed](uint32 ms)
         {
-            Position const spawn = EdgeSpot(FightRadius);
-            Creature* hound = me->SummonCreature(NPC_FELHOUND, spawn, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
-            if (!hound)
-                continue;
-            SizeAdd(hound, HuntingSeconds, false);
-            hound->SetInCombatWithZone();
-            hound->GetThreatMgr().AddThreat(target, 1000000.0f);
-            hound->AI()->AttackStart(target);
-            _hunting.push_back(hound->GetGUID());
-        }
+            std::vector<Player*> target = Targets(1, true);
+            if (target.empty())
+                return Areas{};
+            Position const through = Ground(target.front()->GetPosition());
+            float const angle = frand(0.0f, 2.0f * float(M_PI));
+            Areas areas = Line(through, angle, ChargeWidth, ms);
+            if (crossed)
+                for (GroundIndicators::Area const& area : Line(through, angle + float(M_PI) / 2.0f, ChargeWidth, ms))
+                    areas.push_back(area);
+            return areas;
+        }, RuleDarkCharge);
     }
 
-    // Back from the dark with his pack: the rebuild
+    // Marks under everyone
+    void DarkMarks(uint32 start)
+    {
+        Wave(start, start + 4, [this](uint32 ms)
+        {
+            Areas areas;
+            for (Player* player : ArenaPlayers())
+                areas.push_back(GroundIndicators::ShowCircle(me, Ground(player->GetPosition()), DarkMarkRadius, ms,
+                    GroundIndicators::Theme::Shadow, MistakeDamage));
+            return areas;
+        }, RulePounce);
+    }
+
+    // Back from the dark on the track's hardest hit, howling
     void EndTraque()
     {
-        for (ObjectGuid const& guid : _hunting)
-            if (Creature* hound = ObjectAccessor::GetCreature(*me, guid); hound && hound->IsAlive())
-                hound->DespawnOrUnsummon(0ms);
-        _hunting.clear();
-        _torches.clear();
-        _soaked.clear();
         me->RestoreDisplayId();
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->SetReactState(REACT_AGGRESSIVE);
         _phase = Phase::Rebuild;
-        Horn(4);
-        Archer();
+        AnnounceAll("Le Traqueur surgit de l'ombre !", "The Hunter bursts out of the dark!");
+        HitEveryone(SPELL_HOWL, HowlPct);
     }
 
     // --- La Curée and the end of the hunt ---------------------------------------------------------------------------
-    void Curee()
+    void Curee(uint32 start)
     {
         Talk(SAY_CUREE);
         CastBar(CAST_CUREE);
-        GroundIndicators::WarnGroupDamage(me, Grid.At(630) - Elapsed());
-        AtBeat(Grid, 630, [this]()
+        AnnounceAll("La Curée ! Sous 15 % de sa vie, ou c'est la fin.",
+            "The Quarry's Due! Below 15% of his health, or it is the end.");
+        uint32 const lands = start + 16;
+        GroundIndicators::WarnGroupDamage(me, Grid.At(lands) - Elapsed());
+        AtBeat(Grid, lands, [this]()
         {
             EndCastBar();
             float const health = me->GetHealthPct();
@@ -1100,21 +1315,16 @@ private:
     }
 
     // --- Mistakes ----------------------------------------------------------------------------------------------------
-    // An avoidable hit: Débusqué, and a second under it is death
-    void Mistake(Player* player, uint32 spellId, float percent, char const* what)
+    // An avoidable hit, and Débusqué: what they take is heavier for a while. The player is told what hit them.
+    void Mistake(Player* player, Rule const& rule)
     {
         if (!player || !player->IsAlive())
             return;
-        if (player->HasAura(SPELL_DEBUSQUE))
-        {
-            Doom(player, spellId);
-            Broken(what, Acore::StringFormat("{} (second mistake)", player->GetName()));
-            return;
-        }
-        Hit(player, spellId, percent);
+        Announce(player, rule.french, rule.english, true);
+        Hit(player, rule.spell, rule.percent);
         if (player->IsAlive())
             AddTimedAura(player, SPELL_DEBUSQUE, DebusqueMs);
-        Broken(what, player->GetName());
+        Broken(rule.name, player->GetName());
     }
 
     void Broken(char const* what, std::string const& who)
@@ -1123,7 +1333,7 @@ private:
                  Elapsed() / 1000.0f, what, who);
     }
 
-    // Whoever fell since the last look (to the pack, an arrow, his blows): each death in the log once
+    // Whoever fell since the last look: each death in the log once
     void WatchDeaths()
     {
         for (auto const& ref : me->GetMap()->GetPlayers())
@@ -1131,19 +1341,16 @@ private:
             {
                 bool const dead = !player->IsAlive();
                 if (dead && !_fallen.count(player->GetGUID()))
-                    RecordDeath(player);
+                {
+                    ++_deaths[player->GetName()];
+                    LOG_INFO(_logName, "Traqueur death instance={} at={:.1f}s {}", me->GetInstanceId(),
+                             Elapsed() / 1000.0f, player->GetName());
+                }
                 if (dead)
                     _fallen.insert(player->GetGUID());
                 else
                     _fallen.erase(player->GetGUID());
             }
-    }
-
-    void RecordDeath(Player* player)
-    {
-        ++_deaths[player->GetName()];
-        LOG_INFO(_logName, "Traqueur death instance={} at={:.1f}s {}", me->GetInstanceId(), Elapsed() / 1000.0f,
-                 player->GetName());
     }
 
     std::string DeathsText() const
@@ -1158,22 +1365,19 @@ private:
     {
         scheduler.CancelAll();
         EndCastBar();
-        FreeNet(false);
+        for (Player* player : ArenaPlayers())
+            if (player->HasAura(SPELL_JAWS))
+            {
+                player->RemoveAurasDueToSpell(SPELL_JAWS);
+                player->SetControlled(false, UNIT_STATE_ROOT);
+            }
         _summons.DespawnAll();
         GroundIndicators::ClearAreasOf(me);
-        SetSkull(nullptr);
-        _skulled.Clear();
         _traps.clear();
-        _torches.clear();
-        _soaked.clear();
-        _hunting.clear();
-        _strips.clear();
         _timeline.clear();
         _deaths.clear();
         _fallen.clear();
-        _setPieceUntil = 0;
         _next = 0;
-        _rotation = 0;
         _nextCheckMs = 0;
         _musicOver = false;
         _phase = Phase::None;
@@ -1187,115 +1391,25 @@ private:
     {
         Position at;
         uint32 armedAt;
-        uint32 until;
+        GroundIndicators::Area area;
         bool sprung = false;
-    };
-
-    struct Torches
-    {
-        std::vector<Position> pools;
-        uint32 from;
-        uint32 until;
+        bool bursting = false;
     };
 
     Phase _phase = Phase::None;
     std::vector<Step> _timeline;
     size_t _next = 0;
-    uint32 _rotation = 0;
     uint32 _nextCheckMs = 0;
     bool _musicOver = false;
-    ObjectGuid _netTarget;
-    ObjectGuid _netHound;
-    ObjectGuid _skulled;
     std::vector<Trap> _traps;
-    std::vector<Torches> _torches;
-    std::vector<Position> _soaked;
-    std::vector<ObjectGuid> _hunting;
-    std::map<uint32, std::vector<GroundIndicators::Area>> _strips;
     std::map<std::string, uint32> _deaths;
     std::set<ObjectGuid> _fallen;
-    uint32 _setPieceUntil = 0;
-};
-
-boss_escape_hunter* HunterOf(Creature* add)
-{
-    TempSummon* summon = add ? add->ToTempSummon() : nullptr;
-    Creature* hunter = summon ? summon->GetSummonerCreatureBase() : nullptr;
-    return hunter ? dynamic_cast<boss_escape_hunter*>(hunter->AI()) : nullptr;
-}
-
-// His pack: the felhounds (melee, their bites floored as his own blows are) and the archer beaters (rooted at the
-// hall's edge, an arrow every ArcherEveryMs at anyone but a tank: its 4 s cast to interrupt)
-struct npc_escape_hunter_pack : public ScriptedAI
-{
-    npc_escape_hunter_pack(Creature* creature) : ScriptedAI(creature)
-    {
-        // An archer shoots from where it stands: no chase (a rooted chase that cannot reach evades, immune)
-        if (me->GetEntry() == NPC_ARCHER)
-            me->SetCombatMovement(false);
-    }
-
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        me->DespawnOrUnsummon(0ms);
-    }
-
-    void DamageDealt(Unit* victim, uint32& damage, DamageEffectType type, SpellSchoolMask /*mask*/) override
-    {
-        if (type != DIRECT_DAMAGE)
-            return;
-        if (boss_escape_hunter* hunter = HunterOf(me))
-            hunter->PackDamage(me, victim, damage);
-    }
-
-    // A hound held in a trap takes more
-    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
-    {
-        if (me->HasAura(SPELL_JAWS))
-            damage = uint32(float(damage) * (1.0f + TrappedHoundTakenPct / 100.0f));
-    }
-
-    void JustDied(Unit* /*killer*/) override
-    {
-        if (boss_escape_hunter* hunter = HunterOf(me))
-            hunter->PackDied(me);
-    }
-
-    void SpellHitTarget(Unit* target, SpellInfo const* spell) override
-    {
-        if (spell->Id == SPELL_ARROW)
-            if (boss_escape_hunter* hunter = HunterOf(me))
-                hunter->ArrowHit(target);
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        if (me->GetEntry() == NPC_ARCHER)
-        {
-            if (!me->IsInCombat() || me->HasUnitState(UNIT_STATE_CASTING))
-                return;
-            _arrowTimer = _arrowTimer > diff ? _arrowTimer - diff : 0;
-            if (_arrowTimer)
-                return;
-            _arrowTimer = ArcherEveryMs;
-            if (boss_escape_hunter* hunter = HunterOf(me))
-                if (Player* target = hunter->ArrowTarget())
-                    me->CastSpell(target, SPELL_ARROW, false);
-            return;
-        }
-        if (!UpdateVictim())
-            return;
-        DoMeleeAttackIfReady();
-    }
-
-private:
-    uint32 _arrowTimer = 2000;
 };
 
 // --- Commands ---------------------------------------------------------------------------------------------------------
 using namespace Acore::ChatCommands;
 
-// .traqueur info | skip <seconds> | cast <step> | pull | room: for game masters trying the fight
+// .traqueur info | skip <seconds> | cast <pattern> | pull | room: for game masters trying the fight
 class EscapeHunterCommandScript final : public CommandScript
 {
 public:
@@ -1341,13 +1455,14 @@ public:
         return true;
     }
 
-    // .traqueur cast <horn|net|rotation|battue|battueonce|hallali|curee>
+    // .traqueur cast <taillade|volley|snare|encircle|lanes|pack|leap|traps|burst|chains|tracking|battue|hallali|horn|
+    // curee|pounce|darkcharge|darkmarks>
     static bool HandleCast(ChatHandler* handler, std::string step)
     {
         boss_escape_hunter* hunter = FindHunter(handler->GetPlayer());
         if (!hunter || !hunter->CastNow(step))
         {
-            handler->SendErrorMessage("No such step, or the Traqueur is not fighting within 250 yards.");
+            handler->SendErrorMessage("No such pattern, or the Traqueur is not fighting within 250 yards.");
             return false;
         }
         return true;
@@ -1389,6 +1504,5 @@ public:
 void AddEscapeHunterScripts()
 {
     RegisterCreatureAI(boss_escape_hunter);
-    RegisterCreatureAI(npc_escape_hunter_pack);
     new EscapeHunterCommandScript();
 }

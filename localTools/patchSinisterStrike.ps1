@@ -2222,9 +2222,9 @@ $legendaryItems = @(
     # Gardien-chef Vorhan's Unique (mod-legendary 27), Sablier de Perpétuité: a free "junk" row made a trinket, as his
     # raid trinkets; the Eye of Magtheridon's look until its icon (a trinket shows nothing else)
     @{ Item = 17855; Display = 71061; CloneOf = 28789; Icon = 'INV_Unique_SablierPerpetuite'; Class = 4; Subclass = 0; Material = 4; InventoryType = 12 }
-    # Le Traqueur d'évadés's Unique (mod-legendary 28), Trophée du Traqueur: a free "junk" row made a necklace; Loque'Nahak's
+    # Le Traqueur d'évadés's legendary (mod-legendary 28), Trophée du Traqueur: a free "junk" row made a necklace; Loque'Nahak's
     # Severed Fang's look until its icon is painted
-    @{ Item = 17858; Display = 71062; CloneOf = 44688; Icon = 'INV_Unique_TropheeTraqueur'; Class = 4; Subclass = 0; Material = 4; InventoryType = 2 }
+    @{ Item = 17858; Display = 71062; CloneOf = 44688; Icon = 'INV_Legendary_TropheeTraqueur'; Class = 4; Subclass = 0; Material = 4; InventoryType = 2 }
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }

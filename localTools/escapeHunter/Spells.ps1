@@ -35,56 +35,77 @@ function New-Cast($id, $name, $fallback, $castTime, $description) {
 }
 
 $spells = @(
-    # --- What hits ---
+    # --- What hits: one spell a mechanic, its text saying what went wrong ---
     (New-Hit 94800 'Taillade' 845 $physical `
-        'Le Traqueur taille devant lui. Hors du cône si vous ne le tenez pas.'),
+        'Le Traqueur taille devant lui. Tenez-vous sur ses flancs si vous ne le tenez pas.'),
     (New-Hit 94801 'Cor de chasse' 23154 $physical `
-        'Le cor du Traqueur lâche sa meute et frappe tous les évadés.'),
-    (New-Hit 94802 'Étranglement' 6533 $physical `
-        'Le filet s''est resserré : le gangrechien qui le tenait n''est pas mort à temps.'),
+        'Le cor du Traqueur frappe tous les évadés.'),
+    (New-Hit 94802 'Rabattage' 5246 $physical `
+        'Les rabatteurs ont balayé votre couloir. Changez de couloir à chaque vague.'),
     (New-Hit 94803 'Piège à mâchoires' 1499 $physical `
         'Vous avez marché dans un piège armé. Contournez-les.'),
-    (New-Hit 94804 'Flèche empoisonnée' 3034 $nature `
-        'Un rabatteur archer a tiré. Interrompez-le, ou tuez-le.'),
+    (New-Hit 94804 'Volée de flèches' 3034 $physical `
+        'Une volée des rabatteurs. Sortez des cercles.'),
     (New-Hit 94805 'Battue' 5246 $physical `
         'Les rabatteurs ont passé votre rangée. Tenez-vous dans sa trouée.'),
     (New-Hit 94806 'Hallali' 1130 $physical `
         'La meute a bondi sur la proie : éloignez-vous des proies.'),
     (New-Hit 94807 'Curée de meute' 1130 $physical `
         'La meute s''abat sur le groupe : ensemble, le coup se partage.'),
-    (New-Hit 94808 'Traque' 58984 $shadow `
-        'Le Traqueur vous a trouvé hors de la lumière des torches.'),
+    (New-Hit 94808 'Bond dans l''ombre' 58984 $shadow `
+        'Le Traqueur a bondi sur vous depuis l''ombre. Sortez du cercle.'),
     (New-Hit 94809 'Curée' 34026 $physical `
         'La proie n''était pas aux abois : le Traqueur avait encore trop de forces.'),
     (New-Hit 94810 'Fin de la traque' 26662 $shadow `
         'La traque est finie, et vous aussi.'),
+    (New-Hit 94811 'Revers' 845 $physical `
+        'Le Traqueur frappe derrière lui après sa taille. Tenez-vous sur ses flancs.'),
+    (New-Hit 94812 'Collet' 1499 $physical `
+        'Le collet s''est refermé. Dedans, dehors : suivez son rythme.'),
+    (New-Hit 94813 'Encerclement' 3034 $physical `
+        'Les rabatteurs tirent de trois côtés. Suivez le quart épargné.'),
+    (New-Hit 94814 'Charge de la meute' 1130 $physical `
+        'La meute a chargé à travers vous. Écartez-vous de sa ligne.'),
+    (New-Hit 94815 'Bond du Traqueur' 6533 $physical `
+        'Le Traqueur a bondi sur vous. Quittez le cercle avant qu''il retombe.'),
+    (New-Hit 94816 'Onde de choc' 6533 $physical `
+        'L''onde de son bond. Rejoignez le Traqueur là où il est retombé.'),
+    (New-Hit 94817 'Déclenchement' 1499 $physical `
+        'Les pièges ont sauté l''un après l''autre. Éloignez-vous d''eux.'),
+    (New-Hit 94818 'Hurlement du Traqueur' 26662 $shadow `
+        'Le Traqueur revient de l''ombre en hurlant.'),
+    (New-Hit 94819 'Griffes dans le noir' 58984 $shadow `
+        'Le Traqueur a chargé à travers le noir. Écartez-vous de sa ligne.'),
+    (New-Hit 94825 'Moulinet' 6533 $physical `
+        'Ses chaînes se sont arrêtées sur vous. Regardez où elles s''arrêtent.'),
+    (New-Hit 94826 'Pistage' 1130 $physical `
+        'Votre piste a été prise. Quittez la marque quand elle se fige.'),
 
     # --- The debuffs ---
     (New-Debuff 94820 'Lacération' 845 10 `
         'Les tailles du Traqueur.' 'Dégâts physiques subis augmentés. Laissez-le à l''autre tank.'),
     (New-Debuff 94821 'Débusqué' 1130 1 `
-        'Débusqué par une erreur.' 'Dégâts subis augmentés : une seconde erreur est mortelle.'),
+        'Débusqué par une erreur.' 'Dégâts subis augmentés.'),
     (New-Debuff 94822 'Proie' 1130 1 `
         'Le Traqueur vous a désigné.' 'La meute bondira sur vous : éloignez-vous du groupe.'),
     (New-Debuff 94823 'Mâchoires' 1499 1 `
         'Pris dans un piège.' 'Immobilisé.'),
-    (New-Debuff 94824 'Filet' 6533 1 `
-        'Pris dans un filet.' 'Immobilisé. Tuez le gangrechien qui tient le filet.'),
 
     # --- His cast bars ---
-    (New-Cast 94840 'Taillade' 845 5 'Le Traqueur taille devant lui.'),
+    (New-Cast 94840 'Taillade' 845 16 'Le Traqueur taille devant lui, puis derrière.'),
     (New-Cast 94841 'Cor de chasse' 23154 4 'Le Traqueur sonne la meute.'),
     (New-Cast 94842 'Battue' 5246 5 'Les rabatteurs entrent.'),
     (New-Cast 94843 'Hallali' 1130 15 'La meute va bondir sur ses proies.'),
-    (New-Cast 94844 'Traque' 58984 5 'Les torches s''éteignent.'),
+    (New-Cast 94844 'Traque' 58984 5 'Le Traqueur disparaît dans le noir.'),
     (New-Cast 94845 'Curée' 34026 171 'La curée : la proie doit être aux abois.'),
-
-    # --- The archer's arrow: a real cast at a player (4 s, interruptible as Smite, any range); it lands through the
-    # script (the arrow's hit, 94804) ---
-    @{ Id = 94846; Clone = 585; Name = 'Flèche empoisonnée'; FallbackIconSpell = 3034; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
-       Description = 'Un rabatteur archer vise un évadé. Interrompez-le.'
-       Effects = @(@{ Index = 0; Effect = 3; TargetA = 6; BasePoints = 0 })
-       Fields = @{ 28 = 15; 46 = 13; 131 = 0; 213 = 0; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } }
+    (New-Cast 94846 'Bond du Traqueur' 6533 5 'Le Traqueur va bondir sur sa proie.'),
+    (New-Cast 94847 'Collet' 1499 16 'Le collet se referme.'),
+    (New-Cast 94848 'Encerclement' 3034 16 'Les rabatteurs encerclent la salle.'),
+    (New-Cast 94849 'Rabattage' 5246 16 'Les rabatteurs balaient les couloirs.'),
+    (New-Cast 94850 'Charge de la meute' 1130 16 'La meute charge.'),
+    (New-Cast 94851 'Pièges à mâchoires' 1499 16 'Le Traqueur sème ses pièges.'),
+    (New-Cast 94852 'Moulinet' 6533 16 'Le Traqueur fait tournoyer ses chaînes.'),
+    (New-Cast 94853 'Pistage' 1130 16 'Le Traqueur prend vos pistes.')
 )
 
 return $spells
