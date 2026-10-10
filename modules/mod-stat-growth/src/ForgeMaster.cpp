@@ -121,6 +121,11 @@ constexpr float PropDistance = 12.0f;       // the trough and the crucible from 
 constexpr float BellowsDistance = 14.5f;
 constexpr float IngotRadius = 3.0f;
 constexpr float IngotDistance = 8.0f;
+// Les Lingots' looks (shapes.json VR_IngotMark*, VR_IngotSigil*; localTools/escapeHunter/ingotArt.py): + the ingot's
+// index - the game's raid icons star, circle, diamond, triangle - over its two holders' heads and on its floor
+constexpr uint32 LOOK_INGOT_MARK = 94860;
+constexpr uint32 LOOK_INGOT_SIGIL = 94864;
+constexpr uint32 IngotCount = 4;
 constexpr float MarkedRadius = 8.0f;
 constexpr float HammerSoakRadius = 6.0f;
 constexpr uint32 MarkBeats = 12;
@@ -299,6 +304,15 @@ Rule const RuleSteam = { SPELL_STEAM, 100.0f, "steam", "Vrogar.Steam" };
 Rule const RuleFlood = { SPELL_FLOOD, 100.0f, "flood", "Vrogar.Flood" };
 Rule const RuleBellows = { SPELL_BELLOWS, 100.0f, "bellows", "Vrogar.BellowsFire" };
 Rule const RuleFonte = { SPELL_FONTE, 100.0f, "fonte", "Vrogar.Fonte" };
+
+bool IsHealer(Player* player)
+{
+    if (Group* group = player->GetGroup())
+        for (Group::MemberSlot const& member : group->GetMemberSlots())
+            if (member.guid == player->GetGUID() && member.roles)
+                return member.roles & lfg::PLAYER_ROLE_HEALER;
+    return player->HasHealSpec();
+}
 
 bool IsTank(Player* player)
 {
@@ -1185,7 +1199,10 @@ private:
     }
 
     // --- Les Lingots: four ingots, each to be held by exactly two ----------------------------------------------------------
-    // In the middle from start; each wave lands 10 beats after it is shown; waves 2: a second, turned an eighth
+    // In the middle from start; each wave lands 10 beats after it is shown; waves 2: a second, turned an eighth.
+    // Who holds which is shown: each ingot wears one of the game's raid icons on its floor, and its two holders the same
+    // icon over their heads - in pairs, a tank or a healer with a damage dealer where there are enough. As many ingots
+    // as pairs standing (four at most): an odd one out holds none, and none waits for someone who is not there.
     void Ingots(uint32 start, uint32 waves)
     {
         uint32 const lands = start + 2;
@@ -1199,22 +1216,48 @@ private:
             uint32 const shown = lands + 12 * wave;
             uint32 const strikes = shown + 10;
             float const turn = wave ? float(M_PI) / 4.0f : 0.0f;
-            AtBeat(Grid, shown, [this, base, turn, strikes]()
-            {
-                std::vector<Position> spots;
-                for (uint32 index = 0; index < 4; ++index)
-                {
-                    Position const spot = OnArena(base + turn + float(index) * float(M_PI) / 2.0f, IngotDistance);
-                    spots.push_back(spot);
-                    GroundIndicators::ShowDecal(me, spot, 0.0f, IngotRadius, MsTo(strikes),
-                        GroundIndicators::SPELL_SIGIL_RADIANT);
-                    GroundIndicators::ShowSoak(me, spot, IngotRadius, MsTo(strikes), 2,
-                        GroundIndicators::Theme::Holy, true, false);
-                }
-                Sound("Vrogar.Ingots", Middle());
-                AtBeat(Grid, strikes, [this, spots]() { StrikeIngots(spots); });
-            });
+            AtBeat(Grid, shown, [this, base, turn, strikes]() { ShowIngots(base + turn, strikes); });
         }
+    }
+
+    void ShowIngots(float facing, uint32 strikes)
+    {
+        // The holders: tanks and healers first, then the damage dealers, each lot in a random order; dealt round the
+        // ingots in turn, so each ingot's first holder is a tank or a healer and its second a damage dealer
+        std::vector<Player*> players = ArenaPlayers();
+        Acore::Containers::RandomShuffle(players);
+        std::stable_sort(players.begin(), players.end(), [](Player* left, Player* right)
+            { return (IsTank(left) || IsHealer(left)) && !(IsTank(right) || IsHealer(right)); });
+        uint32 const count = _phase == Phase::Rehearsal ? IngotCount :
+            std::min<uint32>(IngotCount, uint32(players.size() / 2));
+        if (!count)
+            return;
+        uint32 const ms = MsTo(strikes);
+        std::vector<Position> spots;
+        for (uint32 index = 0; index < count; ++index)
+        {
+            Position const spot = OnArena(facing + float(index) * 2.0f * float(M_PI) / float(count), IngotDistance);
+            spots.push_back(spot);
+            GroundIndicators::ShowDecal(me, spot, 0.0f, IngotRadius, ms, LOOK_INGOT_SIGIL + index);
+        }
+        std::vector<ObjectGuid> holders;
+        for (uint32 index = 0; index < std::min<uint32>(uint32(players.size()), 2 * count); ++index)
+        {
+            Player* player = players[index];
+            uint32 const ingot = index % count;
+            GroundIndicators::ShowCarriedLook(player, LOOK_INGOT_MARK + ingot, ms);
+            // The bots to their own ingot (the players read their mark)
+            GroundIndicators::SetUnitSpot(me, player, spots[ingot], IngotRadius - 1.0f, ms);
+            holders.push_back(player->GetGUID());
+        }
+        Sound("Vrogar.Ingots", Middle());
+        AtBeat(Grid, strikes, [this, spots, holders]()
+        {
+            for (ObjectGuid const& guid : holders)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                    GroundIndicators::EndUnitSpot(me, player);
+            StrikeIngots(spots);
+        });
     }
 
     void StrikeIngots(std::vector<Position> const& spots)
