@@ -3,12 +3,16 @@
 #include "Group.h"
 #include "ItemTemplate.h"
 #include "LFG.h"
+#include "LiveTuning.h"
+#include "Log.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "Random.h"
 #include "SpellAuraDefines.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "StringFormat.h"
+#include "WorldSession.h"
 
 #include <algorithm>
 #include <set>
@@ -20,6 +24,19 @@ namespace LootFit
 {
 namespace
 {
+// A tank's drops judged as its offspec's, a damage dealer's (DrawnRole): a tank playing with a friend asked for both
+// (2026-10-10), every drop had been a tank's - its score weighs stamina and defences far above strength
+LiveTuning::Knob const TankOffspecPct("loot.tank_offspec_pct", 50.0f);
+
+// The role drawn for the pick under way on this thread (DrawnRole), and whose it is
+struct Drawn
+{
+    bool active = false;
+    ObjectGuid player;
+    Role role = Role::Tank;
+};
+thread_local Drawn CurrentDraw;
+
 // GetTalentSpecRole's roles
 constexpr uint8 SpecRoleMelee = 1;
 constexpr uint8 SpecRoleCaster = 2;
@@ -313,7 +330,10 @@ Gives GivesOf(ItemTemplate const& item)
 }
 }
 
-Role RoleOf(Player* player)
+namespace
+{
+// The role the player plays (RoleOf without a draw)
+Role PlayedRole(Player* player)
 {
     if (uint8 const spec = GetTalentSpecRole(player))
     {
@@ -343,6 +363,35 @@ Role RoleOf(Player* player)
         default:
             return AgilityClass(player) ? Role::Agility : Role::Strength;
     }
+}
+}
+
+Role RoleOf(Player* player)
+{
+    if (CurrentDraw.active && player && CurrentDraw.player == player->GetGUID())
+        return CurrentDraw.role;
+    return PlayedRole(player);
+}
+
+DrawnRole::DrawnRole(Player* player)
+{
+    if (CurrentDraw.active || !player)
+        return;
+    Role role = PlayedRole(player);
+    if (role == Role::Tank && player->GetSession() && !player->GetSession()->IsBot() &&
+        roll_chance_f(float(TankOffspecPct)))
+    {
+        role = AgilityClass(player) ? Role::Agility : Role::Strength;
+        LOG_DEBUG("module", "LootFit: {}'s drop is their offspec's ({})", player->GetName(), RoleName(role));
+    }
+    CurrentDraw = { true, player->GetGUID(), role };
+    _owner = true;
+}
+
+DrawnRole::~DrawnRole()
+{
+    if (_owner)
+        CurrentDraw = Drawn();
 }
 
 char const* RoleName(Role role)

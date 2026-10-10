@@ -2,6 +2,7 @@
 #define MOD_STAT_GROWTH_LOOT_FIT_H
 
 #include "Define.h"
+#include "ObjectGuid.h"
 
 #include <string>
 #include <string_view>
@@ -46,6 +47,22 @@ namespace LootFit
     bool RoleByName(std::string_view name, Role& role);
     // What an item was read as giving (its stats and spells), for .lootfit
     std::string Describe(ItemTemplate const& item);
+
+    // One drop's role: a tank's loot is a damage dealer's now and then (loot.tank_offspec_pct), its offspec - the
+    // fighter it would be (RoleOf) - so a tank gets both. Drawn once for one pick, so that every candidate of it is
+    // judged alike: while one lives, RoleOf answers the drawn role for its player. The outermost draws; one made
+    // inside it keeps that draw. A real player's only: a bot tank keeps its tank's gear.
+    class DrawnRole
+    {
+    public:
+        explicit DrawnRole(Player* player);
+        ~DrawnRole();
+        DrawnRole(DrawnRole const&) = delete;
+        DrawnRole& operator=(DrawnRole const&) = delete;
+
+    private:
+        bool _owner = false;
+    };
 }
 
 #endif

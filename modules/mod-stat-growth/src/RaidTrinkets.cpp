@@ -82,6 +82,7 @@ ItemTemplate const* Roll(Player* player, Raid raid)
 {
     if (!player || !roll_chance_f(ChancePct))
         return nullptr;
+    LootFit::DrawnRole const drawn(player);
     Kind const kind = KindOf(LootFit::RoleOf(player));
     std::vector<ItemTemplate const*> missing = Missing(player, raid, kind);
     if (missing.empty() && kind == Kind::Tank)

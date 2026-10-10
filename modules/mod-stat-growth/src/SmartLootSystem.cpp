@@ -621,6 +621,7 @@ SlotPick PickBySlot(std::vector<SlotGroup> const& groups, std::vector<size_t> co
 
 ItemTemplate const* SelectSmartReplacement(Player* player, Creature const* killed, ItemTemplate const& dropped)
 {
+    LootFit::DrawnRole const drawn(player);
     uint32 const quality = dropped.Quality;
     uint32 const sourceTolerance = statGrowthConfig.GetConfigValue<uint32>(
         StatGrowthConfigKey::SmartLootCreatureLevelTolerance);
@@ -860,6 +861,7 @@ void ImproveBaseEquipmentLoot(Player* player, Creature* killed)
 // against. A player whose gear is already better everywhere still gets something of the right item level.
 ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint32 givenItemLevel, uint8 equipmentSlot)
 {
+    LootFit::DrawnRole const drawn(player);
     if (!player)
         return nullptr;
 
@@ -874,6 +876,7 @@ ItemTemplate const* SelectMythicLootItem(Player* player, uint32 itemLevel, uint3
 // When none suits them, the best scored one if `anyway`, else nullptr.
 ItemTemplate const* SelectSuitedItem(Player* player, std::vector<ItemTemplate const*> const& items, bool anyway)
 {
+    LootFit::DrawnRole const drawn(player);
     if (!player || items.empty())
         return nullptr;
 
@@ -905,6 +908,7 @@ ItemTemplate const* SelectSuitedItem(Player* player, std::vector<ItemTemplate co
 // its class, armour and weapon style like a Smart Loot replacement, for the slot it is furthest behind in.
 ItemTemplate const* SelectLevelLootItem(Player* player, uint32 quality)
 {
+    LootFit::DrawnRole const drawn(player);
     if (!player)
         return nullptr;
 
