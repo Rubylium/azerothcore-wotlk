@@ -1806,7 +1806,7 @@ DELETE FROM `item_template_locale` WHERE `ID` = 17858;
 DROP TEMPORARY TABLE IF EXISTS `legendary_base`;
 CREATE TEMPORARY TABLE `legendary_base` SELECT * FROM `item_template` WHERE `entry` = 44688;
 UPDATE `legendary_base` SET
-    `entry` = 17858, `name` = 'Trophée du Traqueur', `Quality` = 6, `ItemLevel` = 227, `RequiredLevel` = 80,
+    `entry` = 17858, `name` = 'Trophée du Traqueur', `Quality` = 5, `ItemLevel` = 227, `RequiredLevel` = 80,
     `class` = 4, `subclass` = 0, `Material` = 4, `InventoryType` = 2,
     `sheath` = 0,
     `displayid` = 71062, `bonding` = 1, `armor` = 0,

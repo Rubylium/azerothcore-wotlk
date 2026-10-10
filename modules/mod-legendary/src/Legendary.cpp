@@ -140,8 +140,8 @@ constexpr uint32 InfiniteGodBoss = 930000;
 // level (mod-playerbots ChallengeBoard.cpp, his page)
 constexpr uint32 WardenVorhanBoss = 930200;
 constexpr uint32 WardenVorhanItemLevel = 485;
-// Le Traqueur d'évadés, the Geôle's second gate (mod-stat-growth EscapeHunter.cpp): his Unique drops at his gear's item
-// level, the Geôle's (mod-playerbots ChallengeBoard.cpp, his page)
+// Le Traqueur d'évadés, the Geôle's second gate (mod-stat-growth EscapeHunter.cpp): his legendary drops at his gear's
+// item level, the Geôle's (mod-playerbots ChallengeBoard.cpp, his page)
 constexpr uint32 EscapeHunterBoss = 930400;
 // L'Étoile captive: how far around the wearer the star finds a target when they have none, and their allies to heal
 constexpr float SupernovaTargetReach = 30.0f;
@@ -273,7 +273,7 @@ std::array<Definition, 28> const Definitions = { {
     { 27, 17855, KIND_SENTENCE, 20.0f, 25.0f, 20.0f, 25.0f, WardenVorhanItemLevel, NeckBudget, 0,
       { .spell = 97930, .spell2 = 97931, .everyMs = 4000, .count = 5 }, WardenVorhanBoss },
 
-    // --- Le Traqueur d'évadés: the Unique ---
+    // --- Le Traqueur d'évadés: his legendary ---
     // Trophée du Traqueur, a necklace (17858, a free row made one): his hunt, the enemy the wearer strikes (their
     // selection first) marked as their quarry, the wearer and their group dealing 4-5% more damage to it. Only from
     // his death (item level 485): one window

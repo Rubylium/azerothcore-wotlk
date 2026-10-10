@@ -84,7 +84,7 @@ LEGENDARIES = [
     (12187, 33590, "Cape du geôlier", "Jailer's Cloak"),
     # Gardien-chef Vorhan's Unique: a trinket on a free row, the Eye of Magtheridon's template
     (17855, 28789, "Sablier de Perpétuité", "Hourglass of Perpetuity"),
-    # Le Traqueur d'évadés's Unique: a necklace on a free row, Loque'Nahak's Severed Fang's template
+    # Le Traqueur d'évadés's legendary: a necklace on a free row, Loque'Nahak's Severed Fang's template
     (17858, 44688, "Trophée du Traqueur", "Escape-Hunter's Trophy"),
 ]
 # Epic: the warden's sets
@@ -132,7 +132,7 @@ ROW_OVERRIDES = {
 }
 # Rows made another slot by localTools/patchSinisterStrike.ps1 ($legendaryItems InventoryType): the stock row is read
 INVENTORY_TYPES = {16067: 12}
-UNIQUE = {10555, 17855, 17858}
+UNIQUE = {10555, 17855}
 
 
 # Every legendary base (the three Scarlet Cathedral ones written by hand above the generated block, the others below)
