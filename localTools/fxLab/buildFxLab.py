@@ -17,7 +17,8 @@ The room: a flat floor at height 0, 10 x 10 map chunks (333 yards a side) in the
 (2933.33, 800). Every chunk round it is a plateau WallHeight high: the step between the two is one vertex (4.17 yards)
 across, which reads as a wall and which nothing walks up. The floor's texture repeats once per cell (4.17 yards): a
 faint line at each repeat. A second layer paints stronger lines on every chunk edge (33.3 yards), crossing at the
-middle, and rings round the middle every 5 yards out to 40 (the tens stronger), for judging sizes.
+middle, for judging sizes; the range rings round the middle (every 5 yards out to 40) are a painted mark .fxlab lays
+on the floor (FxLab.cpp, localTools/fxLab/labArt.py: smooth, where the terrain's blend map drew them jagged).
 
 Then ship it: the client step of localTools/deployWithProgress.ps1, and the server's terrain with
 localTools/mapEditing/rebuildServerMaps.ps1 -maps 451 -skipVmaps (there is no object to collide with).
@@ -179,25 +180,13 @@ def normal_at(row, column):
     return normal / numpy.linalg.norm(normal)
 
 
-def ring_alpha(distance):
-    """The rings round the room's middle, every 5 yards out to 40, the tens stronger"""
-    alpha = 0.0
-    for radius in range(5, 45, 5):
-        strength = 210.0 if radius % 10 == 0 else 120.0
-        alpha = max(alpha, strength * max(0.0, 1.0 - abs(distance - radius) / 0.45))
-    return alpha
-
-
 def chunk_alpha(chunk_row, chunk_column):
-    """The line layer's 64 x 64 alpha map over a floor chunk: its edges and the rings"""
-    pixel = CHUNK_SIZE / 64.0
+    """The line layer's 64 x 64 alpha map over a floor chunk: its edges. (The range rings are a painted mark laid by
+    .fxlab, FxLab.cpp: the 64 x 64 blend map drew them half a yard a pixel, jagged.)"""
     alpha = numpy.zeros((64, 64))
     for y in range(64):
         for x in range(64):
-            world_x = TOP_X - chunk_row * CHUNK_SIZE - (y + 0.5) * pixel
-            world_y = TOP_Y - chunk_column * CHUNK_SIZE - (x + 0.5) * pixel
-            edge = 230.0 if y in (0, 63) or x in (0, 63) else 0.0
-            alpha[y, x] = max(edge, ring_alpha(math.hypot(world_x - CENTER_X, world_y - CENTER_Y)))
+            alpha[y, x] = 230.0 if y in (0, 63) or x in (0, 63) else 0.0
     return numpy.clip(alpha, 0, 255).astype(numpy.uint8).tobytes()
 
 

@@ -11,8 +11,9 @@ fight. Game masters only.
 - The floor is flat at height 0: 333 x 333 yards (10 x 10 map chunks), its middle at **(2933.33, 800, 0)**. Around
   it a plateau 40 yards up, one vertex (4.17 yards) away from the floor: the wall. Past the plateau, nothing.
 - Measuring: a faint line every cell (4.17 yards, the terrain texture's repeat - it cannot be 5), a strong line on
-  every chunk edge (33.3 yards) crossing at the middle, rings round the middle every 5 yards out to 40 (the tens
-  stronger).
+  every chunk edge (33.3 yards) crossing at the middle, and smooth rings round the middle every 5 yards out to 40 (the
+  tens stronger): a painted mark `.fxlab` lays on the floor (shapes.json FxLabRings, `localTools/fxLab/labArt.py`), not
+  the terrain's (its 64 x 64 blend maps drew them half a yard a pixel, jagged).
 - Light: its own gray Light row (2600, LightParams 950), the same at every hour, no skybox, no clouds, no fog in the
   room. `.daytime` changes only the sun's angle (wall shading).
 - No area id (no zone name), no water, no objects, no creatures but the ones the commands place.
@@ -32,6 +33,8 @@ fight. Game masters only.
 - `.fxlab cast <spell>` - you cast the spell, triggered (no cost, class or combo point needed), on your target, else
   your nearest dummy: a whole spell's look without selecting anything (the screenshot runs cannot select: targeting
   is protected in the dev addon).
+- A boss's rehearsal: its patterns drawn for real at the lab's middle, harming nobody, each strike logging the share of
+  its arena left safe (`module.<boss>` in Server.log) - `.vrogar lab` then `.vrogar cast <pattern>` (ForgeMaster.cpp).
 - `.fxlab kit <SpellVisualKit id>` - plays the kit (`SMSG_PLAY_SPELL_VISUAL`) on your target, else your nearest
   dummy, else you. A whole spell: `.cast` it on a dummy as usual.
 

@@ -4,6 +4,7 @@
 #include "CommandScript.h"
 #include "Creature.h"
 #include "Map.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuras.h"
@@ -48,6 +49,12 @@ constexpr float DummyDistance = 10.0f;
 constexpr float BigDummyScale = 3.0f;
 constexpr uint32 DummyLifetimeMs = 2 * HOUR * IN_MILLISECONDS;
 constexpr float ClearRange = 400.0f;
+// The range rings' look (shapes.json FxLabRings: localTools/fxLab/labArt.py rings, RINGS_REACH yards across its edge)
+constexpr uint32 SPELL_LAB_RINGS = 90738;
+constexpr float RingsReach = 41.0f;
+constexpr uint32 RingsMs = 2 * HOUR * IN_MILLISECONDS;
+// GroundIndicators.cpp's stalker, the creature wearing a ground indicator's look
+constexpr uint32 NPC_GROUND_INDICATOR = 900104;
 constexpr float DefaultShapeRadius = 5.0f;
 constexpr uint32 DefaultShapeSeconds = 6;
 constexpr uint32 MaxShapeSeconds = 120;
@@ -193,9 +200,37 @@ public:
             return false;
         }
         CleanUp(player);
+        LayRings(player);
         handler->SendSysMessage("FX lab: rings every 5 yards round the middle, lines every 33.3 yards. "
             ".fxlab dummy [big], .fxlab shape <key> [radius] [seconds], .fxlab kit <id>, .fxlab back.");
         return true;
+    }
+
+    // The range rings round the middle (shapes.json FxLabRings, smooth: the terrain drew them jagged), laid for RingsMs
+    // unless they are there already - once the player stands in the lab (a teleport there lands later)
+    static void LayRings(Player* player, uint32 tries = 10)
+    {
+        ObjectGuid const guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid, tries]()
+        {
+            Player* player = ObjectAccessor::FindPlayer(guid);
+            if (!player)
+                return;
+            // Still on its way (the loading screen): again a little later
+            if (!player->IsInWorld() || player->GetMapId() != MAP_FX_LAB || player->IsBeingTeleported())
+            {
+                if (tries)
+                    LayRings(player, tries - 1);
+                return;
+            }
+            // Already there: a ground indicator's stalker at the middle wearing them
+            std::list<Creature*> stalkers;
+            player->GetCreatureListWithEntryInGrid(stalkers, NPC_GROUND_INDICATOR, ClearRange);
+            for (Creature* stalker : stalkers)
+                if (stalker->HasAura(SPELL_LAB_RINGS))
+                    return;
+            GroundIndicators::ShowDecal(player, Position(LabX, LabY, LabZ), 0.0f, RingsReach, RingsMs, SPELL_LAB_RINGS);
+        }, 2s);
     }
 
     // A clean character to look at: whatever buff or debuff the last test left on it (a boss's debuff, a carried
