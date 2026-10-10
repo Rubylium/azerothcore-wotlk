@@ -95,6 +95,8 @@ constexpr float EscapeMargin = 1.5f;
 constexpr float InsideMargin = 0.5f;
 constexpr float EscapeStep = 3.0f;
 constexpr float EscapeReach = 36.0f;
+// No spot clear of every area: those striking within this of the first are left, the later ones not yet
+constexpr uint64 SoonestWindowMs = 500;
 constexpr uint32 EscapeDirections = 16;
 // No way out at EscapeDirections: once more, finer - a lane between areas (Supernova's, 30 degrees) is narrower than
 // the gap between two coarse directions once the margins are taken off, and the bot stayed in and died
@@ -1915,15 +1917,9 @@ bool CrossesAreas(Unit* unit, Position const& spot)
         PathCrosses(areas, unit->GetPosition(), spot, unit->GetGUID()));
 }
 
-bool FindEscape(Unit* unit, Position& escape, bool tank)
+// The nearest spot out of areas for unit (FindEscape's search)
+bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, Position& escape, bool tank)
 {
-    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
-        return false;
-
-    std::vector<ActiveArea> const areas = AreasToLeave(unit, tank);
-    if (areas.empty())
-        return false;
-
     // A circle this unit carries: it is the others who must not be in it. A tank does not run from its group
     // with one; they step away from it.
     float carried = 0.0f;
@@ -2009,6 +2005,29 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     if (found)
         escape = best.spot;
     return found;
+}
+
+bool FindEscape(Unit* unit, Position& escape, bool tank)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+
+    std::vector<ActiveArea> const areas = AreasToLeave(unit, tank);
+    if (areas.empty())
+        return false;
+    if (EscapeAmong(unit, areas, escape, tank))
+        return true;
+
+    // Nowhere clear of them all (rings round a boss covering the whole floor, struck in turn): out of those striking
+    // first, the rest left for when they come
+    uint64 soonest = areas.front().endMs;
+    for (ActiveArea const& entry : areas)
+        soonest = std::min(soonest, entry.endMs);
+    std::vector<ActiveArea> first;
+    for (ActiveArea const& entry : areas)
+        if (entry.endMs <= soonest + SoonestWindowMs)
+            first.push_back(entry);
+    return first.size() < areas.size() && EscapeAmong(unit, first, escape, tank);
 }
 
 void ShowSoak(Unit* owner, Position const& center, float radius, uint32 durationMs, uint32 wanted, Theme theme,
