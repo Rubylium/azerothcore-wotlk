@@ -63,8 +63,10 @@ with no other change. `Legendary.cpp` (`Reinforce`, `Grow`):
 - **A success** keeps the copy's rolls: stats grown as generated gear grows (ratings by the square root), armour
   too, the power at the same place in the new level's window; re-applied when worn, sent to the client (`SendCopy`).
 - **The material** drops on top of the loot (never in place of it), `legendary.material_drop_pct` (35%) per player,
-  from every source of gear of item level 250 or more: a stock raid's boss (its mode's item level,
-  `RaidFinder::GetChallengeItemLevel`), a Mythic+ key's end (+12 and up), every Défi kill (`OnChallengeEvent`).
+  plus `legendary.material_step_pct` (15%) for each source passed without one (kept in `character_legendary_luck`
+  under `MaterialSource`, reset by a drop: never six dry in a row), from every source of gear of item level 250 or
+  more: a stock raid's boss (its mode's item level, `RaidFinder::GetChallengeItemLevel`), a Mythic+ key's end (+12
+  and up), every Défi kill (`OnChallengeEvent`).
   Thrown on the floor with the loot where the ground loot is open, else in the bags, else by mail. Bound on pickup.
 
 ## Icons: the art direction

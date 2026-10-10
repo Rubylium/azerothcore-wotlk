@@ -291,8 +291,12 @@ constexpr float ChanceCeiling = 90.0f;
 LiveTuning::Knob const PitySharePct("legendary.upgrade_pity_pct", 12.5f);
 LiveTuning::Knob const GuaranteedAfter("legendary.upgrade_guaranteed_after", 50.0f);
 // The material's chance for each player of a high-end source (on top of its loot, never in place of any), and what
-// counts as one: gear of this item level or more
+// counts as one: gear of this item level or more. Each source passed without one raises the next chance by the step
+// (bad luck protection, kept per character in character_legendary_luck under MaterialSource, reset by a drop): 35,
+// 50, 65, 80, 95%, never six dry in a row - about one every 2.1 sources, where 35% alone left seven in a row dry
+// (2026-10-10: one chance in twenty, and no way to tell bad luck from a broken drop)
 LiveTuning::Knob const MaterialDropPct("legendary.material_drop_pct", 35.0f);
+LiveTuning::Knob const MaterialStepPct("legendary.material_step_pct", 15.0f);
 constexpr uint32 MaterialMinItemLevel = 250;
 // The material's rolls are once per instance and source, as the drops' (FirstRoll): its sources apart from theirs
 constexpr uint32 MaterialSource = 0x80000000;
@@ -1801,11 +1805,20 @@ void RollUpgradeMaterial(Player* player, uint32 itemLevel)
 {
     if (!player || !player->GetSession() || player->GetSession()->IsBot() || itemLevel < MaterialMinItemLevel)
         return;
+    ObjectGuid::LowType const guid = player->GetGUID().GetCounter();
+    uint32 misses = 0;
+    if (QueryResult result = CharacterDatabase.Query("SELECT misses FROM character_legendary_luck "
+        "WHERE guid = {} AND source = {}", guid, MaterialSource))
+        misses = result->Fetch()[0].Get<uint32>();
+    float const chance = std::min(100.0f, float(MaterialDropPct) + float(MaterialStepPct) * float(misses));
+    bool const found = frand(0.0f, 100.0f) < chance;
+    CharacterDatabase.Execute("REPLACE INTO character_legendary_luck (guid, source, misses) VALUES ({}, {}, {})",
+        guid, MaterialSource, found ? 0 : misses + 1);
     // Every roll in the log, the misses too: what a player's runs gave them can be read back
-    if (!roll_chance_f(float(MaterialDropPct)))
+    if (!found)
     {
-        LOG_INFO("module", "Legendary: {} rolled for the reinforcing material (item level {}, {:.0f}%): nothing",
-            player->GetName(), itemLevel, float(MaterialDropPct));
+        LOG_INFO("module", "Legendary: {} rolled for the reinforcing material (item level {}, {:.0f}%, {} dry before): "
+            "nothing", player->GetName(), itemLevel, chance, misses);
         return;
     }
     bool const french = player->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
@@ -1831,8 +1844,8 @@ void RollUpgradeMaterial(Player* player, uint32 itemLevel)
             MailSender(MAIL_NORMAL, 0, MAIL_STATIONERY_GM));
         CharacterDatabase.CommitTransaction(transaction);
     }
-    LOG_INFO("module", "Legendary: {} found the reinforcing material (item level {}){}", player->GetName(),
-        itemLevel, thrown ? ", on the floor" : "");
+    LOG_INFO("module", "Legendary: {} found the reinforcing material (item level {}, {:.0f}%){}", player->GetName(),
+        itemLevel, chance, thrown ? ", on the floor" : "");
 }
 }
 
