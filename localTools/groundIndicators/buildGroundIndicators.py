@@ -712,6 +712,9 @@ def fade_spell(spell):
         return spell + 200
     if 94200 <= spell < 94250:
         return spell + 300
+    # Le Traqueur d'évadés's looks (EscapeHunter.cpp Looks)
+    if 94860 <= spell < 94880:
+        return spell + 100
     raise SystemExit(f'spell {spell}: no fading twin range for it (fade_spell)')
 
 

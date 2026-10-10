@@ -1511,6 +1511,7 @@ function Get-IndicatorFadeSpell([int]$spell) {
     if ($spell -ge 90600 -and $spell -lt 90900) { return $spell + 6000 }
     if ($spell -ge 94000 -and $spell -lt 94200) { return $spell + 200 }
     if ($spell -ge 94200 -and $spell -lt 94250) { return $spell + 300 }
+    if ($spell -ge 94860 -and $spell -lt 94880) { return $spell + 100 }
     throw "Indicator spell $spell has no fading twin range."
 }
 foreach ($shape in $indicatorConfig.shapes) {

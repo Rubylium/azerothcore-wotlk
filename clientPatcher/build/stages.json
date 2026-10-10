@@ -35,6 +35,14 @@
                   "modules/mod-stat-growth/client-assets/compiled/INV_Vorhan_*.tga"]
     },
     {
+      "name": "traqueurIcons",
+      "label": "Icônes du Traqueur",
+      "command": ["python", "localTools/escapeHunter/buildIcons.py"],
+      "inputs": ["localTools/escapeHunter/buildIcons.py", "localTools/interface/buildLegendaryClientArt.py",
+                 "localTools/escapeHunter/art/ICON_*.png"],
+      "outputs": ["localTools/escapeHunter/iconsBuilt.json"]
+    },
+    {
       "name": "vorhanGaze",
       "label": "Œil de Vorhan",
       "command": ["python", "localTools/wardenVorhan/buildGazeUi.py"],

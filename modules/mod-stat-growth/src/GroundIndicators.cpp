@@ -592,6 +592,9 @@ uint32 FadeLookOf(uint32 look)
         return look + 200;
     if (look >= 94200 && look < 94250)
         return look + 300;
+    // Le Traqueur d'évadés's looks (EscapeHunter.cpp Looks)
+    if (look >= 94860 && look < 94880)
+        return look + 100;
     return 0;
 }
 
