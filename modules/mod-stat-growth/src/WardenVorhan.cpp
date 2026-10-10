@@ -198,7 +198,12 @@ constexpr float ExecutionGroupDistance = 12.0f; // bots: the group, in its gap
 constexpr float SeatNumberScale = 2.5f;
 constexpr uint32 SeatFlareEveryMs = 1000;
 constexpr uint32 BurntDelayMs = 1500;           // the floor burns this long after the strike: the time to step off
-constexpr uint32 BurntLastsMs = 2 * ExecutionEveryMs + 500;  // then goes out, two seconds before the next-but-two DOOM
+// Then burns until the DOOM after next strikes, as the order is drawn (BurningSeats: the two floors before a DOOM). It
+// burned two seconds past it at first: in every order the group holds one gap until the last DOOM, which strikes that
+// gap with both its cones, and the only one left was the floor of three DOOMs back, still burning as the group was
+// sent there - with the floor just struck lighting up on the way. Nothing was safe but his feet, and a player who
+// followed the bots round the outside died on it (2026-10-10).
+constexpr uint32 BurntLastsMs = 2 * ExecutionEveryMs - BurntDelayMs;
 constexpr uint32 BurntEveryMs = 1000;           // a player on it is struck at most this often
 constexpr float ExecutionPct = 60.0f;
 constexpr float BurntPct = 40.0f;
@@ -2135,17 +2140,6 @@ private:
         std::vector<uint8> seats = BurningSeats(_executionCalls, doom);
         seats.insert(seats.end(), _executionCalls[doom].begin(), _executionCalls[doom].end());
         std::vector<std::pair<float, int32>> gaps = GapsOf(CoveredDegrees(seats));
-        // The floor of three DOOMs back still burns as the group is sent off, for its first two seconds: kept clear of
-        // too when a gap wide enough is left (the bots held their spot on it, and it struck them twice)
-        if (doom >= 3)
-        {
-            std::vector<uint8> stricter = seats;
-            stricter.insert(stricter.end(), _executionCalls[doom - 3].begin(), _executionCalls[doom - 3].end());
-            std::vector<std::pair<float, int32>> const clear = GapsOf(CoveredDegrees(stricter));
-            if (std::any_of(clear.begin(), clear.end(),
-                    [](auto const& gap) { return gap.second >= ExecutionGroupGapDegrees; }))
-                gaps = clear;
-        }
         for (int32 wide : { ExecutionGroupGapDegrees, ExecutionMinGapDegrees })
             if (std::any_of(gaps.begin(), gaps.end(), [wide](auto const& gap) { return gap.second >= wide; }))
             {
