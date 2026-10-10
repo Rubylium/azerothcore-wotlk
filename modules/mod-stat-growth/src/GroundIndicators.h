@@ -68,12 +68,15 @@ namespace GroundIndicators
                     uint32 hitDamage = 0);
     Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
                        uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
+    // clearMiddle: its first yards from the apex are not in it (the bots may cross there: something else of the
+    // fight's guards it, at its own time - an execution's DOOM strikes the boss's feet, warned on its own)
     Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                  uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
+                  uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0, float clearMiddle = 0.0f);
     // A cone aimed at one unit (a tank buster that must land on its tank): that unit does not step out of it, and a
     // hit it takes from it does not count as standing in the red. Everyone else is to leave it.
     Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                       uint32 durationMs, Unit* aimedAt, Theme theme = Theme::None, uint32 hitDamage = 0);
+                       uint32 durationMs, Unit* aimedAt, Theme theme = Theme::None, uint32 hitDamage = 0,
+                       float clearMiddle = 0.0f);
     // A line from start that turns radiansPerSecond (negative: the other way) while it is drawn: a laser swept round.
     // No particles. Where it points after some time: CurrentSweep.
     // look: a painted line (shapes.json kind texture) drawn in place of the red, at width as given
@@ -373,6 +376,9 @@ namespace GroundIndicators
     // Whether spot is in an area unit would leave (FindEscape's): a bot's ordinary moves (chasing its target, getting
     // in range, its formation) are not to end there - only an escape crosses the red
     bool KeepsOutOf(Unit* unit, Position const& spot);
+    // Whether a straight move of unit to spot ends in such an area or crosses one on the way (a blink, a leap: no
+    // walking round it then)
+    bool CrossesAreas(Unit* unit, Position const& spot);
 
     // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
     // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it

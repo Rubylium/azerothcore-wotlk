@@ -110,6 +110,13 @@ constexpr uint32 SweepLookAheadSteps = 3;
 constexpr float EscapeDistanceSpread = 2.5f;
 constexpr float CrowdRadius = 3.0f;
 constexpr float CrowdCost = 4.0f;
+// A way out or to a goal is walked straight: the walk is checked every PathSampleStep yards for the areas it crosses
+// (other than the ones it starts in: those it is leaving). An escape crossing one costs PathCrossCost more than one
+// that does not (bots with fire on both sides of them walked through one, took its strike, then the other's: dead);
+// a goal behind one is reached by a detour (RouteAround), its waypoints sought over RouteDirections a ring.
+constexpr float PathSampleStep = 1.0f;
+constexpr float PathCrossCost = 60.0f;
+constexpr uint32 RouteDirections = 24;
 // An escape out of the soak a bot was given costs this much more than one within it (FindEscape)
 constexpr float OutOfSoakCost = 30.0f;
 
@@ -1077,6 +1084,28 @@ bool InAnyArea(std::vector<ActiveArea> const& areas, Position const& point, Obje
     return false;
 }
 
+// Whether a straight walk from `from` to `to` crosses an area: one it does not stand in at `from` (those it is
+// walking out of), a circle it carries itself aside
+bool PathCrosses(std::vector<ActiveArea> const& areas, Position const& from, Position const& to, ObjectGuid unit)
+{
+    float const length = from.GetExactDist2d(&to);
+    uint32 const steps = std::max<uint32>(1, uint32(length / PathSampleStep));
+    for (ActiveArea const& entry : areas)
+    {
+        if ((!entry.carrier.IsEmpty() && entry.carrier == unit) || entry.area.Contains(from, InsideMargin))
+            continue;
+        for (uint32 step = 1; step <= steps; ++step)
+        {
+            float const t = float(step) / float(steps);
+            Position const at(from.GetPositionX() + (to.GetPositionX() - from.GetPositionX()) * t,
+                from.GetPositionY() + (to.GetPositionY() - from.GetPositionY()) * t, from.GetPositionZ());
+            if (entry.area.Contains(at, 0.0f))
+                return true;
+        }
+    }
+    return false;
+}
+
 // A number of its own for each unit, the same every time: 0 to 1
 float UnitSpread(Unit* unit, uint32 salt)
 {
@@ -1575,11 +1604,12 @@ Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs)
 }
 
 Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-              uint32 durationMs, Theme theme, uint32 hitDamage)
+              uint32 durationMs, Theme theme, uint32 hitDamage, float clearMiddle)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
+    area.inner = clearMiddle;
     if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
     {
         Register(owner, nullptr, area, durationMs, hitDamage);
@@ -1589,11 +1619,12 @@ Area ShowCone(Unit* owner, Position const& apex, float orientation, float radius
 }
 
 Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                   uint32 durationMs, Unit* aimedAt, Theme theme, uint32 hitDamage)
+                   uint32 durationMs, Unit* aimedAt, Theme theme, uint32 hitDamage, float clearMiddle)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
     area.arc = shape.size * float(M_PI) / 180.0f;
+    area.inner = clearMiddle;
     if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
     {
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt ? aimedAt->GetGUID() : ObjectGuid::Empty);
@@ -1829,6 +1860,16 @@ bool KeepsOutOf(Unit* unit, Position const& spot)
     return !areas.empty() && InAnyArea(areas, spot, unit->GetGUID(), InsideMargin);
 }
 
+bool CrossesAreas(Unit* unit, Position const& spot)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Player* player = unit->ToPlayer();
+    std::vector<ActiveArea> const areas = AreasToLeave(unit, player && IsGroupTank(player));
+    return !areas.empty() && (InAnyArea(areas, spot, unit->GetGUID(), InsideMargin) ||
+        PathCrosses(areas, unit->GetPosition(), spot, unit->GetGUID()));
+}
+
 bool FindEscape(Unit* unit, Position& escape, bool tank)
 {
     if (!unit || !unit->IsInWorld() || !unit->IsAlive())
@@ -1860,11 +1901,12 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
     float const soakInside = std::max(soak.radius - SoakInsideMargin, 0.5f);
     float const distanceOffset = UnitSpread(unit, 2) * EscapeDistanceSpread;
     bool found = false;
+    bool foundClean = false;            // a spot whose walk crosses no other area
     float foundRing = 0.0f;
     Candidate best;
     for (uint32 directions : { EscapeDirections, EscapeDirectionsFine })
     {
-        if (found)
+        if (foundClean)
             break;
         float const angleOffset = UnitSpread(unit, 1) * 2.0f * float(M_PI) / directions;
         for (float ring = EscapeStep; ring <= EscapeReach; ring += EscapeStep)
@@ -1886,8 +1928,12 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
                 if (carried > 0.0f && OtherPlayerNear(unit, spot, carried + CarrierClearance))
                     continue;
 
-                // The shortest way out, and not too far from what it is fighting
+                // The shortest way out, and not too far from what it is fighting; never through another area when a
+                // way round it exists (fire on both sides: the middle, not through the fire)
+                bool const crosses = PathCrosses(areas, here, spot, unit->GetGUID());
                 float cost = here.GetExactDist2d(&spot);
+                if (crosses)
+                    cost += PathCrossCost;
                 if (victim)
                     cost += std::max(0.0f, spot.GetExactDist2d(victim) - here.GetExactDist2d(victim)) * 0.5f;
                 cost += CrowdCost * PlayersNear(unit, spot, CrowdRadius);
@@ -1895,17 +1941,21 @@ bool FindEscape(Unit* unit, Position& escape, bool tank)
                     cost += OutOfSoakCost;
                 if (!found || cost < best.cost)
                 {
-                    if (!found)
-                        foundRing = ring;
                     best.spot = spot;
                     best.cost = cost;
                     found = true;
                 }
+                if (!crosses && !foundClean)
+                {
+                    foundClean = true;
+                    foundRing = ring;
+                }
             }
 
-            // The nearest ring with a way out, and the one after it (an empty spot a step further beats a crowded one),
-            // are enough: any further only costs more
-            if (found && ring >= foundRing + EscapeStep &&
+            // The nearest ring with a clean way out, and the one after it (an empty spot a step further beats a
+            // crowded one), are enough: any further only costs more. A way through an area is kept only when no
+            // ring within reach has a clean one.
+            if (foundClean && ring >= foundRing + EscapeStep &&
                 (!soaking || best.spot.GetExactDist2d(&soak.center) <= soakInside || ring > 2.0f * soak.radius))
                 break;
         }
@@ -2429,7 +2479,64 @@ bool PlacesTanks(Unit* owner)
     return false;
 }
 
+// Where the fight wants a unit (its spot, its side of the boss, its soak), as the crow flies
+bool FindGoalSpot(Unit* unit, Position& spot, bool tank);
+
+// The way to a spot the fight wants a unit at: straight there when the walk crosses no area, else by a waypoint
+// clear of every area and reached and left by clean walks (fire on both sides of the seat: round through the middle),
+// the shortest such detour; straight there when none is found
+Position RouteAround(Unit* unit, bool tank, Position const& goal)
+{
+    std::vector<ActiveArea> const areas = AreasToLeave(unit, tank);
+    Position const here = unit->GetPosition();
+    if (areas.empty() || !PathCrosses(areas, here, goal, unit->GetGUID()))
+        return goal;
+
+    bool found = false;
+    float foundRing = 0.0f;
+    Candidate best;
+    for (float ring = EscapeStep; ring <= EscapeReach; ring += EscapeStep)
+    {
+        for (uint32 direction = 0; direction < RouteDirections; ++direction)
+        {
+            float const angle = 2.0f * float(M_PI) * direction / RouteDirections;
+            float x = here.GetPositionX() + ring * std::cos(angle);
+            float y = here.GetPositionY() + ring * std::sin(angle);
+            float z = here.GetPositionZ();
+            if (!unit->GetMap()->CheckCollisionAndGetValidCoords(unit, here.GetPositionX(), here.GetPositionY(),
+                here.GetPositionZ(), x, y, z))
+                continue;
+            Position const waypoint(x, y, z);
+            if (InAnyArea(areas, waypoint, unit->GetGUID(), EscapeMargin) ||
+                PathCrosses(areas, here, waypoint, unit->GetGUID()) ||
+                PathCrosses(areas, waypoint, goal, unit->GetGUID()))
+                continue;
+            float const cost = here.GetExactDist2d(&waypoint) + waypoint.GetExactDist2d(&goal);
+            if (!found || cost < best.cost)
+            {
+                if (!found)
+                    foundRing = ring;
+                best.spot = waypoint;
+                best.cost = cost;
+                found = true;
+            }
+        }
+        // A detour further out than the first ring that has one only gets longer
+        if (found && ring >= foundRing + 2.0f * EscapeStep)
+            break;
+    }
+    return found ? best.spot : goal;
+}
+
 bool FindGoal(Unit* unit, Position& spot, bool tank)
+{
+    if (!FindGoalSpot(unit, spot, tank))
+        return false;
+    spot = RouteAround(unit, tank, spot);
+    return true;
+}
+
+bool FindGoalSpot(Unit* unit, Position& spot, bool tank)
 {
     if (!unit || !unit->IsInWorld() || !unit->IsAlive())
         return false;
