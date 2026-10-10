@@ -65,3 +65,35 @@ def sigil(name):
     picture = icon(name, 520)
     out.paste(picture.convert('RGB'), ((size - 520) // 2, (size - 520) // 2), picture)
     return out.filter(ImageFilter.GaussianBlur(0.8))
+
+
+def stack_mark():
+    """La Fonte's soak over a healer: gold chevrons from four sides closing on a point - the half of the group joins
+    whoever wears it. 256 x 256 RGBA"""
+    size = 256
+    scale = 4
+    big = size * scale
+    out = Image.new('RGBA', (big, big), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(out)
+    centre = big / 2
+    gold = (255, 205, 70, 255)
+    dark = (60, 30, 0, 200)
+    for angle in (0, 90, 180, 270):
+        # A chevron pointing at the middle, its tip 30% out
+        tip = 0.20 * big
+        wing = 0.40 * big
+        spread = 0.16 * big
+
+        def point(along, across):
+            if angle == 0:
+                return (centre + across, centre - along)
+            if angle == 90:
+                return (centre + along, centre + across)
+            if angle == 180:
+                return (centre - across, centre + along)
+            return (centre - along, centre - across)
+        shape = [point(tip, 0), point(wing, -spread), point(wing - 0.08 * big, 0), point(wing, spread)]
+        draw.polygon(shape, fill=gold, outline=dark)
+    draw.ellipse((centre - 0.06 * big, centre - 0.06 * big, centre + 0.06 * big, centre + 0.06 * big), fill=gold,
+                 outline=dark, width=6)
+    return out.resize((size, size), Image.LANCZOS)

@@ -126,6 +126,23 @@ constexpr float IngotDistance = 8.0f;
 constexpr uint32 LOOK_INGOT_MARK = 94860;
 constexpr uint32 LOOK_INGOT_SIGIL = 94864;
 constexpr uint32 IngotCount = 4;
+// La Fonte's waves carrying a mechanic: shown this long ahead (the plain ones WarnBeats / FollowBeats)
+constexpr uint32 MechanicWarnBeats = 12;
+// Its spread: 4 marked, each a SpreadRadius circle on the others; the safe half holds exactly five such spots (four at
+// the wall, SpreadWall out, at SpreadAngles of its axis, and one SpreadStack from the middle on it, for the others) -
+// six cannot be (at most 10.1 yd apart in a half of the arena)
+constexpr uint32 SpreadMarks = 4;
+constexpr float SpreadRadius = 10.4f;
+constexpr float SpreadWall = 13.6f;
+constexpr float SpreadStack = 2.5f;
+constexpr std::array<float, 4> SpreadAngles = { -85.8f, -29.6f, 29.6f, 85.8f };
+// Its soaks: a coulée on each healer (a mark over them, nothing on the floor), shared by whoever stands within
+// SoakRadius - SoakTotalPct of the profile split between them (four: 45% each); each share taken leaves Métal en
+// fusion for MoltenMs, which doubles the next share (two at once: death)
+constexpr float SoakRadius = 4.0f;
+constexpr float SoakTotalPct = 180.0f;
+constexpr uint32 MoltenMs = 6000;
+constexpr uint32 LOOK_STACK_MARK = 94868;   // shapes.json VR_StackMark (localTools/escapeHunter/ingotArt.py)
 constexpr float MarkedRadius = 8.0f;
 constexpr float HammerSoakRadius = 6.0f;
 constexpr uint32 MarkBeats = 12;
@@ -154,6 +171,9 @@ enum Spells : uint32
     SPELL_RETURN            = 94816,    // Retour de la fournaise
     SPELL_CHECK             = 94817,    // Coulée finale
     SPELL_WALL              = 94818,    // Mur de fonte (the arena's wall)
+    SPELL_SPREAD_HIT        = 94819,    // Gerbe de fonte (la Fonte's spread, on the others in a circle)
+    SPELL_SOAK              = 94824,    // Coulée partagée (la Fonte's soak, shared)
+    SPELL_MOLTEN            = 94823,    // Métal en fusion (a share taken: the next one doubled)
     SPELL_BURN              = 94820,    // Brûlure (his tank's stacks)
     SPELL_SCALD             = 94821,    // Ébouillanté (a mistake)
     SPELL_MARKED            = 94822,    // Fer rouge (le Marteau's mark)
@@ -304,6 +324,7 @@ Rule const RuleSteam = { SPELL_STEAM, 100.0f, "steam", "Vrogar.Steam" };
 Rule const RuleFlood = { SPELL_FLOOD, 100.0f, "flood", "Vrogar.Flood" };
 Rule const RuleBellows = { SPELL_BELLOWS, 100.0f, "bellows", "Vrogar.BellowsFire" };
 Rule const RuleFonte = { SPELL_FONTE, 100.0f, "fonte", "Vrogar.Fonte" };
+Rule const RuleSpread = { SPELL_SPREAD_HIT, DodgePct, "fonte spread" };
 
 bool IsHealer(Player* player)
 {
@@ -515,8 +536,8 @@ struct boss_forge_master : public Defi::BossAI
         step.beat = CurrentBeat(Grid) + 1;
         if (step.what == Event::FonteStart)
         {
-            // In the lab: the intermission's floor alone, a few bars of it
-            FonteFloor(step.beat, step.beat + 48);
+            // In the lab: the intermission's floor alone
+            FonteFloor(step.beat);
             return true;
         }
         AtBeat(Grid, step.beat, [this, step]() { Execute(step); });
@@ -1380,40 +1401,226 @@ private:
             me->NearTeleportTo(middle.GetPositionX(), middle.GetPositionY(), middle.GetPositionZ(),
                 me->GetOrientation());
         });
-        FonteFloor(start + 4, FonteEndBeat);
+        FonteFloor(start + 4);
     }
 
-    // From `from` to `to`: every other bar (on its kick) the floor burns but for two adjacent slices of eight; the safe
-    // pair steps one slice clockwise each time (shown a bar ahead), then in the second half jumps across (shown a bar
-    // and a half ahead). One burn on the floor at a time: two overlapping read as one red disc
-    void FonteFloor(uint32 from, uint32 to)
+    // La Fonte's floor from `from` (the 2:04.0 breakdown): eight slices round the middle, all but the safe ones burning
+    // on each wave, one floor at a time. Two adjacent slices safe stepping round clockwise, then jumping across; the
+    // waves carrying a mechanic are shown MechanicWarnBeats ahead: a spread (the safe half: four marked, five spots)
+    // and the healers' soaks (two opposite pairs safe: the group splits). Plan: "La Fonte v2".
+    enum class FonteKind : uint8 { Step, Jump, Spread, Soak };
+
+    void FonteFloor(uint32 from)
     {
+        struct FonteWave { uint32 lands; uint32 warn; FonteKind kind; };
+        // From the breakdown's first beat (from = 324): beats 332 to 412, his return on 416
+        std::array<FonteWave, 9> const waves = { {
+            { from + 8, WarnBeats, FonteKind::Step }, { from + 16, FollowBeats, FonteKind::Step },
+            { from + 28, MechanicWarnBeats, FonteKind::Spread }, { from + 36, FollowBeats, FonteKind::Step },
+            { from + 48, MechanicWarnBeats, FonteKind::Soak }, { from + 56, WarnBeats, FonteKind::Jump },
+            { from + 64, WarnBeats, FonteKind::Jump }, { from + 76, MechanicWarnBeats, FonteKind::Spread },
+            { from + 88, MechanicWarnBeats, FonteKind::Soak },
+        } };
+        _spreadBefore.clear();
         uint32 safe = urand(0, 7);
-        uint32 const half = from + (to - from) / 2;
-        for (uint32 lands = from + WarnBeats; lands + 1 < to; lands += 8)
+        for (FonteWave const& wave : waves)
         {
-            bool const jumps = lands >= half;
-            uint32 const warn = lands == from + WarnBeats || jumps ? WarnBeats : FollowBeats;
+            if (wave.kind == FonteKind::Jump)
+                safe = (safe + 4) % 8;
             uint32 const pair = safe;
-            Wave(lands - warn, lands, [this, pair](uint32 ms)
+            // The slices safe this wave (counterclockwise from the first)
+            std::vector<uint32> safeSlices;
+            if (wave.kind == FonteKind::Spread)
+                safeSlices = { (pair + 7) % 8, pair, (pair + 1) % 8, (pair + 2) % 8 };
+            else if (wave.kind == FonteKind::Soak)
+                safeSlices = { pair, (pair + 1) % 8, (pair + 4) % 8, (pair + 5) % 8 };
+            else
+                safeSlices = { pair, (pair + 1) % 8 };
+            uint32 const shown = wave.lands - wave.warn;
+            Wave(shown, wave.lands, [this, safeSlices](uint32 ms) { return BurnAllBut(safeSlices, ms); }, RuleFonte);
+            if (wave.kind == FonteKind::Spread)
             {
-                // Three quarters burning, drawn as one: a half and a quarter side by side, from the safe pair's edge
-                // round (eight slices drawn apart read as a pink disc, the gap lost in it)
-                Position const middle = Middle();
-                float const safeEnd = float(pair + 2) * float(M_PI) / 4.0f;
-                Areas burning;
-                for (auto const& [centre, arc] : { std::pair{ safeEnd + float(M_PI) / 2.0f, 180.0f },
-                                                   std::pair{ safeEnd + float(M_PI) * 1.25f, 90.0f } })
-                {
-                    Position apex = middle;
-                    apex.SetOrientation(centre);
-                    burning.push_back(GroundIndicators::ShowCone(me, apex, centre, ArenaRadius + 1.0f, arc, ms,
-                        GroundIndicators::Theme::None, MistakeDamage));
-                }
-                return burning;
-            }, RuleFonte);
+                // The safe half's axis: the middle of its four slices
+                float const axis = float((pair + 1) % 8) * float(M_PI) / 4.0f;
+                AtBeat(Grid, shown, [this, axis, lands = wave.lands]() { FonteSpread(axis, lands); });
+            }
+            else if (wave.kind == FonteKind::Soak)
+                AtBeat(Grid, shown, [this, pair, lands = wave.lands]() { FonteSoaks(pair, lands); });
             // Clockwise: the slices are numbered counterclockwise (the orientation's way)
-            safe = jumps ? (safe + 4) % 8 : (safe + 7) % 8;
+            if (wave.kind == FonteKind::Step)
+                safe = (safe + 7) % 8;
+        }
+    }
+
+    // Every slice but `safe` burning: each run of burning slices drawn as few cones as it takes (a half, a quarter, an
+    // eighth: eight slices drawn apart read as a pink disc, the gaps lost in it)
+    Areas BurnAllBut(std::vector<uint32> const& safe, uint32 ms)
+    {
+        std::array<bool, 8> burning;
+        burning.fill(true);
+        for (uint32 slice : safe)
+            burning[slice] = false;
+        // Start the walk on a safe slice: every burning run is then whole
+        uint32 const first = safe.front();
+        Areas areas;
+        Position const middle = Middle();
+        uint32 index = 0;
+        while (index < 8)
+        {
+            uint32 const slice = (first + index) % 8;
+            if (!burning[slice])
+            {
+                ++index;
+                continue;
+            }
+            uint32 run = 0;
+            while (index + run < 8 && burning[(first + index + run) % 8])
+                ++run;
+            // Half, quarter, eighth pieces along the run
+            uint32 done = 0;
+            while (done < run)
+            {
+                uint32 const piece = run - done >= 4 ? 4 : run - done >= 2 ? 2 : 1;
+                float const startAngle = float((first + index + done) % 8) * float(M_PI) / 4.0f;
+                float const centre = startAngle + float(piece) * float(M_PI) / 8.0f;
+                Position apex = middle;
+                apex.SetOrientation(centre);
+                areas.push_back(GroundIndicators::ShowCone(me, apex, centre, ArenaRadius + 1.0f, 45.0f * float(piece),
+                    ms, GroundIndicators::Theme::None, MistakeDamage));
+                done += piece;
+            }
+            index += run;
+        }
+        return areas;
+    }
+
+    // The spread: SpreadMarks players (others than the last spread's where it can) each carry a SpreadRadius circle
+    // until the floor lands; then anyone else in one is struck. The bots to the five spots (the players find them)
+    void FonteSpread(float axis, uint32 lands)
+    {
+        std::vector<Player*> players = ArenaPlayers();
+        Acore::Containers::RandomShuffle(players);
+        std::stable_sort(players.begin(), players.end(), [this](Player* left, Player* right)
+            { return !_spreadBefore.count(left->GetGUID()) && _spreadBefore.count(right->GetGUID()); });
+        uint32 const marks = std::min<uint32>(SpreadMarks, uint32(players.size()));
+        uint32 const ms = MsTo(lands);
+        Position const middle = Middle();
+        std::vector<ObjectGuid> carriers;
+        _spreadBefore.clear();
+        for (uint32 index = 0; index < players.size(); ++index)
+        {
+            Player* player = players[index];
+            if (index < marks)
+            {
+                GroundIndicators::ShowCarriedCircle(me, player, SpreadRadius, ms, MistakeDamage);
+                GroundIndicators::SetUnitSpot(me, player,
+                    AtAngle(middle, axis + SpreadAngles[index] * float(M_PI) / 180.0f, SpreadWall), 1.0f, ms);
+                carriers.push_back(player->GetGUID());
+                _spreadBefore.insert(player->GetGUID());
+            }
+            else
+                GroundIndicators::SetUnitSpot(me, player, AtAngle(middle, axis, SpreadStack), 1.5f, ms);
+        }
+        AtBeat(Grid, lands, [this, carriers]()
+        {
+            for (Player* player : ArenaPlayers())
+                GroundIndicators::EndUnitSpot(me, player);
+            if (_phase == Phase::Rehearsal)
+                return;
+            for (ObjectGuid const& guid : carriers)
+                if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid); carrier && carrier->IsAlive())
+                    for (Player* player : ArenaPlayers())
+                        if (player != carrier && player->GetExactDist2d(carrier) <= SpreadRadius)
+                            Mistake(player, RuleSpread);
+        });
+    }
+
+    // The healers' soaks: a mark over each healer (two; others when there are fewer), nothing on the floor; when the
+    // floor lands, a coulée on each shared by whoever stands within SoakRadius. Its halves: each healer with a tank and
+    // two others, to the safe pair nearest it (the bots follow their healer; a healer bot goes to its pair)
+    void FonteSoaks(uint32 pair, uint32 lands)
+    {
+        std::vector<Player*> players = ArenaPlayers();
+        Acore::Containers::RandomShuffle(players);
+        std::stable_sort(players.begin(), players.end(), [](Player* left, Player* right)
+            { return IsHealer(left) && !IsHealer(right); });
+        // The marked: the healers first, then whoever is not a tank
+        std::vector<Player*> marked;
+        for (Player* player : players)
+            if (marked.size() < 2 && (IsHealer(player) || !IsTank(player)))
+                marked.push_back(player);
+        if (marked.empty())
+            return;
+        uint32 const ms = MsTo(lands);
+        Position const middle = Middle();
+        std::array<Position, 2> const sides = { AtAngle(middle, float(pair + 1) * float(M_PI) / 4.0f, 9.0f),
+                                                AtAngle(middle, float(pair + 5) * float(M_PI) / 4.0f, 9.0f) };
+        // Each marked to the side nearest it, the second to the other
+        if (marked.size() == 2 && marked[0]->GetExactDist2d(&sides[1]) + marked[1]->GetExactDist2d(&sides[0]) <
+            marked[0]->GetExactDist2d(&sides[0]) + marked[1]->GetExactDist2d(&sides[1]))
+            std::swap(marked[0], marked[1]);
+        std::vector<ObjectGuid> marks;
+        std::map<ObjectGuid, ObjectGuid> follows;     // a bot -> the marked player it soaks with
+        for (uint32 index = 0; index < marked.size(); ++index)
+        {
+            GroundIndicators::ShowCarriedLook(marked[index], LOOK_STACK_MARK, ms);
+            GroundIndicators::SetUnitSpot(me, marked[index], sides[index], 2.0f, ms);
+            marks.push_back(marked[index]->GetGUID());
+        }
+        // The halves: tanks shared out first, then the rest in turn
+        std::vector<Player*> rest;
+        for (Player* player : players)
+            if (std::find(marked.begin(), marked.end(), player) == marked.end())
+                rest.push_back(player);
+        std::stable_sort(rest.begin(), rest.end(), [](Player* left, Player* right)
+            { return IsTank(left) && !IsTank(right); });
+        for (uint32 index = 0; index < rest.size(); ++index)
+            follows[rest[index]->GetGUID()] = marks[index % marks.size()];
+        FollowSoaks(follows, lands);
+        AtBeat(Grid, lands, [this, marks]()
+        {
+            for (Player* player : ArenaPlayers())
+                GroundIndicators::EndUnitSpot(me, player);
+            for (ObjectGuid const& guid : marks)
+                if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
+                    StrikeSoak(carrier);
+        });
+    }
+
+    // The bots of each half kept on their marked player as it moves, until the soak lands
+    void FollowSoaks(std::map<ObjectGuid, ObjectGuid> const& follows, uint32 lands)
+    {
+        if (CurrentBeat(Grid) >= lands || _phase == Phase::Over)
+            return;
+        uint32 const ms = MsTo(lands);
+        for (auto const& [guid, markGuid] : follows)
+            if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                if (Player* mark = ObjectAccessor::GetPlayer(*me, markGuid))
+                    GroundIndicators::SetUnitSpot(me, player, mark->GetPosition(), SoakRadius - 1.5f, ms);
+        scheduler.Schedule(400ms, [this, follows, lands](TaskContext) { FollowSoaks(follows, lands); });
+    }
+
+    // A soak landing on its marked player: SoakTotalPct shared by all within SoakRadius, doubled on whoever still has
+    // Métal en fusion from one before
+    void StrikeSoak(Player* carrier)
+    {
+        GroundIndicators::Burst(me, carrier->GetPosition(), GroundIndicators::Theme::Fire);
+        Sound("Vrogar.Pour", carrier->GetPosition());
+        std::vector<Player*> in;
+        for (Player* player : ArenaPlayers())
+            if (player->GetExactDist2d(carrier) <= SoakRadius)
+                in.push_back(player);
+        LOG_INFO(_logName, "Vrogar soak instance={} at={:.1f}s on={} shared by {}", me->GetInstanceId(),
+                 Elapsed() / 1000.0f, carrier->GetName(), in.size());
+        if (_phase == Phase::Rehearsal || in.empty())
+            return;
+        float const share = SoakTotalPct / float(in.size());
+        for (Player* player : in)
+        {
+            bool const molten = player->HasAura(SPELL_MOLTEN);
+            Hit(player, SPELL_SOAK, molten ? share * 2.0f : share);
+            if (player->IsAlive())
+                AddTimedAura(player, SPELL_MOLTEN, MoltenMs);
         }
     }
 
@@ -1567,6 +1774,7 @@ private:
     float _troughAngle = 0.0f;
     float _crucibleAngle = 0.0f;
     std::vector<ObjectGuid> _props;
+    std::set<ObjectGuid> _spreadBefore;     // la Fonte's last spread: its marked, others marked first next time
     std::map<std::string, uint32> _deaths;
     std::set<ObjectGuid> _fallen;
 };

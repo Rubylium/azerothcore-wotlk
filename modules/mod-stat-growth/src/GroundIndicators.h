@@ -389,6 +389,10 @@ namespace GroundIndicators
     // than where it stands strikes: an ordinary move waits for it to strike instead (rings struck in turn: back to its
     // boss through the next one)
     bool StruckOnTheWay(Unit* unit, Position const& goal);
+    // Whether the fight gave unit a spot of its own (SetUnitSpot) it is not on yet, clear of what will strike there
+    // and on the way: it goes there before anything else - the fight placed it (a spread's spot, its soak's side).
+    // The circles players carry are left out (the fight placed them too); in its escapes as well.
+    bool FindOwnSpot(Unit* unit, Position& spot);
 
     // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
     // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it

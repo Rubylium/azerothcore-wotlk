@@ -2065,12 +2065,30 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, std::vector<A
     return found;
 }
 
+// The spot of its own the fight gave unit (SetUnitSpot), if it has one
+bool OwnSpot(Unit* unit, Goal& own)
+{
+    for (Goal const& goal : GoalsAround(unit))
+        if (goal.kind == Goal::Kind::Unit && goal.tank == unit->GetGUID())
+        {
+            own = goal;
+            return true;
+        }
+    return false;
+}
+
 bool FindEscape(Unit* unit, Position& escape, bool tank)
 {
     if (!unit || !unit->IsInWorld() || !unit->IsAlive())
         return false;
 
-    std::vector<ActiveArea> const areas = AreasToLeave(unit, tank);
+    std::vector<ActiveArea> areas = AreasToLeave(unit, tank);
+    // A bot the fight placed (a spot of its own) leaves the circles players carry to the fight's placing: a spread's,
+    // where each has its spot - stepping away from them pushed it off its own, into another's
+    Goal own;
+    if (OwnSpot(unit, own))
+        areas.erase(std::remove_if(areas.begin(), areas.end(),
+            [](ActiveArea const& entry) { return !entry.carrier.IsEmpty(); }), areas.end());
     if (areas.empty())
         return false;
     if (EscapeAmong(unit, areas, areas, escape, tank, false))
@@ -2661,6 +2679,25 @@ Position RouteAround(Unit* unit, bool tank, Position const& goal)
             break;
     }
     return found ? best.spot : goal;
+}
+
+bool FindOwnSpot(Unit* unit, Position& spot)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Goal own;
+    if (!OwnSpot(unit, own) || unit->GetExactDist2d(&own.center) <= own.radius)
+        return false;
+    // Not to a spot about to burn, nor through red striking before it is there (it waits); the circles players carry
+    // are the fight's to place
+    Player* player = unit->ToPlayer();
+    std::vector<ActiveArea> areas = AreasToLeave(unit, player && IsGroupTank(player));
+    areas.erase(std::remove_if(areas.begin(), areas.end(),
+        [](ActiveArea const& entry) { return !entry.carrier.IsEmpty(); }), areas.end());
+    if (InAnyArea(areas, own.center, unit->GetGUID(), InsideMargin) || StruckOnTheWay(unit, own.center))
+        return false;
+    spot = own.center;
+    return true;
 }
 
 bool StruckOnTheWay(Unit* unit, Position const& goal)

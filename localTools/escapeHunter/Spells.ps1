@@ -74,6 +74,10 @@ $spells = @(
         "Le moule n'était pas prêt : la fonte a tout recouvert."),
     (New-Hit 94818 'Mur de fonte' 11366 $fire `
         "Le mur de l'arène est de fonte : on ne le traverse pas."),
+    (New-Hit 94819 'Gerbe de fonte' 11366 $fire `
+        "La fonte a jailli de quelqu'un près de vous. Écartez-vous de ceux qui la portent."),
+    (New-Hit 94824 'Coulée partagée' 11366 $fire `
+        "Une coulée sur un soigneur, partagée par ceux qui l'entourent. Seul, elle tue."),
 
     # --- The debuffs ---
     (New-Debuff 94820 'Brûlure' 25203 10 `
@@ -82,6 +86,8 @@ $spells = @(
         "Une erreur : la prochaine sera mortelle." "Une seconde erreur est mortelle."),
     (New-Debuff 94822 'Fer rouge' 25203 1 `
         "Son marteau va tomber sur vous." "Son marteau va tomber sur vous : éloignez-vous de tous."),
+    (New-Debuff 94823 'Métal en fusion' 11366 1 `
+        "Une coulée partagée vous a touché." "Une autre coulée partagée vous frappe deux fois plus fort."),
 
     # --- His cast bars ---
     (New-Cast 94840 "Coup d'enclume" 25203 152 "Le Maître-fondeur lève son marteau."),

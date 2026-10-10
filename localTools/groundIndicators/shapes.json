@@ -200,6 +200,7 @@
     {"key": "VR_IngotSigilStar", "kind": "image", "picture": "localTools/escapeHunter/ingotArt.py:sigil", "args": ["star"], "size": 1024, "keyed": 0.12, "brightness": 1.0, "alpha": 0.95, "spell": 94864},
     {"key": "VR_IngotSigilCircle", "kind": "image", "picture": "localTools/escapeHunter/ingotArt.py:sigil", "args": ["circle"], "size": 1024, "keyed": 0.12, "brightness": 1.0, "alpha": 0.95, "spell": 94865},
     {"key": "VR_IngotSigilDiamond", "kind": "image", "picture": "localTools/escapeHunter/ingotArt.py:sigil", "args": ["diamond"], "size": 1024, "keyed": 0.12, "brightness": 1.0, "alpha": 0.95, "spell": 94866},
-    {"key": "VR_IngotSigilTriangle", "kind": "image", "picture": "localTools/escapeHunter/ingotArt.py:sigil", "args": ["triangle"], "size": 1024, "keyed": 0.12, "brightness": 1.0, "alpha": 0.95, "spell": 94867}
+    {"key": "VR_IngotSigilTriangle", "kind": "image", "picture": "localTools/escapeHunter/ingotArt.py:sigil", "args": ["triangle"], "size": 1024, "keyed": 0.12, "brightness": 1.0, "alpha": 0.95, "spell": 94867},
+    {"key": "VR_StackMark", "kind": "billboard", "picture": "localTools/escapeHunter/ingotArt.py:stack_mark", "width": 1.8, "height": 1.8, "elevation": 3.4, "carried": true, "title": "Coulée partagée", "description": "Une coulée va tomber sur vous : votre moitié du groupe vous rejoint.", "spell": 94868}
   ]
 }
