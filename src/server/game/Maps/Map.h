@@ -750,6 +750,9 @@ public:
     void SendResetWarnings(uint32 timeLeft) const;
 
     [[nodiscard]] uint32 GetMaxPlayers() const;
+    // Evolutions: an instance's own player cap over its map's (mod-playerbots ChallengeBoard: a Défi of a 5-player
+    // dungeon takes its 8-player group); 0 leaves the map's
+    void SetMaxPlayers(uint32 count) { _maxPlayers = count; }
     [[nodiscard]] uint32 GetMaxResetDelay() const;
 
     void InitVisibilityDistance() override;
@@ -761,6 +764,7 @@ private:
     bool m_unloadWhenEmpty;
     InstanceScript* instance_data;
     uint32 i_script_id;
+    uint32 _maxPlayers = 0;
 };
 
 class BattlegroundMap : public Map

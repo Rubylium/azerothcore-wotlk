@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Le Traqueur d'évadés's music (the Hellfire Gaol's second gate, EscapeHunter.cpp), played by our own sound engine",
+    "as music: the game's own music silent meanwhile. The whole track, played once from the pull: the fight is timed on",
+    "it (155 BPM, its sections on bars, plan: .agents/plans/escape-hunter), and the server silences it as it ends - the",
+    "engine would loop it (loopStart 0) past the track's own fade-out, never reached."
+  ],
+  "sounds": {
+    "Music.EscapeHunter": {
+      "kind": "music",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/escapeHunter/prison_second_boss_music.ogg"
+      ],
+      "loopStart": 0
+    }
+  }
+}

@@ -41,6 +41,7 @@
 #include <array>
 #include <map>
 #include <set>
+#include <span>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -62,6 +63,18 @@ constexpr std::array<std::array<uint32, 8>, 4> ArmourSets = { {
     { 13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717 },   // Harnois du Gardien-chef
 } };
 constexpr std::array<uint32, 3> SharedPieces = { 13696, 13697, 12187 };   // Clé de cellule, Anneau de matricule, Cape
+// The Gaol's gates share its gear, by slot: Vorhan the head, shoulders, chest and legs, the neck and the cloak (and his
+// trinkets); the Traqueur d'évadés the hands, wrists, waist and feet, the ring and the weapons (indices into a set,
+// head to feet: head, shoulders, chest, hands, legs, wrists, waist, feet)
+enum class Gate : uint8
+{
+    WardenVorhan,
+    EscapeHunter,
+};
+constexpr std::array<uint8, 4> VorhanSlots = { 0, 1, 2, 4 };
+constexpr std::array<uint8, 4> HunterSlots = { 3, 5, 6, 7 };
+constexpr std::array<uint32, 2> VorhanShared = { 13696, 12187 };          // Clé de cellule, Cape du geôlier
+constexpr std::array<uint32, 1> HunterShared = { 13697 };                 // Anneau de matricule
 // His weapons, one a kind: Midnight's raid and dungeon weapons in their green colourway (localTools/retailImport
 // items.json: a free Item.dbc row each, its look converted by a wow-retail-backport project)
 constexpr std::array<uint32, 16> WeaponRows = {
@@ -408,17 +421,25 @@ uint32 DrawWeaponRow(Player* player)
     return suited.empty() ? 0 : Acore::Containers::SelectRandomContainerElement(suited);
 }
 
-// One of the player's armour type's eight pieces, a shared one or a weapon (as likely as any one piece), at random
-uint32 DrawRow(Player* player)
+// One of a gate's pieces for the player, at random: a slot of their armour type's set, a shared piece, or - the
+// Traqueur's - a weapon (as likely as any one piece; a slot's piece when no weapon suits them)
+uint32 DrawRow(Player* player, Gate gate = Gate::WardenVorhan)
 {
-    uint32 const pick = urand(0, uint32(ArmourSets[0].size() + SharedPieces.size()));
-    if (pick == ArmourSets[0].size() + SharedPieces.size())
+    bool const hunter = gate == Gate::EscapeHunter;
+    std::vector<uint32> pieces;
+    for (uint8 slot : hunter ? std::span<uint8 const>(HunterSlots) : std::span<uint8 const>(VorhanSlots))
+        pieces.push_back(ArmourSets[ArmorType(player)][slot]);
+    size_t const armour = pieces.size();
+    for (uint32 row : hunter ? std::span<uint32 const>(HunterShared) : std::span<uint32 const>(VorhanShared))
+        pieces.push_back(row);
+    uint32 const pick = urand(0, uint32(pieces.size() - (hunter ? 0 : 1)));
+    if (pick == pieces.size())
+    {
         if (uint32 const weapon = DrawWeaponRow(player))
             return weapon;
-    if (pick >= ArmourSets[0].size() + SharedPieces.size())
-        return ArmourSets[ArmorType(player)][urand(0, uint32(ArmourSets[0].size() - 1))];
-    return pick < ArmourSets[0].size() ? ArmourSets[ArmorType(player)][pick] :
-        SharedPieces[pick - ArmourSets[0].size()];
+        return pieces[urand(0, uint32(armour - 1))];
+    }
+    return pieces[pick];
 }
 
 class SetPieceWorldScript : public WorldScript
@@ -516,6 +537,25 @@ void GiveWardenVorhanLootItem(Player* player, uint32 /*itemLevel*/)
         return;
     }
     uint32 const row = DrawRow(player);
+    ItemTemplate const* item = FitPiece(player, row);
+    if (!item)
+    {
+        LOG_ERROR("module", "Legendary: no set piece of {} for {}", row, player->GetName());
+        return;
+    }
+    if (!GroundLoot::Throw(player, item, {}))
+        StoreMythicItem(player, item, {});
+}
+
+// A piece of the Gaol's gear the Traqueur d'évadés keeps (mod-playerbots ChallengeBoard.cpp: his win), of the profile
+// that suits the player, thrown on the floor with his loot as any raid item
+void GiveEscapeHunterLootItem(Player* player, uint32 /*itemLevel*/)
+{
+    using namespace Legendary;
+    if (!player)
+        return;
+    LootFit::DrawnRole const drawn(player);
+    uint32 const row = DrawRow(player, Gate::EscapeHunter);
     ItemTemplate const* item = FitPiece(player, row);
     if (!item)
     {

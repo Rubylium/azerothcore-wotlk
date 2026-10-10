@@ -2326,6 +2326,9 @@ MapDifficulty const* Map::GetMapDifficulty() const
 
 uint32 InstanceMap::GetMaxPlayers() const
 {
+    if (_maxPlayers)
+        return _maxPlayers;
+
     MapDifficulty const* mapDiff = GetMapDifficulty();
     if (mapDiff && mapDiff->maxPlayers)
         return mapDiff->maxPlayers;
