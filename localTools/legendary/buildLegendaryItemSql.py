@@ -82,6 +82,8 @@ LEGENDARIES = [
     (13696, 28789, "Clé de cellule", "Cell Key"),
     (13697, 28789, "Anneau de matricule", "Inmate Ring"),
     (12187, 33590, "Cape du geôlier", "Jailer's Cloak"),
+    # Gardien-chef Vorhan's Unique: a trinket on a free row, the Eye of Magtheridon's template
+    (17855, 28789, "Sablier de Perpétuité", "Hourglass of Perpetuity"),
 ]
 # Epic: the warden's sets
 EPIC = {13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717, 13672, 13673, 13674, 13675, 13676, 13677, 13678, 13679, 13680, 13681, 13682, 13683, 13684, 13685, 13686, 13687, 13688, 13689, 13690, 13691, 13692, 13693, 13694, 13695, 13696, 13697, 12187}
@@ -122,11 +124,12 @@ ROW_OVERRIDES = {
     13695: (4, 1, 7, 8, 0),
     13696: (4, 0, 4, 2, 0),
     13697: (4, 0, 4, 11, 0),
-    12187: (4, 1, 7, 16, 0)
+    12187: (4, 1, 7, 16, 0),
+    17855: (4, 0, 4, 12, 0),
 }
 # Rows made another slot by localTools/patchSinisterStrike.ps1 ($legendaryItems InventoryType): the stock row is read
 INVENTORY_TYPES = {16067: 12}
-UNIQUE = {10555}
+UNIQUE = {10555, 17855}
 
 
 # Every legendary base (the three Scarlet Cathedral ones written by hand above the generated block, the others below)

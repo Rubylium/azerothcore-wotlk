@@ -232,7 +232,18 @@ $spells += @(
     # The star itself: a buff counting down to its collapse (20 sec, Sprint's helpful row, a dummy aura, no look)
     (New-Mark 97922 2983 'Étoile captive' 'INV_Legendary_EtoileCaptive' 64443 18 0 `
         "Vos dégâts et vos soins nourrissent une étoile captive." `
-        "Se nourrit de vos dégâts et de vos soins. S'effondre à la fin du temps restant.")
+        "Se nourrit de vos dégâts et de vos soins. S'effondre à la fin du temps restant."),
+
+    # --- Gardien-chef Vorhan: Sablier de Perpétuité, the Unique ---
+    # The sentence on the target, every 4 sec, Shadow: Shadow Word: Death's dark blow (visual 8069)
+    (New-Damage 97930 'Perpétuité' 'INV_Unique_SablierPerpetuite' 48158 32 8069 `
+        'La peine de votre cible s''alourdit à chaque sentence.'),
+    # Its mark on the target: a debuff whose stacks count the sentences so far (up to 5), timed by mod-legendary
+    # (Sprint's row made a dummy debuff, as the warden's own debuffs)
+    @{ Id = 97931; Clone = 2983; Name = 'Perpétuité'; Icon = 'INV_Unique_SablierPerpetuite'; FallbackIconSpell = 48158; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 5; Spellbook = $false
+       Description = 'Condamné à perpétuité : chaque sentence est plus lourde que la précédente.'
+       AuraDescription = 'Condamné : chaque sentence est plus lourde que la précédente.'
+       Fields = @{ 4 = 0x04000000; 40 = 18 } }
 )
 
 return $spells

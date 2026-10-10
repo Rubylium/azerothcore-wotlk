@@ -226,6 +226,16 @@ AddBoss(26, 16067, { "L'Infini, Défi", "The Infinite, Challenge" },
         .. "tomber.",
       "The Infinite held the stars in its hand before the first mortal walked. This one, it let fall." })
 
+AddUnique(27, 17855, { "Gardien-chef Vorhan", "Head Warden Vorhan" },
+    { "Toutes les 4 sec en combat, votre cible reçoit une sentence : une part des dégâts que vous lui avez infligés "
+        .. "depuis la précédente, plus lourde à chaque sentence sur la même cible, jusqu'à %s à la cinquième. "
+        .. "Changer de cible remet la peine à zéro.",
+      "Every 4 sec in combat, your target is sentenced: a share of the damage you dealt it since the last "
+        .. "sentence, heavier with each sentence on the same target, up to %s from the fifth. Changing target "
+        .. "starts the sentence over." },
+    { "À la Geôle, on ne retourne jamais le sablier. Chaque grain tombé alourdit la peine.",
+      "In the Gaol, the hourglass is never turned. Every grain that falls makes the sentence heavier." })
+
 -- Gardien-chef Vorhan's sets are no legendaries: generated items as the raid's (mod-legendary SetPieces.cpp), their
 -- stats in their own record and their set named by MythicItemTag.lua
 

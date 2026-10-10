@@ -136,6 +136,10 @@ constexpr uint32 HollowVoiceBoss = 930100;
 // L'Infini, the Défi board's god (mod-stat-growth InfiniteGod.cpp NPC_INFINI): its legendary drops at its gear's item
 // level for the Défi's tier (GetChallengeGodItemLevel)
 constexpr uint32 InfiniteGodBoss = 930000;
+// Gardien-chef Vorhan, the Geôle's head warden (mod-stat-growth WardenVorhan.cpp): his Unique drops at his gear's item
+// level (mod-playerbots ChallengeBoard.cpp, his page)
+constexpr uint32 WardenVorhanBoss = 930200;
+constexpr uint32 WardenVorhanItemLevel = 485;
 // L'Étoile captive: how far around the wearer the star finds a target when they have none, and their allies to heal
 constexpr float SupernovaTargetReach = 30.0f;
 constexpr float SupernovaHealReach = 40.0f;
@@ -144,6 +148,8 @@ constexpr float SupernovaHealReach = 40.0f;
 constexpr uint32 EchoMinCooldownMs = 20000;
 constexpr uint32 EchoMinLeftMs = 1500;
 constexpr uint32 EchoRestMs = 1000;
+// Sablier de Perpétuité: how long a sentence's mark outlasts the time to the next
+constexpr int32 SentenceMarkGraceMs = 1500;
 
 uint32 const Floor = Mythic::GetItemLevel(2);
 
@@ -151,7 +157,7 @@ uint32 const Floor = Mythic::GetItemLevel(2);
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 26> const Definitions = { {
+std::array<Definition, 27> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -252,6 +258,13 @@ std::array<Definition, 26> const Definitions = { {
     { 26, 16067, KIND_SUPERNOVA, 15.0f, 20.0f, 15.0f, 20.0f, Mythic::MaxLootItemLevel, NeckBudget, 0,
       { .spell = 97920, .spell2 = 97921, .spell3 = 97922, .everyMs = 20000, .count = 5, .radius = 8.0f },
       InfiniteGodBoss },
+
+    // --- Gardien-chef Vorhan: the Unique ---
+    // Sablier de Perpétuité, a trinket (17855, a free row made one): his Perpétuité, every 4 sec in combat a sentence
+    // on the wearer's target, a share of what they dealt it since the last, heavier each time on the same target -
+    // a fifth of 20-25% the first time, the whole from the fifth. Only from his death (item level 485): one window
+    { 27, 17855, KIND_SENTENCE, 20.0f, 25.0f, 20.0f, 25.0f, WardenVorhanItemLevel, NeckBudget, 0,
+      { .spell = 97930, .spell2 = 97931, .everyMs = 4000, .count = 5 }, WardenVorhanBoss },
 } };
 
 // A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
@@ -479,6 +492,7 @@ struct PowerState
     float pending = 0.0f;
     float healing = 0.0f;           // healing waiting to land (the star's)
     bool running = false;           // a timed power's cycle under way
+    ObjectGuid target;              // the enemy under sentence (the hourglass's)
 };
 
 struct Worn : public DataMap::Base
@@ -802,6 +816,29 @@ public:
             player->CastSpell(player, tuning.spell3, true);
         });
 
+        // Sablier de Perpétuité: every everyMs in combat, a sentence on the target under it; out of combat the count
+        // starts over
+        worn->ForEach(KIND_SENTENCE, [player, diff, alive](Definition const& definition, float percent,
+            PowerState& state)
+        {
+            if (!alive || !player->IsInCombat())
+            {
+                state = PowerState();
+                return;
+            }
+            if (!state.running)
+            {
+                state.running = true;
+                state.timer = definition.tuning.everyMs;
+                return;
+            }
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            state.timer = definition.tuning.everyMs;
+            Sentence(player, definition, percent, state);
+        });
+
         // The last stand's look (Tombeau de Keleseth): on while the wearer is below the threshold
         worn->ForEach(KIND_LAST_STAND, [player, alive](Definition const& definition, float /*percent*/,
             PowerState& /*state*/)
@@ -861,6 +898,37 @@ public:
             }
         }
         state.healing = 0.0f;
+    }
+
+    // A sentence: the n-th on the same target strikes for n / count of the rolled share of what the wearer dealt it
+    // since the last (the whole share from the count-th on), and its mark on the target counts them. A target dead or
+    // gone takes the count with it.
+    static void Sentence(Player* player, Definition const& definition, float percent, PowerState& state)
+    {
+        Tuning const& tuning = definition.tuning;
+        Unit* target = state.target.IsEmpty() ? nullptr : ObjectAccessor::GetUnit(*player, state.target);
+        if (!target || !target->IsAlive() || !player->IsValidAttackTarget(target))
+        {
+            state.target.Clear();
+            state.counter = 0;
+            state.pending = 0.0f;
+            return;
+        }
+        state.counter = std::min(state.counter + 1, tuning.count);
+        float const share = percent * float(state.counter) / float(tuning.count);
+        if (state.pending >= 1.0f)
+            Cast(player, target, tuning.spell, Share(state.pending, share));
+        state.pending = 0.0f;
+        Aura* mark = target->GetAura(tuning.spell2, player->GetGUID());
+        if (!mark)
+            mark = player->AddAura(tuning.spell2, target);
+        if (mark)
+        {
+            int32 const lasts = int32(tuning.everyMs) + SentenceMarkGraceMs;
+            mark->SetStackAmount(uint8(state.counter));
+            mark->SetMaxDuration(lasts);
+            mark->SetDuration(lasts);
+        }
     }
 
     // A ground's pulse: what it deals to each enemy and heals each ally on it, the rolled share of the wearer's
@@ -1057,6 +1125,8 @@ public:
             {
                 state.pending += float(dealt) * percent / 100.0f;
             });
+            if (target)
+                FeedSentence(player, worn, target, float(dealt));
         }
         if (Player* wearer = target ? target->ToPlayer() : nullptr)
             damage = LastStand(wearer, damage);
@@ -1105,6 +1175,25 @@ public:
     }
 
 private:
+    // Sablier de Perpétuité: the wearer's target is the one under sentence - a blow on the enemy they have selected
+    // moves the sentence onto it, the count starting over (with none selected, the first enemy struck) - and what it
+    // takes from them is kept for its next sentence
+    static void FeedSentence(Player* player, Worn* worn, Unit* victim, float dealt)
+    {
+        worn->ForEach(KIND_SENTENCE, [player, victim, dealt](Definition const&, float, PowerState& state)
+        {
+            ObjectGuid const guid = victim->GetGUID();
+            if (guid != state.target && (state.target.IsEmpty() || player->GetTarget() == guid))
+            {
+                state.target = guid;
+                state.counter = 0;
+                state.pending = 0.0f;
+            }
+            if (guid == state.target)
+                state.pending += dealt;
+        });
+    }
+
     // What a wearer's blow becomes: amplified first (Plastron de VanCleef, a frenzy), then what it sets off
     static void Dealt(Player* player, Unit* victim, uint32& damage, SpellInfo const* spellInfo)
     {
@@ -1181,6 +1270,8 @@ private:
         {
             state.pending += dealt * percent / 100.0f;
         });
+        // Sablier de Perpétuité: what the target under sentence takes waits for its next sentence
+        FeedSentence(player, worn, victim, dealt);
         // Chevalière de Porung: the share waits to be healed (OnPlayerUpdate, once a second)
         worn->ForEach(KIND_LEECH, [dealt](Definition const&, float percent, PowerState& state)
         {

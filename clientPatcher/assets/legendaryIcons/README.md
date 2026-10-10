@@ -3,6 +3,8 @@
 All 21 icons from `.agents/plans/legendary-items/dungeon-legendaries.ASSETS.md`, Definitions 4-24.
 Also includes `INV_Unique_EchoDuNeant.png`: the Unique ring with a crimson rim light and violet echo orb.
 Its original painting and final prompt are recorded in `echoDuNeantManifest.json`.
+Also `INV_Unique_SablierPerpetuite.png`: Gardien-chef Vorhan's own Perpétuité icon (the chained hourglass,
+`localTools/wardenVorhan/source`) in the Unique's crimson and red-black, by `localTools/interface/buildSablierPerpetuiteIcon.py`.
 
 - `png/`: exact requested filenames, 256 x 256 opaque RGB PNGs, no frame or border.
 - `source/`: original square imagegen masters.

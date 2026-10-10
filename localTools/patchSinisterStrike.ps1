@@ -2215,6 +2215,9 @@ $legendaryItems = @(
     @{ Item = 13696; Display = 71058; CloneOf = 43528; Icon = 'INV_Vorhan_Neck'; Class = 4; Subclass = 0; Material = 4; InventoryType = 2 }
     @{ Item = 13697; Display = 71059; CloneOf = 43528; Icon = 'INV_Vorhan_Ring'; Class = 4; Subclass = 0; Material = 4; InventoryType = 11 }
     @{ Item = 12187; Display = 71060; CloneOf = 47067; Icon = 'INV_Vorhan_Cloak'; Class = 4; Subclass = 1; Material = 7; InventoryType = 16 }
+    # Gardien-chef Vorhan's Unique (mod-legendary 27), Sablier de Perpétuité: a free "junk" row made a trinket, as his
+    # raid trinkets; the Eye of Magtheridon's look until its icon (a trinket shows nothing else)
+    @{ Item = 17855; Display = 71061; CloneOf = 28789; Icon = 'INV_Unique_SablierPerpetuite'; Class = 4; Subclass = 0; Material = 4; InventoryType = 12 }
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }
