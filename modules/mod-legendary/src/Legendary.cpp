@@ -1708,9 +1708,15 @@ ReinforceResult Reinforce(Player* player, Item* item)
 
 void RollUpgradeMaterial(Player* player, uint32 itemLevel)
 {
-    if (!player || !player->GetSession() || player->GetSession()->IsBot() || itemLevel < MaterialMinItemLevel ||
-        !roll_chance_f(float(MaterialDropPct)))
+    if (!player || !player->GetSession() || player->GetSession()->IsBot() || itemLevel < MaterialMinItemLevel)
         return;
+    // Every roll in the log, the misses too: what a player's runs gave them can be read back
+    if (!roll_chance_f(float(MaterialDropPct)))
+    {
+        LOG_INFO("module", "Legendary: {} rolled for the reinforcing material (item level {}, {:.0f}%): nothing",
+            player->GetName(), itemLevel, float(MaterialDropPct));
+        return;
+    }
     bool const french = player->GetSession()->GetSessionDbLocaleIndex() == LOCALE_frFR;
     // On the floor with the boss's loot (GroundLoot.cpp: a dungeon's or a Défi's boss just killed), as a legendary
     bool const thrown = GroundLoot::ThrowItem(player, UpgradeMaterial, 1, ITEM_QUALITY_LEGENDARY);

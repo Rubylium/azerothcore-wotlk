@@ -1938,8 +1938,25 @@ private:
     }
 
     // --- The riot ----------------------------------------------------------------------------------------------------
+    // How far the group got: his health and who is standing as each phase begins and as the enrages strike (the
+    // benches read it: the health left at the enrage is the DPS check's margin)
+    void LogMilestone(char const* what)
+    {
+        uint32 alive = 0;
+        uint32 all = 0;
+        for (Player* player : ArenaPlayers())
+        {
+            ++all;
+            if (player->IsAlive())
+                ++alive;
+        }
+        LOG_INFO("module.vorhan", "Vorhan reached {} instance={} at={:.1f}s health={:.1f}% alive={}/{}", what,
+                 me->GetInstanceId(), Elapsed() / 1000.0f, me->GetHealthPct(), alive, all);
+    }
+
     void EnterRiot()
     {
+        LogMilestone("riot");
         _phase = Phase::Riot;
         EndCast();
         Talk(SAY_RIOT);
@@ -1996,6 +2013,7 @@ private:
     // --- Phase 3, "Exécution des peines" ------------------------------------------------------------------------
     void EnterPhase3()
     {
+        LogMilestone("phase 3");
         _phase = Phase::Three;
         Talk(SAY_PHASE_3);
     }
@@ -2649,6 +2667,7 @@ private:
 
     void EnterPhase2()
     {
+        LogMilestone("phase 2");
         _phase = Phase::Two;
         Talk(SAY_PHASE_2);
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
@@ -2667,6 +2686,7 @@ private:
     // --- The end -----------------------------------------------------------------------------------------------------
     void EnterLifeSentence()
     {
+        LogMilestone("life sentence");
         _phase = Phase::LifeSentence;
         Talk(SAY_LIFE_SENTENCE);
         if (sSpellMgr->GetSpellInfo(CAST_LIFE_SENTENCE))
@@ -2684,6 +2704,7 @@ private:
 
     void HardEnrage()
     {
+        LogMilestone("hard enrage");
         Talk(SAY_HARD_ENRAGE);
         me->SendPlaySpellVisual(KIT_SHOUT);
         Sound("Vorhan.LifeSentence");
