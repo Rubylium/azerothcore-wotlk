@@ -819,6 +819,10 @@ $customSpells += & ([ScriptBlock]::Create($hollowVoiceSpellSource))
 # rules' debuffs and its cast bars
 $wardenVorhanSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\wardenVorhan\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($wardenVorhanSpellSource))
+# Le Traqueur d'évadés, the Gaol's second gate (modules/mod-stat-growth/src/EscapeHunter.cpp): its hits, debuffs and
+# cast bars, and its archers' arrow
+$escapeHunterSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\escapeHunter\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($escapeHunterSpellSource))
 # The Hollow Voice's and Gardien-chef Vorhan's trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): their passives'
 # procs and buffs, their uses
 $raidTrinketSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\raidTrinkets\Spells.ps1') -Raw -Encoding UTF8

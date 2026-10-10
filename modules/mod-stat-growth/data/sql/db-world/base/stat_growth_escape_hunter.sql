@@ -78,7 +78,7 @@ UPDATE `tmp_stat_growth_escape_hunter` SET
     `mingold` = 0,
     `maxgold` = 0,
     `AIName` = '',
-    `ScriptName` = '',
+    `ScriptName` = 'npc_escape_hunter_pack',
     `VerifiedBuild` = NULL
 WHERE `entry` = 17401;
 UPDATE `tmp_stat_growth_escape_hunter` SET
@@ -106,7 +106,7 @@ UPDATE `tmp_stat_growth_escape_hunter` SET
     `mingold` = 0,
     `maxgold` = 0,
     `AIName` = '',
-    `ScriptName` = '',
+    `ScriptName` = 'npc_escape_hunter_pack',
     `VerifiedBuild` = NULL
 WHERE `entry` = 17270;
 UPDATE `tmp_stat_growth_escape_hunter` SET
