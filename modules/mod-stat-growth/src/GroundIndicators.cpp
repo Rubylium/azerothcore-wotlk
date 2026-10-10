@@ -1251,6 +1251,9 @@ void AssignSoaks(Unit* unit)
                 continue;
             if (!soak->tanks && (bot == victim || IsGroupTank(bot)))
                 continue;
+            // A bot carrying a circle away from the others (a quarry, a bomb) never comes to share a hit
+            if (GroundIndicators::KeepsAway(bot))
+                continue;
             candidates.emplace_back(bot->GetExactDist2d(&soak->center), bot);
         }
         std::sort(candidates.begin(), candidates.end(), [](auto const& left, auto const& right)
@@ -2526,6 +2529,15 @@ Position RouteAround(Unit* unit, bool tank, Position const& goal)
             break;
     }
     return found ? best.spot : goal;
+}
+
+bool Detour(Unit* unit, Position const& goal, Position& waypoint)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Player* player = unit->ToPlayer();
+    waypoint = RouteAround(unit, player && IsGroupTank(player), goal);
+    return waypoint.GetExactDist2d(&goal) > 0.5f;
 }
 
 bool FindGoal(Unit* unit, Position& spot, bool tank)

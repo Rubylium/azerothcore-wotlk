@@ -379,6 +379,9 @@ namespace GroundIndicators
     // Whether a straight move of unit to spot ends in such an area or crosses one on the way (a blink, a leap: no
     // walking round it then)
     bool CrossesAreas(Unit* unit, Position const& spot);
+    // A walk to goal that would cross an area unit is to keep out of: the waypoint to go round by first (false: the
+    // straight walk is clean, or no way round was found)
+    bool Detour(Unit* unit, Position const& goal, Position& waypoint);
 
     // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
     // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it
