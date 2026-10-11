@@ -426,7 +426,8 @@ def build_painted_texture(shape):
         # Apex at the middle of the painting's left edge; its arc turned onto the cone's
         alpha = source[..., 3]
         rows_, cols_ = numpy.nonzero(alpha > 0.15)
-        apex_x = cols_.min()
+        # (`apexX`: a cone wider than a half, painted round its apex, gives where it is: a share of the width)
+        apex_x = shape['apexX'] * width if 'apexX' in shape else cols_.min()
         reach = numpy.hypot(cols_ - apex_x, rows_ - height / 2.0).max()
         radius = numpy.hypot(X, Y)
         angle = numpy.arctan2(Y, X)
@@ -712,9 +713,9 @@ def fade_spell(spell):
         return spell + 200
     if 94200 <= spell < 94250:
         return spell + 300
-    # Le Traqueur d'évadés's looks (EscapeHunter.cpp Looks)
-    if 94860 <= spell < 94880:
-        return spell + 100
+    # Vrogar's looks (ForgeMaster.cpp, localTools/escapeHunter/vrogarArt.py): 60, their twins 60 on (95000 up is taken)
+    if 94860 <= spell < 94920:
+        return spell + 60
     raise SystemExit(f'spell {spell}: no fading twin range for it (fade_spell)')
 
 

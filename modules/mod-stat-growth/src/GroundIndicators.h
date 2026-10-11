@@ -138,9 +138,11 @@ namespace GroundIndicators
     // one in the red. area: its kind, origin (and facing) and size, as the painting was made for (a line's width is its
     // length over the painting's ratio, a ring's inner radius its proportion of the outer).
     // placed: the stalker carrying it, to change its look where it lands (a new stalker fades in as the client shows
-    // any new unit: a flash made of one appeared half-way and went); lingerMs: how long it stays past the warning
+    // any new unit: a flash made of one appeared half-way and went); lingerMs: how long it stays past the warning;
+    // aimedAt: a cone aimed at that unit (as ShowAimedCone: its tank takes it)
     Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme = Theme::None,
-                     uint32 hitDamage = 0, ObjectGuid* placed = nullptr, uint32 lingerMs = 0);
+                     uint32 hitDamage = 0, ObjectGuid* placed = nullptr, uint32 lingerMs = 0,
+                     Unit* aimedAt = nullptr);
     // A painted line in pieces (shapes.json `segment`): `count` models from firstSpell, each `ratio` times as long as
     // the line is wide, chained along it, each on a carrier of its own at its middle. One long model's carrier stood
     // at the line's end, often past a wall: the client hides a unit it cannot see from the camera, and the whole line

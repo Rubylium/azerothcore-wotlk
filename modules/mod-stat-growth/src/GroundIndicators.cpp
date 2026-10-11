@@ -613,9 +613,9 @@ uint32 FadeLookOf(uint32 look)
         return look + 200;
     if (look >= 94200 && look < 94250)
         return look + 300;
-    // Le Traqueur d'évadés's looks (EscapeHunter.cpp Looks)
-    if (look >= 94860 && look < 94880)
-        return look + 100;
+    // Vrogar's looks (ForgeMaster.cpp): 60, their twins 60 on (95000 up is taken)
+    if (look >= 94860 && look < 94920)
+        return look + 60;
     return 0;
 }
 
@@ -1542,14 +1542,14 @@ void WatchSweepingRectangle(Unit* owner, Position const& start, float orientatio
 }
 
 Area ShowPainted(Unit* owner, Area const& area, uint32 look, uint32 durationMs, Theme theme, uint32 hitDamage,
-                 ObjectGuid* placed, uint32 lingerMs)
+                 ObjectGuid* placed, uint32 lingerMs, Unit* aimedAt)
 {
     if (Creature* stalker = Place(owner, area.origin, area.origin.GetOrientation(), look, area.radius,
         durationMs + lingerMs))
     {
         if (placed)
             *placed = stalker->GetGUID();
-        Register(owner, nullptr, area, durationMs, hitDamage);
+        Register(owner, nullptr, area, durationMs, hitDamage, aimedAt ? aimedAt->GetGUID() : ObjectGuid::Empty);
         ShowParticles(owner, area, theme, durationMs);
     }
     return area;

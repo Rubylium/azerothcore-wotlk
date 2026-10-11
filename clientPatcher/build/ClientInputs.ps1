@@ -86,8 +86,9 @@ function Resolve-StagePath([string]$path) {
     Join-Path $repoRoot $resolved
 }
 
-# The ground indicators' pictures: the art scripts shapes.json names (and the paintings they read from art/, as
-# their SIZES list names them) and its image files
+# The ground indicators' pictures: the art scripts shapes.json names (and the paintings they read from art/: as their
+# SIZES list names them, and every painting under art/ - Vrogar's in art/vrogar, named by the shapes) and its image
+# files
 function Get-GroundIndicatorInputs {
     $shapes = Read-BuildJson (Join-Path $repoRoot 'localTools/groundIndicators/shapes.json')
     $scripts = @{}
@@ -101,6 +102,9 @@ function Get-GroundIndicatorInputs {
         $artRoot = Join-Path (Split-Path -Parent $scriptPath) 'art'
         foreach ($match in [regex]::Matches([IO.File]::ReadAllText($scriptPath), "'([A-Za-z0-9_]+\.png)'\s*:")) {
             Join-Path $artRoot $match.Groups[1].Value
+        }
+        if (Test-Path -LiteralPath $artRoot) {
+            Get-ChildItem -LiteralPath $artRoot -Recurse -File -Filter '*.png' | ForEach-Object { $_.FullName }
         }
     }
 }

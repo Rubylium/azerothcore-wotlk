@@ -123,10 +123,11 @@ constexpr float BellowsDistance = 14.5f;
 constexpr uint32 BellowsShownMs = 500;      // its half drawn this long before it blasts: too late to leave it
 constexpr float IngotRadius = 3.0f;
 constexpr float IngotDistance = 8.0f;
-// Les Lingots' looks (shapes.json VR_IngotMark*, VR_IngotSigil*; localTools/escapeHunter/ingotArt.py): + the ingot's
-// index - the game's raid icons star, circle, diamond, triangle - over its two holders' heads and on its floor
-constexpr uint32 LOOK_INGOT_MARK = 94860;
-constexpr uint32 LOOK_INGOT_SIGIL = 94864;
+// Les Lingots' looks (shapes.json VR_IngotMark*, VR_IngotSigil*; localTools/escapeHunter/vrogarArt.py): + the
+// ingot's index - a forge tool each, one colour, told apart by shape - over its two holders' heads and on its floor
+constexpr uint32 LOOK_INGOT_MARK = 94860;       // the tools over their heads: hammer, anvil, tongs, ingot
+constexpr uint32 LOOK_INGOT_SIGIL = 94864;      // the same tool's disc on the floor, inside its ring
+constexpr float IngotSigilShare = 0.72f;        // the disc's radius in the ring's (the ring's band from 70%)
 constexpr uint32 IngotCount = 4;
 // After the first ingots (before la Fonte only: the later ones are the soak alone), a soak then a spread: every player
 // carries a circle that explodes IngotSpreadMs after the ingots land, shown only its last IngotSpreadShownMs; whoever
@@ -152,6 +153,67 @@ constexpr float SoakRadius = 4.0f;
 constexpr float SoakTotalPct = 180.0f;
 constexpr uint32 MoltenMs = 6000;
 constexpr uint32 LOOK_STACK_MARK = 94868;
+
+// His painted looks (localTools/groundIndicators/shapes.json VR_*, from the paintings in localTools/escapeHunter/art/
+// vrogar through vrogarArt.py): every area he lays drawn in the forge's own materials rather than the red, and the
+// same Area registered (the bots, the hits)
+enum Looks : uint32
+{
+    LOOK_INGOT_SIGIL_RING   = 94869,
+    LOOK_FURNACE_CONE_45    = 94870,    // la Fonte's slices: cracked furnace stone, its cracks breathing
+    LOOK_FURNACE_CONE_90    = 94871,
+    LOOK_FURNACE_CONE_180   = 94872,
+    LOOK_FURNACE_CIRCLE     = 94873,    // the shockwave's middle, the check missed
+    LOOK_FURNACE_RING_60    = 94874,    // the shockwave's rings (inner 0.6 of outer)
+    LOOK_MOLTEN_CONE_180    = 94875,    // the pour's halves: molten iron flowing out
+    LOOK_MOLTEN_RING_40     = 94876,    // the flood (inner 0.4)
+    LOOK_ANVIL_CONE_90      = 94877,    // Coup d'enclume
+    LOOK_BELLOWS_BLAST      = 94878,    // a bellows' half as it blasts (built to its 17 yards, growing from the apex)
+    LOOK_CHAIN_ARM          = 94879,    // a chain, 17 x 4
+    LOOK_LAMINOIR_TILE_8    = 94880,    // the laminoir's plate rolling: 8 yards along its strip, 8 across
+    LOOK_LAMINOIR_TILE_4    = 94881,    // 4 along
+    LOOK_STEAM              = 94882,
+    LOOK_SPARKS             = 94883,
+    LOOK_FONTE_SPREAD       = 94884,    // carried, built to SpreadRadius
+    LOOK_HAMMER_MARK        = 94885,    // carried, built to MarkedRadius
+    LOOK_INGOT_BURST        = 94886,    // carried, built to IngotSpreadRadius
+    LOOK_HAMMER_SOAK        = 94887,
+    LOOK_HAMMER_SOAK_RUNES  = 94888,
+    LOOK_WALL_FIRST         = 94889,    // the wall's four pieces, each a quarter of its band (16 pieces: 4 times round)
+    LOOK_WALL_RISE          = 94893,
+    // The layers that move over them (their glow alone, added, breathing; shown with their look: LayerOf)
+    LOOK_FURNACE_CRACKS_CONE_45     = 94894,
+    LOOK_FURNACE_CRACKS_CONE_90     = 94895,
+    LOOK_FURNACE_CRACKS_CONE_180    = 94896,
+    LOOK_FURNACE_CRACKS_CIRCLE      = 94897,
+    LOOK_FURNACE_CRACKS_RING_60     = 94898,
+    LOOK_MOLTEN_FLOW_CONE_180       = 94899,
+    LOOK_MOLTEN_FLOW_RING_40        = 94900,
+    LOOK_ANVIL_SPARKS               = 94901,
+    LOOK_FURNACE_CONE_270           = 94902,    // la Fonte's six slices burning
+    LOOK_FURNACE_CRACKS_CONE_270    = 94903,
+};
+
+// The layer shown over a look (0: none)
+constexpr uint32 LayerOf(uint32 look)
+{
+    switch (look)
+    {
+        case LOOK_FURNACE_CONE_45: return LOOK_FURNACE_CRACKS_CONE_45;
+        case LOOK_FURNACE_CONE_90: return LOOK_FURNACE_CRACKS_CONE_90;
+        case LOOK_FURNACE_CONE_180: return LOOK_FURNACE_CRACKS_CONE_180;
+        case LOOK_FURNACE_CIRCLE: return LOOK_FURNACE_CRACKS_CIRCLE;
+        case LOOK_FURNACE_RING_60: return LOOK_FURNACE_CRACKS_RING_60;
+        case LOOK_MOLTEN_CONE_180: return LOOK_MOLTEN_FLOW_CONE_180;
+        case LOOK_MOLTEN_RING_40: return LOOK_MOLTEN_FLOW_RING_40;
+        case LOOK_ANVIL_CONE_90: return LOOK_ANVIL_SPARKS;
+        case LOOK_FURNACE_CONE_270: return LOOK_FURNACE_CRACKS_CONE_270;
+        default: return 0;
+    }
+}
+constexpr uint32 WallLooks = 4;
+constexpr uint32 WallRiseMs = 1400;
+constexpr uint32 StruckLingerMs = 800;      // a strike seen only as it lands (the steam, the flood) stays this long
 // A Fonte mechanic is shown on the beat the wave before it strikes: its bots are sent to their spots this long after
 // (sent at once, some left before that strike was resolved and died in it, or walked into a spread on their way)
 constexpr uint32 FonteSpotsAfterBeats = 1;
@@ -194,7 +256,7 @@ constexpr float BallReach = 3.0f;
 constexpr float SteamReach = 3.5f;
 constexpr float BeamReach = 10.0f;
 constexpr float CraterReach = 6.0f;
-constexpr float MeteorReach = 6.0f;   // shapes.json VR_StackMark (localTools/escapeHunter/ingotArt.py)
+constexpr float MeteorReach = 6.0f;
 constexpr float MarkedRadius = 8.0f;
 constexpr float HammerSoakRadius = 6.0f;
 constexpr uint32 MarkBeats = 12;
@@ -936,6 +998,90 @@ private:
 
     Position OnArena(float angle, float distance) const { return AtAngle(GetRoom().center, angle, distance); }
 
+    // His areas drawn with his looks (Looks) and the layer moving over each (LayerOf), registered as the red ones are
+    // (the bots leave them, Strike reads them)
+    GroundIndicators::Area Painted(GroundIndicators::Area const& area, uint32 look, uint32 ms, uint32 lingerMs = 0,
+                                   Unit* aimedAt = nullptr)
+    {
+        if (uint32 const layer = LayerOf(look))
+            GroundIndicators::ShowDecal(me, area.origin, area.origin.GetOrientation(), area.radius, ms + lingerMs,
+                layer);
+        return GroundIndicators::ShowPainted(me, area, look, ms, GroundIndicators::Theme::None, MistakeDamage, nullptr,
+            lingerMs, aimedAt);
+    }
+
+    GroundIndicators::Area PaintedCircle(Position const& center, float radius, uint32 look, uint32 ms,
+                                         uint32 lingerMs = 0)
+    {
+        return Painted(MakeCircle(center, radius), look, ms, lingerMs);
+    }
+
+    // A ring: its inner radius innerShare of its outer, as its look is painted
+    GroundIndicators::Area PaintedRing(Position const& center, float outer, float innerShare, uint32 look, uint32 ms,
+                                       uint32 lingerMs = 0)
+    {
+        GroundIndicators::Area area = MakeCircle(center, outer);
+        area.kind = GroundIndicators::Area::Kind::Ring;
+        area.inner = outer * innerShare;
+        return Painted(area, look, ms, lingerMs);
+    }
+
+    // A cone from apex to the wall, arcDegrees wide as its look is painted; aimedAt: the tank it is aimed at
+    GroundIndicators::Area PaintedCone(Position const& apex, float facing, float arcDegrees, uint32 look, uint32 ms,
+                                       Unit* aimedAt = nullptr)
+    {
+        GroundIndicators::Area area = MakeCircle(apex, ArenaRadius + 1.0f);
+        area.kind = GroundIndicators::Area::Kind::Cone;
+        area.origin.SetOrientation(facing);
+        area.arc = arcDegrees * float(M_PI) / 180.0f;
+        return Painted(area, look, ms, 0, aimedAt);
+    }
+
+    // A laminoir strip (LaminoirDepth across) from origin along facing: registered whole, drawn in tiles of the plate
+    // over its part inside the arena (8 yards each, the last flush with its end: never into the gap past it)
+    GroundIndicators::Area PaintedStrip(Position const& origin, float facing, float length, uint32 ms)
+    {
+        GroundIndicators::Area area = MakeCircle(origin, length);
+        area.kind = GroundIndicators::Area::Kind::Rectangle;
+        area.origin.SetOrientation(facing);
+        area.width = LaminoirDepth;
+        GroundIndicators::WatchArea(me, area, ms, MistakeDamage);
+        // Its axis inside the wall: origin + t (cos, sin), |that - middle| = ArenaRadius
+        Position const middle = Middle();
+        float const dx = std::cos(facing);
+        float const dy = std::sin(facing);
+        float const px = origin.GetPositionX() - middle.GetPositionX();
+        float const py = origin.GetPositionY() - middle.GetPositionY();
+        float const along = px * dx + py * dy;
+        float const disc = along * along - (px * px + py * py - ArenaRadius * ArenaRadius);
+        if (disc <= 0.0f)
+            return area;
+        float const from = std::max(0.0f, -along - std::sqrt(disc));
+        float const to = std::min(length, -along + std::sqrt(disc));
+        if (to - from < 1.0f)
+            return area;
+        float done = from;
+        for (; to - done >= LaminoirDepth; done += LaminoirDepth)
+            GroundIndicators::ShowDecal(me, Ground(AtAngle(origin, facing, done)), facing, LaminoirDepth, ms,
+                LOOK_LAMINOIR_TILE_8);
+        float const left = to - done;
+        if (left < 0.5f)
+            return area;
+        bool const whole = left > LaminoirDepth / 2.0f;
+        float const size = whole ? LaminoirDepth : LaminoirDepth / 2.0f;
+        float const at = to - from >= size ? to - size : (from + to - size) / 2.0f;
+        GroundIndicators::ShowDecal(me, Ground(AtAngle(origin, facing, at)), facing, size, ms,
+            whole ? LOOK_LAMINOIR_TILE_8 : LOOK_LAMINOIR_TILE_4);
+        return area;
+    }
+
+    // A circle round a player, drawn by its look (built to its radius, worn as an aura), registered as a carried one
+    GroundIndicators::Area PaintedCarried(Player* carrier, uint32 look, float radius, uint32 ms, float keepAway = 0.0f)
+    {
+        GroundIndicators::ShowCarriedLook(carrier, look, ms);
+        return GroundIndicators::WatchCarriedCircle(me, carrier, radius, ms, MistakeDamage, keepAway);
+    }
+
     static GroundIndicators::Area MakeCircle(Position const& center, float radius)
     {
         GroundIndicators::Area area;
@@ -971,9 +1117,9 @@ private:
         uint32 const shows = _phase == Phase::Rehearsal ? 0 : WallShowBeats;
         AtBeat(Grid, shows, [this, middle, lasts]()
         {
-            GroundIndicators::ShowWardenShockwave(me, middle);
-            GroundIndicators::ShowCurtainRing(me, middle, GroundIndicators::SPELL_WARDEN_WALL_FIRST,
-                GroundIndicators::WardenWallLooks, WallPieces, GroundIndicators::WardenWallPieceLength, lasts);
+            GroundIndicators::ShowDecal(me, middle, 0.0f, ArenaRadius, WallRiseMs, LOOK_WALL_RISE);
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_FIRST, WallLooks, WallPieces,
+                GroundIndicators::WardenWallPieceLength, lasts);
             Sound("Vrogar.WallRise", middle);
         });
         // From a moment after the draw-in: a player teleported in is only there once its client has answered
@@ -1114,8 +1260,8 @@ private:
         apex.SetOrientation(facing);
         ObjectGuid const tankGuid = tank ? tank->GetGUID() : ObjectGuid::Empty;
         uint32 const lands = start + WarnBeats;
-        GroundIndicators::Area const cone = GroundIndicators::ShowAimedCone(me, apex, facing, ArenaRadius + 1.0f,
-            AnvilArc, MsTo(lands), tank, GroundIndicators::Theme::None, MistakeDamage);
+        GroundIndicators::Area const cone = PaintedCone(apex, facing, AnvilArc, LOOK_ANVIL_CONE_90, MsTo(lands),
+            tank);
         Sound("Vrogar.AnvilCast", me->GetPosition());
         AtBeat(Grid, lands, [this, cone, tankGuid]()
         {
@@ -1151,12 +1297,11 @@ private:
         uint32 const first = start + WarnBeats;
         AtBeat(Grid, first, [this]() { EndCastBar(); });
         Areas rings;
-        rings.push_back(GroundIndicators::ShowCircle(me, center, AnvilInner, MsTo(first),
-            GroundIndicators::Theme::Fire, MistakeDamage));
-        rings.push_back(GroundIndicators::ShowRing(me, center, AnvilMiddle, AnvilInner, MsTo(first + AnvilRingBeats),
-            GroundIndicators::Theme::Fire, MistakeDamage));
-        rings.push_back(GroundIndicators::ShowRing(me, center, ArenaRadius + 1.0f, AnvilMiddle,
-            MsTo(first + 2 * AnvilRingBeats), GroundIndicators::Theme::Fire, MistakeDamage));
+        // (the rings drawn 0.6 inside: 6 to 10, 10.2 to the wall)
+        rings.push_back(PaintedCircle(center, AnvilInner, LOOK_FURNACE_CIRCLE, MsTo(first)));
+        rings.push_back(PaintedRing(center, AnvilMiddle, 0.6f, LOOK_FURNACE_RING_60, MsTo(first + AnvilRingBeats)));
+        rings.push_back(PaintedRing(center, ArenaRadius + 1.0f, 0.6f, LOOK_FURNACE_RING_60,
+            MsTo(first + 2 * AnvilRingBeats)));
         for (uint32 index = 0; index < rings.size(); ++index)
         {
             GroundIndicators::Area const ring = rings[index];
@@ -1201,8 +1346,7 @@ private:
             {
                 Position apex = Middle();
                 apex.SetOrientation(towards);
-                return Areas{ GroundIndicators::ShowCone(me, apex, towards, ArenaRadius + 1.0f, 180.0f, ms,
-                    GroundIndicators::Theme::Fire, MistakeDamage) };
+                return Areas{ PaintedCone(apex, towards, 180.0f, LOOK_MOLTEN_CONE_180, ms) };
             }, RulePour);
         }
     }
@@ -1222,8 +1366,7 @@ private:
                 for (uint32 index = 0; index < 8; ++index)
                     spots.push_back(OnArena(float(index) * float(M_PI) / 4.0f, 8.0f));
             for (Position const& spot : spots)
-                areas.push_back(GroundIndicators::ShowCircle(me, spot, SparkRadius, ms,
-                    GroundIndicators::Theme::Fire, MistakeDamage));
+                areas.push_back(PaintedCircle(spot, SparkRadius, LOOK_SPARKS, ms));
             return areas;
         }, RuleSparks);
     }
@@ -1245,7 +1388,7 @@ private:
         for (uint32 arm = 0; arm < 4; ++arm)
             spinning.push_back(GroundIndicators::ShowSweepingRectangle(me, center,
                 facing + float(arm) * float(M_PI) / 2.0f, radiansPerSecond, ArenaRadius + 1.0f, ChainWidth,
-                MsTo(stops + ChainsFrozenBeats), MistakeDamage, 0, 0, spinMs));
+                MsTo(stops + ChainsFrozenBeats), MistakeDamage, LOOK_CHAIN_ARM, 0, spinMs));
         Wave(stops, stops + ChainsFrozenBeats, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
         {
             EndCastBar();
@@ -1289,13 +1432,11 @@ private:
                     float const east = middle.GetPositionY() - half;
                     float const halfGap = LaminoirGap / 2.0f;
                     if (gap - halfGap > east)
-                        strip.push_back(GroundIndicators::ShowRectangle(me, Ground(Position(x, east, 0.0f)),
-                            float(M_PI) / 2.0f, gap - halfGap - east, LaminoirDepth, ms, GroundIndicators::Theme::None,
-                            MistakeDamage));
+                        strip.push_back(PaintedStrip(Ground(Position(x, east, 0.0f)), float(M_PI) / 2.0f,
+                            gap - halfGap - east, ms));
                     if (west > gap + halfGap)
-                        strip.push_back(GroundIndicators::ShowRectangle(me, Ground(Position(x, gap + halfGap, 0.0f)),
-                            float(M_PI) / 2.0f, west - gap - halfGap, LaminoirDepth, ms,
-                            GroundIndicators::Theme::None, MistakeDamage));
+                        strip.push_back(PaintedStrip(Ground(Position(x, gap + halfGap, 0.0f)), float(M_PI) / 2.0f,
+                            west - gap - halfGap, ms));
                     return strip;
                 }, RuleLaminoir);
             }
@@ -1357,11 +1498,10 @@ private:
             {
                 // Seen as it strikes: the steam's burst or the iron's flood
                 if (trough)
-                    GroundIndicators::ShowCircle(me, middle, SteamRadius, uint32(Grid.beatMs),
-                        GroundIndicators::Theme::Frost, MistakeDamage);
+                    PaintedCircle(middle, SteamRadius, LOOK_STEAM, uint32(Grid.beatMs), StruckLingerMs);
                 else
-                    GroundIndicators::ShowRing(me, middle, ArenaRadius + 1.0f, SteamRadius, uint32(Grid.beatMs),
-                        GroundIndicators::Theme::Fire, MistakeDamage);
+                    PaintedRing(middle, ArenaRadius + 1.0f, 0.4f, LOOK_MOLTEN_RING_40, uint32(Grid.beatMs),
+                        StruckLingerMs);
                 Strike({ area }, trough ? RuleSteam : RuleFlood);
             });
         }
@@ -1437,8 +1577,9 @@ private:
                     {
                         if (_phase == Phase::Over)
                             return;
-                        GroundIndicators::ShowCone(me, half.origin, half.origin.GetOrientation(), half.radius, 180.0f,
-                            MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
+                        // Built to its size, growing out from the apex as it blasts (the bots know it: Watch)
+                        GroundIndicators::ShowDecal(me, half.origin, half.origin.GetOrientation(), 1.0f,
+                            MsTo(strikes), LOOK_BELLOWS_BLAST);
                     });
                 });
             }
@@ -1491,7 +1632,8 @@ private:
         {
             Position const spot = OnArena(facing + float(index) * 2.0f * float(M_PI) / float(count), IngotDistance);
             spots.push_back(spot);
-            GroundIndicators::ShowDecal(me, spot, 0.0f, IngotRadius, ms, LOOK_INGOT_SIGIL + index);
+            GroundIndicators::ShowDecal(me, spot, 0.0f, IngotRadius, ms, LOOK_INGOT_SIGIL_RING);
+            GroundIndicators::ShowDecal(me, spot, 0.0f, IngotRadius * IngotSigilShare, ms, LOOK_INGOT_SIGIL + index);
         }
         std::vector<ObjectGuid> holders;
         for (uint32 index = 0; index < std::min<uint32>(uint32(players.size()), 2 * count); ++index)
@@ -1542,8 +1684,7 @@ private:
         {
             for (ObjectGuid const& guid : carriers)
                 if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && player->IsAlive())
-                    GroundIndicators::ShowCarriedCircle(me, player, IngotSpreadRadius, IngotSpreadShownMs,
-                        MistakeDamage);
+                    PaintedCarried(player, LOOK_INGOT_BURST, IngotSpreadRadius, IngotSpreadShownMs);
         });
         scheduler.Schedule(Milliseconds(IngotSpreadMs), [this, carriers](TaskContext)
         {
@@ -1612,13 +1753,14 @@ private:
             for (Player* player : Targets(2))
             {
                 AddTimedAura(player, SPELL_MARKED, ms);
-                GroundIndicators::ShowCarriedCircle(me, player, MarkedRadius, ms, MistakeDamage, 2.0f);
+                PaintedCarried(player, LOOK_HAMMER_MARK, MarkedRadius, ms, 2.0f);
                 marked.push_back(player->GetGUID());
             }
             Position const soak = Middle();
-            GroundIndicators::ShowDecal(me, soak, 0.0f, HammerSoakRadius, ms, GroundIndicators::SPELL_SIGIL_BASTION);
+            GroundIndicators::ShowDecal(me, soak, 0.0f, HammerSoakRadius, ms, LOOK_HAMMER_SOAK);
+            GroundIndicators::ShowDecal(me, soak, 0.0f, HammerSoakRadius, ms, LOOK_HAMMER_SOAK_RUNES);
             GroundIndicators::ShowSoak(me, soak, HammerSoakRadius, ms, uint32(ArenaPlayers().size()),
-                GroundIndicators::Theme::Holy, true, false);
+                GroundIndicators::Theme::None, true, false);
             AtBeat(Grid, strikes, [this, marked, soak]()
             {
                 EndCastBar();
@@ -1744,8 +1886,8 @@ private:
         }
     }
 
-    // Every slice but `safe` burning: each run of burning slices drawn as few cones as it takes (a half, a quarter, an
-    // eighth: eight slices drawn apart read as a pink disc, the gaps lost in it)
+    // Every slice but `safe` burning: each run of burning slices drawn as few cones as it takes (three quarters, a
+    // half, a quarter, an eighth: eight slices drawn apart read as a pink disc, the gaps lost in it)
     Areas BurnAllBut(std::vector<uint32> const& safe, uint32 ms)
     {
         std::array<bool, 8> burning;
@@ -1768,17 +1910,20 @@ private:
             uint32 run = 0;
             while (index + run < 8 && burning[(first + index + run) % 8])
                 ++run;
-            // Half, quarter, eighth pieces along the run
+            // Three quarters, half, quarter, eighth pieces along the run (one piece where it can: two drawn side by side
+            // showed their rims along the seam, a line across the burning floor)
             uint32 done = 0;
             while (done < run)
             {
-                uint32 const piece = run - done >= 4 ? 4 : run - done >= 2 ? 2 : 1;
+                uint32 const left = run - done;
+                uint32 const piece = left >= 6 ? 6 : left >= 4 ? 4 : left >= 2 ? 2 : 1;
                 float const startAngle = float((first + index + done) % 8) * float(M_PI) / 4.0f;
                 float const centre = startAngle + float(piece) * float(M_PI) / 8.0f;
                 Position apex = middle;
                 apex.SetOrientation(centre);
-                areas.push_back(GroundIndicators::ShowCone(me, apex, centre, ArenaRadius + 1.0f, 45.0f * float(piece),
-                    ms, GroundIndicators::Theme::None, MistakeDamage));
+                uint32 const look = piece == 6 ? LOOK_FURNACE_CONE_270 : piece == 4 ? LOOK_FURNACE_CONE_180 :
+                    piece == 2 ? LOOK_FURNACE_CONE_90 : LOOK_FURNACE_CONE_45;
+                areas.push_back(PaintedCone(apex, centre, 45.0f * float(piece), look, ms));
                 done += piece;
             }
             index += run;
@@ -1805,7 +1950,7 @@ private:
             Player* player = players[index];
             if (index < marks)
             {
-                GroundIndicators::ShowCarriedCircle(me, player, SpreadRadius, ms, MistakeDamage);
+                PaintedCarried(player, LOOK_FONTE_SPREAD, SpreadRadius, ms);
                 spots.emplace_back(player->GetGUID(),
                     AtAngle(middle, axis + SpreadAngles[index] * float(M_PI) / 180.0f, SpreadWall));
                 carriers.push_back(player->GetGUID());
@@ -1979,8 +2124,7 @@ private:
                      me->GetInstanceId(), Elapsed() / 1000.0f, TrueHealthPct(), ArenaPlayers().size(), passed);
             if (!passed)
             {
-                GroundIndicators::ShowCircle(me, Middle(), ArenaRadius + 1.0f, 2000, GroundIndicators::Theme::Fire,
-                    MistakeDamage);
+                PaintedCircle(Middle(), ArenaRadius + 1.0f, LOOK_FURNACE_CIRCLE, 2000);
                 for (Player* player : ArenaPlayers())
                     Doom(player, SPELL_CHECK);
                 return;
