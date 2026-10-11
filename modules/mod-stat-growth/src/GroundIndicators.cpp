@@ -380,11 +380,21 @@ private:
 // A sweeping rectangle's stalker turning at its pace, from its facing when it starts
 struct SweepAI : public NullCreatureAI
 {
-    SweepAI(Creature* creature, float from, float speed) : NullCreatureAI(creature), _from(from), _speed(speed) { }
+    SweepAI(Creature* creature, float from, float speed, uint32 stopAfterMs = 0)
+        : NullCreatureAI(creature), _from(from), _speed(speed), _stopAfterMs(stopAfterMs) { }
 
     void UpdateAI(uint32 diff) override
     {
+        if (_stopped)
+            return;
         _elapsed += diff;
+        // Stopped: held exactly where the sweep's area says it stops (CurrentSweep at stopAfterMs)
+        if (_stopAfterMs && _elapsed >= _stopAfterMs)
+        {
+            _stopped = true;
+            me->SetFacingTo(Position::NormalizeOrientation(_from + _speed * float(_stopAfterMs) / 1000.0f));
+            return;
+        }
         if (_timer > diff)
         {
             _timer -= diff;
@@ -399,6 +409,8 @@ private:
 
     float _from;
     float _speed;
+    uint32 _stopAfterMs = 0;
+    bool _stopped = false;
     uint32 _elapsed = 0;
     uint32 _timer = 0;
 };
@@ -1488,7 +1500,8 @@ void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32
 }
 
 Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
-                           float width, uint32 durationMs, uint32 hitDamage, uint32 look, uint32 curtain)
+                           float width, uint32 durationMs, uint32 hitDamage, uint32 look, uint32 curtain,
+                           uint32 stopAfterMs)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
@@ -1497,13 +1510,13 @@ Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation
     area.width = look ? width : length / shape.size;
     if (Creature* stalker = Place(owner, start, orientation, look ? look : shape.spell, length, durationMs))
     {
-        stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond));
-        RegisterSweep(owner, area, radiansPerSecond, durationMs, hitDamage);
+        stalker->AIM_Initialize(new SweepAI(stalker, orientation, radiansPerSecond, stopAfterMs));
+        RegisterSweep(owner, area, radiansPerSecond, stopAfterMs ? stopAfterMs : durationMs, hitDamage);
         // Its curtain at its own size (a scaled carrier would scale its height too), turning the same way
         if (curtain)
             if (Creature* light = Place(owner, OnGround(owner, start.GetPositionX(), start.GetPositionY(),
                 start.GetPositionZ()), orientation, curtain, 1.0f, durationMs))
-                light->AIM_Initialize(new SweepAI(light, orientation, radiansPerSecond));
+                light->AIM_Initialize(new SweepAI(light, orientation, radiansPerSecond, stopAfterMs));
     }
     return area;
 }

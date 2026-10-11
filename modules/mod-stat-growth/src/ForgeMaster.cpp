@@ -126,6 +126,11 @@ constexpr float IngotDistance = 8.0f;
 constexpr uint32 LOOK_INGOT_MARK = 94860;
 constexpr uint32 LOOK_INGOT_SIGIL = 94864;
 constexpr uint32 IngotCount = 4;
+// After each wave of ingots, a soak then a spread: every player carries a circle that explodes IngotSpreadMs after the
+// ingots land, shown only its last IngotSpreadShownMs; whoever stands in another's dies (the first time a surprise)
+constexpr float IngotSpreadRadius = 4.0f;
+constexpr uint32 IngotSpreadMs = 2000;
+constexpr uint32 IngotSpreadShownMs = 500;
 // La Fonte's waves carrying a mechanic: shown this long ahead (the plain ones WarnBeats / FollowBeats)
 constexpr uint32 MechanicWarnBeats = 12;
 // Its spread: 4 marked, each a SpreadRadius circle on the others; the safe half holds exactly five such spots (four at
@@ -1019,11 +1024,13 @@ private:
         float const radiansPerSecond = way * 2.0f * float(M_PI) / (Grid.beatMs * float(ChainTurnBeats) / 1000.0f);
         uint32 const stops = start + urand(4, 6);
         uint32 const spinMs = MsTo(stops);
+        // The same arms turn, then stop where they are until they strike: one drawing throughout (new arms in their
+        // place faded the old out and the new in, the cross blinking as it froze)
         Areas spinning;
         for (uint32 arm = 0; arm < 4; ++arm)
             spinning.push_back(GroundIndicators::ShowSweepingRectangle(me, center,
-                facing + float(arm) * float(M_PI) / 2.0f, radiansPerSecond, ArenaRadius + 1.0f, ChainWidth, spinMs,
-                MistakeDamage));
+                facing + float(arm) * float(M_PI) / 2.0f, radiansPerSecond, ArenaRadius + 1.0f, ChainWidth,
+                MsTo(stops + WarnBeats), MistakeDamage, 0, 0, spinMs));
         Wave(stops, stops + WarnBeats, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
         {
             EndCastBar();
@@ -1031,8 +1038,9 @@ private:
             for (GroundIndicators::Area const& arm : spinning)
             {
                 GroundIndicators::Area const stopped = GroundIndicators::CurrentSweep(arm, radiansPerSecond, spinMs);
-                areas.push_back(GroundIndicators::ShowRectangle(me, stopped.origin, stopped.origin.GetOrientation(),
-                    stopped.radius, ChainWidth, ms, GroundIndicators::Theme::None, MistakeDamage));
+                // Where it stopped: the bots told (it is drawn already)
+                GroundIndicators::WatchArea(me, stopped, ms, MistakeDamage);
+                areas.push_back(stopped);
             }
             return areas;
         }, RuleChains);
@@ -1211,11 +1219,7 @@ private:
                         MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
                 });
             }
-            AtBeat(Grid, strikes, [this, halves]()
-            {
-                Sound("Vrogar.BellowsBlast", Middle());
-                Strike(halves, RuleBellows);
-            });
+            AtBeat(Grid, strikes, [this, halves]() { Strike(halves, RuleBellows); });
         }
     }
 
@@ -1267,9 +1271,21 @@ private:
             Player* player = players[index];
             uint32 const ingot = index % count;
             GroundIndicators::ShowCarriedLook(player, LOOK_INGOT_MARK + ingot, ms);
-            // The bots to their own ingot (the players read their mark)
-            GroundIndicators::SetUnitSpot(me, player, spots[ingot], IngotRadius - 1.0f, ms);
-            holders.push_back(player->GetGUID());
+            // The bots to their own ingot (the players read their mark) - once the last wave's spread is over, not
+            // back to their partner before it explodes
+            uint32 const elapsed = Elapsed();
+            uint32 const wait = _ingotSpreadEnds > elapsed ? _ingotSpreadEnds - elapsed + 200 : 0;
+            Position const spot = spots[ingot];
+            ObjectGuid const guid = player->GetGUID();
+            if (wait)
+                scheduler.Schedule(Milliseconds(wait), [this, guid, spot, ms, wait](TaskContext)
+                {
+                    if (Player* holder = ObjectAccessor::GetPlayer(*me, guid))
+                        GroundIndicators::SetUnitSpot(me, holder, spot, IngotRadius - 1.0f, ms > wait ? ms - wait : 1);
+                });
+            else
+                GroundIndicators::SetUnitSpot(me, player, spot, IngotRadius - 1.0f, ms);
+            holders.push_back(guid);
         }
         Sound("Vrogar.Ingots", Middle());
         AtBeat(Grid, strikes, [this, spots, holders]()
@@ -1278,6 +1294,48 @@ private:
                 if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
                     GroundIndicators::EndUnitSpot(me, player);
             StrikeIngots(spots);
+            IngotSpread();
+        });
+    }
+
+    // The soak's spread: a circle on everyone, unseen but for its last moment, exploding IngotSpreadMs after the
+    // ingots landed. The bots are told at once (half a second is no time for them)
+    void IngotSpread()
+    {
+        std::vector<ObjectGuid> carriers;
+        for (Player* player : ArenaPlayers())
+        {
+            GroundIndicators::WatchCarriedCircle(me, player, IngotSpreadRadius, IngotSpreadMs, MistakeDamage);
+            carriers.push_back(player->GetGUID());
+        }
+        _ingotSpreadEnds = Elapsed() + IngotSpreadMs;
+        scheduler.Schedule(Milliseconds(IngotSpreadMs - IngotSpreadShownMs), [this, carriers](TaskContext)
+        {
+            for (ObjectGuid const& guid : carriers)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && player->IsAlive())
+                    GroundIndicators::ShowCarriedCircle(me, player, IngotSpreadRadius, IngotSpreadShownMs,
+                        MistakeDamage);
+        });
+        scheduler.Schedule(Milliseconds(IngotSpreadMs), [this, carriers](TaskContext)
+        {
+            std::set<Player*> struck;
+            for (ObjectGuid const& guid : carriers)
+                if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid); carrier && carrier->IsAlive())
+                {
+                    GroundIndicators::Burst(me, carrier->GetPosition(), GroundIndicators::Theme::Fire);
+                    for (Player* player : ArenaPlayers())
+                        if (player != carrier && player->GetExactDist2d(carrier) <= IngotSpreadRadius)
+                            struck.insert(player);
+                }
+            Sound("Vrogar.Spread", Middle());
+            if (_phase == Phase::Rehearsal)
+                return;
+            for (Player* player : struck)
+            {
+                LOG_INFO(_logName, "Vrogar rule broken instance={} at={:.1f}s ingot spread: {}", me->GetInstanceId(),
+                         Elapsed() / 1000.0f, player->GetName());
+                Doom(player, SPELL_SPREAD_HIT);
+            }
         });
     }
 
@@ -1525,6 +1583,7 @@ private:
         {
             for (Player* player : ArenaPlayers())
                 GroundIndicators::EndUnitSpot(me, player);
+            Sound("Vrogar.Spread", Middle());
             if (_phase == Phase::Rehearsal)
                 return;
             for (ObjectGuid const& guid : carriers)
@@ -1605,7 +1664,7 @@ private:
     void StrikeSoak(Player* carrier)
     {
         GroundIndicators::Burst(me, carrier->GetPosition(), GroundIndicators::Theme::Fire);
-        Sound("Vrogar.Pour", carrier->GetPosition());
+        Sound("Vrogar.Soak", carrier->GetPosition());
         std::vector<Player*> in;
         for (Player* player : ArenaPlayers())
             if (player->GetExactDist2d(carrier) <= SoakRadius)
@@ -1755,6 +1814,7 @@ private:
         _nextCheckMs = 0;
         _wallFrom = 0;
         _musicOver = false;
+        _ingotSpreadEnds = 0;
         _phase = Phase::None;
         me->SetVisible(DefiConfirmed());
         me->RestoreDisplayId();
@@ -1775,6 +1835,7 @@ private:
     float _crucibleAngle = 0.0f;
     std::vector<ObjectGuid> _props;
     std::set<ObjectGuid> _spreadBefore;     // la Fonte's last spread: its marked, others marked first next time
+    uint32 _ingotSpreadEnds = 0;            // when the last ingots' spread explodes (Elapsed)
     std::map<std::string, uint32> _deaths;
     std::set<ObjectGuid> _fallen;
 };

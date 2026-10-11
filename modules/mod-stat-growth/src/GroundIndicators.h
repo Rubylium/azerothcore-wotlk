@@ -85,9 +85,11 @@ namespace GroundIndicators
     // look: a painted line (shapes.json kind texture) drawn in place of the red, at width as given
     // curtain: its light standing up from the floor (shapes.json kind curtain, built to the line's length), turning
     // with it on a carrier of its own
+    // stopAfterMs: it stops turning then and stays where it stopped until durationMs, the same drawing (a new one in
+    // its place faded out and in); the bots are told of the turning part only - the caller registers where it stops
     Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation, float radiansPerSecond,
                                float length, float width, uint32 durationMs, uint32 hitDamage = 0, uint32 look = 0,
-                               uint32 curtain = 0);
+                               uint32 curtain = 0, uint32 stopAfterMs = 0);
     Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
     // The same sweep with a painted line built to its size (shapes.json `scale`: never scaled, it would grow in on the
     // client), its carrier at start: a blade swept round the room
