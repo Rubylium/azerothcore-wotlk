@@ -10,6 +10,9 @@ namespace Evolutions
         public RemoteFile Launcher { get; set; }
         public RemoteFile WowExePatch { get; set; }
         public string Realmlist { get; set; }
+        // Raised by a release whose server data the game caches (a creature's flags, an item): every launcher empties
+        // the game's Cache\WDB once when it is above the number it last applied (Settings.CacheReset)
+        public int CacheReset { get; set; }
         public List<string> Addons { get; set; } = new List<string>();
         public List<string> RemovedAddons { get; set; } = new List<string>();
         public List<ClientFile> Files { get; set; } = new List<ClientFile>();

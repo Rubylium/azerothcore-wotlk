@@ -191,10 +191,37 @@ namespace Evolutions
             ClientSetup.EnableAddons(gameFolder, manifest.Addons);
             ClientSetup.SetRealmlist(gameFolder, manifest.Realmlist, backupFolder);
 
+            ResetCacheIfAsked(manifest, gameFolder);
+
             settings.Installed = manifest.Files.Select(file => file.Path).ToList();
             settings.Save();
             if (Directory.Exists(downloadFolder))
                 Directory.Delete(downloadFolder, true);
+        }
+
+        // The game keeps what the server told it of each creature and item in Cache\WDB, and never asks again: a release
+        // that changed such data asks every launcher to empty it once (Manifest.CacheReset), the game being closed here
+        void ResetCacheIfAsked(Manifest manifest, string gameFolder)
+        {
+            if (manifest.CacheReset <= settings.CacheReset)
+                return;
+            string cache = Path.Combine(gameFolder, "Cache", "WDB");
+            try
+            {
+                if (Directory.Exists(cache))
+                {
+                    Status?.Invoke("Vidage du cache du jeu…");
+                    Directory.Delete(cache, true);
+                }
+                settings.CacheReset = manifest.CacheReset;
+            }
+            catch (IOException)
+            {
+                // A file still held (the game closing): tried again at the next update
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
         }
 
         // A file a previous release installed and this one no longer ships goes back to what the player had. A file

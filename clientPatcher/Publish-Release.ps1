@@ -228,8 +228,13 @@ $launcherSha = Get-Sha256 $launcherPath
 Copy-Item -LiteralPath $launcherPath -Destination (Join-Path $uploadRoot 'Evolutions.exe')
 $uploads.Add((Join-Path $uploadRoot 'Evolutions.exe'))
 
+# Raise it when a release changes server data the game caches (Cache\WDB: a creature's flags, an item): every launcher
+# empties that cache once (launcher Updater.ResetCacheIfAsked). 1: bosses never play their wound animation (2026-10-12).
+$cacheReset = 1
+
 $manifest = [ordered]@{
     Version = $version
+    CacheReset = $cacheReset
     Launcher = [ordered]@{ Url = "$downloadBase/Evolutions.exe"; Sha256 = $launcherSha; Size = (Get-Item $launcherPath).Length }
     WowExePatch = Publish-File (Join-Path $payloadRoot 'WowExePatch.json')
     Realmlist = $realmlist
@@ -243,6 +248,7 @@ $manifest = [ordered]@{
 # Nothing to publish when neither the files, the launcher, the news nor the settings moved
 if ($previous) {
     $same = ($previous.Launcher.Sha256 -eq $launcherSha) -and ($previous.Realmlist -eq $realmlist) -and
+        ([int]$previous.CacheReset -eq $cacheReset) -and
         ($previous.WowExePatch.Sha256 -eq $manifest.WowExePatch.Sha256) -and
         (@($previous.RemovedAddons) -join '|') -eq ($removedAddons -join '|') -and
         (($previous.Files | ForEach-Object { "$($_.Path)=$($_.Sha256)" }) -join '|') -eq

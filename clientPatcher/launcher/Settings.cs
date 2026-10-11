@@ -17,6 +17,9 @@ namespace Evolutions
         // What the last update installed, so a file a later release stops shipping can be taken back out
         public List<string> Installed { get; set; } = new List<string>();
 
+        // The manifest's CacheReset last applied (the game's Cache\WDB emptied for it)
+        public int CacheReset { get; set; }
+
         // Folder -> SHA-256 of the bundle it was last installed from
         public Dictionary<string, string> Bundles { get; set; } = new Dictionary<string, string>();
 
