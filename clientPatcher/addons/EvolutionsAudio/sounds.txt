@@ -62,7 +62,7 @@ Vorhan.Sentence	spell	1	60	140	Vorhan.Sentence_1.wav;Vorhan.Sentence_2.wav;Vorha
 Vorhan.Violation	spell	1	15	50	Vorhan.Violation_1.wav
 Vorhan.Walls	spell	1	60	140	Vorhan.Walls_1.wav
 Vrogar.Anvil	spell	1	6	45	Vrogar.Anvil_1.wav;Vrogar.Anvil_2.wav
-Vrogar.AnvilCast	spell	1	6	45	Vrogar.AnvilCast_1.wav;Vrogar.AnvilCast_2.wav;Vrogar.AnvilCast_3.wav;Vrogar.AnvilCast_4.wav
+Vrogar.AnvilCast	spell	1	6	45	Vrogar.AnvilCast_1.wav;Vrogar.AnvilCast_2.wav
 Vrogar.BellowsFire	spell	1	6	45	Vrogar.BellowsFire_1.wav;Vrogar.BellowsFire_2.wav
 Vrogar.BellowsLit	spell	1	6	45	Vrogar.BellowsLit_1.wav;Vrogar.BellowsLit_2.wav
 Vrogar.Chains	spell	1	60	140	Vrogar.Chains_1.wav;Vrogar.Chains_2.wav
