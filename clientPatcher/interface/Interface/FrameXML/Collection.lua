@@ -260,6 +260,26 @@ end
 
 local buttons, headers = {}, {}
 
+-- A legendary's copy the character has, worn or in its bags: the tooltip set to it (its real rolls)
+local function ShowOwnedCopy(item)
+    for slot = 1, 19 do
+        local link = GetInventoryItemLink("player", slot)
+        if link and tonumber(link:match("item:(%d+)")) == item then
+            GameTooltip:SetInventoryItem("player", slot)
+            return true
+        end
+    end
+    for bag = 0, 4 do
+        for slot = 1, GetContainerNumSlots(bag) do
+            local link = GetContainerItemLink(bag, slot)
+            if link and tonumber(link:match("item:(%d+)")) == item then
+                GameTooltip:SetBagItem(bag, slot)
+                return true
+            end
+        end
+    end
+end
+
 local function Tooltip(owner, piece, info)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     if IsLegendary(piece) and piece.state == STATE_MISSING then
@@ -269,8 +289,14 @@ local function Tooltip(owner, piece, info)
             GameTooltip:AddLine(_G[info.equipLoc], 1, 1, 1)
         end
         GameTooltip:AddLine(TEXT.hiddenHint, nil, nil, nil, true)
+    elseif IsLegendary(piece) and ShowOwnedCopy(piece.entry) then
+        -- Its copy on the character, rolls and all (Legendary.lua decorates it)
+        GameTooltip:AddLine(" ")
     else
         GameTooltip:SetHyperlink("item:" .. piece.entry)
+        if IsLegendary(piece) and piece.low and EvolutionsLegendary and EvolutionsLegendary.Describe then
+            EvolutionsLegendary.Describe(GameTooltip, piece.entry, piece.low, piece.high)
+        end
         GameTooltip:AddLine(" ")
         if piece.state == STATE_COLLECTED then
             GameTooltip:AddLine(TEXT.collected, 0.1, 1, 0.1)
@@ -633,7 +659,8 @@ local function Receive(message)
         local id = tonumber(fields[2])
         receiving[id] = receiving[id] or { pieces = {}, groups = {} }
         tinsert(receiving[id].pieces, { row = tonumber(fields[3]), entry = tonumber(fields[4]),
-            kind = tonumber(fields[5]), state = tonumber(fields[6]), group = tonumber(fields[7]) or 0 })
+            kind = tonumber(fields[5]), state = tonumber(fields[6]), group = tonumber(fields[7]) or 0,
+            low = tonumber(fields[8]), high = tonumber(fields[9]) })
     elseif command == "F" then
         local id = tonumber(fields[2])
         pieces[id] = receiving[id] or { pieces = {}, groups = {} }

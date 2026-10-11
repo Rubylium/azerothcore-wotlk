@@ -17,10 +17,11 @@
 //     S <tab> <source> <tab> <collected> <tab> <total> <tab> <name> <tab> <icon>     a source, in order (icon: an
 //         item whose icon it shows, its first legendary); then E, the last
 //     G <tab> <source> <tab> <group> <tab> <name>     a group of a source's pieces (a Mythic+ dungeon)
-//     P <tab> <source> <tab> <row> <tab> <entry> <tab> <kind> <tab> <state> <tab> <group>
+//     P <tab> <source> <tab> <row> <tab> <entry> <tab> <kind> <tab> <state> <tab> <group> [<tab> <low> <tab> <high>]
 //         a piece: entry, the item to show (the profile that suits the character); kind 0 armour, 1 weapon,
 //         2 trinket, 3 legendary, 4 Unique; state 0 not collected (a legendary: hidden), 1 seen on the account, 2
-//         collected; group 0 or a G line's. Then F <tab> <source>, the last.
+//         collected; group 0 or a G line's; a legendary's power window, its bottom's low and its top's high in
+//         tenths of a percent (its tooltip without a copy). Then F <tab> <source>, the last.
 //     N <tab> <source> <tab> <row>      a piece just collected
 
 #include "Legendary.h"
@@ -273,8 +274,15 @@ void SendPieces(Player* player, uint8 id)
         if (piece.group && groups.insert(piece.group).second)
             Send(player, Acore::StringFormat("G\t{}\t{}\t{}", id, piece.group, DungeonName(player, piece.group)));
     for (Piece const& piece : pieces)
-        Send(player, Acore::StringFormat("P\t{}\t{}\t{}\t{}\t{}\t{}", id, piece.row, piece.entry, uint32(piece.kind),
-                                         uint32(StateOf(piece.row, collected, seen)), piece.group));
+    {
+        std::string window;
+        if (Legendary::Definition const* definition = Legendary::GetDefinitionByItem(piece.row))
+            window = Acore::StringFormat("\t{}\t{}", uint32(definition->bottomLow * 10.0f + 0.5f),
+                                         uint32(definition->topHigh * 10.0f + 0.5f));
+        Send(player, Acore::StringFormat("P\t{}\t{}\t{}\t{}\t{}\t{}{}", id, piece.row, piece.entry,
+                                         uint32(piece.kind), uint32(StateOf(piece.row, collected, seen)), piece.group,
+                                         window));
+    }
     Send(player, Acore::StringFormat("F\t{}", id));
 }
 

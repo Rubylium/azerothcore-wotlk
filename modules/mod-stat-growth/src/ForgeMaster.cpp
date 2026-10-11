@@ -109,6 +109,7 @@ constexpr uint32 AnvilRingBeats = 4;        // a ring strikes this long after th
 // A shape's first red: at least this long before it strikes (a follow-up of a pattern already read may come faster)
 constexpr uint32 WarnBeats = 8;
 constexpr uint32 FollowBeats = 6;
+constexpr uint32 PourFollowBeats = 4;       // the pour's second half after its first (6 left too long to step across)
 constexpr float SparkRadius = 4.0f;
 constexpr float ChainWidth = 4.0f;
 constexpr uint32 ChainTurnBeats = 8;
@@ -1351,7 +1352,7 @@ private:
         {
             float const towards = facing + float(half) * float(M_PI);
             uint32 const shown = half ? start + WarnBeats : start;
-            Wave(shown, shown + (half ? FollowBeats : WarnBeats), [this, towards](uint32 ms)
+            Wave(shown, shown + (half ? PourFollowBeats : WarnBeats), [this, towards](uint32 ms)
             {
                 Position apex = Middle();
                 apex.SetOrientation(towards);

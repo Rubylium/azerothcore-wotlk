@@ -255,6 +255,9 @@ end
 local TEXT = {
     itemLevel = french and "Niveau d'objet %d" or "Item Level %d",
     window = french and "Puissance : %s - %s sur cette copie" or "Strength: %s - %s on this copy",
+    range = french and "de %s à %s" or "from %s to %s",
+    anyCopy = french and "Chaque copie tire sa puissance, son niveau d'objet et ses caractéristiques."
+        or "Every copy rolls its strength, item level and stats.",
     loading = french and "Propriétés en cours de lecture..." or "Reading its properties...",
 }
 
@@ -744,6 +747,31 @@ function EvolutionsLegendary.WhereOfButton(button)
         return WhereOfContainer(-1, button:GetID())
     elseif name:match("^Character.+Slot$") then
         return "255:" .. (button:GetID() - 1)
+    end
+end
+
+-- A legendary shown without a copy of it (the loot collection): its source, its power over its whole window (low and
+-- high, in tenths of a percent: mod-legendary Definition, the bottom's low and the top's high), its lore - added to a
+-- tooltip set to its base item
+function EvolutionsLegendary.Describe(tooltip, baseItem, low, high)
+    for _, legendary in pairs(LEGENDARIES) do
+        if legendary.item == baseItem then
+            if legendary.unique then
+                tooltip:AddLine(legendary.source, 0.91, 0.2, 0.17)
+            else
+                tooltip:AddLine(legendary.source, 1, 0.5, 0)
+            end
+            if legendary.power then
+                local strength = format(TEXT.range, Percent(low), Percent(high))
+                tooltip:AddLine(Wrapped(ITEM_SPELL_TRIGGER_ONEQUIP .. " " .. format(legendary.power, strength)),
+                    1, 0.5, 0)
+                tooltip:AddLine(TEXT.anyCopy, 0.6, 0.6, 0.6)
+            end
+            if legendary.lore then
+                tooltip:AddLine(Wrapped(legendary.lore), 1, 0.82, 0)
+            end
+            return true
+        end
     end
 end
 
