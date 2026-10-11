@@ -7,6 +7,7 @@
 #include <functional>
 
 class Creature;
+class Map;
 class Item;
 class Player;
 struct ItemTemplate;
@@ -32,6 +33,10 @@ bool ThrowItem(Player* player, uint32 itemId, uint32 count, uint8 quality);
 // Whether the player still has loot on the floor or about to land (mod-playerbots RaidFinder.cpp waits for it before
 // the Défi's way home, and declares it itself)
 bool HasPending(ObjectGuid player);
+// The next boss killed in map's instance gives nothing but DeniedGold on the floor, and no Défi gear (Valérian beaten
+// with his light stolen: ZealotBoss.cpp; mod-legendary SetPieces.cpp asks LootDenied), from then on in that instance.
+void DenyLoot(Map const* map);
+bool LootDenied(Map const* map);
 }
 
 void AddGroundLootScripts();

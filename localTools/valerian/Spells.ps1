@@ -59,6 +59,8 @@ $spells = @(
         "La Lumière a submergé l'arène : le Zélote n'avait pas assez faibli."),
     (New-Hit 94640 'Jugement du Zélote' 20271 $holy `
         "Le Zélote juge ceux qui l'ont mis à genoux."),
+    (New-Hit 94641 'Lumière rendue' 48782 $holy `
+        "Une lumière laissée au Zélote : il la reprend, et tout le groupe en est frappé."),
 
     # --- The debuffs ---
     @{ Id = 94650; Clone = 2983; Name = 'Lumière dérobée'; FallbackIconSpell = 48782; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 99; Spellbook = $false

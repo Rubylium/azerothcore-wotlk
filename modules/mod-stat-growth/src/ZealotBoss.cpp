@@ -1,6 +1,7 @@
 #include "DefiBoss.h"
 #include "EvolutionsAudio.h"
 #include "GroundIndicators.h"
+#include "GroundLoot.h"
 
 #include "Chat.h"
 #include "CommandScript.h"
@@ -14,9 +15,6 @@
 #include <map>
 #include <set>
 #include <string>
-
-// mod-playerbots (RaidFinder.cpp), built into the same modules library: the challenge lost by the boss's own rule
-void FailChallengeFor(Map const* map);
 
 // Valérian, le Zélote: the Hellfire Gaol's third gate, a Défi board boss in the Blood Furnace, in Keli'dan the Breaker's
 // hall - Vrogar's arena, the second gate's (plan: .agents/plans/gaol-third). A fanatic of the Light locked in the Gaol for years: he has some light, he wants all
@@ -33,7 +31,9 @@ void FailChallengeFor(Map const* map);
 // **The lights**: every few seconds a soak of light falls somewhere in the arena (the retail soak's look: it shows when
 // someone stands in it). Whoever stands in it as it lands takes its light (Lumière dérobée: 3% damage and healing a
 // stack - the temptation); left alone, the light flies to him and fills his power bar. At the end of the track, only if
-// every light reached him does he ascend (phase 2); one taken, and the jailers come for him: the mission is lost.
+// every light reached him does he ascend (phase 2); one taken, and the jailers come for him: he is beaten, and
+// leaves 1 gold on the floor, no gear. A light left alone hits everyone for LightReturnPct of their health.
+// Phase 2 (to come) is for now a bare fight: no mechanic, its own health, its music - a win as any other.
 // Health paced (Defi::BossAI StartPace): 1% only at the end; above it then, the light floods the arena.
 // Red shapes while the design is tried (art later); nothing stays on the floor once a pattern has struck (the room is
 // read fast: its sounds mark the hits).
@@ -48,6 +48,8 @@ namespace
 // be hit the whole phase (to its end, beat JudgementBeat), part of that time on him (OnHimShare: the dance)
 constexpr float OnHimShare = 0.7f;
 Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimShare, 1.095f / 1.18f };
+// Phase 2 while it is bare (no mechanic): its own health, the seconds it lasts against the profile's group
+Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 60.0f, 1.095f / 1.18f };
 LiveTuning::Knob const HealthScale("valerian.health_scale", 1.0f);
 constexpr float HoldPct = 1.0f;
 
@@ -86,6 +88,7 @@ constexpr float BurstGroupPct = 22.0f;      // Éclat de zèle, on the music's h
 constexpr float FervorCarrierPct = 25.0f;   // Ferveur on its own carrier
 constexpr float FervorStackPct = 150.0f;    // Ferveur partagée: shared by those under it
 constexpr float AscendPct = 30.0f;          // the light pouring out of him as he rises
+constexpr float AscendKnockback = 7.0f;     // ... throwing everyone back (never as far as the wall)
 // The victim's own health: a dodge missed
 constexpr float DodgePct = 75.0f;
 // A mistake: Ébloui for DazzleMs - a second mistake under it kills
@@ -135,12 +138,14 @@ constexpr uint32 SoakSinkMs = 500;
 constexpr uint32 SoakLandMs = 1200;
 constexpr uint32 StolenMs = 10 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 LightCount = (LightLastBeat - LightFirstBeat) / LightEveryBeats + 1;
+// A light left alone: as it flies to him, everyone takes this share of their own health
+constexpr float LightReturnPct = 5.0f;
 
 // The end of the phase: the jailers walk in, then the mission ends
 constexpr uint32 Jailers = 3;
 constexpr uint32 JailersInMs = 2000;
 constexpr uint32 JailerLineMs = 7000;
-constexpr uint32 DeniedMs = 11000;
+constexpr uint32 DeniedMs = 11000;      // the jailers' line said: he is beaten
 constexpr uint32 AscendMs = 3000;
 
 // What a red area is told to the bots (GroundIndicators hitDamage): nothing known, so always left
@@ -159,6 +164,7 @@ enum Spells : uint32
     SPELL_BURST             = 94638,    // Éclat de zèle
     SPELL_BLINDING          = 94639,    // Lumière aveuglante (the check missed)
     SPELL_ASCEND            = 94640,    // Jugement du Zélote (his rising)
+    SPELL_LIGHT_RETURN      = 94641,    // Lumière rendue (a light left alone, on everyone)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
     SPELL_ZEAL              = 94652,    // Zèle brûlant (his tank's stacks)
@@ -197,6 +203,7 @@ enum class Phase : uint8
     Zealot,         // phase 1
     Chained,        // the light stolen: he kneels, the jailers come
     Ascending,      // every light in him: he rises
+    Ascended,       // phase 2 (bare for now)
     Over,
     Rehearsal,      // the FX lab
 };
@@ -375,6 +382,8 @@ struct boss_valerian : public Defi::BossAI
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*mask*/) override
     {
+        if (_phase == Phase::Ascended)
+            return;
         if (_phase != Phase::Zealot)
         {
             damage = 0;
@@ -401,6 +410,12 @@ struct boss_valerian : public Defi::BossAI
         }
         if (Fighting())
             WatchDeaths();
+        // Kneeling, rising: no one to hit, his steps still go on (the jailers, the end; phase 2)
+        if (_phase == Phase::Chained || _phase == Phase::Ascending)
+        {
+            scheduler.Update(diff);
+            return;
+        }
         if (!UpdateVictim())
         {
             if (!Fighting())
@@ -420,6 +435,8 @@ struct boss_valerian : public Defi::BossAI
             _musicOver = true;
             EndMusic();
         }
+        if (_phase == Phase::Ascended && !me->HasUnitState(UNIT_STATE_CASTING))
+            DoMeleeAttackIfReady();
         if (_phase != Phase::Zealot)
             return;
         UpdatePace(elapsed, Grid.At(JudgementBeat));
@@ -517,7 +534,7 @@ struct boss_valerian : public Defi::BossAI
     }
 
 protected:
-    Defi::Sizing const& GetSizing() const override { return Sizing; }
+    Defi::Sizing const& GetSizing() const override { return _phase == Phase::Ascended ? AscendedSizing : Sizing; }
     float HealthScale() const override { return float(::HealthScale); }
     bool IsOwn(Creature const* creature) const override
     {
@@ -536,7 +553,8 @@ protected:
 private:
     bool Fighting() const
     {
-        return _phase == Phase::Zealot || _phase == Phase::Chained || _phase == Phase::Ascending;
+        return _phase == Phase::Zealot || _phase == Phase::Chained || _phase == Phase::Ascending ||
+            _phase == Phase::Ascended;
     }
 
     // --- The timeline ----------------------------------------------------------------------------------------------
@@ -951,6 +969,9 @@ private:
         ++_absorbed;
         Sound("Valerian.OrbAbsorb", Middle());
         ShowAbsorbed();
+        if (_phase == Phase::Zealot)
+            for (Player* player : ArenaPlayers())
+                HitOwnHealth(player, SPELL_LIGHT_RETURN, LightReturnPct);
     }
 
     void ShowAbsorbed()
@@ -1294,7 +1315,8 @@ private:
         });
     }
 
-    // Some light was stolen from him: he falls to his knees, the jailers come, the mission is lost
+    // Some light was stolen from him: he falls to his knees, the jailers come, he is beaten - no gear, 1 gold on the floor
+    // (GroundLoot::DenyLoot), then home as from any kill
     void Chained()
     {
         _phase = Phase::Chained;
@@ -1336,13 +1358,18 @@ private:
         });
         scheduler.Schedule(Milliseconds(DeniedMs), [this](TaskContext)
         {
-            LOG_INFO(_logName, "Valerian chained instance={}: the mission is lost", me->GetInstanceId());
-            FailChallengeFor(me->GetMap());
+            LOG_INFO(_logName, "Valerian chained instance={}: beaten, no gear", me->GetInstanceId());
+            GroundLoot::DenyLoot(me->GetMap());
+            me->SetImmuneToAll(false);
+            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            std::vector<Player*> const players = ArenaPlayers();
+            Unit* credit = players.empty() ? nullptr : players.front();
+            Unit::Kill(credit ? credit : me, me);
         });
     }
 
-    // Every light in him: he rises off the floor, the light pours out of him (everyone thrown to the wall). Phase 2 is not
-    // built yet: he is beaten there, for now.
+    // Every light in him: he rises off the floor, the light pours out of him (everyone thrown back), then phase 2 - bare
+    // for now: his own health, his music, his melee, no mechanic
     void Ascend()
     {
         _phase = Phase::Ascending;
@@ -1364,17 +1391,26 @@ private:
         for (Player* player : ArenaPlayers())
         {
             Hit(player, SPELL_ASCEND, AscendPct);
-            player->KnockbackFrom(middle.GetPositionX(), middle.GetPositionY(), 18.0f, 6.0f);
+            player->KnockbackFrom(middle.GetPositionX(), middle.GetPositionY(), AscendKnockback, 6.0f);
         }
-        scheduler.Schedule(Milliseconds(AscendMs), [this](TaskContext)
-        {
-            LOG_INFO(_logName, "Valerian ascends instance={}: phase 2 is not built yet, he is beaten here",
-                     me->GetInstanceId());
-            EndPace();
-            std::vector<Player*> const players = ArenaPlayers();
-            Unit* credit = players.empty() ? nullptr : players.front();
-            Unit::Kill(credit ? credit : me, me);
-        });
+        scheduler.Schedule(Milliseconds(AscendMs), [this](TaskContext) { StartAscended(); });
+    }
+
+    // Phase 2, bare: back on the floor at the middle, his health anew, his music
+    void StartAscended()
+    {
+        EndPace();
+        _phase = Phase::Ascended;
+        me->SetCanFly(false);
+        me->SetDisableGravity(false);
+        Position const middle = Middle();
+        me->NearTeleportTo(middle.GetPositionX(), middle.GetPositionY(), middle.GetPositionZ(), me->GetOrientation());
+        me->SetControlled(true, UNIT_STATE_ROOT);
+        SetModelHealth();
+        me->SetReactState(REACT_AGGRESSIVE);
+        DoZoneInCombat(me, GetRoom().reach);
+        StartMusic("Music.ValerianAscended");
+        LOG_INFO(_logName, "Valerian ascended instance={} health={}", me->GetInstanceId(), me->GetMaxHealth());
     }
 
     // --- Mistakes ----------------------------------------------------------------------------------------------------

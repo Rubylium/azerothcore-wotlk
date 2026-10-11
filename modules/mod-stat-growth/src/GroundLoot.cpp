@@ -31,6 +31,8 @@
 #include "WorldSession.h"
 #include <algorithm>
 #include <cmath>
+#include <mutex>
+#include <set>
 #include <vector>
 
 // mod-playerbots (RaidFinder.cpp): the boss entry a Défi's instance is against, 0 when map is no Défi's, and its tier
@@ -100,6 +102,7 @@ constexpr uint32 DefiBaseGold = 10 * GOLD;
 constexpr uint32 DefiTierGold = 5 * GOLD;
 constexpr uint32 DungeonBaseGold = 4 * GOLD;
 constexpr uint32 DungeonKeyGold = 1 * GOLD;
+constexpr uint32 DeniedGold = 1 * GOLD;
 constexpr float PileWeightMin = 0.5f;
 constexpr float PileWeightMax = 1.5f;
 
@@ -605,15 +608,20 @@ uint32 BonusGold(Map const* map)
     return DungeonBaseGold + DungeonKeyGold * uint32(std::max(map->GetMythicLevel(), 0));
 }
 
+// The instances whose next kill gives DeniedGold only (DenyLoot)
+std::mutex DeniedLock;
+std::set<uint32> DeniedInstances;
+
 // A player left with fewer drops than the boss's minimum: piles of gold make up the rest (see MinDropsDefi), their
-// corpse gold share melted into them
+// corpse gold share melted into them; a denied kill's DeniedGold in one pile
 void TopUpWithGold(Creature* corpse, Player* player)
 {
     GroundLootState* state = player->CustomData.Get<GroundLootState>(StateKey);
     if (!state)
         return;
-    uint32 const minimum = GetChallengeBossOf(corpse->GetMap()) ? MinDropsDefi : MinDropsDungeon;
-    uint32 gold = BonusGold(corpse->GetMap());
+    bool const denied = GroundLoot::LootDenied(corpse->GetMap());
+    uint32 const minimum = denied ? 1 : GetChallengeBossOf(corpse->GetMap()) ? MinDropsDefi : MinDropsDungeon;
+    uint32 gold = denied ? DeniedGold : BonusGold(corpse->GetMap());
     uint32 others = 0;
     for (auto itr = state->drops.begin(); itr != state->drops.end();)
     {
@@ -621,7 +629,8 @@ void TopUpWithGold(Creature* corpse, Player* player)
             ++itr;
         else if (itr->kind == DropKind::Gold)
         {
-            gold += itr->gold;
+            if (!denied)
+                gold += itr->gold;
             itr = state->drops.erase(itr);
         }
         else
@@ -801,6 +810,22 @@ bool HasPending(ObjectGuid guid)
     Player* player = ObjectAccessor::FindConnectedPlayer(guid);
     GroundLootState const* state = player ? player->CustomData.Get<GroundLootState>(StateKey) : nullptr;
     return state && !state->drops.empty();
+}
+
+void DenyLoot(Map const* map)
+{
+    if (!map)
+        return;
+    std::lock_guard<std::mutex> guard(DeniedLock);
+    DeniedInstances.insert(map->GetInstanceId());
+}
+
+bool LootDenied(Map const* map)
+{
+    if (!map || !map->GetInstanceId())
+        return false;
+    std::lock_guard<std::mutex> guard(DeniedLock);
+    return DeniedInstances.contains(map->GetInstanceId());
 }
 }
 

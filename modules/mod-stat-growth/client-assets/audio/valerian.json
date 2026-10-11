@@ -6,8 +6,8 @@
     "as it ends - the engine would loop it (loopStart 0) past the track's own fade-out, never reached.",
     "His sounds (Valerian.*): Diablo IV's - Inarius's fight, the Paladin, Akarat's echo, a Knight caster, Mephisto's orb -",
     "picked by the user on the audition page (2026-10-11), each take whole (the bank's sub-bass stream mixed in), the two",
-    "played at random. Levelled on their loudest 0.4 s at -9 dBFS RMS, as Vrogar's; the orb reaching him at half volume",
-    "(one every 2 s). Those tied to a spot fade with distance (full within 6 yd, gone at 45); the arena's heard everywhere."
+    "played at random. Each levelled to the same loudness as the ear hears it (K-weighted, on its loudest 0.4 s: Vrogar's",
+    "chains' level, the user's reference), heard across the whole arena; a light flying to him at 0.7."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -30,11 +30,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Tell_Whoosh_Media_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Tell_Whoosh_Media_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
+      "minDistance": 60,
+      "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -7.9
     },
     "Valerian.Revers": {
       "kind": "spell",
@@ -42,11 +42,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Trinity_Sword_Swing_Zeal_1P_MediaShared_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Trinity_Sword_Swing_Zeal_1P_MediaShared_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
+      "minDistance": 60,
+      "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -4.5
     },
     "Valerian.WrathCast": {
       "kind": "spell",
@@ -54,11 +54,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Smite_PreCast_1P_MediaShared_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Smite_PreCast_1P_MediaShared_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
+      "minDistance": 60,
+      "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -6.1
     },
     "Valerian.Wrath": {
       "kind": "spell",
@@ -70,7 +70,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -4.7
     },
     "Valerian.ChainSpin": {
       "kind": "spell",
@@ -82,7 +82,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.2
     },
     "Valerian.Chain": {
       "kind": "spell",
@@ -94,7 +94,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -9.1
     },
     "Valerian.FervorMark": {
       "kind": "spell",
@@ -102,11 +102,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_MirrorBeam_Warning_3p_Media_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_MirrorBeam_Warning_3p_Media_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
+      "minDistance": 60,
+      "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -7.8
     },
     "Valerian.FervorFlip": {
       "kind": "spell",
@@ -118,7 +118,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.9
     },
     "Valerian.Fervor": {
       "kind": "spell",
@@ -126,11 +126,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Knight_Caster_HolyFlash_Explo_3P_Media_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Knight_Caster_HolyFlash_Explo_3P_Media_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
+      "minDistance": 60,
+      "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.5
     },
     "Valerian.RageCast": {
       "kind": "spell",
@@ -142,7 +142,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -8.9
     },
     "Valerian.Rage": {
       "kind": "spell",
@@ -154,7 +154,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.8
     },
     "Valerian.LancesCast": {
       "kind": "spell",
@@ -166,7 +166,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -6.0
     },
     "Valerian.Lances": {
       "kind": "spell",
@@ -178,7 +178,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -6.5
     },
     "Valerian.Burst": {
       "kind": "spell",
@@ -190,7 +190,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -6.5
     },
     "Valerian.OrbAbsorb": {
       "kind": "spell",
@@ -198,11 +198,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_HolyLight_Projectile_Heal_1P_MediaShared_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_HolyLight_Projectile_Heal_1P_MediaShared_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
-      "volume": 0.5,
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 0.7,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.8
     },
     "Valerian.OrbTaken": {
       "kind": "spell",
@@ -210,11 +210,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Mephisto_Skill_SkillSeal_Orb_Pickup_3p_Media_take1.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Mephisto_Skill_SkillSeal_Orb_Pickup_3p_Media_take2.wav"
       ],
-      "minDistance": 6,
-      "maxDistance": 45,
+      "minDistance": 60,
+      "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -7.4
     },
     "Valerian.WallRise": {
       "kind": "spell",
@@ -226,7 +226,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -6.3
     },
     "Valerian.JudgementCast": {
       "kind": "spell",
@@ -238,7 +238,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -6.7
     },
     "Valerian.Chained": {
       "kind": "spell",
@@ -250,7 +250,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.9
     },
     "Valerian.Ascend": {
       "kind": "spell",
@@ -262,7 +262,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9
+      "loudness": -5.8
     }
   }
 }
