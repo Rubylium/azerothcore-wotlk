@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Vrogar's impacts (modules/mod-stat-growth/src/ForgeMaster.cpp Impact): retail effects Ascension converted to",
+    "3.3.5, each a kit the server plays where a mechanic lands (GroundIndicators::PlayKit), in the forge's colours",
+    "(molten orange, fire, smoke; the meteor's red and Kil'jaeden's violet tinted). Picked in the FX lab from 21",
+    "candidates (.agents/plans/escape-hunter/kits). Imported by localTools/ascensionImport/importVisuals.py into",
+    "client-assets/importedVrogar."
+  ],
+  "output": "modules/mod-stat-growth/client-assets/importedVrogar",
+  "idBase": 82000,
+  "kits": {
+    "Crater": { "effects": { "base": "mage_meteor_impactstate_world" }, "id": 82901 },
+    "MeteorBurst": { "effects": { "base": { "model": "7fx_kiljaeden_armageddon_meteor_impact", "tint": "#ff7a1a" } },
+      "id": 82902 },
+    "MeteorBeam": { "effects": { "base": { "model": "Meteor_Impact_Base_Red", "tint": "#ff8a2a" } }, "id": 82903 },
+    "LavaCracks": { "effects": { "base": "Garrosh_Shockwave_State_Base" }, "id": 82904 },
+    "LavaBurst": { "effects": { "base": "deathwing_lava_burst_impact" }, "id": 82905 },
+    "LavaPillar": { "effects": { "base": "ogre_lavapillar_impact_base" }, "id": 82906 },
+    "MoltenWave": { "effects": { "base": "FX_MoltenEruption" }, "id": 82907 },
+    "Steam": { "effects": { "base": "watersteam_impact" }, "id": 82908 },
+    "SmokeExplosion": { "effects": { "base": "explosion_fire_impact_ground" }, "id": 82910 },
+    "FireBall": { "effects": { "base": "Xplosion_Fire_Impact" }, "id": 82911 }
+  }
+}

@@ -58,6 +58,10 @@ local WARDEN_FIGURE_BOTTOM = 0.6367
 local WARDEN_ATTEMPTS = 3
 local WARDEN_MUSIC = "Music.PrisonIdle"
 local WARDEN_MUSIC_FADE_IN, WARDEN_MUSIC_FADE_OUT = 1500, 2000
+-- The Gaol's gates on the warden's page, gate by gate: the boss behind each (a gate whose boss the board does not post
+-- is sealed). Vrogar (mod-stat-growth ForgeMaster.cpp), the second, has no painting yet: Vorhan's figure in shadow
+local GATE_BOSSES = { WARDEN_BOSS, 930400 }
+local GATE_SHADOWED = 0.3
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
 local TIER_MIN, TIER_MAX = 1, 10
@@ -263,10 +267,17 @@ local TEXT = french and {
     gateSealed = "Scellée",
     gateSealedName = "Porte %s",
     gateSealedLore = "Cette porte reste close. Elle s'ouvrira quand la Geôle livrera ses autres gardiens.",
+    vrogarName = "Vrogar",
+    vrogarEpithet = "Maître-fondeur de la Geôle",
+    vrogarPlace = "La Fournaise du sang",
+    vrogarQuote = "« Vorhan m'envoie encore du fer. Au moule. »",
+    vrogarSignature = "— Vrogar",
+    vrogarLore = "Derrière la deuxième porte, Vrogar coule les chaînes que portent les prisonniers de la Geôle. Sa "
+        .. "forge bat au rythme de son enclume, et le métal en fusion ne choisit pas où il tombe.",
     gateSealedButton = "Porte scellée",
     gateTitle = "Les portes de la Geôle",
-    gateHelp = "La Geôle est un raid en plusieurs portes : chacune garde un gardien, un combat à part. Seule la "
-        .. "première est ouverte.",
+    gateHelp = "La Geôle est un raid en plusieurs portes : chacune garde un gardien, un combat à part. Les portes "
+        .. "s'ouvrent à mesure que leurs gardiens arrivent.",
     wardenTierHelp = "Le gardien-chef n'a pas de paliers : un seul combat, taillé pour un groupe de %d joueurs (2 tanks, "
         .. "2 soigneurs, 4 dégâts) au niveau d'objet %d avec %d points de parangon. Ses règles s'apprennent : chaque "
         .. "inscription donne trois tentatives.",
@@ -458,9 +469,17 @@ local TEXT = french and {
     gateSealed = "Sealed",
     gateSealedName = "Gate %s",
     gateSealedLore = "This gate stays shut. It will open when the Gaol gives up its other wardens.",
+    vrogarName = "Vrogar",
+    vrogarEpithet = "Forge-master of the Gaol",
+    vrogarPlace = "The Blood Furnace",
+    vrogarQuote = "\"Vorhan sends me more iron. Into the mould with you.\"",
+    vrogarSignature = "— Vrogar",
+    vrogarLore = "Behind the second gate, Vrogar casts the chains the Gaol's prisoners wear. His forge beats to the "
+        .. "rhythm of his anvil, and molten iron does not choose where it falls.",
     gateSealedButton = "Gate sealed",
     gateTitle = "The Gaol's gates",
-    gateHelp = "The Gaol is a raid of several gates: each holds a warden, a fight of its own. Only the first is open.",
+    gateHelp = "The Gaol is a raid of several gates: each holds a warden, a fight of its own. The gates open as "
+        .. "their wardens arrive.",
     wardenTierHelp = "The head warden has no tiers: one fight, made for a group of %d players (2 tanks, 2 healers, 4 "
         .. "damage) at item level %d with %d paragon points. His rules are learnt: each sign-up gives three attempts.",
     wardenFace = "Face the head warden",
@@ -545,6 +564,7 @@ local PLACE_BY_BOSS = {
     [930000] = GetLocale() == "frFR" and "Ulduar - Planétarium céleste" or "Ulduar - Celestial Planetarium",
     [VOICE_BOSS] = TEXT.voicePlace,
     [WARDEN_BOSS] = TEXT.wardenPlace,
+    [930400] = TEXT.vrogarPlace,
 }
 
 local function DungeonTexture(dungeonId, kind)
@@ -627,9 +647,22 @@ local function IsWarden(mission)
     return mission and mission.boss == WARDEN_BOSS
 end
 
+-- A gate of the Gaol past the first (the warden's page shows it)
+local function IsGaolGate(mission)
+    if not mission or mission.boss == WARDEN_BOSS then
+        return false
+    end
+    for _, boss in ipairs(GATE_BOSSES) do
+        if mission.boss == boss then
+            return true
+        end
+    end
+    return false
+end
+
 -- A boss with a page of its own rather than a card
 local function HasOwnPage(mission)
-    return IsGod(mission) or IsVoice(mission) or IsWarden(mission)
+    return IsGod(mission) or IsVoice(mission) or IsWarden(mission) or IsGaolGate(mission)
 end
 
 -- The god's tier dial: the tier picked, never above the highest open
@@ -646,7 +679,7 @@ local function CardTier(mission)
         return state.currentTier
     elseif IsGod(mission) then
         return GodTier()
-    elseif IsVoice(mission) or IsWarden(mission) then
+    elseif IsVoice(mission) or IsWarden(mission) or IsGaolGate(mission) then
         return TIER_MIN
     end
     return state.tier or state.openTier
@@ -1352,8 +1385,12 @@ local PAGE_SPECS = {
         epithet = TEXT.wardenEpithet, quote = TEXT.wardenQuote, signature = TEXT.wardenSignature,
         lore = TEXT.wardenLore, face = TEXT.wardenFace, once = TEXT.wardenOnce, tiers = false,
         attempts = WARDEN_ATTEMPTS,
-        -- A raid of gates, one boss each: the first his, the others sealed until their wardens come
+        -- A raid of gates, one boss each: the first his, the others sealed until their wardens come (GATE_BOSSES)
         gates = 4,
+        gateText = {
+            [2] = { name = TEXT.vrogarName, epithet = TEXT.vrogarEpithet, quote = TEXT.vrogarQuote,
+                    signature = TEXT.vrogarSignature, lore = TEXT.vrogarLore },
+        },
         text = {
             tier = TEXT.voiceTier, profile = TEXT.voiceProfile, tierTitle = TEXT.voiceTierTitle,
             tierHelp = TEXT.wardenTierHelp, itemLevel = TEXT.voiceItemLevel,
@@ -1739,27 +1776,44 @@ local function CreateGodPage(spec)
     end)
 
     page.Refresh = function(mission)
+        -- A page of gates: the gate browsed to, its boss's mission when the board posts it; a sealed one shows nothing
+        -- of its warden, its way in shut
+        local gate = spec.gates and (state.gate or 1) or 1
+        local gateMission
+        if spec.gates and gate > 1 then
+            for _, posted in ipairs(state.missions) do
+                if posted.boss == GATE_BOSSES[gate] then
+                    gateMission = posted
+                end
+            end
+        end
+        if gateMission then
+            mission = gateMission
+        end
+        local sealed = gate > 1 and not gateMission
+        local missionBoss = mission.boss
         rewards.mission = mission
         local tier = PageTier()
         local shownTier = CardTier(mission)
         local open = mission.state == STATE_OPEN
 
         name:SetText(spec.name or mission.name)
-        place:SetText(format(TEXT.players, mission.players, PLACE_BY_BOSS[boss]))
+        place:SetText(format(TEXT.players, mission.players, PLACE_BY_BOSS[missionBoss]))
         kind:SetText(TEXT.challenge .. " " .. (TIER_ROMAN[shownTier] or ""))
-        -- A page of gates: the gate browsed to; a sealed one shows nothing of its warden, its way in shut
-        local gate = spec.gates and (state.gate or 1) or 1
-        local sealed = gate > 1
         if spec.gates then
             SetEnabled(previousTier, gate > 1)
             SetEnabled(nextTier, gate < spec.gates)
-            epithet:SetText(sealed and TEXT.gateSealed or spec.epithet)
-            quote:SetText(sealed and "" or spec.quote)
-            signature:SetText(sealed and "" or spec.signature)
-            lore:SetText(sealed and TEXT.gateSealedLore or spec.lore)
-            scene.figure:SetVertexColor(sealed and 0.12 or 1, sealed and 0.12 or 1, sealed and 0.12 or 1)
+            local own = gateMission and spec.gateText and spec.gateText[gate]
+            epithet:SetText(sealed and TEXT.gateSealed or own and own.epithet or spec.epithet)
+            quote:SetText(sealed and "" or own and own.quote or spec.quote)
+            signature:SetText(sealed and "" or own and own.signature or spec.signature)
+            lore:SetText(sealed and TEXT.gateSealedLore or own and own.lore or spec.lore)
+            local shade = sealed and 0.12 or own and GATE_SHADOWED or 1
+            scene.figure:SetVertexColor(shade, shade, shade)
             if sealed then
                 name:SetText(format(TEXT.gateSealedName, TIER_ROMAN[gate]))
+            elseif own then
+                name:SetText(own.name)
             end
         end
 
@@ -1855,15 +1909,15 @@ local function CreateGodPage(spec)
                     return ShowError(8)
                 end
                 PlaySound("igMainMenuOptionCheckBoxOn")
-                state.starting = boss
-                Send("START\t" .. boss .. "\t" .. roles .. "\t" .. PageTier())
+                state.starting = missionBoss
+                Send("START\t" .. missionBoss .. "\t" .. roles .. "\t" .. PageTier())
             end)
         elseif mission.state == STATE_WON then
             button:Show()
             button:SetText(TEXT.claim)
             SetEnabled(button, true)
             button:SetScript("OnClick", function()
-                Send("CLAIM\t" .. state.rotation .. "\t" .. boss)
+                Send("CLAIM\t" .. state.rotation .. "\t" .. missionBoss)
             end)
         else
             button:Hide()

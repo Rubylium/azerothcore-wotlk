@@ -4,7 +4,8 @@
     "Warnings as a pattern starts (a smith's hammering as he raises his, the chains starting to turn, his dip in the",
     "trough or the crucible, the bellows charging, the ingots shown, the wall's earthquake) and impacts the moment it",
     "strikes, one sound each: Diablo IV's, picked by the user on the audition page (2026-10-11; the two variations",
-    "heard there, played at random), the trough's dip and the warnings not picked the game's own."
+    "heard there, played at random), the trough's dip and the warnings not picked the game's own.",
+    "Every one levelled on its loudest 0.4 s at -16 dBFS RMS (loudnessWindowMs): the same loudness for all. Those tied to a spot fade with distance (full within 6 yd, gone at 45); those of the whole arena (the wall, the shockwave, the pour, the chains, la Fonte, his return, the group hit, steam and flood) heard everywhere."
   ],
   "sounds": {
     "Vrogar.WallRise": {
@@ -15,7 +16,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.AnvilCast": {
       "kind": "spell",
@@ -25,9 +28,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingC.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingD.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Anvil": {
       "kind": "spell",
@@ -35,9 +40,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Impact_3p_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Impact_3p_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Shockwave": {
       "kind": "spell",
@@ -47,7 +54,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Pour": {
       "kind": "spell",
@@ -57,7 +66,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Sparks": {
       "kind": "spell",
@@ -65,9 +76,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MfxKit_Lava_Burst_Cylindrical_2ch_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MfxKit_Lava_Burst_Cylindrical_2ch_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.ChainsSpin": {
       "kind": "spell",
@@ -75,9 +88,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_Andariel_Boss_FOLY_Chains_Attack_3P_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_Andariel_Boss_FOLY_Chains_Attack_3P_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Chains": {
       "kind": "spell",
@@ -87,7 +102,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Laminoir": {
       "kind": "spell",
@@ -95,9 +112,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Urivar_Boss_Skills_Overhead_Slam_Impact_2ch_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Urivar_Boss_Skills_Overhead_Slam_Impact_2ch_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.DipTrough": {
       "kind": "spell",
@@ -106,9 +125,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/WaterSteam_Impact2.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/WaterSteam_Impact3.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.DipCrucible": {
       "kind": "spell",
@@ -116,9 +137,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_OBJ_Magma_Burst_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_OBJ_Magma_Burst_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Steam": {
       "kind": "spell",
@@ -128,7 +151,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Flood": {
       "kind": "spell",
@@ -138,7 +163,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.BellowsLit": {
       "kind": "spell",
@@ -146,9 +173,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_Hollows_Brute_Bellow_ChargeUp_3P_MediaShared_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_Hollows_Brute_Bellow_ChargeUp_3P_MediaShared_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.BellowsFire": {
       "kind": "spell",
@@ -156,18 +185,22 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Skill_ButcherHero_FloorGrateFire_FlameBurst_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Skill_ButcherHero_FloorGrateFire_FlameBurst_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Ingots": {
       "kind": "spell",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/1hMaceMetalHitPlateCrit.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.IngotsLand": {
       "kind": "spell",
@@ -175,9 +208,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_TreasureBeast_SKIL_Hammer_Slam_Impact_3P_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_TreasureBeast_SKIL_Hammer_Slam_Impact_3P_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Hammer": {
       "kind": "spell",
@@ -185,9 +220,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_AbyssalLord_SKIL_Slam_Impact_3P_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_AbyssalLord_SKIL_Slam_Impact_3P_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.HammerGroup": {
       "kind": "spell",
@@ -197,7 +234,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Fonte": {
       "kind": "spell",
@@ -207,7 +246,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Return": {
       "kind": "spell",
@@ -217,7 +258,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Spread": {
       "kind": "spell",
@@ -225,9 +268,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_SKIL_Warlock_LavaFracture_Explosion_Small_1P_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_SKIL_Warlock_LavaFracture_Explosion_Small_1P_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     },
     "Vrogar.Soak": {
       "kind": "spell",
@@ -235,9 +280,11 @@
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_Mephisto_Skill_Meteor_Impact_3p_Media_01.wav",
         "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_Mephisto_Skill_Meteor_Impact_3p_Media_02.wav"
       ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -16
     }
   }
 }

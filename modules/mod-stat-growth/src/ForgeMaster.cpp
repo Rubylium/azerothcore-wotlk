@@ -112,6 +112,7 @@ constexpr uint32 FollowBeats = 6;
 constexpr float SparkRadius = 4.0f;
 constexpr float ChainWidth = 4.0f;
 constexpr uint32 ChainTurnBeats = 8;
+constexpr uint32 ChainsFrozenBeats = 5;     // stopped, the chains strike this long after (their turning seen all along)
 constexpr uint32 LaminoirStrips = 4;
 constexpr float LaminoirDepth = 8.0f;
 constexpr float LaminoirGap = 7.0f;
@@ -147,7 +148,24 @@ constexpr std::array<float, 4> SpreadAngles = { -85.8f, -29.6f, 29.6f, 85.8f };
 constexpr float SoakRadius = 4.0f;
 constexpr float SoakTotalPct = 180.0f;
 constexpr uint32 MoltenMs = 6000;
-constexpr uint32 LOOK_STACK_MARK = 94868;   // shapes.json VR_StackMark (localTools/escapeHunter/ingotArt.py)
+constexpr uint32 LOOK_STACK_MARK = 94868;
+
+// His impacts: retail effects in the forge's colours, played where a strike lands (localTools/escapeHunter/
+// ascensionVisuals.json, imported into client-assets/importedVrogar)
+enum Kits : uint32
+{
+    KIT_CRATER              = 82901,    // a scorched crater, lava in its cracks
+    KIT_METEOR_BURST        = 82902,    // a meteor's burst (Kil'jaeden's, tinted orange)
+    KIT_METEOR_BEAM         = 82903,    // a meteor falling (tinted orange)
+    KIT_LAVA_CRACKS         = 82904,    // lava cracks running out over the ground (Garrosh's shockwave)
+    KIT_LAVA_BURST          = 82905,    // a burst of lava
+    KIT_LAVA_PILLAR         = 82906,    // a pillar of fire rising
+    KIT_MOLTEN_WAVE         = 82907,    // a molten glow rolling over the floor
+    KIT_STEAM               = 82908,    // a burst of steam
+    KIT_SMOKE_EXPLOSION     = 82910,    // fire and black smoke
+    KIT_FIRE_BALL           = 82911,    // a ball of fire
+};
+constexpr uint32 ImpactMs = 4000;           // an impact's stalker lasts this long (its effect plays out)   // shapes.json VR_StackMark (localTools/escapeHunter/ingotArt.py)
 constexpr float MarkedRadius = 8.0f;
 constexpr float HammerSoakRadius = 6.0f;
 constexpr uint32 MarkBeats = 12;
@@ -311,24 +329,39 @@ std::vector<Step> BuildTimeline()
 }
 
 // What a mistake costs (a share of the victim's own health; 100: death), and its name in the log
+// What a strike looks like as it lands, laid out from its areas (ForgeMaster Impact)
+enum class Look : uint8
+{
+    None,
+    Cracks,         // lava cracks at the middle, sized to the area (the shockwave's rings)
+    Wave,           // the molten wave rolled over a half (the pour, the bellows)
+    Burst,          // a burst of lava on each circle (the sparks)
+    Line,           // bursts of lava along each line (the chains)
+    Strip,          // an explosion in the middle of each strip (the rollers)
+    Steam,          // a burst of steam over the circle
+    RingPillars,    // pillars of fire round a ring (the iron's flood)
+    Pillars,        // a pillar of fire in each slice of a cone (la Fonte)
+};
+
 struct Rule
 {
     uint32 spell;
     float percent;
     char const* name;
     char const* sound = nullptr;    // played as it strikes (client-assets/audio/vrogar.json)
+    Look look = Look::None;         // seen as it strikes
 };
 
 Rule const RuleAnvil = { SPELL_ANVIL, DodgePct, "anvil cone" };
-Rule const RuleShockwave = { SPELL_SHOCKWAVE, DodgePct, "shockwave", "Vrogar.Shockwave" };
-Rule const RulePour = { SPELL_POUR, DodgePct, "pour", "Vrogar.Pour" };
-Rule const RuleSparks = { SPELL_SPARKS, DodgePct, "sparks", "Vrogar.Sparks" };
-Rule const RuleChains = { SPELL_CHAINS, DodgePct, "chains", "Vrogar.Chains" };
-Rule const RuleLaminoir = { SPELL_LAMINOIR, DodgePct, "laminoir", "Vrogar.Laminoir" };
-Rule const RuleSteam = { SPELL_STEAM, 100.0f, "steam", "Vrogar.Steam" };
-Rule const RuleFlood = { SPELL_FLOOD, 100.0f, "flood", "Vrogar.Flood" };
-Rule const RuleBellows = { SPELL_BELLOWS, 100.0f, "bellows", "Vrogar.BellowsFire" };
-Rule const RuleFonte = { SPELL_FONTE, 100.0f, "fonte", "Vrogar.Fonte" };
+Rule const RuleShockwave = { SPELL_SHOCKWAVE, DodgePct, "shockwave", "Vrogar.Shockwave", Look::Cracks };
+Rule const RulePour = { SPELL_POUR, DodgePct, "pour", "Vrogar.Pour", Look::Wave };
+Rule const RuleSparks = { SPELL_SPARKS, DodgePct, "sparks", "Vrogar.Sparks", Look::Burst };
+Rule const RuleChains = { SPELL_CHAINS, DodgePct, "chains", "Vrogar.Chains", Look::Line };
+Rule const RuleLaminoir = { SPELL_LAMINOIR, DodgePct, "laminoir", "Vrogar.Laminoir", Look::Strip };
+Rule const RuleSteam = { SPELL_STEAM, 100.0f, "steam", "Vrogar.Steam", Look::Steam };
+Rule const RuleFlood = { SPELL_FLOOD, 100.0f, "flood", "Vrogar.Flood", Look::RingPillars };
+Rule const RuleBellows = { SPELL_BELLOWS, 100.0f, "bellows", "Vrogar.BellowsFire", Look::Wave };
+Rule const RuleFonte = { SPELL_FONTE, 100.0f, "fonte", "Vrogar.Fonte", Look::Pillars };
 Rule const RuleSpread = { SPELL_SPREAD_HIT, DodgePct, "fonte spread" };
 
 bool IsHealer(Player* player)
@@ -642,7 +675,14 @@ private:
     void Strike(Areas const& areas, Rule const& rule)
     {
         if (rule.sound && !areas.empty())
-            Sound(rule.sound, areas.front().origin);
+        {
+            std::vector<Position> spots;
+            for (GroundIndicators::Area const& area : areas)
+                spots.push_back(SoundSpot(area));
+            SoundNearest(rule.sound, spots);
+        }
+        for (GroundIndicators::Area const& area : areas)
+            Impact(rule.look, area);
         if (_phase == Phase::Rehearsal)
         {
             LogSafe(rule.name, areas);
@@ -718,6 +758,98 @@ private:
     {
         for (Player* player : Listeners())
             EvolutionsAudio::PlayAt(player, key, where);
+    }
+
+    // A sound with several sources (four ingots, a circle under each player): each one hears it once, from the one
+    // nearest them - a copy from each, together, was far too loud
+    void SoundNearest(char const* key, std::vector<Position> const& wheres)
+    {
+        if (wheres.empty())
+            return;
+        for (Player* player : Listeners())
+        {
+            Position const* nearest = &wheres.front();
+            for (Position const& where : wheres)
+                if (player->GetExactDist2d(&where) < player->GetExactDist2d(nearest))
+                    nearest = &where;
+            EvolutionsAudio::PlayAt(player, key, *nearest);
+        }
+    }
+
+    // One of his impacts at where (Kits), scale times its size, turned as where is
+    void PlayImpact(uint32 kit, Position const& where, float scale, uint32 lastsMs = ImpactMs)
+    {
+        // Inside the wall (a strip's middle can lie past it)
+        Position const middle = Middle();
+        Position spot = where;
+        float const reach = ArenaRadius - 1.5f;
+        if (middle.GetExactDist2d(&where) > reach)
+        {
+            spot = AtAngle(middle, middle.GetAbsoluteAngle(&where), reach);
+            spot.SetOrientation(where.GetOrientation());
+        }
+        GroundIndicators::PlayKit(me, spot, kit, scale, 0, lastsMs);
+    }
+
+    // A strike's look laid out from its area (Look)
+    void Impact(Look look, GroundIndicators::Area const& area)
+    {
+        Position const& origin = area.origin;
+        float const facing = origin.GetOrientation();
+        switch (look)
+        {
+            case Look::None:
+                break;
+            case Look::Cracks:
+                PlayImpact(KIT_LAVA_CRACKS, origin, std::max(0.6f, area.radius / 8.0f));
+                break;
+            case Look::Wave:
+                // Three rolls across the half, from its middle out
+                for (float side : { -0.9f, 0.0f, 0.9f })
+                    PlayImpact(KIT_MOLTEN_WAVE, AtAngle(origin, facing + side, area.radius * 0.5f), 1.4f);
+                break;
+            case Look::Burst:
+                PlayImpact(KIT_LAVA_BURST, origin, std::max(0.6f, area.radius / 5.0f));
+                break;
+            case Look::Line:
+                for (float along : { 0.3f, 0.7f })
+                    PlayImpact(KIT_LAVA_BURST, AtAngle(origin, facing, area.radius * along), 0.7f);
+                break;
+            case Look::Strip:
+                PlayImpact(KIT_SMOKE_EXPLOSION, SoundSpot(area), 0.8f);
+                break;
+            case Look::Steam:
+                PlayImpact(KIT_STEAM, origin, std::max(1.0f, area.radius / 3.0f));
+                break;
+            case Look::RingPillars:
+            {
+                float const middle = std::min((area.inner + std::min(area.radius, ArenaRadius)) / 2.0f, ArenaRadius - 2.0f);
+                for (uint32 index = 0; index < 8; ++index)
+                    PlayImpact(KIT_LAVA_PILLAR, AtAngle(origin, float(index) * float(M_PI) / 4.0f, middle), 1.0f);
+                break;
+            }
+            case Look::Pillars:
+            {
+                // A pillar in each eighth of the arena the cone covers, halfway out
+                uint32 const slices = std::max<uint32>(1, uint32(std::lround(area.arc / (float(M_PI) / 4.0f))));
+                for (uint32 index = 0; index < slices; ++index)
+                {
+                    float const angle = facing - area.arc / 2.0f + (float(index) + 0.5f) * float(M_PI) / 4.0f;
+                    PlayImpact(KIT_LAVA_PILLAR, AtAngle(origin, angle, 9.0f), 1.0f);
+                }
+                break;
+            }
+        }
+    }
+
+    // Where an area's sound comes from: its middle (a line's halfway along it)
+    static Position SoundSpot(GroundIndicators::Area const& area)
+    {
+        if (area.kind != GroundIndicators::Area::Kind::Rectangle)
+            return area.origin;
+        float const facing = area.origin.GetOrientation();
+        return Position(area.origin.GetPositionX() + std::cos(facing) * area.radius / 2.0f,
+            area.origin.GetPositionY() + std::sin(facing) * area.radius / 2.0f, area.origin.GetPositionZ());
     }
 
     Position OnArena(float angle, float distance) const { return AtAngle(GetRoom().center, angle, distance); }
@@ -907,6 +1039,7 @@ private:
         {
             EndCastBar();
             Sound("Vrogar.Anvil", cone.origin);
+            PlayImpact(KIT_LAVA_CRACKS, AtAngle(cone.origin, cone.origin.GetOrientation(), 5.0f), 1.0f);
             if (_phase == Phase::Rehearsal)
                 LogSafe("anvil cone", { cone });
             else
@@ -1030,8 +1163,8 @@ private:
         for (uint32 arm = 0; arm < 4; ++arm)
             spinning.push_back(GroundIndicators::ShowSweepingRectangle(me, center,
                 facing + float(arm) * float(M_PI) / 2.0f, radiansPerSecond, ArenaRadius + 1.0f, ChainWidth,
-                MsTo(stops + WarnBeats), MistakeDamage, 0, 0, spinMs));
-        Wave(stops, stops + WarnBeats, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
+                MsTo(stops + ChainsFrozenBeats), MistakeDamage, 0, 0, spinMs));
+        Wave(stops, stops + ChainsFrozenBeats, [this, spinning, radiansPerSecond, spinMs](uint32 ms)
         {
             EndCastBar();
             Areas areas;
@@ -1211,7 +1344,6 @@ private:
                             GroundIndicators::Burst(me, bellows, GroundIndicators::Theme::Fire);
                         });
                     Watch(half, strikes);
-                    Sound("Vrogar.BellowsLit", bellows);
                 });
                 AtBeat(Grid, strikes - 4, [this, half, strikes]()
                 {
@@ -1219,6 +1351,9 @@ private:
                         MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
                 });
             }
+            std::vector<Position> const lights = { OnArena(BellowsAngle(pair), BellowsDistance),
+                                                   OnArena(BellowsAngle((pair + 1) % 4), BellowsDistance) };
+            AtBeat(Grid, lit, [this, lights]() { SoundNearest("Vrogar.BellowsLit", lights); });
             AtBeat(Grid, strikes, [this, halves]() { Strike(halves, RuleBellows); });
         }
     }
@@ -1319,15 +1454,17 @@ private:
         scheduler.Schedule(Milliseconds(IngotSpreadMs), [this, carriers](TaskContext)
         {
             std::set<Player*> struck;
+            std::vector<Position> bursts;
             for (ObjectGuid const& guid : carriers)
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid); carrier && carrier->IsAlive())
                 {
-                    GroundIndicators::Burst(me, carrier->GetPosition(), GroundIndicators::Theme::Fire);
+                    bursts.push_back(carrier->GetPosition());
+                    PlayImpact(KIT_FIRE_BALL, carrier->GetPosition(), 0.6f);
                     for (Player* player : ArenaPlayers())
                         if (player != carrier && player->GetExactDist2d(carrier) <= IngotSpreadRadius)
                             struck.insert(player);
                 }
-            Sound("Vrogar.Spread", Middle());
+            SoundNearest("Vrogar.Spread", bursts);
             if (_phase == Phase::Rehearsal)
                 return;
             for (Player* player : struck)
@@ -1341,6 +1478,7 @@ private:
 
     void StrikeIngots(std::vector<Position> const& spots)
     {
+        SoundNearest("Vrogar.IngotsLand", spots);
         uint32 failed = 0;
         for (Position const& spot : spots)
         {
@@ -1348,8 +1486,7 @@ private:
             for (Player* player : ArenaPlayers())
                 if (player->GetExactDist2d(&spot) <= IngotRadius)
                     under.push_back(player);
-            GroundIndicators::Burst(me, spot, GroundIndicators::Theme::Fire);
-            Sound("Vrogar.IngotsLand", spot);
+            PlayImpact(KIT_LAVA_BURST, spot, 0.8f);
             if (_phase == Phase::Rehearsal)
                 continue;
             if (under.size() == 2)
@@ -1392,6 +1529,8 @@ private:
             {
                 EndCastBar();
                 Sound("Vrogar.Hammer", soak);
+                PlayImpact(KIT_LAVA_CRACKS, soak, 1.2f);
+                PlayImpact(KIT_SMOKE_EXPLOSION, soak, 1.0f);
                 StrikeHammer(marked, soak);
             });
         });
@@ -1439,6 +1578,7 @@ private:
             Sound("Vrogar.HammerGroup", me->GetPosition());
             if (_phase != Phase::Rehearsal)
                 HitEveryone(SPELL_HAMMER_GROUP, HammerGroupPct);
+            PlayImpact(KIT_LAVA_CRACKS, me->GetPosition(), 1.5f);
         });
     }
 
@@ -1583,7 +1723,13 @@ private:
         {
             for (Player* player : ArenaPlayers())
                 GroundIndicators::EndUnitSpot(me, player);
-            Sound("Vrogar.Spread", Middle());
+            std::vector<Position> bursts;
+            for (ObjectGuid const& guid : carriers)
+                if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid); carrier && carrier->IsAlive())
+                    bursts.push_back(carrier->GetPosition());
+            SoundNearest("Vrogar.Spread", bursts);
+            for (Position const& burst : bursts)
+                PlayImpact(KIT_FIRE_BALL, burst, 0.9f);
             if (_phase == Phase::Rehearsal)
                 return;
             for (ObjectGuid const& guid : carriers)
@@ -1640,6 +1786,11 @@ private:
         {
             for (Player* player : ArenaPlayers())
                 GroundIndicators::EndUnitSpot(me, player);
+            std::vector<Position> landings;
+            for (ObjectGuid const& guid : marks)
+                if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
+                    landings.push_back(carrier->GetPosition());
+            SoundNearest("Vrogar.Soak", landings);
             for (ObjectGuid const& guid : marks)
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                     StrikeSoak(carrier);
@@ -1663,8 +1814,9 @@ private:
     // Métal en fusion from one before
     void StrikeSoak(Player* carrier)
     {
-        GroundIndicators::Burst(me, carrier->GetPosition(), GroundIndicators::Theme::Fire);
-        Sound("Vrogar.Soak", carrier->GetPosition());
+        PlayImpact(KIT_METEOR_BEAM, carrier->GetPosition(), 1.0f);
+        PlayImpact(KIT_METEOR_BURST, carrier->GetPosition(), 0.8f);
+        PlayImpact(KIT_CRATER, carrier->GetPosition(), 0.6f, 6000);
         std::vector<Player*> in;
         for (Player* player : ArenaPlayers())
             if (player->GetExactDist2d(carrier) <= SoakRadius)
@@ -1692,7 +1844,8 @@ private:
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->SetReactState(REACT_AGGRESSIVE);
         _phase = Phase::Quench;
-        GroundIndicators::Burst(me, middle, GroundIndicators::Theme::Fire);
+        PlayImpact(KIT_SMOKE_EXPLOSION, middle, 2.0f);
+        PlayImpact(KIT_LAVA_CRACKS, middle, 2.0f);
         Sound("Vrogar.Return", middle);
         HitEveryone(SPELL_RETURN, ReturnPct);
     }

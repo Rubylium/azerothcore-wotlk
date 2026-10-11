@@ -1582,7 +1582,8 @@ foreach ($custom in $customSpells) {
 
 # --- Spell visuals imported from the Ascension client (localTools\ascensionImport\importVisuals.py) ---
 #
-# Each modules\<module>\client-assets\imported\visuals.json holds whole rows, already numbered (from the import's
+# Each modules\<module>\client-assets\imported*\visuals.json (a module may hold several imports, each rebuilt whole:
+# imported, importedVrogar) holds whole rows, already numbered (from the import's
 # idBase) and pointing at one another, so they are appended as they are: a spell names its look by the id the import
 # gave it (Spell.dbc field 131). The files they play ship from that folder's files\ (patchFiles.js). The sounds take
 # the same combat volume as the game's own (CombatSoundVolume above).
@@ -1592,7 +1593,7 @@ $importedTables = [ordered]@{
     SoundEntries = $soundDbc; SpellVisualEffectName = $effectNameDbc; SpellMissileMotion = $motionDbc
     SpellVisualKit = $visualKitDbc; SpellVisualKitModelAttach = $attachDbc; SpellVisual = $visualDbc
 }
-foreach ($importFile in @(Get-ChildItem -Path (Join-Path $repoRoot 'modules\*\client-assets\imported\visuals.json'))) {
+foreach ($importFile in @(Get-ChildItem -Path (Join-Path $repoRoot 'modules\*\client-assets\imported*\visuals.json'))) {
     $import = Get-Content -LiteralPath $importFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
     foreach ($table in $importedTables.Keys) {
         $dbc = $importedTables[$table]

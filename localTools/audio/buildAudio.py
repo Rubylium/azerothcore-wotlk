@@ -31,6 +31,8 @@ Every modules/*/client-assets/audio/*.json is read:
   sample-exact so its end flows into the loop start (no fade: the engine fades when it stops).
 - minDistance / maxDistance (yards, world and loop): full volume within the first, fading to nothing at the second.
 - world and loop sounds are written mono (one point in the world); ui and music sounds keep their channels.
+- loudnessWindowMs: the level measured over the file's loudest window that long, not the whole file - an impact with a
+  long quiet tail measured whole was raised far too loud at its hit (Vrogar's, 2026-10-11)
 - loudness: each file brought to that RMS level, its peaks held under -1 dBFS by a limiter. By default the kind's:
   LOUDNESS below, set against the game's own sounds (its interface cues at -12 to -25 dBFS RMS, LevelUp -12), so a
   new sound starts as loud as the rest - sounds from another game come mixed for its engine, often far quieter.
@@ -81,11 +83,22 @@ def rms(samples):
     return float(numpy.sqrt(numpy.mean(samples ** 2)))
 
 
-def normalize(samples, rate, level):
+def loudest(samples, rate, windowMs):
+    """the RMS of the loudest windowMs of the file (an impact is heard by its hit, not by its quiet tail)"""
+    window = max(1, int(rate * windowMs / 1000))
+    power = numpy.mean(samples ** 2, axis=1)
+    if len(power) <= window:
+        return float(numpy.sqrt(numpy.mean(power)))
+    return float(numpy.sqrt(numpy.max(uniform_filter1d(power, size=window))))
+
+
+def normalize(samples, rate, level, windowMs=0):
     """raised as a whole to that RMS level, the peaks held under the ceiling by a look-ahead limiter (the gain each
-    sample needs, taken over the next 3 ms and released over 60 ms) - a few passes, the limiter taking some back"""
+    sample needs, taken over the next 3 ms and released over 60 ms) - a few passes, the limiter taking some back.
+    windowMs: the level measured over the file's loudest windowMs, not the whole file"""
     for _ in range(3):
-        samples = samples * 10 ** ((level - db(rms(samples))) / 20)
+        measured = loudest(samples, rate, windowMs) if windowMs else rms(samples)
+        samples = samples * 10 ** ((level - db(measured)) / 20)
         envelope = maximum_filter1d(numpy.max(numpy.abs(samples), axis=1), size=2 * max(1, int(rate * LOOKAHEAD)) + 1)
         gain = numpy.minimum(1.0, CEILING / numpy.maximum(envelope, 1e-9))
         release = max(1, int(rate * RELEASE))
@@ -241,7 +254,7 @@ def main():
                 name = f'{key}_{index + 1}.flac'
                 write_blocks(os.path.join(OUTPUT, 'Sounds', name), samples, rate, format='FLAC', subtype='PCM_16')
             else:
-                samples = normalize(samples, rate, level)
+                samples = normalize(samples, rate, level, float(spec.get('loudnessWindowMs', 0)))
                 name = f'{key}_{index + 1}.wav'
                 soundfile.write(os.path.join(OUTPUT, 'Sounds', name),
                                 samples if samples.shape[1] > 1 else samples[:, 0], rate, subtype='PCM_16')

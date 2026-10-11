@@ -134,9 +134,15 @@ function getPatchFiles(repoRoot) {
     // and the maps edited with Noggit (clientPatcher/maps, its project folder: localTools/mapEditing/README.md), first
     const modulesRoot = path.join(repoRoot, 'modules');
     const archiveFolders = [path.join(repoRoot, 'clientPatcher', 'maps')].concat(
-        fs.readdirSync(modulesRoot).sort().flatMap((module) => [
-            path.join(modulesRoot, module, 'client-assets', 'files'),
-            path.join(modulesRoot, module, 'client-assets', 'imported', 'files')]));
+        fs.readdirSync(modulesRoot).sort().flatMap((module) => {
+            const assets = path.join(modulesRoot, module, 'client-assets');
+            // Every import of the module (imported, importedVrogar...), each rebuilt whole by importVisuals.py
+            const imports = fs.existsSync(assets)
+                ? fs.readdirSync(assets).filter((name) => name.startsWith('imported')).sort()
+                    .map((name) => path.join(assets, name, 'files'))
+                : [];
+            return [path.join(assets, 'files')].concat(imports);
+        }));
     // Two modules' imports can bring the same Ascension file (a model or a sound both looks use): packed once, the
     // first module's copy (the same file)
     const moduleArchives = new Set();
