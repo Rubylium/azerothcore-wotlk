@@ -3,7 +3,8 @@
     "Effects rebuilt to Vrogar's forms (localTools/shapedEffects/buildShapedEffects.py): each a kit the server plays",
     "where the form lands, turned to its axis (ForgeMaster ShapedImpact). Kits 82950-82999 (Vrogar's). The lava burst",
     "(Deathwing's, imported from Ascension) as cones, lines and rings.",
-    "A wider cone is several of these side by side (a 180 degree one drew a streak along its edges)."
+    "A wider cone is several of these side by side (a 180 degree one drew a streak along its edges).",
+    "Valérian's (ZealotBoss.cpp): kits 83950-83959, Dragonflight's holy impact (11fx_holy_impact01, imported from Ascension into importedValerian) as a 90 degree cone, his outer ring and a lance's tile."
   ],
   "output": "modules/mod-stat-growth/client-assets/files",
   "folder": "Spells/Evolutions/Shaped",
@@ -95,6 +96,39 @@
         }
       },
       "kit": 82958
+    },
+    {
+      "key": "HolyCone90",
+      "source": "modules/mod-stat-growth/client-assets/importedValerian/files/SPELLS/11fx_holy_impact01.m2",
+      "form": {
+        "cone": {
+          "arc": 90,
+          "radius": 17
+        }
+      },
+      "kit": 83950
+    },
+    {
+      "key": "HolyRing7to17",
+      "source": "modules/mod-stat-growth/client-assets/importedValerian/files/SPELLS/11fx_holy_impact01.m2",
+      "form": {
+        "ring": {
+          "inner": 6.8,
+          "outer": 17
+        }
+      },
+      "kit": 83951
+    },
+    {
+      "key": "HolyLine10x2",
+      "source": "modules/mod-stat-growth/client-assets/importedValerian/files/SPELLS/11fx_holy_impact01.m2",
+      "form": {
+        "line": {
+          "length": 10,
+          "width": 2.5
+        }
+      },
+      "kit": 83952
     }
   ]
 }

@@ -159,13 +159,23 @@ def wall_bars():
 
 
 def wall_light():
-    """The curtain of light, its seamless square laid across a piece (6.27 x 4.7 yards: 2 tiles wide for 1.5 high)"""
+    """The curtain of light, its seamless square laid across a piece (6.27 x 4.7 yards: 2 tiles wide for 1.5 high),
+    faded out towards a ragged top (flames of light of uneven height: a straight top read as a ruled line) and at its
+    foot. It drifts along the wall, never up it: a fade drawn in a texture moves with it"""
     tile = Image.open(os.path.join(ART, 'wall_light.png')).convert('RGB').resize((512, 512), Image.LANCZOS)
     band = Image.new('RGB', (1024, 768))
     for column in range(2):
         for row in range(2):
             band.paste(tile, (512 * column, 512 * row))
-    return band.resize((1024, 512), Image.LANCZOS)
+    light = numpy.asarray(band.resize((1024, 512), Image.LANCZOS), dtype=numpy.float64) / 255.0
+    rows, columns = light.shape[:2]
+    up = 1.0 - (numpy.arange(rows)[:, None] + 0.5) / rows        # 1 at the top, 0 at the foot
+    across = (numpy.arange(columns)[None, :] + 0.5) / columns
+    # Each column's own top, seamless round the band (whole sine periods): 0.45 to 0.85 of the height
+    top = 0.65 + 0.11 * numpy.sin(2 * math.pi * 3 * across) + 0.07 * numpy.sin(2 * math.pi * 7 * across + 1.3) +         0.04 * numpy.sin(2 * math.pi * 13 * across + 0.4)
+    fade = smooth(top, top - 0.35, up) * smooth(0.0, 0.1, up)
+    faded = numpy.clip(light * fade[..., None], 0.0, 1.0)
+    return Image.fromarray((faded * 255.0 + 0.5).astype(numpy.uint8))
 
 
 def wall_motes():

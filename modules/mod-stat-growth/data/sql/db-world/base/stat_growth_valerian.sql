@@ -2,7 +2,8 @@
 -- from mod-playerbots ChallengeBoard.cpp, 8 players - 2 tanks, 2 healers, 4 damage dealers - as the Gaol's other gates;
 -- plan: .agents/plans/gaol-third). A fanatic of the Light locked in the Gaol for years; his fight runs on his music, in
 -- a walled arena in Keli'dan the Breaker's hall - Vrogar's, the second gate's.
--- 930500 Valérian: a Male Human Captive's look (5680, display 3973: a prisoner in rags), until his own; a level 83
+-- 930500 Valérian: High Inquisitor Fairbanks' look (4542, display 2605: a gaunt grey-haired paladin in tattered
+--        robes, broken in a cell), until his own; a level 83
 --        boss, a paladin (his power bar: the orbs of light he has taken in). His health is set by his script from the
 --        power model when his instance is known to be a challenge's.
 -- 930501 Lumière captive: an orb of light drifting to him (Concentrated Light's look, 34630, display 29352), summoned
@@ -89,7 +90,7 @@ DROP TEMPORARY TABLE `tmp_stat_growth_zealot_jailer`;
 INSERT INTO `creature_template_model`
     (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 VALUES
-    (930500, 0, 3973, 1.3, 1, NULL),
+    (930500, 0, 2605, 1.3, 1, NULL),
     (930501, 0, 29352, 0.6, 1, NULL),
     (930502, 0, 16584, 1.1, 1, NULL),
     (930503, 0, 60020, 1, 1, NULL);

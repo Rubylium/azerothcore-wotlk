@@ -158,6 +158,7 @@ constexpr uint32 AscendGlowEveryMs = 1500;
 constexpr float AscendScale = 1.7f;
 constexpr uint32 AscendHitMs = 36900;
 constexpr uint32 AscendLandMs = AscendHitMs - 700;
+constexpr uint32 AscendStepMs = 100;      // his rise and his drop: a step every this long
 constexpr uint32 AscendedMusicEndMs = 281100;
 constexpr uint32 KIT_HOLY_GLOW = 7005;      // Holy_Precast_High_Base, played on him
 
@@ -210,6 +211,23 @@ constexpr float WallMotesIn = 0.994f;
 constexpr uint32 WallRiseMs = 1400;
 constexpr float LanceTileRatio = 4.0f;
 constexpr float SigilRadius = 8.0f;
+
+// His impacts: retail holy effects Ascension converted (localTools/valerian/ascensionVisuals.json, importedValerian),
+// and Dragonflight's holy impact rebuilt to his forms (localTools/shapedEffects: played from the form's origin, turned a
+// quarter left of its axis - ShapedImpact)
+enum Kits : uint32
+{
+    KIT_LIGHTS_JUDGEMENT    = 83903,    // a ring of golden sparks bursting (the Vindicaar's Light's Judgement)
+    KIT_HOLY_IMPACT         = 83906,    // a column of light and its ground flash (Dragonflight)
+    KIT_HOLY_BLAST          = 83911,    // a wide golden flash (the Lightforged siege weapon's)
+    SHAPED_HOLY_CONE_90     = 83950,    // a quarter of the arena, 17 yd
+    SHAPED_HOLY_RING_7_17   = 83951,    // Rage contenue's outside
+    SHAPED_HOLY_LINE_10X2   = 83952,    // a lance's tile: 10 yd along, 2.5 across
+};
+constexpr uint32 ImpactMs = 4000;           // an impact's stalker lasts this long (its effect plays out)
+// How far each burst reaches from its middle at scale 1 (yards, seen in the FX lab): sized from it to its circle
+constexpr float BlastReach = 3.0f;
+constexpr float JudgementReach = 3.5f;
 
 enum Spells : uint32
 {
@@ -333,6 +351,14 @@ std::vector<Step> BuildTimeline()
 }
 
 // What a mistake costs (a share of the victim's own health; 100: death), and its name in the log
+// What a strike looks like as it lands, laid out from its area (Impact): its holy impact cut to its form
+enum class Look : uint8
+{
+    None,
+    Shaped,     // a cone in quarters, a ring, a lance in tiles
+    Blast,      // a circle: the golden flash sized to it
+};
+
 // sound: played as it strikes (client-assets/audio/valerian.json), from the area nearest each listener
 struct Rule
 {
@@ -340,14 +366,15 @@ struct Rule
     float percent;
     char const* name;
     char const* sound = nullptr;
+    Look look = Look::None;
 };
 
-Rule const RuleRevers = { SPELL_REVERS, DodgePct, "revers", "Valerian.Revers" };
-Rule const RuleWrath = { SPELL_WRATH, DodgePct, "wrath", "Valerian.Wrath" };
-Rule const RuleChain = { SPELL_CHAIN, DodgePct, "chain", "Valerian.Chain" };
+Rule const RuleRevers = { SPELL_REVERS, DodgePct, "revers", "Valerian.Revers", Look::Shaped };
+Rule const RuleWrath = { SPELL_WRATH, DodgePct, "wrath", "Valerian.Wrath", Look::Shaped };
+Rule const RuleChain = { SPELL_CHAIN, DodgePct, "chain", "Valerian.Chain", Look::Shaped };
 Rule const RuleFervor = { SPELL_FERVOR, DodgePct, "fervor" };
-Rule const RuleRage = { SPELL_RAGE, DodgePct, "rage", "Valerian.Rage" };
-Rule const RuleLances = { SPELL_LANCES, DodgePct, "lances", "Valerian.Lances" };
+Rule const RuleRage = { SPELL_RAGE, DodgePct, "rage", "Valerian.Rage", Look::Shaped };
+Rule const RuleLances = { SPELL_LANCES, DodgePct, "lances", "Valerian.Lances", Look::Shaped };
 
 bool IsTank(Player* player)
 {
@@ -685,7 +712,10 @@ private:
             return;
         std::vector<Position> spots;
         for (GroundIndicators::Area const& area : areas)
+        {
             spots.push_back(BurstSpot(area));
+            Impact(rule.look, area);
+        }
         if (rule.sound)
             SoundNearest(rule.sound, spots);
         if (_phase == Phase::Rehearsal)
@@ -748,6 +778,71 @@ private:
     }
 
     Position Middle() const { return Ground(GetRoom().center); }
+
+    // --- His impacts --------------------------------------------------------------------------------------------------
+    // A strike's look laid out from its area (Look)
+    void Impact(Look look, GroundIndicators::Area const& area)
+    {
+        if (look == Look::None)
+            return;
+        Position const& origin = area.origin;
+        float const facing = origin.GetOrientation();
+        switch (area.kind)
+        {
+            case GroundIndicators::Area::Kind::Cone:
+                ShapedCone(origin, facing, area.arc);
+                break;
+            case GroundIndicators::Area::Kind::Ring:
+                ShapedImpact(SHAPED_HOLY_RING_7_17, origin, 0.0f);
+                break;
+            case GroundIndicators::Area::Kind::Rectangle:
+                ShapedLance(origin, facing, area.radius);
+                break;
+            case GroundIndicators::Area::Kind::Circle:
+                Blast(origin, area.radius);
+                break;
+            default:
+                break;
+        }
+    }
+
+    // A shaped kit (Kits) from origin along axis: its forms run along the model's +Y, a quarter turn left of the way it
+    // faces
+    void ShapedImpact(uint32 kit, Position const& origin, float axis)
+    {
+        Position spot = origin;
+        spot.SetOrientation(Position::NormalizeOrientation(axis - float(M_PI) / 2.0f));
+        GroundIndicators::PlayKit(me, spot, kit, 1.0f, 0, ImpactMs);
+    }
+
+    // A cone from apex along facing, arc wide (radians): its quarters side by side
+    void ShapedCone(Position const& apex, float facing, float arc)
+    {
+        float const quarter = float(M_PI) / 2.0f;
+        uint32 const quarters = std::max<uint32>(1, uint32(arc / quarter + 0.5f));
+        float edge = facing - float(quarters) * quarter / 2.0f;
+        for (uint32 index = 0; index < quarters; ++index, edge += quarter)
+            ShapedImpact(SHAPED_HOLY_CONE_90, apex, edge + quarter / 2.0f);
+    }
+
+    // A lance from origin along facing, length long: its tiles end to end, the last flush with its end
+    void ShapedLance(Position const& origin, float facing, float length)
+    {
+        float const tile = LanceWidth * LanceTileRatio;
+        float done = 0.0f;
+        for (; length - done >= tile; done += tile)
+            ShapedImpact(SHAPED_HOLY_LINE_10X2, Ground(AtAngle(origin, facing, done)), facing);
+        if (length - done > 0.5f)
+            ShapedImpact(SHAPED_HOLY_LINE_10X2, Ground(AtAngle(origin, facing, std::max(0.0f, length - tile))),
+                facing);
+    }
+
+    // A circle radius yards: the golden flash sized to it, Light's Judgement's sparks round its edge
+    void Blast(Position const& at, float radius)
+    {
+        GroundIndicators::PlayKit(me, at, KIT_HOLY_BLAST, std::max(0.3f, radius / BlastReach), 0, ImpactMs);
+        GroundIndicators::PlayKit(me, at, KIT_LIGHTS_JUDGEMENT, std::max(0.3f, radius / JudgementReach), 0, ImpactMs);
+    }
 
     // One of his sounds (client-assets/audio/valerian.json) at where, for everyone hearing the fight
     void Sound(char const* key, Position const& where)
@@ -1137,6 +1232,7 @@ private:
         {
             EndCastBar();
             Sound("Valerian.Revers", BurstSpot(front));
+            Impact(Look::Shaped, front);
             if (_phase == Phase::Rehearsal)
             {
                 LogSafe("revers front", { front });
@@ -1269,6 +1365,8 @@ private:
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                     bursts.push_back(carrier->GetPosition());
             SoundNearest("Valerian.Fervor", bursts);
+            for (Position const& at : bursts)
+                Blast(at, FervorRadius);
             for (ObjectGuid const& guid : marks)
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                 {
@@ -1415,6 +1513,7 @@ private:
         {
             EndCastBar();
             Sound("Valerian.Burst", Middle());
+            Blast(Middle(), 8.0f);
             if (_phase == Phase::Zealot)
                 HitEveryone(SPELL_BURST, BurstGroupPct);
         });
@@ -1534,21 +1633,28 @@ private:
                 me->SendPlaySpellVisual(KIT_HOLY_GLOW);
                 me->SetObjectScale(1.25f + (AscendScale - 1.25f) * float(at) / float(AscendLandMs));
             });
-        // Up off the floor, slowly, and hovering
+        // Up off the floor, slowly, levitating (arms raised, channelling): set a little higher every AscendStepMs, never
+        // moved - any movement plays a movement animation on his model (flying, a human's fell back to swimming; hovering,
+        // a hunched lean)
         scheduler.Schedule(Milliseconds(AscendRiseMs), [this](TaskContext)
         {
             me->SetControlled(false, UNIT_STATE_ROOT);
-            me->SetCanFly(true);
             me->SetDisableGravity(true);
-            Position up = Middle();
-            up.m_positionZ += AscendHeight;
-            me->GetMotionMaster()->MoveTakeoff(1, up, AscendHeight / (float(AscendRiseTakesMs) / 1000.0f));
+            me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_SPELL_CHANNEL_OMNI);
         });
-        // Down as the music breaks
-        scheduler.Schedule(Milliseconds(AscendLandMs), [this](TaskContext)
-        {
-            me->GetMotionMaster()->MoveLand(2, Middle(), AscendHeight / 0.6f);
-        });
+        uint32 const riseSteps = AscendRiseTakesMs / AscendStepMs;
+        for (uint32 step = 1; step <= riseSteps; ++step)
+            scheduler.Schedule(Milliseconds(AscendRiseMs + step * AscendStepMs), [this, step, riseSteps](TaskContext)
+            {
+                SetHeight(AscendHeight * float(step) / float(riseSteps));
+            });
+        // Down as the music breaks, in a few quick steps
+        uint32 const dropSteps = (AscendHitMs - AscendLandMs) / AscendStepMs;
+        for (uint32 step = 1; step <= dropSteps; ++step)
+            scheduler.Schedule(Milliseconds(AscendLandMs + step * AscendStepMs), [this, step, dropSteps](TaskContext)
+            {
+                SetHeight(AscendHeight * (1.0f - float(step) / float(dropSteps)));
+            });
         // His blow on its hit: everyone left at AscendLeftPct of their health, then phase 2
         scheduler.Schedule(Milliseconds(AscendHitMs), [this](TaskContext)
         {
@@ -1566,6 +1672,7 @@ private:
                     HitOwnHealth(player, SPELL_ASCEND,
                         float(player->GetHealth() - left) * 100.0f / float(player->GetMaxHealth()));
             }
+            me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
             if (_ascendRehearsed)
             {
                 // The lab: back to rehearsing, as he was
@@ -1579,6 +1686,14 @@ private:
             }
             StartAscended();
         });
+    }
+
+    // His height over the middle's floor, set at once (no movement: see Ascend)
+    void SetHeight(float height)
+    {
+        Position at = Middle();
+        at.m_positionZ += height;
+        me->NearTeleportTo(at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(), me->GetOrientation());
     }
 
     // Phase 2, bare: on the floor at the middle, his health anew (its music already on since his apotheosis)
@@ -1676,6 +1791,7 @@ private:
         me->SetImmuneToAll(false);
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->SetStandState(UNIT_STAND_STATE_STAND);
+        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
         me->SetObjectScale(1.0f);

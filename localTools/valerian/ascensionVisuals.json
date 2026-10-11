@@ -4,11 +4,56 @@
     "annihilation state, the gold ring with its wall of light), converted to 3.3.5 by Ascension. One model with both",
     "looks: the wall standing while empty, sinking into the floor while someone stands in it (its CustomSpell01-04",
     "animations, played by emotes 402-405/417). A creature look: localTools/patchSinisterStrike.ps1 gives it a",
-    "creature display (60020). Imported by localTools/ascensionImport/importVisuals.py into client-assets/importedValerian."
+    "creature display (60020). Imported by localTools/ascensionImport/importVisuals.py into client-assets/importedValerian.",
+    "Kits 83901+: candidates for his strikes' impacts, compared in the FX lab (then reshaped: localTools/shapedEffects)."
   ],
   "output": "modules/mod-stat-growth/client-assets/importedValerian",
   "idBase": 83000,
   "models": [
     "world/expansion07/doodads/fx/8fx_rl_annihilation_state_holy.m2"
-  ]
+  ],
+  "kits": {
+    "Cand00": {
+      "effects": {
+        "base": "7fx_paladin_wakeofashes_impact"
+      },
+      "id": 83901
+    },
+    "Cand02": {
+      "effects": {
+        "base": "7fx_lightforged_vindicaar_lightsjudgement_impact"
+      },
+      "id": 83903
+    },
+    "Cand05": {
+      "effects": {
+        "base": "11fx_holy_impact01"
+      },
+      "id": 83906
+    },
+    "Cand06": {
+      "effects": {
+        "base": "11fx_lightimpact01"
+      },
+      "id": 83907
+    },
+    "Cand07": {
+      "effects": {
+        "base": "HolyNova_Impact_Base"
+      },
+      "id": 83908
+    },
+    "Cand10": {
+      "effects": {
+        "base": "7fx_argus_lightforged_siegeweapon_impact_holy"
+      },
+      "id": 83911
+    },
+    "Cand11": {
+      "effects": {
+        "base": "Divine_Storm_Impact_Damage"
+      },
+      "id": 83912
+    }
+  }
 }
