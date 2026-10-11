@@ -156,9 +156,25 @@ constexpr uint32 AscendRiseTakesMs = 12000;
 constexpr float AscendHeight = 7.0f;
 constexpr uint32 AscendGlowEveryMs = 1500;
 constexpr float AscendScale = 1.7f;
-constexpr uint32 AscendHitMs = 36900;
+constexpr uint32 AscendHitMs = 33000;     // the track's hit, as heard in game
 constexpr uint32 AscendLandMs = AscendHitMs - 700;
-constexpr uint32 AscendStepMs = 100;      // his rise and his drop: a step every this long
+constexpr uint32 AscendDropMs = AscendHitMs - AscendLandMs;
+// While he rises, untouchable: shards of light falling on a few players and spots every ShardsEveryMs (seen ShardsWarnMs
+// before they land, ShardRadius yards): something to step out of while there is nothing to hit
+constexpr uint32 ShardsEveryMs = 3000;
+constexpr uint32 ShardsWarnMs = 2000;
+constexpr float ShardRadius = 3.0f;
+constexpr uint32 ShardsPlayers = 3;
+constexpr uint32 ShardsSpots = 2;
+constexpr float ShardPct = 20.0f;
+// Before it all, the light he gathered: his words, and light streaming into him from the wall (one every PreludeLightMs,
+// flying at PreludeLightSpeed) for PreludeMs
+constexpr uint32 PreludeMs = 9000;
+constexpr uint32 PreludeSecondLineMs = 4500;
+constexpr uint32 PreludeLightMs = 150;
+constexpr float PreludeLightSpeed = 20.0f;
+// His size (the display's scale, creature_template_model: twice a man's), every look of his grown from it
+constexpr float BaseScale = 2.6f;
 constexpr uint32 AscendedMusicEndMs = 281100;
 constexpr uint32 KIT_HOLY_GLOW = 7005;      // Holy_Precast_High_Base, played on him
 
@@ -220,6 +236,7 @@ enum Kits : uint32
     KIT_LIGHTS_JUDGEMENT    = 83903,    // a ring of golden sparks bursting (the Vindicaar's Light's Judgement)
     KIT_HOLY_IMPACT         = 83906,    // a column of light and its ground flash (Dragonflight)
     KIT_HOLY_BLAST          = 83911,    // a wide golden flash (the Lightforged siege weapon's)
+    KIT_SPEAR_IN_HAND       = 83920,    // Odyn's spear of light in his right hand (Lances de lumière)
     SHAPED_HOLY_CONE_90     = 83950,    // a quarter of the arena, 17 yd
     SHAPED_HOLY_RING_7_17   = 83951,    // Rage contenue's outside
     SHAPED_HOLY_LINE_10X2   = 83952,    // a lance's tile: 10 yd along, 2.5 across
@@ -243,6 +260,7 @@ enum Spells : uint32
     SPELL_BLINDING          = 94639,    // Lumière aveuglante (the check missed)
     SPELL_ASCEND            = 94640,    // Jugement du Zélote (his rising)
     SPELL_LIGHT_RETURN      = 94641,    // Lumière rendue (a light left alone, on everyone)
+    SPELL_SHARDS            = 94642,    // Éclats de lumière (while he rises)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
     SPELL_ZEAL              = 94652,    // Zèle brûlant (his tank's stacks)
@@ -272,6 +290,8 @@ enum Says : uint8
     SAY_STOLEN              = 2,
     SAY_ASCEND              = 4,
     SAY_DEATH               = 6,
+    SAY_PRELUDE_FIRST       = 7,        // every light in him: his words before he rises
+    SAY_PRELUDE_SECOND      = 8,
     SAY_JAILER              = 0,        // the jailer's own
 };
 
@@ -367,6 +387,7 @@ struct Rule
     char const* name;
     char const* sound = nullptr;
     Look look = Look::None;
+    bool dazzles = true;            // a mistake under it leaves Ébloui (a second one kills); the shards' do not
 };
 
 Rule const RuleRevers = { SPELL_REVERS, DodgePct, "revers", "Valerian.Revers", Look::Shaped };
@@ -375,6 +396,7 @@ Rule const RuleChain = { SPELL_CHAIN, DodgePct, "chain", "Valerian.Chain", Look:
 Rule const RuleFervor = { SPELL_FERVOR, DodgePct, "fervor" };
 Rule const RuleRage = { SPELL_RAGE, DodgePct, "rage", "Valerian.Rage", Look::Shaped };
 Rule const RuleLances = { SPELL_LANCES, DodgePct, "lances", "Valerian.Lances", Look::Shaped };
+Rule const RuleShards = { SPELL_SHARDS, ShardPct, "shards", "Valerian.Fervor", Look::Shaped, false };
 
 bool IsTank(Player* player)
 {
@@ -493,6 +515,7 @@ struct boss_valerian : public Defi::BossAI
         {
             scheduler.Update(diff);
             UpdateLights(diff);
+            UpdateAscent();
             return;
         }
         if (Fighting())
@@ -501,6 +524,7 @@ struct boss_valerian : public Defi::BossAI
         if (_phase == Phase::Chained || _phase == Phase::Ascending)
         {
             scheduler.Update(diff);
+            UpdateAscent();
             return;
         }
         if (!UpdateVictim())
@@ -597,7 +621,7 @@ struct boss_valerian : public Defi::BossAI
             _ascendRehearsed = _phase == Phase::Rehearsal;
             scheduler.CancelAll();
             EndCastBar();
-            Ascend();
+            Prelude();
             return true;
         }
         // In the lab: one light LabLightDistance east of him (a game master standing in it counts there)
@@ -708,7 +732,7 @@ private:
     // logged (its floor sampled a yard apart)
     void Strike(Areas const& areas, Rule const& rule)
     {
-        if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
+        if (_phase != Phase::Zealot && _phase != Phase::Rehearsal && _phase != Phase::Ascending)
             return;
         std::vector<Position> spots;
         for (GroundIndicators::Area const& area : areas)
@@ -718,7 +742,7 @@ private:
         }
         if (rule.sound)
             SoundNearest(rule.sound, spots);
-        if (_phase == Phase::Rehearsal)
+        if (_phase == Phase::Rehearsal || _ascendRehearsed)
         {
             LogSafe(rule.name, areas);
             return;
@@ -1203,7 +1227,7 @@ private:
         float const share = std::min(1.0f, float(_absorbed) / float(LightCount));
         me->SetMaxPower(POWER_MANA, 100);
         me->SetPower(POWER_MANA, uint32(share * 100.0f));
-        me->SetObjectScale(1.0f + 0.25f * share);
+        me->SetObjectScale(BaseScale * (1.0f + 0.25f * share));
     }
 
     void ClearLights()
@@ -1220,6 +1244,7 @@ private:
         Unit* victim = me->GetVictim();
         Player* tank = victim ? victim->ToPlayer() : nullptr;
         CastBar(CAST_REVERS);
+        Pose(EMOTE_STATE_READY1H);
         Sound("Valerian.ReversCast", me->GetPosition());
         float const facing = tank ? me->GetAngle(tank) : me->GetOrientation();
         if (tank)
@@ -1231,6 +1256,7 @@ private:
         AtBeat(Grid, lands, [this, front, tankGuid]()
         {
             EndCastBar();
+            Gesture(EMOTE_ONESHOT_ATTACK1H);
             Sound("Valerian.Revers", BurstSpot(front));
             Impact(Look::Shaped, front);
             if (_phase == Phase::Rehearsal)
@@ -1249,7 +1275,8 @@ private:
                     Mistake(player, RuleRevers);
             }
         });
-        // The same cone behind him, shown as the first strikes
+        // The same cone behind him, shown as the first strikes: his backhand as it lands
+        AtBeat(Grid, lands + ReversBackBeats, [this]() { Gesture(EMOTE_ONESHOT_SPECIALATTACK1H); });
         float const back = Position::NormalizeOrientation(facing + float(M_PI));
         Wave(lands, lands + ReversBackBeats, [this, back](uint32 ms)
         {
@@ -1270,6 +1297,7 @@ private:
         // His fist raised over the half: its light where it will strike
         AtBeat(Grid, start, [this, facing]() { Fist(facing); });
         AtBeat(Grid, first, [this, second]() { Fist(second); });
+        AtBeat(Grid, first + WrathFollowBeats, [this]() { Gesture(EMOTE_ONESHOT_SPELL_CAST_OMNI); });
         Wave(start, first, [this, facing](uint32 ms)
         {
             return Areas{ Cone(facing, 180.0f, LOOK_RADIANCE_CONE_180, ms) };
@@ -1291,6 +1319,7 @@ private:
     void Chain(uint32 start)
     {
         CastBar(CAST_CHAIN);
+        Pose(EMOTE_STATE_SPELL_CHANNEL_DIRECTED);
         Sound("Valerian.ChainSpin", me->GetPosition());
         float const way = urand(0, 1) ? 1.0f : -1.0f;
         float const turn = way * ChainTurnDegrees * float(M_PI) / 180.0f;
@@ -1300,6 +1329,8 @@ private:
         for (uint32 strike = 0; strike < ChainStrikes; ++strike, gap += turn)
         {
             Wave(shown, lands, [this, gap](uint32 ms) { return Sweep(gap, ms); }, RuleChain);
+            bool const last = strike + 1 == ChainStrikes;
+            AtBeat(Grid, lands, [this, last]() { Gesture(EMOTE_ONESHOT_ATTACK1H, last); });
             shown = lands;
             lands += ChainStepBeats;
         }
@@ -1319,6 +1350,8 @@ private:
     void Fervor(uint32 start, uint32 twist)
     {
         CastBar(CAST_FERVOR);
+        Gesture(EMOTE_ONESHOT_POINT, false);
+        Pose(EMOTE_STATE_READY_SPELL_OMNI);
         uint32 const lands = start + FervorBeats;
         uint32 const flips = lands - FervorFlipBeats;
         bool const stack = twist == 1 || (twist == 2 && urand(0, 1));
@@ -1365,6 +1398,7 @@ private:
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                     bursts.push_back(carrier->GetPosition());
             SoundNearest("Valerian.Fervor", bursts);
+            Gesture(EMOTE_ONESHOT_SPELL_CAST_OMNI);
             for (Position const& at : bursts)
                 Blast(at, FervorRadius);
             for (ObjectGuid const& guid : marks)
@@ -1436,6 +1470,9 @@ private:
     void Rage(uint32 start, uint32 order)
     {
         CastBar(CAST_RAGE);
+        Pose(EMOTE_STATE_SPELL_PRECAST);
+        AtBeat(Grid, start + WarnBeats, [this]() { Gesture(EMOTE_ONESHOT_STOMP); });
+        AtBeat(Grid, start + WarnBeats + RageFollowBeats, [this]() { Gesture(EMOTE_ONESHOT_STOMP); });
         Sound("Valerian.RageCast", me->GetPosition());
         uint32 const first = start + WarnBeats;
         AtBeat(Grid, first, [this]() { EndCastBar(); });
@@ -1470,10 +1507,26 @@ private:
         CastBar(CAST_LANCES);
         Sound("Valerian.LancesCast", Middle());
         uint32 const first = start + WarnBeats;
+        // Channelling, a spear of light in his hand while the grid shows; he throws it to the sky a beat before it lands
+        // (a column of light rising from him), takes another for the shifted grid, and throws that one too
+        Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        for (uint32 beat = start; beat + 1 < first + LanceShiftBeats; beat += 2)
+            if (beat + 1 != first)
+                AtBeat(Grid, beat, [this]() { me->SendPlaySpellVisual(KIT_SPEAR_IN_HAND); });
+        AtBeat(Grid, first - 1, [this]() { ThrowSpear(false); });
+        AtBeat(Grid, first + LanceShiftBeats - 1, [this]() { ThrowSpear(true); });
         AtBeat(Grid, first, [this]() { EndCastBar(); });
         float const turn = frand(0.0f, float(M_PI) / 2.0f);
         Wave(start, first, [this, turn](uint32 ms) { return Grille(turn, LanceSpacing / 2.0f, ms); }, RuleLances);
         Wave(first, first + LanceShiftBeats, [this, turn](uint32 ms) { return Grille(turn, 0.0f, ms); }, RuleLances);
+    }
+
+    void ThrowSpear(bool last)
+    {
+        Gesture(EMOTE_ONESHOT_ATTACK_THROWN, last);
+        if (!last)
+            Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        GroundIndicators::PlayKit(me, Middle(), KIT_HOLY_IMPACT, 1.5f, 0, ImpactMs);
     }
 
     // Lines LanceSpacing apart both ways (turned by turn), the first offset from the middle: each from wall to wall
@@ -1508,11 +1561,13 @@ private:
     {
         uint32 const lands = start + BurstCastBeats;
         CastBar(CAST_BURST);
+        Pose(EMOTE_STATE_SPELL_PRECAST);
         GroundIndicators::WarnGroupDamage(me, MsTo(lands));
         AtBeat(Grid, lands, [this]()
         {
             EndCastBar();
             Sound("Valerian.Burst", Middle());
+            Gesture(EMOTE_ONESHOT_BATTLE_ROAR);
             Blast(Middle(), 8.0f);
             if (_phase == Phase::Zealot)
                 HitEveryone(SPELL_BURST, BurstGroupPct);
@@ -1524,6 +1579,7 @@ private:
     {
         uint32 const strikes = std::max(start + 2, JudgementBeat);
         CastBar(CAST_JUDGEMENT);
+        Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         Sound("Valerian.JudgementCast", Middle());
         GroundIndicators::WarnGroupDamage(me, MsTo(strikes));
         AtBeat(Grid, strikes, [this]()
@@ -1548,7 +1604,7 @@ private:
                 return;
             }
             if (whole)
-                Ascend();
+                Prelude();
             else
                 Chained();
         });
@@ -1609,6 +1665,50 @@ private:
 
     // Every light in him: he rises off the floor, the light pours out of him (everyone thrown back), then phase 2 - bare
     // for now: his own health, his music, his melee, no mechanic
+    // Every light in him, the phase beaten: his words, the light streaming into him from all round the wall, then his
+    // apotheosis on p2's opening (Ascend)
+    void Prelude()
+    {
+        _phase = Phase::Ascending;
+        ClearLights();
+        GroundIndicators::ClearAreasOf(me);
+        EndPace();
+        me->AttackStop();
+        me->SetReactState(REACT_PASSIVE);
+        me->SetImmuneToAll(true);
+        Talk(SAY_PRELUDE_FIRST);
+        Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        uint32 const lights = PreludeMs / PreludeLightMs;
+        for (uint32 index = 0; index < lights; ++index)
+            scheduler.Schedule(Milliseconds(index * PreludeLightMs), [this, index, lights](TaskContext)
+            {
+                StreamLight();
+                me->SetObjectScale(BaseScale * (1.25f + 0.1f * float(index) / float(lights)));
+                if (index % 10 == 0)
+                    me->SendPlaySpellVisual(KIT_HOLY_GLOW);
+            });
+        scheduler.Schedule(Milliseconds(PreludeSecondLineMs), [this](TaskContext) { Talk(SAY_PRELUDE_SECOND); });
+        scheduler.Schedule(Milliseconds(PreludeMs), [this](TaskContext) { Ascend(); });
+    }
+
+    // A light flying from a random point of the wall into him
+    void StreamLight()
+    {
+        float const angle = frand(0.0f, 2.0f * float(M_PI));
+        Position from = OnArena(angle, ArenaRadius - 1.0f);
+        from.m_positionZ += LightHeight + frand(0.0f, 3.0f);
+        uint32 const flies = uint32((ArenaRadius - 1.0f) / PreludeLightSpeed * 1000.0f);
+        if (Creature* orb = me->SummonCreature(NPC_ORB, from, TEMPSUMMON_TIMED_DESPAWN, flies + 100))
+        {
+            orb->SetCanFly(true);
+            orb->SetDisableGravity(true);
+            orb->SetReactState(REACT_PASSIVE);
+            Position to = Middle();
+            to.m_positionZ += LightHeight * 2.0f;
+            orb->GetMotionMaster()->MovePoint(1, to, FORCED_MOVEMENT_NONE, PreludeLightSpeed, false);
+        }
+    }
+
     void Ascend()
     {
         _phase = Phase::Ascending;
@@ -1631,30 +1731,21 @@ private:
             scheduler.Schedule(Milliseconds(at), [this, at](TaskContext)
             {
                 me->SendPlaySpellVisual(KIT_HOLY_GLOW);
-                me->SetObjectScale(1.25f + (AscendScale - 1.25f) * float(at) / float(AscendLandMs));
+                me->SetObjectScale(BaseScale * (1.35f + (AscendScale - 1.35f) * float(at) / float(AscendLandMs)));
             });
-        // Up off the floor, slowly, levitating (arms raised, channelling): set a little higher every AscendStepMs, never
-        // moved - any movement plays a movement animation on his model (flying, a human's fell back to swimming; hovering,
-        // a hunched lean)
+        // Up off the floor, slowly, levitating (arms raised, channelling), and down as the music breaks: his height set
+        // every update (UpdateAscent), never moved - any movement plays a movement animation on his model (flying, a
+        // human's fell back to swimming; hovering, a hunched lean)
+        _ascentFrom = Elapsed();
         scheduler.Schedule(Milliseconds(AscendRiseMs), [this](TaskContext)
         {
             me->SetControlled(false, UNIT_STATE_ROOT);
             me->SetDisableGravity(true);
-            me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_SPELL_CHANNEL_OMNI);
+            Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         });
-        uint32 const riseSteps = AscendRiseTakesMs / AscendStepMs;
-        for (uint32 step = 1; step <= riseSteps; ++step)
-            scheduler.Schedule(Milliseconds(AscendRiseMs + step * AscendStepMs), [this, step, riseSteps](TaskContext)
-            {
-                SetHeight(AscendHeight * float(step) / float(riseSteps));
-            });
-        // Down as the music breaks, in a few quick steps
-        uint32 const dropSteps = (AscendHitMs - AscendLandMs) / AscendStepMs;
-        for (uint32 step = 1; step <= dropSteps; ++step)
-            scheduler.Schedule(Milliseconds(AscendLandMs + step * AscendStepMs), [this, step, dropSteps](TaskContext)
-            {
-                SetHeight(AscendHeight * (1.0f - float(step) / float(dropSteps)));
-            });
+        // Shards of light to step out of meanwhile
+        for (uint32 at = AscendRiseMs + 1000; at + ShardsWarnMs < AscendLandMs; at += ShardsEveryMs)
+            scheduler.Schedule(Milliseconds(at), [this](TaskContext) { Shards(); });
         // His blow on its hit: everyone left at AscendLeftPct of their health, then phase 2
         scheduler.Schedule(Milliseconds(AscendHitMs), [this](TaskContext)
         {
@@ -1680,12 +1771,68 @@ private:
                 _phase = Phase::Rehearsal;
                 me->SetCanFly(false);
                 me->SetDisableGravity(false);
-                me->SetObjectScale(1.0f);
+                me->SetObjectScale(BaseScale);
                 EndMusic();
                 return;
             }
             StartAscended();
         });
+    }
+
+    // His pose while a pattern builds (an emote state: 0, none) - every mechanic is seen thrown by him
+    void Pose(uint32 state)
+    {
+        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, state);
+    }
+
+    // A gesture as a pattern strikes, his pose let go after it
+    void Gesture(uint32 emote, bool release = true)
+    {
+        if (release)
+            Pose(0);
+        me->HandleEmoteCommand(emote);
+    }
+
+    // His apotheosis' height now: still, then rising eased over AscendRiseTakesMs, hovering, then dropping (eased in) to
+    // the floor by his blow - set every update while it changes
+    void UpdateAscent()
+    {
+        if (!_ascentFrom)
+            return;
+        uint32 const at = Elapsed() - _ascentFrom;
+        float height = 0.0f;
+        if (at >= AscendHitMs)
+        {
+            _ascentFrom = 0;
+            height = 0.0f;
+        }
+        else if (at >= AscendLandMs)
+        {
+            float const t = float(at - AscendLandMs) / float(AscendDropMs);
+            height = AscendHeight * (1.0f - t * t);
+        }
+        else if (at > AscendRiseMs)
+        {
+            float const t = std::min(1.0f, float(at - AscendRiseMs) / float(AscendRiseTakesMs));
+            height = AscendHeight * t * t * (3.0f - 2.0f * t);
+        }
+        if (std::fabs(height - _height) < 0.01f && _ascentFrom)
+            return;
+        _height = height;
+        SetHeight(height);
+    }
+
+    // Shards of light on a few players and spots while he rises (ShardsWarnMs warned)
+    void Shards()
+    {
+        Areas areas;
+        for (Player* player : Targets(ShardsPlayers))
+            areas.push_back(Painted(MakeCircle(Ground(player->GetPosition()), ShardRadius), LOOK_RAGE_CIRCLE,
+                ShardsWarnMs));
+        for (uint32 index = 0; index < ShardsSpots; ++index)
+            areas.push_back(Painted(MakeCircle(OnArena(frand(0.0f, 2.0f * float(M_PI)), frand(3.0f,
+                ArenaRadius - ShardRadius - 1.0f)), ShardRadius), LOOK_RAGE_CIRCLE, ShardsWarnMs));
+        scheduler.Schedule(Milliseconds(ShardsWarnMs), [this, areas](TaskContext) { Strike(areas, RuleShards); });
     }
 
     // His height over the middle's floor, set at once (no movement: see Ascend)
@@ -1720,12 +1867,12 @@ private:
     {
         if (!player || !player->IsAlive())
             return;
-        if (rule.percent >= 100.0f || player->HasAura(SPELL_DAZZLED))
+        if (rule.percent >= 100.0f || (rule.dazzles && player->HasAura(SPELL_DAZZLED)))
             Doom(player, rule.spell);
         else
         {
             HitOwnHealth(player, rule.spell, rule.percent);
-            if (player->IsAlive())
+            if (player->IsAlive() && rule.dazzles)
                 AddTimedAura(player, SPELL_DAZZLED, DazzleMs);
         }
         Position const middle = Middle();
@@ -1794,7 +1941,7 @@ private:
         me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
-        me->SetObjectScale(1.0f);
+        me->SetObjectScale(BaseScale);
         me->setPowerType(POWER_MANA);
         me->SetMaxPower(POWER_MANA, 100);
         me->SetPower(POWER_MANA, 0);
@@ -1809,6 +1956,8 @@ private:
     bool _musicOver = false;
     uint32 _ascendFrom = 0;             // when his apotheosis began (Elapsed): p2's track from then
     bool _ascendRehearsed = false;      // his apotheosis played in the lab
+    uint32 _ascentFrom = 0;             // when his apotheosis' rise began (Elapsed), 0 once he is down
+    float _height = 0.0f;
     bool _ascendedMusicOver = false;
     std::vector<Light> _lights;
     std::vector<ObjectGuid> _jailers;

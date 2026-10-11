@@ -2,8 +2,8 @@
 -- from mod-playerbots ChallengeBoard.cpp, 8 players - 2 tanks, 2 healers, 4 damage dealers - as the Gaol's other gates;
 -- plan: .agents/plans/gaol-third). A fanatic of the Light locked in the Gaol for years; his fight runs on his music, in
 -- a walled arena in Keli'dan the Breaker's hall - Vrogar's, the second gate's.
--- 930500 Valérian: High Inquisitor Fairbanks' look (4542, display 2605: a gaunt grey-haired paladin in tattered
---        robes, broken in a cell), until his own; a level 83
+-- 930500 Valérian: a Captured Scarlet Zealot's look (1931, display 11428: a human fanatic of the Light in his
+--        order's robes, a prisoner), twice a man's size, until his own; a level 83
 --        boss, a paladin (his power bar: the orbs of light he has taken in). His health is set by his script from the
 --        power model when his instance is known to be a challenge's.
 -- 930501 Lumière captive: an orb of light drifting to him (Concentrated Light's look, 34630, display 29352), summoned
@@ -90,7 +90,7 @@ DROP TEMPORARY TABLE `tmp_stat_growth_zealot_jailer`;
 INSERT INTO `creature_template_model`
     (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 VALUES
-    (930500, 0, 2605, 1.3, 1, NULL),
+    (930500, 0, 11428, 2.6, 1, NULL),
     (930501, 0, 29352, 0.6, 1, NULL),
     (930502, 0, 16584, 1.1, 1, NULL),
     (930503, 0, 60020, 1, 1, NULL);
@@ -124,6 +124,8 @@ VALUES
     (930500, 2, 0, 'No... it was mine... MINE!', 14, 0, 100, 0, 0, 0, 0, 3, 'Valerian - the light stolen'),
     (930500, 4, 0, 'At last... the Light answers!', 14, 0, 100, 0, 0, 0, 0, 3, 'Valerian - ascension'),
     (930500, 6, 0, 'The Light... leaves me...', 14, 0, 100, 0, 0, 0, 0, 3, 'Valerian - death'),
+    (930500, 7, 0, 'Every chain... every lash... every year in the dark. I kept a spark. Only a spark.', 14, 0, 100, 0, 0, 0, 0, 3, 'Valerian - prelude'),
+    (930500, 8, 0, 'And you brought me the rest. All of it. Do you feel it? It is coming home!', 14, 0, 100, 0, 0, 0, 0, 3, 'Valerian - prelude'),
     (930502, 0, 0, 'Back in your cell, zealot.', 12, 0, 100, 0, 0, 0, 0, 3, 'Gaol Jailer - Valerian chained');
 
 INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Text`) VALUES
@@ -132,6 +134,8 @@ INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Te
     (930500, 2, 0, 'frFR', 'Non... elle était à moi... À MOI !'),
     (930500, 4, 0, 'frFR', 'Enfin... la Lumière répond !'),
     (930500, 6, 0, 'frFR', 'La Lumière... me quitte...'),
+    (930500, 7, 0, 'frFR', 'Chaque chaîne... chaque coup de fouet... chaque année dans le noir. J''ai gardé une étincelle. Rien qu''une étincelle.'),
+    (930500, 8, 0, 'frFR', 'Et vous m''avez apporté le reste. Tout le reste. Vous la sentez ? Elle rentre chez elle !'),
     (930502, 0, 0, 'frFR', 'Retour en cellule, fanatique.');
 
 -- Where Keli'dan the Breaker channels, in the Blood Furnace's normal mode (spawn mask 1)

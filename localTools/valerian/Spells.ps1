@@ -59,6 +59,8 @@ $spells = @(
         "La Lumière a submergé l'arène : le Zélote n'avait pas assez faibli."),
     (New-Hit 94640 "Jugement de l'Ascensionné" 20271 $holy `
         "Devenu dieu, il abat toute sa lumière sur l'arène : chacun n'en garde qu'un souffle."),
+    (New-Hit 94642 'Éclats de lumière' 48782 $holy `
+        "Pendant qu'il s'élève, des éclats de lumière tombent dans l'arène. Sortez de leur cercle."),
     (New-Hit 94641 'Lumière rendue' 48782 $holy `
         "Une lumière laissée au Zélote : il la reprend, et tout le groupe en est frappé."),
 

@@ -67,6 +67,61 @@ def cut(colour, inside, pixel):
     return numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha[..., None]], axis=2)
 
 
+# --- Edges of light: never a ruled cut -----------------------------------------------------------------------------------
+# A cone or a lance is light thrown out: its sides ragged and bleeding (flames of light licking past the edge, the fill
+# eaten into unevenly), not cut along a straight line. BLEED: how far, in yards of a one-yard model, the edge wanders
+# and the light licks past it.
+BLEED = 0.035
+_noise_cache = {}
+
+
+def value_noise(u, v, cells, seed):
+    """Smooth noise in [0, 1] at (u, v), cells across a unit, periodic on every unit (seamless when tiled)"""
+    key = (cells, seed)
+    if key not in _noise_cache:
+        _noise_cache[key] = numpy.random.default_rng(seed).random((cells, cells))
+    grid = _noise_cache[key]
+    fu = numpy.mod(u, 1.0) * cells
+    fv = numpy.mod(v, 1.0) * cells
+    i0 = numpy.floor(fu).astype(int) % cells
+    j0 = numpy.floor(fv).astype(int) % cells
+    i1 = (i0 + 1) % cells
+    j1 = (j0 + 1) % cells
+    tu = smooth(0.0, 1.0, fu - numpy.floor(fu))
+    tv = smooth(0.0, 1.0, fv - numpy.floor(fv))
+    top = grid[j0, i0] * (1 - tu) + grid[j0, i1] * tu
+    bottom = grid[j1, i0] * (1 - tu) + grid[j1, i1] * tu
+    return top * (1 - tv) + bottom * tv
+
+
+def fractal(u, v, seed=7):
+    return (value_noise(u, v, 8, seed) * 0.55 + value_noise(u, v, 23, seed + 1) * 0.3 +
+            value_noise(u, v, 61, seed + 2) * 0.15)
+
+
+def bled(colour, inside, pixel, x, y, flame=RIM_COLOUR):
+    """A fill cut to a shape whose edge bleeds: the edge wandering by noise, the fill fading in over it, and past it
+    flames of light (streaks of flame colour) licking out where the picture has room"""
+    edge = inside + BLEED * (fractal(x * 0.5 + 0.5, y * 0.5 + 0.5) - 0.5)
+    shown = smooth(0.0, BLEED * 0.8, edge)
+    # Inside, along the edge: a glow, uneven
+    rim = numpy.exp(-numpy.maximum(edge, 0.0) / RIM_GLOW) * 0.55 * shown
+    # Past it: licks of light, streaked (finer noise), fading out within BLEED * 1.6
+    streaks = fractal(x * 1.7 + 0.13, y * 1.7 + 0.41, 11)
+    lick = numpy.where(edge < 0.0, numpy.exp(edge / (BLEED * 0.6)) * smooth(0.35, 0.8, streaks), 0.0)
+    colour = colour * (1.0 - rim[..., None]) + flame * rim[..., None]
+    colour = numpy.where((edge < 0.0)[..., None], flame, colour)
+    alpha = numpy.maximum(shown * FILL_ALPHA, numpy.maximum(rim, lick * 0.85))
+    return numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha[..., None]], axis=2)
+
+
+def edge_cut(shape, colour, inside, pixel, x, y):
+    """A cone's or a line's edges bleed (bled); a circle's or a ring's keep their clean glowing rim (cut)"""
+    if shape in ('cone', 'rect'):
+        return bled(colour, inside, pixel, x, y)
+    return cut(colour, inside, pixel)
+
+
 def layer(glow, inside, pixel):
     shown = smooth(0.0, 1.5 * pixel, inside)
     return numpy.concatenate([numpy.clip(glow, 0.0, 1.0) * shown[..., None], shown[..., None]], axis=2)
@@ -79,12 +134,15 @@ def radiance(shape, value, tiles):
     radiance_glow). tiles: the stones' tiles across the shape's radius"""
     x, y, inside, pixel = grid_of(shape, value)
     stone = tiled(seamless('fill_radiance.png'), x * tiles / 2.0, y * tiles / 2.0)
-    return image(cut(stone * 1.05, inside, pixel))
+    return image(edge_cut(shape, stone * 1.05, inside, pixel, x, y))
 
 
 def radiance_glow(shape, value, tiles):
     x, y, inside, pixel = grid_of(shape, value)
     glow = tiled(seamless('fill_radiance_glow.png'), x * tiles / 2.0, y * tiles / 2.0)
+    if shape == 'cone':
+        # Over the same ragged edge as the fill (its shown part)
+        inside = inside + BLEED * (fractal(x * 0.5 + 0.5, y * 0.5 + 0.5) - 0.5)
     return image(layer(glow * 1.3, inside, pixel))
 
 
@@ -112,12 +170,21 @@ REVERS_ARC = 1010
 
 
 def revers_footprint(height=1024, width=1024):
+    """The wedge, its arc clean (the builder reads its reach there), its two sides ragged: the light eaten into
+    unevenly along them, fading in over BLEED of the wedge's length"""
     rows, columns = numpy.mgrid[0:height, 0:width]
     dx = columns - REVERS_APEX[0] + 0.5
     dy = rows - REVERS_APEX[1] + 0.5
-    inside = (numpy.hypot(dx, dy) <= REVERS_ARC) & (numpy.abs(numpy.degrees(numpy.arctan2(dy, dx))) <=
-                                                     REVERS_ANGLE / 2.0)
-    return inside[..., None].astype(numpy.float64)
+    radius = numpy.hypot(dx, dy)
+    half = math.radians(REVERS_ANGLE / 2.0)
+    off_axis = numpy.abs(numpy.arctan2(dy, dx))
+    to_side = radius * numpy.sin(half - off_axis) / REVERS_ARC        # yards of a one-yard cone, to the nearer side
+    u = dx / REVERS_ARC
+    v = dy / REVERS_ARC
+    to_side = to_side + BLEED * 1.4 * (fractal(u * 0.5 + 0.5, v * 0.5 + 0.5) - 0.5)
+    sides = smooth(-BLEED * 0.2, BLEED * 0.9, to_side)
+    arc = (radius <= REVERS_ARC).astype(numpy.float64)
+    return (sides * arc)[..., None]
 
 
 def revers_cone():
@@ -138,11 +205,23 @@ LANCE_TILE = 4
 
 
 def lance():
-    beam = load('lance_strip.png')
-    glow = load('lance_strip_glow.png')
+    """A tile of the lance: the painted beam's first LANCE_TILE widths, its ends cross-faded with the next ones so that
+    tiles laid end to end join; its two sides fading out unevenly before the tile's edges (a painted beam fills its strip
+    to the edge: its sides read as ruled lines)"""
+    beam = numpy.maximum(load('lance_strip.png'), load('lance_strip_glow.png') * 0.8)
     height, width = beam.shape[:2]
-    piece = numpy.maximum(beam, glow * 0.8)[:, :height * LANCE_TILE]
-    return image(keyed(piece))
+    length = height * LANCE_TILE
+    piece = beam[:, :length].copy()
+    other = beam[:, length:2 * length] if 2 * length <= width else beam[:, -length:]
+    blend = smooth(0.0, 0.2, numpy.minimum(numpy.arange(length), length - 1 - numpy.arange(length)) / length)
+    piece = piece * blend[None, :, None] + other * (1.0 - blend[None, :, None])
+    keyed_piece = keyed(piece)
+    across = numpy.abs((numpy.arange(height) + 0.5) / height * 2.0 - 1.0)[:, None]     # 0 in the middle, 1 at a side
+    along = (numpy.arange(length) + 0.5) / length
+    wander = 0.18 * (fractal(along[None, :], across * 0.0 + 0.25, 5) - 0.5) +         0.12 * (fractal(along[None, :] * 2.0, across * 0.0 + 0.75, 9) - 0.5)
+    fade = smooth(1.0, 0.62, across + wander)
+    keyed_piece[..., 3] *= fade
+    return image(keyed_piece)
 
 
 def keyed_painting(name):

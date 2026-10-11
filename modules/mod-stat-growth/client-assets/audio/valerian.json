@@ -6,8 +6,8 @@
     "as it ends - the engine would loop it (loopStart 0) past the track's own fade-out, never reached.",
     "His sounds (Valerian.*): Diablo IV's - Inarius's fight, the Paladin, Akarat's echo, a Knight caster, Mephisto's orb -",
     "picked by the user on the audition page (2026-10-11), each take whole (the bank's sub-bass stream mixed in), the two",
-    "played at random. Each levelled to the same loudness as the ear hears it (K-weighted, on its loudest 0.4 s: Vrogar's",
-    "chains' level, the user's reference), heard across the whole arena; a light flying to him at 0.7."
+    "played at random. Levelled as the ear hears them (K-weighted, their loudest 0.4 s), then by what the user heard in",
+    "the fight: the impacts 6 dB over the chains' first level, the warnings 3, the chain's sweep (five in a row) 6 under it. Past -4 dBFS (the limiter would only squash it) the rest is the sound's volume."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -34,7 +34,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -7.9
+      "loudness": -4.9
     },
     "Valerian.Revers": {
       "kind": "spell",
@@ -44,9 +44,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.88,
       "loudnessWindowMs": 400,
-      "loudness": -4.5
+      "loudness": -4.0
     },
     "Valerian.WrathCast": {
       "kind": "spell",
@@ -56,9 +56,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.11,
       "loudnessWindowMs": 400,
-      "loudness": -6.1
+      "loudness": -4.0
     },
     "Valerian.Wrath": {
       "kind": "spell",
@@ -68,9 +68,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.84,
       "loudnessWindowMs": 400,
-      "loudness": -4.7
+      "loudness": -4.0
     },
     "Valerian.ChainSpin": {
       "kind": "spell",
@@ -80,9 +80,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.23,
       "loudnessWindowMs": 400,
-      "loudness": -5.2
+      "loudness": -4.0
     },
     "Valerian.Chain": {
       "kind": "spell",
@@ -94,7 +94,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -9.1
+      "loudness": -15.1
     },
     "Valerian.FervorMark": {
       "kind": "spell",
@@ -106,7 +106,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -7.8
+      "loudness": -4.8
     },
     "Valerian.FervorFlip": {
       "kind": "spell",
@@ -116,9 +116,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.14,
       "loudnessWindowMs": 400,
-      "loudness": -5.9
+      "loudness": -4.0
     },
     "Valerian.Fervor": {
       "kind": "spell",
@@ -128,9 +128,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.68,
       "loudnessWindowMs": 400,
-      "loudness": -5.5
+      "loudness": -4.0
     },
     "Valerian.RageCast": {
       "kind": "spell",
@@ -142,7 +142,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -8.9
+      "loudness": -5.9
     },
     "Valerian.Rage": {
       "kind": "spell",
@@ -152,9 +152,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.62,
       "loudnessWindowMs": 400,
-      "loudness": -5.8
+      "loudness": -4.0
     },
     "Valerian.LancesCast": {
       "kind": "spell",
@@ -164,9 +164,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.12,
       "loudnessWindowMs": 400,
-      "loudness": -6.0
+      "loudness": -4.0
     },
     "Valerian.Lances": {
       "kind": "spell",
@@ -176,9 +176,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.5,
       "loudnessWindowMs": 400,
-      "loudness": -6.5
+      "loudness": -4.0
     },
     "Valerian.Burst": {
       "kind": "spell",
@@ -188,9 +188,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.5,
       "loudnessWindowMs": 400,
-      "loudness": -6.5
+      "loudness": -4.0
     },
     "Valerian.OrbAbsorb": {
       "kind": "spell",
@@ -200,9 +200,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 0.7,
+      "volume": 0.8,
       "loudnessWindowMs": 400,
-      "loudness": -5.8
+      "loudness": -4.0
     },
     "Valerian.OrbTaken": {
       "kind": "spell",
@@ -212,9 +212,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.35,
       "loudnessWindowMs": 400,
-      "loudness": -7.4
+      "loudness": -4.0
     },
     "Valerian.WallRise": {
       "kind": "spell",
@@ -224,9 +224,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.08,
       "loudnessWindowMs": 400,
-      "loudness": -6.3
+      "loudness": -4.0
     },
     "Valerian.JudgementCast": {
       "kind": "spell",
@@ -236,9 +236,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.04,
       "loudnessWindowMs": 400,
-      "loudness": -6.7
+      "loudness": -4.0
     },
     "Valerian.Chained": {
       "kind": "spell",
@@ -248,9 +248,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.6,
       "loudnessWindowMs": 400,
-      "loudness": -5.9
+      "loudness": -4.0
     },
     "Valerian.Ascend": {
       "kind": "spell",
@@ -260,9 +260,9 @@
       ],
       "minDistance": 60,
       "maxDistance": 140,
-      "volume": 1.0,
+      "volume": 1.62,
       "loudnessWindowMs": 400,
-      "loudness": -5.8
+      "loudness": -4.0
     }
   }
 }

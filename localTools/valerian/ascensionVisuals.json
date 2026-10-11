@@ -54,6 +54,18 @@
         "base": "Divine_Storm_Impact_Damage"
       },
       "id": 83912
+    },
+    "SpearInHand": {
+      "effects": {
+        "righthand": "7fx_odyn_spearoflight_missile"
+      },
+      "id": 83920
+    },
+    "SpearInHandBastion": {
+      "effects": {
+        "righthand": "cfx_warrior_spearofbastion"
+      },
+      "id": 83921
     }
   }
 }
