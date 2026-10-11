@@ -50,6 +50,7 @@ local STATE_MISSING, STATE_SEEN, STATE_COLLECTED = 0, 1, 2
 local WIDTH = 1489
 local INSET_TOP, INSET_BOTTOM, INSET_SIDE = -28, 10, 10
 local LIST_W = 380
+local LIST_TOP = -58        -- under the window's round portrait, which overhangs its top left corner
 local ROW_W, ROW_H, ROW_GAP = 360, 79, 2
 local GRID_TOP = -118
 -- A boss's button in the list: its Défi board page's art (Interface\ChallengeBoard,
@@ -493,15 +494,19 @@ local function Build(window)
     page:SetAllPoints(window)
 
     list = Inset(page, MARBLE)
-    list:SetPoint("TOPLEFT", window, "TOPLEFT", INSET_SIDE, INSET_TOP)
+    list:SetPoint("TOPLEFT", window, "TOPLEFT", INSET_SIDE, LIST_TOP)
     list:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", INSET_SIDE, INSET_BOTTOM)
     list:SetWidth(LIST_W)
 
     detail = Inset(page, nil)
-    detail:SetPoint("TOPLEFT", list, "TOPRIGHT", 4, 0)
+    detail:SetPoint("TOPLEFT", window, "TOPLEFT", INSET_SIDE + LIST_W + 4, INSET_TOP)
     detail:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -INSET_SIDE, INSET_BOTTOM)
-    local ground = Atlas(detail, "BACKGROUND", "collections-background-tile")
+    -- The Toy Box's ground, repeated (set without the tiling flag, its last texels were stretched over the rest)
+    local ground = detail:CreateTexture(nil, "BACKGROUND")
     ground:SetAllPoints()
+    ground:SetTexture(RetailUIAtlas["collections-background-tile"][1], true)
+    ground:SetHorizTile(true)
+    ground:SetVertTile(true)
     Corner(detail, "TOPLEFT", false, false)
     Corner(detail, "TOPRIGHT", true, false)
     Corner(detail, "BOTTOMLEFT", false, true)

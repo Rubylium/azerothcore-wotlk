@@ -25,6 +25,7 @@
 
 #include "Legendary.h"
 
+#include "Bag.h"
 #include "CharacterCache.h"
 #include "Chat.h"
 #include "ChatCommand.h"
@@ -321,13 +322,44 @@ bool Collect(Player* player, uint32 row, bool legendary)
     return added;
 }
 
+// What the character already has (worn, in its bags, in its bank and its bank's bags): collected, quietly - pieces
+// looted before the collection existed, or by a way its hook does not see
+void CollectOwned(Player* player)
+{
+    auto collect = [player](Item* item)
+    {
+        if (!item)
+            return;
+        uint32 const row = item->GetEntry() % 0x10000;
+        if (SourceOfRow(row))
+            Collect(player, row, IsLegendaryRow(row));
+    };
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+        collect(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+    for (uint8 slot = BANK_SLOT_ITEM_START; slot < BANK_SLOT_ITEM_END; ++slot)
+        collect(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+    auto bagContents = [player, &collect](uint8 bagSlot)
+    {
+        if (Bag* bag = player->GetBagByPos(bagSlot))
+            for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+                collect(bag->GetItemByPos(uint8(slot)));
+    };
+    for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
+        bagContents(bagSlot);
+    for (uint8 bagSlot = BANK_SLOT_BAG_START; bagSlot < BANK_SLOT_BAG_END; ++bagSlot)
+        bagContents(bagSlot);
+}
+
 void HandleMessage(Player* player, std::string_view message)
 {
     std::vector<std::string_view> const parts = Acore::Tokenize(message, '\t', true);
     if (parts.empty())
         return;
     if (parts[0] == "OPEN")
+    {
+        CollectOwned(player);
         SendSources(player);
+    }
     else if (parts[0] == "LIST" && parts.size() >= 2)
         SendPieces(player, uint8(Acore::StringTo<uint32>(parts[1]).value_or(0)));
 }
@@ -360,7 +392,10 @@ public:
     void OnPlayerLogin(Player* player) override
     {
         if (!player->GetSession()->IsBot())
+        {
             Load(player);
+            CollectOwned(player);
+        }
     }
 
     void OnPlayerLogout(Player* player) override
