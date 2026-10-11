@@ -132,8 +132,14 @@ uint8 SourceOfRow(uint32 row)
                 return source.id;
         return 0;
     }
+    // A gate of the Gaol whose boss the collection lists (the third's share waits for its boss: none until then)
     if (uint32 const gate = Legendary::GateOfRow(row))
-        return gate == Legendary::WardenVorhanGate ? 1 : 2;
+    {
+        for (Source const& source : Sources)
+            if (source.boss == gate)
+                return source.id;
+        return 0;
+    }
     if (std::optional<RaidTrinkets::Raid> const raid = RaidTrinkets::RaidOf(row))
     {
         switch (*raid)
