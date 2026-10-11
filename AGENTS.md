@@ -24,6 +24,8 @@ Read the matching doc(s) BEFORE starting the task:
 - Reviewing a changeset or PR → `.agents/docs/code-review.md`
 - Self-reviewing, or opening or updating a PR → also `.agents/docs/self-review-rules.md`
 - Touching a subsystem that has a doc in `.agents/docs/systems/` → read that doc too
+- Designing or changing a Défi raid boss (its mechanics, timeline, visuals, sounds, bots) →
+  `.agents/docs/systems/raid-boss-design.md`
 - Content difficulty (a boss, a key, a tier, a DPS check), item levels, rewards or paragon → `.agents/docs/systems/power-scaling.md` (size content for an item level and a paragon, never by hand)
 - Class tuning, a new class or spec, talent / rotation / bot combat changes → `.agents/docs/systems/combat-bench.md` and `.agents/docs/systems/sim-bench.md` (measure on the simulation bench, many times real speed, never on dungeon runs)
 - The paragon board's planner, recommended boards or loadouts (bots' boards, branch orders, `ApplyBoard`, the window's picker) → `.agents/docs/systems/paragon-boards.md`
