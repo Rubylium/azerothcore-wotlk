@@ -104,6 +104,9 @@ constexpr uint64 CrossSpareMs = 300;
 // worth - the ring striking last, not the next one round (from there no time to step back in)
 constexpr float LaterStrikeYardsPerSecond = 10.0f;
 constexpr float LaterStrikeCapSeconds = 3.0f;
+// A way out passing this close to what the unit fights (through it): this much more walk
+constexpr float AcrossVictimRadius = 2.0f;
+constexpr float AcrossVictimCost = 6.0f;
 // ... but never into one striking this long after the first, or never (a wall's outside, a pool): a place to keep out of
 constexpr uint64 StagedHorizonMs = 4000;
 constexpr uint32 EscapeDirections = 16;
@@ -2034,7 +2037,21 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, std::vector<A
                 if (crosses)
                     cost += PathCrossCost;
                 if (victim)
+                {
                     cost += std::max(0.0f, spot.GetExactDist2d(victim) - here.GetExactDist2d(victim)) * 0.5f;
+                    // Not across what it is fighting: from on top of a boss, the way out on its own side, not the
+                    // one as good past the boss (the best of two flipped with every step, the bot crossed and
+                    // recrossed the middle until it struck)
+                    float const dx = spot.GetPositionX() - here.GetPositionX();
+                    float const dy = spot.GetPositionY() - here.GetPositionY();
+                    float const length = std::max(0.01f, dx * dx + dy * dy);
+                    float const t = std::clamp(((victim->GetPositionX() - here.GetPositionX()) * dx +
+                        (victim->GetPositionY() - here.GetPositionY()) * dy) / length, 0.0f, 1.0f);
+                    Position const nearest(here.GetPositionX() + dx * t, here.GetPositionY() + dy * t,
+                        here.GetPositionZ());
+                    if (t > 0.0f && nearest.GetExactDist2d(victim) < AcrossVictimRadius)
+                        cost += AcrossVictimCost;
+                }
                 cost += CrowdCost * PlayersNear(unit, spot, CrowdRadius);
                 if (soaking && spot.GetExactDist2d(&soak.center) > soakInside)
                     cost += OutOfSoakCost;
@@ -2679,6 +2696,30 @@ Position RouteAround(Unit* unit, bool tank, Position const& goal)
             break;
     }
     return found ? best.spot : goal;
+}
+
+bool StillAWayOut(Unit* unit, Position const& spot)
+{
+    if (!unit || !unit->IsInWorld() || !unit->IsAlive())
+        return false;
+    Player* player = unit->ToPlayer();
+    std::vector<ActiveArea> areas = AreasToLeave(unit, player && IsGroupTank(player));
+    Goal own;
+    if (OwnSpot(unit, own))
+        areas.erase(std::remove_if(areas.begin(), areas.end(),
+            [](ActiveArea const& entry) { return !entry.carrier.IsEmpty(); }), areas.end());
+    if (areas.empty())
+        return false;
+    // As FindEscape takes it: out of those striking first; in a later one only if it strikes before long (not a
+    // wall's outside); not through one striking before it is there
+    uint64 soonest = std::numeric_limits<uint64>::max();
+    for (ActiveArea const& entry : areas)
+        soonest = std::min(soonest, entry.endMs);
+    for (ActiveArea const& entry : areas)
+        if (entry.area.Contains(spot, InsideMargin) &&
+            (entry.endMs <= soonest + SoonestWindowMs || entry.endMs > soonest + StagedHorizonMs))
+            return false;
+    return !StruckOnTheWay(unit, spot);
 }
 
 bool FindOwnSpot(Unit* unit, Position& spot)

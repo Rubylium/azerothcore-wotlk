@@ -393,6 +393,9 @@ namespace GroundIndicators
     // and on the way: it goes there before anything else - the fight placed it (a spread's spot, its soak's side).
     // The circles players carry are left out (the fight placed them too); in its escapes as well.
     bool FindOwnSpot(Unit* unit, Position& spot);
+    // Whether spot, a way out unit chose a moment ago, still is one as FindEscape takes it (out of what strikes
+    // first, in a later ring at most): a bot keeps it rather than turning to an equal one on the other side
+    bool StillAWayOut(Unit* unit, Position const& spot);
 
     // Whether victim stands in a red area of attacker's (or of its summoner's), on show or ended a moment ago: a hit
     // it took from it was one to dodge. A circle it carries itself, and a trash circle around a creature fighting it
