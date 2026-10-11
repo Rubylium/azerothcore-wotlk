@@ -255,6 +255,13 @@ def soak_timeline():
     return [(time * 150, frame) for time, frame in enumerate([0, 1, 2, 3, 2, 1])]
 
 
+# The wall's band, from one bar's middle to another's three bars on (the paintings' edges are smeared: the band ran
+# on round the arena with a smear at each join)
+WALL_CROP = (104, 919)
+
+
 def wall_forge(frame):
-    """The arena's wall: molten metal between black iron bars, four frames it flickers through"""
-    return Image.open(os.path.join(ART, f'wall_forge_{frame}.png')).convert('RGB')
+    """The arena's wall: molten metal between black iron bars, four frames it flickers through, cut bar to bar"""
+    painting = Image.open(os.path.join(ART, f'wall_forge_{frame}.png')).convert('RGB')
+    first, last = WALL_CROP
+    return painting.crop((first, 0, last, painting.height)).resize(painting.size, Image.LANCZOS)

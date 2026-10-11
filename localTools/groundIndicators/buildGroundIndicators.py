@@ -830,7 +830,10 @@ CURTAIN_TEXTURE = (512, 128)
 def build_curtain_frame(shape, source_image):
     rgb = numpy.clip(numpy.asarray(source_image.convert('RGB'), dtype=numpy.float64) / 255.0 * shape.get('gain', 1.0),
                      0.0, 1.0)
-    source = numpy.concatenate([rgb, rgb.max(axis=2, keepdims=True)], axis=2)
+    # `opaque`: a painting that is a solid thing (iron bars and the metal between them), drawn as painted with the
+    # alpha blend (`blend` "alpha"); added, its dark parts were see-through and its light ones washed out
+    alpha = numpy.ones_like(rgb[..., :1]) if shape.get('opaque') else rgb.max(axis=2, keepdims=True)
+    source = numpy.concatenate([rgb, alpha], axis=2)
     height, width = source.shape[:2]
     columns, rows = shape.get('textureSize', CURTAIN_TEXTURE)
     xs = (numpy.arange(columns) + 0.5) / columns * (width - 1.0)
@@ -947,6 +950,10 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     name_offset = append_block(data, name)
     struct.pack_into('<I', data, textures + 16 * texture_index + 4, 1)
     struct.pack_into('<II', data, textures + 16 * texture_index + 8, len(name), name_offset)
+    if 'blend' in shape:
+        _, materials = array(data, 0x70)
+        material_flags, _ = struct.unpack_from('<HH', data, materials)
+        struct.pack_into('<HH', data, materials, material_flags, BLEND_MODES[shape['blend']])
 
     colors_count, colors = array(data, 0x48)
     for color in range(colors_count):
@@ -972,6 +979,8 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
         struct.pack_into('<II', data, 0x14, len(loops), append_block(data, struct.pack(f'<{len(loops)}I', *loops)))
     if scroll:
         transform = append_block(data, bytes(60))
+        # `flow`: how far along u the band moves a loop (0: it stays, its frames flickering on the loop's clock)
+        flow = float(shape.get('flow', 1.0))
         if frames > 1:
             # Flowing along u and flickering down v together: a key at every flicker, u running on evenly, v
             # stepping to the next frame within a millisecond
@@ -985,9 +994,9 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
                 start, end = step * flicker, (step + 1) * flicker - 1
                 v = FLIPBOOK_SIGN * order[step] / frames
                 timestamps += [start, end]
-                values += [(-start / scroll, v, 0.0), (-end / scroll, v, 0.0)]
+                values += [(-start / scroll * flow, v, 0.0), (-end / scroll * flow, v, 0.0)]
             timestamps.append(scroll)
-            values.append((-1.0, FLIPBOOK_SIGN * order[0] / frames, 0.0))
+            values.append((-flow, FLIPBOOK_SIGN * order[0] / frames, 0.0))
             write_global_track(data, transform, 0, sequence_count, timestamps, values, '<3f')
         else:
             write_global_track(data, transform, 0, sequence_count, [0, scroll], [(0.0, 0.0, 0.0), (-1.0, 0.0, 0.0)],
