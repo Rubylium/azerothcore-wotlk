@@ -34,6 +34,7 @@ UPDATE `tmp_stat_growth_forge_master` SET
     `faction` = 14,
     `unit_class` = 1,
     `rank` = 3,
+    `type_flags` = `type_flags` | 8,    -- never his wound animation (a crit flinched him in a loop)
     `npcflag` = 0,
     `unit_flags` = 0,
     `DamageModifier` = 60,
