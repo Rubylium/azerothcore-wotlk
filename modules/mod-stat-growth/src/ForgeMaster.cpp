@@ -120,6 +120,7 @@ constexpr uint32 LaminoirWarnBeats = WarnBeats;
 constexpr float SteamRadius = 7.0f;         // la Trempe: the trough's steam in the middle; the crucible's iron outside it
 constexpr float PropDistance = 12.0f;       // the trough and the crucible from the middle
 constexpr float BellowsDistance = 14.5f;
+constexpr uint32 BellowsShownMs = 500;      // its half drawn this long before it blasts: too late to leave it
 constexpr float IngotRadius = 3.0f;
 constexpr float IngotDistance = 8.0f;
 // Les Lingots' looks (shapes.json VR_IngotMark*, VR_IngotSigil*; localTools/escapeHunter/ingotArt.py): + the ingot's
@@ -1424,10 +1425,19 @@ private:
                         });
                     Watch(half, strikes);
                 });
+                // Its half drawn only as it blasts: the safe spot is found from the bellows lit, not from red on the
+                // floor; the red only shows where it struck (the bots know it all along: Watch)
                 AtBeat(Grid, strikes - 4, [this, half, strikes]()
                 {
-                    GroundIndicators::ShowCone(me, half.origin, half.origin.GetOrientation(), half.radius, 180.0f,
-                        MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
+                    uint32 const ms = MsTo(strikes);
+                    scheduler.Schedule(Milliseconds(ms > BellowsShownMs ? ms - BellowsShownMs : 0),
+                        [this, half, strikes](TaskContext)
+                    {
+                        if (_phase == Phase::Over)
+                            return;
+                        GroundIndicators::ShowCone(me, half.origin, half.origin.GetOrientation(), half.radius, 180.0f,
+                            MsTo(strikes), GroundIndicators::Theme::Fire, MistakeDamage);
+                    });
                 });
             }
             std::vector<Position> const lights = { OnArena(BellowsAngle(pair), BellowsDistance),
