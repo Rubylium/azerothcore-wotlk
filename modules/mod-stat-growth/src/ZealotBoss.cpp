@@ -88,7 +88,7 @@ constexpr uint8 SwapStacks = 2;
 constexpr float BurstGroupPct = 22.0f;      // Éclat de zèle, on the music's hits
 constexpr float FervorCarrierPct = 25.0f;   // Ferveur on its own carrier
 constexpr float FervorStackPct = 150.0f;    // Ferveur partagée: shared by those under it
-constexpr float AscendLeftPct = 10.0f;      // his first blow as a god leaves everyone at this share of their health
+constexpr float AscendLeftPct = 5.0f;       // his first blow as a god leaves everyone at this share of their health
 // The victim's own health: a dodge missed
 constexpr float DodgePct = 75.0f;
 // A mistake: Ébloui for DazzleMs - a second mistake under it kills
@@ -156,7 +156,7 @@ constexpr uint32 AscendRiseTakesMs = 12000;
 constexpr float AscendHeight = 7.0f;
 constexpr uint32 AscendGlowEveryMs = 1500;
 constexpr float AscendScale = 1.7f;
-constexpr uint32 AscendHitMs = 33000;     // the track's hit, as heard in game
+constexpr uint32 AscendHitMs = 34500;     // the track's hit, as heard in game
 constexpr uint32 AscendLandMs = AscendHitMs - 700;
 constexpr uint32 AscendDropMs = AscendHitMs - AscendLandMs;
 // While he rises, untouchable: shards of light falling on a few players and spots every ShardsEveryMs (seen ShardsWarnMs
@@ -1623,8 +1623,8 @@ private:
         Sound("Valerian.Chained", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
-        me->SetImmuneToAll(true);
-        me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+        // Still in combat (never immune: an immune boss left combat, and the board counted down a new pull);
+        // DamageTaken takes nothing meanwhile
         me->SetStandState(UNIT_STAND_STATE_KNEEL);
         me->SetPower(POWER_MANA, 0);
         scheduler.Schedule(Milliseconds(JailersInMs), [this](TaskContext)
@@ -1675,7 +1675,8 @@ private:
         EndPace();
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
-        me->SetImmuneToAll(true);
+        // Still in combat (never immune: an immune boss left combat, and the board counted down a new pull);
+        // DamageTaken takes nothing meanwhile
         Talk(SAY_PRELUDE_FIRST);
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         uint32 const lights = PreludeMs / PreludeLightMs;
@@ -1722,7 +1723,8 @@ private:
         Sound("Valerian.Ascend", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
-        me->SetImmuneToAll(true);
+        // Still in combat (never immune: an immune boss left combat, and the board counted down a new pull);
+        // DamageTaken takes nothing meanwhile
         Position const middle = Middle();
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL);
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL_RUNES);
