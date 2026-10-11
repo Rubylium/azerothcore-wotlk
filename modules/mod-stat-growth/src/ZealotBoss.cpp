@@ -1752,8 +1752,7 @@ private:
         scheduler.Schedule(Milliseconds(AscendHitMs), [this](TaskContext)
         {
             Position const at = Middle();
-            Sound("Valerian.Burst", at);
-            Sound("Valerian.Wrath", at);
+            Sound("Valerian.FirstBlow", at);
             for (uint32 index = 0; index < 8; ++index)
                 GroundIndicators::Burst(me, OnArena(float(index) * float(M_PI) / 4.0f, 7.0f),
                     GroundIndicators::Theme::Holy);

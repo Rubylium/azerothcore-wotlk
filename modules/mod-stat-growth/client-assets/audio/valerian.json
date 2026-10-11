@@ -8,7 +8,8 @@
     "picked by the user on the audition page (2026-10-11), each take whole (the bank's sub-bass stream mixed in), the two",
     "played at random. Levelled as the ear hears them (K-weighted, their loudest 0.4 s), then by what the user heard in",
     "the fight: the impacts 6 dB over the chains' first level, the warnings 3, the chain's sweep (five in a row) 6 under it. Past -4 dBFS (the limiter would only squash it) the rest is the sound's volume.",
-    "Raised again after a pull (2026-10-12): the impacts 3 dB, the lances' thunder 6 dB, phase 2's music 5 dB."
+    "Raised again after a pull (2026-10-12): the impacts 3 dB, the lances' thunder 6 dB, phase 2's music 5 dB.",
+    "Valerian.FirstBlow: his first blow as a god (phase 2's hit), Akarat's echo's air-slam explosion, picked by the user."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -265,6 +266,18 @@
       "volume": 2.28,
       "loudnessWindowMs": 400,
       "loudness": -4.0
+    },
+    "Valerian.FirstBlow": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Akarat_Echo_Boss_Skill_Air_Slam_Explode_01_3p_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Akarat_Echo_Boss_Skill_Air_Slam_Explode_01_3p_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 2.5,
+      "loudnessWindowMs": 400,
+      "loudness": -4
     }
   }
 }
