@@ -1,7 +1,7 @@
 {
   "_comment": [
     "Vrogar's sounds (ForgeMaster.cpp), heard from where the pattern happens across the whole arena (min distance 60).",
-    "Warnings as a pattern starts (a smith's hammering as he raises his, the chains starting to turn, his dip in the",
+    "Warnings as a pattern starts (his mace swung up, the strike's own boss's in Diablo IV, as he raises his hammer, the chains starting to turn, his dip in the",
     "trough or the crucible, the bellows charging, the ingots shown, the wall's earthquake) and impacts the moment it",
     "strikes, one sound each: Diablo IV's, picked by the user on the audition page (2026-10-11; the two variations",
     "heard there, played at random), the trough's dip and the warnings not picked the game's own.",
@@ -23,10 +23,8 @@
     "Vrogar.AnvilCast": {
       "kind": "spell",
       "files": [
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingA.wav",
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingB.wav",
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingC.wav",
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/BlackSmithCraftingD.wav"
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Whoosh_Up_A_3p_Media_02.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Whoosh_Up_A_3p_Media_03.wav"
       ],
       "minDistance": 6,
       "maxDistance": 45,
