@@ -231,6 +231,9 @@ ItemTemplate MakePiece(ItemTemplate const& row, ItemTemplate const& donor, uint3
     item.Material = row.Material;
     item.Sheath = row.Sheath;
     item.ItemSet = row.ItemSet;
+    // Never the raid item's limit category (an Ashen Verdict ring's, a trinket's group): a piece of the set is in no
+    // stock group, and one equipped refused the other's ("the limit of this gem socketed in equipped items")
+    item.ItemLimitCategory = row.ItemLimitCategory;
     return item;
 }
 
