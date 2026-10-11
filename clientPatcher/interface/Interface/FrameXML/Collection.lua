@@ -54,12 +54,11 @@ local ROW_W, ROW_H, ROW_GAP = 360, 79, 2
 local GRID_TOP = -118
 -- A boss's button in the list: its Défi board page's art (Interface\ChallengeBoard,
 -- localTools/interface/buildChallengeGodArt.py) - its place as a band behind it, its figure's head and shoulders on
--- the left, the name over a shade on the right. Vrogar has no painting yet: Vorhan's, in shadow, as the board shows
--- him. Mythic+ keeps an icon.
+-- the left, the name over a shade on the right. Mythic+ keeps an icon.
 local SCENE_ART = "Interface\\ChallengeBoard\\"
 local SCENES = {
     [1] = { art = "ChallengeWarden" },
-    [2] = { art = "ChallengeWarden", shadow = 0.3 },
+    [2] = { art = "ChallengeForge" },
     [3] = { art = "ChallengeVoice" },
     [4] = { art = "ChallengeGod" },
 }

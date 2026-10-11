@@ -59,8 +59,10 @@ local WARDEN_ATTEMPTS = 3
 local WARDEN_MUSIC = "Music.PrisonIdle"
 local WARDEN_MUSIC_FADE_IN, WARDEN_MUSIC_FADE_OUT = 1500, 2000
 -- The Gaol's gates on the warden's page, gate by gate: the boss behind each (a gate whose boss the board does not post
--- is sealed). Vrogar (mod-stat-growth ForgeMaster.cpp), the second, has no painting yet: Vorhan's figure in shadow
+-- is sealed) and its painting (ChallengeForge-*: Vrogar's forge and the forge-master, mod-stat-growth ForgeMaster.cpp);
+-- a gate without one shows the warden's figure in shadow
 local GATE_BOSSES = { WARDEN_BOSS, 930400 }
+local GATE_ART = { [2] = "ChallengeForge" }
 local GATE_SHADOWED = 0.3
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.
@@ -1808,7 +1810,10 @@ local function CreateGodPage(spec)
             quote:SetText(sealed and "" or own and own.quote or spec.quote)
             signature:SetText(sealed and "" or own and own.signature or spec.signature)
             lore:SetText(sealed and TEXT.gateSealedLore or own and own.lore or spec.lore)
-            local shade = sealed and 0.12 or own and GATE_SHADOWED or 1
+            local art = not sealed and own and GATE_ART[gate] or spec.art
+            scene.backdrop:SetTexture(GOD_ART .. art .. "-Backdrop")
+            scene.figure:SetTexture(GOD_ART .. art .. "-Figure")
+            local shade = sealed and 0.12 or (own and not GATE_ART[gate]) and GATE_SHADOWED or 1
             scene.figure:SetVertexColor(shade, shade, shade)
             if sealed then
                 name:SetText(format(TEXT.gateSealedName, TIER_ROMAN[gate]))

@@ -15,10 +15,11 @@ The Hollow Voice: the Sunwell chamber, its lit stair under the figure once mirro
 and the Archbishop with the demon behind him (assets/hollowVoice). The demon fills the painting's right side, so it
 fades in less from the right than the god does: its purple runs into the chamber's.
 
-Gardien-chef Vorhan: Magtheridon's Lair turned into a prison, and the warden (localTools/wardenVorhan/art); a page whose
+Gardien-chef Vorhan: Magtheridon's Lair turned into a prison, and the warden (localTools/wardenVorhan/art); Vrogar,
+his second gate: the Blood Furnace's forge and the forge-master (localTools/escapeHunter/art/vrogar). A page whose
 paintings are not there yet is skipped.
 
-Usage: python localTools/interface/buildChallengeGodArt.py [god|voice|warden ...]   (all of them by default)
+Usage: python localTools/interface/buildChallengeGodArt.py [god|voice|warden|forge ...]   (all of them by default)
 """
 import importlib.util
 import os
@@ -45,6 +46,10 @@ PAGES = {
     # Gardien-chef Vorhan: his paintings live with the fight's other art (.agents/plans/warden-vorhan ASSETS)
     "warden": {"source": os.path.join(REPO, "localTools", "wardenVorhan", "art"), "name": "ChallengeWarden",
                "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
+    # Vrogar, the Gaol's second gate: the Blood Furnace's forge and the forge-master (localTools/escapeHunter/art/vrogar,
+    # escape-hunter.ASSETS.md), shown on the warden's page when his gate is browsed to
+    "forge": {"source": os.path.join(REPO, "localTools", "escapeHunter", "art", "vrogar"), "name": "ChallengeForge",
+              "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
 }
 
 
