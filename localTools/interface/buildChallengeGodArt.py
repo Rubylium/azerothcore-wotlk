@@ -19,7 +19,7 @@ Gardien-chef Vorhan: Magtheridon's Lair turned into a prison, and the warden (lo
 his second gate: the Blood Furnace's forge and the forge-master (localTools/escapeHunter/art/vrogar). A page whose
 paintings are not there yet is skipped.
 
-Usage: python localTools/interface/buildChallengeGodArt.py [god|voice|warden|forge ...]   (all of them by default)
+Usage: python localTools/interface/buildChallengeGodArt.py [god|voice|warden|forge|valerian ...]   (all of them by default)
 """
 import importlib.util
 import os
@@ -50,6 +50,9 @@ PAGES = {
     # escape-hunter.ASSETS.md), shown on the warden's page when his gate is browsed to
     "forge": {"source": os.path.join(REPO, "localTools", "escapeHunter", "art", "vrogar"), "name": "ChallengeForge",
               "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
+    # Valérian, the Gaol's third gate: his cell and the zealot (localTools/valerian/art, gaol-third.ASSETS.md)
+    "valerian": {"source": os.path.join(REPO, "localTools", "valerian", "art"), "name": "ChallengeValerian",
+                 "fade": (0.22, 0.3, 0.05, 0.04), "stale": ()},
 }
 
 

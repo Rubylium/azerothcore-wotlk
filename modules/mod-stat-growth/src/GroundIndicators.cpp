@@ -616,6 +616,9 @@ uint32 FadeLookOf(uint32 look)
     // Vrogar's looks (ForgeMaster.cpp): 60, their twins 60 on (95000 up is taken)
     if (look >= 94860 && look < 94920)
         return look + 60;
+    // Valérian's (ZealotBoss.cpp): 60, their twins 60 on
+    if (look >= 98600 && look < 98660)
+        return look + 60;
     return 0;
 }
 

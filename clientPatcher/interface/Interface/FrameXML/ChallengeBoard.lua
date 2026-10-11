@@ -62,7 +62,7 @@ local WARDEN_MUSIC_FADE_IN, WARDEN_MUSIC_FADE_OUT = 1500, 2000
 -- is sealed) and its painting (ChallengeForge-*: Vrogar's forge and the forge-master, mod-stat-growth ForgeMaster.cpp);
 -- a gate without one shows the warden's figure in shadow
 local GATE_BOSSES = { WARDEN_BOSS, 930400, 930500 }
-local GATE_ART = { [2] = "ChallengeForge" }
+local GATE_ART = { [2] = "ChallengeForge", [3] = "ChallengeValerian" }
 local GATE_SHADOWED = 0.3
 
 -- Tiers: what each does, as the server has it (mod-playerbots ChallengeTiers.h). Change them together.

@@ -13,6 +13,7 @@
 #include <array>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -35,8 +36,8 @@
 // leaves 1 gold on the floor, no gear. A light left alone hits everyone for LightReturnPct of their health.
 // Phase 2 (to come) is for now a bare fight: no mechanic, its own health, its music - a win as any other.
 // Health paced (Defi::BossAI StartPace): 1% only at the end; above it then, the light floods the arena.
-// Red shapes while the design is tried (art later); nothing stays on the floor once a pattern has struck (the room is
-// read fast: its sounds mark the hits).
+// Every area drawn in his own painted looks (localTools/valerian/valerianArt.py: holy fire, gold light, scorched stone);
+// nothing stays on the floor once a pattern has struck (the room is read fast: its sounds mark the hits).
 //
 // .valerian lab: in the FX lab (map 451) he stands at its middle in rehearsal - every pattern drawn for real by
 // .valerian cast, striking nobody, each strike logging how much of the arena it left safe.
@@ -139,6 +140,7 @@ constexpr uint32 StolenMs = 10 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 LightCount = (LightLastBeat - LightFirstBeat) / LightEveryBeats + 1;
 // A light left alone: as it flies to him, everyone takes this share of their own health
 constexpr float LightReturnPct = 5.0f;
+constexpr float LabLightDistance = 8.0f;    // .valerian cast light: east of him in the lab
 
 // The end of the phase: the jailers walk in, then the mission ends
 constexpr uint32 Jailers = 3;
@@ -161,6 +163,53 @@ constexpr uint32 KIT_HOLY_GLOW = 7005;      // Holy_Precast_High_Base, played on
 
 // What a red area is told to the bots (GroundIndicators hitDamage): nothing known, so always left
 constexpr uint32 MistakeDamage = 0;
+
+// His painted looks (localTools/groundIndicators/shapes.json VL_*, from the paintings in localTools/valerian/art through
+// valerianArt.py): every area he lays drawn in them rather than the red, the same Area registered (the bots, the hits)
+enum Looks : uint32
+{
+    LOOK_RADIANCE_CONE_180      = 98600,    // Colère du juste's halves: radiant flagstones
+    LOOK_RADIANCE_GLOW_180      = 98601,
+    LOOK_RADIANCE_CONE_270      = 98602,    // Chaîne brisée's sweep (all but its gap)
+    LOOK_RADIANCE_GLOW_270      = 98603,
+    LOOK_RAGE_CIRCLE            = 98604,    // Rage contenue: the inside
+    LOOK_RAGE_CRACKS_CIRCLE     = 98605,
+    LOOK_RAGE_RING_40           = 98606,    // ... the outside (inner 0.4 of outer)
+    LOOK_RAGE_CRACKS_RING_40    = 98607,
+    LOOK_REVERS_CONE_90         = 98608,    // Revers sacré
+    LOOK_REVERS_FLARE           = 98609,
+    LOOK_LANCE_TILE             = 98610,    // a lance's tile: LanceTileRatio as long as it is wide
+    LOOK_FERVOR_SPREAD          = 98611,    // carried, built to FervorRadius
+    LOOK_FERVOR_STACK           = 98612,    // carried, built to FervorRadius
+    LOOK_MARK_FERVOR            = 98613,    // over the marked's heads
+    LOOK_MARK_FERVOR_STACK      = 98614,
+    LOOK_WALL_BARS_FIRST        = 98615,    // the wall's bars, its two pieces each half of their band
+    LOOK_WALL_LIGHT             = 98617,    // the light behind them, rising
+    LOOK_WALL_MOTES             = 98618,    // the motes in front
+    LOOK_WALL_RISE              = 98619,
+    LOOK_SIGIL                  = 98620,    // under him for his apotheosis
+    LOOK_SIGIL_RUNES            = 98621,
+};
+
+// The layer shown over a look (0: none)
+constexpr uint32 LayerOf(uint32 look)
+{
+    switch (look)
+    {
+        case LOOK_RADIANCE_CONE_180: return LOOK_RADIANCE_GLOW_180;
+        case LOOK_RADIANCE_CONE_270: return LOOK_RADIANCE_GLOW_270;
+        case LOOK_RAGE_CIRCLE: return LOOK_RAGE_CRACKS_CIRCLE;
+        case LOOK_RAGE_RING_40: return LOOK_RAGE_CRACKS_RING_40;
+        case LOOK_REVERS_CONE_90: return LOOK_REVERS_FLARE;
+        default: return 0;
+    }
+}
+constexpr uint32 WallBarsLooks = 2;
+constexpr float WallLightOut = 1.006f;      // the light's ring a little behind the bars, the motes before them
+constexpr float WallMotesIn = 0.994f;
+constexpr uint32 WallRiseMs = 1400;
+constexpr float LanceTileRatio = 4.0f;
+constexpr float SigilRadius = 8.0f;
 
 enum Spells : uint32
 {
@@ -514,14 +563,20 @@ struct boss_valerian : public Defi::BossAI
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return false;
         uint32 const now = CurrentBeat(Grid) + 1;
-        // His apotheosis and phase 2 now, as if every light had reached him (in a fight only)
+        // His apotheosis and phase 2 now, as if every light had reached him (in the lab: the apotheosis alone, harmless,
+        // back to rehearsing after his blow)
         if (what == "ascend")
         {
-            if (_phase != Phase::Zealot)
-                return false;
+            _ascendRehearsed = _phase == Phase::Rehearsal;
             scheduler.CancelAll();
             EndCastBar();
             Ascend();
+            return true;
+        }
+        // In the lab: one light LabLightDistance east of him (a game master standing in it counts there)
+        if (what == "light")
+        {
+            ShowLight(now + LightShownBeats, OnArena(0.0f, LabLightDistance));
             return true;
         }
         if (what == "lights")
@@ -745,16 +800,52 @@ private:
         return others;
     }
 
-    // A cone from the middle to the wall, arcDegrees wide, around facing
-    GroundIndicators::Area Cone(float facing, float arcDegrees, uint32 ms, Unit* aimedAt = nullptr)
+    // A cone from the middle to the wall, arcDegrees wide (as look is painted), around facing; aimedAt: the tank it is
+    // aimed at
+    GroundIndicators::Area Cone(float facing, float arcDegrees, uint32 look, uint32 ms, Unit* aimedAt = nullptr)
     {
-        Position apex = Middle();
-        apex.SetOrientation(facing);
-        if (aimedAt)
-            return GroundIndicators::ShowAimedCone(me, apex, facing, ArenaRadius + 1.0f, arcDegrees, ms, aimedAt,
-                GroundIndicators::Theme::None, MistakeDamage);
-        return GroundIndicators::ShowCone(me, apex, facing, ArenaRadius + 1.0f, arcDegrees, ms,
-            GroundIndicators::Theme::None, MistakeDamage);
+        GroundIndicators::Area area = MakeCircle(Middle(), ArenaRadius + 1.0f);
+        area.kind = GroundIndicators::Area::Kind::Cone;
+        area.origin.SetOrientation(facing);
+        area.arc = arcDegrees * float(M_PI) / 180.0f;
+        return Painted(area, look, ms, aimedAt);
+    }
+
+    // His areas drawn with his looks (Looks) and the layer moving over each (LayerOf), registered as the red ones are
+    GroundIndicators::Area Painted(GroundIndicators::Area const& area, uint32 look, uint32 ms, Unit* aimedAt = nullptr)
+    {
+        if (uint32 const layer = LayerOf(look))
+            GroundIndicators::ShowDecal(me, area.origin, area.origin.GetOrientation(), area.radius, ms, layer);
+        return GroundIndicators::ShowPainted(me, area, look, ms, GroundIndicators::Theme::None, MistakeDamage, nullptr,
+            0, aimedAt);
+    }
+
+    static GroundIndicators::Area MakeCircle(Position const& center, float radius)
+    {
+        GroundIndicators::Area area;
+        area.kind = GroundIndicators::Area::Kind::Circle;
+        area.origin = center;
+        area.radius = radius;
+        return area;
+    }
+
+    // A lance from start along facing, length long, LanceWidth wide: registered whole, drawn in tiles of the lance
+    // (LanceTileRatio times its width each), the last one flush with its end
+    GroundIndicators::Area Lance(Position const& start, float facing, float length, uint32 ms)
+    {
+        GroundIndicators::Area area = MakeCircle(start, length);
+        area.kind = GroundIndicators::Area::Kind::Rectangle;
+        area.origin.SetOrientation(facing);
+        area.width = LanceWidth;
+        GroundIndicators::WatchArea(me, area, ms, MistakeDamage);
+        float const tile = LanceWidth * LanceTileRatio;
+        float done = 0.0f;
+        for (; length - done >= tile; done += tile)
+            GroundIndicators::ShowDecal(me, Ground(AtAngle(start, facing, done)), facing, tile, ms, LOOK_LANCE_TILE);
+        if (length - done > 0.5f)
+            GroundIndicators::ShowDecal(me, Ground(AtAngle(start, facing, std::max(0.0f, length - tile))), facing,
+                std::min(tile, length), ms, LOOK_LANCE_TILE);
+        return area;
     }
 
     // --- The arena ---------------------------------------------------------------------------------------------------
@@ -767,8 +858,12 @@ private:
         uint32 const shows = _phase == Phase::Rehearsal ? 0 : WallShowBeats;
         AtBeat(Grid, shows, [this, middle, lasts]()
         {
-            GroundIndicators::ShowCurtainRing(me, middle, GroundIndicators::SPELL_WARDEN_WALL_FIRST,
-                GroundIndicators::WardenWallLooks, WallPieces, GroundIndicators::WardenWallPieceLength, lasts);
+            GroundIndicators::ShowDecal(me, middle, 0.0f, ArenaRadius, WallRiseMs, LOOK_WALL_RISE);
+            float const piece = GroundIndicators::WardenWallPieceLength;
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_LIGHT, 1, WallPieces, piece * WallLightOut, lasts);
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_BARS_FIRST, WallBarsLooks, WallPieces, piece,
+                lasts);
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_MOTES, 1, WallPieces, piece * WallMotesIn, lasts);
             Sound("Valerian.WallRise", middle);
         });
         _wallFrom = Grid.At(shows + WallRiseBeats) + WallDrawInGraceMs;
@@ -872,8 +967,8 @@ private:
             AtBeat(Grid, beat > LightShownBeats ? beat - LightShownBeats : 0, [this, beat]() { ShowLight(beat); });
     }
 
-    // Somewhere in the arena, away from him and from the wall, on another side than the last one
-    void ShowLight(uint32 lands)
+    // Somewhere in the arena, away from him and from the wall, on another side than the last one (or at, if given)
+    void ShowLight(uint32 lands, std::optional<Position> at = {})
     {
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return;
@@ -881,7 +976,7 @@ private:
             3.0f * float(M_PI) / 2.0f));
         _lastLightAngle = angle;
         Light light;
-        light.at = OnArena(angle, frand(LightNear, ArenaRadius - LightWallGap));
+        light.at = at ? *at : OnArena(angle, frand(LightNear, ArenaRadius - LightWallGap));
         light.lands = lands;
         ++_spawned;
         uint32 const ms = MsTo(lands);
@@ -927,6 +1022,14 @@ private:
     std::vector<Player*> InLight(Light const& light) const
     {
         std::vector<Player*> in;
+        if (_phase == Phase::Rehearsal)
+        {
+            // The lab: its game master tries the look (counted, never struck: LandLight strikes in a fight only)
+            for (auto const& ref : me->GetMap()->GetPlayers())
+                if (Player* player = ref.GetSource(); player && player->GetExactDist2d(&light.at) <= LightRadius)
+                    in.push_back(player);
+            return in;
+        }
         for (Player* player : ArenaPlayers())
             if (player->GetExactDist2d(&light.at) <= LightRadius)
                 in.push_back(player);
@@ -1028,7 +1131,7 @@ private:
             me->SetFacingToObject(tank);
         ObjectGuid const tankGuid = tank ? tank->GetGUID() : ObjectGuid::Empty;
         uint32 const lands = start + WarnBeats;
-        GroundIndicators::Area const front = Cone(facing, ReversArc, MsTo(lands), tank);
+        GroundIndicators::Area const front = Cone(facing, ReversArc, LOOK_REVERS_CONE_90, MsTo(lands), tank);
         AtBeat(Grid, lands - 1, [this, front]() { Probe({ front }, "revers"); });
         AtBeat(Grid, lands, [this, front, tankGuid]()
         {
@@ -1054,7 +1157,7 @@ private:
         float const back = Position::NormalizeOrientation(facing + float(M_PI));
         Wave(lands, lands + ReversBackBeats, [this, back](uint32 ms)
         {
-            return Areas{ Cone(back, ReversArc, ms) };
+            return Areas{ Cone(back, ReversArc, LOOK_REVERS_CONE_90, ms) };
         }, RuleRevers);
     }
 
@@ -1071,9 +1174,14 @@ private:
         // His fist raised over the half: its light where it will strike
         AtBeat(Grid, start, [this, facing]() { Fist(facing); });
         AtBeat(Grid, first, [this, second]() { Fist(second); });
-        Wave(start, first, [this, facing](uint32 ms) { return Areas{ Cone(facing, 180.0f, ms) }; }, RuleWrath);
-        Wave(first, first + WrathFollowBeats, [this, second](uint32 ms) { return Areas{ Cone(second, 180.0f, ms) }; },
-            RuleWrath);
+        Wave(start, first, [this, facing](uint32 ms)
+        {
+            return Areas{ Cone(facing, 180.0f, LOOK_RADIANCE_CONE_180, ms) };
+        }, RuleWrath);
+        Wave(first, first + WrathFollowBeats, [this, second](uint32 ms)
+        {
+            return Areas{ Cone(second, 180.0f, LOOK_RADIANCE_CONE_180, ms) };
+        }, RuleWrath);
     }
 
     void Fist(float towards)
@@ -1102,16 +1210,12 @@ private:
         AtBeat(Grid, shown, [this]() { EndCastBar(); });
     }
 
-    // Everything round him but ChainGapDegrees around gap: a half and two eighths
+    // Everything round him but ChainGapDegrees around gap: one 270 degree cone, turned away from the gap
     Areas Sweep(float gap, uint32 ms)
     {
-        float const half = float(M_PI) / 2.0f;
-        float const eighth = float(M_PI) / 4.0f;
-        float const opposite = gap + float(M_PI);
-        static_assert(ChainGapDegrees == 90.0f, "the sweep is a half and two eighths");
-        return Areas{ Cone(Position::NormalizeOrientation(opposite), 180.0f, ms),
-                      Cone(Position::NormalizeOrientation(opposite - half - eighth / 2.0f), 45.0f, ms),
-                      Cone(Position::NormalizeOrientation(opposite + half + eighth / 2.0f), 45.0f, ms) };
+        static_assert(ChainGapDegrees == 90.0f, "the sweep is a 270 degree cone");
+        return Areas{ Cone(Position::NormalizeOrientation(gap + float(M_PI)), 360.0f - ChainGapDegrees,
+            LOOK_RADIANCE_CONE_270, ms) };
     }
 
     // --- Ferveur: three marked to spread - turned to a stack at the last moment ------------------------------------------
@@ -1129,8 +1233,10 @@ private:
         {
             marks.push_back(carrier->GetGUID());
             AddTimedAura(carrier, SPELL_FERVOR_MARK, MsTo(lands));
-            GroundIndicators::ShowCarriedCircle(me, carrier, FervorRadius, MsTo(stack ? flips : lands),
-                MistakeDamage);
+            uint32 const spreadMs = MsTo(stack ? flips : lands);
+            GroundIndicators::ShowCarriedLook(carrier, LOOK_FERVOR_SPREAD, spreadMs);
+            GroundIndicators::ShowCarriedLook(carrier, LOOK_MARK_FERVOR, spreadMs);
+            GroundIndicators::WatchCarriedCircle(me, carrier, FervorRadius, spreadMs, MistakeDamage);
         }
         std::vector<Position> marked;
         for (Player* carrier : carriers)
@@ -1145,8 +1251,15 @@ private:
                 Sound("Valerian.FervorFlip", Middle());
                 for (ObjectGuid const& guid : marks)
                     if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
+                    {
+                        GroundIndicators::ClearCarriedLook(carrier, LOOK_FERVOR_SPREAD);
+                        GroundIndicators::ClearCarriedLook(carrier, LOOK_MARK_FERVOR);
+                        GroundIndicators::ShowCarriedLook(carrier, LOOK_FERVOR_STACK, MsTo(lands));
+                        GroundIndicators::ShowCarriedLook(carrier, LOOK_MARK_FERVOR_STACK, MsTo(lands));
                         GroundIndicators::ShowSoak(me, carrier->GetPosition(), FervorRadius, MsTo(lands),
-                            uint32(ArenaPlayers().size() / FervorMarks), GroundIndicators::Theme::Holy);
+                            uint32(ArenaPlayers().size() / FervorMarks), GroundIndicators::Theme::Holy, false,
+                            false);
+                    }
                 FollowStacks(marks, lands);
             });
         AtBeat(Grid, lands, [this, marks, stack]()
@@ -1239,13 +1352,14 @@ private:
         GroundIndicators::ShowParticles(me, glow, GroundIndicators::Theme::Holy, MsTo(first));
         auto in = [this, inner](uint32 ms)
         {
-            return Areas{ GroundIndicators::ShowCircle(me, Middle(), inner, ms, GroundIndicators::Theme::None,
-                MistakeDamage) };
+            return Areas{ Painted(MakeCircle(Middle(), inner), LOOK_RAGE_CIRCLE, ms) };
         };
         auto out = [this, outer, inner](uint32 ms)
         {
-            return Areas{ GroundIndicators::ShowRing(me, Middle(), outer, inner, ms, GroundIndicators::Theme::None,
-                MistakeDamage) };
+            GroundIndicators::Area ring = MakeCircle(Middle(), outer);
+            ring.kind = GroundIndicators::Area::Kind::Ring;
+            ring.inner = inner;
+            return Areas{ Painted(ring, LOOK_RAGE_RING_40, ms) };
         };
         Wave(start, first, inFirst ? std::function<Areas(uint32)>(in) : std::function<Areas(uint32)>(out), RuleRage);
         Wave(first, first + RageFollowBeats, inFirst ? std::function<Areas(uint32)>(out) :
@@ -1269,7 +1383,8 @@ private:
     {
         Areas lines;
         Position const middle = Middle();
-        float const reach = ArenaRadius + 1.0f;
+        // Wall to wall: no further (past the wall is death already, and drawn there they showed through it)
+        float const reach = ArenaRadius - 0.3f;
         for (uint32 axis = 0; axis < 2; ++axis)
         {
             float const along = turn + float(axis) * float(M_PI) / 2.0f;
@@ -1284,8 +1399,7 @@ private:
                 Position startAt = Ground(Position(crossing.GetPositionX() - std::cos(along) * half,
                     crossing.GetPositionY() - std::sin(along) * half, crossing.GetPositionZ()));
                 startAt.SetOrientation(along);
-                lines.push_back(GroundIndicators::ShowRectangle(me, startAt, along, 2.0f * half, LanceWidth, ms,
-                    GroundIndicators::Theme::None, MistakeDamage));
+                lines.push_back(Lance(startAt, along, 2.0f * half, ms));
             }
         }
         return lines;
@@ -1411,7 +1525,8 @@ private:
         me->SetReactState(REACT_PASSIVE);
         me->SetImmuneToAll(true);
         Position const middle = Middle();
-        GroundIndicators::ShowDecal(me, middle, 0.0f, 8.0f, AscendHitMs, GroundIndicators::SPELL_SIGIL_RADIANT);
+        GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL);
+        GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL_RUNES);
         // The light gathering on him, brighter and brighter, until his blow
         for (uint32 at = 0; at < AscendLandMs; at += AscendGlowEveryMs)
             scheduler.Schedule(Milliseconds(at), [this, at](TaskContext)
@@ -1444,12 +1559,23 @@ private:
                 GroundIndicators::Burst(me, OnArena(float(index) * float(M_PI) / 4.0f, 7.0f),
                     GroundIndicators::Theme::Holy);
             GroundIndicators::Burst(me, at, GroundIndicators::Theme::Holy);
-            for (Player* player : ArenaPlayers())
+            for (Player* player : _ascendRehearsed ? std::vector<Player*>() : ArenaPlayers())
             {
                 uint32 const left = uint32(float(player->GetMaxHealth()) * AscendLeftPct / 100.0f);
                 if (player->GetHealth() > left)
                     HitOwnHealth(player, SPELL_ASCEND,
                         float(player->GetHealth() - left) * 100.0f / float(player->GetMaxHealth()));
+            }
+            if (_ascendRehearsed)
+            {
+                // The lab: back to rehearsing, as he was
+                _ascendRehearsed = false;
+                _phase = Phase::Rehearsal;
+                me->SetCanFly(false);
+                me->SetDisableGravity(false);
+                me->SetObjectScale(1.0f);
+                EndMusic();
+                return;
             }
             StartAscended();
         });
@@ -1566,6 +1692,7 @@ private:
     uint32 _wallFrom = 0;
     bool _musicOver = false;
     uint32 _ascendFrom = 0;             // when his apotheosis began (Elapsed): p2's track from then
+    bool _ascendRehearsed = false;      // his apotheosis played in the lab
     bool _ascendedMusicOver = false;
     std::vector<Light> _lights;
     std::vector<ObjectGuid> _jailers;
@@ -1635,7 +1762,7 @@ public:
         return true;
     }
 
-    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|lights|ascend>
+    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|lights|light|ascend>
     static bool HandleCast(ChatHandler* handler, std::string step)
     {
         boss_valerian* valerian = FindValerian(handler->GetPlayer());

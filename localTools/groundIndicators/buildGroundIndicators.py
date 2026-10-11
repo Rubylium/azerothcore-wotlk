@@ -716,6 +716,9 @@ def fade_spell(spell):
     # Vrogar's looks (ForgeMaster.cpp, localTools/escapeHunter/vrogarArt.py): 60, their twins 60 on (95000 up is taken)
     if 94860 <= spell < 94920:
         return spell + 60
+    # Valérian's looks (ZealotBoss.cpp, localTools/valerian/valerianArt.py): 60, their twins 60 on
+    if 98600 <= spell < 98660:
+        return spell + 60
     raise SystemExit(f'spell {spell}: no fading twin range for it (fade_spell)')
 
 
