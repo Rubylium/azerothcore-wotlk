@@ -3,7 +3,11 @@
     "Valérian's music (the Hellfire Gaol's third gate, ZealotBoss.cpp), played by our own sound engine as music: the",
     "game's own music silent meanwhile. Each track played once from its phase's start: the fight is timed on it (p1: a",
     "pulse a second from 1.37 s; p2: 92.3 BPM from 1.39 s; plan: .agents/plans/gaol-third), and the server silences it",
-    "as it ends - the engine would loop it (loopStart 0) past the track's own fade-out, never reached."
+    "as it ends - the engine would loop it (loopStart 0) past the track's own fade-out, never reached.",
+    "His sounds (Valerian.*): Diablo IV's - Inarius's fight, the Paladin, Akarat's echo, a Knight caster, Mephisto's orb -",
+    "picked by the user on the audition page (2026-10-11), each take whole (the bank's sub-bass stream mixed in), the two",
+    "played at random. Levelled on their loudest 0.4 s at -9 dBFS RMS, as Vrogar's; the orb reaching him at half volume",
+    "(one every 2 s). Those tied to a spot fade with distance (full within 6 yd, gone at 45); the arena's heard everywhere."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -19,6 +23,246 @@
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/valerian_p2.ogg"
       ],
       "loopStart": 0
+    },
+    "Valerian.ReversCast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Tell_Whoosh_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Tell_Whoosh_Media_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Revers": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Trinity_Sword_Swing_Zeal_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Trinity_Sword_Swing_Zeal_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.WrathCast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Smite_PreCast_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Smite_PreCast_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Wrath": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Slam_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Slam_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.ChainSpin": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Chains_Attach_Whoosh_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Chains_Attach_Whoosh_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Chain": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Chains_Attach_Impact_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Chains_Attach_Impact_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.FervorMark": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_MirrorBeam_Warning_3p_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_MirrorBeam_Warning_3p_Media_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.FervorFlip": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Rally_Cast_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Rally_Cast_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Fervor": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Knight_Caster_HolyFlash_Explo_3P_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Knight_Caster_HolyFlash_Explo_3P_Media_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.RageCast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Consecration_AOE_BuildUp_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Consecration_AOE_BuildUp_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Rage": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Defiance_Variant_Explo_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Defiance_Variant_Explo_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.LancesCast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Intro_Spear_Spawn_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Intro_Spear_Spawn_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Lances": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_SpearOfTheHeavens_Explo_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_SpearOfTheHeavens_Explo_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Burst": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Oath_Arbiter_Explo_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_Oath_Arbiter_Explo_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.OrbAbsorb": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_HolyLight_Projectile_Heal_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_HolyLight_Projectile_Heal_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 0.5,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.OrbTaken": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Mephisto_Skill_SkillSeal_Orb_Pickup_3p_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Mephisto_Skill_SkillSeal_Orb_Pickup_3p_Media_take2.wav"
+      ],
+      "minDistance": 6,
+      "maxDistance": 45,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.WallRise": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Chainstation_Chargeable_Spawn_3p_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Chainstation_Chargeable_Spawn_3p_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.JudgementCast": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Ping_Rise_3p_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Ping_Rise_3p_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Chained": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Stagger_Intro_Impact_Ground_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Stagger_Intro_Impact_Ground_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
+    },
+    "Valerian.Ascend": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Intro_Float_Up_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Intro_Float_Up_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.0,
+      "loudnessWindowMs": 400,
+      "loudness": -9
     }
   }
 }

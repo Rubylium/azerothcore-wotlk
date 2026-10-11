@@ -1,4 +1,5 @@
 #include "DefiBoss.h"
+#include "EvolutionsAudio.h"
 #include "GroundIndicators.h"
 
 #include "Chat.h"
@@ -252,19 +253,21 @@ std::vector<Step> BuildTimeline()
 }
 
 // What a mistake costs (a share of the victim's own health; 100: death), and its name in the log
+// sound: played as it strikes (client-assets/audio/valerian.json), from the area nearest each listener
 struct Rule
 {
     uint32 spell;
     float percent;
     char const* name;
+    char const* sound = nullptr;
 };
 
-Rule const RuleRevers = { SPELL_REVERS, DodgePct, "revers" };
-Rule const RuleWrath = { SPELL_WRATH, DodgePct, "wrath" };
-Rule const RuleChain = { SPELL_CHAIN, DodgePct, "chain" };
+Rule const RuleRevers = { SPELL_REVERS, DodgePct, "revers", "Valerian.Revers" };
+Rule const RuleWrath = { SPELL_WRATH, DodgePct, "wrath", "Valerian.Wrath" };
+Rule const RuleChain = { SPELL_CHAIN, DodgePct, "chain", "Valerian.Chain" };
 Rule const RuleFervor = { SPELL_FERVOR, DodgePct, "fervor" };
-Rule const RuleRage = { SPELL_RAGE, DodgePct, "rage" };
-Rule const RuleLances = { SPELL_LANCES, DodgePct, "lances" };
+Rule const RuleRage = { SPELL_RAGE, DodgePct, "rage", "Valerian.Rage" };
+Rule const RuleLances = { SPELL_LANCES, DodgePct, "lances", "Valerian.Lances" };
 
 bool IsTank(Player* player)
 {
@@ -566,8 +569,14 @@ private:
     {
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return;
+        std::vector<Position> spots;
         for (GroundIndicators::Area const& area : areas)
-            GroundIndicators::Burst(me, BurstSpot(area), GroundIndicators::Theme::Holy);
+        {
+            spots.push_back(BurstSpot(area));
+            GroundIndicators::Burst(me, spots.back(), GroundIndicators::Theme::Holy);
+        }
+        if (rule.sound)
+            SoundNearest(rule.sound, spots);
         if (_phase == Phase::Rehearsal)
         {
             LogSafe(rule.name, areas);
@@ -628,6 +637,28 @@ private:
     }
 
     Position Middle() const { return Ground(GetRoom().center); }
+
+    // One of his sounds (client-assets/audio/valerian.json) at where, for everyone hearing the fight
+    void Sound(char const* key, Position const& where)
+    {
+        for (Player* player : Listeners())
+            EvolutionsAudio::PlayAt(player, key, where);
+    }
+
+    // A sound with several sources (the marks, the lines of a grid): each listener hears it once, from the nearest
+    void SoundNearest(char const* key, std::vector<Position> const& wheres)
+    {
+        if (wheres.empty())
+            return;
+        for (Player* player : Listeners())
+        {
+            Position const* nearest = &wheres.front();
+            for (Position const& where : wheres)
+                if (player->GetExactDist2d(&where) < player->GetExactDist2d(nearest))
+                    nearest = &where;
+            EvolutionsAudio::PlayAt(player, key, *nearest);
+        }
+    }
     Position OnArena(float angle, float distance) const { return AtAngle(GetRoom().center, angle, distance); }
 
     // Where a strike's light bursts: a circle's middle, a cone's or a line's halfway along it, inside the wall
@@ -682,6 +713,7 @@ private:
         {
             GroundIndicators::ShowCurtainRing(me, middle, GroundIndicators::SPELL_WARDEN_WALL_FIRST,
                 GroundIndicators::WardenWallLooks, WallPieces, GroundIndicators::WardenWallPieceLength, lasts);
+            Sound("Valerian.WallRise", middle);
         });
         _wallFrom = Grid.At(shows + WallRiseBeats) + WallDrawInGraceMs;
         AtBeat(Grid, shows + WallRiseBeats, [this]() { DrawIn(); });
@@ -874,6 +906,7 @@ private:
     {
         ++_absorbed;
         GroundIndicators::Burst(me, Middle(), GroundIndicators::Theme::Holy);
+        Sound("Valerian.OrbAbsorb", Middle());
         orb->DespawnOrUnsummon();
         ShowAbsorbed();
     }
@@ -891,6 +924,7 @@ private:
     {
         ++_taken;
         GroundIndicators::Burst(me, orb->GetPosition(), GroundIndicators::Theme::Holy);
+        Sound("Valerian.OrbTaken", orb->GetPosition());
         orb->DespawnOrUnsummon();
         if (_phase == Phase::Zealot)
             AddTimedAura(player, SPELL_STOLEN, StolenMs, uint8(std::min(99, StacksOf(player, SPELL_STOLEN) + 1)));
@@ -913,6 +947,7 @@ private:
         Unit* victim = me->GetVictim();
         Player* tank = victim ? victim->ToPlayer() : nullptr;
         CastBar(CAST_REVERS);
+        Sound("Valerian.ReversCast", me->GetPosition());
         float const facing = tank ? me->GetAngle(tank) : me->GetOrientation();
         if (tank)
             me->SetFacingToObject(tank);
@@ -923,12 +958,13 @@ private:
         AtBeat(Grid, lands, [this, front, tankGuid]()
         {
             EndCastBar();
+            GroundIndicators::Burst(me, BurstSpot(front), GroundIndicators::Theme::Holy);
+            Sound("Valerian.Revers", BurstSpot(front));
             if (_phase == Phase::Rehearsal)
             {
                 LogSafe("revers front", { front });
                 return;
             }
-            GroundIndicators::Burst(me, BurstSpot(front), GroundIndicators::Theme::Holy);
             for (Player* player : ArenaPlayers())
             {
                 if (player->GetGUID() == tankGuid)
@@ -970,13 +1006,16 @@ private:
     {
         me->SetFacingTo(towards);
         me->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
-        GroundIndicators::Burst(me, AtAngle(Middle(), towards, 3.0f), GroundIndicators::Theme::Holy);
+        Position const fist = AtAngle(Middle(), towards, 3.0f);
+        GroundIndicators::Burst(me, fist, GroundIndicators::Theme::Holy);
+        Sound("Valerian.WrathCast", fist);
     }
 
     // --- Chaîne brisée: all round him but a gap, the gap turning a little each strike ------------------------------------
     void Chain(uint32 start)
     {
         CastBar(CAST_CHAIN);
+        Sound("Valerian.ChainSpin", me->GetPosition());
         float const way = urand(0, 1) ? 1.0f : -1.0f;
         float const turn = way * ChainTurnDegrees * float(M_PI) / 180.0f;
         float gap = frand(0.0f, 2.0f * float(M_PI));
@@ -1021,12 +1060,17 @@ private:
             GroundIndicators::ShowCarriedCircle(me, carrier, FervorRadius, MsTo(stack ? flips : lands),
                 MistakeDamage);
         }
+        std::vector<Position> marked;
+        for (Player* carrier : carriers)
+            marked.push_back(carrier->GetPosition());
+        SoundNearest("Valerian.FervorMark", marked);
         if (_phase == Phase::Rehearsal && carriers.empty())
             LogSafe("fervor (no carrier in the lab)", {});
         if (stack)
             AtBeat(Grid, flips, [this, marks, lands]()
             {
                 // The marks turn: a soak on each, its own colour, the others to come under them
+                Sound("Valerian.FervorFlip", Middle());
                 for (ObjectGuid const& guid : marks)
                     if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                         GroundIndicators::ShowSoak(me, carrier->GetPosition(), FervorRadius, MsTo(lands),
@@ -1035,6 +1079,11 @@ private:
             });
         AtBeat(Grid, lands, [this, marks, stack]()
         {
+            std::vector<Position> bursts;
+            for (ObjectGuid const& guid : marks)
+                if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
+                    bursts.push_back(carrier->GetPosition());
+            SoundNearest("Valerian.Fervor", bursts);
             for (ObjectGuid const& guid : marks)
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                 {
@@ -1105,6 +1154,7 @@ private:
     void Rage(uint32 start, uint32 order)
     {
         CastBar(CAST_RAGE);
+        Sound("Valerian.RageCast", me->GetPosition());
         uint32 const first = start + WarnBeats;
         AtBeat(Grid, first, [this]() { EndCastBar(); });
         bool const inFirst = order == 0 || (order == 2 && urand(0, 1));
@@ -1135,6 +1185,7 @@ private:
     void Lances(uint32 start)
     {
         CastBar(CAST_LANCES);
+        Sound("Valerian.LancesCast", Middle());
         uint32 const first = start + WarnBeats;
         AtBeat(Grid, first, [this]() { EndCastBar(); });
         float const turn = frand(0.0f, float(M_PI) / 2.0f);
@@ -1179,6 +1230,7 @@ private:
         {
             EndCastBar();
             GroundIndicators::Burst(me, Middle(), GroundIndicators::Theme::Holy);
+            Sound("Valerian.Burst", Middle());
             if (_phase == Phase::Zealot)
                 HitEveryone(SPELL_BURST, BurstGroupPct);
         });
@@ -1189,6 +1241,7 @@ private:
     {
         uint32 const strikes = std::max(start + 2, JudgementBeat);
         CastBar(CAST_JUDGEMENT);
+        Sound("Valerian.JudgementCast", Middle());
         GroundIndicators::WarnGroupDamage(me, MsTo(strikes));
         AtBeat(Grid, strikes, [this]()
         {
@@ -1227,6 +1280,7 @@ private:
         GroundIndicators::ClearAreasOf(me);
         EndMusic();
         Talk(SAY_STOLEN);
+        Sound("Valerian.Chained", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
         me->SetImmuneToAll(true);
@@ -1272,6 +1326,7 @@ private:
         ClearOrbs();
         GroundIndicators::ClearAreasOf(me);
         Talk(SAY_ASCEND);
+        Sound("Valerian.Ascend", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
         me->SetControlled(false, UNIT_STATE_ROOT);
