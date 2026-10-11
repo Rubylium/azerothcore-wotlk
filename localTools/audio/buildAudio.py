@@ -104,6 +104,9 @@ def normalize(samples, rate, level, windowMs=0):
         release = max(1, int(rate * RELEASE))
         gain = uniform_filter1d(minimum_filter1d(gain, size=release), size=release)
         samples = samples * gain[:, None]
+    # Its first 2 ms faded in: a file cut mid-waveform (a stream out of a game's bank) clicked as it started
+    fade = min(len(samples), max(1, int(rate * 0.002)))
+    samples[:fade] *= numpy.linspace(0.0, 1.0, fade)[:, None]
     return numpy.clip(samples, -CEILING, CEILING)
 
 
