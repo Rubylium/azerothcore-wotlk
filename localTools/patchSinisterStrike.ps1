@@ -1526,6 +1526,13 @@ foreach ($shape in $indicatorConfig.shapes) {
         Set-Field $record 0 ([uint32]$effectNameDbc.MaxId)
         Set-Field $record 1 (Add-DbcString $effectNameDbc.Strings "Evolutions Indicator $($look.Key)")
         Set-Field $record 2 (Add-DbcString $effectNameDbc.Strings "Spells\Evolutions\GI_$($look.Key).mdx")
+        # A carried look (a circle round a player, a mark over them) at its own size whoever wears it: the client
+        # scales a worn effect to its wearer's model within the row's allowed scales (0.01-100 on the ring copied),
+        # so a gnome's circle was drawn smaller than a tauren's for the same hit. Pinned to 1 (fields 5 and 6)
+        if ($shape.carried) {
+            Set-Field $record 5 (Get-FloatBits 1.0)
+            Set-Field $record 6 (Get-FloatBits 1.0)
+        }
         $effectNameDbc.NewRecords.AddRange($record)
 
         $kitFields = @{ 15 = 0; 16 = 0 }

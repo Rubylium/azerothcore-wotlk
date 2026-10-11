@@ -5,7 +5,7 @@
     "trough or the crucible, the bellows charging, the ingots shown, the wall's earthquake) and impacts the moment it",
     "strikes, one sound each: Diablo IV's, picked by the user on the audition page (2026-10-11; the two variations",
     "heard there, played at random), the trough's dip and the warnings not picked the game's own.",
-    "Every one levelled on its loudest 0.4 s at -16 dBFS RMS (loudnessWindowMs): the same loudness for all. Those tied to a spot fade with distance (full within 6 yd, gone at 45); those of the whole arena (the wall, the shockwave, the pour, the chains, la Fonte, his return, the group hit, steam and flood) heard everywhere."
+    "Every one levelled on its loudest 0.4 s at -9 dBFS RMS (-16 was too quiet: the hit of an impact is heard against the game's own sounds, levelled on their whole length at -12) (loudnessWindowMs): the same loudness for all. Those tied to a spot fade with distance (full within 6 yd, gone at 45); those of the whole arena (the wall, the shockwave, the pour, the chains, la Fonte, his return, the group hit, steam and flood) heard everywhere."
   ],
   "sounds": {
     "Vrogar.WallRise": {
@@ -18,7 +18,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.AnvilCast": {
       "kind": "spell",
@@ -32,7 +32,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Anvil": {
       "kind": "spell",
@@ -44,7 +44,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Shockwave": {
       "kind": "spell",
@@ -56,7 +56,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Pour": {
       "kind": "spell",
@@ -68,7 +68,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Sparks": {
       "kind": "spell",
@@ -80,7 +80,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.ChainsSpin": {
       "kind": "spell",
@@ -92,7 +92,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Chains": {
       "kind": "spell",
@@ -104,7 +104,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Laminoir": {
       "kind": "spell",
@@ -116,7 +116,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.DipTrough": {
       "kind": "spell",
@@ -129,7 +129,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.DipCrucible": {
       "kind": "spell",
@@ -141,7 +141,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Steam": {
       "kind": "spell",
@@ -153,7 +153,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Flood": {
       "kind": "spell",
@@ -165,7 +165,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.BellowsLit": {
       "kind": "spell",
@@ -177,7 +177,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.BellowsFire": {
       "kind": "spell",
@@ -189,7 +189,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Ingots": {
       "kind": "spell",
@@ -200,7 +200,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.IngotsLand": {
       "kind": "spell",
@@ -212,7 +212,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Hammer": {
       "kind": "spell",
@@ -224,7 +224,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.HammerGroup": {
       "kind": "spell",
@@ -236,7 +236,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Fonte": {
       "kind": "spell",
@@ -248,7 +248,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Return": {
       "kind": "spell",
@@ -260,7 +260,7 @@
       "maxDistance": 140,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Spread": {
       "kind": "spell",
@@ -272,7 +272,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     },
     "Vrogar.Soak": {
       "kind": "spell",
@@ -284,7 +284,7 @@
       "maxDistance": 45,
       "volume": 1.0,
       "loudnessWindowMs": 400,
-      "loudness": -16
+      "loudness": -9
     }
   }
 }
