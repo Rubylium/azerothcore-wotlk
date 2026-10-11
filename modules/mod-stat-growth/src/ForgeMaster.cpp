@@ -819,7 +819,11 @@ private:
                 PlayImpact(KIT_SMOKE_EXPLOSION, SoundSpot(area), 0.8f);
                 break;
             case Look::Steam:
-                PlayImpact(KIT_STEAM, origin, std::max(1.0f, area.radius / 3.0f));
+                // The whole circle: one burst in its middle, four round it (one alone read as a puff)
+                PlayImpact(KIT_STEAM, origin, 2.5f);
+                for (uint32 index = 0; index < 4; ++index)
+                    PlayImpact(KIT_STEAM, AtAngle(origin, float(index) * float(M_PI) / 2.0f + float(M_PI) / 4.0f,
+                        area.radius * 0.6f), 2.0f);
                 break;
             case Look::RingPillars:
             {
