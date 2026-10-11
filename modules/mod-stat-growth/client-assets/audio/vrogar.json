@@ -35,8 +35,8 @@
     "Vrogar.Anvil": {
       "kind": "spell",
       "files": [
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Impact_3p_Media_01.wav",
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Impact_3p_Media_02.wav"
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Impact_3p_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_RaidBoss_Boss_Skill_MaceSlam_Impact_3p_Media_take2.wav"
       ],
       "minDistance": 6,
       "maxDistance": 45,
@@ -215,8 +215,8 @@
     "Vrogar.Hammer": {
       "kind": "spell",
       "files": [
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_AbyssalLord_SKIL_Slam_Impact_3P_Media_01.wav",
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_AbyssalLord_SKIL_Slam_Impact_3P_Media_02.wav"
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_AbyssalLord_SKIL_Slam_Impact_3P_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_MON_AbyssalLord_SKIL_Slam_Impact_3P_Media_take2.wav"
       ],
       "minDistance": 6,
       "maxDistance": 45,
@@ -227,8 +227,8 @@
     "Vrogar.HammerGroup": {
       "kind": "spell",
       "files": [
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Rathma_SkeletonDunk_FistSlam_Impact_Media_01.wav",
-        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Rathma_SkeletonDunk_FistSlam_Impact_Media_02.wav"
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Rathma_SkeletonDunk_FistSlam_Impact_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/vrogar/Play_Rathma_SkeletonDunk_FistSlam_Impact_Media_take2.wav"
       ],
       "minDistance": 60,
       "maxDistance": 140,
