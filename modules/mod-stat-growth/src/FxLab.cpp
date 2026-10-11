@@ -337,7 +337,8 @@ public:
 
         if (shape->carried)
         {
-            Unit* carrier = target ? target : player;
+            // Worn by the target, else the nearest dummy (a screenshot run cannot select), else you
+            Unit* carrier = LookTarget(handler);
             if (!GroundIndicators::ShowCarriedLook(carrier, shape->spell, durationMs))
             {
                 handler->SendErrorMessage("That look could not be put on.");

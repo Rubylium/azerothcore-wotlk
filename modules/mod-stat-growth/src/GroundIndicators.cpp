@@ -161,7 +161,6 @@ struct ActiveArea
     ObjectGuid aimedAt;         // the one unit it is meant to land on (ShowAimedCone)
     ObjectGuid turnsTo;         // a cone turning to face this unit as it moves (ShowTrackingCone)
     float turnOffset = 0.0f;    // ... or to face away from it (pi)
-    float carriedBase = 0.0f;   // a carried circle's radius at its carrier's scale 1: it grows with the carrier
     float sweepSpeed = 0.0f;    // a sweeping rectangle (ShowSweepingRectangle): radians a second, from sweepFromMs
     uint64 sweepFromMs = 0;
     float sweepFrom = 0.0f;     // ... its facing then
@@ -196,8 +195,6 @@ uint64 Register(Unit* owner, Unit* carrier, GroundIndicators::Area const& area, 
     active.aimedAt = aimedAt;
     active.turnsTo = turnsTo;
     active.turnOffset = turnOffset;
-    if (carrier && carrier->GetObjectScale() > 0.0f)
-        active.carriedBase = area.radius / carrier->GetObjectScale();
     active.mapId = owner->GetMapId();
     active.instanceId = owner->GetInstanceId();
     active.carrier = carrier ? carrier->GetGUID() : ObjectGuid::Empty;
@@ -249,10 +246,8 @@ bool Follow(ActiveArea& entry, WorldObject const& reference)
     Unit* carrier = ObjectAccessor::GetUnit(reference, entry.carrier);
     if (!carrier)
         return false;
+    // A carried look keeps its own size and facing whoever carries it (its effect is pinned to scale 1)
     entry.area.origin.Relocate(carrier->GetPositionX(), carrier->GetPositionY(), carrier->GetPositionZ());
-    // A carried star keeps its own facing (ShowCarriedStar); a carried circle grows with its carrier
-    if (entry.area.kind != GroundIndicators::Area::Kind::Cross && entry.carriedBase > 0.0f)
-        entry.area.radius = entry.carriedBase * carrier->GetObjectScale();
     return true;
 }
 
@@ -714,11 +709,11 @@ GroundIndicators::Area MakeArea(GroundIndicators::Area::Kind kind, Position cons
 // The carried circle at the size nearest radius, on carrier for durationMs. Returns its spell, 0 if it could not.
 uint32 Carry(Unit* carrier, float radius, uint32 durationMs, float& drawnRadius)
 {
-    // The client draws a unit's aura models at the unit's scale: a big boss carries a bigger circle than its model's
-    float const scale = carrier && carrier->GetObjectScale() > 0.0f ? carrier->GetObjectScale() : 1.0f;
-    ShapeSpell const& shape = NearestShape(CarriedSpells.data(), CarriedSpells.data() + CarriedSpells.size(),
-        radius / scale);
-    drawnRadius = shape.size * scale;
+    // Drawn at its own size whoever carries it: the carried looks' effects are pinned to scale 1 (patchSinisterStrike:
+    // the client would scale them to the wearer's model - a gnome's circle smaller, a big boss's bigger); measured in
+    // the FX lab on a player, a dummy and a 3x dummy alike
+    ShapeSpell const& shape = NearestShape(CarriedSpells.data(), CarriedSpells.data() + CarriedSpells.size(), radius);
+    drawnRadius = shape.size;
     if (!carrier || !carrier->IsInWorld() || !carrier->IsAlive() || durationMs == 0)
         return 0;
 
@@ -2891,7 +2886,11 @@ struct HazardCircle
     uint32 sourceAura = 0;
     uint32 carriedAura = 0;
     uint64 areaId = 0;
+    bool grows = false;         // its radius follows its creature's scale (HazardRadius perScale): redrawn as it grows
 };
+
+// Creatures carrying a growing hazard: their update redraws it (the others skip the check)
+std::atomic<uint32> GrowingHazardCreatures{0};
 
 struct CreatureHazards : DataMap::Base
 {
@@ -2919,6 +2918,15 @@ constexpr std::array<ScriptedHazard, 3> ScriptedHazards = { {
     { 72743, 10.0f, true },     // Defile (the Lich King), growing (spell_the_lich_king_defile)
     { 70343, 2.5f, true },      // Slime Puddle (Professor Putricide), growing (spell_putricide_slime_puddle)
 } };
+
+// Whether the hazard's radius follows its creature's scale (Defile, a slime puddle)
+bool HazardGrows(Aura const* aura, Unit* owner)
+{
+    for (ScriptedHazard const& hazard : ScriptedHazards)
+        if (aura->GetId() == hazard.aura || aura->GetId() == sSpellMgr->GetSpellIdForDifficulty(hazard.aura, owner))
+            return hazard.perScale;
+    return false;
+}
 
 float HazardRadius(Aura const* aura, Unit* owner)
 {
@@ -3006,9 +3014,12 @@ void ShowHazard(Creature* creature, Aura* aura)
         if (!carried)
             return;
 
+        bool const grows = HazardGrows(aura, creature);
+        if (grows && std::ranges::none_of(hazards->circles, [](HazardCircle const& circle) { return circle.grows; }))
+            ++GrowingHazardCreatures;
         hazards->circles.push_back({ aura->GetId(), carried, Register(creature, creature,
             MakeArea(GroundIndicators::Area::Kind::Circle, *creature, 0.0f, drawnRadius), durationMs,
-            EstimateHit(caster, aura->GetSpellInfo())) });
+            EstimateHit(caster, aura->GetSpellInfo())), grows });
     }
 }
 
@@ -3030,8 +3041,40 @@ void GroundIndicatorUnitScript::OnAuraRemove(Unit* unit, AuraApplication* aurApp
 
         HazardCircle const removed = *circle;
         hazards->circles.erase(circle);
+        if (removed.grows && std::ranges::none_of(hazards->circles, [](HazardCircle const& entry) { return entry.grows; }))
+            --GrowingHazardCreatures;
         Unregister(removed.areaId);
         unit->RemoveAurasDueToSpell(removed.carriedAura);
+    }
+}
+
+// A growing hazard's circle as its creature grows: carried looks are drawn at their own size (pinned to scale 1), so
+// once its radius calls for the next circle size, that one takes the old one's place and the area follows
+void RedrawGrowing(Creature* creature)
+{
+    CreatureHazards* hazards = creature->CustomData.Get<CreatureHazards>(HazardDataKey);
+    if (!hazards)
+        return;
+    for (HazardCircle& circle : hazards->circles)
+    {
+        if (!circle.grows)
+            continue;
+        Aura* aura = creature->GetAura(circle.sourceAura);
+        if (!aura)
+            continue;
+        float const radius = HazardRadius(aura, creature);
+        ShapeSpell const& shape = NearestShape(CarriedSpells.data(), CarriedSpells.data() + CarriedSpells.size(),
+            radius);
+        if (shape.spell == circle.carriedAura)
+            continue;
+        uint32 const durationMs = aura->GetDuration() > 0 ? uint32(aura->GetDuration()) : EndlessHazardMs;
+        creature->RemoveAurasDueToSpell(circle.carriedAura);
+        float drawnRadius = radius;
+        if (uint32 const carried = Carry(creature, radius, durationMs, drawnRadius))
+        {
+            circle.carriedAura = carried;
+            Resize(circle.areaId, drawnRadius);
+        }
     }
 }
 
@@ -3042,6 +3085,8 @@ public:
 
     void OnAllCreatureUpdate(Creature* creature, uint32 /*diff*/) override
     {
+        if (GrowingHazardCreatures.load(std::memory_order_relaxed) && creature->IsInWorld())
+            RedrawGrowing(creature);
         if (!PendingHazardCreatures.load(std::memory_order_relaxed) || !creature->IsInWorld())
             return;
         PendingHazards* pending = creature->CustomData.Get<PendingHazards>(PendingHazardKey);
