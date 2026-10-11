@@ -278,7 +278,7 @@ local TEXT = french and {
         .. "forge bat au rythme de son enclume, et le métal en fusion ne choisit pas où il tombe.",
     valerianName = "Valérian",
     valerianEpithet = "le Zélote",
-    valerianPlace = "Les Remparts des Flammes infernales",
+    valerianPlace = "La Fournaise du sang",
     valerianQuote = "« Des années dans le noir. Donnez-moi la lumière - toute la lumière ! »",
     valerianSignature = "— Valérian",
     valerianLore = "Derrière la troisième porte, un fanatique de la Lumière attend depuis des années. Il en garde "
@@ -488,7 +488,7 @@ local TEXT = french and {
         .. "rhythm of his anvil, and molten iron does not choose where it falls.",
     valerianName = "Valerian",
     valerianEpithet = "the Zealot",
-    valerianPlace = "Hellfire Ramparts",
+    valerianPlace = "The Blood Furnace",
     valerianQuote = "\"Years in the dark. Give me the light - all of it!\"",
     valerianSignature = "— Valerian",
     valerianLore = "Behind the third gate, a fanatic of the Light has waited for years. He keeps a spark of it; he "

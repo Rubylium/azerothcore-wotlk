@@ -18,8 +18,8 @@
 // mod-playerbots (RaidFinder.cpp), built into the same modules library: the challenge lost by the boss's own rule
 void FailChallengeFor(Map const* map);
 
-// Valérian, le Zélote: the Hellfire Gaol's third gate, a Défi board boss in the Hellfire Ramparts, on Vazruden's landing
-// (plan: .agents/plans/gaol-third). A fanatic of the Light locked in the Gaol for years: he has some light, he wants all
+// Valérian, le Zélote: the Hellfire Gaol's third gate, a Défi board boss in the Blood Furnace, in Keli'dan the Breaker's
+// hall - Vrogar's arena, the second gate's (plan: .agents/plans/gaol-third). A fanatic of the Light locked in the Gaol for years: he has some light, he wants all
 // of it. 8 players - 2 tanks, 2 healers, 4 damage dealers - tuned as the Gaol's other gates (477, 650 paragon).
 //
 // Phase 1 (this file; phase 2, the god, to come): a walled arena on his music (p1, 2:17), he stands at its middle all
@@ -30,11 +30,13 @@ void FailChallengeFor(Map const* map);
 // - Ferveur: three marked players spread - the second time the marks turn to a stack at the last moment;
 // - Rage contenue: the inside, then the outside - or the other way round (his glow tells);
 // - Lances de lumière: a grid of lines wall to wall, then the grid shifted half a square.
-// **The orbs never stop**: light drifts from the wall to him in lanes. A player touching one takes it (Lumière dérobée:
-// 3% damage and healing a stack - the temptation); each reaching him fills his power bar. At the end of the track, only
-// if every orb reached him does he ascend (phase 2); one taken, and the jailers come for him: the mission is lost.
+// **The lights**: every few seconds a soak of light falls somewhere in the arena (the retail soak's look: it shows when
+// someone stands in it). Whoever stands in it as it lands takes its light (Lumière dérobée: 3% damage and healing a
+// stack - the temptation); left alone, the light flies to him and fills his power bar. At the end of the track, only if
+// every light reached him does he ascend (phase 2); one taken, and the jailers come for him: the mission is lost.
 // Health paced (Defi::BossAI StartPace): 1% only at the end; above it then, the light floods the arena.
-// Red shapes while the design is tried (art later).
+// Red shapes while the design is tried (art later); nothing stays on the floor once a pattern has struck (the room is
+// read fast: its sounds mark the hits).
 //
 // .valerian lab: in the FX lab (map 451) he stands at its middle in rehearsal - every pattern drawn for real by
 // .valerian cast, striking nobody, each strike logging how much of the arena it left safe.
@@ -49,11 +51,11 @@ Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimSh
 LiveTuning::Knob const HealthScale("valerian.health_scale", 1.0f);
 constexpr float HoldPct = 1.0f;
 
-// Vazruden's landing in the Hellfire Ramparts, its middle (where the Herald lands); the arena round it: a ring of
-// WallPieces of Vorhan's wall pieces (GroundIndicators::WardenWallPieceLength each), ArenaRadius from the middle
-// reach: the whole landing (a group standing back is drawn in by the wall); its music, the instance
-Defi::Room const Room = { Position(-1406.5f, 1746.5f, 81.2f, 0.0f), 55.0f, 1000.0f, 60.0f };
-constexpr uint32 WallPieces = 20;
+// Keli'dan's hall in the Blood Furnace, its middle (ForgeMaster.cpp's Room: the same arena); the arena round it: a ring
+// of WallPieces of Vorhan's wall pieces (GroundIndicators::WardenWallPieceLength each), ArenaRadius from the middle
+// reach: the whole hall (a group standing back at the landing spot is drawn in by the wall); its music, the instance
+Defi::Room const Room = { Position(326.5f, -86.0f, -24.6f, 0.0f), 55.0f, 1000.0f, 60.0f };
+constexpr uint32 WallPieces = 16;
 float const ArenaRadius = GroundIndicators::WardenWallPieceLength / (2.0f * std::sin(float(M_PI) / float(WallPieces)));
 constexpr float WallMargin = 0.6f;          // past ArenaRadius less this: in the wall
 constexpr uint32 WallShowBeats = 8;         // the wall rises this long after the pull
@@ -104,25 +106,26 @@ constexpr uint32 FervorBeats = 8;           // the marks explode this long after
 constexpr uint32 FervorFlipBeats = 3;       // ... and turn to a stack this long before
 constexpr float RageInnerShare = 0.4f;      // Rage contenue: the inside out to this share of the arena (a ring's own)
 constexpr uint32 RageFollowBeats = 3;
-constexpr float LanceWidth = 3.0f;
-constexpr float LanceSpacing = 10.0f;
+constexpr float LanceWidth = 2.5f;
+constexpr float LanceSpacing = 8.0f;
 constexpr uint32 LanceShiftBeats = 3;
 constexpr uint32 BurstCastBeats = 3;
 
-// The orbs: one every OrbEveryBeats from OrbFirstBeat to OrbLastBeat, in OrbLanes lanes from the wall to him (their
-// angles turned at random each pull, the same all fight), drifting at OrbSpeed; touched within OrbTouch of a player, taken
-// within OrbAbsorb of his middle
-constexpr uint32 OrbLanes = 6;
-constexpr uint32 OrbFirstBeat = 16;
-constexpr uint32 OrbLastBeat = 240;
-constexpr uint32 OrbEveryBeats = 4;
-constexpr float OrbSpeed = 3.0f;
-constexpr float OrbTouch = 1.0f;
-constexpr float OrbAbsorb = 3.5f;
-constexpr float OrbHeight = 1.5f;
-constexpr uint32 OrbCheckMs = 200;
+// The lights: a soak every LightEveryBeats from LightFirstBeat to LightLastBeat, shown LightShownBeats before it lands,
+// LightRadius yards, between LightNear and the wall's LightWallGap from his middle, never two in a row on the same side.
+// Whoever stands in it as it lands takes it; left alone, its light flies to him at LightFlight yards a second.
+constexpr uint32 LightFirstBeat = 20;
+constexpr uint32 LightLastBeat = 236;
+constexpr uint32 LightEveryBeats = 12;
+constexpr uint32 LightShownBeats = 8;
+constexpr float LightRadius = 3.0f;
+constexpr float LightNear = 6.0f;
+constexpr float LightWallGap = 3.0f;
+constexpr float LightFlight = 12.0f;
+constexpr float LightHeight = 1.5f;
+constexpr uint32 LightCheckMs = 200;
 constexpr uint32 StolenMs = 10 * MINUTE * IN_MILLISECONDS;
-constexpr uint32 OrbCount = (OrbLastBeat - OrbFirstBeat) / OrbEveryBeats + 1;
+constexpr uint32 LightCount = (LightLastBeat - LightFirstBeat) / LightEveryBeats + 1;
 
 // The end of the phase: the jailers walk in, then the mission ends
 constexpr uint32 Jailers = 3;
@@ -164,7 +167,7 @@ enum Spells : uint32
 enum Npcs : uint32
 {
     NPC_VALERIAN            = 930500,
-    NPC_ORB                 = 930501,
+    NPC_ORB                 = 930501,   // a light flying to him (only seen)
     NPC_JAILER              = 930502,
 };
 
@@ -183,7 +186,7 @@ enum class Phase : uint8
     None,
     Zealot,         // phase 1
     Chained,        // the light stolen: he kneels, the jailers come
-    Ascending,      // every orb in him: he rises
+    Ascending,      // every light in him: he rises
     Over,
     Rehearsal,      // the FX lab
 };
@@ -296,7 +299,7 @@ struct boss_valerian : public Defi::BossAI
         if (_phase == Phase::Zealot)
         {
             WatchDeaths();
-            LOG_INFO(_logName, "Valerian wipe instance={} at={:.1f}s true health={:.1f}% orbs absorbed={} taken={} "
+            LOG_INFO(_logName, "Valerian wipe instance={} at={:.1f}s true health={:.1f}% lights absorbed={} taken={} "
                      "deaths={}", me->GetInstanceId(), Elapsed() / 1000.0f, TrueHealthPct(), _absorbed, _taken,
                      DeathsText());
         }
@@ -336,11 +339,11 @@ struct boss_valerian : public Defi::BossAI
         StartClock();
         _phase = Phase::Zealot;
         RaiseArena();
-        StartOrbs(OrbFirstBeat, OrbLastBeat);
+        StartLights(LightFirstBeat, LightLastBeat);
         Talk(SAY_AGGRO);
         StartMusic("Music.ValerianZealot");
-        LOG_INFO(_logName, "Valerian pulled instance={} health={} arena={:.2f} yd orbs={} tier factor={}",
-                 me->GetInstanceId(), me->GetMaxHealth(), ArenaRadius, OrbCount, GetChallengeDamageFactorOf(me));
+        LOG_INFO(_logName, "Valerian pulled instance={} health={} arena={:.2f} yd lights={} tier factor={}",
+                 me->GetInstanceId(), me->GetMaxHealth(), ArenaRadius, LightCount, GetChallengeDamageFactorOf(me));
     }
 
     void KilledUnit(Unit* victim) override
@@ -353,7 +356,7 @@ struct boss_valerian : public Defi::BossAI
     {
         Talk(SAY_DEATH);
         WatchDeaths();
-        LOG_INFO(_logName, "Valerian killed instance={} at={:.1f}s orbs absorbed={} taken={} deaths={}",
+        LOG_INFO(_logName, "Valerian killed instance={} at={:.1f}s lights absorbed={} taken={} deaths={}",
                  me->GetInstanceId(), Elapsed() / 1000.0f, _absorbed, _taken, DeathsText());
         EndMusic();
         ResetFight();
@@ -383,7 +386,7 @@ struct boss_valerian : public Defi::BossAI
         if (_phase == Phase::Rehearsal)
         {
             scheduler.Update(diff);
-            UpdateOrbs(diff);
+            UpdateLights(diff);
             return;
         }
         if (Fighting())
@@ -410,7 +413,7 @@ struct boss_valerian : public Defi::BossAI
         if (_phase != Phase::Zealot)
             return;
         UpdatePace(elapsed, Grid.At(JudgementBeat));
-        UpdateOrbs(diff);
+        UpdateLights(diff);
         HoldMiddle();
         if (elapsed >= _nextCheckMs)
         {
@@ -427,9 +430,9 @@ struct boss_valerian : public Defi::BossAI
     {
         uint32 const elapsed = Elapsed();
         return Acore::StringFormat("Valerian: phase {} at {:.1f}s (beat {:.1f}), shown health {:.1f}%, true {:.1f}%, "
-            "next step {}/{}, orbs spawned {} absorbed {} taken {} drifting {}", uint32(_phase), elapsed / 1000.0f,
+            "next step {}/{}, lights shown {} absorbed {} taken {} on the floor {}", uint32(_phase), elapsed / 1000.0f,
             Grid.BeatOf(elapsed), me->GetHealthPct(), TrueHealthPct(), _next, _timeline.size(), _spawned, _absorbed,
-            _taken, _orbs.size());
+            _taken, _lights.size());
     }
 
     // The landing's floor round the middle, every 10 degrees clockwise from north (Defi::BossAI MeasureRoom)
@@ -450,11 +453,13 @@ struct boss_valerian : public Defi::BossAI
         scheduler.CancelAll();
         EndCastBar();
         AdvanceClock(seconds * IN_MILLISECONDS);
-        // The orbs still to come, from where the fight is now
-        uint32 const beat = CurrentBeat(Grid);
-        uint32 const from = std::max(OrbFirstBeat, beat + OrbEveryBeats - (beat % OrbEveryBeats));
-        if (from <= OrbLastBeat)
-            StartOrbs(from, OrbLastBeat);
+        // The lights still to come, from where the fight is now
+        uint32 const beat = CurrentBeat(Grid) + 1;
+        uint32 const from = beat <= LightFirstBeat ? LightFirstBeat :
+            LightFirstBeat + ((beat - LightFirstBeat + LightEveryBeats - 1) / LightEveryBeats) * LightEveryBeats;
+        _lights.clear();
+        if (from <= LightLastBeat)
+            StartLights(from, LightLastBeat);
         while (_next < _timeline.size() && Grid.At(_timeline[_next].beat) <= Elapsed())
             ++_next;
         return true;
@@ -466,9 +471,9 @@ struct boss_valerian : public Defi::BossAI
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return false;
         uint32 const now = CurrentBeat(Grid) + 1;
-        if (what == "orbs")
+        if (what == "lights")
         {
-            StartOrbs(now, now + 60);
+            StartLights(now, now + 60);
             return true;
         }
         static std::map<std::string, Step> const steps = {
@@ -499,7 +504,6 @@ struct boss_valerian : public Defi::BossAI
         GroundIndicators::DrawInstantly(me);
         StartClock();
         RaiseArena();
-        PickLanes();
     }
 
 protected:
@@ -528,7 +532,7 @@ private:
     void Execute(Step const& step)
     {
         uint32 const elapsed = Elapsed();
-        LOG_INFO(_logName, "Valerian {} instance={} at={:.2f}s beat={:.1f} shown={:.1f}% true={:.1f}% orbs={}/{}",
+        LOG_INFO(_logName, "Valerian {} instance={} at={:.2f}s beat={:.1f} shown={:.1f}% true={:.1f}% lights={}/{}",
                  EventName(step.what), me->GetInstanceId(), elapsed / 1000.0f, Grid.BeatOf(elapsed),
                  me->GetHealthPct(), TrueHealthPct(), _absorbed, _spawned);
         uint32 const at = step.beat;
@@ -571,10 +575,7 @@ private:
             return;
         std::vector<Position> spots;
         for (GroundIndicators::Area const& area : areas)
-        {
             spots.push_back(BurstSpot(area));
-            GroundIndicators::Burst(me, spots.back(), GroundIndicators::Theme::Holy);
-        }
         if (rule.sound)
             SoundNearest(rule.sound, spots);
         if (_phase == Phase::Rehearsal)
@@ -798,147 +799,142 @@ private:
             }
     }
 
-    // --- The orbs -------------------------------------------------------------------------------------------------------
-    struct Orb
+    // --- The lights ------------------------------------------------------------------------------------------------------
+    struct Light
     {
-        ObjectGuid guid;
-        float lane;
+        Position at;
+        uint32 lands;           // its beat
+        bool occupied = false;  // someone stood in it at the last check
     };
 
-    // The lanes' angles, turned at random: the same all fight
-    void PickLanes()
-    {
-        _laneTurn = frand(0.0f, 2.0f * float(M_PI) / float(OrbLanes));
-        _nextLane = urand(0, OrbLanes - 1);
-    }
-
-    float LaneAngle(uint32 lane) const
-    {
-        return Position::NormalizeOrientation(_laneTurn + float(lane) * 2.0f * float(M_PI) / float(OrbLanes));
-    }
-
-    // One every OrbEveryBeats from beat from to beat to, each in the lane after next (spread round the arena)
-    void StartOrbs(uint32 from, uint32 to)
+    // A soak every LightEveryBeats from beat from to beat to (each landing there), shown LightShownBeats before
+    void StartLights(uint32 from, uint32 to)
     {
         if (_phase != Phase::Rehearsal && _phase != Phase::Zealot)
             return;
-        if (_phase == Phase::Zealot)
-            PickLanes();
-        for (uint32 beat = from; beat <= to; beat += OrbEveryBeats)
-            AtBeat(Grid, beat, [this]() { SpawnOrb(); });
+        for (uint32 beat = from; beat <= to; beat += LightEveryBeats)
+            AtBeat(Grid, beat > LightShownBeats ? beat - LightShownBeats : 0, [this, beat]() { ShowLight(beat); });
     }
 
-    void SpawnOrb()
+    // Somewhere in the arena, away from him and from the wall, on another side than the last one
+    void ShowLight(uint32 lands)
     {
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return;
-        uint32 const lane = _nextLane;
-        _nextLane = (_nextLane + 2 + urand(0, 1) * 2) % OrbLanes;
-        float const angle = LaneAngle(lane);
-        Position at = OnArena(angle, ArenaRadius - 1.0f);
-        at.m_positionZ += OrbHeight;
-        at.SetOrientation(Position::NormalizeOrientation(angle + float(M_PI)));
-        Creature* orb = me->SummonCreature(NPC_ORB, at, TEMPSUMMON_MANUAL_DESPAWN);
-        if (!orb)
-            return;
+        float const angle = Position::NormalizeOrientation(_lastLightAngle + frand(float(M_PI) / 2.0f,
+            3.0f * float(M_PI) / 2.0f));
+        _lastLightAngle = angle;
+        Light light;
+        light.at = OnArena(angle, frand(LightNear, ArenaRadius - LightWallGap));
+        light.lands = lands;
         ++_spawned;
-        orb->SetCanFly(true);
-        orb->SetDisableGravity(true);
-        orb->SetReactState(REACT_PASSIVE);
-        Position to = Middle();
-        to.m_positionZ += OrbHeight;
-        orb->GetMotionMaster()->MovePoint(1, to, FORCED_MOVEMENT_NONE, OrbSpeed, false);
-        _orbs.push_back({ orb->GetGUID(), angle });
+        uint32 const ms = MsTo(lands);
+        LightLook(light, false, ms);
+        // The bots leave it alone: never theirs to take
+        GroundIndicators::Area area;
+        area.kind = GroundIndicators::Area::Kind::Circle;
+        area.origin = light.at;
+        area.radius = LightRadius + 0.5f;
+        GroundIndicators::WatchArea(me, area, ms, MistakeDamage);
+        _lights.push_back(light);
+        AtBeat(Grid, lands, [this, lands]() { LandLight(lands); });
     }
 
-    // Every OrbCheckMs: an orb at his middle is his, one a player touched is theirs; the rest tell the bots their lane
-    // (from the orb to him: the bots stay out of it)
-    void UpdateOrbs(uint32 diff)
+    // Its look: empty, or someone in it (the retail soak's two states)
+    void LightLook(Light const& light, bool occupied, uint32 ms)
     {
-        _orbTimer += diff;
-        if (_orbTimer < OrbCheckMs)
+        if (!occupied)
+            GroundIndicators::ShowDecal(me, light.at, 0.0f, LightRadius, ms, GroundIndicators::SPELL_SIGIL_RADIANT);
+        else
+            GroundIndicators::ShowParticles(me, MakeCircle(light.at, LightRadius), GroundIndicators::Theme::Holy,
+                std::min<uint32>(ms, LightCheckMs * 3));
+    }
+
+    static GroundIndicators::Area MakeCircle(Position const& center, float radius)
+    {
+        GroundIndicators::Area area;
+        area.kind = GroundIndicators::Area::Kind::Circle;
+        area.origin = center;
+        area.radius = radius;
+        return area;
+    }
+
+    std::vector<Player*> InLight(Light const& light) const
+    {
+        std::vector<Player*> in;
+        for (Player* player : ArenaPlayers())
+            if (player->GetExactDist2d(&light.at) <= LightRadius)
+                in.push_back(player);
+        return in;
+    }
+
+    // Every LightCheckMs: a light someone stands in shows it (and stops showing it once they leave)
+    void UpdateLights(uint32 diff)
+    {
+        _lightTimer += diff;
+        if (_lightTimer < LightCheckMs)
             return;
-        _orbTimer = 0;
-        Position const middle = Middle();
-        std::vector<Player*> const players = ArenaPlayers();
-        for (auto itr = _orbs.begin(); itr != _orbs.end();)
+        _lightTimer = 0;
+        for (Light& light : _lights)
         {
-            Creature* orb = me->GetMap()->GetCreature(itr->guid);
-            if (!orb)
-            {
-                itr = _orbs.erase(itr);
-                continue;
-            }
-            float const distance = orb->GetExactDist2d(&middle);
-            if (distance <= OrbAbsorb)
-            {
-                Absorb(orb);
-                itr = _orbs.erase(itr);
-                continue;
-            }
-            Player* toucher = nullptr;
-            for (Player* player : players)
-                if (player->GetExactDist2d(orb) <= OrbTouch && std::fabs(player->GetPositionZ() + OrbHeight -
-                        orb->GetPositionZ()) <= 3.0f)
-                {
-                    toucher = player;
-                    break;
-                }
-            if (toucher)
-            {
-                Take(toucher, orb);
-                itr = _orbs.erase(itr);
-                continue;
-            }
-            GroundIndicators::Area lane;
-            lane.kind = GroundIndicators::Area::Kind::Rectangle;
-            lane.origin = Ground(orb->GetPosition());
-            lane.origin.SetOrientation(orb->GetAngle(&middle));
-            lane.radius = std::max(0.5f, distance - OrbAbsorb + OrbTouch);
-            lane.width = 2.0f * OrbTouch + 0.6f;
-            GroundIndicators::WatchArea(me, lane, OrbCheckMs * 2, MistakeDamage);
-            ++itr;
+            bool const occupied = !InLight(light).empty();
+            if (occupied)
+                LightLook(light, true, MsTo(light.lands));
+            light.occupied = occupied;
         }
     }
 
-    // An orb in him: his power bar fills, he glows a little more
-    void Absorb(Creature* orb)
+    // It lands: taken by whoever stands in it, or its light flies to him
+    void LandLight(uint32 lands)
     {
+        auto const found = std::ranges::find(_lights, lands, &Light::lands);
+        if (found == _lights.end())
+            return;
+        Light const light = *found;
+        _lights.erase(found);
+        std::vector<Player*> const in = InLight(light);
+        if (!in.empty() && _phase == Phase::Zealot)
+        {
+            ++_taken;
+            Sound("Valerian.OrbTaken", light.at);
+            for (Player* player : in)
+            {
+                AddTimedAura(player, SPELL_STOLEN, StolenMs, uint8(std::min(99, StacksOf(player, SPELL_STOLEN) + 1)));
+                LOG_INFO(_logName, "Valerian light taken instance={} at={:.1f}s by {} bot={} taken={}",
+                         me->GetInstanceId(), Elapsed() / 1000.0f, player->GetName(),
+                         player->GetSession() && player->GetSession()->IsBot(), _taken);
+            }
+            return;
+        }
+        // Its light flies to him (only seen: it is his already)
+        Position from = light.at;
+        from.m_positionZ += LightHeight;
+        if (Creature* orb = me->SummonCreature(NPC_ORB, from, TEMPSUMMON_TIMED_DESPAWN,
+                uint32(light.at.GetExactDist2d(Middle()) / LightFlight * 1000.0f) + 200))
+        {
+            orb->SetCanFly(true);
+            orb->SetDisableGravity(true);
+            orb->SetReactState(REACT_PASSIVE);
+            Position to = Middle();
+            to.m_positionZ += LightHeight;
+            orb->GetMotionMaster()->MovePoint(1, to, FORCED_MOVEMENT_NONE, LightFlight, false);
+        }
         ++_absorbed;
-        GroundIndicators::Burst(me, Middle(), GroundIndicators::Theme::Holy);
         Sound("Valerian.OrbAbsorb", Middle());
-        orb->DespawnOrUnsummon();
         ShowAbsorbed();
     }
 
     void ShowAbsorbed()
     {
-        float const share = std::min(1.0f, float(_absorbed) / float(OrbCount));
+        float const share = std::min(1.0f, float(_absorbed) / float(LightCount));
         me->SetMaxPower(POWER_MANA, 100);
         me->SetPower(POWER_MANA, uint32(share * 100.0f));
         me->SetObjectScale(1.0f + 0.25f * share);
     }
 
-    // An orb taken by a player: the light is theirs (Lumière dérobée a stack), and he will never have it all
-    void Take(Player* player, Creature* orb)
+    void ClearLights()
     {
-        ++_taken;
-        GroundIndicators::Burst(me, orb->GetPosition(), GroundIndicators::Theme::Holy);
-        Sound("Valerian.OrbTaken", orb->GetPosition());
-        orb->DespawnOrUnsummon();
-        if (_phase == Phase::Zealot)
-            AddTimedAura(player, SPELL_STOLEN, StolenMs, uint8(std::min(99, StacksOf(player, SPELL_STOLEN) + 1)));
-        LOG_INFO(_logName, "Valerian orb taken instance={} at={:.1f}s by {} bot={} taken={}", me->GetInstanceId(),
-                 Elapsed() / 1000.0f, player->GetName(), player->GetSession() && player->GetSession()->IsBot(),
-                 _taken);
-    }
-
-    void ClearOrbs()
-    {
-        for (Orb const& entry : _orbs)
-            if (Creature* orb = me->GetMap()->GetCreature(entry.guid))
-                orb->DespawnOrUnsummon();
-        _orbs.clear();
+        _lights.clear();
     }
 
     // --- Revers sacré: a cone on his tank, then the same behind him ----------------------------------------------------
@@ -958,7 +954,6 @@ private:
         AtBeat(Grid, lands, [this, front, tankGuid]()
         {
             EndCastBar();
-            GroundIndicators::Burst(me, BurstSpot(front), GroundIndicators::Theme::Holy);
             Sound("Valerian.Revers", BurstSpot(front));
             if (_phase == Phase::Rehearsal)
             {
@@ -1006,9 +1001,7 @@ private:
     {
         me->SetFacingTo(towards);
         me->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
-        Position const fist = AtAngle(Middle(), towards, 3.0f);
-        GroundIndicators::Burst(me, fist, GroundIndicators::Theme::Holy);
-        Sound("Valerian.WrathCast", fist);
+        Sound("Valerian.WrathCast", AtAngle(Middle(), towards, 3.0f));
     }
 
     // --- Chaîne brisée: all round him but a gap, the gap turning a little each strike ------------------------------------
@@ -1088,7 +1081,6 @@ private:
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
                 {
                     carrier->RemoveAurasDueToSpell(SPELL_FERVOR_MARK);
-                    GroundIndicators::Burst(me, carrier->GetPosition(), GroundIndicators::Theme::Holy);
                     if (stack)
                         StrikeStack(carrier);
                     else
@@ -1229,14 +1221,13 @@ private:
         AtBeat(Grid, lands, [this]()
         {
             EndCastBar();
-            GroundIndicators::Burst(me, Middle(), GroundIndicators::Theme::Holy);
             Sound("Valerian.Burst", Middle());
             if (_phase == Phase::Zealot)
                 HitEveryone(SPELL_BURST, BurstGroupPct);
         });
     }
 
-    // --- The end of the phase: the check, then the orbs' verdict -------------------------------------------------------
+    // --- The end of the phase: the check, then the lights' verdict -------------------------------------------------------
     void Judgement(uint32 start)
     {
         uint32 const strikes = std::max(start + 2, JudgementBeat);
@@ -1248,13 +1239,13 @@ private:
             EndCastBar();
             if (_phase == Phase::Rehearsal)
             {
-                LOG_INFO(_logName, "Valerian rehearsal judgement: orbs spawned {} absorbed {} taken {}", _spawned,
+                LOG_INFO(_logName, "Valerian rehearsal judgement: lights shown {} absorbed {} taken {}", _spawned,
                          _absorbed, _taken);
                 return;
             }
             bool const passed = AtPaceFloor();
-            bool const whole = _taken == 0 && _absorbed >= OrbCount;
-            LOG_INFO(_logName, "Valerian judgement instance={} at={:.1f}s true={:.1f}% alive={} passed={} orbs "
+            bool const whole = _taken == 0 && _absorbed >= LightCount;
+            LOG_INFO(_logName, "Valerian judgement instance={} at={:.1f}s true={:.1f}% alive={} passed={} lights "
                      "spawned={} absorbed={} taken={}", me->GetInstanceId(), Elapsed() / 1000.0f, TrueHealthPct(),
                      ArenaPlayers().size(), passed, _spawned, _absorbed, _taken);
             if (!passed)
@@ -1276,7 +1267,7 @@ private:
     {
         _phase = Phase::Chained;
         EndPace();
-        ClearOrbs();
+        ClearLights();
         GroundIndicators::ClearAreasOf(me);
         EndMusic();
         Talk(SAY_STOLEN);
@@ -1318,12 +1309,12 @@ private:
         });
     }
 
-    // Every orb in him: he rises off the floor, the light pours out of him (everyone thrown to the wall). Phase 2 is not
+    // Every light in him: he rises off the floor, the light pours out of him (everyone thrown to the wall). Phase 2 is not
     // built yet: he is beaten there, for now.
     void Ascend()
     {
         _phase = Phase::Ascending;
-        ClearOrbs();
+        ClearLights();
         GroundIndicators::ClearAreasOf(me);
         Talk(SAY_ASCEND);
         Sound("Valerian.Ascend", Middle());
@@ -1411,7 +1402,7 @@ private:
         EndPace();
         me->SetControlled(false, UNIT_STATE_ROOT);
         _summons.DespawnAll();
-        _orbs.clear();
+        _lights.clear();
         _jailers.clear();
         GroundIndicators::ClearAreasOf(me);
         _timeline.clear();
@@ -1444,11 +1435,10 @@ private:
     uint32 _nextCheckMs = 0;
     uint32 _wallFrom = 0;
     bool _musicOver = false;
-    std::vector<Orb> _orbs;
+    std::vector<Light> _lights;
     std::vector<ObjectGuid> _jailers;
-    uint32 _orbTimer = 0;
-    float _laneTurn = 0.0f;
-    uint32 _nextLane = 0;
+    uint32 _lightTimer = 0;
+    float _lastLightAngle = 0.0f;
     uint32 _spawned = 0;
     uint32 _absorbed = 0;
     uint32 _taken = 0;
@@ -1513,7 +1503,7 @@ public:
         return true;
     }
 
-    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|orbs>
+    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|lights>
     static bool HandleCast(ChatHandler* handler, std::string step)
     {
         boss_valerian* valerian = FindValerian(handler->GetPlayer());

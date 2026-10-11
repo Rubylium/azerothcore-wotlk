@@ -1,7 +1,7 @@
--- Valérian, le Zélote: the Hellfire Gaol's third gate, in the Hellfire Ramparts (ZealotBoss.cpp; the board holds it
+-- Valérian, le Zélote: the Hellfire Gaol's third gate, in the Blood Furnace (ZealotBoss.cpp; the board holds it
 -- from mod-playerbots ChallengeBoard.cpp, 8 players - 2 tanks, 2 healers, 4 damage dealers - as the Gaol's other gates;
 -- plan: .agents/plans/gaol-third). A fanatic of the Light locked in the Gaol for years; his fight runs on his music, in
--- a walled arena on Vazruden's landing.
+-- a walled arena in Keli'dan the Breaker's hall - Vrogar's, the second gate's.
 -- 930500 Valérian: a Male Human Captive's look (5680, display 3973: a prisoner in rags), until his own; a level 83
 --        boss, a paladin (his power bar: the orbs of light he has taken in). His health is set by his script from the
 --        power model when his instance is known to be a challenge's.
@@ -9,8 +9,8 @@
 --        by his script; never selected, touched by walking into it.
 -- 930502 Geôlier: a jailer of the Gaol (a Shattered Hand Savage's look, as Vorhan's prisoners: 16523, display 16584),
 --        walking in to chain him when the light was stolen from him.
--- His static spawn stands on Vazruden's landing, in every Hellfire Ramparts; his script hides him and removes him from
--- any instance that is not a challenge's, and clears the room of its own occupants.
+-- His static spawn stands where Keli'dan channels, as Vrogar's does, in every Blood Furnace; his script hides him and
+-- removes him from any instance that is not a challenge against him (Vrogar's own leaves his), and clears the room.
 
 DELETE FROM `creature` WHERE `guid` = 9000700;
 DELETE FROM `creature_equip_template` WHERE `CreatureID` = 930500;
@@ -119,12 +119,12 @@ INSERT INTO `creature_text_locale` (`CreatureID`, `GroupID`, `ID`, `Locale`, `Te
     (930500, 6, 0, 'frFR', 'La Lumière... me quitte...'),
     (930502, 0, 0, 'frFR', 'Retour en cellule, fanatique.');
 
--- On Vazruden's landing, in the Hellfire Ramparts' normal mode (spawn mask 1)
+-- Where Keli'dan the Breaker channels, in the Blood Furnace's normal mode (spawn mask 1)
 INSERT INTO `creature`
     (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
      `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`,
      `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`,
      `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`)
 VALUES
-    (9000700, 930500, 543, 0, 0, 1, 1, 0, -1406.5, 1746.5, 81.2, 5.46, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
-     NULL, 0, 'Valerian - the Hellfire Ramparts (Défi board only)');
+    (9000700, 930500, 542, 0, 0, 1, 1, 0, 326.5, -86.0, -24.6, 0, 604800, 0, 0, 1, 0, 0, 0, 0, 0, '',
+     NULL, 0, 'Valerian - the Blood Furnace (Défi board only)');
