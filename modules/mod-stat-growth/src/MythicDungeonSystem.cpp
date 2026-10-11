@@ -51,6 +51,13 @@
 //   their damage with a player's health (Mythic::GetDamageScaling), each by its role - and nothing drops
 //   until the dungeon is completed; then every real player in it gets one epic of the key's item level and one
 //   essence. The key, timer and score are mod-playerbots' (Script/MythicPlus.cpp).
+
+// The loot collection (mod-legendary LootCollection.cpp): a piece mailed counts as one in the bags
+namespace LootCollection
+{
+    void Note(Player* player, uint32 entry);
+}
+
 namespace
 {
 constexpr char const* MythicDataKey = "MythicDungeon";
@@ -479,6 +486,7 @@ void SendGeneratedItemRecord(Player* player, uint32 entry)
 void MailMythicItem(Player* player, ItemTemplate const* itemTemplate, std::function<void(Item*)> const& touch = {})
 {
     SendGeneratedItemRecord(player, itemTemplate->ItemId);
+    LootCollection::Note(player, itemTemplate->ItemId);
     CharacterDatabaseTransaction transaction = CharacterDatabase.BeginTransaction();
     MailDraft draft("Mythic loot", "Your bags were full: here is the item a mythic boss gave you.");
     Item* item = Item::CreateItem(itemTemplate->ItemId, 1, player);

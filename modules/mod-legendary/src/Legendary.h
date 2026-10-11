@@ -5,6 +5,7 @@
 
 #include <array>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -115,6 +116,8 @@ struct Copy
 
 Definition const* GetDefinition(uint32 id);
 Definition const* GetDefinitionByItem(uint32 baseItem);
+// Every legendary and Unique (the loot collection lists them by source)
+std::span<Definition const> GetDefinitions();
 
 // The copy an item is, if it is a legendary's; thread safe
 std::optional<Copy> GetCopy(Item const* item);
@@ -176,5 +179,18 @@ void RollUpgradeMaterial(Player* player, uint32 itemLevel);
 // Gardien-chef Vorhan's sets (SetPieces.cpp) are not legendaries: generated items as the raid's are, a raid item's
 // stats grown to item level 485 worn by the set's own row (its name, look and icon), one entry per raid item they are
 // made from (Mythic::GetSetPieceItemEntry). His win gives one of them (GiveWardenVorhanLootItem).
+namespace Legendary
+{
+// The Gaol's gates (their creature entries: mod-stat-growth WardenVorhan.cpp, ForgeMaster.cpp)
+constexpr uint32 WardenVorhanGate = 930200;
+constexpr uint32 EscapeHunterGate = 930400;
+// The Gaol's gates' rows a player can get from gate (WardenVorhanGate or EscapeHunterGate): their armour type's set
+// pieces of its slots, its shared pieces and - the Traqueur's - the weapons they can use (the loot collection)
+std::vector<uint32> GateRows(Player* player, uint32 gate);
+// The gate whose loot a set row is (any armour type's), 0 for none
+uint32 GateOfRow(uint32 row);
+// The entry of a row's piece a player would get (its profile that suits them), the row itself when none
+uint32 SetPieceEntry(Player* player, uint32 row);
+}
 
 #endif

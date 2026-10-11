@@ -1716,6 +1716,11 @@ Definition const* GetDefinition(uint32 id)
     return nullptr;
 }
 
+std::span<Definition const> GetDefinitions()
+{
+    return Definitions;
+}
+
 Definition const* GetDefinitionByItem(uint32 baseItem)
 {
     for (Definition const& definition : Definitions)
@@ -1935,6 +1940,8 @@ void RollUpgradeMaterial(Player* player, uint32 itemLevel)
 
 void AddLegendarySetPieceScripts();
 
+void AddLootCollectionScripts();
+
 void AddLegendaryScripts()
 {
     new Legendary::LegendaryPlayerScript();
@@ -1945,4 +1952,5 @@ void AddLegendaryScripts()
     new Legendary::LegendaryBossDropScript();
     new Legendary::LegendaryCommandScript();
     AddLegendarySetPieceScripts();
+    AddLootCollectionScripts();
 }

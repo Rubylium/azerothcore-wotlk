@@ -11,9 +11,14 @@ Usage:
   python extractRetailUi.py --tacttool <TACTTool.exe> --retail "C:/Program Files (x86)/World of Warcraft"
                             --atlas-csv <folder with UiTextureAtlas.csv and UiTextureAtlasMember.csv>
                             [--region eu]
+  or, reading the local retail install with CascLib (by Ladislav Zezula; the Diablo IV pipeline's
+  data/custom/diabloLootSounds/tools/CascLib.dll) instead of TACTTool:
+  python extractRetailUi.py --casclib <CascLib.dll> --retail "C:/Program Files (x86)/World of Warcraft/_retail_"
+                            --atlas-csv <folder>
 """
 import argparse
 import csv
+import ctypes
 import os
 import struct
 import subprocess
@@ -75,6 +80,20 @@ PIECES = {
     'ChallengeMode-Chest': (175, 130, False, False),
     'ChallengeMode-icon-chest': (19, 20, False, False),
     'mythicplus-popup-ring': (77, 77, False, False),
+    # The Collections journal (retail Toy Box / Heirlooms): the N window's Collection page (Collection.lua)
+    'collections-background-tile': (256, 256, True, True),
+    'collections-background-corner': (90, 67, False, False),
+    'collections-background-filagree': (151, 109, False, False),
+    'collections-background-shadow-large': (145, 147, False, False),
+    'collections-itemborder-collected': (56, 56, False, False),
+    'collections-itemborder-uncollected': (50, 50, False, False),
+    'collections-itemborder-uncollected-innerglow': (42, 41, False, False),
+    'collections-slotheader': (490, 24, False, False),
+    'collections-newglow': (59, 37, False, False),
+    'collections-watermark-toy': (109, 110, False, False),
+    'petlist-buttonbackground': (209, 46, False, False),
+    'petlist-buttonhighlight': (209, 46, False, False),
+    'petlist-buttonselect': (209, 46, False, False),
 }
 # Whole-file tiling grounds: FileDataID -> output name
 FILES = {374155: 'ui-background-rock', 374154: 'ui-background-marble'}
@@ -130,17 +149,60 @@ def file_name(name):
     return name.lstrip('_!').lower()
 
 
+class CascStorage:
+    """The local retail install read with CascLib, a file by its FileDataID"""
+
+    def __init__(self, library, retail):
+        self.lib = ctypes.WinDLL(library, use_last_error=True)
+        handle = ctypes.c_void_p
+        self.lib.CascOpenStorage.argtypes = [ctypes.c_char_p, ctypes.c_uint32, ctypes.POINTER(handle)]
+        self.lib.CascOpenFile.argtypes = [handle, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32,
+                                          ctypes.POINTER(handle)]
+        self.lib.CascGetFileSize64.argtypes = [handle, ctypes.POINTER(ctypes.c_uint64)]
+        self.lib.CascReadFile.argtypes = [handle, ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
+        self.lib.CascCloseFile.argtypes = [handle]
+        self.storage = handle()
+        if not self.lib.CascOpenStorage(retail.encode(), 0xFFFFFFFF, ctypes.byref(self.storage)):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def read(self, file_data_id):
+        # CASC_OPEN_BY_FILEID: the id passed in place of the name
+        file = ctypes.c_void_p()
+        if not self.lib.CascOpenFile(self.storage, ctypes.c_void_p(file_data_id), 0xFFFFFFFF, 3, ctypes.byref(file)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            size = ctypes.c_uint64()
+            self.lib.CascGetFileSize64(file, ctypes.byref(size))
+            buffer = ctypes.create_string_buffer(size.value)
+            read = ctypes.c_uint32()
+            self.lib.CascReadFile(file, buffer, size.value, ctypes.byref(read))
+            return buffer.raw[:read.value]
+        finally:
+            self.lib.CascCloseFile(file)
+
+
+def fetch(args, file_data_id, target):
+    if args.casclib:
+        if not hasattr(args, 'casc'):
+            args.casc = CascStorage(args.casclib, args.retail)
+        with open(target, 'wb') as file:
+            file.write(args.casc.read(file_data_id))
+    else:
+        subprocess.run([args.tacttool, '-r', args.region, '-m', 'fdid', '-i', str(file_data_id), '-d', args.retail,
+                        '-o', target], check=True, capture_output=True)
+
+
 def extract(args, file_data_id, work):
     target = os.path.join(work, '%d.blp' % file_data_id)
     if not os.path.exists(target):
-        subprocess.run([args.tacttool, '-r', args.region, '-m', 'fdid', '-i', str(file_data_id), '-d', args.retail,
-                        '-o', target], check=True, capture_output=True)
+        fetch(args, file_data_id, target)
     return read_blp(target)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--tacttool', required=True)
+    parser.add_argument('--tacttool')
+    parser.add_argument('--casclib')
     parser.add_argument('--retail', required=True)
     parser.add_argument('--atlas-csv', required=True)
     parser.add_argument('--region', default='eu')
@@ -180,8 +242,7 @@ def main():
     for file_data_id, output in SOUNDS.items():
         target = os.path.join(OUTPUT_ROOT, '..', *output.split('/'))
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        subprocess.run([args.tacttool, '-r', args.region, '-m', 'fdid', '-i', str(file_data_id), '-d', args.retail,
-                        '-o', target], check=True, capture_output=True)
+        fetch(args, file_data_id, target)
     atlas_lua = os.path.join(OUTPUT_ROOT, 'FrameXML', 'RetailUIAtlas.lua')
     os.makedirs(os.path.dirname(atlas_lua), exist_ok=True)
     with open(atlas_lua, 'w', encoding='utf-8', newline='\n') as file:

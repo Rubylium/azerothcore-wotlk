@@ -3,6 +3,9 @@
 
 #include "Define.h"
 
+#include <optional>
+#include <vector>
+
 class Player;
 struct ItemTemplate;
 
@@ -24,6 +27,9 @@ namespace RaidTrinkets
     // a fighter's, a caster's or a healer's, or a damage dealer's; a tank with all the raid's tank trinkets gets a
     // fighter's) that they have not got yet, else none
     ItemTemplate const* Roll(Player* player, Raid raid);
+    // A raid's trinkets that suit the player (the loot collection), and the raid a trinket is of
+    std::vector<uint32> Suited(Player* player, Raid raid);
+    std::optional<Raid> RaidOf(uint32 entry);
 }
 
 #endif

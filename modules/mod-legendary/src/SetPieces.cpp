@@ -516,6 +516,51 @@ public:
     }
 };
 }
+
+std::vector<uint32> GateRows(Player* player, uint32 gate)
+{
+    std::vector<uint32> rows;
+    if (!player || (gate != WardenVorhanGate && gate != EscapeHunterGate))
+        return rows;
+    bool const hunter = gate == EscapeHunterGate;
+    for (uint8 slot : hunter ? std::span<uint8 const>(HunterSlots) : std::span<uint8 const>(VorhanSlots))
+        rows.push_back(ArmourSets[ArmorType(player)][slot]);
+    for (uint32 row : hunter ? std::span<uint32 const>(HunterShared) : std::span<uint32 const>(VorhanShared))
+        rows.push_back(row);
+    if (hunter)
+        for (uint32 row : WeaponRows)
+        {
+            auto const found = Pieces.find(row);
+            if (found == Pieces.end())
+                continue;
+            // A kind its class is trained in (its stats change with the spec, the weapon's kind does not)
+            if (std::ranges::any_of(found->second, [player](Profile const& profile)
+                { return player->CanUseItem(profile.item) == EQUIP_ERR_OK; }))
+                rows.push_back(row);
+        }
+    return rows;
+}
+
+uint32 GateOfRow(uint32 row)
+{
+    for (auto const& set : ArmourSets)
+        for (uint8 slot = 0; slot < set.size(); ++slot)
+            if (set[slot] == row)
+                return std::ranges::find(HunterSlots, slot) != HunterSlots.end() ? EscapeHunterGate :
+                    WardenVorhanGate;
+    if (std::ranges::find(VorhanShared, row) != VorhanShared.end())
+        return WardenVorhanGate;
+    if (std::ranges::find(HunterShared, row) != HunterShared.end() ||
+        std::ranges::find(WeaponRows, row) != WeaponRows.end())
+        return EscapeHunterGate;
+    return 0;
+}
+
+uint32 SetPieceEntry(Player* player, uint32 row)
+{
+    ItemTemplate const* item = player ? FitPiece(player, row) : nullptr;
+    return item ? item->ItemId : row;
+}
 }
 
 // A piece of Gardien-chef Vorhan's sets for a player (mod-playerbots ChallengeBoard.cpp: his win): one of their armour

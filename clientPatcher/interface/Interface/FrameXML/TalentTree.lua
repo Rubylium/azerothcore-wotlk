@@ -823,9 +823,47 @@ local function PaintBar()
     end
 end
 
+-- The window is the N key's hub: its pages, chosen with the tabs under it - the specializations, the talents, and the
+-- pages other files register (Collection.lua: the loot collection). A registered page is { name, label, Build(window)
+-- returning its frame, background = { file, w, h } (a painting under the window's metal frame; none: the plain
+-- ground) }.
+TalentTreeHub = TalentTreeHub or { pages = {} }
+function TalentTreeHub.Register(page)
+    tinsert(TalentTreeHub.pages, page)
+end
+
+local function HubPage(name)
+    for _, page in ipairs(TalentTreeHub.pages) do
+        if page.name == name then
+            return page
+        end
+    end
+end
+
 -- The window's painting: the viewed specialization's own when it has one, else the class's. It is wider than the
 -- window, so it is cut to the window's shape from its right, where the figure stands.
 local function PaintBackground()
+    -- A page of the hub's own: its painting, cut to the window's shape from its middle; the trees' shades off
+    local page = HubPage(state.page)
+    for _, shade in ipairs(frame.shades or {}) do
+        SetShown(shade, not page)
+    end
+    if page and not page.background then
+        frame.art:SetTexture(nil)
+        frame.shownBackground = nil
+        return
+    end
+    if page and page.background then
+        local art = page.background
+        if frame.shownBackground ~= art.file then
+            frame.art:SetTexture(art.file)
+            frame.shownBackground = art.file
+        end
+        local aspect = (WIDTH - 4) / (HEIGHT - 4)
+        local span = min(1, art.h * aspect / art.w)
+        frame.art:SetTexCoord((1 - span) / 2, (1 + span) / 2, 0, min(1, art.w / aspect / art.h))
+        return
+    end
     local key = classId .. "-" .. SpecOf().def.id
     local file = ART.backgrounds[key] or ART.backgrounds[classId]
     local background = ART.pieces["background-" .. (ART.backgrounds[key] and key or classId)]
@@ -850,7 +888,7 @@ local function Paint(animate)
     if not frame then
         return
     end
-    local onTalents = not specPage or not specPage:IsShown()
+    local onTalents = (state.page or "talents") == "talents"
     for _, tree in ipairs(trees) do
         SetShown(tree.panel, onTalents and IsShownTree(tree))
     end
@@ -1710,20 +1748,72 @@ local function CardLayout(count)
     return min(CARD_WIDTH_MAX, width), gap
 end
 
+local hubTabs = {}
+
 local function ShowPage(name)
-    if not specPage then
-        return
+    if name == "spec" and not specPage then
+        name = "talents"
     end
     HideFlyout()
-    local onSpec = name == "spec"
-    SetShown(specPage, onSpec)
-    SetShown(bar, not onSpec)
-    PanelTemplates_SetTab(frame, onSpec and 1 or 2)
+    state.page = name
+    if specPage then
+        SetShown(specPage, name == "spec")
+    end
+    SetShown(bar, name == "talents")
+    for _, page in ipairs(TalentTreeHub.pages) do
+        if page.frame then
+            SetShown(page.frame, page.name == name)
+        end
+    end
+    for _, tab in ipairs(hubTabs) do
+        tab.Select(tab.page == name)
+    end
+    -- The window named for its page (the talents' own title on theirs)
+    local page = HubPage(name)
+    frame.title:SetText(page and page.label or TEXT.title)
     Paint(false)
-    if onSpec then
+    if name == "spec" then
         specPage.Refresh(false)
         specPage.Enter()
     end
+end
+
+-- The hub's tabs under the window, as on the character sheet: the specializations' (a class with several), the
+-- talents', then each page registered
+local function CreateHubTabs()
+    local list = {}
+    if specPage then
+        tinsert(list, { name = "spec", label = TEXT.specTab })
+    end
+    tinsert(list, { name = "talents", label = TEXT.talentsTab })
+    for _, page in ipairs(TalentTreeHub.pages) do
+        tinsert(list, page)
+    end
+    for index, page in ipairs(list) do
+        local tab = CreateFrame("Button", "TalentTreeFrameTab" .. index, frame, "CharacterFrameTabButtonTemplate")
+        tab:SetID(index)
+        tab.page = page.name
+        -- The window is drawn smaller than the screen; its tabs are drawn back up to a readable size
+        tab:SetScale(1.35)
+        tab:SetText(page.label)
+        PanelTemplates_TabResize(tab, 12)
+        if index == 1 then
+            tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 24, 4)
+        else
+            tab:SetPoint("LEFT", hubTabs[index - 1], "RIGHT", -16, 0)
+        end
+        function tab.Select(selected)
+            if selected then
+                PanelTemplates_SetTab(frame, index)
+            end
+        end
+        tab:SetScript("OnClick", function(self)
+            PlaySound("igCharacterInfoTab")
+            ShowPage(self.page)
+        end)
+        tinsert(hubTabs, tab)
+    end
+    PanelTemplates_SetNumTabs(frame, #list)
 end
 
 CreateSpecPage = function()
@@ -1929,28 +2019,6 @@ CreateSpecPage = function()
         end
     end
 
-    -- The tabs under the window, as on the character sheet
-    local tabs = {}
-    for index, label in ipairs({ TEXT.specTab, TEXT.talentsTab }) do
-        local tab = CreateFrame("Button", "TalentTreeFrameTab" .. index, frame, "CharacterFrameTabButtonTemplate")
-        tab:SetID(index)
-        -- The window is drawn smaller than the screen; its tabs are drawn back up to a readable size
-        tab:SetScale(1.35)
-        tab:SetText(label)
-        PanelTemplates_TabResize(tab, 12)
-        if index == 1 then
-            tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 24, 4)
-        else
-            tab:SetPoint("LEFT", tabs[index - 1], "RIGHT", -16, 0)
-        end
-        tab:SetScript("OnClick", function(self)
-            PlaySound("igCharacterInfoTab")
-            ShowPage(self:GetID() == 1 and "spec" or "talents")
-        end)
-        tabs[index] = tab
-    end
-    PanelTemplates_SetNumTabs(frame, 2)
-    PanelTemplates_SetTab(frame, 2)
 end
 
 -- Loadouts -----------------------------------------------------------------------------------------------------------
@@ -2235,8 +2303,10 @@ local function CreateWindow()
     frame.art = art
 
     -- The trees read over the art: a soft darkening under each
+    frame.shades = {}
     for side = 1, 2 do
         local shade = frame:CreateTexture(nil, "ARTWORK")
+        tinsert(frame.shades, shade)
         shade:SetTexture("Interface\\Buttons\\WHITE8X8")
         shade:SetPoint("TOP", frame, "TOP", 0, -2)
         shade:SetPoint("BOTTOM", frame, "BOTTOM", 0, 2)
@@ -2262,6 +2332,7 @@ local function CreateWindow()
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", frame, "TOP", 0, -5)
     title:SetText(TEXT.title)
+    frame.title = title
 
     local close = CreateFrame("Button", nil, frame)
     close:SetSize(24, 24)
@@ -2331,6 +2402,13 @@ local function CreateWindow()
     if #specs > 1 then
         CreateSpecPage()
     end
+    for _, page in ipairs(TalentTreeHub.pages) do
+        page.frame = page.Build(frame)
+        page.frame:SetFrameLevel(frame:GetFrameLevel() + 5)
+        page.frame:Hide()
+    end
+    CreateHubTabs()
+    ShowPage(state.page or "talents")
 
     -- Learnable nodes breathe while there are points, the apply button pulses while there are changes
     local clock = 0
@@ -2431,8 +2509,22 @@ function TalentTree_Toggle()
         frame:Hide()
     else
         state.viewed = state.spec
-        Paint(false)
+        -- On the page it was left on (or the one asked: TalentTreeHub.Open)
+        ShowPage(state.page or "talents")
         frame:Show()
+    end
+end
+
+-- The window open on one of its pages (TalentTreeHub: "spec", "talents", "collection" ...)
+function TalentTreeHub.Open(name)
+    if not HasTree() then
+        return
+    end
+    state.page = name
+    if frame and frame:IsShown() then
+        ShowPage(name)
+    else
+        TalentTree_Toggle()
     end
 end
 

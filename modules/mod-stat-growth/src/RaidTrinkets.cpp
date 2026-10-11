@@ -90,6 +90,25 @@ bool HasKind(Raid raid, Kind kind)
 }
 }
 
+std::vector<uint32> Suited(Player* player, Raid raid)
+{
+    std::vector<uint32> suited;
+    for (Trinket const& trinket : Trinkets)
+        if (trinket.raid == raid)
+            if (ItemTemplate const* item = sObjectMgr->GetItemTemplate(trinket.entry))
+                if (player && LootFit::Fits(player, *item))
+                    suited.push_back(trinket.entry);
+    return suited;
+}
+
+std::optional<Raid> RaidOf(uint32 entry)
+{
+    for (Trinket const& trinket : Trinkets)
+        if (trinket.entry == entry)
+            return trinket.raid;
+    return std::nullopt;
+}
+
 ItemTemplate const* Roll(Player* player, Raid raid)
 {
     if (!player || !roll_chance_f(ChancePct))
