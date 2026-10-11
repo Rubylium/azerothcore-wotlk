@@ -87,7 +87,7 @@ constexpr uint32 ZealMs = 30000;
 constexpr uint8 SwapStacks = 2;
 constexpr float BurstGroupPct = 22.0f;      // Éclat de zèle, on the music's hits
 constexpr float FervorCarrierPct = 25.0f;   // Ferveur on its own carrier
-constexpr float FervorStackPct = 150.0f;    // Ferveur partagée: shared by those under it
+constexpr float FervorStackPct = 120.0f;    // Ferveur partagée: shared by those under it
 constexpr float AscendLeftPct = 5.0f;       // his first blow as a god leaves everyone at this share of their health
 // The victim's own health: a dodge missed
 constexpr float DodgePct = 75.0f;
@@ -106,13 +106,21 @@ constexpr uint32 ChainStepBeats = 2;
 constexpr uint32 FervorMarks = 3;
 constexpr float FervorRadius = 5.0f;
 constexpr uint32 FervorBeats = 8;           // the marks explode this long after they show
-constexpr uint32 FervorFlipBeats = 3;       // ... and turn to a stack this long before
+constexpr uint32 FervorFlipBeats = 5;       // ... and turn to a stack this long before
 constexpr float RageInnerShare = 0.4f;      // Rage contenue: the inside out to this share of the arena (a ring's own)
 constexpr uint32 RageFollowBeats = 3;
 constexpr float LanceWidth = 2.5f;
 constexpr float LanceSpacing = 8.0f;
 constexpr uint32 LanceShiftBeats = 3;
 constexpr uint32 BurstCastBeats = 3;
+
+// The bots' places (Guide: a spot of its own each, out of a pattern's safe ones - they cannot read his tells): how far
+// from his middle they stand close to him (in his reach: his size makes it wide), out in the ring, and Ferveur's marks
+// far apart
+constexpr float GuideNear = 4.0f;
+constexpr float GuideRing = 10.5f;
+constexpr float GuideMarks = 11.5f;
+constexpr float GuideSlack = 1.0f;
 
 // The lights: a soak every LightEveryBeats from LightFirstBeat to LightLastBeat, shown LightShownBeats before it lands,
 // LightRadius yards, between LightNear and the wall's LightWallGap from his middle, never two in a row on the same side.
@@ -1058,7 +1066,8 @@ private:
             return;
         GroundIndicators::SetOffTankSpot(me, AtAngle(me->GetPosition(), me->GetAngle(tank) + float(M_PI) / 2.0f,
             4.0f), 1000);
-        if (StacksOf(tank, SPELL_ZEAL) < SwapStacks)
+        // Never between Revers sacré's two cones: the boss turned to the new tank, and the old one stood in the back cone
+        if (StacksOf(tank, SPELL_ZEAL) < SwapStacks || Elapsed() < _swapHeldUntil)
             return;
         for (Player* player : ArenaPlayers())
             if (player != tank && IsTank(player) && StacksOf(player, SPELL_ZEAL) < SwapStacks)
@@ -1066,6 +1075,54 @@ private:
                 GroundIndicators::SetBossHolder(me, player, 8000);
                 return;
             }
+    }
+
+    // --- The bots' places -------------------------------------------------------------------------------------------
+    // The bots of the arena (a real player is never moved), tanks left out unless withTanks; except: one left alone (his
+    // tank on Revers sacré)
+    std::vector<Player*> Bots(bool withTanks, ObjectGuid except = ObjectGuid::Empty) const
+    {
+        std::vector<Player*> bots;
+        for (Player* player : ArenaPlayers())
+            if (player->GetSession() && player->GetSession()->IsBot() && player->GetGUID() != except &&
+                (withTanks || !IsTank(player)))
+                bots.push_back(player);
+        return bots;
+    }
+
+    // Each bot to a spot of its own among spots (the nearest one still free; more bots than spots: shared), for ms,
+    // stopping within slack yards of it
+    void Guide(std::vector<Player*> const& bots, std::vector<Position> const& spots, uint32 ms,
+               float slack = GuideSlack)
+    {
+        if (spots.empty() || _phase == Phase::Rehearsal)
+            return;
+        std::vector<bool> taken(spots.size(), false);
+        for (Player* bot : bots)
+        {
+            if (std::find(taken.begin(), taken.end(), false) == taken.end())
+                std::fill(taken.begin(), taken.end(), false);
+            size_t best = spots.size();
+            for (size_t index = 0; index < spots.size(); ++index)
+                if (!taken[index] && (best == spots.size() ||
+                        bot->GetExactDist2d(&spots[index]) < bot->GetExactDist2d(&spots[best])))
+                    best = index;
+            taken[best] = true;
+            GroundIndicators::SetUnitSpot(me, bot, spots[best], slack, ms);
+        }
+    }
+
+    // count spots on the circle radius yards from his middle, spread over arcDegrees around towards
+    std::vector<Position> Fan(float towards, float arcDegrees, float radius, uint32 count) const
+    {
+        std::vector<Position> spots;
+        float const arc = arcDegrees * float(M_PI) / 180.0f;
+        for (uint32 index = 0; index < count; ++index)
+        {
+            float const share = count > 1 ? float(index) / float(count - 1) - 0.5f : 0.0f;
+            spots.push_back(OnArena(towards + share * arc, radius));
+        }
+        return spots;
     }
 
     // --- The lights ------------------------------------------------------------------------------------------------------
@@ -1251,6 +1308,12 @@ private:
             me->SetFacingToObject(tank);
         ObjectGuid const tankGuid = tank ? tank->GetGUID() : ObjectGuid::Empty;
         uint32 const lands = start + WarnBeats;
+        // His tank takes the front; everyone else at his sides, out of both cones, until the back one lands
+        _swapHeldUntil = Grid.At(lands + ReversBackBeats) + 500;
+        std::vector<Position> sides = Fan(facing + float(M_PI) / 2.0f, 40.0f, GuideNear + 1.0f, 4);
+        for (Position const& spot : Fan(facing - float(M_PI) / 2.0f, 40.0f, GuideNear + 1.0f, 4))
+            sides.push_back(spot);
+        Guide(Bots(true, tankGuid), sides, MsTo(lands + ReversBackBeats) + 300);
         GroundIndicators::Area const front = Cone(facing, ReversArc, LOOK_REVERS_CONE_90, MsTo(lands), tank);
         AtBeat(Grid, lands - 1, [this, front]() { Probe({ front }, "revers"); });
         AtBeat(Grid, lands, [this, front, tankGuid]()
@@ -1294,6 +1357,12 @@ private:
         float const facing = frand(0.0f, 2.0f * float(M_PI));
         bool const same = twist && urand(0, 1);
         float const second = same ? facing : Position::NormalizeOrientation(facing + float(M_PI));
+        // The bots: close to him in the half that stays safe, then in the one that does (across him, or not at all)
+        Guide(Bots(true), Fan(facing + float(M_PI), 120.0f, GuideNear, 6), MsTo(first) + 200);
+        AtBeat(Grid, first, [this, second, first]()
+        {
+            Guide(Bots(true), Fan(second + float(M_PI), 120.0f, GuideNear, 6), MsTo(first + WrathFollowBeats) + 200);
+        });
         // His fist raised over the half: its light where it will strike
         AtBeat(Grid, start, [this, facing]() { Fist(facing); });
         AtBeat(Grid, first, [this, second]() { Fist(second); });
@@ -1328,6 +1397,13 @@ private:
         uint32 lands = start + WarnBeats;
         for (uint32 strike = 0; strike < ChainStrikes; ++strike, gap += turn)
         {
+            // The bots: close to him in the part of this gap the next one keeps (its leading side)
+            float const keeps = gap + turn / 2.0f;
+            uint32 const until = lands;
+            AtBeat(Grid, shown, [this, keeps, until]()
+            {
+                Guide(Bots(true), Fan(keeps, 40.0f, GuideNear, 4), MsTo(until) + 200);
+            });
             Wave(shown, lands, [this, gap](uint32 ms) { return Sweep(gap, ms); }, RuleChain);
             bool const last = strike + 1 == ChainStrikes;
             AtBeat(Grid, lands, [this, last]() { Gesture(EMOTE_ONESHOT_ATTACK1H, last); });
@@ -1371,6 +1447,22 @@ private:
         for (Player* carrier : carriers)
             marked.push_back(carrier->GetPosition());
         SoundNearest("Valerian.FervorMark", marked);
+        // The bots: a marked one to a point of its own far from the others (a third of the circle apart), everyone else
+        // close to him, between them
+        {
+            float const first = frand(0.0f, 2.0f * float(M_PI));
+            std::vector<Position> apart;
+            for (uint32 index = 0; index < FervorMarks; ++index)
+                apart.push_back(OnArena(first + float(index) * 2.0f * float(M_PI) / float(FervorMarks), GuideMarks));
+            std::vector<Player*> markedBots;
+            std::vector<Player*> others;
+            for (Player* bot : Bots(true))
+                (std::find(carriers.begin(), carriers.end(), bot) != carriers.end() ? markedBots : others)
+                    .push_back(bot);
+            uint32 const ms = MsTo(stack ? flips : lands) + 200;
+            Guide(markedBots, apart, ms);
+            Guide(others, Fan(first + float(M_PI) / float(FervorMarks), 300.0f, GuideNear - 1.0f, 6), ms);
+        }
         if (_phase == Phase::Rehearsal && carriers.empty())
             LogSafe("fervor (no carrier in the lab)", {});
         if (stack)
@@ -1413,7 +1505,8 @@ private:
         });
     }
 
-    // Each bot to the nearest mark (the marked hold still), until it lands
+    // Turned to a stack: the marked bots hold still where they are; every other bot to a mark, shared out evenly (the
+    // nearest mark with room: as many under each), followed as it moves, until it lands
     void FollowStacks(std::vector<ObjectGuid> const& marks, uint32 lands)
     {
         if (CurrentBeat(Grid) >= lands || _phase == Phase::Over)
@@ -1421,18 +1514,49 @@ private:
         uint32 const ms = MsTo(lands);
         std::vector<Player*> carriers;
         for (ObjectGuid const& guid : marks)
-            if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid))
+            if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid); carrier && carrier->IsAlive())
                 carriers.push_back(carrier);
         if (carriers.empty())
             return;
-        for (Player* player : ArenaPlayers())
+        std::vector<Player*> others;
+        for (Player* bot : Bots(true))
         {
-            Player* nearest = carriers.front();
-            for (Player* carrier : carriers)
-                if (player->GetExactDist2d(carrier) < player->GetExactDist2d(nearest))
-                    nearest = carrier;
-            if (player != nearest && !IsTank(player))
-                GroundIndicators::SetUnitSpot(me, player, nearest->GetPosition(), FervorRadius - 2.0f, ms);
+            if (std::find(carriers.begin(), carriers.end(), bot) != carriers.end())
+                GroundIndicators::SetUnitSpot(me, bot, bot->GetPosition(), GuideSlack, ms);
+            else
+                others.push_back(bot);
+        }
+        // Everyone (players too) counts towards a mark's room: the bots fill what the players leave
+        size_t const players = ArenaPlayers().size();
+        size_t const room = (players - carriers.size() + carriers.size() - 1) / carriers.size();
+        std::vector<size_t> under(carriers.size(), 0);
+        for (Player* player : ArenaPlayers())
+            if (!player->GetSession() || !player->GetSession()->IsBot())
+                for (size_t index = 0; index < carriers.size(); ++index)
+                    if (player != carriers[index] && player->GetExactDist2d(carriers[index]) <= FervorRadius)
+                        ++under[index];
+        std::sort(others.begin(), others.end(), [&carriers](Player* left, Player* right)
+        {
+            auto nearest = [&carriers](Player* player)
+            {
+                float best = 1000.0f;
+                for (Player* carrier : carriers)
+                    best = std::min(best, player->GetExactDist2d(carrier));
+                return best;
+            };
+            return nearest(left) < nearest(right);
+        });
+        for (Player* bot : others)
+        {
+            size_t best = carriers.size();
+            for (size_t index = 0; index < carriers.size(); ++index)
+                if (under[index] < room && (best == carriers.size() ||
+                        bot->GetExactDist2d(carriers[index]) < bot->GetExactDist2d(carriers[best])))
+                    best = index;
+            if (best == carriers.size())
+                best = 0;
+            ++under[best];
+            GroundIndicators::SetUnitSpot(me, bot, carriers[best]->GetPosition(), FervorRadius - 2.5f, ms);
         }
         scheduler.Schedule(400ms, [this, marks, lands](TaskContext) { FollowStacks(marks, lands); });
     }
@@ -1496,6 +1620,14 @@ private:
             ring.inner = inner;
             return Areas{ Painted(ring, LOOK_RAGE_RING_40, ms) };
         };
+        // The bots: out in the ring while the inside strikes, close to him while the outside does
+        float const spread = frand(0.0f, 2.0f * float(M_PI));
+        Guide(Bots(true), Fan(spread, 315.0f, inFirst ? GuideRing : GuideNear, 8), MsTo(first) + 200);
+        AtBeat(Grid, first, [this, spread, inFirst, first]()
+        {
+            Guide(Bots(true), Fan(spread, 315.0f, inFirst ? GuideNear : GuideRing, 8),
+                MsTo(first + RageFollowBeats) + 200);
+        });
         Wave(start, first, inFirst ? std::function<Areas(uint32)>(in) : std::function<Areas(uint32)>(out), RuleRage);
         Wave(first, first + RageFollowBeats, inFirst ? std::function<Areas(uint32)>(out) :
             std::function<Areas(uint32)>(in), RuleRage);
@@ -1517,6 +1649,23 @@ private:
         AtBeat(Grid, first + LanceShiftBeats - 1, [this]() { ThrowSpear(true); });
         AtBeat(Grid, first, [this]() { EndCastBar(); });
         float const turn = frand(0.0f, float(M_PI) / 2.0f);
+        // The bots: on points neither grid strikes (a quarter of the spacing off every line of both: the grids' lines
+        // fall every half spacing between them), so the shift needs no step
+        {
+            std::vector<Position> safe;
+            Position const middle = Middle();
+            float const quarter = LanceSpacing / 4.0f;
+            for (float u : { -3.0f * quarter, -quarter, quarter, 3.0f * quarter })
+                for (float v : { -3.0f * quarter, -quarter, quarter, 3.0f * quarter })
+                {
+                    float const x = u * std::cos(turn) - v * std::sin(turn);
+                    float const y = u * std::sin(turn) + v * std::cos(turn);
+                    safe.push_back(Ground(Position(middle.GetPositionX() + x, middle.GetPositionY() + y,
+                        middle.GetPositionZ())));
+                }
+            // (0.75 yd clear of the nearest lines: they stop close)
+            Guide(Bots(true), safe, MsTo(first + LanceShiftBeats) + 200, 0.5f);
+        }
         Wave(start, first, [this, turn](uint32 ms) { return Grille(turn, LanceSpacing / 2.0f, ms); }, RuleLances);
         Wave(first, first + LanceShiftBeats, [this, turn](uint32 ms) { return Grille(turn, 0.0f, ms); }, RuleLances);
     }
@@ -1959,6 +2108,7 @@ private:
     bool _ascendRehearsed = false;      // his apotheosis played in the lab
     uint32 _ascentFrom = 0;             // when his apotheosis' rise began (Elapsed), 0 once he is down
     float _height = 0.0f;
+    uint32 _swapHeldUntil = 0;          // no tank swap before then (Revers sacré's back cone)
     bool _ascendedMusicOver = false;
     std::vector<Light> _lights;
     std::vector<ObjectGuid> _jailers;
