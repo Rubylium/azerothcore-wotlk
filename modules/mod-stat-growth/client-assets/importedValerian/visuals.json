@@ -1,0 +1,13 @@
+{
+ "ids": {},
+ "kits": {},
+ "sounds": {},
+ "tables": {
+  "SpellVisual": [],
+  "SpellVisualKit": [],
+  "SpellVisualEffectName": [],
+  "SoundEntries": [],
+  "SpellVisualKitModelAttach": [],
+  "SpellMissileMotion": []
+ }
+}

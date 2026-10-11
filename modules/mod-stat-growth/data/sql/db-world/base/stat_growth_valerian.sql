@@ -7,6 +7,9 @@
 --        power model when his instance is known to be a challenge's.
 -- 930501 Lumière captive: an orb of light drifting to him (Concentrated Light's look, 34630, display 29352), summoned
 --        by his script; never selected, touched by walking into it.
+-- 930503 Lumière à prendre: a light soak - retail's holy soak telegraph (display 60020, added by
+--        localTools/patchSinisterStrike.ps1 from localTools/valerian/ascensionVisuals.json), a copy of the stock
+--        Invisible Stalker (32780), never selected; its script plays the model's looks by emotes.
 -- 930502 Geôlier: a jailer of the Gaol (a Shattered Hand Savage's look, as Vorhan's prisoners: 16523, display 16584),
 --        walking in to chain him when the light was stolen from him.
 -- His static spawn stands where Keli'dan channels, as Vrogar's does, in every Blood Furnace; his script hides him and
@@ -16,10 +19,11 @@ DELETE FROM `creature` WHERE `guid` = 9000700;
 DELETE FROM `creature_equip_template` WHERE `CreatureID` = 930500;
 DELETE FROM `creature_text_locale` WHERE `CreatureID` IN (930500, 930502);
 DELETE FROM `creature_text` WHERE `CreatureID` IN (930500, 930502);
-DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 930500 AND 930502;
-DELETE FROM `creature_template_locale` WHERE `entry` BETWEEN 930500 AND 930502;
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 930500 AND 930502;
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 930500 AND 930502;
+DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 930500 AND 930503;
+DELETE FROM `creature_template_locale` WHERE `entry` BETWEEN 930500 AND 930503;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 930500 AND 930503;
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 930500 AND 930503;
+DELETE FROM `creature_model_info` WHERE `DisplayID` = 60020;
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_stat_growth_zealot`;
 CREATE TEMPORARY TABLE `tmp_stat_growth_zealot` LIKE `creature_template`;
@@ -67,6 +71,8 @@ UPDATE `tmp_stat_growth_zealot_orb` SET `entry` = 930501, `name` = 'Captive Ligh
     `unit_flags` = 33554434, `flags_extra` = 0, `speed_walk` = 1, `speed_run` = 1, `AIName` = '', `ScriptName` = '',
     `VerifiedBuild` = NULL WHERE `entry` = 32780;
 INSERT INTO `creature_template` SELECT * FROM `tmp_stat_growth_zealot_orb`;
+UPDATE `tmp_stat_growth_zealot_orb` SET `entry` = 930503, `name` = 'Light to Take' WHERE `entry` = 930501;
+INSERT INTO `creature_template` SELECT * FROM `tmp_stat_growth_zealot_orb`;
 DROP TEMPORARY TABLE `tmp_stat_growth_zealot_orb`;
 
 -- The jailers: Vorhan's prisoners' look, friendly to no one, never attacked (they only walk in)
@@ -85,19 +91,27 @@ INSERT INTO `creature_template_model`
 VALUES
     (930500, 0, 3973, 1.3, 1, NULL),
     (930501, 0, 29352, 0.6, 1, NULL),
-    (930502, 0, 16584, 1.1, 1, NULL);
+    (930502, 0, 16584, 1.1, 1, NULL),
+    (930503, 0, 60020, 1, 1, NULL);
+
+INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`,
+    `VerifiedBuild`)
+VALUES
+    (60020, 1.0, 1, 2, 0, NULL);
 
 INSERT INTO `creature_template_movement`
     (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`)
 VALUES
     (930500, 1, 0, 0, 0, 0, 0, NULL),
     (930501, 0, 0, 1, 0, 0, 0, NULL),
-    (930502, 1, 0, 0, 0, 0, 0, NULL);
+    (930502, 1, 0, 0, 0, 0, 0, NULL),
+    (930503, 1, 0, 0, 1, 0, 0, NULL);
 
 INSERT INTO `creature_template_locale` (`entry`, `locale`, `Name`, `Title`, `VerifiedBuild`) VALUES
     (930500, 'frFR', 'Valérian', 'le Zélote', NULL),
     (930501, 'frFR', 'Lumière captive', '', NULL),
-    (930502, 'frFR', 'Geôlier', '', NULL);
+    (930502, 'frFR', 'Geôlier', '', NULL),
+    (930503, 'frFR', 'Lumière à prendre', '', NULL);
 
 -- Type 14: yell, lore only; type 12: say (a jailer's line). TextRange 3: the whole map.
 INSERT INTO `creature_text`

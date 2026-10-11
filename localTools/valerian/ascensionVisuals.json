@@ -1,0 +1,14 @@
+{
+  "_comment": [
+    "Valérian's light soaks (modules/mod-stat-growth/src/ZealotBoss.cpp): retail's holy soak telegraph ('Raid Language'",
+    "annihilation state, the gold ring with its wall of light), converted to 3.3.5 by Ascension. One model with both",
+    "looks: the wall standing while empty, sinking into the floor while someone stands in it (its CustomSpell01-04",
+    "animations, played by emotes 402-405/417). A creature look: localTools/patchSinisterStrike.ps1 gives it a",
+    "creature display (60020). Imported by localTools/ascensionImport/importVisuals.py into client-assets/importedValerian."
+  ],
+  "output": "modules/mod-stat-growth/client-assets/importedValerian",
+  "idBase": 83000,
+  "models": [
+    "world/expansion07/doodads/fx/8fx_rl_annihilation_state_holy.m2"
+  ]
+}

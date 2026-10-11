@@ -2454,6 +2454,10 @@ $ownDisplays = @(
        Model = 'World\SkillActivated\TradeskillEnablers\Tradeskill_Forge_01.mdx'; Scale = 1.0 }
     @{ Id = 60013; CloneModel = 2816; CloneDisplay = 25334
        Model = 'World\Generic\Orc\Passive Doodads\Braziers\SmallBrazierPurple01.mdx'; Scale = 1.0 }
+    # Valérian's light soaks (modules/mod-stat-growth/src/ZealotBoss.cpp): retail's holy soak telegraph
+    # (localTools\valerian\ascensionVisuals.json), its ring 4.12 yards in radius at scale 1
+    @{ Id = 60020; CloneModel = 2816; CloneDisplay = 25334
+       Model = 'World\Expansion07\Doodads\FX\8fx_rl_annihilation_state_holy.mdx'; Scale = 1.0 }
 )
 # White, green, blue, purple, orange (legendary), gold, red (a Unique: the client extension's quality 6 colour)
 $beamColours = @('ffffff', '1eff00', '0070dd', 'a335ee', 'ff8000', 'ffd100', 'e8332b')

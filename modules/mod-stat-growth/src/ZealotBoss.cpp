@@ -124,6 +124,15 @@ constexpr float LightWallGap = 3.0f;
 constexpr float LightFlight = 12.0f;
 constexpr float LightHeight = 1.5f;
 constexpr uint32 LightCheckMs = 200;
+// Its look: retail's holy soak (display 60020), its ring LightModelRadius yards at scale 1; the model's own states
+// played by emotes - someone steps in (the wall sinks, then holds sunk), everyone left (it rises), it lands (a flash)
+constexpr float LightModelRadius = 4.12f;
+constexpr uint32 EMOTE_SOAK_SINK = 402;
+constexpr uint32 EMOTE_STATE_SOAK_SUNK = 417;
+constexpr uint32 EMOTE_SOAK_RISE = 404;
+constexpr uint32 EMOTE_SOAK_LAND = 405;
+constexpr uint32 SoakSinkMs = 500;
+constexpr uint32 SoakLandMs = 1200;
 constexpr uint32 StolenMs = 10 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 LightCount = (LightLastBeat - LightFirstBeat) / LightEveryBeats + 1;
 
@@ -169,6 +178,7 @@ enum Npcs : uint32
     NPC_VALERIAN            = 930500,
     NPC_ORB                 = 930501,   // a light flying to him (only seen)
     NPC_JAILER              = 930502,
+    NPC_LIGHT               = 930503,   // a light soak (its look)
 };
 
 enum Says : uint8
@@ -511,7 +521,8 @@ protected:
     float HealthScale() const override { return float(::HealthScale); }
     bool IsOwn(Creature const* creature) const override
     {
-        return creature->GetEntry() == NPC_ORB || creature->GetEntry() == NPC_JAILER;
+        return creature->GetEntry() == NPC_ORB || creature->GetEntry() == NPC_JAILER ||
+            creature->GetEntry() == NPC_LIGHT;
     }
 
     float TakenFactor(Unit const* victim) const override
@@ -805,6 +816,7 @@ private:
         Position at;
         uint32 lands;           // its beat
         bool occupied = false;  // someone stood in it at the last check
+        ObjectGuid look;        // its soak (NPC_LIGHT)
     };
 
     // A soak every LightEveryBeats from beat from to beat to (each landing there), shown LightShownBeats before
@@ -829,7 +841,12 @@ private:
         light.lands = lands;
         ++_spawned;
         uint32 const ms = MsTo(lands);
-        LightLook(light, false, ms);
+        if (Creature* soak = me->SummonCreature(NPC_LIGHT, light.at, TEMPSUMMON_TIMED_DESPAWN, ms + SoakLandMs))
+        {
+            soak->SetObjectScale(LightRadius / LightModelRadius);
+            soak->SetReactState(REACT_PASSIVE);
+            light.look = soak->GetGUID();
+        }
         // The bots leave it alone: never theirs to take
         GroundIndicators::Area area;
         area.kind = GroundIndicators::Area::Kind::Circle;
@@ -840,23 +857,27 @@ private:
         AtBeat(Grid, lands, [this, lands]() { LandLight(lands); });
     }
 
-    // Its look: empty, or someone in it (the retail soak's two states)
-    void LightLook(Light const& light, bool occupied, uint32 ms)
+    // Its look: someone in it (its wall sinks and holds sunk), or no one any more (it rises again)
+    void LightLook(Light const& light, bool occupied)
     {
+        Creature* soak = light.look ? me->GetMap()->GetCreature(light.look) : nullptr;
+        if (!soak)
+            return;
         if (!occupied)
-            GroundIndicators::ShowDecal(me, light.at, 0.0f, LightRadius, ms, GroundIndicators::SPELL_SIGIL_RADIANT);
-        else
-            GroundIndicators::ShowParticles(me, MakeCircle(light.at, LightRadius), GroundIndicators::Theme::Holy,
-                std::min<uint32>(ms, LightCheckMs * 3));
-    }
-
-    static GroundIndicators::Area MakeCircle(Position const& center, float radius)
-    {
-        GroundIndicators::Area area;
-        area.kind = GroundIndicators::Area::Kind::Circle;
-        area.origin = center;
-        area.radius = radius;
-        return area;
+        {
+            soak->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+            soak->HandleEmoteCommand(EMOTE_SOAK_RISE);
+            return;
+        }
+        soak->HandleEmoteCommand(EMOTE_SOAK_SINK);
+        ObjectGuid const guid = light.look;
+        scheduler.Schedule(Milliseconds(SoakSinkMs), [this, guid](TaskContext)
+        {
+            for (Light const& still : _lights)
+                if (still.look == guid && still.occupied)
+                    if (Creature* sunk = me->GetMap()->GetCreature(guid))
+                        sunk->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_SOAK_SUNK);
+        });
     }
 
     std::vector<Player*> InLight(Light const& light) const
@@ -878,9 +899,11 @@ private:
         for (Light& light : _lights)
         {
             bool const occupied = !InLight(light).empty();
-            if (occupied)
-                LightLook(light, true, MsTo(light.lands));
-            light.occupied = occupied;
+            if (occupied != light.occupied)
+            {
+                light.occupied = occupied;
+                LightLook(light, occupied);
+            }
         }
     }
 
@@ -892,6 +915,12 @@ private:
             return;
         Light const light = *found;
         _lights.erase(found);
+        if (Creature* soak = light.look ? me->GetMap()->GetCreature(light.look) : nullptr)
+        {
+            soak->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+            soak->HandleEmoteCommand(EMOTE_SOAK_LAND);
+            soak->DespawnOrUnsummon(Milliseconds(SoakLandMs));
+        }
         std::vector<Player*> const in = InLight(light);
         if (!in.empty() && _phase == Phase::Zealot)
         {
@@ -934,6 +963,9 @@ private:
 
     void ClearLights()
     {
+        for (Light const& light : _lights)
+            if (Creature* soak = light.look ? me->GetMap()->GetCreature(light.look) : nullptr)
+                soak->DespawnOrUnsummon();
         _lights.clear();
     }
 
