@@ -165,7 +165,18 @@ enum Kits : uint32
     KIT_SMOKE_EXPLOSION     = 82910,    // fire and black smoke
     KIT_FIRE_BALL           = 82911,    // a ball of fire
 };
-constexpr uint32 ImpactMs = 4000;           // an impact's stalker lasts this long (its effect plays out)   // shapes.json VR_StackMark (localTools/escapeHunter/ingotArt.py)
+constexpr uint32 ImpactMs = 4000;           // an impact's stalker lasts this long (its effect plays out)
+// How far each impact reaches from its middle at scale 1 (yards), measured in the FX lab against its 5 yd rings: an
+// impact is sized from it and laid out so that it never leaves the shape it lands on
+constexpr float CracksReach = 11.5f;
+constexpr float BurstReach = 6.0f;          // 4 yd as it bursts, its debris flying out to 6
+constexpr float SmokeReach = 7.0f;
+constexpr float BallReach = 3.0f;
+constexpr float SteamReach = 3.5f;
+constexpr float PillarReach = 3.0f;
+constexpr float BeamReach = 10.0f;
+constexpr float CraterReach = 6.0f;
+constexpr float MeteorReach = 6.0f;   // shapes.json VR_StackMark (localTools/escapeHunter/ingotArt.py)
 constexpr float MarkedRadius = 8.0f;
 constexpr float HammerSoakRadius = 6.0f;
 constexpr uint32 MarkBeats = 12;
@@ -796,54 +807,101 @@ private:
     {
         Position const& origin = area.origin;
         float const facing = origin.GetOrientation();
+        float const wall = ArenaRadius - 0.5f;
         switch (look)
         {
             case Look::None:
                 break;
             case Look::Cracks:
-                PlayImpact(KIT_LAVA_CRACKS, origin, std::max(0.6f, area.radius / 8.0f));
+                // The shockwave: cracks over its middle circle, bursts round its rings (never into the middle)
+                if (area.kind == GroundIndicators::Area::Kind::Ring)
+                    FillRing(KIT_LAVA_BURST, BurstReach, origin, area.inner, std::min(area.radius, wall));
+                else
+                    ImpactSized(KIT_LAVA_CRACKS, CracksReach, origin, area.radius * 0.9f);
                 break;
             case Look::Wave:
-                // Three rolls across the half, from its middle out
-                for (float side : { -0.9f, 0.0f, 0.9f })
-                    PlayImpact(KIT_MOLTEN_WAVE, AtAngle(origin, facing + side, area.radius * 0.5f), 1.4f);
+                FillCone(KIT_LAVA_BURST, BurstReach, origin, facing, area.arc, std::min(area.radius, wall));
                 break;
             case Look::Burst:
-                PlayImpact(KIT_LAVA_BURST, origin, std::max(0.6f, area.radius / 5.0f));
+                ImpactSized(KIT_LAVA_BURST, BurstReach, origin, area.radius * 0.85f);
                 break;
             case Look::Line:
-                for (float along : { 0.3f, 0.7f })
-                    PlayImpact(KIT_LAVA_BURST, AtAngle(origin, facing, area.radius * along), 0.7f);
+                FillLine(KIT_LAVA_BURST, BurstReach, origin, facing, area.radius, area.width / 2.0f);
                 break;
             case Look::Strip:
-                PlayImpact(KIT_SMOKE_EXPLOSION, SoundSpot(area), 0.8f);
+                FillLine(KIT_SMOKE_EXPLOSION, SmokeReach, origin, facing, area.radius, area.width / 2.0f);
                 break;
             case Look::Steam:
-                // The whole circle: one burst in its middle, four round it (one alone read as a puff)
-                PlayImpact(KIT_STEAM, origin, 2.5f);
+                // The circle filled: one burst in its middle, four round it
+                ImpactSized(KIT_STEAM, SteamReach, origin, area.radius * 0.5f);
                 for (uint32 index = 0; index < 4; ++index)
-                    PlayImpact(KIT_STEAM, AtAngle(origin, float(index) * float(M_PI) / 2.0f + float(M_PI) / 4.0f,
-                        area.radius * 0.6f), 2.0f);
+                    ImpactSized(KIT_STEAM, SteamReach, AtAngle(origin, float(index) * float(M_PI) / 2.0f +
+                        float(M_PI) / 4.0f, area.radius * 0.6f), area.radius * 0.35f);
                 break;
             case Look::RingPillars:
-            {
-                float const middle = std::min((area.inner + std::min(area.radius, ArenaRadius)) / 2.0f, ArenaRadius - 2.0f);
-                for (uint32 index = 0; index < 8; ++index)
-                    PlayImpact(KIT_LAVA_PILLAR, AtAngle(origin, float(index) * float(M_PI) / 4.0f, middle), 1.0f);
+                FillRing(KIT_LAVA_PILLAR, PillarReach, origin, area.inner, std::min(area.radius, wall));
                 break;
-            }
             case Look::Pillars:
-            {
-                // A pillar in each eighth of the arena the cone covers, halfway out
-                uint32 const slices = std::max<uint32>(1, uint32(std::lround(area.arc / (float(M_PI) / 4.0f))));
-                for (uint32 index = 0; index < slices; ++index)
-                {
-                    float const angle = facing - area.arc / 2.0f + (float(index) + 0.5f) * float(M_PI) / 4.0f;
-                    PlayImpact(KIT_LAVA_PILLAR, AtAngle(origin, angle, 9.0f), 1.0f);
-                }
+                FillCone(KIT_LAVA_PILLAR, PillarReach, origin, facing, area.arc, std::min(area.radius, wall));
                 break;
+        }
+    }
+
+    // An impact reaching radius yards from where (its measured reach at scale 1: reach)
+    void ImpactSized(uint32 kit, float reach, Position const& where, float radius)
+    {
+        PlayImpact(kit, where, std::max(0.2f, radius / reach));
+    }
+
+    // A cone filled with impacts, row by row out from its apex, none past its edges
+    void FillCone(uint32 kit, float reach, Position const& apex, float facing, float arc, float radius)
+    {
+        for (float distance = 3.0f; distance + 1.0f <= radius; distance += 4.5f)
+        {
+            float const halfArc = arc / 2.0f;
+            // As big as the row allows: within the cone's width there, and the next row
+            float const size = std::min({ 2.4f, distance * std::sin(std::min(halfArc, float(M_PI) / 2.0f)) * 0.8f,
+                radius - distance });
+            if (size < 0.8f)
+                continue;
+            float const usable = halfArc - std::asin(std::min(1.0f, size / distance));
+            if (usable < 0.0f)
+                continue;
+            uint32 const count = std::max<uint32>(1, uint32(distance * 2.0f * usable / (2.0f * size)) + 1);
+            for (uint32 index = 0; index < count; ++index)
+            {
+                float const angle = count == 1 ? facing :
+                    facing - usable + 2.0f * usable * float(index) / float(count - 1);
+                ImpactSized(kit, reach, AtAngle(apex, angle, distance), size);
             }
         }
+    }
+
+    // A ring's band filled with impacts all round, none into its middle nor past its outside
+    void FillRing(uint32 kit, float reach, Position const& center, float inner, float outer)
+    {
+        if (outer <= inner)
+            return;
+        float const middle = (inner + outer) / 2.0f;
+        float const size = std::min(2.8f, (outer - inner) / 2.0f * 0.85f);
+        uint32 const count = std::max<uint32>(4, uint32(2.0f * float(M_PI) * middle / (2.0f * size)));
+        for (uint32 index = 0; index < count; ++index)
+            ImpactSized(kit, reach, AtAngle(center, 2.0f * float(M_PI) * float(index) / float(count), middle), size);
+    }
+
+    // A line (a rectangle from origin along facing) filled with impacts, none past its sides or its ends
+    void FillLine(uint32 kit, float reach, Position const& origin, float facing, float length, float halfWidth)
+    {
+        float const size = std::max(0.6f, halfWidth * 0.85f);
+        if (length <= 2.0f * size)
+        {
+            ImpactSized(kit, reach, AtAngle(origin, facing, length / 2.0f), std::min(size, length / 2.0f));
+            return;
+        }
+        uint32 const count = uint32((length - 2.0f * size) / (2.0f * size)) + 1;
+        float const step = count > 1 ? (length - 2.0f * size) / float(count - 1) : 0.0f;
+        for (uint32 index = 0; index < count; ++index)
+            ImpactSized(kit, reach, AtAngle(origin, facing, size + step * float(index)), size);
     }
 
     // Where an area's sound comes from: its middle (a line's halfway along it)
@@ -1043,7 +1101,8 @@ private:
         {
             EndCastBar();
             Sound("Vrogar.Anvil", cone.origin);
-            PlayImpact(KIT_LAVA_CRACKS, AtAngle(cone.origin, cone.origin.GetOrientation(), 5.0f), 1.0f);
+            FillCone(KIT_LAVA_BURST, BurstReach, cone.origin, cone.origin.GetOrientation(), cone.arc,
+                std::min(cone.radius, ArenaRadius - 0.5f));
             if (_phase == Phase::Rehearsal)
                 LogSafe("anvil cone", { cone });
             else
@@ -1463,7 +1522,7 @@ private:
                 if (Player* carrier = ObjectAccessor::GetPlayer(*me, guid); carrier && carrier->IsAlive())
                 {
                     bursts.push_back(carrier->GetPosition());
-                    PlayImpact(KIT_FIRE_BALL, carrier->GetPosition(), 0.6f);
+                    ImpactSized(KIT_FIRE_BALL, BallReach, carrier->GetPosition(), IngotSpreadRadius * 0.85f);
                     for (Player* player : ArenaPlayers())
                         if (player != carrier && player->GetExactDist2d(carrier) <= IngotSpreadRadius)
                             struck.insert(player);
@@ -1490,7 +1549,7 @@ private:
             for (Player* player : ArenaPlayers())
                 if (player->GetExactDist2d(&spot) <= IngotRadius)
                     under.push_back(player);
-            PlayImpact(KIT_LAVA_BURST, spot, 0.8f);
+            ImpactSized(KIT_LAVA_BURST, BurstReach, spot, IngotRadius * 0.85f);
             if (_phase == Phase::Rehearsal)
                 continue;
             if (under.size() == 2)
@@ -1533,8 +1592,8 @@ private:
             {
                 EndCastBar();
                 Sound("Vrogar.Hammer", soak);
-                PlayImpact(KIT_LAVA_CRACKS, soak, 1.2f);
-                PlayImpact(KIT_SMOKE_EXPLOSION, soak, 1.0f);
+                ImpactSized(KIT_LAVA_CRACKS, CracksReach, soak, HammerSoakRadius * 0.9f);
+                ImpactSized(KIT_SMOKE_EXPLOSION, SmokeReach, soak, HammerSoakRadius * 0.6f);
                 StrikeHammer(marked, soak);
             });
         });
@@ -1733,7 +1792,7 @@ private:
                     bursts.push_back(carrier->GetPosition());
             SoundNearest("Vrogar.Spread", bursts);
             for (Position const& burst : bursts)
-                PlayImpact(KIT_FIRE_BALL, burst, 0.9f);
+                ImpactSized(KIT_SMOKE_EXPLOSION, SmokeReach, burst, std::min(SpreadRadius * 0.8f, 7.0f));
             if (_phase == Phase::Rehearsal)
                 return;
             for (ObjectGuid const& guid : carriers)
@@ -1818,9 +1877,10 @@ private:
     // Métal en fusion from one before
     void StrikeSoak(Player* carrier)
     {
-        PlayImpact(KIT_METEOR_BEAM, carrier->GetPosition(), 1.0f);
-        PlayImpact(KIT_METEOR_BURST, carrier->GetPosition(), 0.8f);
-        PlayImpact(KIT_CRATER, carrier->GetPosition(), 0.6f, 6000);
+        // Within the share's reach: the meteor's glow, its burst and its crater
+        ImpactSized(KIT_METEOR_BEAM, BeamReach, carrier->GetPosition(), SoakRadius);
+        ImpactSized(KIT_METEOR_BURST, MeteorReach, carrier->GetPosition(), SoakRadius * 0.9f);
+        GroundIndicators::PlayKit(me, carrier->GetPosition(), KIT_CRATER, SoakRadius * 0.9f / CraterReach, 0, 6000);
         std::vector<Player*> in;
         for (Player* player : ArenaPlayers())
             if (player->GetExactDist2d(carrier) <= SoakRadius)
