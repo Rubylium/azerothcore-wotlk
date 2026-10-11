@@ -277,7 +277,13 @@ def wall_lava():
 
 
 def wall_heat():
-    return Image.open(os.path.join(ART, 'wall_heat.png')).convert('RGB')
+    """The heat over the wall, faded to nothing at its top and its foot (added: its black adds nothing). It drifts along
+    the wall rather than up it: a fade drawn in a texture moves with it, and rising, its top was a straight line"""
+    heat = numpy.asarray(Image.open(os.path.join(ART, 'wall_heat.png')).convert('RGB'), dtype=numpy.float64) / 255.0
+    rows = heat.shape[0]
+    up = 1.0 - (numpy.arange(rows) + 0.5) / rows             # 1 at the top, 0 at the foot
+    fade = smooth(1.0, 0.55, up) * smooth(0.0, 0.15, up)
+    return Image.fromarray((numpy.clip(heat * fade[:, None, None], 0.0, 1.0) * 255.0 + 0.5).astype(numpy.uint8))
 
 
 # The wall's band, from one bar's middle to another's three bars on (the paintings' edges are smeared: the band ran
