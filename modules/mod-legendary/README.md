@@ -74,15 +74,20 @@ record, as for any raid item; its gear bonuses roll at 485 on the regular path.
   blocks 140-171 (the client extension's `GeneratedItems.cpp` draws them; `MythicItemTag.lua` names the set on the
   tooltip's second line). Profiles are numbered once and kept in `legendary_set_profile` (characters): a raid item
   added later takes the next free number, an item already dropped never changes.
-- His win (`GiveWardenVorhanLootItem`) draws one of the looter's armour type's eight pieces or a shared one, then the
-  profile that suits them as a Mythic+ reward is chosen (mod-stat-growth `SelectSuitedItem`), of the primary stat
-  their gear favours first; thrown on the floor with his loot.
+- The Gaol's three gates share the sets (`GateLoots`): Vorhan the head, shoulders and chest and the neck; Vrogar (the
+  Traqueur d'évadés) the hands, wrists and waist, the ring and the melee weapons; the third gate - its boss to come,
+  creature 930500 reserved (`GaolThirdGate`), nobody drops its share until then - the legs and feet, the cloak and
+  the ranged weapons, the staff, the wand, the shield and the off-hand.
+- A win (`GiveWardenVorhanLootItem`, `GiveEscapeHunterLootItem`) draws one of the gate's pieces of the looter's armour
+  type, its shared piece or a weapon of its share, then the profile that suits them as a Mythic+ reward is chosen
+  (mod-stat-growth `SelectSuitedItem`), of the primary stat their gear favours first; thrown on the floor with the
+  boss's loot.
 - Copies the legendary engine rolled before (`character_legendary` on a row) are turned into the nearest profile at
   startup (their owner's class, primary stat and secondaries); their gear bonuses stay, kept by the item's guid.
 - His weapons (`WeaponRows`, one a kind: Midnight's in their green colourway, `localTools/retailImport` items
   5551-5561 and 4899-4996) are made the same way, from the raid weapons of their kind - one-hand, main-hand and
-  off-hand alike, and a bow, gun or crossbow from any of the three (the raids' only gun is a gladiator's). His win
-  draws a weapon as often as any one piece, of a kind with a profile that suits the looter.
+  off-hand alike, and a bow, gun or crossbow from any of the three (the raids' only gun is a gladiator's). A gate's
+  win draws one of its weapons as often as any one piece, of a kind with a profile that suits the looter.
 - `.setpiece list <row>` shows a row's profiles beside the Hollow Voice's 477 item of the same raid item;
   `.setpiece give [row]` gives one as his win would.
 

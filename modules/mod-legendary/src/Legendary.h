@@ -184,8 +184,10 @@ namespace Legendary
 // The Gaol's gates (their creature entries: mod-stat-growth WardenVorhan.cpp, ForgeMaster.cpp)
 constexpr uint32 WardenVorhanGate = 930200;
 constexpr uint32 EscapeHunterGate = 930400;
-// The Gaol's gates' rows a player can get from gate (WardenVorhanGate or EscapeHunterGate): their armour type's set
-// pieces of its slots, its shared pieces and - the Traqueur's - the weapons they can use (the loot collection)
+// The third gate's boss, to come: its creature entry reserved, its share of the sets kept for it (SetPieces.cpp)
+constexpr uint32 GaolThirdGate = 930500;
+// The Gaol's gates' rows a player can get from gate (WardenVorhanGate, EscapeHunterGate, GaolThirdGate): their armour
+// type's set pieces of its slots, its shared piece and the weapons of its share they can use (the loot collection)
 std::vector<uint32> GateRows(Player* player, uint32 gate);
 // The gate whose loot a set row is (any armour type's), 0 for none
 uint32 GateOfRow(uint32 row);

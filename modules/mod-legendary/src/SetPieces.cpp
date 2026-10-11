@@ -63,18 +63,13 @@ constexpr std::array<std::array<uint32, 8>, 4> ArmourSets = { {
     { 13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717 },   // Harnois du Gardien-chef
 } };
 constexpr std::array<uint32, 3> SharedPieces = { 13696, 13697, 12187 };   // Clé de cellule, Anneau de matricule, Cape
-// The Gaol's gates share its gear, by slot: Vorhan the head, shoulders, chest and legs, the neck and the cloak (and his
-// trinkets); the Traqueur d'évadés the hands, wrists, waist and feet, the ring and the weapons (indices into a set,
-// head to feet: head, shoulders, chest, hands, legs, wrists, waist, feet)
+// The Gaol's gates share its gear between its three bosses (GateLoots, after the weapons)
 enum class Gate : uint8
 {
     WardenVorhan,
     EscapeHunter,
+    Third,
 };
-constexpr std::array<uint8, 4> VorhanSlots = { 0, 1, 2, 4 };
-constexpr std::array<uint8, 4> HunterSlots = { 3, 5, 6, 7 };
-constexpr std::array<uint32, 2> VorhanShared = { 13696, 12187 };          // Clé de cellule, Cape du geôlier
-constexpr std::array<uint32, 1> HunterShared = { 13697 };                 // Anneau de matricule
 // His weapons, one a kind: Midnight's raid and dungeon weapons in their green colourway (localTools/retailImport
 // items.json: a free Item.dbc row each, its look converted by a wow-retail-backport project)
 constexpr std::array<uint32, 16> WeaponRows = {
@@ -95,6 +90,39 @@ constexpr std::array<uint32, 16> WeaponRows = {
     4985,   // Rempart de la Geôle, shield
     4996,   // Code pénal de la Geôle, held in the off-hand
 };
+
+// The share of each gate, its armour by slot (indices into a set, head to feet: head, shoulders, chest, hands, legs,
+// wrists, waist, feet), a shared piece each and a share of the weapons: Vorhan the head, shoulders and chest, the
+// neck (and his trinkets); the Traqueur d'évadés the hands, wrists and waist, the ring and the weapons of the melee;
+// the third gate (its boss to come: kept for it, nobody drops it until then) the legs and feet, the cloak and the
+// ranged weapons, the staff, the wand, the shield and the off-hand
+constexpr std::array<uint8, 3> VorhanSlots = { 0, 1, 2 };
+constexpr std::array<uint8, 3> HunterSlots = { 3, 5, 6 };
+constexpr std::array<uint8, 2> ThirdSlots = { 4, 7 };
+constexpr std::array<uint32, 1> VorhanShared = { 13696 };      // Clé de cellule
+constexpr std::array<uint32, 1> HunterShared = { 13697 };      // Anneau de matricule
+constexpr std::array<uint32, 1> ThirdShared = { 12187 };       // Cape du geôlier
+constexpr std::array<uint32, 9> HunterWeapons = { 5551, 5552, 5555, 5556, 5557, 5558, 5560, 4899, 4900 };
+constexpr std::array<uint32, 7> ThirdWeapons = { 5553, 5554, 4912, 4956, 5561, 4985, 4996 };
+
+struct GateLoot
+{
+    Gate gate;
+    uint32 boss;
+    std::span<uint8 const> slots;
+    std::span<uint32 const> shared;
+    std::span<uint32 const> weapons;
+};
+std::array<GateLoot, 3> const GateLoots = { {
+    { Gate::WardenVorhan, WardenVorhanGate, VorhanSlots, VorhanShared, {} },
+    { Gate::EscapeHunter, EscapeHunterGate, HunterSlots, HunterShared, HunterWeapons },
+    { Gate::Third, GaolThirdGate, ThirdSlots, ThirdShared, ThirdWeapons },
+} };
+
+GateLoot const& LootOf(Gate gate)
+{
+    return GateLoots[uint8(gate)];
+}
 
 std::vector<uint32> AllRows()
 {
@@ -402,12 +430,12 @@ ItemTemplate const* FitPiece(Player* player, uint32 rowEntry)
     return SelectSuitedItem(player, all, true);
 }
 
-// A weapon for the player: one of the kinds with a profile that suits them (their class, proficiency, stats and way
-// of fighting), at random; 0 when none does
-uint32 DrawWeaponRow(Player* player)
+// A weapon of a gate's share for the player: one of the kinds with a profile that suits them (their class, proficiency,
+// stats and way of fighting), at random; 0 when none does
+uint32 DrawWeaponRow(Player* player, std::span<uint32 const> weapons)
 {
     std::vector<uint32> suited;
-    for (uint32 row : WeaponRows)
+    for (uint32 row : weapons)
     {
         auto const found = Pieces.find(row);
         if (found == Pieces.end())
@@ -421,21 +449,20 @@ uint32 DrawWeaponRow(Player* player)
     return suited.empty() ? 0 : Acore::Containers::SelectRandomContainerElement(suited);
 }
 
-// One of a gate's pieces for the player, at random: a slot of their armour type's set, a shared piece, or - the
-// Traqueur's - a weapon (as likely as any one piece; a slot's piece when no weapon suits them)
+// One of a gate's pieces for the player, at random: a slot of their armour type's set, its shared piece, or a weapon of
+// its share (as likely as any one piece; a slot's piece when no weapon suits them)
 uint32 DrawRow(Player* player, Gate gate = Gate::WardenVorhan)
 {
-    bool const hunter = gate == Gate::EscapeHunter;
+    GateLoot const& loot = LootOf(gate);
     std::vector<uint32> pieces;
-    for (uint8 slot : hunter ? std::span<uint8 const>(HunterSlots) : std::span<uint8 const>(VorhanSlots))
+    for (uint8 slot : loot.slots)
         pieces.push_back(ArmourSets[ArmorType(player)][slot]);
     size_t const armour = pieces.size();
-    for (uint32 row : hunter ? std::span<uint32 const>(HunterShared) : std::span<uint32 const>(VorhanShared))
-        pieces.push_back(row);
-    uint32 const pick = urand(0, uint32(pieces.size() - (hunter ? 0 : 1)));
+    pieces.insert(pieces.end(), loot.shared.begin(), loot.shared.end());
+    uint32 const pick = urand(0, uint32(pieces.size() - (loot.weapons.empty() ? 1 : 0)));
     if (pick == pieces.size())
     {
-        if (uint32 const weapon = DrawWeaponRow(player))
+        if (uint32 const weapon = DrawWeaponRow(player, loot.weapons))
             return weapon;
         return pieces[urand(0, uint32(armour - 1))];
     }
@@ -520,39 +547,37 @@ public:
 std::vector<uint32> GateRows(Player* player, uint32 gate)
 {
     std::vector<uint32> rows;
-    if (!player || (gate != WardenVorhanGate && gate != EscapeHunterGate))
+    auto const loot = std::ranges::find(GateLoots, gate, &GateLoot::boss);
+    if (!player || loot == GateLoots.end())
         return rows;
-    bool const hunter = gate == EscapeHunterGate;
-    for (uint8 slot : hunter ? std::span<uint8 const>(HunterSlots) : std::span<uint8 const>(VorhanSlots))
+    for (uint8 slot : loot->slots)
         rows.push_back(ArmourSets[ArmorType(player)][slot]);
-    for (uint32 row : hunter ? std::span<uint32 const>(HunterShared) : std::span<uint32 const>(VorhanShared))
-        rows.push_back(row);
-    if (hunter)
-        for (uint32 row : WeaponRows)
-        {
-            auto const found = Pieces.find(row);
-            if (found == Pieces.end())
-                continue;
-            // A kind its class is trained in (its stats change with the spec, the weapon's kind does not)
-            if (std::ranges::any_of(found->second, [player](Profile const& profile)
-                { return player->CanUseItem(profile.item) == EQUIP_ERR_OK; }))
-                rows.push_back(row);
-        }
+    rows.insert(rows.end(), loot->shared.begin(), loot->shared.end());
+    for (uint32 row : loot->weapons)
+    {
+        auto const found = Pieces.find(row);
+        if (found == Pieces.end())
+            continue;
+        // A kind its class is trained in (its stats change with the spec, the weapon's kind does not)
+        if (std::ranges::any_of(found->second, [player](Profile const& profile)
+            { return player->CanUseItem(profile.item) == EQUIP_ERR_OK; }))
+            rows.push_back(row);
+    }
     return rows;
 }
 
 uint32 GateOfRow(uint32 row)
 {
-    for (auto const& set : ArmourSets)
-        for (uint8 slot = 0; slot < set.size(); ++slot)
-            if (set[slot] == row)
-                return std::ranges::find(HunterSlots, slot) != HunterSlots.end() ? EscapeHunterGate :
-                    WardenVorhanGate;
-    if (std::ranges::find(VorhanShared, row) != VorhanShared.end())
-        return WardenVorhanGate;
-    if (std::ranges::find(HunterShared, row) != HunterShared.end() ||
-        std::ranges::find(WeaponRows, row) != WeaponRows.end())
-        return EscapeHunterGate;
+    for (GateLoot const& loot : GateLoots)
+    {
+        for (auto const& set : ArmourSets)
+            for (uint8 slot : loot.slots)
+                if (set[slot] == row)
+                    return loot.boss;
+        if (std::ranges::find(loot.shared, row) != loot.shared.end() ||
+            std::ranges::find(loot.weapons, row) != loot.weapons.end())
+            return loot.boss;
+    }
     return 0;
 }
 
