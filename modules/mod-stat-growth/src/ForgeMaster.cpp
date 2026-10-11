@@ -128,8 +128,9 @@ constexpr float IngotDistance = 8.0f;
 constexpr uint32 LOOK_INGOT_MARK = 94860;
 constexpr uint32 LOOK_INGOT_SIGIL = 94864;
 constexpr uint32 IngotCount = 4;
-// After each wave of ingots, a soak then a spread: every player carries a circle that explodes IngotSpreadMs after the
-// ingots land, shown only its last IngotSpreadShownMs; whoever stands in another's dies (the first time a surprise)
+// After the first ingots (before la Fonte only: the later ones are the soak alone), a soak then a spread: every player
+// carries a circle that explodes IngotSpreadMs after the ingots land, shown only its last IngotSpreadShownMs; whoever
+// stands in another's dies (the first time a surprise)
 constexpr float IngotSpreadRadius = 4.0f;
 constexpr uint32 IngotSpreadMs = 2000;
 constexpr uint32 IngotSpreadShownMs = 500;
@@ -141,7 +142,8 @@ constexpr uint32 MechanicWarnBeats = 12;
 constexpr uint32 SpreadMarks = 4;
 constexpr float SpreadRadius = 10.4f;
 constexpr float SpreadWall = 13.6f;
-constexpr float SpreadStack = 2.5f;
+constexpr float SpreadStack = 1.5f;          // the others' spot: 12.3 yd from the inner circles' carriers
+constexpr float SpreadSpotSlack = 0.5f;      // how near its spot a bot stops: every spot still 0.4 yd clear of a circle
 constexpr std::array<float, 4> SpreadAngles = { -85.8f, -29.6f, 29.6f, 85.8f };
 // Its soaks: a coulée on each healer (a mark over them, nothing on the floor), shared by whoever stands within
 // SoakRadius - SoakTotalPct of the profile split between them (four: 45% each); each share taken leaves Métal en
@@ -1465,11 +1467,13 @@ private:
             uint32 const shown = lands + 12 * wave;
             uint32 const strikes = shown + 10;
             float const turn = wave ? float(M_PI) / 4.0f : 0.0f;
-            AtBeat(Grid, shown, [this, base, turn, strikes]() { ShowIngots(base + turn, strikes); });
+            // In the lab (its beats run on): "ingots" with the spread, "ingots2" without, as in the fight
+            bool const spread = _phase == Phase::Rehearsal ? waves == 1 : start < FonteStartBeat;
+            AtBeat(Grid, shown, [this, base, turn, strikes, spread]() { ShowIngots(base + turn, strikes, spread); });
         }
     }
 
-    void ShowIngots(float facing, uint32 strikes)
+    void ShowIngots(float facing, uint32 strikes, bool spread)
     {
         // The holders: tanks and healers first, then the damage dealers, each lot in a random order; dealt round the
         // ingots in turn, so each ingot's first holder is a tank or a healer and its second a damage dealer
@@ -1512,13 +1516,14 @@ private:
             holders.push_back(guid);
         }
         Sound("Vrogar.Ingots", Middle());
-        AtBeat(Grid, strikes, [this, spots, holders]()
+        AtBeat(Grid, strikes, [this, spots, holders, spread]()
         {
             for (ObjectGuid const& guid : holders)
                 if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
                     GroundIndicators::EndUnitSpot(me, player);
             StrikeIngots(spots);
-            IngotSpread();
+            if (spread)
+                IngotSpread();
         });
     }
 
@@ -1809,12 +1814,11 @@ private:
             else
                 spots.emplace_back(player->GetGUID(), AtAngle(middle, axis, SpreadStack));
         }
-        AtBeat(Grid, CurrentBeat(Grid) + FonteSpotsAfterBeats, [this, spots, carriers, lands]()
+        AtBeat(Grid, CurrentBeat(Grid) + FonteSpotsAfterBeats, [this, spots, lands]()
         {
             for (auto const& [guid, spot] : spots)
                 if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
-                    GroundIndicators::SetUnitSpot(me, player, spot,
-                        std::find(carriers.begin(), carriers.end(), guid) != carriers.end() ? 1.0f : 1.5f, MsTo(lands));
+                    GroundIndicators::SetUnitSpot(me, player, spot, SpreadSpotSlack, MsTo(lands));
         });
         AtBeat(Grid, lands, [this, carriers]()
         {
