@@ -832,7 +832,13 @@ def build_curtain_frame(shape, source_image):
                      0.0, 1.0)
     # `opaque`: a painting that is a solid thing (iron bars and the metal between them), drawn as painted with the
     # alpha blend (`blend` "alpha"); added, its dark parts were see-through and its light ones washed out
-    alpha = numpy.ones_like(rgb[..., :1]) if shape.get('opaque') else rgb.max(axis=2, keepdims=True)
+    # `paintedAlpha`: its own transparency (a grille, its sky between the bars)
+    if shape.get('paintedAlpha'):
+        alpha = numpy.asarray(source_image.convert('RGBA'), dtype=numpy.float64)[..., 3:4] / 255.0
+    elif shape.get('opaque'):
+        alpha = numpy.ones_like(rgb[..., :1])
+    else:
+        alpha = rgb.max(axis=2, keepdims=True)
     source = numpy.concatenate([rgb, alpha], axis=2)
     height, width = source.shape[:2]
     columns, rows = shape.get('textureSize', CURTAIN_TEXTURE)
@@ -948,7 +954,8 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     _, textures = array(data, 0x50)
     name = texture_path.encode('ascii') + b'\0'
     name_offset = append_block(data, name)
-    struct.pack_into('<I', data, textures + 16 * texture_index + 4, 1)
+    # (wrapping along u; and along v for a band flowing up or down: `scrollV`)
+    struct.pack_into('<I', data, textures + 16 * texture_index + 4, 3 if shape.get('scrollV') else 1)
     struct.pack_into('<II', data, textures + 16 * texture_index + 8, len(name), name_offset)
     if 'blend' in shape:
         _, materials = array(data, 0x70)
@@ -974,6 +981,12 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     sequence_count, _ = array(data, 0x1C)
     scroll = int(shape.get('scroll', 0))
     pulse = shape.get('pulse')
+    # `scrollV` [ms, way]: the band flowing down the curtain (way 1) or up it (-1), a whole texture a loop
+    scroll_v = shape.get('scrollV')
+    if scroll_v and scroll:
+        raise SystemExit(f"{shape['key']}: one scroll at a time (scroll or scrollV)")
+    if scroll_v:
+        scroll = int(scroll_v[0])
     loops = ([scroll] if scroll else []) + ([int(pulse[2])] if pulse else [])
     if loops:
         struct.pack_into('<II', data, 0x14, len(loops), append_block(data, struct.pack(f'<{len(loops)}I', *loops)))
@@ -998,6 +1011,10 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
             timestamps.append(scroll)
             values.append((-flow, FLIPBOOK_SIGN * order[0] / frames, 0.0))
             write_global_track(data, transform, 0, sequence_count, timestamps, values, '<3f')
+        elif scroll_v:
+            way = -float(scroll_v[1]) * FLIPBOOK_SIGN
+            write_global_track(data, transform, 0, sequence_count, [0, scroll], [(0.0, 0.0, 0.0), (0.0, way, 0.0)],
+                               '<3f')
         else:
             write_global_track(data, transform, 0, sequence_count, [0, scroll], [(0.0, 0.0, 0.0), (-1.0, 0.0, 0.0)],
                                '<3f')

@@ -179,7 +179,9 @@ enum Looks : uint32
     LOOK_INGOT_BURST        = 94886,    // carried, built to IngotSpreadRadius
     LOOK_HAMMER_SOAK        = 94887,
     LOOK_HAMMER_SOAK_RUNES  = 94888,
-    LOOK_WALL_FIRST         = 94889,    // the wall's four pieces, each a quarter of its band (16 pieces: 4 times round)
+    LOOK_WALL_GRILLE_FIRST  = 94889,    // the wall's iron, its two pieces each half of its band (8 times round)
+    LOOK_WALL_LAVA          = 94891,    // the molten metal behind it, flowing down
+    LOOK_WALL_HEAT          = 94892,    // the heat in front of it, rising
     LOOK_WALL_RISE          = 94893,
     // The layers that move over them (their glow alone, added, breathing; shown with their look: LayerOf)
     LOOK_FURNACE_CRACKS_CONE_45     = 94894,
@@ -211,7 +213,11 @@ constexpr uint32 LayerOf(uint32 look)
         default: return 0;
     }
 }
-constexpr uint32 WallLooks = 4;
+constexpr uint32 WallGrilleLooks = 2;
+// The layers' rings a little apart (the pieces' length scaled: their polygon's radius with it): the lava behind the
+// iron, the heat before it
+constexpr float WallLavaOut = 1.006f;
+constexpr float WallHeatIn = 0.994f;
 constexpr uint32 WallRiseMs = 1400;
 constexpr uint32 StruckLingerMs = 800;      // a strike seen only as it lands (the steam, the flood) stays this long
 // A Fonte mechanic is shown on the beat the wave before it strikes: its bots are sent to their spots this long after
@@ -1118,8 +1124,11 @@ private:
         AtBeat(Grid, shows, [this, middle, lasts]()
         {
             GroundIndicators::ShowDecal(me, middle, 0.0f, ArenaRadius, WallRiseMs, LOOK_WALL_RISE);
-            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_FIRST, WallLooks, WallPieces,
-                GroundIndicators::WardenWallPieceLength, lasts);
+            float const piece = GroundIndicators::WardenWallPieceLength;
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_LAVA, 1, WallPieces, piece * WallLavaOut, lasts);
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_GRILLE_FIRST, WallGrilleLooks, WallPieces, piece,
+                lasts);
+            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_HEAT, 1, WallPieces, piece * WallHeatIn, lasts);
             Sound("Vrogar.WallRise", middle);
         });
         // From a moment after the draw-in: a player teleported in is only there once its client has answered

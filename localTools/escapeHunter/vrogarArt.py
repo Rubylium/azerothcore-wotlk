@@ -255,6 +255,31 @@ def soak_timeline():
     return [(time * 150, frame) for time, frame in enumerate([0, 1, 2, 3, 2, 1])]
 
 
+# The wall in three layers (escape-hunter.ASSETS.md): the iron grille in front, its own top its silhouette (two of the
+# arena's pieces a band: 2048 x 768 is the wall's 12.54 x 4.7 yards, fitted into a 1024 x 512 texture and drawn back at
+# its aspect); the molten metal behind it flowing down, up to the grille's upper crossbar (its straight top hidden
+# behind it); the heat in front rising
+WALL_LAVA_SHARE = 0.467     # the lava's height in the wall's: the upper crossbar's middle (rows 390-429 of 768)
+
+
+def wall_grille():
+    return Image.open(os.path.join(ART, 'wall_grille.png')).convert('RGBA').resize((1024, 512), Image.LANCZOS)
+
+
+def wall_lava():
+    """The pouring metal, three of its tiles side by side a piece (each near square on the wall: 6.27 yards for 2.2
+    high), fitted 1024 x 512"""
+    tile = Image.open(os.path.join(ART, 'wall_lava.png')).convert('RGB')
+    row = Image.new('RGB', (tile.width * 3, tile.height))
+    for index in range(3):
+        row.paste(tile, (tile.width * index, 0))
+    return row.resize((1024, 512), Image.LANCZOS)
+
+
+def wall_heat():
+    return Image.open(os.path.join(ART, 'wall_heat.png')).convert('RGB')
+
+
 # The wall's band, from one bar's middle to another's three bars on (the paintings' edges are smeared: the band ran
 # on round the arena with a smear at each join)
 WALL_CROP = (104, 919)
