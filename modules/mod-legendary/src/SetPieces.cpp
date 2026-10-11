@@ -558,9 +558,19 @@ std::vector<uint32> GateRows(Player* player, uint32 gate)
         auto const found = Pieces.find(row);
         if (found == Pieces.end())
             continue;
-        // A kind its class is trained in (its stats change with the spec, the weapon's kind does not)
+        // A kind its class is trained in (its stats change with the spec, the weapon's kind does not): its weapon or
+        // armour proficiency (CanUseItem alone checks no weapon skill: a rogue was shown two-handed axes)
         if (std::ranges::any_of(found->second, [player](Profile const& profile)
-            { return player->CanUseItem(profile.item) == EQUIP_ERR_OK; }))
+            {
+                ItemTemplate const* item = profile.item;
+                if (player->CanUseItem(item) != EQUIP_ERR_OK)
+                    return false;
+                if (item->Class == ITEM_CLASS_WEAPON)
+                    return (player->GetWeaponProficiency() & (1 << item->SubClass)) != 0;
+                if (item->Class == ITEM_CLASS_ARMOR)
+                    return (player->GetArmorProficiency() & (1 << item->SubClass)) != 0;
+                return true;
+            }))
             rows.push_back(row);
     }
     return rows;
