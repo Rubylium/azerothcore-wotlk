@@ -1,0 +1,100 @@
+{
+  "_comment": [
+    "Effects rebuilt to Vrogar's forms (localTools/shapedEffects/buildShapedEffects.py): each a kit the server plays",
+    "where the form lands, turned to its axis (ForgeMaster ShapedImpact). Kits 82950-82999 (Vrogar's). The lava burst",
+    "(Deathwing's, imported from Ascension) as cones, lines and rings.",
+    "A wider cone is several of these side by side (a 180 degree one drew a streak along its edges)."
+  ],
+  "output": "modules/mod-stat-growth/client-assets/files",
+  "folder": "Spells/Evolutions/Shaped",
+  "effects": [
+    {
+      "key": "LavaCone90",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "cone": {
+          "arc": 90,
+          "radius": 15
+        }
+      },
+      "kit": 82950
+    },
+    {
+      "key": "LavaLine16x4",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "line": {
+          "length": 16,
+          "width": 4
+        }
+      },
+      "kit": 82952
+    },
+    {
+      "key": "LavaRing6to10",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "ring": {
+          "inner": 6,
+          "outer": 10
+        }
+      },
+      "kit": 82953
+    },
+    {
+      "key": "LavaRing10to15",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "ring": {
+          "inner": 10,
+          "outer": 15
+        }
+      },
+      "kit": 82954
+    },
+    {
+      "key": "LavaRing7to15",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "ring": {
+          "inner": 7,
+          "outer": 15
+        }
+      },
+      "kit": 82955
+    },
+    {
+      "key": "LavaLine8x8",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "line": {
+          "length": 8,
+          "width": 8
+        }
+      },
+      "kit": 82956
+    },
+    {
+      "key": "LavaLine4x8",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "line": {
+          "length": 4,
+          "width": 8
+        }
+      },
+      "kit": 82957
+    },
+    {
+      "key": "LavaCone45",
+      "source": "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact.m2",
+      "form": {
+        "cone": {
+          "arc": 45,
+          "radius": 15
+        }
+      },
+      "kit": 82958
+    }
+  ]
+}

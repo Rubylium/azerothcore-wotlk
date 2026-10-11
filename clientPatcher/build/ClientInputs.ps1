@@ -5,6 +5,7 @@
 # named here (or -forceRebuild).
 $classDataNames = @('Spells.ps1', 'StockSpells.ps1', 'Looks.ps1', 'TalentRankSpells.ps1', 'talentTree.json',
     'ascensionVisuals.json', 'classes.json', 'glyphItemDisplays.json', 'shapes.json', 'retailItems.generated.json',
+    'shapedEffects.json',
     'patchSinisterStrike.ps1', 'buildRogueClientAssets.ps1', 'buildPestifereClientAssets.ps1',
     'buildNecromancerClientAssets.ps1')
 $classDataScripts = @('localTools/oathblade/buildSounds.py', 'localTools/oathblade/buildBlueEffects.py',

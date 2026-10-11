@@ -26,6 +26,14 @@
       "outputs": ["modules/mod-stat-growth/client-assets/compiled/indicators"]
     },
     {
+      "name": "shapedEffects",
+      "label": "Effets en forme",
+      "command": ["python", "localTools/shapedEffects/buildShapedEffects.py"],
+      "inputs": ["localTools/shapedEffects", "localTools/oathblade/m2.py",
+                 "modules/mod-stat-growth/client-assets/importedVrogar/files/SPELLS/deathwing_lava_burst_impact*"],
+      "outputs": ["modules/mod-stat-growth/client-assets/files/Spells/Evolutions/Shaped"]
+    },
+    {
       "name": "vorhanIcons",
       "label": "Icônes de Vorhan",
       "command": ["python", "localTools/wardenVorhan/buildIcons.py"],

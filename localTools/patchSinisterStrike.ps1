@@ -1624,6 +1624,41 @@ foreach ($importFile in @(Get-ChildItem -Path (Join-Path $repoRoot 'modules\*\cl
     }
 }
 
+# --- Shaped effects (localTools\shapedEffects\buildShapedEffects.py) ---
+#
+# Effects rebuilt to a fight's forms (a cone, a line, a ring): each model an effect row (a copy of the ground ring's,
+# 5240) and a kit of the id the config gives (a copy of the indicators' bare kit, 12338, its base effect the model),
+# which the server plays where the form lands. The models ship from client-assets\files (patchFiles.js).
+$shapedConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\shapedEffects\shapedEffects.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($shaped in @($shapedConfig.effects)) {
+    $record = [byte[]]::new($effectNameDbc.RecordSize)
+    [Array]::Copy($effectNameDbc.Data, $effectNameDbc.Offsets[5240], $record, 0, $effectNameDbc.RecordSize)
+    $effectNameDbc.MaxId = $effectNameDbc.MaxId + 1
+    $effectId = [uint32]$effectNameDbc.MaxId
+    Set-Field $record 0 $effectId
+    Set-Field $record 1 (Add-DbcString $effectNameDbc.Strings "Evolutions Shaped $($shaped.key)")
+    $modelPath = ($shapedConfig.folder -replace '/', '\') + "\$($shaped.key).mdx"
+    Set-Field $record 2 (Add-DbcString $effectNameDbc.Strings $modelPath)
+    # Drawn at its own size whatever plays it (a kit on a creature is scaled by the creature: the lab's dummy drew
+    # them half as large again)
+    Set-Field $record 4 (Get-FloatBits 1.0)
+    Set-Field $record 5 (Get-FloatBits 1.0)
+    Set-Field $record 6 (Get-FloatBits 1.0)
+    $effectNameDbc.NewRecords.AddRange($record)
+
+    $kitId = [int]$shaped.kit
+    if ($visualKitDbc.Offsets.ContainsKey($kitId)) { throw "SpellVisualKit already has a row $kitId (shaped $($shaped.key))." }
+    $kit = [byte[]]::new($visualKitDbc.RecordSize)
+    [Array]::Copy($visualKitDbc.Data, $visualKitDbc.Offsets[12338], $kit, 0, $visualKitDbc.RecordSize)
+    Set-Field $kit 0 ([uint32]$kitId)
+    foreach ($field in $EffectFields) { Set-Field $kit $field 0 }
+    Set-Field $kit 5 $effectId
+    Set-Field $kit 15 0
+    Set-Field $kit 16 0
+    $visualKitDbc.Offsets[$kitId] = -1
+    $visualKitDbc.NewRecords.AddRange($kit)
+}
+
 # --- SpellIcon.dbc: existing icons by path, new records added on demand ---
 $iconSource = [IO.File]::ReadAllBytes($iconBackupPath)
 Assert-Wdbc $iconSource 'SpellIcon.dbc'
