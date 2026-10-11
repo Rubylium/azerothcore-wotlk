@@ -59,9 +59,13 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
   (their effect rows pinned to scale 1).
 - **Every strike has a 3D impact** where it lands: retail effects converted for 3.3.5 (Ascension's client,
   `localTools/ascensionImport/importVisuals.py`, one import folder per boss: `client-assets/imported<Boss>`), in the
-  fight's colours (tinted), compared in the lab before keeping. **An impact never leaves its shape**: sized from its
-  footprint measured in the lab against the 5 yd rings, laid out to fill cones, rings, lines and circles
-  (`ForgeMaster` `FillCone`/`FillRing`/`FillLine`); better still, an effect reshaped to the form (shaped effects).
+  fight's colours (tinted), compared in the lab before keeping. **An impact never leaves its shape**: a cone, a
+  line or a ring gets its effect reshaped to it (`localTools/shapedEffects`: the source model's emitters thrown over
+  the arc, spread over the strip or born on the ring; one kit per form in `shapedEffects.json`, played from the
+  form's origin turned a quarter left of its axis, `ForgeMaster` `ShapedImpact`/`ShapedCone`/`ShapedStrip`). A
+  180 degree cone does not reshape well (a streak along its edges): wide cones are 90/45 degree pieces side by side;
+  a long wide strip is tiles flush with its ends. Small circles keep a stock-shaped burst sized from its footprint
+  measured in the lab against the 5 yd rings.
 - Art scope: a boss's art is what players see in the fight (shapes, marks, walls, impacts); ability icons stay
   stock; never item art unless asked. A board page or gate for the boss on the Défi board (`ChallengeBoard.lua`).
 
