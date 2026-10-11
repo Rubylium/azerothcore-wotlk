@@ -1959,7 +1959,9 @@ bool EscapeAmong(Unit* unit, std::vector<ActiveArea> const& areas, std::vector<A
                 carried = std::max(carried, std::max(entry.area.radius, entry.keepAway));
 
     Position const here = unit->GetPosition();
-    bool const inside = InAnyArea(areas, here, unit->GetGUID(), InsideMargin);
+    // On the spot the fight gave it: out only when in an area itself, not near its edge (a spread's outer spots lie a
+    // yard inside the burning floor's: within the margin, the bot stepped off and back the whole spread)
+    bool const inside = InAnyArea(areas, here, unit->GetGUID(), HoldsUnitSpot(unit) ? 0.0f : InsideMargin);
     // ... unless it stands on the spot the fight gave it (a spread's): it holds there, the others keep off it (stepping
     // aside for each one coming near, then back to its spot, it jiggled and caught those beside it)
     bool const crowding = carried > 0.0f && !HoldsUnitSpot(unit) && OtherPlayerNear(unit, here, carried + InsideMargin);
