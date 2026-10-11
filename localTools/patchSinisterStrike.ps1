@@ -823,6 +823,10 @@ $customSpells += & ([ScriptBlock]::Create($wardenVorhanSpellSource))
 # cast bars, and its archers' arrow
 $escapeHunterSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\escapeHunter\Spells.ps1') -Raw -Encoding UTF8
 $customSpells += & ([ScriptBlock]::Create($escapeHunterSpellSource))
+# Valérian, the Gaol's third gate (modules/mod-stat-growth/src/ZealotBoss.cpp): its hits, debuffs, the light stolen
+# from him and its cast bars
+$valerianSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\valerian\Spells.ps1') -Raw -Encoding UTF8
+$customSpells += & ([ScriptBlock]::Create($valerianSpellSource))
 # The Hollow Voice's and Gardien-chef Vorhan's trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): their passives'
 # procs and buffs, their uses
 $raidTrinketSpellSource = Get-Content -LiteralPath (Join-Path $repoRoot 'localTools\raidTrinkets\Spells.ps1') -Raw -Encoding UTF8

@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "Valérian's music (the Hellfire Gaol's third gate, ZealotBoss.cpp), played by our own sound engine as music: the",
+    "game's own music silent meanwhile. Each track played once from its phase's start: the fight is timed on it (p1: a",
+    "pulse a second from 1.37 s; p2: 92.3 BPM from 1.39 s; plan: .agents/plans/gaol-third), and the server silences it",
+    "as it ends - the engine would loop it (loopStart 0) past the track's own fade-out, never reached."
+  ],
+  "sounds": {
+    "Music.ValerianZealot": {
+      "kind": "music",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/valerian_p1.ogg"
+      ],
+      "loopStart": 0
+    },
+    "Music.ValerianAscended": {
+      "kind": "music",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/valerian_p2.ogg"
+      ],
+      "loopStart": 0
+    }
+  }
+}

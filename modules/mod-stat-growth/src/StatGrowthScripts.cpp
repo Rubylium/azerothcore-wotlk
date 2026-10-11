@@ -860,6 +860,8 @@ public:
 void AddFrontierScripts();
 void AddWardenVorhanScripts();
 void AddForgeMasterScripts();
+// ZealotBoss.cpp: Valérian, le Zélote, the Gaol's third gate
+void AddZealotBossScripts();
 void AddFrontierQuartermasterScripts();
 // DaytimeCommand.cpp: .daytime, the game master's client set to a time of day
 void AddDaytimeCommand();
@@ -892,6 +894,7 @@ void AddStatGrowthScripts()
     AddHollowVoiceScripts();
     AddWardenVorhanScripts();
     AddForgeMasterScripts();
+    AddZealotBossScripts();
     AddMythicTuningScripts();
     AddMythicForgeOfSoulsScripts();
     AddMythicHallsOfLightningScripts();

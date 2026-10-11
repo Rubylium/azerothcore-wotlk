@@ -61,7 +61,7 @@ local WARDEN_MUSIC_FADE_IN, WARDEN_MUSIC_FADE_OUT = 1500, 2000
 -- The Gaol's gates on the warden's page, gate by gate: the boss behind each (a gate whose boss the board does not post
 -- is sealed) and its painting (ChallengeForge-*: Vrogar's forge and the forge-master, mod-stat-growth ForgeMaster.cpp);
 -- a gate without one shows the warden's figure in shadow
-local GATE_BOSSES = { WARDEN_BOSS, 930400 }
+local GATE_BOSSES = { WARDEN_BOSS, 930400, 930500 }
 local GATE_ART = { [2] = "ChallengeForge" }
 local GATE_SHADOWED = 0.3
 
@@ -276,6 +276,13 @@ local TEXT = french and {
     vrogarSignature = "— Vrogar",
     vrogarLore = "Derrière la deuxième porte, Vrogar coule les chaînes que portent les prisonniers de la Geôle. Sa "
         .. "forge bat au rythme de son enclume, et le métal en fusion ne choisit pas où il tombe.",
+    valerianName = "Valérian",
+    valerianEpithet = "le Zélote",
+    valerianPlace = "Les Remparts des Flammes infernales",
+    valerianQuote = "« Des années dans le noir. Donnez-moi la lumière - toute la lumière ! »",
+    valerianSignature = "— Valérian",
+    valerianLore = "Derrière la troisième porte, un fanatique de la Lumière attend depuis des années. Il en garde "
+        .. "une étincelle ; il la veut tout entière. Chaque lumière qui l'atteint le rapproche de ce qu'il croit être.",
     gateSealedButton = "Porte scellée",
     gateTitle = "Les portes de la Geôle",
     gateHelp = "La Geôle est un raid en plusieurs portes : chacune garde un gardien, un combat à part. Les portes "
@@ -297,6 +304,7 @@ local TEXT = french and {
         [1] = "Défi échoué : trop de tentatives.",
         [2] = "Défi échoué : le temps est écoulé.",
         [3] = "Défi annulé : le boss est introuvable.",
+        [4] = "Défi échoué.",
     },
     errors = {
         [1] = "Approchez-vous du tableau.",
@@ -478,6 +486,13 @@ local TEXT = french and {
     vrogarSignature = "— Vrogar",
     vrogarLore = "Behind the second gate, Vrogar casts the chains the Gaol's prisoners wear. His forge beats to the "
         .. "rhythm of his anvil, and molten iron does not choose where it falls.",
+    valerianName = "Valerian",
+    valerianEpithet = "the Zealot",
+    valerianPlace = "Hellfire Ramparts",
+    valerianQuote = "\"Years in the dark. Give me the light - all of it!\"",
+    valerianSignature = "— Valerian",
+    valerianLore = "Behind the third gate, a fanatic of the Light has waited for years. He keeps a spark of it; he "
+        .. "wants all of it. Every light that reaches him brings him closer to what he believes he is.",
     gateSealedButton = "Gate sealed",
     gateTitle = "The Gaol's gates",
     gateHelp = "The Gaol is a raid of several gates: each holds a warden, a fight of its own. The gates open as "
@@ -497,6 +512,7 @@ local TEXT = french and {
         [1] = "Challenge failed: too many attempts.",
         [2] = "Challenge failed: time ran out.",
         [3] = "Challenge cancelled: the boss could not be found.",
+        [4] = "Challenge failed.",
     },
     errors = {
         [1] = "Get closer to the board.",
@@ -567,6 +583,7 @@ local PLACE_BY_BOSS = {
     [VOICE_BOSS] = TEXT.voicePlace,
     [WARDEN_BOSS] = TEXT.wardenPlace,
     [930400] = TEXT.vrogarPlace,
+    [930500] = TEXT.valerianPlace,
 }
 
 local function DungeonTexture(dungeonId, kind)
@@ -1392,6 +1409,8 @@ local PAGE_SPECS = {
         gateText = {
             [2] = { name = TEXT.vrogarName, epithet = TEXT.vrogarEpithet, quote = TEXT.vrogarQuote,
                     signature = TEXT.vrogarSignature, lore = TEXT.vrogarLore },
+            [3] = { name = TEXT.valerianName, epithet = TEXT.valerianEpithet, quote = TEXT.valerianQuote,
+                    signature = TEXT.valerianSignature, lore = TEXT.valerianLore },
         },
         text = {
             tier = TEXT.voiceTier, profile = TEXT.voiceProfile, tierTitle = TEXT.voiceTierTitle,
