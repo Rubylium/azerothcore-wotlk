@@ -149,6 +149,9 @@ constexpr float SoakRadius = 4.0f;
 constexpr float SoakTotalPct = 180.0f;
 constexpr uint32 MoltenMs = 6000;
 constexpr uint32 LOOK_STACK_MARK = 94868;
+// A Fonte mechanic is shown on the beat the wave before it strikes: its bots are sent to their spots this long after
+// (sent at once, some left before that strike was resolved and died in it, or walked into a spread on their way)
+constexpr uint32 FonteSpotsAfterBeats = 1;
 
 // His impacts: retail effects in the forge's colours, played where a strike lands (localTools/escapeHunter/
 // ascensionVisuals.json, imported into client-assets/importedVrogar)
@@ -1781,20 +1784,28 @@ private:
         Position const middle = Middle();
         std::vector<ObjectGuid> carriers;
         _spreadBefore.clear();
+        std::vector<std::pair<ObjectGuid, Position>> spots;
         for (uint32 index = 0; index < players.size(); ++index)
         {
             Player* player = players[index];
             if (index < marks)
             {
                 GroundIndicators::ShowCarriedCircle(me, player, SpreadRadius, ms, MistakeDamage);
-                GroundIndicators::SetUnitSpot(me, player,
-                    AtAngle(middle, axis + SpreadAngles[index] * float(M_PI) / 180.0f, SpreadWall), 1.0f, ms);
+                spots.emplace_back(player->GetGUID(),
+                    AtAngle(middle, axis + SpreadAngles[index] * float(M_PI) / 180.0f, SpreadWall));
                 carriers.push_back(player->GetGUID());
                 _spreadBefore.insert(player->GetGUID());
             }
             else
-                GroundIndicators::SetUnitSpot(me, player, AtAngle(middle, axis, SpreadStack), 1.5f, ms);
+                spots.emplace_back(player->GetGUID(), AtAngle(middle, axis, SpreadStack));
         }
+        AtBeat(Grid, CurrentBeat(Grid) + FonteSpotsAfterBeats, [this, spots, carriers, lands]()
+        {
+            for (auto const& [guid, spot] : spots)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                    GroundIndicators::SetUnitSpot(me, player, spot,
+                        std::find(carriers.begin(), carriers.end(), guid) != carriers.end() ? 1.0f : 1.5f, MsTo(lands));
+        });
         AtBeat(Grid, lands, [this, carriers]()
         {
             for (Player* player : ArenaPlayers())
@@ -1845,7 +1856,6 @@ private:
         for (uint32 index = 0; index < marked.size(); ++index)
         {
             GroundIndicators::ShowCarriedLook(marked[index], LOOK_STACK_MARK, ms);
-            GroundIndicators::SetUnitSpot(me, marked[index], sides[index], 2.0f, ms);
             marks.push_back(marked[index]->GetGUID());
         }
         // The halves: tanks shared out first, then the rest in turn
@@ -1857,7 +1867,13 @@ private:
             { return IsTank(left) && !IsTank(right); });
         for (uint32 index = 0; index < rest.size(); ++index)
             follows[rest[index]->GetGUID()] = marks[index % marks.size()];
-        FollowSoaks(follows, lands);
+        AtBeat(Grid, CurrentBeat(Grid) + FonteSpotsAfterBeats, [this, marks, sides, follows, lands]()
+        {
+            for (uint32 index = 0; index < marks.size(); ++index)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, marks[index]))
+                    GroundIndicators::SetUnitSpot(me, player, sides[index], 2.0f, MsTo(lands));
+            FollowSoaks(follows, lands);
+        });
         AtBeat(Grid, lands, [this, marks]()
         {
             for (Player* player : ArenaPlayers())
