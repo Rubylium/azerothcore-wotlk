@@ -57,8 +57,8 @@ $spells = @(
         "Le Zélote libère sa ferveur sur tout le groupe."),
     (New-Hit 94639 'Lumière aveuglante' 642 $holy `
         "La Lumière a submergé l'arène : le Zélote n'avait pas assez faibli."),
-    (New-Hit 94640 'Jugement du Zélote' 20271 $holy `
-        "Le Zélote juge ceux qui l'ont mis à genoux."),
+    (New-Hit 94640 "Jugement de l'Ascensionné" 20271 $holy `
+        "Devenu dieu, il abat toute sa lumière sur l'arène : chacun n'en garde qu'un souffle."),
     (New-Hit 94641 'Lumière rendue' 48782 $holy `
         "Une lumière laissée au Zélote : il la reprend, et tout le groupe en est frappé."),
 

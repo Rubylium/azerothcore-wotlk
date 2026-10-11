@@ -87,8 +87,7 @@ constexpr uint8 SwapStacks = 2;
 constexpr float BurstGroupPct = 22.0f;      // Éclat de zèle, on the music's hits
 constexpr float FervorCarrierPct = 25.0f;   // Ferveur on its own carrier
 constexpr float FervorStackPct = 150.0f;    // Ferveur partagée: shared by those under it
-constexpr float AscendPct = 30.0f;          // the light pouring out of him as he rises
-constexpr float AscendKnockback = 7.0f;     // ... throwing everyone back (never as far as the wall)
+constexpr float AscendLeftPct = 10.0f;      // his first blow as a god leaves everyone at this share of their health
 // The victim's own health: a dodge missed
 constexpr float DodgePct = 75.0f;
 // A mistake: Ébloui for DazzleMs - a second mistake under it kills
@@ -146,7 +145,19 @@ constexpr uint32 Jailers = 3;
 constexpr uint32 JailersInMs = 2000;
 constexpr uint32 JailerLineMs = 7000;
 constexpr uint32 DeniedMs = 11000;      // the jailers' line said: he is beaten
-constexpr uint32 AscendMs = 3000;
+// His apotheosis, on p2's calm opening (Music.ValerianAscended, from the judgement on): standing, untouchable, the
+// light gathering (AscendRiseMs), then rising slowly AscendHeight yards over AscendRiseTakesMs and hovering, glowing
+// brighter and growing (AscendGlowEveryMs, to AscendScale); down as the track breaks (AscendLandMs) and his blow on its
+// hit (36.9 s: AscendHitMs) - then phase 2. P2's track ends at AscendedMusicEndMs after it started.
+constexpr uint32 AscendRiseMs = 2500;
+constexpr uint32 AscendRiseTakesMs = 12000;
+constexpr float AscendHeight = 7.0f;
+constexpr uint32 AscendGlowEveryMs = 1500;
+constexpr float AscendScale = 1.7f;
+constexpr uint32 AscendHitMs = 36900;
+constexpr uint32 AscendLandMs = AscendHitMs - 700;
+constexpr uint32 AscendedMusicEndMs = 281100;
+constexpr uint32 KIT_HOLY_GLOW = 7005;      // Holy_Precast_High_Base, played on him
 
 // What a red area is told to the bots (GroundIndicators hitDamage): nothing known, so always left
 constexpr uint32 MistakeDamage = 0;
@@ -430,6 +441,11 @@ struct boss_valerian : public Defi::BossAI
             Step const step = _timeline[_next++];
             Execute(step);
         }
+        if (_ascendFrom && elapsed >= _ascendFrom + AscendedMusicEndMs && !_ascendedMusicOver)
+        {
+            _ascendedMusicOver = true;
+            EndMusic();
+        }
         if (elapsed >= MusicEndMs && !_musicOver)
         {
             _musicOver = true;
@@ -498,6 +514,16 @@ struct boss_valerian : public Defi::BossAI
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return false;
         uint32 const now = CurrentBeat(Grid) + 1;
+        // His apotheosis and phase 2 now, as if every light had reached him (in a fight only)
+        if (what == "ascend")
+        {
+            if (_phase != Phase::Zealot)
+                return false;
+            scheduler.CancelAll();
+            EndCastBar();
+            Ascend();
+            return true;
+        }
         if (what == "lights")
         {
             StartLights(now, now + 60);
@@ -1375,28 +1401,61 @@ private:
         _phase = Phase::Ascending;
         ClearLights();
         GroundIndicators::ClearAreasOf(me);
+        // p2's calm opening is his apotheosis: p1's own end no longer silences anything (it cut p2 short)
+        _musicOver = true;
+        _ascendFrom = Elapsed();
+        StartMusic("Music.ValerianAscended");
         Talk(SAY_ASCEND);
         Sound("Valerian.Ascend", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
-        me->SetControlled(false, UNIT_STATE_ROOT);
-        me->SetCanFly(true);
-        me->SetDisableGravity(true);
-        Position up = Middle();
-        up.m_positionZ += 4.0f;
-        me->GetMotionMaster()->MoveTakeoff(1, up, 2.0f);
+        me->SetImmuneToAll(true);
         Position const middle = Middle();
-        for (uint32 index = 0; index < 8; ++index)
-            GroundIndicators::Burst(me, OnArena(float(index) * float(M_PI) / 4.0f, 6.0f), GroundIndicators::Theme::Holy);
-        for (Player* player : ArenaPlayers())
+        GroundIndicators::ShowDecal(me, middle, 0.0f, 8.0f, AscendHitMs, GroundIndicators::SPELL_SIGIL_RADIANT);
+        // The light gathering on him, brighter and brighter, until his blow
+        for (uint32 at = 0; at < AscendLandMs; at += AscendGlowEveryMs)
+            scheduler.Schedule(Milliseconds(at), [this, at](TaskContext)
+            {
+                me->SendPlaySpellVisual(KIT_HOLY_GLOW);
+                me->SetObjectScale(1.25f + (AscendScale - 1.25f) * float(at) / float(AscendLandMs));
+            });
+        // Up off the floor, slowly, and hovering
+        scheduler.Schedule(Milliseconds(AscendRiseMs), [this](TaskContext)
         {
-            Hit(player, SPELL_ASCEND, AscendPct);
-            player->KnockbackFrom(middle.GetPositionX(), middle.GetPositionY(), AscendKnockback, 6.0f);
-        }
-        scheduler.Schedule(Milliseconds(AscendMs), [this](TaskContext) { StartAscended(); });
+            me->SetControlled(false, UNIT_STATE_ROOT);
+            me->SetCanFly(true);
+            me->SetDisableGravity(true);
+            Position up = Middle();
+            up.m_positionZ += AscendHeight;
+            me->GetMotionMaster()->MoveTakeoff(1, up, AscendHeight / (float(AscendRiseTakesMs) / 1000.0f));
+        });
+        // Down as the music breaks
+        scheduler.Schedule(Milliseconds(AscendLandMs), [this](TaskContext)
+        {
+            me->GetMotionMaster()->MoveLand(2, Middle(), AscendHeight / 0.6f);
+        });
+        // His blow on its hit: everyone left at AscendLeftPct of their health, then phase 2
+        scheduler.Schedule(Milliseconds(AscendHitMs), [this](TaskContext)
+        {
+            Position const at = Middle();
+            Sound("Valerian.Burst", at);
+            Sound("Valerian.Wrath", at);
+            for (uint32 index = 0; index < 8; ++index)
+                GroundIndicators::Burst(me, OnArena(float(index) * float(M_PI) / 4.0f, 7.0f),
+                    GroundIndicators::Theme::Holy);
+            GroundIndicators::Burst(me, at, GroundIndicators::Theme::Holy);
+            for (Player* player : ArenaPlayers())
+            {
+                uint32 const left = uint32(float(player->GetMaxHealth()) * AscendLeftPct / 100.0f);
+                if (player->GetHealth() > left)
+                    HitOwnHealth(player, SPELL_ASCEND,
+                        float(player->GetHealth() - left) * 100.0f / float(player->GetMaxHealth()));
+            }
+            StartAscended();
+        });
     }
 
-    // Phase 2, bare: back on the floor at the middle, his health anew, his music
+    // Phase 2, bare: on the floor at the middle, his health anew (its music already on since his apotheosis)
     void StartAscended()
     {
         EndPace();
@@ -1404,12 +1463,13 @@ private:
         me->SetCanFly(false);
         me->SetDisableGravity(false);
         Position const middle = Middle();
-        me->NearTeleportTo(middle.GetPositionX(), middle.GetPositionY(), middle.GetPositionZ(), me->GetOrientation());
+        if (me->GetExactDist(&middle) > 1.0f)
+            me->NearTeleportTo(middle.GetPositionX(), middle.GetPositionY(), middle.GetPositionZ(), me->GetOrientation());
         me->SetControlled(true, UNIT_STATE_ROOT);
+        me->SetImmuneToAll(false);
         SetModelHealth();
         me->SetReactState(REACT_AGGRESSIVE);
         DoZoneInCombat(me, GetRoom().reach);
-        StartMusic("Music.ValerianAscended");
         LOG_INFO(_logName, "Valerian ascended instance={} health={}", me->GetInstanceId(), me->GetMaxHealth());
     }
 
@@ -1480,6 +1540,8 @@ private:
         _nextCheckMs = 0;
         _wallFrom = 0;
         _musicOver = false;
+        _ascendFrom = 0;
+        _ascendedMusicOver = false;
         _spawned = 0;
         _absorbed = 0;
         _taken = 0;
@@ -1503,6 +1565,8 @@ private:
     uint32 _nextCheckMs = 0;
     uint32 _wallFrom = 0;
     bool _musicOver = false;
+    uint32 _ascendFrom = 0;             // when his apotheosis began (Elapsed): p2's track from then
+    bool _ascendedMusicOver = false;
     std::vector<Light> _lights;
     std::vector<ObjectGuid> _jailers;
     uint32 _lightTimer = 0;
@@ -1571,7 +1635,7 @@ public:
         return true;
     }
 
-    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|lights>
+    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|lights|ascend>
     static bool HandleCast(ChatHandler* handler, std::string step)
     {
         boss_valerian* valerian = FindValerian(handler->GetPlayer());
