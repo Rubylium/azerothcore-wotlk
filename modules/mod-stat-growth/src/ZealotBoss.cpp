@@ -131,7 +131,7 @@ constexpr uint32 FervorBeats = 8;           // the marks explode this long after
 constexpr uint32 FervorFlipBeats = 5;       // ... and turn to a stack this long before
 constexpr float RageInnerShare = 0.4f;      // Rage contenue: the inside out to this share of the arena (a ring's own)
 constexpr uint32 RageFollowBeats = 3;
-constexpr float LanceWidth = 2.5f;
+constexpr float LanceWidth = 3.5f;
 constexpr float LanceSpacing = 8.0f;
 constexpr uint32 LanceShiftBeats = 3;
 constexpr uint32 BurstCastBeats = 3;
@@ -250,12 +250,19 @@ constexpr uint32 P2TellMs = 3000;           // a pattern's red this long before 
 // Ailes séraphiques: six tendrils from him to the wall, AilesWidth wide, sweeping AilesTurnDeg over AilesSweepMs; the
 // reversed one AilesTurnDeg / 2 one way, then AilesTurnDeg back the other
 constexpr uint32 AilesTendrils = 6;
-float const AilesWidth = P2Radius / 8.0f;      // a rectangle shape's own width (24 yd long: 3 yd), hit as drawn
+constexpr float AilesWidth = 4.5f;          // drawn as wide (its painting repeated along it at its own proportions)
 constexpr float AilesTurnDeg = 60.0f;
 constexpr uint32 AilesSweepMs = 2000;
-constexpr float AilesGapAt = 8.0f;          // where the bots stand in a gap: 5 yd clear, the gap moving 4 yd/s
+constexpr float AilesGapAt = 11.0f;          // where the bots stand in a gap: 5 yd clear, the gap moving 4 yd/s
 constexpr uint32 AilesGuideStepMs = 300;    // their spot moved along this often while the tendrils turn
-constexpr uint32 AilesGuideLeadMs = 200;    // ... where the gap will be this long after (a caster is slow to go)
+constexpr uint32 AilesGuideLeadMs = 200;
+// The split (the later sets): each tendril, once it has burst, splits; its halves slide AilesSplitDeg each way into the
+// gaps (AilesSplitAfterMs after it stopped, over AilesSplitSlideMs) and explode AilesSplitHoldMs after they land
+constexpr float AilesSplitDeg = 30.0f;
+constexpr float AilesSplitWidth = AilesWidth; // drawn with the tendril's own look: as wide
+constexpr uint32 AilesSplitAfterMs = 200;
+constexpr uint32 AilesSplitSlideMs = 600;
+constexpr uint32 AilesSplitHoldMs = 1000;    // ... where the gap will be this long after (a caster is slow to go)
 // Pluie d'astres: three stars carried to three beacons on the wall (StarsBeaconAt yd, 120 degrees apart), dropped where
 // the carriers stand at StarsDropMs, bursting at StarsBurstMs: a star on its beacon as its third of the arena from the
 // wall to StarsSafe yd of him, off it as a StarsMissRadius circle where it fell
@@ -274,26 +281,35 @@ constexpr uint32 GazeFollowMs = 3000;
 constexpr uint32 GazeFreezeMs = 1000;
 constexpr float GazeTargetPct = 35.0f;
 // Sentence: two halves (or four quadrants), numbered, struck in order SentenceStepMs apart from P2TellMs on
-constexpr uint32 SentenceStepMs = 1300;
+constexpr uint32 SentenceStepMs = 1500;    // between its counts
+constexpr uint32 SentenceCounts = 4;
+constexpr uint32 SpreadMs = 2000;           // its closing spread: a FervorRadius circle on everyone, bursting then
 constexpr float SentenceAt = 3.5f;          // the bots stand this close to him: a crossing through him in time
 constexpr uint32 SentenceWatchMs = 1000;   // a part an area for the bots only its last second
-// Le Chœur: seals on everyone, eight wedges light and shadow; the swap (a bell) at ChoirSwapMs, the wedges turn a step
-// at ChoirTurnMs, the choir sings at ChoirSingMs (its cast bar's length)
-constexpr uint32 ChoirSwapMs = 4500;
-constexpr uint32 ChoirTurnMs = 6000;
-constexpr uint32 ChoirSingMs = 8000;
+// Le Chœur: seals on everyone, eight wedges light and shadow; in verses of ChoirVerseMs (a cast bar each), the floor
+// turning ChoirTurnBeforeMs before each singing; the bell (the swap) ChoirBellBeforeMs before its verse's turn
+constexpr uint32 ChoirFirstCastMs = 1000;   // its first verse's cast bar after the seals
+constexpr uint32 ChoirVerseMs = 5000;       // a verse: its cast bar (CAST_CHOIR), the choir singing at its end
+constexpr uint32 ChoirTurnBeforeMs = 2000;  // the floor turns this long before the choir sings
+constexpr uint32 ChoirTurnMs = 800;         // ... over this long
+constexpr uint32 ChoirBellBeforeMs = 1500;  // the bell (the swap) this long before its verse's turn
 constexpr float ChoirRing = 10.0f;          // where the bots stand in their wedge
 constexpr float ChoirNeighbour = 9.0f;      // a real player this near another is swapped with them
 // Écho: every player's after-image (EchoRadius) bursts EchoMs after the rewind begins, then everyone left at
 // EchoLeftPct; nothing hurts for EchoCalmMs after it (no pattern, no melee: the healers' time)
 constexpr float EchoRadius = 5.0f;
-constexpr uint32 EchoMs = 5000;
+constexpr uint32 EchoMs = 6000;            // on the music's drop (1:12.0)
 constexpr float EchoLeftPct = 5.0f;
 constexpr uint32 EchoCalmMs = 10000;
 // Ascension: a pizza (six of eight slices burn, AscensionTellMs warned), orbs coming in along the two left, OrbSpeed
 // yd/s; an orb taken gives Surcharge (OverloadMs: a second taken under it bursts, OrbBurstPct); one that reaches him
 // heals him OrbHealPct of his phase 2 health
 constexpr uint32 AscensionTellMs = 3000;
+constexpr uint32 AscensionLastsMs = 21000;  // the pizza on the floor, one drawing, three waves
+constexpr uint32 AscensionWaveMs = 7000;
+constexpr uint32 AscensionTurnMs = 2000;    // it turns a slice this long before each wave after the first
+constexpr uint32 AscensionTickMs = 500;     // its slices burn whoever stands in them, checked this often
+constexpr uint32 AscensionGraceMs = 1500;   // ... a player hit not again before this
 constexpr float OrbSpeed = 4.0f;
 constexpr float OrbFrom = 22.0f;
 constexpr float OrbReach = 1.6f;
@@ -307,6 +323,7 @@ constexpr float EclipseHole = 4.0f;
 constexpr float EclipseHoleAt = 14.0f;
 constexpr uint32 EclipseMs = 5000;
 constexpr uint32 EclipseSecondMs = 4000;
+constexpr float EclipseHitPct = 60.0f;      // the light breaking on those in it: of their health (a healer check)
 constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on him (stock 7005 without its tints:
                                             // they stayed on him, and on the god after, yellow and see-through)
 
@@ -358,7 +375,7 @@ enum Looks : uint32
     LOOK_CHOIR_SHADOW_WISPS     = 98813,
     LOOK_ECLIPSE_VEIL_TWO       = 98814,    // the dark, its holes cut (valerianArt.py eclipse_veil: facing between them)
     LOOK_ECLIPSE_VEIL_ONE       = 98815,    // ... its one hole behind it
-    LOOK_TENDRIL                = 98816,    // Ailes séraphiques' tendril: 8 to 1
+    LOOK_TENDRIL                = 98816,    // Ailes séraphiques' tendril: 24 x 4.5 yd, its painting repeated along it
     LOOK_GAZE_CONE              = 98817,    // Regard divin
     LOOK_GAZE_FLARE             = 98818,    // ... as it freezes
     LOOK_ORB_LANE               = 98819,    // an orb's path to him: 8 to 1
@@ -380,7 +397,9 @@ enum Looks : uint32
     LOOK_MARK_ORB_FULL          = 98838,
     LOOK_SEAL_SWAP_LS           = 98839,    // a seal burning into the other (a flipbook, SealSwapMs)
     LOOK_SEAL_SWAP_SL           = 98840,
-    LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and II painted in
+    LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and III painted in one, II and IV the other
+    LOOK_LANCE_FLARE            = 98843,    // a lance's tile flashing as it strikes (added, its own alpha keys)
+    LOOK_TENDRIL_FLARE          = 98844,    // a tendril (or a split half) flashing as it strikes
 };
 
 // The layer shown over a look (0: none)
@@ -410,6 +429,7 @@ constexpr float WallLightOut = 1.006f;      // the light's ring a little behind 
 constexpr float WallMotesIn = 0.994f;
 constexpr uint32 WallRiseMs = 1400;
 constexpr float LanceTileRatio = 4.0f;
+constexpr uint32 LineFlareMs = 700;         // a line's flare (shapes.json VL_LanceFlare / VL_TendrilFlare alphaKeys)
 constexpr float SigilRadius = 8.0f;
 constexpr uint32 SealSwapMs = 600;          // a seal's swap flipbook (six frames, 100 ms each)
 constexpr float EclipseSpread = 1.22f;      // the first Éclipse's holes this far each side of its veil's facing
@@ -616,18 +636,19 @@ Rule const RuleSentence = { SPELL_SENTENCE, DodgePct, "sentence", "Valerian.Wrat
 Rule const RuleEcho = { SPELL_ECHO, DodgePct, "echo", "Valerian.Fervor", Look::Blast, false };
 Rule const RulePizza = { SPELL_STARS, DodgePct, "pizza", "Valerian.Chain", Look::Shaped };
 Rule const RuleEclipse = { SPELL_ECLIPSE, 100.0f, "eclipse" };
+Rule const RuleSpread = { SPELL_SENTENCE, DodgePct, "spread", "Valerian.Fervor", Look::None };
 
 // Phase 2 on p2's track (ms from his apotheosis), each pattern ending before the next starts (3-5 s between); after
 // Écho's hit and the choir's swap, nothing that hurts. arg: a pattern's version (0 its first, 1 its twist, ...)
 enum class P2Event : uint8
 {
-    Ailes,          // 1: reversed halfway
+    Ailes,          // 1: reversed halfway; 2, 3: the same, then the split
     Stars,
     Gaze,           // arg: the eyes (1 or 2)
-    Sentence,       // 0: two halves, 1: four quadrants
-    Choir,          // 1: two seals swapped
+    Sentence,       // 0: two halves, 1: four quadrants (each closed by a spread), 2: two halves, no spread
+    Choir,          // 0: three verses, 1: four, the bell before verses 2 and 4
     Echo,
-    Ascension,      // arg: the wave (0, 1, 2: each turned 45 degrees)
+    Ascension,      // the pizza and its three waves
     Eclipse,        // 0: two holes, 1: one, on the other side
     TotalLight,
 };
@@ -643,14 +664,13 @@ std::vector<P2Step> BuildP2Timeline()
 {
     return {
         { 41000, P2Event::Ailes, 0 }, { 52000, P2Event::Stars }, { 66000, P2Event::Echo },
-        { 82000, P2Event::Choir, 0 }, { 97000, P2Event::Sentence, 0 },
-        { 106000, P2Event::Ascension, 0 }, { 113000, P2Event::Ascension, 1 }, { 120000, P2Event::Ascension, 2 },
-        { 131000, P2Event::Gaze, 1 }, { 138000, P2Event::Ailes, 1 }, { 147000, P2Event::Stars },
-        { 158000, P2Event::Sentence, 1 }, { 168000, P2Event::Gaze, 2 }, { 179000, P2Event::Choir, 1 },
-        { 202000, P2Event::Ailes, 0 }, { 211000, P2Event::Stars },
+        { 82000, P2Event::Choir, 0 }, { 106000, P2Event::Ascension },
+        { 131000, P2Event::Gaze, 1 }, { 138000, P2Event::Ailes, 3 }, { 147000, P2Event::Stars },
+        { 158000, P2Event::Sentence, 0 }, { 171000, P2Event::Gaze, 2 }, { 179000, P2Event::Choir, 1 },
+        { 202000, P2Event::Ailes, 2 }, { 211000, P2Event::Stars },
         { 223000, P2Event::Eclipse, 0 }, { 231000, P2Event::Eclipse, 1 },
-        { 240000, P2Event::Sentence, 1 }, { 250000, P2Event::Gaze, 2 },
-        { TotalLightCastMs, P2Event::TotalLight }, { 258000, P2Event::Ailes, 1 }, { 266000, P2Event::Sentence, 0 },
+        { 240000, P2Event::Sentence, 1 }, { 252000, P2Event::Gaze, 2 },
+        { TotalLightCastMs, P2Event::TotalLight }, { 258000, P2Event::Ailes, 3 }, { 266000, P2Event::Sentence, 2 },
     };
 }
 
@@ -918,8 +938,17 @@ struct boss_valerian : public Defi::BossAI
             StartLights(now, now + 60);
             return true;
         }
+        // In the lab: one lance from him eastward, its flash 1.5 s later (the flash against the drawing)
+        if (what == "line" && _phase == Phase::Rehearsal)
+        {
+            Lance(Middle(), 0.0f, 20.0f, 3000);
+            scheduler.Schedule(Milliseconds(1500), [this](TaskContext) { ShapedLance(Middle(), 0.0f, 20.0f); });
+            return true;
+        }
         static std::map<std::string, P2Step> const p2 = {
             { "ailes", { 0, P2Event::Ailes, 0 } }, { "ailes2", { 0, P2Event::Ailes, 1 } },
+            { "ailes3", { 0, P2Event::Ailes, 2 } }, { "ailes4", { 0, P2Event::Ailes, 3 } },
+            { "sentence3", { 0, P2Event::Sentence, 2 } },
             { "stars", { 0, P2Event::Stars, 0 } }, { "gaze", { 0, P2Event::Gaze, 1 } },
             { "gaze2", { 0, P2Event::Gaze, 2 } }, { "sentence", { 0, P2Event::Sentence, 0 } },
             { "sentence2", { 0, P2Event::Sentence, 1 } }, { "choir", { 0, P2Event::Choir, 0 } },
@@ -1157,13 +1186,27 @@ private:
     // A lance from origin along facing, length long: its tiles end to end, the last flush with its end
     void ShapedLance(Position const& origin, float facing, float length)
     {
+        ShapedLine(origin, facing, length, LanceWidth);
+    }
+
+    // A line's flash from origin along facing: its own painting flaring over it (a lance in its tiles, a tendril whole).
+    // The 10 x 2.5 kit was played for it first: it ignored its carrier's facing (seen in the FX lab, every flash ran
+    // the same way across its line - the grid's flashes read as shifted)
+    void ShapedLine(Position const& origin, float facing, float length, float width)
+    {
+        if (width > LanceWidth)
+        {
+            GroundIndicators::ShowDecal(me, origin, facing, length, LineFlareMs, LOOK_TENDRIL_FLARE);
+            return;
+        }
         float const tile = LanceWidth * LanceTileRatio;
         float done = 0.0f;
         for (; length - done >= tile; done += tile)
-            ShapedImpact(SHAPED_HOLY_LINE_10X2, Ground(AtAngle(origin, facing, done)), facing);
+            GroundIndicators::ShowDecal(me, Ground(AtAngle(origin, facing, done)), facing, tile, LineFlareMs,
+                LOOK_LANCE_FLARE);
         if (length - done > 0.5f)
-            ShapedImpact(SHAPED_HOLY_LINE_10X2, Ground(AtAngle(origin, facing, std::max(0.0f, length - tile))),
-                facing);
+            GroundIndicators::ShowDecal(me, Ground(AtAngle(origin, facing, std::max(0.0f, length - tile))), facing,
+                std::min(tile, length), LineFlareMs, LOOK_LANCE_FLARE);
     }
 
     // A circle radius yards: the golden flash sized to it, Light's Judgement's sparks round its edge
@@ -2300,6 +2343,8 @@ private:
         EndPace();
         ClearLights();
         GroundIndicators::ClearAreasOf(me);
+        // His wall comes down (it no longer kills: the jailers walking in are seen)
+        GroundIndicators::FadeLooksOf(me, LOOK_WALL_BARS_FIRST, LOOK_WALL_MOTES);
         EndMusic();
         me->AddAura(SPELL_OUT_OF_REACH, me);
         Talk(SAY_STOLEN);
@@ -2603,13 +2648,13 @@ private:
                  _p2Pool ? 50.0f * float(_p2True) / float(_p2Pool) : 0.0f);
         switch (step.what)
         {
-            case P2Event::Ailes: Ailes(step.arg == 1); break;
+            case P2Event::Ailes: Ailes(step.arg); break;
             case P2Event::Stars: Stars(); break;
             case P2Event::Gaze: Gaze(std::max<uint32>(1, step.arg)); break;
-            case P2Event::Sentence: Sentence(step.arg == 1); break;
+            case P2Event::Sentence: Sentence(step.arg); break;
             case P2Event::Choir: Choir(step.arg == 1); break;
             case P2Event::Echo: Echo(); break;
-            case P2Event::Ascension: AscensionWave(step.arg); break;
+            case P2Event::Ascension: Ascension(); break;
             case P2Event::Eclipse: Eclipse(step.arg == 1); break;
             case P2Event::TotalLight: TotalLight(); break;
         }
@@ -2655,8 +2700,10 @@ private:
 
     // --- Ailes séraphiques: six tendrils from him to the wall, swept round ---------------------------------------------
     // Each tendril one drawing from its tell to the end of its sweep: still, then turning (and back, reversed)
-    void Ailes(bool reversed)
+    void Ailes(uint32 version)
     {
+        bool const reversed = version % 2 == 1;
+        bool const split = version >= 2;
         Position const middle = Middle();
         float const base = frand(0.0f, 2.0f * float(M_PI));
         float const turn = AilesTurnDeg * float(M_PI) / 180.0f;
@@ -2699,6 +2746,50 @@ private:
         auto hit = std::make_shared<std::set<ObjectGuid>>();
         for (uint32 t = P2TellMs; t <= total; t += 200)
             After(t, [this, base, turns, t, hit]() { StrikeTendrils(base + GroundIndicators::TurnedBy(turns, t), hit); });
+        // Where they stop: a flash along each (its strike seen)
+        float const end = base + GroundIndicators::TurnedBy(turns, total);
+        After(total, [this, end]()
+        {
+            for (uint32 index = 0; index < AilesTendrils; ++index)
+                ShapedLine(Middle(), end + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius,
+                    AilesWidth);
+            SoundNearest("Valerian.Lances", { Middle() });
+        });
+        if (split)
+            After(total, [this, end]() { SplitTendrils(end); });
+    }
+
+    // The split: each tendril, burst where it stopped (end: the first's facing), splits; its halves slide into the gaps
+    // either side and explode there - the line it burst on is the way out
+    void SplitTendrils(float end)
+    {
+        float const slide = AilesSplitDeg * float(M_PI) / 180.0f;
+        uint32 const lands = AilesSplitAfterMs + AilesSplitSlideMs;
+        uint32 const blows = lands + AilesSplitHoldMs;
+        Areas halves;
+        for (uint32 index = 0; index < AilesTendrils; ++index)
+        {
+            float const from = end + float(index) * 2.0f * float(M_PI) / float(AilesTendrils);
+            for (float side : { -1.0f, 1.0f })
+            {
+                GroundIndicators::Area area = GroundIndicators::ShowTurningRectangle(me, Middle(), from, P2Radius,
+                    AilesSplitWidth, blows, { { AilesSplitAfterMs, AilesSplitSlideMs, side * slide } }, MistakeDamage,
+                    LOOK_TENDRIL);
+                area.origin.SetOrientation(Position::NormalizeOrientation(from + side * slide));
+                halves.push_back(area);
+            }
+        }
+        // The bots: onto the lines the tendrils burst on
+        std::vector<Position> lines;
+        for (uint32 index = 0; index < AilesTendrils; ++index)
+            lines.push_back(P2At(end + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), AilesGapAt));
+        GuideP2(lines, blows + 300);
+        After(blows, [this, halves]()
+        {
+            Strike(halves, RuleAiles);
+            for (GroundIndicators::Area const& half : halves)
+                ShapedLine(Middle(), half.origin.GetOrientation(), P2Radius, AilesSplitWidth);
+        });
     }
 
     // Everyone on a tendril now (angle: the first's) struck, once a sweep
@@ -2915,52 +3006,116 @@ private:
     }
 
     // --- Sentence: halves (or quadrants) numbered, struck in their order ----------------------------------------------
-    void Sentence(bool quadrants)
+    // version 0: two halves, 1: four quadrants (each closed by a spread), 2: two halves, no spread. At each count every
+    // part but that count's strikes (its numeral painted in it): the group moves every count
+    void Sentence(uint32 version)
     {
+        bool const quadrants = version == 1;
         uint32 const parts = quadrants ? 4 : 2;
         float const arc = 360.0f / float(parts);
         float const base = frand(0.0f, 2.0f * float(M_PI));
-        std::vector<uint32> order(parts);
-        for (uint32 index = 0; index < parts; ++index)
-            order[index] = index;
-        Acore::Containers::RandomShuffle(order);
         auto angleOf = [base, parts](uint32 part) { return base + float(part) * 2.0f * float(M_PI) / float(parts); };
-        // He faces the first
-        me->SetFacingTo(angleOf(order[0]));
-        for (uint32 step = 0; step < parts; ++step)
+        // The part safe at each count: the halves in turn (I, III on one, II, IV on the other), the quadrants in a
+        // random order
+        std::vector<uint32> safeAt = { 0, 1, 0, 1 };
+        if (quadrants)
         {
-            uint32 const part = order[step];
-            uint32 const lands = P2TellMs + step * SentenceStepMs;
-            // Drawn from the tell, an area the bots leave only its last SentenceWatchMs (drawn as one from the start, every
-            // part was red to them: the one to wait on too, and they could stand nowhere)
-            // Its numeral painted in (as a decal of its own, the client drew it under the part's fill whenever it lay
-            // past it from the camera)
-            uint32 const look = (parts == 2 ? LOOK_SENTENCE_HALF_FIRST : LOOK_SENTENCE_QUARTER_FIRST) + step;
-            GroundIndicators::Area const area = GroundIndicators::ShowTurningCone(me, Middle(), angleOf(part),
-                P2Radius + 1.0f, arc, lands, {}, MistakeDamage, false, look, LayerOf(look));
-            After(lands > SentenceWatchMs ? lands - SentenceWatchMs : 0, [this, area]()
-            {
-                GroundIndicators::WatchArea(me, area, SentenceWatchMs, MistakeDamage);
-            });
-            After(lands, [this, area]() { Strike(Areas{ area }, RuleSentence); });
+            safeAt = { 0, 1, 2, 3 };
+            Acore::Containers::RandomShuffle(safeAt);
         }
-        // The bots: on the last, then into the first once it has burned
-        float const last = angleOf(order[parts - 1]);
-        float const first = angleOf(order[0]);
-        GuideP2(Fan(last, arc * 0.5f, SentenceAt, 8), P2TellMs + 300);
-        After(P2TellMs + 150, [this, first, arc, parts]()
+        me->SetFacingTo(angleOf(safeAt[0]));
+        uint32 const lastMs = P2TellMs + (SentenceCounts - 1) * SentenceStepMs;
+        std::vector<GroundIndicators::Area> areas(parts);
+        for (uint32 part = 0; part < parts; ++part)
         {
-            GuideP2(Fan(first, arc * 0.5f, SentenceAt, 8), (parts - 1) * SentenceStepMs + 500);
+            uint32 const count = uint32(std::find(safeAt.begin(), safeAt.end(), part) - safeAt.begin());
+            uint32 const look = quadrants ? LOOK_SENTENCE_QUARTER_FIRST + count : LOOK_SENTENCE_HALF_FIRST + part;
+            areas[part] = GroundIndicators::ShowTurningCone(me, Middle(), angleOf(part), P2Radius + 1.0f, arc,
+                lastMs + 300, {}, MistakeDamage, false, look, LayerOf(look));
+        }
+        for (uint32 count = 0; count < SentenceCounts; ++count)
+        {
+            uint32 const lands = P2TellMs + count * SentenceStepMs;
+            Areas striking;
+            for (uint32 part = 0; part < parts; ++part)
+                if (part != safeAt[count])
+                    striking.push_back(areas[part]);
+            // An area for the bots its last SentenceWatchMs only (the part they wait on would be red to them too)
+            After(lands - SentenceWatchMs, [this, striking]()
+            {
+                for (GroundIndicators::Area const& area : striking)
+                    GroundIndicators::WatchArea(me, area, SentenceWatchMs, MistakeDamage);
+            });
+            After(lands, [this, striking]() { Strike(striking, RuleSentence); });
+            // The bots: into the count's part as the last one struck, close to him
+            uint32 const from = count ? lands - SentenceStepMs + 100 : 0;
+            float const safe = angleOf(safeAt[count]);
+            After(from, [this, safe, arc, lands, from]()
+            {
+                GuideP2(Fan(safe, arc * 0.5f, SentenceAt, 8), lands - from + 300);
+            });
+        }
+        if (version != 2)
+            After(lastMs + 100, [this]() { Spread(); });
+    }
+
+    // A FervorRadius circle on everyone, bursting SpreadMs later: whoever stands in another's takes its hit
+    void Spread()
+    {
+        std::vector<ObjectGuid> marked;
+        for (Player* player : ArenaPlayers())
+        {
+            marked.push_back(player->GetGUID());
+            GroundIndicators::ShowCarriedLook(player, LOOK_FERVOR_SPREAD, SpreadMs);
+            GroundIndicators::WatchCarriedCircle(me, player, FervorRadius, SpreadMs, MistakeDamage);
+        }
+        // The bots: round the arena, far apart
+        GuideP2(Fan(frand(0.0f, 2.0f * float(M_PI)), 315.0f, 15.0f, 8), SpreadMs + 300);
+        After(SpreadMs, [this, marked]()
+        {
+            std::set<ObjectGuid> hit;
+            for (ObjectGuid const& guid : marked)
+            {
+                Player* carrier = ObjectAccessor::GetPlayer(*me, guid);
+                if (!carrier || !carrier->IsAlive())
+                    continue;
+                Blast(Ground(carrier->GetPosition()), FervorRadius);
+                for (Player* other : ArenaPlayers())
+                    if (other != carrier && !hit.count(other->GetGUID()) && other->GetExactDist2d(carrier) <= FervorRadius)
+                        hit.insert(other->GetGUID());
+            }
+            Sound("Valerian.Fervor", Middle());
+            if (_phase == Phase::Rehearsal)
+                return;
+            for (ObjectGuid const& guid : hit)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid))
+                    Mistake(player, RuleSpread);
         });
     }
 
     // --- Le Chœur: seals, eight wedges light and shadow -------------------------------------------------------------------
+    // Verses: each the floor turns (verses[k] steps, either way), then the choir sings; two steps bring a colour back
+    // under whoever stands on it. The second: four verses, the bell before the second and the fourth
     void Choir(bool swap)
     {
-        CastBar(CAST_CHOIR);
         float const offset = frand(0.0f, 2.0f * float(M_PI));
         float const way = urand(0, 1) ? 1.0f : -1.0f;
         float const step = float(M_PI) / 4.0f;
+        std::vector<int32> const verses = swap ? std::vector<int32>{ 1, -1, 2, -1 } : std::vector<int32>{ 1, -1, 2 };
+        uint32 const count = uint32(verses.size());
+        auto singAt = [](uint32 verse) { return ChoirFirstCastMs + ChoirVerseMs * (verse + 1); };
+        uint32 const total = singAt(count - 1);
+        // The wedges after each verse's turn (where wedge 0 starts)
+        std::vector<float> after(count);
+        std::vector<GroundIndicators::Turn> turns;
+        float rotation = offset;
+        for (uint32 verse = 0; verse < count; ++verse)
+        {
+            float const by = way * float(verses[verse]) * step;
+            turns.push_back({ singAt(verse) - ChoirTurnBeforeMs, ChoirTurnMs, by });
+            rotation += by;
+            after[verse] = rotation;
+        }
         // The seals: half light (0), half shadow (1)
         std::vector<Player*> players = ArenaPlayers();
         Acore::Containers::RandomShuffle(players);
@@ -2970,11 +3125,12 @@ private:
             uint32 const seal = index % 2;
             (*seals)[players[index]->GetGUID()] = seal;
             GroundIndicators::ShowCarriedLook(players[index], seal ? LOOK_MARK_SEAL_SHADOW : LOOK_MARK_SEAL_LIGHT,
-                ChoirSingMs + 500);
+                total + 500);
         }
-        DrawWedges(offset, way * step);
+        DrawWedges(offset, turns, total);
+        After(ChoirFirstCastMs, [this]() { CastBar(CAST_CHOIR); });
         // The bots: each to a wedge of its colour (wedge k: light if k even)
-        // within: where in its wedge (0 its start, 1 its end, counterclockwise): before the turn by the edge it turns
+        // within: where in its wedge (0 its start, 1 its end, counterclockwise): before a turn by the edge it turns
         // towards, after it just past the new wedge's edge they come from - a short step (a long arc was late)
         auto place = [this, seals, step](float wedgesAt, float within, uint32 ms)
         {
@@ -2990,91 +3146,87 @@ private:
                     1.0f, ms);
             }
         };
-        float const before = way > 0.0f ? 0.8f : 0.2f;
-        float const after = way > 0.0f ? 0.25f : 0.75f;
-        place(offset, before, ChoirTurnMs + 200);
-        if (swap)
-            After(ChoirSwapMs, [this, seals, offset, place, before]()
+        for (uint32 verse = 0; verse < count; ++verse)
+        {
+            uint32 const turnsAt = singAt(verse) - ChoirTurnBeforeMs;
+            uint32 const from = verse ? singAt(verse - 1) + 100 : 0;
+            float const wedgesAt = verse ? after[verse - 1] : offset;
+            bool const forward = way * float(verses[verse]) > 0.0f;
+            bool const two = std::abs(verses[verse]) == 2;
+            float const before = forward ? 0.8f : 0.2f;
+            float const behind = forward ? 0.25f : 0.75f;
+            // Before its turn (a two-step turn: held there to the singing - the colour comes back)
+            After(from, [place, wedgesAt, before, turnsAt, from, two, verse, singAt]()
             {
-                SwapSeals(*seals, offset);
-                place(offset, before, ChoirTurnMs - ChoirSwapMs + 200);
+                place(wedgesAt, before, (two ? singAt(verse) : turnsAt) - from + 300);
             });
-        After(ChoirTurnMs, [offset, way, step, place, after]()
-        {
-            float const turned = offset + way * step;
-            place(turned, after, ChoirSingMs - ChoirTurnMs + 300);
-        });
-        After(ChoirSingMs - 300, [this, seals, offset, way, step]()
-        {
-            Position const middle = Middle();
-            float const turned = offset + way * step;
-            for (Player* player : ArenaPlayers())
+            // The bell: the seals swap before the turn
+            if (swap && (verse == 1 || verse == 3))
+                After(turnsAt - ChoirBellBeforeMs, [this, seals, place, wedgesAt, before, turnsAt, total]()
+                {
+                    SwapSeals(*seals, total - (turnsAt - ChoirBellBeforeMs) + 500);
+                    place(wedgesAt, before, ChoirBellBeforeMs + 300);
+                });
+            if (!two)
+                After(turnsAt, [place, turned = after[verse], behind, verse, singAt, turnsAt]()
+                {
+                    place(turned, behind, singAt(verse) - turnsAt + 300);
+                });
+            After(singAt(verse), [this, seals, step, turned = after[verse], last = verse + 1 == count]()
             {
-                auto const found = seals->find(player->GetGUID());
-                if (found == seals->end())
-                    continue;
-                float const at = Position::NormalizeOrientation(middle.GetAbsoluteAngle(player) - turned);
-                uint32 const wedge = uint32(at / step) % 8;
-                if (wedge % 2 != found->second)
-                    LOG_INFO(_logName, "Valerian choir probe instance={} {} bot={} class={} tank={} seal={} wedge={} "
-                             "at={:.1f}yd moving={}", me->GetInstanceId(), player->GetName(), IsBotPlayer(player),
-                             player->getClass(), IsTank(player), found->second, wedge,
-                             player->GetExactDist2d(&middle), player->isMoving());
-            }
-        });
-        After(ChoirSingMs, [this, seals, offset, way, step]()
-        {
-            EndCastBar();
-            float const turned = offset + way * step;
-            Position const middle = Middle();
-            Player* wrong = nullptr;
-            for (Player* player : ArenaPlayers())
-            {
-                auto const found = seals->find(player->GetGUID());
-                if (found == seals->end())
-                    continue;
-                float const at = Position::NormalizeOrientation(middle.GetAbsoluteAngle(player) - turned);
-                uint32 const wedge = uint32(at / step) % 8;
-                if (wedge % 2 != found->second)
-                    wrong = player;
-            }
-            Sound("Valerian.LitanyEnd", middle);
-            if (!wrong)
-                return;
-            LOG_INFO(_logName, "Valerian dissonance instance={} {} bot={}", me->GetInstanceId(), wrong->GetName(),
-                     IsBotPlayer(wrong));
-            Sound("Valerian.Profanation", middle);
-            Blast(middle, P2Radius);
-            if (_phase != Phase::Rehearsal)
+                EndCastBar();
+                if (!last)
+                    CastBar(CAST_CHOIR);
+                Position const middle = Middle();
+                Player* wrong = nullptr;
                 for (Player* player : ArenaPlayers())
-                    Doom(player, SPELL_DISSONANCE);
-        });
+                {
+                    auto const found = seals->find(player->GetGUID());
+                    if (found == seals->end())
+                        continue;
+                    float const at = Position::NormalizeOrientation(middle.GetAbsoluteAngle(player) - turned);
+                    uint32 const wedge = uint32(at / step) % 8;
+                    if (wedge % 2 != found->second)
+                        wrong = player;
+                }
+                Sound("Valerian.LitanyEnd", middle);
+                if (!wrong)
+                    return;
+                LOG_INFO(_logName, "Valerian dissonance instance={} {} bot={}", me->GetInstanceId(), wrong->GetName(),
+                         IsBotPlayer(wrong));
+                Sound("Valerian.Profanation", middle);
+                Blast(middle, P2Radius);
+                if (_phase != Phase::Rehearsal)
+                    for (Player* player : ArenaPlayers())
+                        Doom(player, SPELL_DISSONANCE);
+            });
+        }
     }
 
     // The shadow wedges (odd k from offset; the light ones are the gaps between), drawn once for the whole choir and
     // turning their step in place at ChoirTurnMs (red until their art); drawn only: a colour to stand on, not a hit (as
     // areas the bots of the shadow seal fled them)
-    void DrawWedges(float offset, float turnBy)
+    void DrawWedges(float offset, std::vector<GroundIndicators::Turn> const& turns, uint32 lastsMs)
     {
-        std::vector<GroundIndicators::Turn> const turns = { { ChoirTurnMs, 800, turnBy } };
         // Both colours painted (wedge k light if k even), drawn only: the floor's colour to stand on, not a hit
         for (uint32 wedge = 0; wedge < 8; ++wedge)
         {
             bool const light = wedge % 2 == 0;
             GroundIndicators::ShowTurningCone(me, Middle(), offset + (float(wedge) + 0.5f) * float(M_PI) / 4.0f,
-                P2Radius + 1.0f, 45.0f, ChoirSingMs, turns, MistakeDamage, false,
+                P2Radius + 1.0f, 45.0f, lastsMs, turns, MistakeDamage, false,
                 light ? LOOK_CHOIR_LIGHT : LOOK_CHOIR_SHADOW, light ? LOOK_CHOIR_LIGHT_GLOW : LOOK_CHOIR_SHADOW_WISPS);
         }
     }
 
     // The swap (a bell): every real player swaps seals with a neighbour of the other seal - a real player beside them if
     // there is one, else the nearest bot of the other seal
-    void SwapSeals(std::map<ObjectGuid, uint32>& seals, float /*offset*/)
+    // holdMs: how long the new seals are worn (to the last singing)
+    void SwapSeals(std::map<ObjectGuid, uint32>& seals, uint32 holdMs)
     {
         Sound("Valerian.VerseTell", Middle());
         std::vector<Player*> players = ArenaPlayers();
         std::set<ObjectGuid> swapped;
-        auto doSwap = [this, &seals, &swapped](Player* a, Player* b)
+        auto doSwap = [this, &seals, &swapped, holdMs](Player* a, Player* b)
         {
             std::swap(seals[a->GetGUID()], seals[b->GetGUID()]);
             swapped.insert(a->GetGUID());
@@ -3087,11 +3239,11 @@ private:
                 GroundIndicators::ClearCarriedLook(who, LOOK_MARK_SEAL_SHADOW);
                 GroundIndicators::ShowCarriedLook(who, shadow ? LOOK_SEAL_SWAP_LS : LOOK_SEAL_SWAP_SL, SealSwapMs);
                 ObjectGuid const guid = who->GetGUID();
-                After(SealSwapMs, [this, guid, shadow]()
+                After(SealSwapMs, [this, guid, shadow, holdMs]()
                 {
                     if (Player* swapped = ObjectAccessor::GetPlayer(*me, guid))
                         GroundIndicators::ShowCarriedLook(swapped, shadow ? LOOK_MARK_SEAL_SHADOW : LOOK_MARK_SEAL_LIGHT,
-                            ChoirSingMs - ChoirSwapMs - SealSwapMs + 500);
+                            holdMs > SealSwapMs ? holdMs - SealSwapMs : 0);
                 });
             }
         };
@@ -3160,26 +3312,59 @@ private:
     }
 
     // --- Ascension: a pizza, its safe slices where the orbs come in ---------------------------------------------------------
-    void AscensionWave(uint32 wave)
+    // The pizza (six of eight slices burning), one drawing for its three waves, turning a slice before the second and
+    // the third; burning whoever stands in it all along (from its tell); the orbs come down its two safe slices
+    void Ascension()
     {
-        float const safe = _pizzaBase + float(wave) * float(M_PI) / 4.0f;
         float const slice = float(M_PI) / 4.0f;
+        float const way = urand(0, 1) ? 1.0f : -1.0f;
+        std::vector<GroundIndicators::Turn> turns;
+        for (uint32 wave = 1; wave < 3; ++wave)
+            turns.push_back({ wave * AscensionWaveMs - AscensionTurnMs, AscensionTurnMs, way * slice });
         Areas burning;
         for (uint32 index = 1; index < 8; ++index)
-        {
-            if (index == 4)
-                continue;
-        {
-            GroundIndicators::Area area = MakeCircle(Middle(), P2Radius + 1.0f);
-            area.kind = GroundIndicators::Area::Kind::Cone;
-            area.origin.SetOrientation(safe + float(index) * slice);
-            area.arc = slice;
-            burning.push_back(Painted(area, LOOK_DIVINE_CONE_45, AscensionTellMs));
-        }
-        }
-        After(AscensionTellMs, [this, burning]() { Strike(burning, RulePizza); });
-        // Who may take one: an empty ring over the head, a full one under Surcharge (UpdateOrbs swaps them)
-        uint32 const markMs = AscensionTellMs + uint32(OrbFrom / OrbSpeed * 1000.0f);
+            if (index != 4)
+                burning.push_back(GroundIndicators::ShowTurningCone(me, Middle(), _pizzaBase + float(index) * slice,
+                    P2Radius + 1.0f, 45.0f, AscensionLastsMs, turns, MistakeDamage, true, LOOK_DIVINE_CONE_45,
+                    LOOK_DIVINE_GLOW_45));
+        auto lastHit = std::make_shared<std::map<ObjectGuid, uint32>>();
+        for (uint32 t = AscensionTellMs; t < AscensionLastsMs; t += AscensionTickMs)
+            After(t, [this, burning, turns, t, lastHit]()
+            {
+                float const turned = GroundIndicators::TurnedBy(turns, t);
+                for (Player* player : ArenaPlayers())
+                {
+                    auto const before = lastHit->find(player->GetGUID());
+                    if (before != lastHit->end() && t - before->second < AscensionGraceMs)
+                        continue;
+                    for (GroundIndicators::Area area : burning)
+                    {
+                        area.origin.SetOrientation(Position::NormalizeOrientation(area.origin.GetOrientation() + turned));
+                        if (!area.Contains(player->GetPosition()))
+                            continue;
+                        (*lastHit)[player->GetGUID()] = t;
+                        Blast(Ground(player->GetPosition()), 2.0f);
+                        if (_phase != Phase::Rehearsal)
+                            Mistake(player, RulePizza);
+                        break;
+                    }
+                }
+            });
+        for (uint32 wave = 0; wave < 3; ++wave)
+            After(wave * AscensionWaveMs, [this, wave, way, slice]()
+            {
+                AscensionWave(_pizzaBase + float(wave) * way * slice);
+            });
+        // The bots: in the safe slices, along with them as they turn
+        for (uint32 t = 0; t < AscensionLastsMs; t += AilesGuideStepMs)
+            After(t, [this, turns, t]() { GuideAscension(_pizzaBase + GroundIndicators::TurnedBy(turns, t + 300)); });
+    }
+
+    // A wave: its orbs down the safe slices (safe: one's middle; the other opposite), who may take one marked
+    void AscensionWave(float safe)
+    {
+        uint32 const markMs = uint32(OrbFrom / OrbSpeed * 1000.0f) + 1000;
+        _catchers.clear();
         for (Player* player : ArenaPlayers())
         {
             GroundIndicators::ClearCarriedLook(player, LOOK_MARK_ORB_FREE);
@@ -3208,26 +3393,29 @@ private:
                 _orbs.push_back({ orb->GetGUID(), lane, OrbFrom });
             }
         }
-        // The bots: in the two safe slices, AscensionAside yd off the lanes (clear of the orbs' reach, and far enough out
-        // that a slice is wide: by him its edges are a yard from the lane); one catcher on each lane (one free of Surcharge)
+        // Its catchers: two bots free of Surcharge, one a lane
+        for (Player* bot : SortedBots())
+            if (_catchers.size() < 2 && !bot->HasAura(SPELL_OVERLOAD) && !IsTank(bot))
+                _catchers.push_back(bot->GetGUID());
+    }
+
+    // The bots in the safe slices (safe: one's middle), AscensionAside yd off the lanes; the catchers on them
+    void GuideAscension(float safe)
+    {
         std::vector<Position> spots;
         for (float lane : { safe, safe + float(M_PI) })
-            for (float way : { -1.0f, 1.0f })
+            for (float side : { -1.0f, 1.0f })
                 for (float d : { 12.0f, 17.0f })
-                    spots.push_back(P2At(lane + way * std::asin(AscensionAside / d), d));
-        std::vector<Player*> const bots = SortedBots();
+                    spots.push_back(P2At(lane + side * std::asin(AscensionAside / d), d));
         uint32 next = 0;
-        uint32 catchers = 0;
-        for (Player* bot : bots)
+        for (Player* bot : SortedBots())
         {
-            if (catchers < 2 && !bot->HasAura(SPELL_OVERLOAD) && !IsTank(bot))
-            {
-                GroundIndicators::SetUnitSpot(me, bot, P2At(catchers ? safe + float(M_PI) : safe, 10.0f), 0.8f,
-                    AscensionTellMs + 4000);
-                ++catchers;
-                continue;
-            }
-            GroundIndicators::SetUnitSpot(me, bot, spots[next++ % spots.size()], 1.0f, AscensionTellMs + 4000);
+            auto const catcher = std::find(_catchers.begin(), _catchers.end(), bot->GetGUID());
+            if (catcher != _catchers.end())
+                GroundIndicators::SetUnitSpot(me, bot, P2At(catcher == _catchers.begin() ? safe : safe + float(M_PI),
+                    10.0f), 0.8f, AilesGuideStepMs + 400);
+            else
+                GroundIndicators::SetUnitSpot(me, bot, spots[next++ % spots.size()], 1.0f, AilesGuideStepMs + 400);
         }
     }
 
@@ -3338,6 +3526,9 @@ private:
                     if (_phase != Phase::Rehearsal)
                         Doom(player, SPELL_ECLIPSE);
                 }
+                // In the light: it breaks on them all the same (the healers' check)
+                else if (_phase != Phase::Rehearsal)
+                    HitOwnHealth(player, SPELL_ECLIPSE, EclipseHitPct);
             }
         });
     }
@@ -3469,6 +3660,7 @@ private:
     uint32 _p2True = 0;                 // what of it the group has not dealt yet (the bar shows the pace above it)
     float _starsBase = 0.0f;
     float _pizzaBase = 0.0f;
+    std::vector<ObjectGuid> _catchers;      // Ascension's wave: the bots taking its orbs
     float _eclipseAngle = 0.0f;         // the first Éclipse's holes, the second's on the other side
     uint32 _totalLightAt = 0;
     struct Orb

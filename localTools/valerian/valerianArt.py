@@ -304,14 +304,14 @@ NUMERAL_AT = 0.52
 NUMERAL_HALF = 0.1
 
 
-def with_numeral(rgba, x, y, numeral):
-    """rgba with sentence_numeral_<numeral>.png laid over it, its top along +x - mirrored, as the floor's projection
-    draws a cone's picture mirrored (IV read VI in the FX lab)"""
+def with_numeral(rgba, x, y, numeral, at=NUMERAL_AT):
+    """rgba with sentence_numeral_<numeral>.png laid over it at `at` along +x, its top along +x - mirrored, as the
+    floor's projection draws a cone's picture mirrored (IV read VI in the FX lab)"""
     picture = keyed(load(f'sentence_numeral_{numeral}.png'))
     size = picture.shape[0]
     columns = numpy.clip(((y / NUMERAL_HALF + 1.0) / 2.0 * size).astype(int), 0, size - 1)
-    rows = numpy.clip(((-(x - NUMERAL_AT) / NUMERAL_HALF + 1.0) / 2.0 * size).astype(int), 0, size - 1)
-    within = (numpy.abs(y) < NUMERAL_HALF) & (numpy.abs(x - NUMERAL_AT) < NUMERAL_HALF)
+    rows = numpy.clip(((-(x - at) / NUMERAL_HALF + 1.0) / 2.0 * size).astype(int), 0, size - 1)
+    within = (numpy.abs(y) < NUMERAL_HALF) & (numpy.abs(x - at) < NUMERAL_HALF)
     over = picture[rows, columns] * within[..., None]
     a = over[..., 3:4]
     colour = rgba[..., :3] * (1.0 - a) + over[..., :3] * a
@@ -319,14 +319,21 @@ def with_numeral(rgba, x, y, numeral):
     return numpy.concatenate([colour, alpha], axis=2)
 
 
+# A half's two numerals (the counts it is safe at: I and III, II and IV), one behind the other along its middle
+NUMERAL_PAIR_AT = (0.36, 0.68)
+
+
 def divine(shape, value, tiles, numeral=0):
-    """Ascension's slices, Sentence's halves and quadrants (numeral: its own painted in): a sheet of divine light over
-    the stone (dimmed: the players' feet must stay readable; its glow is divine_glow)"""
+    """Ascension's slices, Sentence's halves and quadrants (numeral: its own painted in, or a list of two): a sheet of
+    divine light over the stone (dimmed: the players' feet must stay readable; its glow is divine_glow)"""
     x, y, inside, pixel = grid_of(shape, value)
     sheet = tiled(seamless('fill_divine.png'), x * tiles / 2.0, y * tiles / 2.0)
     # A clean rim (a god's light): bled licks smeared white past a 45 degree slice's narrow sides
     rgba = rimmed(sheet * 0.5, inside, pixel, DIVINE_RIM, 0.72)
-    if numeral:
+    if isinstance(numeral, list):
+        for number, at in zip(numeral, NUMERAL_PAIR_AT):
+            rgba = with_numeral(rgba, x, y, number, at)
+    elif numeral:
         rgba = with_numeral(rgba, x, y, numeral)
     return image(rgba)
 
