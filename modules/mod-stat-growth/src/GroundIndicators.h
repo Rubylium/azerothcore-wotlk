@@ -104,11 +104,16 @@ namespace GroundIndicators
     };
     // How far the plan has turned elapsedMs after it was drawn
     float TurnedBy(std::vector<Turn> const& turns, uint32 elapsedMs);
+    // look: a painted shape drawn in place of the red (shapes.json kind texture, painted to the area's proportions:
+    // a rectangle's width is then as given, a cone's arc arcDegrees); layer: a second look over it (its glow), turning
+    // with it on a carrier of its own
     Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                              uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0);
+                              uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0,
+                              uint32 look = 0);
     // watched false: drawn only, not an area the bots leave (a floor's colour to stand on, not a hit)
     Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                         uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0, bool watched = true);
+                         uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0, bool watched = true,
+                         uint32 look = 0, uint32 layer = 0);
     // The same sweep with a painted line built to its size (shapes.json `scale`: never scaled, it would grow in on the
     // client), its carrier at start: a blade swept round the room
     Area ShowSweepingLine(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
@@ -122,7 +127,8 @@ namespace GroundIndicators
     // followMs: it follows for that long, then holds where it points (the same drawing: never a new one in its place,
     // which fades out and in) until durationMs
     Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                          Unit* aimedAt, uint32 hitDamage = 0, bool away = false, uint32 followMs = 0);
+                          Unit* aimedAt, uint32 hitDamage = 0, bool away = false, uint32 followMs = 0,
+                          uint32 look = 0);
     // Where a tracking cone points now
     Area CurrentCone(Unit* aimedAt, Area const& area);
     // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a

@@ -659,6 +659,9 @@ uint32 FadeLookOf(uint32 look)
     // Valérian's (ZealotBoss.cpp): 60, their twins 60 on
     if (look >= 98600 && look < 98660)
         return look + 60;
+    // ... his phase 2's: 50, their twins 50 on (the Faucheur's ranks below, its specializations from 98900)
+    if (look >= 98800 && look < 98850)
+        return look + 50;
     return 0;
 }
 
@@ -1622,14 +1625,14 @@ void RegisterTurns(Unit* owner, Area const& area, uint32 durationMs, std::vector
 }
 
 Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                          uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage)
+                          uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage, uint32 look)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
         length / width);
     Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
-    area.width = length / shape.size;
-    if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
+    area.width = look ? width : length / shape.size;
+    if (Creature* stalker = Place(owner, start, orientation, look ? look : shape.spell, length, durationMs))
     {
         stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
         RegisterTurns(owner, area, durationMs, turns, hitDamage);
@@ -1638,12 +1641,16 @@ Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation,
 }
 
 Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                     uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage, bool watched)
+                     uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage, bool watched, uint32 look,
+                     uint32 layer)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
-    area.arc = shape.size * float(M_PI) / 180.0f;
-    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
+    area.arc = (look ? arcDegrees : shape.size) * float(M_PI) / 180.0f;
+    if (layer)
+        if (Creature* glow = Place(owner, apex, orientation, layer, radius, durationMs))
+            glow->AIM_Initialize(new TurnPlanAI(glow, orientation, turns));
+    if (Creature* stalker = Place(owner, apex, orientation, look ? look : shape.spell, radius, durationMs))
     {
         stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
         if (watched)
@@ -1840,15 +1847,15 @@ Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float r
 }
 
 Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                      Unit* aimedAt, uint32 hitDamage, bool away, uint32 followMs)
+                      Unit* aimedAt, uint32 hitDamage, bool away, uint32 followMs, uint32 look)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     float const offset = away ? float(M_PI) : 0.0f;
     float const facing = Position::NormalizeOrientation(apex.GetAngle(aimedAt->GetPositionX(),
         aimedAt->GetPositionY()) + offset);
     Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
-    area.arc = shape.size * float(M_PI) / 180.0f;
-    if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs))
+    area.arc = (look ? arcDegrees : shape.size) * float(M_PI) / 180.0f;
+    if (Creature* stalker = Place(owner, apex, facing, look ? look : shape.spell, radius, durationMs))
     {
         stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset, followMs));
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), offset);

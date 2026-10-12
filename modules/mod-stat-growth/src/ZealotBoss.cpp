@@ -341,6 +341,46 @@ enum Looks : uint32
     LOOK_MARK_VERSE_FIRST       = 98622,    // La Litanie's numerals I-VIII over the heads (+ the verse's index)
     LOOK_LITANY_SIGIL           = 98630,    // its clock under him: I at its top, then clockwise
     LOOK_LITANY_SIGIL_GLOW      = 98631,
+    // Phase 2's (the brief: gaol-third.ASSETS-p2.md; 98800 up, the Faucheur's ranks below)
+    LOOK_DIVINE_CONE_45         = 98800,    // Ascension's burning slices
+    LOOK_DIVINE_GLOW_45         = 98801,
+    LOOK_DIVINE_CONE_180        = 98802,    // Sentence's halves
+    LOOK_DIVINE_GLOW_180        = 98803,
+    LOOK_DIVINE_CONE_90         = 98804,    // ... its quadrants
+    LOOK_DIVINE_GLOW_90         = 98805,
+    LOOK_STARFALL_THIRD         = 98806,    // a star on its beacon: its third, from StarsSafe to the wall
+    LOOK_STARFALL_GLOW_THIRD    = 98807,
+    LOOK_STARFALL_CIRCLE        = 98808,    // a star dropped off its beacon
+    LOOK_STARFALL_GLOW_CIRCLE   = 98809,
+    LOOK_CHOIR_LIGHT            = 98810,    // Le Chœur's wedges, light and shadow
+    LOOK_CHOIR_LIGHT_GLOW       = 98811,
+    LOOK_CHOIR_SHADOW           = 98812,
+    LOOK_CHOIR_SHADOW_WISPS     = 98813,
+    LOOK_ECLIPSE_VEIL_TWO       = 98814,    // the dark, its holes cut (valerianArt.py eclipse_veil: facing between them)
+    LOOK_ECLIPSE_VEIL_ONE       = 98815,    // ... its one hole behind it
+    LOOK_TENDRIL                = 98816,    // Ailes séraphiques' tendril: 8 to 1
+    LOOK_GAZE_CONE              = 98817,    // Regard divin
+    LOOK_GAZE_FLARE             = 98818,    // ... as it freezes
+    LOOK_ORB_LANE               = 98819,    // an orb's path to him: 8 to 1
+    LOOK_BEACON                 = 98820,    // a star's beacon
+    LOOK_BEACON_RAYS            = 98821,
+    LOOK_STAR_CARRIED           = 98822,    // carried, built to StarsCarried
+    LOOK_ECHO                   = 98823,    // an after-image
+    LOOK_ECHO_GLOW              = 98824,
+    LOOK_ECLIPSE_HOLE           = 98825,
+    LOOK_ECLIPSE_HOLE_RIM       = 98826,
+    LOOK_SENTENCE_QUARTER_FIRST = 98827,    // Sentence's quadrants, numerals I-IV painted in (+ the part's step)
+    LOOK_TOTAL_LIGHT_SIGIL      = 98831,    // under him for Lumière totale, growing
+    LOOK_TOTAL_LIGHT_RUNES      = 98832,
+    LOOK_MARK_SEAL_LIGHT        = 98833,    // over the heads: the seals, the carriers, the gaze, the orbs
+    LOOK_MARK_SEAL_SHADOW       = 98834,
+    LOOK_MARK_STAR              = 98835,
+    LOOK_MARK_GAZE              = 98836,
+    LOOK_MARK_ORB_FREE          = 98837,
+    LOOK_MARK_ORB_FULL          = 98838,
+    LOOK_SEAL_SWAP_LS           = 98839,    // a seal burning into the other (a flipbook, SealSwapMs)
+    LOOK_SEAL_SWAP_SL           = 98840,
+    LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and II painted in
 };
 
 // The layer shown over a look (0: none)
@@ -353,6 +393,15 @@ constexpr uint32 LayerOf(uint32 look)
         case LOOK_RAGE_CIRCLE: return LOOK_RAGE_CRACKS_CIRCLE;
         case LOOK_RAGE_RING_40: return LOOK_RAGE_CRACKS_RING_40;
         case LOOK_REVERS_CONE_90: return LOOK_REVERS_FLARE;
+        case LOOK_DIVINE_CONE_45: return LOOK_DIVINE_GLOW_45;
+        case LOOK_DIVINE_CONE_180: return LOOK_DIVINE_GLOW_180;
+        case LOOK_DIVINE_CONE_90: return LOOK_DIVINE_GLOW_90;
+        case LOOK_STARFALL_THIRD: return LOOK_STARFALL_GLOW_THIRD;
+        case LOOK_STARFALL_CIRCLE: return LOOK_STARFALL_GLOW_CIRCLE;
+        case LOOK_ECHO: return LOOK_ECHO_GLOW;
+        case LOOK_SENTENCE_QUARTER_FIRST: case LOOK_SENTENCE_QUARTER_FIRST + 1: case LOOK_SENTENCE_QUARTER_FIRST + 2:
+        case LOOK_SENTENCE_QUARTER_FIRST + 3: return LOOK_DIVINE_GLOW_90;
+        case LOOK_SENTENCE_HALF_FIRST: case LOOK_SENTENCE_HALF_FIRST + 1: return LOOK_DIVINE_GLOW_180;
         default: return 0;
     }
 }
@@ -362,6 +411,8 @@ constexpr float WallMotesIn = 0.994f;
 constexpr uint32 WallRiseMs = 1400;
 constexpr float LanceTileRatio = 4.0f;
 constexpr float SigilRadius = 8.0f;
+constexpr uint32 SealSwapMs = 600;          // a seal's swap flipbook (six frames, 100 ms each)
+constexpr float EclipseSpread = 1.22f;      // the first Éclipse's holes this far each side of its veil's facing
 
 // His impacts: retail holy effects Ascension converted (localTools/valerian/ascensionVisuals.json, importedValerian),
 // and Dragonflight's holy impact rebuilt to his forms (localTools/shapedEffects: played from the form's origin, turned a
@@ -2630,7 +2681,7 @@ private:
         for (uint32 index = 0; index < AilesTendrils; ++index)
             GroundIndicators::ShowTurningRectangle(me, middle,
                 base + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius, AilesWidth, total, turns,
-                MistakeDamage);
+                MistakeDamage, LOOK_TENDRIL);
         // The bots: each in a gap's middle, moved along with the gaps as they turn (a little ahead of them)
         float const gap = float(M_PI) / float(AilesTendrils);
         auto gapsAt = [this, base, gap, turns](uint32 t)
@@ -2721,15 +2772,20 @@ private:
             Player* carrier = players[index];
             carriers.push_back(carrier->GetGUID());
             // (no keep-away: a carrier keeping away chose its own place and held it, not the beacon)
-            GroundIndicators::ShowCarriedCircle(me, carrier, StarsCarried, StarsDropMs, MistakeDamage);
+            GroundIndicators::WatchCarriedCircle(me, carrier, StarsCarried, StarsDropMs, MistakeDamage);
+            GroundIndicators::ShowCarriedLook(carrier, LOOK_STAR_CARRIED, StarsDropMs);
+            GroundIndicators::ShowCarriedLook(carrier, LOOK_MARK_STAR, StarsDropMs);
             if (IsBotPlayer(carrier))
                 GroundIndicators::SetUnitSpot(me, carrier, P2At(base + float(index) * 2.0f * float(M_PI) / 3.0f,
                     StarsBeaconAt), 1.0f, StarsDropMs);
         }
-        // The beacons: a pillar of light each, until the drop
+        // The beacons: painted where a star counts (StarsOnBeacon), until the drop
         for (uint32 index = 0; index < StarsCount; ++index)
-            GroundIndicators::PlayKit(me, P2At(base + float(index) * 2.0f * float(M_PI) / 3.0f, StarsBeaconAt),
-                KIT_HOLY_IMPACT, 0.8f, 1000, StarsDropMs);
+        {
+            Position const beacon = P2At(base + float(index) * 2.0f * float(M_PI) / 3.0f, StarsBeaconAt);
+            GroundIndicators::ShowDecal(me, beacon, 0.0f, StarsOnBeacon, StarsDropMs, LOOK_BEACON);
+            GroundIndicators::ShowDecal(me, beacon, 0.0f, StarsOnBeacon, StarsDropMs, LOOK_BEACON_RAYS);
+        }
         // The others under him meanwhile
         std::vector<Position> underHim;
         for (uint32 index = 0; index < 8; ++index)
@@ -2769,12 +2825,18 @@ private:
                          me->GetInstanceId(), carrier->GetName(), IsBotPlayer(carrier), star.GetExactDist2d(&middle),
                          middle.GetAbsoluteAngle(&star) * 180.0f / float(M_PI), beacon, nearest);
                 if (beacon >= 0)
-                    areas.push_back(GroundIndicators::ShowCone(me, Middle(), base + float(beacon) * 2.0f *
-                        float(M_PI) / 3.0f, P2Radius + 1.0f, 120.0f, StarsBurstMs - StarsDropMs,
-                        GroundIndicators::Theme::Holy, MistakeDamage, StarsSafe));
+                {
+                    // Its third from StarsSafe out (painted hollowed to StarsSafe / (P2Radius + 1): 0.4)
+                    GroundIndicators::Area third = MakeCircle(Middle(), P2Radius + 1.0f);
+                    third.kind = GroundIndicators::Area::Kind::Cone;
+                    third.origin.SetOrientation(base + float(beacon) * 2.0f * float(M_PI) / 3.0f);
+                    third.arc = 2.0f * float(M_PI) / 3.0f;
+                    third.inner = StarsSafe;
+                    areas.push_back(Painted(third, LOOK_STARFALL_THIRD, StarsBurstMs - StarsDropMs));
+                }
                 else
-                    areas.push_back(GroundIndicators::ShowCircle(me, star, StarsMissRadius, StarsBurstMs - StarsDropMs,
-                        GroundIndicators::Theme::Holy, MistakeDamage));
+                    areas.push_back(Painted(MakeCircle(star, StarsMissRadius), LOOK_STARFALL_CIRCLE,
+                        StarsBurstMs - StarsDropMs));
             }
             // Everyone under him
             for (Player* player : ArenaPlayers())
@@ -2805,7 +2867,8 @@ private:
         for (Player* target : targets)
         {
             GroundIndicators::Area const tracking = GroundIndicators::ShowTrackingCone(me, Middle(), P2Radius + 1.0f,
-                GazeArc, GazeFollowMs + GazeFreezeMs, target, MistakeDamage, false, GazeFollowMs);
+                GazeArc, GazeFollowMs + GazeFreezeMs, target, MistakeDamage, false, GazeFollowMs, LOOK_GAZE_CONE);
+            GroundIndicators::ShowCarriedLook(target, LOOK_MARK_GAZE, GazeFollowMs + GazeFreezeMs);
             ObjectGuid const guid = target->GetGUID();
             After(GazeFollowMs, [this, tracking, guid]()
             {
@@ -2813,6 +2876,8 @@ private:
                 // Held where it points now (its drawing stops following: the same one)
                 GroundIndicators::Area const frozen = target ? GroundIndicators::CurrentCone(target, tracking) : tracking;
                 GroundIndicators::WatchArea(me, frozen, GazeFreezeMs, MistakeDamage);
+                GroundIndicators::ShowDecal(me, frozen.origin, frozen.origin.GetOrientation(), frozen.radius,
+                    GazeFreezeMs, LOOK_GAZE_FLARE);
                 After(GazeFreezeMs, [this, frozen, guid]()
                 {
                     Strike(Areas{ frozen }, RuleGaze, guid);
@@ -2868,15 +2933,15 @@ private:
             uint32 const lands = P2TellMs + step * SentenceStepMs;
             // Drawn from the tell, an area the bots leave only its last SentenceWatchMs (drawn as one from the start, every
             // part was red to them: the one to wait on too, and they could stand nowhere)
+            // Its numeral painted in (as a decal of its own, the client drew it under the part's fill whenever it lay
+            // past it from the camera)
+            uint32 const look = (parts == 2 ? LOOK_SENTENCE_HALF_FIRST : LOOK_SENTENCE_QUARTER_FIRST) + step;
             GroundIndicators::Area const area = GroundIndicators::ShowTurningCone(me, Middle(), angleOf(part),
-                P2Radius + 1.0f, arc - 0.5f, lands, {}, MistakeDamage, false);
+                P2Radius + 1.0f, arc, lands, {}, MistakeDamage, false, look, LayerOf(look));
             After(lands > SentenceWatchMs ? lands - SentenceWatchMs : 0, [this, area]()
             {
                 GroundIndicators::WatchArea(me, area, SentenceWatchMs, MistakeDamage);
             });
-            Position numeral = P2At(angleOf(part), 11.0f);
-            numeral.m_positionZ += 2.0f;
-            GroundIndicators::ShowBillboard(me, numeral, LOOK_MARK_VERSE_FIRST + step, lands);
             After(lands, [this, area]() { Strike(Areas{ area }, RuleSentence); });
         }
         // The bots: on the last, then into the first once it has burned
@@ -2904,7 +2969,7 @@ private:
         {
             uint32 const seal = index % 2;
             (*seals)[players[index]->GetGUID()] = seal;
-            GroundIndicators::ShowCarriedLook(players[index], seal ? LOOK_MARK_FERVOR_STACK : LOOK_MARK_FERVOR,
+            GroundIndicators::ShowCarriedLook(players[index], seal ? LOOK_MARK_SEAL_SHADOW : LOOK_MARK_SEAL_LIGHT,
                 ChoirSingMs + 500);
         }
         DrawWedges(offset, way * step);
@@ -2992,9 +3057,14 @@ private:
     void DrawWedges(float offset, float turnBy)
     {
         std::vector<GroundIndicators::Turn> const turns = { { ChoirTurnMs, 800, turnBy } };
-        for (uint32 wedge = 1; wedge < 8; wedge += 2)
+        // Both colours painted (wedge k light if k even), drawn only: the floor's colour to stand on, not a hit
+        for (uint32 wedge = 0; wedge < 8; ++wedge)
+        {
+            bool const light = wedge % 2 == 0;
             GroundIndicators::ShowTurningCone(me, Middle(), offset + (float(wedge) + 0.5f) * float(M_PI) / 4.0f,
-                P2Radius + 1.0f, 44.5f, ChoirSingMs, turns, MistakeDamage, false);
+                P2Radius + 1.0f, 45.0f, ChoirSingMs, turns, MistakeDamage, false,
+                light ? LOOK_CHOIR_LIGHT : LOOK_CHOIR_SHADOW, light ? LOOK_CHOIR_LIGHT_GLOW : LOOK_CHOIR_SHADOW_WISPS);
+        }
     }
 
     // The swap (a bell): every real player swaps seals with a neighbour of the other seal - a real player beside them if
@@ -3009,13 +3079,20 @@ private:
             std::swap(seals[a->GetGUID()], seals[b->GetGUID()]);
             swapped.insert(a->GetGUID());
             swapped.insert(b->GetGUID());
+            // The old seal burnt into the new (its flipbook), then the new one held to the singing
             for (Player* who : { a, b })
             {
-                GroundIndicators::ClearCarriedLook(who, LOOK_MARK_FERVOR);
-                GroundIndicators::ClearCarriedLook(who, LOOK_MARK_FERVOR_STACK);
-                GroundIndicators::ShowCarriedLook(who, seals[who->GetGUID()] ? LOOK_MARK_FERVOR_STACK :
-                    LOOK_MARK_FERVOR, ChoirSingMs);
-                GroundIndicators::PlayKit(me, who->GetPosition(), KIT_HOLY_IMPACT, 0.5f, 0, ImpactMs);
+                bool const shadow = seals[who->GetGUID()] != 0;
+                GroundIndicators::ClearCarriedLook(who, LOOK_MARK_SEAL_LIGHT);
+                GroundIndicators::ClearCarriedLook(who, LOOK_MARK_SEAL_SHADOW);
+                GroundIndicators::ShowCarriedLook(who, shadow ? LOOK_SEAL_SWAP_LS : LOOK_SEAL_SWAP_SL, SealSwapMs);
+                ObjectGuid const guid = who->GetGUID();
+                After(SealSwapMs, [this, guid, shadow]()
+                {
+                    if (Player* swapped = ObjectAccessor::GetPlayer(*me, guid))
+                        GroundIndicators::ShowCarriedLook(swapped, shadow ? LOOK_MARK_SEAL_SHADOW : LOOK_MARK_SEAL_LIGHT,
+                            ChoirSingMs - ChoirSwapMs - SealSwapMs + 500);
+                });
             }
         };
         for (Player* player : players)
@@ -3060,8 +3137,7 @@ private:
         CastBar(CAST_ECHO);
         Areas echoes;
         for (Player* player : ArenaPlayers())
-            echoes.push_back(GroundIndicators::ShowCircle(me, Ground(player->GetPosition()), EchoRadius, EchoMs,
-                GroundIndicators::Theme::Holy, MistakeDamage));
+            echoes.push_back(Painted(MakeCircle(Ground(player->GetPosition()), EchoRadius), LOOK_ECHO, EchoMs));
         // The light flowing back into him: his apotheosis' streams
         for (uint32 at = 0; at < EchoMs; at += 250)
             After(at, [this]() { StreamLight(); });
@@ -3093,13 +3169,31 @@ private:
         {
             if (index == 4)
                 continue;
-            burning.push_back(GroundIndicators::ShowCone(me, Middle(), safe + float(index) * slice, P2Radius + 1.0f,
-                44.5f, AscensionTellMs, GroundIndicators::Theme::Holy, MistakeDamage));
+        {
+            GroundIndicators::Area area = MakeCircle(Middle(), P2Radius + 1.0f);
+            area.kind = GroundIndicators::Area::Kind::Cone;
+            area.origin.SetOrientation(safe + float(index) * slice);
+            area.arc = slice;
+            burning.push_back(Painted(area, LOOK_DIVINE_CONE_45, AscensionTellMs));
+        }
         }
         After(AscensionTellMs, [this, burning]() { Strike(burning, RulePizza); });
-        // The orbs: one in each safe slice, from the wall to him
+        // Who may take one: an empty ring over the head, a full one under Surcharge (UpdateOrbs swaps them)
+        uint32 const markMs = AscensionTellMs + uint32(OrbFrom / OrbSpeed * 1000.0f);
+        for (Player* player : ArenaPlayers())
+        {
+            GroundIndicators::ClearCarriedLook(player, LOOK_MARK_ORB_FREE);
+            GroundIndicators::ClearCarriedLook(player, LOOK_MARK_ORB_FULL);
+            if (Aura const* overload = player->GetAura(SPELL_OVERLOAD))
+                GroundIndicators::ShowCarriedLook(player, LOOK_MARK_ORB_FULL, uint32(overload->GetDuration()));
+            else
+                GroundIndicators::ShowCarriedLook(player, LOOK_MARK_ORB_FREE, markMs);
+        }
+        // The orbs: one in each safe slice, from the wall to him, along a lane painted to him
         for (float lane : { safe, safe + float(M_PI) })
         {
+            GroundIndicators::ShowDecal(me, P2At(lane, OrbFrom), lane + float(M_PI), OrbFrom - 2.0f, markMs,
+                LOOK_ORB_LANE);
             Position from = P2At(lane, OrbFrom);
             from.m_positionZ += LightHeight;
             if (Creature* orb = me->SummonCreature(NPC_ORB, from, TEMPSUMMON_TIMED_DESPAWN,
@@ -3170,7 +3264,8 @@ private:
                     else
                     {
                         AddTimedAura(taker, SPELL_OVERLOAD, OverloadMs);
-                        GroundIndicators::ShowCarriedLook(taker, LOOK_MARK_FERVOR_STACK, OverloadMs);
+                        GroundIndicators::ClearCarriedLook(taker, LOOK_MARK_ORB_FREE);
+                        GroundIndicators::ShowCarriedLook(taker, LOOK_MARK_ORB_FULL, OverloadMs);
                     }
                 }
                 Sound("Valerian.OrbTaken", orb->GetPosition());
@@ -3198,22 +3293,29 @@ private:
     {
         Position const middle = Middle();
         std::vector<Position> holes;
+        // The veil faces between the first two holes (EclipseSpread each side: its picture symmetric, so a mirrored
+        // projection cannot move a hole); the second's one is straight behind
         if (!second)
         {
             _eclipseAngle = frand(0.0f, 2.0f * float(M_PI));
-            holes.push_back(P2At(_eclipseAngle, EclipseHoleAt));
-            holes.push_back(P2At(_eclipseAngle + 2.44f, EclipseHoleAt));
+            holes.push_back(P2At(_eclipseAngle - EclipseSpread, EclipseHoleAt));
+            holes.push_back(P2At(_eclipseAngle + EclipseSpread, EclipseHoleAt));
         }
         else
-            // One, on the other side of the first two
-            holes.push_back(P2At(_eclipseAngle + 1.22f + float(M_PI), EclipseHoleAt + 1.0f));
+            holes.push_back(P2At(_eclipseAngle + float(M_PI), EclipseHoleAt + 1.0f));
         uint32 const lasts = second ? EclipseSecondMs : EclipseMs;
         Sound("Valerian.Profanation", middle);
-        // The dark (red until its veil's art: drawn only - as an area, it had the bots refuse the holes inside it), the
-        // holes' light
-        GroundIndicators::DrawCircle(me, middle, P2Radius, lasts, GroundIndicators::Theme::Shadow);
+        // The dark, its holes cut (drawn only - as an area, it had the bots refuse the holes inside it), the holes'
+        // light
+        // (a decal's picture lies a quarter turn on from its carrier's facing: its x along facing + pi / 2 - seen in the
+        // FX lab, the holes a quarter turn off their light)
+        GroundIndicators::ShowDecal(me, middle, _eclipseAngle - float(M_PI) / 2.0f, P2Radius, lasts,
+            second ? LOOK_ECLIPSE_VEIL_ONE : LOOK_ECLIPSE_VEIL_TWO);
         for (Position const& hole : holes)
-            GroundIndicators::PlayKit(me, hole, KIT_HOLY_IMPACT, 1.0f, 800, lasts);
+        {
+            GroundIndicators::ShowDecal(me, hole, 0.0f, EclipseHole, lasts, LOOK_ECLIPSE_HOLE);
+            GroundIndicators::ShowDecal(me, hole, 0.0f, EclipseHole, lasts, LOOK_ECLIPSE_HOLE_RIM);
+        }
         // The bots: split between the holes
         std::vector<Position> spots;
         for (Position const& hole : holes)
@@ -3244,6 +3346,8 @@ private:
     void TotalLight()
     {
         CastBar(CAST_TOTAL_LIGHT);
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs, LOOK_TOTAL_LIGHT_SIGIL);
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs, LOOK_TOTAL_LIGHT_RUNES);
         After(TotalLightMs - TotalLightCastMs, [this]()
         {
             EndCastBar();

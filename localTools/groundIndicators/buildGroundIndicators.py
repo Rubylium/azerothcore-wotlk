@@ -719,6 +719,9 @@ def fade_spell(spell):
     # Valérian's looks (ZealotBoss.cpp, localTools/valerian/valerianArt.py): 60, their twins 60 on
     if 98600 <= spell < 98660:
         return spell + 60
+    # ... his phase 2's (98800 up: the Faucheur's ranks are 98400-98799, its specializations 98900 up): 50, twins 50 on
+    if 98800 <= spell < 98850:
+        return spell + 50
     raise SystemExit(f'spell {spell}: no fading twin range for it (fade_spell)')
 
 

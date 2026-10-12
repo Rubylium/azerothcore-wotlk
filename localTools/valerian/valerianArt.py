@@ -271,3 +271,175 @@ def wall_motes():
     fade = smooth(1.0, 0.6, up) * smooth(0.0, 0.12, up)
     faded = numpy.clip(motes * fade[:, None, None], 0.0, 1.0)
     return Image.fromarray((faded * 255.0 + 0.5).astype(numpy.uint8)).resize((1024, 512), Image.LANCZOS)
+
+
+# --- Phase 2 (the brief: .agents/plans/gaol-third/gaol-third.ASSETS-p2.md) ------------------------------------------------
+# His god's light: cleaner and brighter than phase 1's, its rims white-gold; Le Chœur's shadow and the Éclipse rimmed in
+# cold silver-violet
+DIVINE_RIM = numpy.array([1.0, 0.93, 0.72])
+SHADOW_RIM = numpy.array([0.78, 0.7, 1.0])
+
+
+def rimmed(colour, inside, pixel, rim_colour, alpha=FILL_ALPHA):
+    """cut, its rim in rim_colour"""
+    shown = smooth(0.0, 1.5 * pixel, inside)
+    rim = numpy.clip(numpy.exp(-inside / RIM_LINE) + 0.35 * numpy.exp(-inside / RIM_GLOW), 0.0, 1.0) * shown
+    colour = colour * (1.0 - rim[..., None]) + rim_colour * rim[..., None]
+    alpha = numpy.maximum(shown * alpha, rim)
+    return numpy.concatenate([numpy.clip(colour, 0.0, 1.0), alpha[..., None]], axis=2)
+
+
+def hollowed(shape, value, inner):
+    """grid_of, its middle cleared to inner (a share of the radius): a cone from inner out to its arc"""
+    x, y, inside, pixel = grid_of(shape, value)
+    if inner:
+        inside = numpy.minimum(inside, numpy.hypot(x, y) - inner)
+    return x, y, inside, pixel
+
+
+# Sentence's numeral painted into its part (a decal of its own sorted under the part's fill whenever it lay past it from
+# the camera): centred NUMERAL_AT along the part's middle (13 of its 25 yards), NUMERAL_HALF each way (5 yards across),
+# its top away from him (read from by him, where the players wait)
+NUMERAL_AT = 0.52
+NUMERAL_HALF = 0.1
+
+
+def with_numeral(rgba, x, y, numeral):
+    """rgba with sentence_numeral_<numeral>.png laid over it, its top along +x - mirrored, as the floor's projection
+    draws a cone's picture mirrored (IV read VI in the FX lab)"""
+    picture = keyed(load(f'sentence_numeral_{numeral}.png'))
+    size = picture.shape[0]
+    columns = numpy.clip(((y / NUMERAL_HALF + 1.0) / 2.0 * size).astype(int), 0, size - 1)
+    rows = numpy.clip(((-(x - NUMERAL_AT) / NUMERAL_HALF + 1.0) / 2.0 * size).astype(int), 0, size - 1)
+    within = (numpy.abs(y) < NUMERAL_HALF) & (numpy.abs(x - NUMERAL_AT) < NUMERAL_HALF)
+    over = picture[rows, columns] * within[..., None]
+    a = over[..., 3:4]
+    colour = rgba[..., :3] * (1.0 - a) + over[..., :3] * a
+    alpha = numpy.maximum(rgba[..., 3:4], a * (rgba[..., 3:4] > 0))
+    return numpy.concatenate([colour, alpha], axis=2)
+
+
+def divine(shape, value, tiles, numeral=0):
+    """Ascension's slices, Sentence's halves and quadrants (numeral: its own painted in): a sheet of divine light over
+    the stone (dimmed: the players' feet must stay readable; its glow is divine_glow)"""
+    x, y, inside, pixel = grid_of(shape, value)
+    sheet = tiled(seamless('fill_divine.png'), x * tiles / 2.0, y * tiles / 2.0)
+    # A clean rim (a god's light): bled licks smeared white past a 45 degree slice's narrow sides
+    rgba = rimmed(sheet * 0.5, inside, pixel, DIVINE_RIM, 0.72)
+    if numeral:
+        rgba = with_numeral(rgba, x, y, numeral)
+    return image(rgba)
+
+
+def divine_glow(shape, value, tiles):
+    x, y, inside, pixel = grid_of(shape, value)
+    glow = tiled(seamless('fill_divine_glow.png'), x * tiles / 2.0, y * tiles / 2.0)
+    return image(layer(glow * 0.6, inside, pixel))
+
+
+def starfall(shape, value, tiles, inner=0.0):
+    """Pluie d'astres' bursts: a third of the arena from inner (a share of its radius) to the wall, or a circle"""
+    x, y, inside, pixel = hollowed(shape, value, inner)
+    sky = tiled(seamless('fill_starfall.png'), x * tiles / 2.0, y * tiles / 2.0)
+    return image(rimmed(sky * 1.1, inside, pixel, DIVINE_RIM))
+
+
+def starfall_glow(shape, value, tiles, inner=0.0):
+    x, y, inside, pixel = hollowed(shape, value, inner)
+    glow = tiled(seamless('fill_starfall_glow.png'), x * tiles / 2.0, y * tiles / 2.0)
+    return image(layer(glow * 1.3, inside, pixel))
+
+
+def choir(shape, value, tiles, side):
+    """Le Chœur's wedges: light (white-gold marble) or shadow (violet smoke), rimmed in their own colour"""
+    x, y, inside, pixel = grid_of(shape, value)
+    if side == 'light':
+        floor = tiled(seamless('fill_choir_light.png'), x * tiles / 2.0, y * tiles / 2.0) * 0.8
+        return image(rimmed(floor, inside, pixel, DIVINE_RIM, 0.8))
+    floor = tiled(seamless('fill_choir_shadow.png'), x * tiles / 2.0, y * tiles / 2.0)
+    return image(rimmed(floor, inside, pixel, SHADOW_RIM, 0.92))
+
+
+def choir_glow(shape, value, tiles, side):
+    x, y, inside, pixel = grid_of(shape, value)
+    name = 'fill_choir_light_glow.png' if side == 'light' else 'fill_choir_shadow_wisps.png'
+    glow = tiled(seamless(name), x * tiles / 2.0, y * tiles / 2.0)
+    return image(layer(glow * (1.0 if side == 'light' else 2.2), inside, pixel))
+
+
+# Éclipse's veil: the whole arena dark but its holes (ECLIPSE_HOLE of its radius), cut where ZealotBoss.cpp puts them:
+# its facing between the first two (EclipseHoleAt at +/- ECLIPSE_SPREAD radians from it), the second's one behind it -
+# both pictures the same mirrored, so the floor's projection (it mirrors a picture) cannot move a hole
+ECLIPSE_RADIUS = 24.0
+ECLIPSE_HOLE = 4.0
+ECLIPSE_SPREAD = 1.22
+
+
+def eclipse_veil(holes, tiles):
+    x, y, inside, pixel = circle_grid()
+    dark = tiled(seamless('fill_eclipse.png'), x * tiles / 2.0, y * tiles / 2.0)
+    wisps = tiled(seamless('fill_eclipse_wisps.png'), x * tiles / 2.0, y * tiles / 2.0)
+    colour = numpy.clip(dark * 0.7 + wisps * 1.6, 0.0, 1.0)
+    if holes == 2:
+        at = [(14.0 * math.cos(ECLIPSE_SPREAD), 14.0 * math.sin(ECLIPSE_SPREAD)),
+              (14.0 * math.cos(ECLIPSE_SPREAD), -14.0 * math.sin(ECLIPSE_SPREAD))]
+    else:
+        at = [(-15.0, 0.0)]
+    for hx, hy in at:
+        to_hole = numpy.hypot(x - hx / ECLIPSE_RADIUS, y - hy / ECLIPSE_RADIUS) - ECLIPSE_HOLE / ECLIPSE_RADIUS
+        inside = numpy.minimum(inside, to_hole)
+    return image(rimmed(colour, inside, pixel, SHADOW_RIM, 0.94))
+
+
+def circle_grid():
+    return grid_of('circle', 0)
+
+
+def strip(name, glow_name, fade_from=0.62):
+    """A painted strip on black (1024 x 128) as one model: its glow folded in, keyed, its two sides faded unevenly (a
+    painted beam fills its strip to the edge: its sides read as ruled lines)"""
+    beam = load(name)
+    if glow_name:
+        beam = numpy.maximum(beam, load(glow_name) * 0.8)
+    height, length = beam.shape[:2]
+    piece = keyed(beam)
+    across = numpy.abs((numpy.arange(height) + 0.5) / height * 2.0 - 1.0)[:, None]
+    along = (numpy.arange(length) + 0.5) / length
+    wander = 0.18 * (fractal(along[None, :], across * 0.0 + 0.25, 5) - 0.5) + \
+        0.12 * (fractal(along[None, :] * 2.0, across * 0.0 + 0.75, 9) - 0.5)
+    piece[..., 3] *= smooth(1.0, fade_from, across + wander)
+    return image(piece)
+
+
+def tendril():
+    """Ailes séraphiques: one tendril, from him to the wall (8 to 1: 24 yards by 3)"""
+    return strip('tendril_strip.png', 'tendril_strip_glow.png')
+
+
+def orb_lane():
+    """Ascension: an orb's path, from the wall to him (its chevrons point at him: the strip's right)"""
+    return strip('orb_lane.png', None, 0.75)
+
+
+def gaze_cone():
+    """Regard divin: painted as Revers sacré was (a 90 degree wedge cut by its square: the builder widens it)"""
+    return image(keyed(load('gaze_cone.png') * 0.72) * revers_footprint())
+
+
+def gaze_flare():
+    footprint = revers_footprint()
+    return image(numpy.concatenate([load('gaze_cone_flare.png') * footprint, footprint], axis=2))
+
+
+def seal_swap_atlas(way):
+    """Le Chœur's swap: the seal burning into the other, six frames in a 4 x 2 atlas (a billboard flipbook)"""
+    atlas = Image.new('RGBA', (1024, 512))
+    for index in range(6):
+        frame = keyed(load(f'seal_swap_{way}_{index + 1}.png'))
+        atlas.alpha_composite(image(frame), (256 * (index % 4), 256 * (index // 4)))
+    return atlas
+
+
+def seal_swap_timeline():
+    """The six frames once, 100 ms each, the last held"""
+    return [(index * 100, index) for index in range(6)]
