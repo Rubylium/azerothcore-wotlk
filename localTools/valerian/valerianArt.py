@@ -229,6 +229,13 @@ def keyed_painting(name):
     return image(keyed(load(name)))
 
 
+def mirrored_painting(name):
+    """A painting on black keyed and mirrored left to right: the floor's projection draws a picture mirrored (La
+    Litanie's clock, painted clockwise, ran anticlockwise in the world - seen in the FX lab), so a picture whose
+    handedness matters is mirrored first"""
+    return image(keyed(load(name)[:, ::-1]))
+
+
 # --- The wall: three layers (the brief's section 5) ----------------------------------------------------------------------
 # The bars in front (two of the arena's pieces a band: 2048 x 768 is 12.54 x 4.7 yards, fitted 1024 x 512 and drawn
 # back at its aspect); the light behind them rising; the motes in front, faded at the top and the foot
