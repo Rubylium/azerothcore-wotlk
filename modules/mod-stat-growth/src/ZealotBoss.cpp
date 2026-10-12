@@ -61,8 +61,8 @@ Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimSh
 // legendaries (+10% damage each, several of them)
 Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (265.0f - 34.5f) * OnHimShare,
     1.095f / 1.18f };
-LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
-LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 1.45f);
+LiveTuning::Knob const HealthScale("valerian.health_scale", 1.0625f);
+LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 1.8125f);
 // One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
 // (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
 // to nothing. What a group deals in each phase is its sizing's, as before.
@@ -326,7 +326,8 @@ constexpr float EclipseHole = 4.0f;
 constexpr float EclipseHoleAt = 14.0f;
 constexpr uint32 EclipseMs = 5000;
 constexpr uint32 EclipseSecondMs = 4000;
-constexpr float EclipseHitPct = 60.0f;      // the light breaking on those in it: of their health (a healer check)
+constexpr float EclipseHitPct = 60.0f;
+constexpr float TotalLightSigilRadius = 10.0f;     // Lumière totale's sigil under him, grown to this      // the light breaking on those in it: of their health (a healer check)
 constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on him (stock 7005 without its tints:
                                             // they stayed on him, and on the god after, yellow and see-through)
 
@@ -3555,8 +3556,12 @@ private:
     void TotalLight()
     {
         CastBar(CAST_TOTAL_LIGHT);
-        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs, LOOK_TOTAL_LIGHT_SIGIL);
-        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs, LOOK_TOTAL_LIGHT_RUNES);
+        // Under him only, its light added (spread over the arena, it lay over the last patterns' shapes: a decal drawn
+        // as the client sorts them, not under the others)
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, TotalLightSigilRadius, TotalLightMs - TotalLightCastMs,
+            LOOK_TOTAL_LIGHT_SIGIL);
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, TotalLightSigilRadius, TotalLightMs - TotalLightCastMs,
+            LOOK_TOTAL_LIGHT_RUNES);
         After(TotalLightMs - TotalLightCastMs, [this]()
         {
             EndCastBar();
