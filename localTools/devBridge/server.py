@@ -353,6 +353,32 @@ def units(range_yards: float = 60.0) -> str:
 
 
 @server.tool()
+def track(entry: int, seconds: float, every: float = 0.5, command: str = '', range_yards: float = 80.0) -> str:
+    """Follow one creature as the client sees it: `command` sent first (a '.command'), then its position, facing,
+    health, scale and emote state sampled every `every` seconds for `seconds` (at most 120). One line a sample:
+    t x y z facing health scale emoteState (the client's own view: a fall, a jump, a size flicker shows here)."""
+    if command:
+        escaped = command.replace('\\', '\\\\').replace('"', '\\"')
+        bridge.lua(f'SendChatMessage("{escaped}", "WHISPER", nil, UnitName("player"))')
+    start = time.time()
+    lines = []
+    while time.time() - start < min(seconds, 120.0):
+        at = time.time() - start
+        found = None
+        for unit in (bridge.lua(f'return EvaDevUnits({range_yards})') or '').splitlines():
+            fields = unit.split('|')
+            if len(fields) >= 12 and fields[1] == str(entry):
+                found = fields
+                break
+        if found:
+            lines.append(f'{at:6.2f} {found[3]} {found[4]} {found[5]} {found[6]} {found[7]} {found[9]} {found[11]}')
+        else:
+            lines.append(f'{at:6.2f} (not seen)')
+        time.sleep(max(0.0, every - (time.time() - start - at)))
+    return 't x y z facing health scale emote\n' + '\n'.join(lines)
+
+
+@server.tool()
 def position(unit: str = 'player') -> str:
     """A unit's world position: x y z facing (unit: player, target, ...)."""
     return bridge.lua(f'return EvaDevPosition("{unit}")') or '(no such unit)'
