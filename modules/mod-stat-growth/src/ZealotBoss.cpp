@@ -128,6 +128,7 @@ constexpr uint32 LitanyVerses = 8;
 constexpr float LitanySigilRadius = 10.0f;
 constexpr float LitanyRing = 8.5f;
 constexpr float LitanyVersePct = 25.0f;
+constexpr float LitanySigilFacing = float(M_PI) / 2.0f;    // the sigil turned so its I points north (VerseSpot's)
 
 // The bots' places (Guide: a spot of its own each, out of a pattern's safe ones - they cannot read his tells): how far
 // from his middle they stand close to him (in his reach: his size makes it wide), out in the ring, and Ferveur's marks
@@ -229,6 +230,9 @@ enum Looks : uint32
     LOOK_WALL_RISE              = 98619,
     LOOK_SIGIL                  = 98620,    // under him for his apotheosis
     LOOK_SIGIL_RUNES            = 98621,
+    LOOK_MARK_VERSE_FIRST       = 98622,    // La Litanie's numerals I-VIII over the heads (+ the verse's index)
+    LOOK_LITANY_SIGIL           = 98630,    // its clock under him: I at its top, then clockwise
+    LOOK_LITANY_SIGIL_GLOW      = 98631,
 };
 
 // The layer shown over a look (0: none)
@@ -1753,11 +1757,13 @@ private:
         for (uint32 index = 0; index < players.size(); ++index)
         {
             verses.push_back(players[index]->GetGUID());
-            GroundIndicators::ShowCarriedNumber(players[index], index + 1, MsTo(lastStrike) + 500);
+            GroundIndicators::ShowCarriedLook(players[index], LOOK_MARK_VERSE_FIRST + index, MsTo(lastStrike) + 500);
         }
         // The clock under him: its numerals where each verse stands
-        GroundIndicators::ShowDecal(me, Middle(), float(M_PI) / 2.0f, LitanySigilRadius, MsTo(lastStrike) + 600,
-            LOOK_SIGIL);
+        GroundIndicators::ShowDecal(me, Middle(), LitanySigilFacing, LitanySigilRadius, MsTo(lastStrike) + 600,
+            LOOK_LITANY_SIGIL);
+        GroundIndicators::ShowDecal(me, Middle(), LitanySigilFacing, LitanySigilRadius, MsTo(lastStrike) + 600,
+            LOOK_LITANY_SIGIL_GLOW);
         _litanyStruck.clear();
         _litanyProfaned = false;
         // The bots: to their numeral's place on the clock, LitanyBotsBeats before the first spear (never earlier: the
