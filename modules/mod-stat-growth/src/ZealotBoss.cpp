@@ -62,7 +62,9 @@ Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimSh
 Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (265.0f - 34.5f) * OnHimShare,
     1.095f / 1.18f };
 LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
-LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 1.8125f);
+// (Measured on the first real kill, 2026-10-12: two players with their legendaries and bots took phase 2's health at
+// 0.26% of the bar a second at 1.8125 - dead by 3:49. At 3.75 that pace leaves him 20% of the bar at Lumière totale)
+LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 3.75f);
 // One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
 // (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
 // to nothing. What a group deals in each phase is its sizing's, as before.
