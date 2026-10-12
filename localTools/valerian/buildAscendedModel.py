@@ -30,6 +30,9 @@ SOURCE = os.path.join(REPO, 'modules', 'mod-stat-growth', 'client-assets', 'impo
                       'kyrianmaw')
 TARGET = os.path.join(REPO, 'modules', 'mod-stat-growth', 'client-assets', 'files', 'Creature', 'ValerianAscended')
 NAME = 'ValerianAscended'
+# The painted wings and tendrils (.agents/plans/gaol-third/gaol-third.ASSETS-ascended.md), used when they exist: painted
+# on black at the texture's own size, kept only inside the model's shapes; the procedural ones meanwhile
+ART = os.path.join(REPO, 'localTools', 'valerian', 'art')
 ARCHIVE_FOLDER = 'Creature\\ValerianAscended'
 
 
@@ -197,9 +200,27 @@ def blades(surface, root, count, core_width, glow_width, wave):
     return to_image(colour, strength[..., None])
 
 
+def painted(name, size, inside):
+    """the painted light (on black: its brightness is its strength), only inside the model's shapes; None if not
+    painted yet"""
+    path = os.path.join(ART, name)
+    if not os.path.isfile(path):
+        return None
+    picture = Image.open(path).convert('RGB')
+    if picture.size != size:
+        raise SystemExit(f'{name} is {picture.size}, the texture {size}: paint it at its own size')
+    rgb = numpy.asarray(picture).astype(numpy.float32) / 255.0
+    strength = numpy.clip(rgb.max(axis=-1, keepdims=True), 0.0, 1.0) * inside[..., None]
+    colour = rgb / numpy.maximum(strength, 1e-3)
+    return to_image(colour * (strength > 0), strength)
+
+
 def wings(size):
-    """the feathered wings as blades of light (submeshes 2 and 3 of its skin, the feather band of the wings texture)"""
-    return blades(wing_surface((2, 3), size), (0.25, 3.15), 7, 0.06, 0.32, 0.08)
+    """the feathered wings as blades of light (submeshes 2 and 3 of its skin, the feather band of the wings texture):
+    the painted ones, or a procedural fan meanwhile"""
+    surface = wing_surface((2, 3), size)
+    return painted('ascended_wings.png', size, surface[2].astype(numpy.float32)) or \
+        blades(surface, (0.25, 3.15), 7, 0.06, 0.32, 0.08)
 
 
 def strips(image):
@@ -207,6 +228,11 @@ def strips(image):
     hanging from the shoulders, the texture's columns) as tendrils of light: a thin bright core down each strip, white
     at the shoulders (the texture's top) to gold at the tips, in a faint glow, the tips fading out"""
     _, alpha = channels(image)
+    art = painted('ascended_tendrils.png', image.size, (alpha[..., 0] > 0.5).astype(numpy.float32))
+    if art:
+        # additive: the strength in the colour itself
+        rgb, strength = channels(art)
+        return to_image(rgb * strength, alpha)
     down = numpy.linspace(0.0, 1.0, alpha.shape[0])[:, None, None]
     colour = (LIGHT_CORE * (1.0 - down) + LIGHT_EDGE * down) * (0.5 * core(alpha, 10, 12.0) + 0.05 * alpha)
     return to_image(colour * (1.0 - 0.6 * down), alpha)
