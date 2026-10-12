@@ -10,7 +10,8 @@ drop.
 - The rewind sound: the user's (Valerian_Rewind.wav beside the music, from their rewind.mp3). A wound back tape (the
   track run backwards, faster and faster) came first, then a lone church bell: loud and unpleasant, then replaced.
 - --preview: an audition of the change as heard in the fight - phase 2's last seconds, the cut, the rewind, phase 3's
-  music coming in REWIND_TO_MUSIC after the cut, as the rewind fades.
+  music fading in REWIND_TO_MUSIC after the cut, under the rewind's last seconds (it was
+  first after them: a gap the user heard).
 """
 import argparse
 import os
@@ -30,9 +31,9 @@ REWIND = os.path.join(SOURCES, 'Valerian_Rewind.wav')
 BEAT = 60.0 / 92.3
 FIRST_BEAT = 1.39
 RESUME_AT = FIRST_BEAT + 99 * BEAT  # the beat just before 1:06
-FADE_IN = 0.25
+FADE_IN = 1.5                       # blended under the rewind's last clockwork, full as it falls away (8 s)
 CUT_AT = 275.0                      # where the audition cuts phase 2 (Lumière totale's hit)
-REWIND_TO_MUSIC = 8.5               # from the cut to phase 3's music (ZealotBoss.cpp: the time stopped, the rewind)
+REWIND_TO_MUSIC = 6.5               # from the cut to phase 3's music: under the rewind's end, not after it
 REWIND_GAIN = 2.2                   # the audition's (the bank's loudness does it in game): level with the music
 
 
