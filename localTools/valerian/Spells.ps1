@@ -59,6 +59,10 @@ $spells = @(
         "La Lumière a submergé l'arène : le Zélote n'avait pas assez faibli."),
     (New-Hit 94640 "Jugement de l'Ascensionné" 20271 $holy `
         "Devenu dieu, il abat toute sa lumière sur l'arène : chacun n'en garde qu'un souffle."),
+    (New-Hit 94643 'Verset' 48782 $holy `
+        "La lance de la Litanie frappe le verset qui portait son numéro."),
+    (New-Hit 94644 'Profanation' 642 $holy `
+        "Une lance de la Litanie a frappé un autre verset que le sien : la lumière a tout emporté."),
     (New-Hit 94642 'Éclats de lumière' 48782 $holy `
         "Pendant qu'il s'élève, des éclats de lumière tombent dans l'arène. Sortez de leur cercle."),
     (New-Hit 94641 'Lumière rendue' 48782 $holy `
@@ -87,7 +91,8 @@ $spells = @(
     (New-Cast 94664 'Rage contenue' 31884 16 "La rage du Zélote monte."),
     (New-Cast 94665 'Lances de lumière' 48782 16 "Des lances de lumière se forment."),
     (New-Cast 94666 'Éclat de zèle' 31884 4 "La ferveur du Zélote déborde."),
-    (New-Cast 94667 'Jugement' 20271 171 "La Lumière va rendre son verdict.")
+    (New-Cast 94667 'Jugement' 20271 171 "La Lumière va rendre son verdict."),
+    (New-Cast 94668 'Litanie' 48782 171 "Le Zélote récite sa litanie : chacun son verset, chacun sa place.")
 )
 
 return $spells

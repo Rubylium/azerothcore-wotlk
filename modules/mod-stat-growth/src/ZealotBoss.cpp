@@ -28,7 +28,10 @@
 // - Chaîne brisée: his chain sweeps all round him but a gap, the gap turning a little each strike: follow it;
 // - Ferveur: three marked players spread - the second time the marks turn to a stack at the last moment;
 // - Rage contenue: the inside, then the outside - or the other way round (his glow tells);
-// - Lances de lumière: a grid of lines wall to wall, then the grid shifted half a square.
+// - Lances de lumière: a grid of lines wall to wall, then the grid shifted half a square;
+// - La Litanie: a numeral I to VIII over every head, a spear of light thrown at each verse in turn, from him through
+//   it to the wall - striking anyone else whose verse is still to come is a profanation: everyone dies. Solved by
+//   standing round him in number order, as on the sigil under him (a clock: I at its top); later two verses at once.
 // **The lights**: every few seconds a soak of light falls somewhere in the arena (the retail soak's look: it shows when
 // someone stands in it). Whoever stands in it as it lands takes its light (Lumière dérobée: 3% damage and healing a
 // stack - the temptation); left alone, the light flies to him and fills his power bar. At the end of the track, only if
@@ -113,6 +116,18 @@ constexpr float LanceWidth = 2.5f;
 constexpr float LanceSpacing = 8.0f;
 constexpr uint32 LanceShiftBeats = 3;
 constexpr uint32 BurstCastBeats = 3;
+// La Litanie: the numerals and the sigil from its start, the first spear LitanyFirstBeats later, then one every
+// LitanyEveryBeats (two verses at once: four throws); each spear's line shown LitanyWarnBeats before it strikes. The
+// sigil LitanySigilRadius yards across its radius, its numerals at LitanyRing yards (where each player stands), I at
+// its top (north). A verse struck: LitanyVersePct of its holder's profile health.
+constexpr uint32 LitanyFirstBeats = 8;
+constexpr uint32 LitanyEveryBeats = 2;
+constexpr uint32 LitanyWarnBeats = 2;
+constexpr uint32 LitanyBotsBeats = 4;       // the bots go to their numerals this long before the first spear
+constexpr uint32 LitanyVerses = 8;
+constexpr float LitanySigilRadius = 10.0f;
+constexpr float LitanyRing = 8.5f;
+constexpr float LitanyVersePct = 25.0f;
 
 // The bots' places (Guide: a spot of its own each, out of a pattern's safe ones - they cannot read his tells): how far
 // from his middle they stand close to him (in his reach: his size makes it wide), out in the ring, and Ferveur's marks
@@ -269,6 +284,8 @@ enum Spells : uint32
     SPELL_ASCEND            = 94640,    // Jugement du Zélote (his rising)
     SPELL_LIGHT_RETURN      = 94641,    // Lumière rendue (a light left alone, on everyone)
     SPELL_SHARDS            = 94642,    // Éclats de lumière (while he rises)
+    SPELL_VERSE             = 94643,    // Verset (a spear on its own verse)
+    SPELL_PROFANATION       = 94644,    // Profanation (a spear struck another: everyone dies)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
     SPELL_ZEAL              = 94652,    // Zèle brûlant (his tank's stacks)
@@ -281,6 +298,7 @@ enum Spells : uint32
     CAST_LANCES             = 94665,
     CAST_BURST              = 94666,
     CAST_JUDGEMENT          = 94667,
+    CAST_LITANY             = 94668,
 };
 
 enum Npcs : uint32
@@ -324,6 +342,7 @@ enum class Event : uint8
     Lances,
     Burst,
     Judgement,
+    Litany,         // arg: 0 one verse at a time, 1 two at once
 };
 
 char const* EventName(Event what)
@@ -338,6 +357,7 @@ char const* EventName(Event what)
         case Event::Lances: return "lances";
         case Event::Burst: return "burst";
         case Event::Judgement: return "judgement";
+        case Event::Litany: return "litany";
     }
     return "?";
 }
@@ -356,23 +376,21 @@ std::vector<Step> BuildTimeline()
     return {
         { 14, Event::Revers },                  // lands on the 11.3 s hit
         { 24, Event::Wrath, 0 },                // its second half on the 18.2 s hit
-        { 39, Event::Rage, 0 },
-        { 51, Event::Fervor, 0 },
+        { 37, Event::Litany, 0 },               // one verse at a time, early: its spears from beat 45 to 59
         { 63, Event::Revers },                  // on the 36.0 s hit
         { 77, Event::Lances },                  // on the 42.9 s hit
         { 87, Event::Chain },
         { 102, Event::Wrath, 1 },
-        { 115, Event::Fervor, 1 },              // on the 62.7 s hit, turned to a stack
-        { 130, Event::Rage, 1 },                // on the 69.6 s hit, out then in
+        { 115, Event::Fervor, 0 },              // a spread, on the 62.7 s hit
+        { 130, Event::Rage, 0 },                // on the 69.6 s hit, in then out
         { 141, Event::Burst },                  // on the 73.5 s hit
         { 146, Event::Lances },
         { 157, Event::Chain },
-        { 173, Event::Revers },
-        { 183, Event::Wrath, 1 },
-        { 195, Event::Fervor, 2 },
-        { 205, Event::Rage, 2 },
-        { 216, Event::Lances },
-        { 227, Event::Chain },
+        { 173, Event::Fervor, 1 },              // turned to a stack
+        { 183, Event::Litany, 1 },              // two verses at once: its spears from beat 191 to 197
+        { 200, Event::Rage, 2 },
+        { 212, Event::Wrath, 1 },
+        { 225, Event::Chain },
         { 241, Event::Revers },
         { 250, Event::Judgement },              // on the 129.3 s hit
     };
@@ -649,7 +667,8 @@ struct boss_valerian : public Defi::BossAI
             { "fervor", { 0, Event::Fervor, 0 } }, { "fervor2", { 0, Event::Fervor, 1 } },
             { "rage", { 0, Event::Rage, 0 } }, { "rage2", { 0, Event::Rage, 1 } },
             { "lances", { 0, Event::Lances } }, { "burst", { 0, Event::Burst } },
-            { "judgement", { 0, Event::Judgement } },
+            { "judgement", { 0, Event::Judgement } }, { "litany", { 0, Event::Litany, 0 } },
+            { "litany2", { 0, Event::Litany, 1 } },
         };
         auto const found = steps.find(what);
         if (found == steps.end())
@@ -715,6 +734,7 @@ private:
             case Event::Lances: Lances(at); break;
             case Event::Burst: Burst(at); break;
             case Event::Judgement: Judgement(at); break;
+            case Event::Litany: Litany(at, step.arg != 0); break;
         }
     }
 
@@ -1705,6 +1725,138 @@ private:
         return lines;
     }
 
+    // --- La Litanie: a numeral on every head, a spear at each verse in turn ------------------------------------------
+    // twoAtOnce: verses I and V together, then II and VI... (the clock must be exact: I and V opposite)
+    void Litany(uint32 start, bool twoAtOnce)
+    {
+        CastBar(CAST_LITANY);
+        Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        Sound("Valerian.LitanyStart", Middle());
+        // The numerals dealt at random, I to as many as there are players (eight at most)
+        std::vector<Player*> players = ArenaPlayers();
+        Acore::Containers::RandomShuffle(players);
+        if (players.size() > LitanyVerses)
+            players.resize(LitanyVerses);
+        std::vector<ObjectGuid> verses;
+        uint32 const firstStrike = start + LitanyFirstBeats;
+        uint32 const throws = twoAtOnce ? std::min<uint32>(4, uint32(players.size())) : uint32(players.size());
+        uint32 const lastStrike = firstStrike + (throws ? throws - 1 : 0) * LitanyEveryBeats;
+        for (uint32 index = 0; index < players.size(); ++index)
+        {
+            verses.push_back(players[index]->GetGUID());
+            GroundIndicators::ShowCarriedNumber(players[index], index + 1, MsTo(lastStrike) + 500);
+        }
+        // The clock under him: its numerals where each verse stands
+        GroundIndicators::ShowDecal(me, Middle(), float(M_PI) / 2.0f, LitanySigilRadius, MsTo(lastStrike) + 600,
+            LOOK_SIGIL);
+        _litanyStruck.clear();
+        _litanyProfaned = false;
+        // The bots: to their numeral's place on the clock, LitanyBotsBeats before the first spear (never earlier: the
+        // players are not to read the answer off them), each until its own verse is struck
+        AtBeat(Grid, firstStrike - LitanyBotsBeats, [this, verses, firstStrike, twoAtOnce]()
+        {
+            for (uint32 index = 0; index < verses.size(); ++index)
+            {
+                Player* player = ObjectAccessor::GetPlayer(*me, verses[index]);
+                if (!player || !player->GetSession() || !player->GetSession()->IsBot())
+                    continue;
+                uint32 const throwIndex = twoAtOnce ? index % 4 : index;
+                GroundIndicators::SetUnitSpot(me, player, VerseSpot(index), 0.6f,
+                    MsTo(firstStrike + throwIndex * LitanyEveryBeats) + 300);
+            }
+        });
+        // The spears: each one's line shown LitanyWarnBeats before it strikes, aimed where its verse stands then
+        for (uint32 throwIndex = 0; throwIndex < throws; ++throwIndex)
+        {
+            uint32 const strikes = firstStrike + throwIndex * LitanyEveryBeats;
+            std::vector<uint32> group;
+            if (twoAtOnce)
+            {
+                group.push_back(throwIndex);
+                if (throwIndex + 4 < verses.size())
+                    group.push_back(throwIndex + 4);
+            }
+            else
+                group.push_back(throwIndex);
+            AtBeat(Grid, strikes - LitanyWarnBeats, [this, verses, group, strikes]()
+            {
+                me->SendPlaySpellVisual(KIT_SPEAR_IN_HAND);
+                Sound("Valerian.VerseTell", Middle());
+                std::vector<std::pair<uint32, GroundIndicators::Area>> lines;
+                for (uint32 verse : group)
+                    if (Player* holder = ObjectAccessor::GetPlayer(*me, verses[verse]); holder && holder->IsAlive())
+                        lines.emplace_back(verse, Lance(Middle(), Middle().GetAngle(holder), ArenaRadius - 0.3f,
+                            MsTo(strikes)));
+                AtBeat(Grid, strikes, [this, verses, lines]() { StrikeVerses(verses, lines); });
+            });
+        }
+        AtBeat(Grid, lastStrike, [this]()
+        {
+            EndCastBar();
+            Pose(0);
+        });
+        AtBeat(Grid, lastStrike + 1, [this]()
+        {
+            if (!_litanyProfaned)
+                Sound("Valerian.LitanyEnd", Middle());
+        });
+    }
+
+    // Where verse index stands on the clock: I at its top (north), then clockwise
+    Position VerseSpot(uint32 index) const
+    {
+        return OnArena(float(M_PI) / 2.0f - float(index) * 2.0f * float(M_PI) / float(LitanyVerses), LitanyRing);
+    }
+
+    // Spears land: each on its verse; anyone else on a line whose verse is still to come profanes the litany
+    void StrikeVerses(std::vector<ObjectGuid> const& verses, std::vector<std::pair<uint32, GroundIndicators::Area>> const&
+                      lines)
+    {
+        if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
+            return;
+        Gesture(EMOTE_ONESHOT_ATTACK_THROWN, false);
+        std::vector<Position> spots;
+        for (auto const& [verse, line] : lines)
+        {
+            _litanyStruck.insert(verses[verse]);
+            spots.push_back(BurstSpot(line));
+            Impact(Look::Shaped, line);
+        }
+        SoundNearest("Valerian.VerseStrike", spots);
+        SoundNearest("Valerian.VerseBell", spots);
+        if (_phase == Phase::Rehearsal || _litanyProfaned)
+            return;
+        Player* profaner = nullptr;
+        uint32 profanedBy = 0;
+        for (auto const& [verse, line] : lines)
+            for (Player* player : ArenaPlayers())
+            {
+                if (player->GetGUID() == verses[verse])
+                {
+                    Hit(player, SPELL_VERSE, LitanyVersePct);
+                    continue;
+                }
+                bool const waiting = std::find(verses.begin(), verses.end(), player->GetGUID()) != verses.end() &&
+                    !_litanyStruck.contains(player->GetGUID());
+                if (waiting && line.Contains(player->GetPosition()))
+                {
+                    profaner = player;
+                    profanedBy = verse;
+                }
+            }
+        if (!profaner)
+            return;
+        // Profanation: the light bursts, everyone dies
+        _litanyProfaned = true;
+        LOG_INFO(_logName, "Valerian profanation instance={} at={:.1f}s verse {} struck {} bot={}", me->GetInstanceId(),
+                 Elapsed() / 1000.0f, profanedBy + 1, profaner->GetName(),
+                 profaner->GetSession() && profaner->GetSession()->IsBot());
+        Sound("Valerian.Profanation", Middle());
+        Blast(Middle(), ArenaRadius);
+        for (Player* player : ArenaPlayers())
+            Doom(player, SPELL_PROFANATION);
+    }
+
     // --- Éclat de zèle: a group hit on the music's hit ------------------------------------------------------------------
     void Burst(uint32 start)
     {
@@ -2109,6 +2261,8 @@ private:
     uint32 _ascentFrom = 0;             // when his apotheosis' rise began (Elapsed), 0 once he is down
     float _height = 0.0f;
     uint32 _swapHeldUntil = 0;          // no tank swap before then (Revers sacré's back cone)
+    std::set<ObjectGuid> _litanyStruck;  // La Litanie: the verses struck so far (free to move)
+    bool _litanyProfaned = false;
     bool _ascendedMusicOver = false;
     std::vector<Light> _lights;
     std::vector<ObjectGuid> _jailers;
@@ -2178,7 +2332,8 @@ public:
         return true;
     }
 
-    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|lights|light|ascend>
+    // .valerian cast <revers|wrath|wrath2|chain|fervor|fervor2|rage|rage2|lances|burst|judgement|litany|litany2|lights|
+// light|ascend>
     static bool HandleCast(ChatHandler* handler, std::string step)
     {
         boss_valerian* valerian = FindValerian(handler->GetPlayer());
