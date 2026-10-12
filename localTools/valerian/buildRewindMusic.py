@@ -1,19 +1,19 @@
 """Valérian's phase 3 music (Music.ValerianRewind, modules/mod-stat-growth/client-assets/audio/valerian.json): he refuses
-to die and takes the fight back to his Écho - the music cut, a bell (Valerian.TimeBell) as time stands still, the
-rewind seen and not heard, then phase 2's own track again from just before its drop.
+to die and takes the fight back to his Écho - the music cut, the rewind (Valerian.Rewind: the user's own sound, a big
+clock's clockwork and bells) as time stands still and runs back, then phase 2's own track again from just before its
+drop.
 
     python localTools/valerian/buildRewindMusic.py [--preview out.mp3]
 
 - The track: phase 2 from the beat RESUME_AT (just before 1:06, the Écho's build to the 1:11 drop) to its end, faded in
   over FADE_IN. Phase 3's clock: t3 = t2 - RESUME_AT from the music's start.
-- The bell: Diablo IV's Nostrava church bell (data/custom/diabloZealotSounds), copied whole beside the music. A wound
-  back tape (the track run backwards, faster and faster) came first: loud and unpleasant, the user said.
-- --preview: an audition of the change as heard in the fight - phase 2's last seconds, the cut, the bell, its silence,
-  phase 3's music coming in BELL_TO_MUSIC after the cut.
+- The rewind sound: the user's (Valerian_Rewind.wav beside the music, from their rewind.mp3). A wound back tape (the
+  track run backwards, faster and faster) came first, then a lone church bell: loud and unpleasant, then replaced.
+- --preview: an audition of the change as heard in the fight - phase 2's last seconds, the cut, the rewind, phase 3's
+  music coming in REWIND_TO_MUSIC after the cut, as the rewind fades.
 """
 import argparse
 import os
-import shutil
 
 import numpy
 import soundfile
@@ -24,9 +24,7 @@ REPO = os.path.abspath(os.path.join(HERE, '..', '..'))
 SOURCES = os.path.join(REPO, 'modules', 'mod-stat-growth', 'client-assets', 'audio', 'sources', 'valerian')
 P2 = os.path.join(SOURCES, 'valerian_p2.ogg')
 P3 = os.path.join(SOURCES, 'valerian_p3.ogg')
-BELL_SOURCE = os.path.join(REPO, 'data', 'custom', 'diabloZealotSounds', 'wav',
-                           'Play_CAMP_Nostrava_ChurchBell_Media_01.wav')
-BELL = os.path.join(SOURCES, 'Play_CAMP_Nostrava_ChurchBell_Media_01.wav')
+REWIND = os.path.join(SOURCES, 'Valerian_Rewind.wav')
 
 # Phase 2's grid (valerian.json: 92.3 BPM from 1.39 s)
 BEAT = 60.0 / 92.3
@@ -34,8 +32,8 @@ FIRST_BEAT = 1.39
 RESUME_AT = FIRST_BEAT + 99 * BEAT  # the beat just before 1:06
 FADE_IN = 0.25
 CUT_AT = 275.0                      # where the audition cuts phase 2 (Lumière totale's hit)
-BELL_TO_MUSIC = 5.0                 # from the cut to phase 3's music (ZealotBoss.cpp: the time stopped, the rewind)
-BELL_GAIN = 0.9
+REWIND_TO_MUSIC = 8.5               # from the cut to phase 3's music (ZealotBoss.cpp: the time stopped, the rewind)
+REWIND_GAIN = 2.2                   # the audition's (the bank's loudness does it in game): level with the music
 
 
 def write_blocks(path, samples, rate, **options):
@@ -54,13 +52,14 @@ def main():
     fade = int(FADE_IN * rate)
     music[:fade] *= numpy.linspace(0.0, 1.0, fade)[:, None]
     write_blocks(P3, music.astype(numpy.float32), rate, format='OGG', subtype='VORBIS')
-    shutil.copyfile(BELL_SOURCE, BELL)
     print(f'{os.path.relpath(P3, REPO)}: {len(music) / rate:.2f} s (phase 2 from {RESUME_AT:.2f} s)')
     if args.preview:
-        bell, bell_rate = soundfile.read(BELL, dtype='float64', always_2d=True)
-        bell = resample_poly(bell, rate, bell_rate, axis=0) * BELL_GAIN
+        bell, bell_rate = soundfile.read(REWIND, dtype='float64', always_2d=True)
+        if bell_rate != rate:
+            bell = resample_poly(bell, rate, bell_rate, axis=0)
+        bell *= REWIND_GAIN
         before = track[int(round((CUT_AT - 12.0) * rate)):int(round(CUT_AT * rate))]
-        gap = numpy.zeros((int(BELL_TO_MUSIC * rate), track.shape[1]))
+        gap = numpy.zeros((int(REWIND_TO_MUSIC * rate), track.shape[1]))
         gap[:min(len(gap), len(bell))] += bell[:len(gap)]
         after = music[:int(35.0 * rate)].copy()
         tail = bell[len(gap):]
