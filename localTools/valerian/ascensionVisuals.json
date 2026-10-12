@@ -5,7 +5,8 @@
     "looks: the wall standing while empty, sinking into the floor while someone stands in it (its CustomSpell01-04",
     "animations, played by emotes 402-405/417). A creature look: localTools/patchSinisterStrike.ps1 gives it a",
     "creature display (60020). Imported by localTools/ascensionImport/importVisuals.py into client-assets/importedValerian.",
-    "Kits 83901+: candidates for his strikes' impacts, compared in the FX lab (then reshaped: localTools/shapedEffects)."
+    "Kits 83901+: candidates for his strikes' impacts, compared in the FX lab (then reshaped: localTools/shapedEffects).",
+    "Looks: VerseSpear, Odyn's spear of light thrown (Ascension's visual 1032, no kit, no sound: ours plays); VerseLightning, a lightning streak tinted the Light's gold flying with it (La Litanie's spears)."
   ],
   "output": "modules/mod-stat-growth/client-assets/importedValerian",
   "idBase": 83000,
@@ -66,6 +67,34 @@
         "righthand": "cfx_warrior_spearofbastion"
       },
       "id": 83921
+    }
+  },
+  "looks": {
+    "VerseSpear": {
+      "from": 1032,
+      "precast": null,
+      "cast": null,
+      "impact": null,
+      "state": null,
+      "channel": null,
+      "casterimpact": null,
+      "targetimpact": null,
+      "missile": "7fx_odyn_spearoflight_missile"
+    },
+    "VerseLightning": {
+      "from": 1032,
+      "precast": null,
+      "cast": null,
+      "impact": null,
+      "state": null,
+      "channel": null,
+      "casterimpact": null,
+      "targetimpact": null,
+      "missile": {
+        "model": "lightningstreak_missile",
+        "scale": 1.6,
+        "tint": "#ffd25a"
+      }
     }
   }
 }

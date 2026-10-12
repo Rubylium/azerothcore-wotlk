@@ -1,5 +1,8 @@
 {
- "ids": {},
+ "ids": {
+  "VerseSpear": 83000,
+  "VerseLightning": 83001
+ },
  "kits": {
   "Cand00": 83901,
   "Cand02": 83903,
@@ -13,7 +16,86 @@
  },
  "sounds": {},
  "tables": {
-  "SpellVisual": [],
+  "SpellVisual": [
+   {
+    "id": 83000,
+    "source": null,
+    "fields": [
+     83000,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     83000,
+     0,
+     19,
+     0,
+     0,
+     0,
+     0,
+     0,
+     19,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "strings": {}
+   },
+   {
+    "id": 83001,
+    "source": null,
+    "fields": [
+     83001,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     83002,
+     0,
+     19,
+     0,
+     0,
+     0,
+     0,
+     0,
+     19,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "strings": {}
+   }
+  ],
   "SpellVisualKit": [
    {
     "id": 83901,
@@ -24,7 +106,7 @@
      4294967295,
      0,
      0,
-     83000,
+     83003,
      0,
      0,
      0,
@@ -69,7 +151,7 @@
      4294967295,
      0,
      0,
-     83001,
+     83004,
      0,
      0,
      0,
@@ -114,7 +196,7 @@
      4294967295,
      0,
      0,
-     83002,
+     83005,
      0,
      0,
      0,
@@ -159,7 +241,7 @@
      4294967295,
      0,
      0,
-     83003,
+     83006,
      0,
      0,
      0,
@@ -204,7 +286,7 @@
      4294967295,
      0,
      0,
-     83004,
+     83007,
      0,
      0,
      0,
@@ -249,7 +331,7 @@
      4294967295,
      0,
      0,
-     83005,
+     83008,
      0,
      0,
      0,
@@ -294,7 +376,7 @@
      4294967295,
      0,
      0,
-     83006,
+     83009,
      0,
      0,
      0,
@@ -341,7 +423,7 @@
      0,
      0,
      0,
-     83007,
+     83000,
      0,
      0,
      0,
@@ -386,7 +468,7 @@
      0,
      0,
      0,
-     83008,
+     83010,
      0,
      0,
      0,
@@ -424,128 +506,9 @@
   "SpellVisualEffectName": [
    {
     "id": 83000,
-    "source": 28898,
-    "fields": [
-     83000,
-     315672,
-     315703,
-     0,
-     1065353216,
-     1056964608,
-     1069547520
-    ],
-    "strings": {
-     "1": "7fx_paladin_wakeofashes_impact",
-     "2": "spells\\7fx_paladin_wakeofashes_impact.m2"
-    }
-   },
-   {
-    "id": 83001,
-    "source": 135288,
-    "fields": [
-     83001,
-     504271,
-     504320,
-     0,
-     1060320051,
-     1065353216,
-     1065353216
-    ],
-    "strings": {
-     "1": "7FX_Lightforged_Vindicaar_LightsJudgement_Impact",
-     "2": "spells\\7FX_Lightforged_Vindicaar_LightsJudgement_Impact.m2"
-    }
-   },
-   {
-    "id": 83002,
-    "source": 146591,
-    "fields": [
-     83002,
-     616282,
-     603831,
-     0,
-     1065353216,
-     1065353216,
-     1065353216
-    ],
-    "strings": {
-     "1": "11fx_holy_impact01",
-     "2": "spells\\11fx_holy_impact01.m2"
-    }
-   },
-   {
-    "id": 83003,
-    "source": 146602,
-    "fields": [
-     83003,
-     616351,
-     604088,
-     0,
-     1065353216,
-     1065353216,
-     1065353216
-    ],
-    "strings": {
-     "1": "11fx_lightimpact01",
-     "2": "spells\\11fx_lightimpact01.m2"
-    }
-   },
-   {
-    "id": 83004,
-    "source": 1722,
-    "fields": [
-     83004,
-     65563,
-     65585,
-     1065353216,
-     1065353216,
-     1008981770,
-     1120403456
-    ],
-    "strings": {
-     "1": "Holy Nova Impact Base",
-     "2": "spells\\holynova_impact_base.mdx"
-    }
-   },
-   {
-    "id": 83005,
-    "source": 52876,
-    "fields": [
-     83005,
-     384493,
-     384539,
-     1065353216,
-     1061158912,
-     1008981770,
-     1120403456
-    ],
-    "strings": {
-     "1": "7fx_argus_lightforged_siegeweapon_impact_holy",
-     "2": "SPELLS\\7fx_argus_lightforged_siegeweapon_impact_holy.m2"
-    }
-   },
-   {
-    "id": 83006,
-    "source": 4675,
-    "fields": [
-     83006,
-     141478,
-     141505,
-     0,
-     1065353216,
-     1008981770,
-     1120403456
-    ],
-    "strings": {
-     "1": "Divine Storm Impact Damage",
-     "2": "spells\\divine_storm_impact_damage.mdx"
-    }
-   },
-   {
-    "id": 83007,
     "source": 56201,
     "fields": [
-     83007,
+     83000,
      36852,
      36882,
      1065353216,
@@ -559,10 +522,163 @@
     }
    },
    {
+    "id": 83001,
+    "source": 694,
+    "fields": [
+     83001,
+     40209,
+     40235,
+     0,
+     1065353216,
+     1008981770,
+     1120403456
+    ],
+    "strings": {
+     "1": "Missile: Lightning Streak",
+     "2": "Spells\\LightningStreak_Missile.mdx"
+    }
+   },
+   {
+    "id": 83002,
+    "source": null,
+    "fields": [
+     83002,
+     40209,
+     40235,
+     0,
+     1070386381,
+     1008981770,
+     1092616192
+    ],
+    "strings": {
+     "1": "Missile: Lightning Streak",
+     "2": "Spells\\Evolutions\\Tint\\LightningStreak_Missile_ffd25a.mdx"
+    }
+   },
+   {
+    "id": 83003,
+    "source": 28898,
+    "fields": [
+     83003,
+     315672,
+     315703,
+     0,
+     1065353216,
+     1056964608,
+     1069547520
+    ],
+    "strings": {
+     "1": "7fx_paladin_wakeofashes_impact",
+     "2": "spells\\7fx_paladin_wakeofashes_impact.m2"
+    }
+   },
+   {
+    "id": 83004,
+    "source": 135288,
+    "fields": [
+     83004,
+     504271,
+     504320,
+     0,
+     1060320051,
+     1065353216,
+     1065353216
+    ],
+    "strings": {
+     "1": "7FX_Lightforged_Vindicaar_LightsJudgement_Impact",
+     "2": "spells\\7FX_Lightforged_Vindicaar_LightsJudgement_Impact.m2"
+    }
+   },
+   {
+    "id": 83005,
+    "source": 146591,
+    "fields": [
+     83005,
+     616282,
+     603831,
+     0,
+     1065353216,
+     1065353216,
+     1065353216
+    ],
+    "strings": {
+     "1": "11fx_holy_impact01",
+     "2": "spells\\11fx_holy_impact01.m2"
+    }
+   },
+   {
+    "id": 83006,
+    "source": 146602,
+    "fields": [
+     83006,
+     616351,
+     604088,
+     0,
+     1065353216,
+     1065353216,
+     1065353216
+    ],
+    "strings": {
+     "1": "11fx_lightimpact01",
+     "2": "spells\\11fx_lightimpact01.m2"
+    }
+   },
+   {
+    "id": 83007,
+    "source": 1722,
+    "fields": [
+     83007,
+     65563,
+     65585,
+     1065353216,
+     1065353216,
+     1008981770,
+     1120403456
+    ],
+    "strings": {
+     "1": "Holy Nova Impact Base",
+     "2": "spells\\holynova_impact_base.mdx"
+    }
+   },
+   {
     "id": 83008,
-    "source": 241024,
+    "source": 52876,
     "fields": [
      83008,
+     384493,
+     384539,
+     1065353216,
+     1061158912,
+     1008981770,
+     1120403456
+    ],
+    "strings": {
+     "1": "7fx_argus_lightforged_siegeweapon_impact_holy",
+     "2": "SPELLS\\7fx_argus_lightforged_siegeweapon_impact_holy.m2"
+    }
+   },
+   {
+    "id": 83009,
+    "source": 4675,
+    "fields": [
+     83009,
+     141478,
+     141505,
+     0,
+     1065353216,
+     1008981770,
+     1120403456
+    ],
+    "strings": {
+     "1": "Divine Storm Impact Damage",
+     "2": "spells\\divine_storm_impact_damage.mdx"
+    }
+   },
+   {
+    "id": 83010,
+    "source": 241024,
+    "fields": [
+     83010,
      684683,
      684710,
      0,

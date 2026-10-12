@@ -11,6 +11,25 @@ $physical = 1
 $holy = 2
 $debuff = 0x04000000
 
+# His looks imported from the Ascension client (localTools/valerian/ascensionVisuals.json)
+$valerianImported = Get-Content -LiteralPath (Join-Path $repoRoot `
+    'modules\mod-stat-growth\client-assets\importedValerian\visuals.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+function ValerianLook([string]$key) {
+    $id = $valerianImported.ids.$key
+    if (-not $id) { throw "No imported Valerian look '$key' (localTools\valerian\ascensionVisuals.json)." }
+    return [uint32]$id
+}
+
+# La Litanie's spears in flight: a dummy at a point (87: TARGET_DEST_DEST, anywhere: range 13), its missile flying at
+# 45 yd/s (field 47, a float: ZealotBoss.cpp's LitanySpearSpeed) - only a look, the script strikes
+$spearSpeed = [BitConverter]::ToUInt32([BitConverter]::GetBytes([single]45), 0)
+function New-Missile($id, $name, $look, $description) {
+    @{ Id = $id; Clone = 585; Name = $name; FallbackIconSpell = 48782; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = $description
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 87; BasePoints = 0 })
+       Fields = @{ 28 = 1; 46 = 13; 47 = $spearSpeed; 131 = (ValerianLook $look); 213 = 0; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } }
+}
+
 # A hit, never cast: its name and text in the combat log and the death recap
 function New-Hit($id, $name, $fallback, $school, $description) {
     @{ Id = $id; Clone = 64596; Name = $name; FallbackIconSpell = $fallback; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
@@ -63,6 +82,8 @@ $spells = @(
         "La lance de la Litanie frappe le verset qui portait son numéro."),
     (New-Hit 94644 'Profanation' 642 $holy `
         "Une lance de la Litanie a frappé un autre verset que le sien : la lumière a tout emporté."),
+    (New-Missile 94645 'Lance de la Litanie' 'VerseSpear' "La lance de la Litanie, en vol."),
+    (New-Missile 94646 'Foudre de la Litanie' 'VerseLightning' "La foudre dorée qui suit la lance."),
     (New-Hit 94642 'Éclats de lumière' 48782 $holy `
         "Pendant qu'il s'élève, des éclats de lumière tombent dans l'arène. Sortez de leur cercle."),
     (New-Hit 94641 'Lumière rendue' 48782 $holy `
@@ -82,6 +103,12 @@ $spells = @(
         "Les revers du Zélote." "Dégâts subis augmentés. Laissez-le à l'autre tank."),
     (New-Debuff 94653 'Marque de ferveur' 48819 1 `
         "Sa ferveur va exploser sur vous." "Sa ferveur va exploser sur vous : écoutez-la."),
+    # His ward while he recites (Divine Shield's look and immunity, nothing a dispel takes): the script puts it on and off
+    @{ Id = 94669; Clone = 642; Name = 'Litanie'; FallbackIconSpell = 642; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Le Zélote récite sa litanie : rien ne l'atteint."
+       AuraDescription = "Rien ne l'atteint tant qu'il récite."
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 39; TargetA = 1; Misc = 127 })
+       Fields = @{ 2 = 0; 3 = 0; 40 = 21 } },
 
     # --- His cast bars ---
     (New-Cast 94660 'Revers sacré' 53595 16 "Le Zélote arme son revers."),

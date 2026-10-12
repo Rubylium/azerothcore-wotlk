@@ -10,7 +10,7 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
     looks     { "<key>": { "from": <Ascension SpellVisual id>, "<slot>": <kit>, ... } } - looks put together: the
               visual named by from, each slot given replaced (a slot given null is emptied). Slots: precast, cast,
               impact, state, statedone, channel, casterimpact, targetimpact, missiletarget, instantarea, impactarea,
-              persistentarea; "missile" replaces the missile's model (an effect, below)
+              persistentarea; "missile" replaces the missile's model (an effect, below: scaled or tinted too)
     kits      { "<key>": <kit> } - kits of their own, for a server to play on a unit (SMSG_PLAY_SPELL_VISUAL);
               each one carries its "id", which the module's code names
     models    [ "<archive path of a model>" or { "model": <that>, "tint": "#rrggbb" }, ... ] - models shipped with
@@ -425,8 +425,12 @@ class Importer:
         fields = entry['fields']
         for name, field in SLOTS.items():
             fields[field] = self.composed_kit(spec[name]) if name in spec else self.kit(source[field])
-        missile = self.find_effect(spec['missile']) if 'missile' in spec else source[VISUAL_MISSILE_MODEL]
-        fields[VISUAL_MISSILE_MODEL] = self.effect(missile)
+        if isinstance(spec.get('missile'), dict):
+            # scaled and/or tinted, as a kit's effect can be
+            fields[VISUAL_MISSILE_MODEL] = self.scaled_effect(spec['missile'])
+        else:
+            missile = self.find_effect(spec['missile']) if 'missile' in spec else source[VISUAL_MISSILE_MODEL]
+            fields[VISUAL_MISSILE_MODEL] = self.effect(missile)
         for field in VISUAL_SOUNDS:
             fields[field] = self.sound(source[field])
         # The missile's path: the source's, or a SpellMissileMotion row named by id (a stock arc: 40 Fountain)

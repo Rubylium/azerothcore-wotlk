@@ -117,18 +117,24 @@ constexpr float LanceSpacing = 8.0f;
 constexpr uint32 LanceShiftBeats = 3;
 constexpr uint32 BurstCastBeats = 3;
 // La Litanie: the numerals and the sigil from its start, the first spear LitanyFirstBeats later, then one every
-// LitanyEveryBeats (two verses at once: four throws); each spear's line shown LitanyWarnBeats before it strikes. The
+// LitanyEveryBeats (two verses at once: four throws); each spear's line watched (not drawn) LitanyWarnBeats before. The
 // sigil LitanySigilRadius yards across its radius, its numerals at LitanyRing yards (where each player stands), I at
-// its top (north). A verse struck: LitanyVersePct of its holder's profile health.
-constexpr uint32 LitanyFirstBeats = 8;
+// its top (north). A verse struck: LitanyVersePct of its holder's profile health. He is warded meanwhile (nothing
+// reaches him: SPELL_LITANY_WARD).
+constexpr uint32 LitanyFirstBeats = 10;
 constexpr uint32 LitanyEveryBeats = 2;
 constexpr uint32 LitanyWarnBeats = 2;
 constexpr uint32 LitanyBotsBeats = 4;       // the bots go to their numerals this long before the first spear
 constexpr uint32 LitanyVerses = 8;
-constexpr float LitanySigilRadius = 10.0f;
-constexpr float LitanyRing = 8.5f;
+constexpr float LitanySigilRadius = 13.5f;
+constexpr float LitanyRing = LitanySigilRadius * 0.8f;     // where its painting puts the numerals (sigil_litany.png)
 constexpr float LitanyVersePct = 25.0f;
 constexpr float LitanySigilFacing = float(M_PI) / 2.0f;    // the sigil turned so its I points north (VerseSpot's)
+// Each spear thrown: Odyn's spear of light flying from his hand to the wall through its verse at LitanySpearSpeed (the
+// spell's own, Spells.ps1), a lightning streak of the Light's gold flying with it; thrown so it reaches the verse's
+// numeral on the beat it strikes, aimed LitanySpearHeight over the floor at the wall
+constexpr float LitanySpearSpeed = 45.0f;
+constexpr float LitanySpearHeight = 1.2f;
 
 // The bots' places (Guide: a spot of its own each, out of a pattern's safe ones - they cannot read his tells): how far
 // from his middle they stand close to him (in his reach: his size makes it wide), out in the ring, and Ferveur's marks
@@ -269,9 +275,9 @@ enum Kits : uint32
     SHAPED_HOLY_LINE_10X2   = 83952,    // a lance's tile: 10 yd along, 2.5 across
 };
 constexpr uint32 ImpactMs = 4000;
-// His spear: Odyn's Stormforged Spear (retail, localTools/retailImport display 70117: lightning scrolling along it),
-// carried by item 18881 - in his hands while he throws spears of light (La Litanie, Lances de lumière)
-constexpr uint32 ITEM_STORMFORGED_SPEAR = 18881;           // an impact's stalker lasts this long (its effect plays out)
+// His spear: Odyn's Spear of Light (retail, localTools/retailImport display 70118: gold and light), carried by item
+// 18882 - in his hands while he throws spears of light (La Litanie, Lances de lumière)
+constexpr uint32 ITEM_SPEAR_OF_LIGHT = 18882;
 // How far each burst reaches from its middle at scale 1 (yards, seen in the FX lab): sized from it to its circle
 constexpr float BlastReach = 3.0f;
 constexpr float JudgementReach = 3.5f;
@@ -293,6 +299,9 @@ enum Spells : uint32
     SPELL_SHARDS            = 94642,    // Éclats de lumière (while he rises)
     SPELL_VERSE             = 94643,    // Verset (a spear on its own verse)
     SPELL_PROFANATION       = 94644,    // Profanation (a spear struck another: everyone dies)
+    SPELL_VERSE_SPEAR       = 94645,    // La Litanie's spear in flight (a missile, nothing more)
+    SPELL_VERSE_LIGHTNING   = 94646,    // ... and the golden lightning flying with it
+    SPELL_LITANY_WARD       = 94669,    // Litanie (nothing reaches him while he recites)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
     SPELL_ZEAL              = 94652,    // Zèle brûlant (his tank's stacks)
@@ -383,7 +392,7 @@ std::vector<Step> BuildTimeline()
     return {
         { 14, Event::Revers },                  // lands on the 11.3 s hit
         { 24, Event::Wrath, 0 },                // its second half on the 18.2 s hit
-        { 37, Event::Litany, 0 },               // one verse at a time, early: its spears from beat 45 to 59
+        { 37, Event::Litany, 0 },               // one verse at a time, early: its spears from beat 47 to 61
         { 63, Event::Revers },                  // on the 36.0 s hit
         { 77, Event::Lances },                  // on the 42.9 s hit
         { 87, Event::Chain },
@@ -394,7 +403,7 @@ std::vector<Step> BuildTimeline()
         { 146, Event::Lances },
         { 157, Event::Chain },
         { 173, Event::Fervor, 1 },              // turned to a stack
-        { 183, Event::Litany, 1 },              // two verses at once: its spears from beat 191 to 197
+        { 183, Event::Litany, 1 },              // two verses at once: its spears from beat 193 to 199
         { 200, Event::Rage, 2 },
         { 212, Event::Wrath, 1 },
         { 225, Event::Chain },
@@ -526,7 +535,7 @@ struct boss_valerian : public Defi::BossAI
     {
         if (_phase == Phase::Ascended)
             return;
-        if (_phase != Phase::Zealot)
+        if (_phase != Phase::Zealot || me->HasAura(SPELL_LITANY_WARD))
         {
             damage = 0;
             return;
@@ -985,13 +994,16 @@ private:
 
     // A lance from start along facing, length long, LanceWidth wide: registered whole, drawn in tiles of the lance
     // (LanceTileRatio times its width each), the last one flush with its end
-    GroundIndicators::Area Lance(Position const& start, float facing, float length, uint32 ms)
+    // painted false: watched (the bots keep out of it) but not drawn (La Litanie: the spear in flight is its look)
+    GroundIndicators::Area Lance(Position const& start, float facing, float length, uint32 ms, bool painted = true)
     {
         GroundIndicators::Area area = MakeCircle(start, length);
         area.kind = GroundIndicators::Area::Kind::Rectangle;
         area.origin.SetOrientation(facing);
         area.width = LanceWidth;
         GroundIndicators::WatchArea(me, area, ms, MistakeDamage);
+        if (!painted)
+            return area;
         float const tile = LanceWidth * LanceTileRatio;
         float done = 0.0f;
         for (; length - done >= tile; done += tile)
@@ -1696,10 +1708,10 @@ private:
         Wave(first, first + LanceShiftBeats, [this, turn](uint32 ms) { return Grille(turn, 0.0f, ms); }, RuleLances);
     }
 
-    // His spear in his hands (or not): Odyn's Stormforged Spear, crackling with lightning
+    // His spear in his hands (or not): Odyn's Spear of Light
     void HoldSpear(bool held)
     {
-        me->SetVirtualItem(0, held ? ITEM_STORMFORGED_SPEAR : 0);
+        me->SetVirtualItem(0, held ? ITEM_SPEAR_OF_LIGHT : 0);
     }
 
     void ThrowSpear(bool last)
@@ -1744,6 +1756,7 @@ private:
         CastBar(CAST_LITANY);
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         HoldSpear(true);
+        me->AddAura(SPELL_LITANY_WARD, me);
         Sound("Valerian.LitanyStart", Middle());
         // The numerals dealt at random, I to as many as there are players (eight at most)
         std::vector<Player*> players = ArenaPlayers();
@@ -1797,10 +1810,18 @@ private:
             {
                 Sound("Valerian.VerseTell", Middle());
                 std::vector<std::pair<uint32, GroundIndicators::Area>> lines;
+                std::vector<float> aims;
                 for (uint32 verse : group)
                     if (Player* holder = ObjectAccessor::GetPlayer(*me, verses[verse]); holder && holder->IsAlive())
-                        lines.emplace_back(verse, Lance(Middle(), Middle().GetAngle(holder), ArenaRadius - 0.3f,
-                            MsTo(strikes)));
+                    {
+                        aims.push_back(Middle().GetAngle(holder));
+                        lines.emplace_back(verse, Lance(Middle(), aims.back(), ArenaRadius - 0.3f, MsTo(strikes),
+                            false));
+                    }
+                // The spears leave his hand so they reach the numerals on the beat
+                uint32 const flightMs = uint32(LitanyRing / LitanySpearSpeed * 1000.0f);
+                scheduler.Schedule(Milliseconds(MsTo(strikes) - std::min(MsTo(strikes), flightMs)),
+                    [this, aims](TaskContext) { ThrowVerseSpears(aims); });
                 AtBeat(Grid, strikes, [this, verses, lines]() { StrikeVerses(verses, lines); });
             });
         }
@@ -1809,12 +1830,28 @@ private:
             EndCastBar();
             Pose(0);
             HoldSpear(false);
+            me->RemoveAurasDueToSpell(SPELL_LITANY_WARD);
         });
         AtBeat(Grid, lastStrike + 1, [this]()
         {
             if (!_litanyProfaned)
                 Sound("Valerian.LitanyEnd", Middle());
         });
+    }
+
+    // The spears in flight: from his hand to the wall along each aim, the throw's gesture with them
+    void ThrowVerseSpears(std::vector<float> const& aims)
+    {
+        if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
+            return;
+        Gesture(EMOTE_ONESHOT_ATTACK_THROWN, false);
+        for (float aim : aims)
+        {
+            Position const wall = Ground(OnArena(aim, ArenaRadius - 0.3f));
+            float const z = wall.GetPositionZ() + LitanySpearHeight;
+            me->CastSpell(wall.GetPositionX(), wall.GetPositionY(), z, SPELL_VERSE_SPEAR, true);
+            me->CastSpell(wall.GetPositionX(), wall.GetPositionY(), z, SPELL_VERSE_LIGHTNING, true);
+        }
     }
 
     // Where verse index stands on the clock: I at its top (north), then clockwise
@@ -1829,13 +1866,11 @@ private:
     {
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return;
-        Gesture(EMOTE_ONESHOT_ATTACK_THROWN, false);
         std::vector<Position> spots;
         for (auto const& [verse, line] : lines)
         {
             _litanyStruck.insert(verses[verse]);
             spots.push_back(BurstSpot(line));
-            Impact(Look::Shaped, line);
         }
         SoundNearest("Valerian.VerseStrike", spots);
         if (_phase == Phase::Rehearsal || _litanyProfaned)
@@ -2256,6 +2291,7 @@ private:
         me->SetStandState(UNIT_STAND_STATE_STAND);
         me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
         HoldSpear(false);
+        me->RemoveAurasDueToSpell(SPELL_LITANY_WARD);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
         me->SetObjectScale(BaseScale);
