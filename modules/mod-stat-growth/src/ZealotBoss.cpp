@@ -2861,12 +2861,13 @@ private:
     {
         _starsBase += frand(0.6f, 1.4f);
         float const base = _starsBase;
-        // The carriers: the real players first, then bots; the tanks last of all
+        // The carriers: the real players first, a tank as any other (a tank friend never carried one); then bots, their
+        // tanks last
         std::vector<Player*> players = ArenaPlayers();
         Acore::Containers::RandomShuffle(players);
         std::stable_sort(players.begin(), players.end(), [this](Player* a, Player* b)
         {
-            auto rank = [this](Player* p) { return (IsBotPlayer(p) ? 1 : 0) + (IsTank(p) ? 2 : 0); };
+            auto rank = [this](Player* p) { return IsBotPlayer(p) ? (IsTank(p) ? 2 : 1) : 0; };
             return rank(a) < rank(b);
         });
         if (players.size() > StarsCount)
