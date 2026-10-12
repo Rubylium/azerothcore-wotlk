@@ -46,6 +46,9 @@
 // .valerian lab: in the FX lab (map 451) he stands at its middle in rehearsal - every pattern drawn for real by
 // .valerian cast, striking nobody, each strike logging how much of the arena it left safe.
 
+// mod-playerbots RaidFinder (the same modules library): the kill counted as lost on the board
+void DenyChallengeClear(Map const* map);
+
 namespace
 {
 // --- Tuning ---------------------------------------------------------------------------------------------------------
@@ -250,6 +253,8 @@ constexpr uint32 AilesTendrils = 6;
 constexpr float AilesWidth = 3.4f;
 constexpr float AilesTurnDeg = 60.0f;
 constexpr uint32 AilesSweepMs = 2000;
+constexpr float AilesGapAt = 9.0f;          // where the bots stand in a gap (its widest there: 6 yd clear)
+constexpr uint32 AilesGuideStepMs = 300;    // their spot moved along this often while the tendrils turn
 // Pluie d'astres: three stars carried to three beacons on the wall (StarsBeaconAt yd, 120 degrees apart), dropped where
 // the carriers stand at StarsDropMs, bursting at StarsBurstMs: a star on its beacon as its third of the arena from the
 // wall to StarsSafe yd of him, off it as a StarsMissRadius circle where it fell
@@ -269,6 +274,7 @@ constexpr uint32 GazeFreezeMs = 1000;
 constexpr float GazeTargetPct = 35.0f;
 // Sentence: two halves (or four quadrants), numbered, struck in order SentenceStepMs apart from P2TellMs on
 constexpr uint32 SentenceStepMs = 1300;
+constexpr float SentenceAt = 3.5f;          // the bots stand this close to him: a crossing through him in time
 // Le Chœur: seals on everyone, eight wedges light and shadow; the swap (a bell) at ChoirSwapMs, the wedges turn a step
 // at ChoirTurnMs, the choir sings at ChoirSingMs (its cast bar's length)
 constexpr uint32 ChoirSwapMs = 4500;
@@ -2270,6 +2276,8 @@ private:
         {
             LOG_INFO(_logName, "Valerian chained instance={}: beaten, no gear", me->GetInstanceId());
             GroundLoot::DenyLoot(me->GetMap());
+            // ... and no clear on the board: lost, once the group is home
+            DenyChallengeClear(me->GetMap());
             me->SetImmuneToAll(false);
             me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
             std::vector<Player*> const players = ArenaPlayers();
@@ -2609,8 +2617,19 @@ private:
             GroundIndicators::ShowTurningRectangle(me, middle,
                 base + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius, AilesWidth, total, turns,
                 MistakeDamage);
-        // The bots: in a gap (they follow the turns the registry tells them)
-        GuideP2(Fan(base + float(M_PI) / float(AilesTendrils), 300.0f, 10.0f, 8), P2TellMs + 200);
+        // The bots: each in a gap's middle, moved along with the gaps as they turn (a little ahead of them)
+        float const gap = float(M_PI) / float(AilesTendrils);
+        auto gapsAt = [this, base, gap, turns](uint32 t)
+        {
+            std::vector<Position> spots;
+            float const turned = GroundIndicators::TurnedBy(turns, t);
+            for (uint32 index = 0; index < AilesTendrils; ++index)
+                spots.push_back(P2At(base + turned + gap + float(index) * 2.0f * gap, AilesGapAt));
+            return spots;
+        };
+        GuideP2(gapsAt(P2TellMs), P2TellMs + 300);
+        for (uint32 t = P2TellMs; t < total; t += AilesGuideStepMs)
+            After(t, [this, gapsAt, t]() { GuideP2(gapsAt(t + AilesGuideStepMs), AilesGuideStepMs + 300); });
         // Struck from the tell's end, where the tendrils are each moment
         auto hit = std::make_shared<std::set<ObjectGuid>>();
         for (uint32 t = P2TellMs; t <= total; t += 200)
@@ -2821,10 +2840,10 @@ private:
         // The bots: on the last, then into the first once it has burned
         float const last = angleOf(order[parts - 1]);
         float const first = angleOf(order[0]);
-        GuideP2(Fan(last, arc * 0.6f, 9.0f, 8), P2TellMs + 300);
-        After(P2TellMs + 300, [this, first, arc, parts]()
+        GuideP2(Fan(last, arc * 0.5f, SentenceAt, 8), P2TellMs + 300);
+        After(P2TellMs + 150, [this, first, arc, parts]()
         {
-            GuideP2(Fan(first, arc * 0.6f, 9.0f, 8), (parts - 1) * SentenceStepMs + 500);
+            GuideP2(Fan(first, arc * 0.5f, SentenceAt, 8), (parts - 1) * SentenceStepMs + 500);
         });
     }
 
@@ -3033,7 +3052,7 @@ private:
         // The bots: in the two safe slices; one catcher on each lane (one free of Surcharge)
         std::vector<Position> spots;
         for (float lane : { safe, safe + float(M_PI) })
-            for (float off : { -0.22f, 0.22f })
+            for (float off : { -0.34f, 0.34f })
                 for (float d : { 7.0f, 15.0f })
                     spots.push_back(P2At(lane + off, d));
         std::vector<Player*> bots;

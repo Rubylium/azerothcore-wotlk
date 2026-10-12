@@ -24,7 +24,7 @@ DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 930500 AND 9
 DELETE FROM `creature_template_locale` WHERE `entry` BETWEEN 930500 AND 930503;
 DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 930500 AND 930503;
 DELETE FROM `creature_template` WHERE `entry` BETWEEN 930500 AND 930503;
-DELETE FROM `creature_model_info` WHERE `DisplayID` = 60020;
+DELETE FROM `creature_model_info` WHERE `DisplayID` IN (60020, 60022);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_stat_growth_zealot`;
 CREATE TEMPORARY TABLE `tmp_stat_growth_zealot` LIKE `creature_template`;
@@ -99,7 +99,9 @@ VALUES
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`,
     `VerifiedBuild`)
 VALUES
-    (60020, 1.0, 1, 2, 0, NULL);
+    (60020, 1.0, 1, 2, 0, NULL),
+    -- His god's form (the Kyrian, display 60022, at size 3.0): a reach and a body to its size, 7.8 and 2.4 yd there
+    (60022, 0.8, 2.6, 0, 0, NULL);
 
 INSERT INTO `creature_template_movement`
     (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`)
