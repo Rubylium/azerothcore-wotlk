@@ -79,3 +79,7 @@ unit's entry, world position, facing, health, scale, display, emote state), `pos
 `screenshot(hide_ui=True)`, `chat` (boss yells, emotes, addon messages), `server_log`, `db_query` (read only),
 `client_stop`. It refuses to start while a WoW client already runs. Never use `.go xyz` with an orientation: it hung
 the client.
+
+The MCP server grows with the tests: when a check needs data or an action it lacks (a new unit field, an aura list, a
+camera move, a server-side query), add it there. Use a tool in `server.py`, or a bridge command or Lua function in
+`DevBridge.cpp` (rebuild the DLL, copy it into `CleanWOTLK`), and document it in its description. No need to ask first.
