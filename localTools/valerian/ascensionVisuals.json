@@ -7,7 +7,8 @@
     "creature display (60020). Imported by localTools/ascensionImport/importVisuals.py into client-assets/importedValerian.",
     "Kits 83901+: candidates for his strikes' impacts, compared in the FX lab (then reshaped: localTools/shapedEffects).",
     "Looks: VerseSpear, Odyn's spear of light thrown (Ascension's visual 1032, no kit, no sound: ours plays); VerseLightning, a lightning streak tinted the Light's gold flying with it (La Litanie's spears).",
-    "Phase 2's body: the Maw's Kyrian and the black textures its displays swap in, the source of localTools/valerian/buildAscendedModel.py (his own copy, repainted to the Light, its wings and shroud turned to light: creature display 60022)."
+    "Phase 2's body: the Maw's Kyrian and the black textures its displays swap in, the source of localTools/valerian/buildAscendedModel.py (his own copy, repainted to the Light, its wings and shroud turned to light: creature display 60022).",
+    "HolyGlowPlain (83922): the stock holy precast glow (kit 7005) without its tints on the body (its CharProcs: they stayed on him, and on his god's form after it, yellow and see-through)."
   ],
   "output": "modules/mod-stat-growth/client-assets/importedValerian",
   "idBase": 83000,
@@ -76,6 +77,16 @@
         "righthand": "cfx_warrior_spearofbastion"
       },
       "id": 83921
+    },
+    "HolyGlowPlain": {
+      "from": 7005,
+      "fields": {
+        "17": 4294967295,
+        "18": 4294967295,
+        "19": 4294967295,
+        "20": 4294967295
+      },
+      "id": 83922
     }
   },
   "looks": {

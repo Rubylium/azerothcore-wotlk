@@ -187,6 +187,7 @@ constexpr uint32 AscendRiseMs = 2500;
 constexpr uint32 AscendRiseTakesMs = 12000;
 constexpr float AscendHeight = 7.0f;
 constexpr uint32 AscendGlowEveryMs = 1500;
+constexpr uint32 AscendGlowClearMs = 2500;
 constexpr float AscendScale = 1.7f;
 // His god's form from his blow on: the Maw's Kyrian made his (localTools/valerian/buildAscendedModel.py: repainted to
 // the Light, wings and shroud of light), at AscendedSize - as tall as his human form had grown (the Kyrian stands about
@@ -216,7 +217,8 @@ constexpr float PreludeLightSpeed = 20.0f;
 // His size (the display's scale, creature_template_model: twice a man's), every look of his grown from it
 constexpr float BaseScale = 2.6f;
 constexpr uint32 AscendedMusicEndMs = 281100;
-constexpr uint32 KIT_HOLY_GLOW = 7005;      // Holy_Precast_High_Base, played on him
+constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on him (stock 7005 without its tints:
+                                            // they stayed on him, and on the god after, yellow and see-through)
 
 // What a red area is told to the bots (GroundIndicators hitDamage): nothing known, so always left
 constexpr uint32 MistakeDamage = 0;
@@ -2119,7 +2121,8 @@ private:
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL);
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL_RUNES);
         // The light gathering on him, brighter and brighter, until his blow
-        for (uint32 at = 0; at < AscendLandMs; at += AscendGlowEveryMs)
+        // (stopping AscendGlowClearMs before he lands: the last ones lingered over the god, washing him yellow)
+        for (uint32 at = 0; at + AscendGlowClearMs < AscendLandMs; at += AscendGlowEveryMs)
             scheduler.Schedule(Milliseconds(at), [this](TaskContext) { me->SendPlaySpellVisual(KIT_HOLY_GLOW); });
         // Up off the floor, slowly, levitating (arms raised, channelling), and down as the music breaks: his height set
         // every update (UpdateAscent), never moved - any movement plays a movement animation on his model (flying, a
@@ -2151,10 +2154,11 @@ private:
                     HitOwnHealth(player, SPELL_ASCEND,
                         float(player->GetHealth() - left) * 100.0f / float(player->GetMaxHealth()));
             }
-            me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
-            // The god, as his blow lands
+            // The god, as his blow lands: upright, his wings of light half spread (the form's spell-ready stance; its
+            // stand folds them on his back)
             me->SetDisplayId(DISPLAY_ASCENDED);
             SetSize(AscendedSize);
+            Pose(EMOTE_STATE_READY_SPELL_OMNI);
             if (_ascendRehearsed)
             {
                 // The lab: back to rehearsing, the god's form kept to look at (.valerian look 0 2.6: the man again)
@@ -2377,7 +2381,8 @@ private:
 // --- Commands ---------------------------------------------------------------------------------------------------------
 using namespace Acore::ChatCommands;
 
-// .valerian info | skip <seconds> | cast <pattern> | lab [off] | pull | measure | look <display> [scale] | kit <id>
+// .valerian info | skip <seconds> | cast <pattern> | lab [off] | pull | measure | look <display> [scale] | kit <id> |
+// pose <emote state>
 class ValerianCommandScript final : public CommandScript
 {
 public:
@@ -2394,6 +2399,7 @@ public:
             { "measure", HandleMeasure, SEC_GAMEMASTER, Console::No },
             { "look", HandleLook, SEC_GAMEMASTER, Console::No },
             { "kit", HandleKit, SEC_GAMEMASTER, Console::No },
+            { "pose", HandlePose, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "valerian", valerianTable },
@@ -2427,6 +2433,20 @@ public:
         valerian->SetDisplayId(display ? display : valerian->GetNativeDisplayId());
         if (scale)
             CAST_AI(boss_valerian, valerian->AI())->LookSize(*scale);
+        return true;
+    }
+
+    // .valerian pose <emote state>: him held in that pose (0: none), to compare (the FX lab)
+    static bool HandlePose(ChatHandler* handler, uint32 state)
+    {
+        Player* player = handler->GetPlayer();
+        Creature* valerian = player ? player->FindNearestCreature(NPC_VALERIAN, 250.0f) : nullptr;
+        if (!valerian)
+        {
+            handler->SendErrorMessage("Valerian is not within 250 yards.");
+            return false;
+        }
+        valerian->SetUInt32Value(UNIT_NPC_EMOTESTATE, state);
         return true;
     }
 
