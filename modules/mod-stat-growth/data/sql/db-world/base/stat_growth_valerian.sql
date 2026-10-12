@@ -104,7 +104,7 @@ VALUES
 INSERT INTO `creature_template_movement`
     (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`)
 VALUES
-    (930500, 1, 0, 0, 0, 0, 0, NULL),
+    (930500, 1, 0, 1, 0, 0, 0, NULL),
     (930501, 0, 0, 1, 0, 0, 0, NULL),
     (930502, 1, 0, 0, 0, 0, 0, NULL),
     (930503, 1, 0, 0, 1, 0, 0, NULL);

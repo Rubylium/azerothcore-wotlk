@@ -188,6 +188,9 @@ constexpr uint32 AscendRiseTakesMs = 12000;
 constexpr float AscendHeight = 7.0f;
 constexpr uint32 AscendGlowEveryMs = 1500;
 constexpr float AscendScale = 1.7f;
+constexpr float AscendFromScale = 1.35f;    // ... from the prelude's last
+constexpr float AscendSway = 0.35f;         // hovering, he sways up and down this far, once every AscendSwayMs
+constexpr uint32 AscendSwayMs = 3200;
 constexpr uint32 AscendHitMs = 34500;     // the track's hit, as heard in game
 constexpr uint32 AscendLandMs = AscendHitMs - 700;
 constexpr uint32 AscendDropMs = AscendHitMs - AscendLandMs;
@@ -556,6 +559,7 @@ struct boss_valerian : public Defi::BossAI
 
     void UpdateAI(uint32 diff) override
     {
+        KeepSize();
         if (_phase == Phase::Rehearsal)
         {
             scheduler.Update(diff);
@@ -1321,12 +1325,26 @@ private:
                 HitOwnHealth(player, SPELL_LIGHT_RETURN, LightReturnPct);
     }
 
+    // His size, kept: an aura changing a unit's size (players put many on him) makes the core recompute it from his
+    // template's (Unit::RecalculateObjectScale), which dropped his growth - put back on his next update
+    void SetSize(float scale)
+    {
+        _size = scale;
+        me->SetObjectScale(scale);
+    }
+
+    void KeepSize()
+    {
+        if (_size > 0.0f && std::fabs(me->GetObjectScale() - _size) > 0.001f)
+            me->SetObjectScale(_size);
+    }
+
     void ShowAbsorbed()
     {
         float const share = std::min(1.0f, float(_absorbed) / float(LightCount));
         me->SetMaxPower(POWER_MANA, 100);
         me->SetPower(POWER_MANA, uint32(share * 100.0f));
-        me->SetObjectScale(BaseScale * (1.0f + 0.25f * share));
+        SetSize(BaseScale * (1.0f + 0.25f * share));
     }
 
     void ClearLights()
@@ -2048,7 +2066,7 @@ private:
             scheduler.Schedule(Milliseconds(index * PreludeLightMs), [this, index, lights](TaskContext)
             {
                 StreamLight();
-                me->SetObjectScale(BaseScale * (1.25f + 0.1f * float(index) / float(lights)));
+                SetSize(BaseScale * (1.25f + 0.1f * float(index) / float(lights)));
                 if (index % 10 == 0)
                     me->SendPlaySpellVisual(KIT_HOLY_GLOW);
             });
@@ -2094,15 +2112,12 @@ private:
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL_RUNES);
         // The light gathering on him, brighter and brighter, until his blow
         for (uint32 at = 0; at < AscendLandMs; at += AscendGlowEveryMs)
-            scheduler.Schedule(Milliseconds(at), [this, at](TaskContext)
-            {
-                me->SendPlaySpellVisual(KIT_HOLY_GLOW);
-                me->SetObjectScale(BaseScale * (1.35f + (AscendScale - 1.35f) * float(at) / float(AscendLandMs)));
-            });
+            scheduler.Schedule(Milliseconds(at), [this](TaskContext) { me->SendPlaySpellVisual(KIT_HOLY_GLOW); });
         // Up off the floor, slowly, levitating (arms raised, channelling), and down as the music breaks: his height set
         // every update (UpdateAscent), never moved - any movement plays a movement animation on his model (flying, a
         // human's fell back to swimming; hovering, a hunched lean)
         _ascentFrom = Elapsed();
+        _dropFrom = -1.0f;
         scheduler.Schedule(Milliseconds(AscendRiseMs), [this](TaskContext)
         {
             me->SetControlled(false, UNIT_STATE_ROOT);
@@ -2136,7 +2151,7 @@ private:
                 _phase = Phase::Rehearsal;
                 me->SetCanFly(false);
                 me->SetDisableGravity(false);
-                me->SetObjectScale(BaseScale);
+                SetSize(BaseScale);
                 EndMusic();
                 return;
             }
@@ -2158,30 +2173,34 @@ private:
         me->HandleEmoteCommand(emote);
     }
 
-    // His apotheosis' height now: still, then rising eased over AscendRiseTakesMs, hovering, then dropping (eased in) to
-    // the floor by his blow - set every update while it changes
+    // His apotheosis now: his height still, then rising eased over AscendRiseTakesMs, hovering (a slow sway of
+    // AscendSway yards), then dropping (eased in) to the floor by his blow; his size growing all along to AscendScale.
+    // Set every update: an unchanged height is never sent again, and the clients let him fall
     void UpdateAscent()
     {
         if (!_ascentFrom)
             return;
         uint32 const at = Elapsed() - _ascentFrom;
+        SetSize(BaseScale * (AscendFromScale + (AscendScale - AscendFromScale) *
+            std::min(1.0f, float(at) / float(AscendLandMs))));
         float height = 0.0f;
         if (at >= AscendHitMs)
-        {
             _ascentFrom = 0;
-            height = 0.0f;
-        }
         else if (at >= AscendLandMs)
         {
+            if (_dropFrom < 0.0f)
+                _dropFrom = _height;
             float const t = float(at - AscendLandMs) / float(AscendDropMs);
-            height = AscendHeight * (1.0f - t * t);
+            height = _dropFrom * (1.0f - t * t);
         }
         else if (at > AscendRiseMs)
         {
             float const t = std::min(1.0f, float(at - AscendRiseMs) / float(AscendRiseTakesMs));
-            height = AscendHeight * t * t * (3.0f - 2.0f * t);
+            float const eased = t * t * (3.0f - 2.0f * t);
+            float const sway = std::sin(2.0f * float(M_PI) * float(at - AscendRiseMs) / float(AscendSwayMs));
+            height = AscendHeight * eased + AscendSway * eased * sway;
         }
-        if (std::fabs(height - _height) < 0.01f && _ascentFrom)
+        if (std::fabs(height - _height) < 0.005f && _ascentFrom)
             return;
         _height = height;
         SetHeight(height);
@@ -2308,7 +2327,7 @@ private:
         me->RemoveAurasDueToSpell(SPELL_LITANY_WARD);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
-        me->SetObjectScale(BaseScale);
+        SetSize(BaseScale);
         me->setPowerType(POWER_MANA);
         me->SetMaxPower(POWER_MANA, 100);
         me->SetPower(POWER_MANA, 0);
@@ -2325,6 +2344,8 @@ private:
     bool _ascendRehearsed = false;      // his apotheosis played in the lab
     uint32 _ascentFrom = 0;             // when his apotheosis' rise began (Elapsed), 0 once he is down
     float _height = 0.0f;
+    float _dropFrom = -1.0f;            // his height as his drop began (-1: not yet)
+    float _size = 0.0f;                 // his size as set (SetSize), kept against the core's
     uint32 _swapHeldUntil = 0;          // no tank swap before then (Revers sacré's back cone)
     std::set<ObjectGuid> _litanyStruck;  // La Litanie: the verses struck so far (free to move)
     bool _litanyProfaned = false;
