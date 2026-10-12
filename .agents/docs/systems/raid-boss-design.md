@@ -57,7 +57,10 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
   its tell to its strike**, never a still one swapped for a moving one (it fades out and in): a frozen sweep keeps its
   drawing (`ShowSweepingRectangle` stopAfterMs); one that holds, turns, turns back: `ShowTurningRectangle` /
   `ShowTurningCone` (a plan of `Turn`s, the bots told each part as it comes); a cone that follows then freezes:
-  `ShowTrackingCone` followMs.
+  `ShowTrackingCone` followMs. All of them are turned by the client (the DLL's `SmoothTurns`, its plan whispered once
+  as the shape appears: `GroundIndicators.cpp` `TellTurns`), never by facing packets (they came unevenly: it
+  jittered); the server keeps its own facing quietly and sends it once where the plan ends. A new kind of moving shape
+  sends its plan the same way.
 - Carried looks (circles round players, marks over them) are drawn at their own size on every race and creature
   (their effect rows pinned to scale 1).
 - Painted floor pictures (shapes.json `texture` and `image`), three things the client does (seen in the FX lab on
