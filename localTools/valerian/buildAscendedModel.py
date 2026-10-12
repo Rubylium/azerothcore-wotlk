@@ -33,6 +33,14 @@ NAME = 'ValerianAscended'
 # The painted wings and tendrils (.agents/plans/gaol-third/gaol-third.ASSETS-ascended.md), used when they exist: painted
 # on black at the texture's own size, kept only inside the model's shapes; the procedural ones meanwhile
 ART = os.path.join(REPO, 'localTools', 'valerian', 'art')
+# The painted wings' frames (ascended_wings_1..3.png): played as a flipbook, 1 2 3 2 and again, WING_FRAME_MS each -
+# stacked down one texture WING_FLIPBOOK frames high, the wings' texture coordinates squeezed to the first, a texture
+# transform stepping down them on a loop of its own
+WING_FRAME_FILES = ('ascended_wings_1.png', 'ascended_wings_2.png', 'ascended_wings_3.png')
+WING_FLIPBOOK = (0, 1, 2, 1)
+WING_FRAME_MS = 180
+WING_SUBMESHES = (2, 3)
+FLIPBOOK_SIGN = 1       # as the ground indicators found it (buildGroundIndicators.py): +t shows the texels at uv + t
 ARCHIVE_FOLDER = 'Creature\\ValerianAscended'
 
 
@@ -210,17 +218,29 @@ def painted(name, size, inside):
     if picture.size != size:
         raise SystemExit(f'{name} is {picture.size}, the texture {size}: paint it at its own size')
     rgb = numpy.asarray(picture).astype(numpy.float32) / 255.0
-    strength = numpy.clip(rgb.max(axis=-1, keepdims=True), 0.0, 1.0) * inside[..., None]
+    # (the glow round each blade falls off faster than painted: the wings are many feather cards one over the other,
+    # and their halos piled up into a solid yellow; the cores stay)
+    strength = numpy.clip(rgb.max(axis=-1, keepdims=True), 0.0, 1.0) ** 1.7 * inside[..., None]
     colour = rgb / numpy.maximum(strength, 1e-3)
     return to_image(colour * (strength > 0), strength)
 
 
+def wing_frames_painted():
+    return all(os.path.isfile(os.path.join(ART, name)) for name in WING_FRAME_FILES)
+
+
 def wings(size):
     """the feathered wings as blades of light (submeshes 2 and 3 of its skin, the feather band of the wings texture):
-    the painted ones, or a procedural fan meanwhile"""
-    surface = wing_surface((2, 3), size)
-    return painted('ascended_wings.png', size, surface[2].astype(numpy.float32)) or \
-        blades(surface, (0.25, 3.15), 7, 0.06, 0.32, 0.08)
+    the painted frames stacked as a flipbook, or the one painted, or a procedural fan meanwhile"""
+    surface = wing_surface(WING_SUBMESHES, size)
+    inside = surface[2].astype(numpy.float32)
+    if wing_frames_painted():
+        frames = [painted(name, size, inside) for name in WING_FRAME_FILES]
+        atlas = Image.new('RGBA', (size[0], size[1] * len(WING_FLIPBOOK)))
+        for slot, frame in enumerate(WING_FLIPBOOK):
+            atlas.paste(frames[frame], (0, size[1] * slot))
+        return atlas
+    return painted('ascended_wings.png', size, inside) or blades(surface, (0.25, 3.15), 7, 0.06, 0.32, 0.08)
 
 
 def strips(image):
@@ -232,7 +252,7 @@ def strips(image):
     if art:
         # additive: the strength in the colour itself
         rgb, strength = channels(art)
-        return to_image(rgb * strength, alpha)
+        return to_image(rgb * strength * 0.75, alpha)
     down = numpy.linspace(0.0, 1.0, alpha.shape[0])[:, None, None]
     colour = (LIGHT_CORE * (1.0 - down) + LIGHT_EDGE * down) * (0.5 * core(alpha, 10, 12.0) + 0.05 * alpha)
     return to_image(colour * (1.0 - 0.6 * down), alpha)
@@ -282,12 +302,94 @@ def build_model():
             renamed += 1
     if renamed != 4:
         raise SystemExit(f'expected the shroud\'s and the mist\'s four textures, renamed {renamed}')
+    skins = {name: bytearray(open(os.path.join(SOURCE, name), 'rb').read())
+             for name in os.listdir(SOURCE) if name.lower().startswith('kyrianmaw') and name.lower().endswith('.skin')}
+    if wing_frames_painted():
+        wing_flipbook(data, skins)
     with open(os.path.join(TARGET, NAME + '.m2'), 'wb') as file:
         file.write(bytes(data))
     # Its skins and animation files under the new name (the client finds them by the model's)
+    for file_name, skin in skins.items():
+        with open(os.path.join(TARGET, NAME + file_name[len('kyrianmaw'):]), 'wb') as file:
+            file.write(bytes(skin))
     for file_name in os.listdir(SOURCE):
-        if file_name.lower().startswith('kyrianmaw') and file_name.lower().endswith(('.skin', '.anim')):
+        if file_name.lower().startswith('kyrianmaw') and file_name.lower().endswith('.anim'):
             shutil.copyfile(os.path.join(SOURCE, file_name), os.path.join(TARGET, NAME + file_name[len('kyrianmaw'):]))
+
+
+def append_block(data, payload):
+    """payload appended 16-byte aligned (nothing in the file moves); its offset"""
+    while len(data) % 16:
+        data.append(0)
+    offset = len(data)
+    data += payload
+    return offset
+
+
+def wing_flipbook(data, skins):
+    """the wings' texture coordinates squeezed to the flipbook's first frame, and a texture transform of their own
+    stepping down its frames on a loop of its own (a new global sequence), set on every skin's wing batches"""
+    frames = len(WING_FLIPBOOK)
+    # The wings' vertices (those of their submeshes, in every skin: the skins share the model's vertices)
+    wing_vertices = set()
+    for skin in skins.values():
+        _, lookup_offset = struct.unpack_from('<II', skin, 0x04)
+        _, index_offset = struct.unpack_from('<II', skin, 0x0C)
+        batch_count, batch_offset = struct.unpack_from('<II', skin, 0x24)
+        _, submesh_offset = struct.unpack_from('<II', skin, 0x1C)
+        for batch in range(batch_count):
+            # (a batch: its submesh at +4, its material at +10, its texture transform's lookup entry at +22)
+            submesh = struct.unpack_from('<H', skin, batch_offset + 24 * batch + 4)[0]
+            material = struct.unpack_from('<H', skin, batch_offset + 24 * batch + 10)[0]
+            if material != MATERIAL_WINGS:
+                continue
+            _, level, _, _, start, count = struct.unpack_from('<HHHHHH', skin, submesh_offset + 48 * submesh)
+            start += level << 16
+            for index in struct.unpack_from(f'<{count}H', skin, index_offset + 2 * start):
+                wing_vertices.add(struct.unpack_from('<H', skin, lookup_offset + 2 * index)[0])
+    _, vertex_offset = struct.unpack_from('<II', data, 0x3C)
+    for vertex in wing_vertices:
+        u, v = struct.unpack_from('<ff', data, vertex_offset + 48 * vertex + 32)
+        struct.pack_into('<ff', data, vertex_offset + 48 * vertex + 32, u, v / frames)
+    # A loop of its own: the global sequences, one more
+    count, offset = struct.unpack_from('<II', data, 0x14)
+    loops = list(struct.unpack_from(f'<{count}I', data, offset)) + [frames * WING_FRAME_MS]
+    struct.pack_into('<II', data, 0x14, len(loops), append_block(data, struct.pack(f'<{len(loops)}I', *loops)))
+    loop = len(loops) - 1
+    # The transform: a translation stepping a frame down each WING_FRAME_MS (interpolation 0: none, a step), its
+    # rotation and scale unused; on the global loop, the same keys for every sequence
+    sequence_count, _ = struct.unpack_from('<II', data, 0x1C)
+    times = append_block(data, struct.pack(f'<{frames}I', *(WING_FRAME_MS * slot for slot in range(frames))))
+    keys = append_block(data, b''.join(struct.pack('<3f', 0.0, FLIPBOOK_SIGN * slot / frames, 0.0)
+                                       for slot in range(frames)))
+    time_arrays = append_block(data, struct.pack('<II', frames, times) * sequence_count)
+    value_arrays = append_block(data, struct.pack('<II', frames, keys) * sequence_count)
+    transform = bytearray(60)
+    struct.pack_into('<Hh', transform, 0, 0, loop)
+    struct.pack_into('<IIII', transform, 4, sequence_count, time_arrays, sequence_count, value_arrays)
+    struct.pack_into('<Hh', transform, 20, 0, -1)
+    struct.pack_into('<Hh', transform, 40, 0, -1)
+    count, offset = struct.unpack_from('<II', data, 0x60)
+    transforms = bytes(data[offset:offset + 60 * count]) + bytes(transform)
+    struct.pack_into('<II', data, 0x60, count + 1, append_block(data, transforms))
+    # Its lookup entry, one more
+    count, offset = struct.unpack_from('<II', data, 0x98)
+    lookup = list(struct.unpack_from(f'<{count}H', data, offset)) + [count_transforms(data) - 1]
+    struct.pack_into('<II', data, 0x98, len(lookup), append_block(data, struct.pack(f'<{len(lookup)}H', *lookup)))
+    combo = len(lookup) - 1
+    # Every skin's wing batches: that transform, and no longer "static" (flag 0x10: a static texture never moves)
+    for skin in skins.values():
+        batch_count, batch_offset = struct.unpack_from('<II', skin, 0x24)
+        for batch in range(batch_count):
+            record = batch_offset + 24 * batch
+            if struct.unpack_from('<H', skin, record + 10)[0] != MATERIAL_WINGS:
+                continue
+            skin[record] &= ~0x10 & 0xFF
+            struct.pack_into('<H', skin, record + 22, combo)
+
+
+def count_transforms(data):
+    return struct.unpack_from('<I', data, 0x60)[0]
 
 
 def main():
