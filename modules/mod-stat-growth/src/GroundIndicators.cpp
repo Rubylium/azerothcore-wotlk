@@ -118,6 +118,9 @@ constexpr float CarrierClearance = 2.0f;
 // A sweeping line (ShowSweepingRectangle, WatchSweepingRectangle) read this far ahead, in that many steps
 constexpr uint32 SweepLookAheadMs = 1200;
 constexpr uint32 SweepLookAheadSteps = 3;
+// A turning shape's sweep (ShowTurningRectangle, ShowTurningCone) read only this far ahead: its turns are short and
+// fast (a gap between two turning tendrils is all red read a full SweepLookAheadMs ahead: the bots could stand nowhere)
+constexpr uint32 TurnLookAheadMs = 400;
 // Spreading out: each unit looks for its spot along its own directions and at its own distances (from its guid, so
 // it keeps to them from one check to the next), and a spot someone already stands on costs more. Without it a whole
 // raid in the same red area ran to the very same spot.
@@ -164,6 +167,7 @@ struct ActiveArea
     float sweepSpeed = 0.0f;    // a sweeping rectangle (ShowSweepingRectangle): radians a second, from sweepFromMs
     uint64 sweepFromMs = 0;
     float sweepFrom = 0.0f;     // ... its facing then
+    uint32 sweepLookAheadMs = SweepLookAheadMs;     // ... read this far ahead by the bots
     float keepAway = 0.0f;      // a carried circle: how far its carrier keeps from the others (its hit's reach)
     bool tanksTake = false;     // a hit a tank must take (WatchArea): the tanks do not leave it, the others do
     GroundIndicators::Area area;
@@ -1505,6 +1509,13 @@ Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durati
     return area;
 }
 
+void DrawCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme)
+{
+    Area const area = MakeArea(Area::Kind::Circle, center, 0.0f, radius);
+    if (Place(owner, center, 0.0f, SPELL_INDICATOR_CIRCLE, radius, durationMs))
+        ShowParticles(owner, area, theme, durationMs);
+}
+
 Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
                    uint32 durationMs, Theme theme, uint32 hitDamage)
 {
@@ -1522,7 +1533,8 @@ Area ShowRectangle(Unit* owner, Position const& start, float orientation, float 
 }
 
 // A sweeping line in the registry: the bots read it at its angle of the moment
-void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32 durationMs, uint32 hitDamage)
+void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32 durationMs, uint32 hitDamage,
+                   uint32 lookAheadMs = SweepLookAheadMs)
 {
     uint64 const id = Register(owner, nullptr, area, durationMs, hitDamage);
     std::lock_guard<std::mutex> guard(RegistryLock);
@@ -1532,6 +1544,7 @@ void RegisterSweep(Unit* owner, Area const& area, float radiansPerSecond, uint32
             entry.sweepSpeed = radiansPerSecond;
             entry.sweepFromMs = NowMs();
             entry.sweepFrom = area.origin.GetOrientation();
+            entry.sweepLookAheadMs = lookAheadMs;
         }
 }
 
@@ -1597,7 +1610,7 @@ void RegisterTurns(Unit* owner, Area const& area, uint32 durationMs, std::vector
         auto record = [owner, at, part, hitDamage]()
         {
             if (part.rate != 0.0f)
-                RegisterSweep(owner, at, part.rate, part.ms, hitDamage);
+                RegisterSweep(owner, at, part.rate, part.ms, hitDamage, TurnLookAheadMs);
             else
                 Register(owner, nullptr, at, part.ms, hitDamage);
         };
@@ -1625,7 +1638,7 @@ Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation,
 }
 
 Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                     uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage)
+                     uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage, bool watched)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
@@ -1633,7 +1646,8 @@ Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float
     if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
     {
         stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
-        RegisterTurns(owner, area, durationMs, turns, hitDamage);
+        if (watched)
+            RegisterTurns(owner, area, durationMs, turns, hitDamage);
     }
     return area;
 }
@@ -2031,7 +2045,7 @@ std::vector<ActiveArea> AreasToLeave(Unit* unit, bool tank)
             for (uint32 step = 1; step <= SweepLookAheadSteps; ++step)
             {
                 ActiveArea ahead = areas[index];
-                float const seconds = float(SweepLookAheadMs * step / SweepLookAheadSteps) / 1000.0f;
+                float const seconds = float(ahead.sweepLookAheadMs * step / SweepLookAheadSteps) / 1000.0f;
                 ahead.area.origin.SetOrientation(Position::NormalizeOrientation(
                     ahead.area.origin.GetOrientation() + ahead.sweepSpeed * seconds));
                 areas.push_back(ahead);

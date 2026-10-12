@@ -69,6 +69,8 @@ namespace GroundIndicators
     // would survive well (FindEscape); 0, unknown, is always left.
     Area ShowCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme = Theme::None,
                     uint32 hitDamage = 0);
+    // The same circle drawn only: no area the bots leave (what it marks is the fight's to tell them otherwise)
+    void DrawCircle(Unit* owner, Position const& center, float radius, uint32 durationMs, Theme theme = Theme::None);
     Area ShowRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
                        uint32 durationMs, Theme theme = Theme::None, uint32 hitDamage = 0);
     // clearMiddle: its first yards from the apex are not in it (the bots may cross there: something else of the
@@ -104,8 +106,9 @@ namespace GroundIndicators
     float TurnedBy(std::vector<Turn> const& turns, uint32 elapsedMs);
     Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
                               uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0);
+    // watched false: drawn only, not an area the bots leave (a floor's colour to stand on, not a hit)
     Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
-                         uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0);
+                         uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0, bool watched = true);
     // The same sweep with a painted line built to its size (shapes.json `scale`: never scaled, it would grow in on the
     // client), its carrier at start: a blade swept round the room
     Area ShowSweepingLine(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,

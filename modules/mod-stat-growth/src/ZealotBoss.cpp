@@ -250,22 +250,23 @@ constexpr uint32 P2TellMs = 3000;           // a pattern's red this long before 
 // Ailes séraphiques: six tendrils from him to the wall, AilesWidth wide, sweeping AilesTurnDeg over AilesSweepMs; the
 // reversed one AilesTurnDeg / 2 one way, then AilesTurnDeg back the other
 constexpr uint32 AilesTendrils = 6;
-constexpr float AilesWidth = 3.4f;
+float const AilesWidth = P2Radius / 8.0f;      // a rectangle shape's own width (24 yd long: 3 yd), hit as drawn
 constexpr float AilesTurnDeg = 60.0f;
 constexpr uint32 AilesSweepMs = 2000;
-constexpr float AilesGapAt = 9.0f;          // where the bots stand in a gap (its widest there: 6 yd clear)
+constexpr float AilesGapAt = 8.0f;          // where the bots stand in a gap: 5 yd clear, the gap moving 4 yd/s
 constexpr uint32 AilesGuideStepMs = 300;    // their spot moved along this often while the tendrils turn
+constexpr uint32 AilesGuideLeadMs = 200;    // ... where the gap will be this long after (a caster is slow to go)
 // Pluie d'astres: three stars carried to three beacons on the wall (StarsBeaconAt yd, 120 degrees apart), dropped where
 // the carriers stand at StarsDropMs, bursting at StarsBurstMs: a star on its beacon as its third of the arena from the
 // wall to StarsSafe yd of him, off it as a StarsMissRadius circle where it fell
 constexpr uint32 StarsCount = 3;
 constexpr float StarsBeaconAt = 22.0f;
 constexpr float StarsOnBeacon = 3.0f;
-constexpr float StarsSafe = 4.0f;
+constexpr float StarsSafe = 10.0f;          // his reach (7.8 yd at his god's size): melee stands within it
 constexpr float StarsMissRadius = 16.0f;
 constexpr float StarsCarried = 3.0f;
 constexpr uint32 StarsDropMs = 6500;
-constexpr uint32 StarsBurstMs = 9500;
+constexpr uint32 StarsBurstMs = 10500;    // 4 s back to him from the beacon
 // Regard divin: a 90 degree cone on its target that follows them GazeFollowMs, holds GazeFreezeMs, then strikes: the
 // target takes GazeTargetPct, anyone else in it the dodge's price
 constexpr float GazeArc = 90.0f;
@@ -275,6 +276,7 @@ constexpr float GazeTargetPct = 35.0f;
 // Sentence: two halves (or four quadrants), numbered, struck in order SentenceStepMs apart from P2TellMs on
 constexpr uint32 SentenceStepMs = 1300;
 constexpr float SentenceAt = 3.5f;          // the bots stand this close to him: a crossing through him in time
+constexpr uint32 SentenceWatchMs = 1000;   // a part an area for the bots only its last second
 // Le Chœur: seals on everyone, eight wedges light and shadow; the swap (a bell) at ChoirSwapMs, the wedges turn a step
 // at ChoirTurnMs, the choir sings at ChoirSingMs (its cast bar's length)
 constexpr uint32 ChoirSwapMs = 4500;
@@ -295,6 +297,7 @@ constexpr uint32 AscensionTellMs = 3000;
 constexpr float OrbSpeed = 4.0f;
 constexpr float OrbFrom = 22.0f;
 constexpr float OrbReach = 1.6f;
+constexpr float AscensionAside = 2.6f;      // the waiting bots this far beside a lane
 constexpr float OrbHealPct = 3.0f;
 constexpr uint32 OverloadMs = 6000;
 constexpr float OrbBurstPct = 60.0f;
@@ -1261,6 +1264,9 @@ private:
             GroundIndicators::Burst(me, OnArena(float(index) * 2.0f * float(M_PI) / float(WallPieces), was),
                 GroundIndicators::Theme::Holy);
         _wallRadius = AscendedArenaRadius;
+        // Anyone past the new wall drawn inside it, the wall deadly only once they are (as at the pull)
+        DrawIn();
+        _wallFrom = Elapsed() + WallDrawInGraceMs;
         GroundIndicators::ShowDecal(me, middle, 0.0f, _wallRadius, WallRiseMs, LOOK_WALL_RISE);
         scheduler.Schedule(Milliseconds(WallPushRiseMs), [this, middle](TaskContext)
         {
@@ -1268,7 +1274,12 @@ private:
             Sound("Valerian.WallRise", middle);
         });
         if (_phase != Phase::Rehearsal)
+        {
+            // The old wall's ring for the bots ended first (left on, phase 1's 16 yd held them in there: the beacons
+            // at 22 yd were past it)
+            GroundIndicators::ClearAreasOf(me);
             KeepBotsIn(WallLastsMs);
+        }
     }
 
     void KeepBotsIn(uint32 lastsMs)
@@ -1284,7 +1295,7 @@ private:
     // Everyone past the wall set just inside it, where they stood round it
     void DrawIn()
     {
-        if (_phase != Phase::Zealot)
+        if (_phase != Phase::Zealot && _phase != Phase::Ascending && _phase != Phase::Ascended)
             return;
         Position const middle = Middle();
         for (Player* player : ArenaPlayers())
@@ -2295,6 +2306,7 @@ private:
         _phase = Phase::Ascending;
         ClearLights();
         GroundIndicators::ClearAreasOf(me);
+        KeepBotsIn(WallLastsMs);    // (the wall still stands: the bots kept inside it)
         EndPace();
         // Phase 1's track ends here, fading (it is in its own fade by now): every track loops, and left to play to
         // its end it started over for a few seconds before MusicEndMs stopped it
@@ -2343,6 +2355,7 @@ private:
         _phase = Phase::Ascending;
         ClearLights();
         GroundIndicators::ClearAreasOf(me);
+        KeepBotsIn(WallLastsMs);    // (the wall still stands: the bots kept inside it)
         // p2's calm opening is his apotheosis: p1's own end no longer silences anything (it cut p2 short)
         _musicOver = true;
         _ascendFrom = Elapsed();
@@ -2584,7 +2597,8 @@ private:
                 Unit::Kill(killer, me);
             return;
         }
-        if (me->GetHealth() > shown)
+        // Both ways: down with the pace, up when an orb reaches him
+        if (me->GetHealth() != shown)
             me->SetHealth(shown);
     }
 
@@ -2629,7 +2643,7 @@ private:
         };
         GuideP2(gapsAt(P2TellMs), P2TellMs + 300);
         for (uint32 t = P2TellMs; t < total; t += AilesGuideStepMs)
-            After(t, [this, gapsAt, t]() { GuideP2(gapsAt(t + AilesGuideStepMs), AilesGuideStepMs + 300); });
+            After(t, [this, gapsAt, t]() { GuideP2(gapsAt(t + AilesGuideLeadMs), AilesGuideStepMs + 300); });
         // Struck from the tell's end, where the tendrils are each moment
         auto hit = std::make_shared<std::set<ObjectGuid>>();
         for (uint32 t = P2TellMs; t <= total; t += 200)
@@ -2670,9 +2684,20 @@ private:
         if (spots.empty())
             return;
         uint32 index = 0;
+        for (Player* player : SortedBots())
+            GroundIndicators::SetUnitSpot(me, player, spots[index++ % spots.size()], 1.0f, ms);
+    }
+
+    // The room's bots, always in the same order (by guid): a spot handed out again goes to the same bot (the map's own
+    // order changes, and bots were sent across the arena to another's spot as a sweep turned)
+    std::vector<Player*> SortedBots() const
+    {
+        std::vector<Player*> bots;
         for (Player* player : ArenaPlayers())
-            if (IsBotPlayer(player))
-                GroundIndicators::SetUnitSpot(me, player, spots[index++ % spots.size()], 1.0f, ms);
+            if (player->GetSession() && player->GetSession()->IsBot())
+                bots.push_back(player);
+        std::sort(bots.begin(), bots.end(), [](Player* a, Player* b) { return a->GetGUID() < b->GetGUID(); });
+        return bots;
     }
 
     // --- Pluie d'astres: three stars to three beacons on the wall --------------------------------------------------------
@@ -2695,7 +2720,8 @@ private:
         {
             Player* carrier = players[index];
             carriers.push_back(carrier->GetGUID());
-            GroundIndicators::ShowCarriedCircle(me, carrier, StarsCarried, StarsDropMs, MistakeDamage, 2.0f);
+            // (no keep-away: a carrier keeping away chose its own place and held it, not the beacon)
+            GroundIndicators::ShowCarriedCircle(me, carrier, StarsCarried, StarsDropMs, MistakeDamage);
             if (IsBotPlayer(carrier))
                 GroundIndicators::SetUnitSpot(me, carrier, P2At(base + float(index) * 2.0f * float(M_PI) / 3.0f,
                     StarsBeaconAt), 1.0f, StarsDropMs);
@@ -2707,7 +2733,7 @@ private:
         // The others under him meanwhile
         std::vector<Position> underHim;
         for (uint32 index = 0; index < 8; ++index)
-            underHim.push_back(P2At(float(index) * float(M_PI) / 4.0f, 2.5f));
+            underHim.push_back(P2At(float(index) * float(M_PI) / 4.0f, StarsSafe - 3.5f));
         for (Player* player : ArenaPlayers())
             if (IsBotPlayer(player) && std::find(carriers.begin(), carriers.end(), player->GetGUID()) == carriers.end())
                 GroundIndicators::SetUnitSpot(me, player, underHim[urand(0, 7)], 1.0f, StarsDropMs);
@@ -2732,6 +2758,16 @@ private:
                         break;
                     }
                 }
+                float nearest = 1000.0f;
+                for (uint32 index = 0; index < StarsCount; ++index)
+                {
+                    Position const at = P2At(base + float(index) * 2.0f * float(M_PI) / 3.0f, StarsBeaconAt);
+                    nearest = std::min(nearest, star.GetExactDist2d(&at));
+                }
+                Position const middle = Middle();
+                LOG_INFO(_logName, "Valerian star instance={} {} bot={} at={:.1f}yd/{:.0f}deg beacon={} nearest={:.1f}yd",
+                         me->GetInstanceId(), carrier->GetName(), IsBotPlayer(carrier), star.GetExactDist2d(&middle),
+                         middle.GetAbsoluteAngle(&star) * 180.0f / float(M_PI), beacon, nearest);
                 if (beacon >= 0)
                     areas.push_back(GroundIndicators::ShowCone(me, Middle(), base + float(beacon) * 2.0f *
                         float(M_PI) / 3.0f, P2Radius + 1.0f, 120.0f, StarsBurstMs - StarsDropMs,
@@ -2830,8 +2866,14 @@ private:
         {
             uint32 const part = order[step];
             uint32 const lands = P2TellMs + step * SentenceStepMs;
-            GroundIndicators::Area const area = GroundIndicators::ShowCone(me, Middle(), angleOf(part),
-                P2Radius + 1.0f, arc - 0.5f, lands, GroundIndicators::Theme::Holy, MistakeDamage);
+            // Drawn from the tell, an area the bots leave only its last SentenceWatchMs (drawn as one from the start, every
+            // part was red to them: the one to wait on too, and they could stand nowhere)
+            GroundIndicators::Area const area = GroundIndicators::ShowTurningCone(me, Middle(), angleOf(part),
+                P2Radius + 1.0f, arc - 0.5f, lands, {}, MistakeDamage, false);
+            After(lands > SentenceWatchMs ? lands - SentenceWatchMs : 0, [this, area]()
+            {
+                GroundIndicators::WatchArea(me, area, SentenceWatchMs, MistakeDamage);
+            });
             Position numeral = P2At(angleOf(part), 11.0f);
             numeral.m_positionZ += 2.0f;
             GroundIndicators::ShowBillboard(me, numeral, LOOK_MARK_VERSE_FIRST + step, lands);
@@ -2867,31 +2909,53 @@ private:
         }
         DrawWedges(offset, way * step);
         // The bots: each to a wedge of its colour (wedge k: light if k even)
-        auto place = [this, seals, step](float wedgesAt, uint32 ms)
+        // within: where in its wedge (0 its start, 1 its end, counterclockwise): before the turn by the edge it turns
+        // towards, after it just past the new wedge's edge they come from - a short step (a long arc was late)
+        auto place = [this, seals, step](float wedgesAt, float within, uint32 ms)
         {
             uint32 nextOf[2] = { 0, 1 };
-            for (Player* player : ArenaPlayers())
+            for (Player* player : SortedBots())
             {
                 auto const found = seals->find(player->GetGUID());
-                if (found == seals->end() || !IsBotPlayer(player))
+                if (found == seals->end())
                     continue;
                 uint32 const wedge = nextOf[found->second] % 8;
                 nextOf[found->second] += 2;
-                GroundIndicators::SetUnitSpot(me, player, P2At(wedgesAt + (float(wedge) + 0.5f) * step, ChoirRing),
+                GroundIndicators::SetUnitSpot(me, player, P2At(wedgesAt + (float(wedge) + within) * step, ChoirRing),
                     1.0f, ms);
             }
         };
-        place(offset, ChoirTurnMs + 200);
+        float const before = way > 0.0f ? 0.8f : 0.2f;
+        float const after = way > 0.0f ? 0.25f : 0.75f;
+        place(offset, before, ChoirTurnMs + 200);
         if (swap)
-            After(ChoirSwapMs, [this, seals, offset, place]()
+            After(ChoirSwapMs, [this, seals, offset, place, before]()
             {
                 SwapSeals(*seals, offset);
-                place(offset, ChoirTurnMs - ChoirSwapMs + 200);
+                place(offset, before, ChoirTurnMs - ChoirSwapMs + 200);
             });
-        After(ChoirTurnMs, [offset, way, step, place]()
+        After(ChoirTurnMs, [offset, way, step, place, after]()
         {
             float const turned = offset + way * step;
-            place(turned, ChoirSingMs - ChoirTurnMs + 300);
+            place(turned, after, ChoirSingMs - ChoirTurnMs + 300);
+        });
+        After(ChoirSingMs - 300, [this, seals, offset, way, step]()
+        {
+            Position const middle = Middle();
+            float const turned = offset + way * step;
+            for (Player* player : ArenaPlayers())
+            {
+                auto const found = seals->find(player->GetGUID());
+                if (found == seals->end())
+                    continue;
+                float const at = Position::NormalizeOrientation(middle.GetAbsoluteAngle(player) - turned);
+                uint32 const wedge = uint32(at / step) % 8;
+                if (wedge % 2 != found->second)
+                    LOG_INFO(_logName, "Valerian choir probe instance={} {} bot={} class={} tank={} seal={} wedge={} "
+                             "at={:.1f}yd moving={}", me->GetInstanceId(), player->GetName(), IsBotPlayer(player),
+                             player->getClass(), IsTank(player), found->second, wedge,
+                             player->GetExactDist2d(&middle), player->isMoving());
+            }
         });
         After(ChoirSingMs, [this, seals, offset, way, step]()
         {
@@ -2923,13 +2987,14 @@ private:
     }
 
     // The shadow wedges (odd k from offset; the light ones are the gaps between), drawn once for the whole choir and
-    // turning their step in place at ChoirTurnMs (red until their art)
+    // turning their step in place at ChoirTurnMs (red until their art); drawn only: a colour to stand on, not a hit (as
+    // areas the bots of the shadow seal fled them)
     void DrawWedges(float offset, float turnBy)
     {
         std::vector<GroundIndicators::Turn> const turns = { { ChoirTurnMs, 800, turnBy } };
         for (uint32 wedge = 1; wedge < 8; wedge += 2)
             GroundIndicators::ShowTurningCone(me, Middle(), offset + (float(wedge) + 0.5f) * float(M_PI) / 4.0f,
-                P2Radius + 1.0f, 44.5f, ChoirSingMs, turns, MistakeDamage);
+                P2Radius + 1.0f, 44.5f, ChoirSingMs, turns, MistakeDamage, false);
     }
 
     // The swap (a bell): every real player swaps seals with a neighbour of the other seal - a real player beside them if
@@ -3049,16 +3114,14 @@ private:
                 _orbs.push_back({ orb->GetGUID(), lane, OrbFrom });
             }
         }
-        // The bots: in the two safe slices; one catcher on each lane (one free of Surcharge)
+        // The bots: in the two safe slices, AscensionAside yd off the lanes (clear of the orbs' reach, and far enough out
+        // that a slice is wide: by him its edges are a yard from the lane); one catcher on each lane (one free of Surcharge)
         std::vector<Position> spots;
         for (float lane : { safe, safe + float(M_PI) })
-            for (float off : { -0.34f, 0.34f })
-                for (float d : { 7.0f, 15.0f })
-                    spots.push_back(P2At(lane + off, d));
-        std::vector<Player*> bots;
-        for (Player* player : ArenaPlayers())
-            if (IsBotPlayer(player))
-                bots.push_back(player);
+            for (float way : { -1.0f, 1.0f })
+                for (float d : { 12.0f, 17.0f })
+                    spots.push_back(P2At(lane + way * std::asin(AscensionAside / d), d));
+        std::vector<Player*> const bots = SortedBots();
         uint32 next = 0;
         uint32 catchers = 0;
         for (Player* bot : bots)
@@ -3146,8 +3209,9 @@ private:
             holes.push_back(P2At(_eclipseAngle + 1.22f + float(M_PI), EclipseHoleAt + 1.0f));
         uint32 const lasts = second ? EclipseSecondMs : EclipseMs;
         Sound("Valerian.Profanation", middle);
-        // The dark (red until its veil's art), the holes' light
-        GroundIndicators::ShowCircle(me, middle, P2Radius, lasts, GroundIndicators::Theme::Shadow, MistakeDamage);
+        // The dark (red until its veil's art: drawn only - as an area, it had the bots refuse the holes inside it), the
+        // holes' light
+        GroundIndicators::DrawCircle(me, middle, P2Radius, lasts, GroundIndicators::Theme::Shadow);
         for (Position const& hole : holes)
             GroundIndicators::PlayKit(me, hole, KIT_HOLY_IMPACT, 1.0f, 800, lasts);
         // The bots: split between the holes
