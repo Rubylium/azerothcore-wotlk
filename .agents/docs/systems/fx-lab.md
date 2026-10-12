@@ -70,3 +70,12 @@ client (`CleanWOTLK`), runs the steps (chat lines - game master commands - and L
 screenshot, `Note(text)` into the chat), then quits and collects the screenshots (`.agents/plans/fx-lab/shots`). The
 dev addon is installed for the run only. Never run it while someone plays on that client: the client patch is rebuilt
 under it.
+
+Better, interactively: the `wow-dev-client` MCP server (`localTools/devBridge/server.py`, registered in `.mcp.json`)
+drives the same client live through the client extension's dev bridge (awesome_wotlk `DevBridge.cpp`, off unless the
+client is started with `-devbridge <port> -devtoken <token>`). `client_start`, then `gm('.revive')` (a dead character
+is the usual first surprise), `gm('.valerian lab')` and the like (the command's answers come back), `units` (every
+unit's entry, world position, facing, health, scale, display, emote state), `position`, `lua`, `camera('top', 30)`,
+`screenshot(hide_ui=True)`, `chat` (boss yells, emotes, addon messages), `server_log`, `db_query` (read only),
+`client_stop`. It refuses to start while a WoW client already runs. Never use `.go xyz` with an orientation: it hung
+the client.
