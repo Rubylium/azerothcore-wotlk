@@ -330,20 +330,67 @@ def screenshot_burst(times: list[float], command: str = '', hide_ui: bool = True
     return images
 
 
+def hold_camera(x, y, z, lx, ly, lz, fov=0.0):
+    """The client extension's CameraPath (awesome_wotlk CameraPath.cpp) held still: two identical keys an hour apart,
+    no blend - the camera exactly there, looking at that point, until released"""
+    key = f'x = {x:.3f}, y = {y:.3f}, z = {z:.3f}, lx = {lx:.3f}, ly = {ly:.3f}, lz = {lz:.3f}'
+    if fov:
+        key += f', fov = {fov:.1f}'
+    bridge.lua(f'CameraPath_Play({{ {{ t = 0, {key} }}, {{ t = 3600, {key} }} }}, {{ blendIn = 0, blendOut = 0 }})')
+
+
+def unit_position(target):
+    """x, y, z, facing of 'player' (or another unit id) or of the nearest creature of an entry (a number)"""
+    if str(target).isdigit():
+        for unit in (bridge.lua('return EvaDevUnits(200)') or '').splitlines():
+            fields = unit.split('|')
+            if len(fields) >= 12 and fields[1] == str(target):
+                return float(fields[3]), float(fields[4]), float(fields[5]), float(fields[6])
+        raise RuntimeError(f'no creature {target} within 200 yards')
+    values = (bridge.lua(f'return EvaDevPosition("{target}")') or '').split()
+    if len(values) < 4:
+        raise RuntimeError(f'no unit {target}')
+    return tuple(float(v) for v in values[:4])
+
+
 @server.tool()
-def camera(preset: str = 'three_quarter', distance: float = 15.0) -> str:
-    """Place the camera behind the character: preset 'three_quarter' (looking down at ~45 degrees), 'top' (straight
-    down), 'level' (eye height). distance: yards from the character."""
-    tilt = {'level': 0.0, 'three_quarter': 0.35, 'top': 1.2}.get(preset)
-    if tilt is None:
-        return 'presets: three_quarter, top, level'
-    bridge.lua(f'SetView(2); CameraZoomIn(50); CameraZoomOut({distance})')
-    time.sleep(0.6)
-    if tilt:
-        bridge.lua('MoveViewUpStart()')
-        time.sleep(tilt)
-        bridge.lua('MoveViewUpStop()')
-    return f'camera {preset} at {distance} yd'
+def camera(target: str = 'player', yaw: float = 180.0, pitch: float = 20.0, distance: float = 15.0,
+           height: float = 1.5, x: float = 0.0, y: float = 0.0, z: float = 0.0, fov: float = 0.0) -> str:
+    """The camera set exactly (held by the client extension, nothing guessed): orbiting `target` - 'player' (or a
+    unit id) or a creature entry (its nearest) - or the point x, y, z when target is 'point'. yaw: degrees round it from
+    the target's facing (180: behind it, 0: in front looking back at it, 90: its left); pitch: degrees down onto it (0
+    level, 90 straight down); distance: yards; height: the point looked at, yards over its feet; fov: degrees (0: the
+    player's). Stays until camera_release (or another camera call)."""
+    import math
+    if target == 'point':
+        tx, ty, tz, facing = x, y, z, 0.0
+    else:
+        tx, ty, tz, facing = unit_position(target)
+    lz = tz + height
+    angle = facing + math.radians(yaw)
+    flat = distance * math.cos(math.radians(pitch))
+    cx = tx + flat * math.cos(angle)
+    cy = ty + flat * math.sin(angle)
+    cz = lz + distance * math.sin(math.radians(pitch))
+    # straight down exactly makes the look direction parallel to "up": nudged off it
+    if pitch >= 89.9:
+        cx += 0.01 * math.cos(angle)
+    hold_camera(cx, cy, cz, tx, ty, lz, fov)
+    return f'camera at {cx:.2f} {cy:.2f} {cz:.2f} looking at {tx:.2f} {ty:.2f} {lz:.2f}'
+
+
+@server.tool()
+def camera_look(x: float, y: float, z: float, look_x: float, look_y: float, look_z: float, fov: float = 0.0) -> str:
+    """The camera exactly at x, y, z looking at look_x, look_y, look_z (world coordinates), held until camera_release."""
+    hold_camera(x, y, z, look_x, look_y, look_z, fov)
+    return 'camera held'
+
+
+@server.tool()
+def camera_release() -> str:
+    """The camera back to the player's own."""
+    bridge.lua('if CameraPath_IsPlaying() then CameraPath_Stop() end')
+    return 'camera released'
 
 
 @server.tool()
