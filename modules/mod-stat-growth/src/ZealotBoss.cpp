@@ -38,7 +38,8 @@
 // every light reached him does he ascend (phase 2); one taken, and the jailers come for him: he is beaten, and
 // leaves 1 gold on the floor, no gear. A light left alone hits everyone for LightReturnPct of their health.
 // Phase 2 (to come) is for now a bare fight: no mechanic, its own health, its music - a win as any other.
-// Health paced (Defi::BossAI StartPace): 1% only at the end; above it then, the light floods the arena.
+// Health paced (Defi::BossAI StartPace): half his bar (HoldPct) only at the end; above it then, the light floods the
+// arena.
 // Every area drawn in his own painted looks (localTools/valerian/valerianArt.py: holy fire, gold light, scorched stone);
 // nothing stays on the floor once a pattern has struck (the room is read fast: its sounds mark the hits).
 //
@@ -55,7 +56,10 @@ Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimSh
 // Phase 2 while it is bare (no mechanic): its own health, the seconds it lasts against the profile's group
 Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 60.0f, 1.095f / 1.18f };
 LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
-constexpr float HoldPct = 1.0f;
+// One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
+// (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
+// to nothing. What a group deals in each phase is its sizing's, as before.
+constexpr float HoldPct = 50.0f;
 
 // Keli'dan's hall in the Blood Furnace, its middle (ForgeMaster.cpp's Room: the same arena); the arena round it: a ring
 // of WallPieces of Vorhan's wall pieces (GroundIndicators::WardenWallPieceLength each), ArenaRadius from the middle
@@ -498,7 +502,7 @@ struct boss_valerian : public Defi::BossAI
         if (DefiConfirmed())
         {
             me->SetVisible(true);
-            SetModelHealth();
+            SetHalfBar(true);
         }
         // The board holds him until the group pulls (RaidFinder HoldChallengeBoss)
         me->SetReactState(REACT_PASSIVE);
@@ -521,7 +525,7 @@ struct boss_valerian : public Defi::BossAI
             return;
         me->SetReactState(REACT_AGGRESSIVE);
         DoZoneInCombat(me, GetRoom().reach);
-        SetModelHealth();
+        SetHalfBar(true);
         StartPace(HoldPct);
         GroundIndicators::DrawInstantly(me);
         _timeline = BuildTimeline();
@@ -1374,6 +1378,17 @@ private:
         if (_phase == Phase::Zealot)
             for (Player* player : ArenaPlayers())
                 HitOwnHealth(player, SPELL_LIGHT_RETURN, LightReturnPct);
+    }
+
+    // His bar: twice the phase's health (SetModelHealth: its sizing's), full (phase 1) or at half (phase 2: on from
+    // where phase 1 left it) - each phase's own health is half the bar
+    void SetHalfBar(bool full)
+    {
+        SetModelHealth();
+        uint32 const phase = me->GetMaxHealth();
+        me->SetCreateHealth(phase * 2);
+        me->SetMaxHealth(phase * 2);
+        me->SetHealth(full ? phase * 2 : phase);
     }
 
     // His size, kept: an aura changing a unit's size (players put many on him) makes the core recompute it from his
@@ -2302,7 +2317,7 @@ private:
             me->NearTeleportTo(middle.GetPositionX(), middle.GetPositionY(), middle.GetPositionZ(), me->GetOrientation());
         me->SetControlled(true, UNIT_STATE_ROOT);
         me->SetImmuneToAll(false);
-        SetModelHealth();
+        SetHalfBar(false);
         me->SetReactState(REACT_AGGRESSIVE);
         DoZoneInCombat(me, GetRoom().reach);
         LOG_INFO(_logName, "Valerian ascended instance={} health={}", me->GetInstanceId(), me->GetMaxHealth());
