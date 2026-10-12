@@ -106,10 +106,11 @@ namespace GroundIndicators
     float TurnedBy(std::vector<Turn> const& turns, uint32 elapsedMs);
     // look: a painted shape drawn in place of the red (shapes.json kind texture, painted to the area's proportions:
     // a rectangle's width is then as given, a cone's arc arcDegrees); layer: a second look over it (its glow), turning
-    // with it on a carrier of its own
+    // with it on a carrier of its own; curtain: its light standing up from the floor (shapes.json kind curtain, built
+    // to the line's length: 3D, seen over a floor painted under it), turning with it on a carrier of its own
     Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
                               uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0,
-                              uint32 look = 0);
+                              uint32 look = 0, uint32 curtain = 0);
     // watched false: drawn only, not an area the bots leave (a floor's colour to stand on, not a hit)
     Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
                          uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0, bool watched = true,

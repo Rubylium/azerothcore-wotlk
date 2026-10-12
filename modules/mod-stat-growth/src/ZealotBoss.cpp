@@ -329,9 +329,8 @@ constexpr float EclipseHole = 4.0f;
 constexpr float EclipseHoleAt = 14.0f;
 constexpr uint32 EclipseMs = 5000;
 constexpr uint32 EclipseSecondMs = 4000;
-constexpr float EclipseHitPct = 60.0f;
+constexpr float EclipseHitPct = 60.0f;      // the light breaking on those in it: of their health (a healer check)
 constexpr float EclipseTurnDeg = 90.0f;     // its holes going round him meanwhile, either way (the second the other)
-constexpr float TotalLightSigilRadius = 10.0f;     // Lumière totale's sigil under him, grown to this      // the light breaking on those in it: of their health (a healer check)
 constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on him (stock 7005 without its tints:
                                             // they stayed on him, and on the god after, yellow and see-through)
 
@@ -407,6 +406,8 @@ enum Looks : uint32
     LOOK_SEAL_SWAP_SL           = 98840,
     LOOK_ECLIPSE_LIGHT_TWO      = 98845,    // the Éclipse's pools of light where its veil's holes are, turning with it
     LOOK_ECLIPSE_LIGHT_ONE      = 98846,
+    LOOK_TENDRIL_CURTAIN        = 98847,    // a tendril's light standing up (a curtain, 3D): over Lumière totale's sigil,
+                                            // which covers the floor and every decal under it
     LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and III painted in one, II and IV the other
     LOOK_LANCE_FLARE            = 98843,    // a lance's tile flashing as it strikes (added, its own alpha keys)
     LOOK_TENDRIL_FLARE          = 98844,    // a tendril (or a split half) flashing as it strikes
@@ -2742,7 +2743,7 @@ private:
         for (uint32 index = 0; index < AilesTendrils; ++index)
             GroundIndicators::ShowTurningRectangle(me, middle,
                 base + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius, AilesWidth, total, turns,
-                MistakeDamage, LOOK_TENDRIL);
+                MistakeDamage, LOOK_TENDRIL, TendrilCurtain());
         // The bots: each in a gap's middle, moved along with the gaps as they turn (a little ahead of them)
         float const gap = float(M_PI) / float(AilesTendrils);
         auto gapsAt = [this, base, gap, turns](uint32 t)
@@ -2788,7 +2789,7 @@ private:
             {
                 GroundIndicators::Area area = GroundIndicators::ShowTurningRectangle(me, Middle(), from, P2Radius,
                     AilesSplitWidth, blows, { { AilesSplitAfterMs, AilesSplitSlideMs, side * slide } }, MistakeDamage,
-                    LOOK_TENDRIL);
+                    LOOK_TENDRIL, TendrilCurtain());
                 area.origin.SetOrientation(Position::NormalizeOrientation(from + side * slide));
                 halves.push_back(area);
             }
@@ -2805,6 +2806,9 @@ private:
                 ShapedLine(Middle(), half.origin.GetOrientation(), P2Radius, AilesSplitWidth);
         });
     }
+
+    // Under Lumière totale's sigil (the whole arena's floor, drawn over the tendrils' decals) the tendrils stand up too
+    uint32 TendrilCurtain() const { return TrackMs() >= TotalLightCastMs ? LOOK_TENDRIL_CURTAIN : 0; }
 
     // Everyone on a tendril now (angle: the first's) struck, once a sweep
     void StrikeTendrils(float angle, std::shared_ptr<std::set<ObjectGuid>> hit)
@@ -3589,11 +3593,11 @@ private:
     void TotalLight()
     {
         CastBar(CAST_TOTAL_LIGHT);
-        // Under him only, its light added (spread over the arena, it lay over the last patterns' shapes: a decal drawn
-        // as the client sorts them, not under the others)
-        GroundIndicators::ShowDecal(me, Middle(), 0.0f, TotalLightSigilRadius, TotalLightMs - TotalLightCastMs,
+        // The whole arena (it lies over the last patterns' decals, drawn as the client sorts them: the tendrils then
+        // stand up as curtains, TendrilCurtain)
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs,
             LOOK_TOTAL_LIGHT_SIGIL);
-        GroundIndicators::ShowDecal(me, Middle(), 0.0f, TotalLightSigilRadius, TotalLightMs - TotalLightCastMs,
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs,
             LOOK_TOTAL_LIGHT_RUNES);
         After(TotalLightMs - TotalLightCastMs, [this]()
         {

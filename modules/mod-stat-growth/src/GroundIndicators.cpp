@@ -1686,7 +1686,8 @@ void RegisterTurns(Unit* owner, Area const& area, uint32 durationMs, std::vector
 }
 
 Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
-                          uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage, uint32 look)
+                          uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage, uint32 look,
+                          uint32 curtain)
 {
     width = std::max(width, 0.5f);
     ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
@@ -1697,6 +1698,11 @@ Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation,
     {
         stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
         RegisterTurns(owner, area, durationMs, turns, hitDamage);
+        // Its curtain at its own size (a scaled carrier would scale its height too), turning the same way
+        if (curtain)
+            if (Creature* light = Place(owner, OnGround(owner, start.GetPositionX(), start.GetPositionY(),
+                start.GetPositionZ()), orientation, curtain, 1.0f, durationMs))
+                light->AIM_Initialize(new TurnPlanAI(light, orientation, turns));
     }
     return area;
 }
