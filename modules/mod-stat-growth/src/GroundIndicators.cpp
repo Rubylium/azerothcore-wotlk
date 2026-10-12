@@ -341,11 +341,14 @@ private:
 // A cone's stalker turning to face one unit for as long as it is drawn
 struct TrackingConeAI : public NullCreatureAI
 {
-    TrackingConeAI(Creature* creature, ObjectGuid turnsTo, float offset = 0.0f)
-        : NullCreatureAI(creature), _turnsTo(turnsTo), _offset(offset) { }
+    TrackingConeAI(Creature* creature, ObjectGuid turnsTo, float offset = 0.0f, uint32 followMs = 0)
+        : NullCreatureAI(creature), _offset(offset), _turnsTo(turnsTo), _followMs(followMs) { }
 
     void UpdateAI(uint32 diff) override
     {
+        _elapsed += diff;
+        if (_followMs && _elapsed > _followMs)
+            return;
         if (_timer > diff)
         {
             _timer -= diff;
@@ -369,6 +372,8 @@ private:
     float _offset;                              // pi: it points away from the unit
 
     ObjectGuid _turnsTo;
+    uint32 _followMs = 0;
+    uint32 _elapsed = 0;
     uint32 _timer = TurnEveryMs;
 };
 
@@ -406,6 +411,37 @@ private:
     float _speed;
     uint32 _stopAfterMs = 0;
     bool _stopped = false;
+    uint32 _elapsed = 0;
+    uint32 _timer = 0;
+};
+
+// A turning drawing's stalker: its facing from its plan (GroundIndicators::TurnedBy), set every TurnEveryMs
+struct TurnPlanAI : public NullCreatureAI
+{
+    TurnPlanAI(Creature* creature, float from, std::vector<GroundIndicators::Turn> turns)
+        : NullCreatureAI(creature), _from(from), _turns(std::move(turns)) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _elapsed += diff;
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+        _timer = TurnEveryMs;
+        float const facing = Position::NormalizeOrientation(_from + GroundIndicators::TurnedBy(_turns, _elapsed));
+        float turn = std::fabs(facing - me->GetOrientation());
+        turn = std::min(turn, 2.0f * float(M_PI) - turn);
+        if (turn > 0.002f)
+            me->SetFacingTo(facing);
+    }
+
+private:
+    static constexpr uint32 TurnEveryMs = 50;
+
+    float _from;
+    std::vector<GroundIndicators::Turn> _turns;
     uint32 _elapsed = 0;
     uint32 _timer = 0;
 };
@@ -1521,6 +1557,87 @@ Area ShowSweepingRectangle(Unit* owner, Position const& start, float orientation
     return area;
 }
 
+float TurnedBy(std::vector<Turn> const& turns, uint32 elapsedMs)
+{
+    float turned = 0.0f;
+    for (Turn const& turn : turns)
+        if (elapsedMs > turn.atMs)
+            turned += turn.radians * std::min(1.0f, float(elapsedMs - turn.atMs) / float(std::max<uint32>(turn.forMs, 1)));
+    return turned;
+}
+
+// A turning drawing in the registry: its still parts as still areas, its turns as sweeps, each told as it comes
+void RegisterTurns(Unit* owner, Area const& area, uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage)
+{
+    struct Part
+    {
+        uint32 fromMs;
+        uint32 ms;
+        float facing;
+        float rate;     // 0: still
+    };
+    std::vector<Part> parts;
+    uint32 cursor = 0;
+    float facing = area.origin.GetOrientation();
+    for (Turn const& turn : turns)
+    {
+        if (turn.atMs > cursor)
+            parts.push_back({ cursor, turn.atMs - cursor, facing, 0.0f });
+        uint32 const ms = std::max<uint32>(turn.forMs, 1);
+        parts.push_back({ turn.atMs, ms, facing, turn.radians / (float(ms) / 1000.0f) });
+        facing += turn.radians;
+        cursor = turn.atMs + ms;
+    }
+    if (durationMs > cursor)
+        parts.push_back({ cursor, durationMs - cursor, facing, 0.0f });
+    for (Part const& part : parts)
+    {
+        Area at = area;
+        at.origin.SetOrientation(Position::NormalizeOrientation(part.facing));
+        auto record = [owner, at, part, hitDamage]()
+        {
+            if (part.rate != 0.0f)
+                RegisterSweep(owner, at, part.rate, part.ms, hitDamage);
+            else
+                Register(owner, nullptr, at, part.ms, hitDamage);
+        };
+        if (part.fromMs == 0)
+            record();
+        else
+            owner->m_Events.AddEventAtOffset(std::function<void()>(record), Milliseconds(part.fromMs));
+    }
+}
+
+Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
+                          uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage)
+{
+    width = std::max(width, 0.5f);
+    ShapeSpell const& shape = NearestShape(RectangleSpells.data(), RectangleSpells.data() + RectangleSpells.size(),
+        length / width);
+    Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
+    area.width = length / shape.size;
+    if (Creature* stalker = Place(owner, start, orientation, shape.spell, length, durationMs))
+    {
+        stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
+        RegisterTurns(owner, area, durationMs, turns, hitDamage);
+    }
+    return area;
+}
+
+Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
+                     uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage)
+{
+    ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
+    Area area = MakeArea(Area::Kind::Cone, apex, orientation, radius);
+    area.arc = shape.size * float(M_PI) / 180.0f;
+    if (Creature* stalker = Place(owner, apex, orientation, shape.spell, radius, durationMs))
+    {
+        stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
+        RegisterTurns(owner, area, durationMs, turns, hitDamage);
+    }
+    return area;
+}
+
 Area ShowSweepingLine(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
                       float width, uint32 durationMs, uint32 look, uint32 hitDamage)
 {
@@ -1709,7 +1826,7 @@ Area ShowAimedCone(Unit* owner, Position const& apex, float orientation, float r
 }
 
 Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                      Unit* aimedAt, uint32 hitDamage, bool away)
+                      Unit* aimedAt, uint32 hitDamage, bool away, uint32 followMs)
 {
     ShapeSpell const& shape = NearestShape(ConeSpells.data(), ConeSpells.data() + ConeSpells.size(), arcDegrees);
     float const offset = away ? float(M_PI) : 0.0f;
@@ -1719,7 +1836,7 @@ Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arc
     area.arc = shape.size * float(M_PI) / 180.0f;
     if (Creature* stalker = Place(owner, apex, facing, shape.spell, radius, durationMs))
     {
-        stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset));
+        stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset, followMs));
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), offset);
     }
     return area;

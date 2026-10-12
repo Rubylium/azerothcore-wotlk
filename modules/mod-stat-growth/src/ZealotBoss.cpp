@@ -2581,28 +2581,23 @@ private:
     }
 
     // --- Ailes séraphiques: six tendrils from him to the wall, swept round ---------------------------------------------
+    // Each tendril one drawing from its tell to the end of its sweep: still, then turning (and back, reversed)
     void Ailes(bool reversed)
     {
         Position const middle = Middle();
         float const base = frand(0.0f, 2.0f * float(M_PI));
         float const turn = AilesTurnDeg * float(M_PI) / 180.0f;
         float const way = urand(0, 1) ? 1.0f : -1.0f;
-        for (uint32 index = 0; index < AilesTendrils; ++index)
-            GroundIndicators::ShowRectangle(me, middle, base + float(index) * 2.0f * float(M_PI) / float(AilesTendrils),
-                P2Radius, AilesWidth, P2TellMs, GroundIndicators::Theme::None, MistakeDamage);
-        // The bots: in a gap, then with it
-        GuideP2(Fan(base + float(M_PI) / float(AilesTendrils), 300.0f, 10.0f, 8), P2TellMs + 200);
-        // The sweep: one way (and back, reversed), each leg drawn and struck as it turns
-        struct Leg { uint32 at; uint32 ms; float from; float rate; };
-        std::vector<Leg> legs;
+        std::vector<GroundIndicators::Turn> turns;
+        uint32 total = P2TellMs + AilesSweepMs;
         if (!reversed)
-            legs.push_back({ P2TellMs, AilesSweepMs, base, way * turn / (AilesSweepMs / 1000.0f) });
+            turns.push_back({ P2TellMs, AilesSweepMs, way * turn });
         else
         {
             uint32 const half = AilesSweepMs / 2;
-            legs.push_back({ P2TellMs, half, base, way * turn / (AilesSweepMs / 1000.0f) });
-            legs.push_back({ P2TellMs + half, AilesSweepMs, base + way * turn / 2.0f,
-                -way * turn / (AilesSweepMs / 1000.0f) });
+            turns.push_back({ P2TellMs, half, way * turn / 2.0f });
+            turns.push_back({ P2TellMs + half, AilesSweepMs, -way * turn });
+            total = P2TellMs + half + AilesSweepMs;
             // Its tell: a flash on the side it turns back to, a beat before
             After(P2TellMs + half - 600, [this, base, way]()
             {
@@ -2610,23 +2605,16 @@ private:
                     ImpactMs);
             });
         }
+        for (uint32 index = 0; index < AilesTendrils; ++index)
+            GroundIndicators::ShowTurningRectangle(me, middle,
+                base + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius, AilesWidth, total, turns,
+                MistakeDamage);
+        // The bots: in a gap (they follow the turns the registry tells them)
+        GuideP2(Fan(base + float(M_PI) / float(AilesTendrils), 300.0f, 10.0f, 8), P2TellMs + 200);
+        // Struck from the tell's end, where the tendrils are each moment
         auto hit = std::make_shared<std::set<ObjectGuid>>();
-        for (Leg const& leg : legs)
-        {
-            After(leg.at, [this, leg, middle]()
-            {
-                for (uint32 index = 0; index < AilesTendrils; ++index)
-                    GroundIndicators::ShowSweepingRectangle(me, middle,
-                        leg.from + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), leg.rate, P2Radius,
-                        AilesWidth, leg.ms, MistakeDamage);
-            });
-            for (uint32 t = 0; t <= leg.ms; t += 200)
-                After(leg.at + t, [this, leg, t, hit]()
-                {
-                    float const now = leg.from + leg.rate * float(t) / 1000.0f;
-                    StrikeTendrils(now, hit);
-                });
-        }
+        for (uint32 t = P2TellMs; t <= total; t += 200)
+            After(t, [this, base, turns, t, hit]() { StrikeTendrils(base + GroundIndicators::TurnedBy(turns, t), hit); });
     }
 
     // Everyone on a tendril now (angle: the first's) struck, once a sweep
@@ -2762,15 +2750,14 @@ private:
         for (Player* target : targets)
         {
             GroundIndicators::Area const tracking = GroundIndicators::ShowTrackingCone(me, Middle(), P2Radius + 1.0f,
-                GazeArc, GazeFollowMs, target, MistakeDamage);
+                GazeArc, GazeFollowMs + GazeFreezeMs, target, MistakeDamage, false, GazeFollowMs);
             ObjectGuid const guid = target->GetGUID();
             After(GazeFollowMs, [this, tracking, guid]()
             {
                 Player* target = ObjectAccessor::GetPlayer(*me, guid);
-                GroundIndicators::Area const where = target ? GroundIndicators::CurrentCone(target, tracking) : tracking;
-                GroundIndicators::Area const frozen = GroundIndicators::ShowCone(me, Middle(),
-                    where.origin.GetOrientation(), P2Radius + 1.0f, GazeArc, GazeFreezeMs,
-                    GroundIndicators::Theme::Holy, MistakeDamage);
+                // Held where it points now (its drawing stops following: the same one)
+                GroundIndicators::Area const frozen = target ? GroundIndicators::CurrentCone(target, tracking) : tracking;
+                GroundIndicators::WatchArea(me, frozen, GazeFreezeMs, MistakeDamage);
                 After(GazeFreezeMs, [this, frozen, guid]()
                 {
                     Strike(Areas{ frozen }, RuleGaze, guid);
@@ -2859,7 +2846,7 @@ private:
             GroundIndicators::ShowCarriedLook(players[index], seal ? LOOK_MARK_FERVOR_STACK : LOOK_MARK_FERVOR,
                 ChoirSingMs + 500);
         }
-        DrawWedges(offset, ChoirTurnMs);
+        DrawWedges(offset, way * step);
         // The bots: each to a wedge of its colour (wedge k: light if k even)
         auto place = [this, seals, step](float wedgesAt, uint32 ms)
         {
@@ -2882,10 +2869,9 @@ private:
                 SwapSeals(*seals, offset);
                 place(offset, ChoirTurnMs - ChoirSwapMs + 200);
             });
-        After(ChoirTurnMs, [this, offset, way, step, place]()
+        After(ChoirTurnMs, [offset, way, step, place]()
         {
             float const turned = offset + way * step;
-            DrawWedges(turned, ChoirSingMs - ChoirTurnMs);
             place(turned, ChoirSingMs - ChoirTurnMs + 300);
         });
         After(ChoirSingMs, [this, seals, offset, way, step]()
@@ -2917,16 +2903,14 @@ private:
         });
     }
 
-    // The eight wedges from offset (wedge k: light if even), for ms (red until their art: shadow's dark particles)
-    void DrawWedges(float offset, uint32 ms)
+    // The shadow wedges (odd k from offset; the light ones are the gaps between), drawn once for the whole choir and
+    // turning their step in place at ChoirTurnMs (red until their art)
+    void DrawWedges(float offset, float turnBy)
     {
-        for (uint32 wedge = 0; wedge < 8; ++wedge)
-            if (wedge % 2)
-                GroundIndicators::ShowCone(me, Middle(), offset + (float(wedge) + 0.5f) * float(M_PI) / 4.0f,
-                    P2Radius + 1.0f, 44.5f, ms, GroundIndicators::Theme::Shadow, MistakeDamage);
-            else
-                GroundIndicators::PlayKit(me, P2At(offset + (float(wedge) + 0.5f) * float(M_PI) / 4.0f, 12.0f),
-                    KIT_HOLY_IMPACT, 0.6f, 1500, ms);
+        std::vector<GroundIndicators::Turn> const turns = { { ChoirTurnMs, 800, turnBy } };
+        for (uint32 wedge = 1; wedge < 8; wedge += 2)
+            GroundIndicators::ShowTurningCone(me, Middle(), offset + (float(wedge) + 0.5f) * float(M_PI) / 4.0f,
+                P2Radius + 1.0f, 44.5f, ChoirSingMs, turns, MistakeDamage);
     }
 
     // The swap (a bell): every real player swaps seals with a neighbour of the other seal - a real player beside them if

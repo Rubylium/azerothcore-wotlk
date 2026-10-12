@@ -91,6 +91,21 @@ namespace GroundIndicators
                                float length, float width, uint32 durationMs, uint32 hitDamage = 0, uint32 look = 0,
                                uint32 curtain = 0, uint32 stopAfterMs = 0);
     Area CurrentSweep(Area const& area, float radiansPerSecond, uint32 elapsedMs);
+    // A drawing that turns as planned: still, then each turn by its radians over its time from its start (linear), and
+    // still between - one drawing all along (a still one swapped for a turning one fades out and in). The bots are
+    // told each still part and each turn as it comes.
+    struct Turn
+    {
+        uint32 atMs;
+        uint32 forMs;
+        float radians;
+    };
+    // How far the plan has turned elapsedMs after it was drawn
+    float TurnedBy(std::vector<Turn> const& turns, uint32 elapsedMs);
+    Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
+                              uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0);
+    Area ShowTurningCone(Unit* owner, Position const& apex, float orientation, float radius, float arcDegrees,
+                         uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0);
     // The same sweep with a painted line built to its size (shapes.json `scale`: never scaled, it would grow in on the
     // client), its carrier at start: a blade swept round the room
     Area ShowSweepingLine(Unit* owner, Position const& start, float orientation, float radiansPerSecond, float length,
@@ -101,8 +116,10 @@ namespace GroundIndicators
     // A cone from apex aimed at one unit, as ShowAimedCone, that turns to face it wherever it goes until it lands
     // (no particles: they would stay behind). Read where it points back with CurrentCone when it resolves.
     // away: the cone points straight away from the unit instead (the far end of a cone through it and out behind)
+    // followMs: it follows for that long, then holds where it points (the same drawing: never a new one in its place,
+    // which fades out and in) until durationMs
     Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                          Unit* aimedAt, uint32 hitDamage = 0, bool away = false);
+                          Unit* aimedAt, uint32 hitDamage = 0, bool away = false, uint32 followMs = 0);
     // Where a tracking cone points now
     Area CurrentCone(Unit* aimedAt, Area const& area);
     // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a
