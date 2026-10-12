@@ -159,6 +159,7 @@ $spells = @(
     (New-Cast 94668 'Litanie' 48782 171 "Le Zélote récite sa litanie : chacun son verset, chacun sa place."),
     (New-Cast 94691 'Le Chœur' 48782 6 "Chacun son sceau, chacun sa couleur quand le chœur chantera."),
     (New-Cast 94692 'Écho' 20271 171 "Il remonte le temps : quittez l'endroit où vous êtes."),
+    (New-Cast 94694 'Le Chœur' 48782 15 "Chacun son sceau, chacun sa couleur quand le chœur chantera."),
     (New-Cast 94693 'Lumière totale' 642 201 "Toute la lumière va tomber. Il doit tomber avant.")
 )
 

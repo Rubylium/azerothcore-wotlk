@@ -295,6 +295,7 @@ constexpr uint32 SentenceWatchMs = 1000;   // a part an area for the bots only i
 // turning ChoirTurnBeforeMs before each singing; the bell (the swap) ChoirBellBeforeMs before its verse's turn
 constexpr uint32 ChoirFirstCastMs = 1000;   // its first verse's cast bar after the seals
 constexpr uint32 ChoirVerseMs = 5000;       // a verse: its cast bar (CAST_CHOIR), the choir singing at its end
+constexpr uint32 ChoirFastVerseMs = 4000;   // ... the second Chœur's (CAST_CHOIR_FAST)
 constexpr uint32 ChoirTurnBeforeMs = 2000;  // the floor turns this long before the choir sings
 constexpr uint32 ChoirTurnMs = 800;         // ... over this long
 constexpr uint32 ChoirBellBeforeMs = 1500;  // the bell (the swap) this long before its verse's turn
@@ -319,7 +320,7 @@ constexpr float OrbSpeed = 4.0f;
 constexpr float OrbFrom = 22.0f;
 constexpr float OrbReach = 1.6f;
 constexpr float AscensionAside = 2.6f;      // the waiting bots this far beside a lane
-constexpr float OrbHealPct = 3.0f;
+constexpr float OrbHealPct = 5.0f;           // (3 first: bots took them all, nobody minded)
 constexpr uint32 OverloadMs = 6000;
 constexpr float OrbBurstPct = 60.0f;
 // Éclipse: the dark everywhere but its holes of light (EclipseHole yd), its burst EclipseMs (EclipseSecondMs the
@@ -329,6 +330,7 @@ constexpr float EclipseHoleAt = 14.0f;
 constexpr uint32 EclipseMs = 5000;
 constexpr uint32 EclipseSecondMs = 4000;
 constexpr float EclipseHitPct = 60.0f;
+constexpr float EclipseTurnDeg = 90.0f;     // its holes going round him meanwhile, either way (the second the other)
 constexpr float TotalLightSigilRadius = 10.0f;     // Lumière totale's sigil under him, grown to this      // the light breaking on those in it: of their health (a healer check)
 constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on him (stock 7005 without its tints:
                                             // they stayed on him, and on the god after, yellow and see-through)
@@ -403,6 +405,8 @@ enum Looks : uint32
     LOOK_MARK_ORB_FULL          = 98838,
     LOOK_SEAL_SWAP_LS           = 98839,    // a seal burning into the other (a flipbook, SealSwapMs)
     LOOK_SEAL_SWAP_SL           = 98840,
+    LOOK_ECLIPSE_LIGHT_TWO      = 98845,    // the Éclipse's pools of light where its veil's holes are, turning with it
+    LOOK_ECLIPSE_LIGHT_ONE      = 98846,
     LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and III painted in one, II and IV the other
     LOOK_LANCE_FLARE            = 98843,    // a lance's tile flashing as it strikes (added, its own alpha keys)
     LOOK_TENDRIL_FLARE          = 98844,    // a tendril (or a split half) flashing as it strikes
@@ -496,7 +500,8 @@ enum Spells : uint32
     SPELL_ORB_BURST         = 94690,    // Lumière brûlante (an orb taken under Surcharge)
     CAST_CHOIR              = 94691,    // Le Chœur (8 s)
     CAST_ECHO               = 94692,    // Écho (5 s)
-    CAST_TOTAL_LIGHT        = 94693,    // Lumière totale (19 s)
+    CAST_TOTAL_LIGHT        = 94693,
+    CAST_CHOIR_FAST         = 94694,    // Le Chœur's verse, the second's (4 s)    // Lumière totale (19 s)
     SPELL_OPENING           = 94654,    // Garde brisée (+50% damage done, after a ward: Spells.ps1 holds the share)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
@@ -652,7 +657,7 @@ enum class P2Event : uint8
     Stars,
     Gaze,           // arg: the eyes (1 or 2)
     Sentence,       // 0: two halves, 1: four quadrants (each closed by a spread), 2: two halves, no spread
-    Choir,          // 0: three verses, 1: four, the bell before verses 2 and 4
+    Choir,          // 0: four verses, the bell before the 2nd and the 4th; 1: five, faster, bells before 2, 3, 5
     Echo,
     Ascension,      // the pizza and its three waves
     Eclipse,        // 0: two holes, 1: one, on the other side
@@ -3104,15 +3109,20 @@ private:
 
     // --- Le Chœur: seals, eight wedges light and shadow -------------------------------------------------------------------
     // Verses: each the floor turns (verses[k] steps, either way), then the choir sings; two steps bring a colour back
-    // under whoever stands on it. The second: four verses, the bell before the second and the fourth
-    void Choir(bool swap)
+    // under whoever stands on it; a bell before a verse swaps the real players' seals. The first: four verses, the bell
+    // before the 2nd and the 4th; the second: five, a verse every ChoirFastVerseMs, bells before the 2nd, 3rd and 5th
+    void Choir(bool second)
     {
         float const offset = frand(0.0f, 2.0f * float(M_PI));
         float const way = urand(0, 1) ? 1.0f : -1.0f;
         float const step = float(M_PI) / 4.0f;
-        std::vector<int32> const verses = swap ? std::vector<int32>{ 1, -1, 2, -1 } : std::vector<int32>{ 1, -1, 2 };
+        std::vector<int32> const verses = second ? std::vector<int32>{ 1, -1, 2, 1, -1 } :
+            std::vector<int32>{ 1, -1, 2, -1 };
+        std::set<uint32> const bells = second ? std::set<uint32>{ 1, 2, 4 } : std::set<uint32>{ 1, 3 };
+        uint32 const verseMs = second ? ChoirFastVerseMs : ChoirVerseMs;
+        uint32 const cast = second ? CAST_CHOIR_FAST : CAST_CHOIR;
         uint32 const count = uint32(verses.size());
-        auto singAt = [](uint32 verse) { return ChoirFirstCastMs + ChoirVerseMs * (verse + 1); };
+        auto singAt = [verseMs](uint32 verse) { return ChoirFirstCastMs + verseMs * (verse + 1); };
         uint32 const total = singAt(count - 1);
         // The wedges after each verse's turn (where wedge 0 starts)
         std::vector<float> after(count);
@@ -3137,7 +3147,7 @@ private:
                 total + 500);
         }
         DrawWedges(offset, turns, total);
-        After(ChoirFirstCastMs, [this]() { CastBar(CAST_CHOIR); });
+        After(ChoirFirstCastMs, [this, cast]() { CastBar(cast); });
         // The bots: each to a wedge of its colour (wedge k: light if k even)
         // within: where in its wedge (0 its start, 1 its end, counterclockwise): before a turn by the edge it turns
         // towards, after it just past the new wedge's edge they come from - a short step (a long arc was late)
@@ -3170,7 +3180,7 @@ private:
                 place(wedgesAt, before, (two ? singAt(verse) : turnsAt) - from + 300);
             });
             // The bell: the seals swap before the turn
-            if (swap && (verse == 1 || verse == 3))
+            if (bells.count(verse))
                 After(turnsAt - ChoirBellBeforeMs, [this, seals, place, wedgesAt, before, turnsAt, total]()
                 {
                     SwapSeals(*seals, total - (turnsAt - ChoirBellBeforeMs) + 500);
@@ -3181,11 +3191,11 @@ private:
                 {
                     place(turned, behind, singAt(verse) - turnsAt + 300);
                 });
-            After(singAt(verse), [this, seals, step, turned = after[verse], last = verse + 1 == count]()
+            After(singAt(verse), [this, seals, step, cast, turned = after[verse], last = verse + 1 == count]()
             {
                 EndCastBar();
                 if (!last)
-                    CastBar(CAST_CHOIR);
+                    CastBar(cast);
                 Position const middle = Middle();
                 Player* wrong = nullptr;
                 for (Player* player : ArenaPlayers())
@@ -3370,15 +3380,17 @@ private:
         for (uint32 wave = 0; wave < 3; ++wave)
             After(wave * AscensionWaveMs, [this, wave, way, slice]()
             {
-                AscensionWave(_pizzaBase + float(wave) * way * slice);
+                AscensionWave(_pizzaBase + float(wave) * way * slice, wave % 2);
             });
         // The bots: in the safe slices, along with them as they turn
         for (uint32 t = 0; t < AscensionLastsMs; t += AilesGuideStepMs)
             After(t, [this, turns, t]() { GuideAscension(_pizzaBase + GroundIndicators::TurnedBy(turns, t + 300)); });
     }
 
-    // A wave: its orbs down the safe slices (safe: one's middle; the other opposite), who may take one marked
-    void AscensionWave(float safe)
+    // A wave: its orbs down the safe slices (safe: one's middle; the other opposite), who may take one marked. One
+    // lane (playersLane: 0 safe's, 1 the other) is the real players': no bot takes its orb (they took every one, the
+    // players never had to)
+    void AscensionWave(float safe, uint32 playersLane)
     {
         uint32 const markMs = uint32(OrbFrom / OrbSpeed * 1000.0f) + 1000;
         _catchers.clear();
@@ -3410,12 +3422,13 @@ private:
                 _orbs.push_back({ orb->GetGUID(), lane, OrbFrom });
             }
         }
-        // Its catchers: on each lane a bot already beside it (its place on that lane), free of Surcharge
+        // Its catcher: on the bots' lane a bot already beside it (its place on that lane), free of Surcharge
         _catchers.assign(2, ObjectGuid::Empty);
         for (Player* bot : SortedBots())
         {
             auto const slot = _ascensionSlots.find(bot->GetGUID());
-            if (slot == _ascensionSlots.end() || bot->HasAura(SPELL_OVERLOAD) || IsTank(bot))
+            if (slot == _ascensionSlots.end() || slot->second % 2 == playersLane || bot->HasAura(SPELL_OVERLOAD) ||
+                IsTank(bot))
                 continue;
             ObjectGuid& catcher = _catchers[slot->second % 2];
             if (catcher.IsEmpty())
@@ -3513,24 +3526,41 @@ private:
         else
             holes.push_back(P2At(_eclipseAngle + float(M_PI), EclipseHoleAt + 1.0f));
         uint32 const lasts = second ? EclipseSecondMs : EclipseMs;
+        // The holes go round him all along (the second the other way): one turn of the veil and its light about him
+        if (!second)
+            _eclipseWay = urand(0, 1) ? 1.0f : -1.0f;
+        float const way = second ? -_eclipseWay : _eclipseWay;
+        std::vector<GroundIndicators::Turn> const turns = { { 0, lasts, way * EclipseTurnDeg * float(M_PI) / 180.0f } };
         Sound("Valerian.Profanation", middle);
-        // The dark, its holes cut (drawn only - as an area, it had the bots refuse the holes inside it), the holes'
-        // light
+        // The dark, its holes cut (drawn only - as an area, it had the bots refuse the holes inside it), and the holes'
+        // light painted where they are, both turning together
         // (a decal's picture lies a quarter turn on from its carrier's facing: its x along facing + pi / 2 - seen in the
         // FX lab, the holes a quarter turn off their light)
-        GroundIndicators::ShowDecal(me, middle, _eclipseAngle - float(M_PI) / 2.0f, P2Radius, lasts,
-            second ? LOOK_ECLIPSE_VEIL_ONE : LOOK_ECLIPSE_VEIL_TWO);
-        for (Position const& hole : holes)
+        float const facing = _eclipseAngle - float(M_PI) / 2.0f;
+        GroundIndicators::ShowTurningDecal(me, middle, facing, P2Radius, lasts,
+            second ? LOOK_ECLIPSE_VEIL_ONE : LOOK_ECLIPSE_VEIL_TWO, turns);
+        GroundIndicators::ShowTurningDecal(me, middle, facing, P2Radius, lasts,
+            second ? LOOK_ECLIPSE_LIGHT_ONE : LOOK_ECLIPSE_LIGHT_TWO, turns);
+        // Where the holes are after t ms
+        auto holesAt = [this, holes, middle, turns](uint32 t)
         {
-            GroundIndicators::ShowDecal(me, hole, 0.0f, EclipseHole, lasts, LOOK_ECLIPSE_HOLE);
-            GroundIndicators::ShowDecal(me, hole, 0.0f, EclipseHole, lasts, LOOK_ECLIPSE_HOLE_RIM);
-        }
-        // The bots: split between the holes
-        std::vector<Position> spots;
-        for (Position const& hole : holes)
-            for (uint32 index = 0; index < 4; ++index)
-                spots.push_back(Ground(AtAngle(hole, float(index) * float(M_PI) / 2.0f, 1.5f)));
-        GuideP2(spots, lasts + 300);
+            float const turned = GroundIndicators::TurnedBy(turns, t);
+            std::vector<Position> at;
+            for (Position const& hole : holes)
+                at.push_back(P2At(middle.GetAbsoluteAngle(&hole) + turned, middle.GetExactDist2d(&hole)));
+            return at;
+        };
+        // The bots: split between the holes, along with them
+        for (uint32 t = 0; t < lasts; t += AilesGuideStepMs)
+            After(t, [this, holesAt, t]()
+            {
+                std::vector<Position> spots;
+                for (Position const& hole : holesAt(t + 300))
+                    for (uint32 index = 0; index < 4; ++index)
+                        spots.push_back(Ground(AtAngle(hole, float(index) * float(M_PI) / 2.0f, 1.5f)));
+                GuideP2(spots, AilesGuideStepMs + 400);
+            });
+        holes = holesAt(lasts);
         After(lasts, [this, holes]()
         {
             Blast(Middle(), P2Radius);
@@ -3685,6 +3715,7 @@ private:
     uint32 _p2True = 0;                 // what of it the group has not dealt yet (the bar shows the pace above it)
     float _starsBase = 0.0f;
     float _pizzaBase = 0.0f;
+    float _eclipseWay = 1.0f;               // the first Éclipse's holes' way round (the second goes the other)
     std::vector<ObjectGuid> _catchers;      // Ascension's wave: the bots taking its orbs
     std::map<ObjectGuid, uint32> _ascensionSlots;   // Ascension: each bot's place (GuideAscension)
     float _eclipseAngle = 0.0f;         // the first Éclipse's holes, the second's on the other side

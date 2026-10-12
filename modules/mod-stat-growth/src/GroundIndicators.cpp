@@ -2568,6 +2568,13 @@ void ShowDecal(Unit* owner, Position const& center, float orientation, float rad
     Place(owner, center, orientation, spellId, radius, durationMs);
 }
 
+void ShowTurningDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs,
+                      uint32 spellId, std::vector<Turn> const& turns)
+{
+    if (Creature* stalker = Place(owner, center, orientation, spellId, radius, durationMs))
+        stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));
+}
+
 void ShowBillboard(Unit* owner, Position const& position, uint32 look, uint32 durationMs, Unit* follow,
                    ObjectGuid* placed)
 {

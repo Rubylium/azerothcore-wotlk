@@ -398,6 +398,33 @@ def eclipse_veil(holes, tiles):
     return image(rimmed(colour, inside, pixel, SHADOW_RIM, 0.94))
 
 
+def eclipse_light(holes):
+    """The Éclipse's pools of light where its veil's holes are (eclipse_veil's layout), on nothing: one picture
+    turning with the veil about the arena's middle (pools of their own, put where the holes were, would not follow)"""
+    pool = keyed(load('eclipse_hole.png'))
+    rim = keyed(load('eclipse_hole_rim.png'))
+    pool[..., :3] = numpy.maximum(pool[..., :3], rim[..., :3])
+    pool[..., 3] = numpy.maximum(pool[..., 3], rim[..., 3])
+    size = pool.shape[0]
+    x, y, inside, pixel = circle_grid()
+    out = numpy.zeros(x.shape + (4,))
+    if holes == 2:
+        at = [(14.0 * math.cos(ECLIPSE_SPREAD), 14.0 * math.sin(ECLIPSE_SPREAD)),
+              (14.0 * math.cos(ECLIPSE_SPREAD), -14.0 * math.sin(ECLIPSE_SPREAD))]
+    else:
+        at = [(-15.0, 0.0)]
+    half = ECLIPSE_HOLE / ECLIPSE_RADIUS
+    for hx, hy in at:
+        u = (x - hx / ECLIPSE_RADIUS) / half
+        v = (y - hy / ECLIPSE_RADIUS) / half
+        within = (numpy.abs(u) < 1.0) & (numpy.abs(v) < 1.0)
+        columns = numpy.clip(((u + 1.0) / 2.0 * size).astype(int), 0, size - 1)
+        rows = numpy.clip(((1.0 - v) / 2.0 * size).astype(int), 0, size - 1)
+        sample = pool[rows, columns] * within[..., None]
+        out = numpy.maximum(out, sample)
+    return image(out)
+
+
 def circle_grid():
     return grid_of('circle', 0)
 

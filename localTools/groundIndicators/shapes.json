@@ -313,6 +313,8 @@
     {"key": "VL_SentenceHalf1", "kind": "texture", "picture": "localTools/valerian/valerianArt.py:divine", "args": ["cone", 180, 1.5, [1, 3]], "shape": "cone", "angle": 180, "paintedAngle": 180, "size": 1024, "spell": 98841},
     {"key": "VL_SentenceHalf2", "kind": "texture", "picture": "localTools/valerian/valerianArt.py:divine", "args": ["cone", 180, 1.5, [2, 4]], "shape": "cone", "angle": 180, "paintedAngle": 180, "size": 1024, "spell": 98842},
     {"key": "VL_LanceFlare", "kind": "texture", "picture": "localTools/valerian/valerianArt.py:lance", "shape": "rect", "ratio": 4.0, "size": 512, "blend": "add", "alphaKeys": [[0, 0.0], [60, 1.0], [260, 0.9], [700, 0.0]], "spell": 98843},
-    {"key": "VL_TendrilFlare", "kind": "texture", "picture": "localTools/valerian/valerianArt.py:tendril", "shape": "rect", "ratio": 5.3333, "tile": true, "mirror": false, "size": 512, "blend": "add", "alphaKeys": [[0, 0.0], [60, 1.0], [260, 0.9], [700, 0.0]], "spell": 98844}
+    {"key": "VL_TendrilFlare", "kind": "texture", "picture": "localTools/valerian/valerianArt.py:tendril", "shape": "rect", "ratio": 5.3333, "tile": true, "mirror": false, "size": 512, "blend": "add", "alphaKeys": [[0, 0.0], [60, 1.0], [260, 0.9], [700, 0.0]], "spell": 98844},
+    {"key": "VL_EclipseLightTwo", "kind": "image", "picture": "localTools/valerian/valerianArt.py:eclipse_light", "args": [2], "size": 1024, "brightness": 1.0, "alpha": 1.0, "pulse": [0.8, 1.0, 600], "spell": 98845},
+    {"key": "VL_EclipseLightOne", "kind": "image", "picture": "localTools/valerian/valerianArt.py:eclipse_light", "args": [1], "size": 1024, "brightness": 1.0, "alpha": 1.0, "pulse": [0.8, 1.0, 600], "spell": 98846}
   ]
 }

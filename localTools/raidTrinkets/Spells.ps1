@@ -176,7 +176,7 @@ $spells += @(
     # the wearer's own attack power, grown with the gear as it is. About a spear every 6 s on one target: about what the
     # Pierre à aiguiser's 850 attack power gives, more on a line of enemies.
     (New-Passive 94550 'Lance de la Litanie' 'INV_Spear_04' $weaponBlows 94551 `
-        "Vos attaques en mêlée et à distance ont une chance de projeter une lance de lumière à travers votre cible : elle inflige des dégâts du Sacré égaux à 120% de votre puissance d'attaque à la cible et à tous les ennemis alignés jusqu'à 15 mètres derrière elle.")
+        "Vos attaques en mêlée et à distance ont une chance de projeter une lance de lumière à travers votre cible : elle inflige des dégâts du Sacré égaux à 55% de votre puissance d'attaque à la cible et à tous les ennemis alignés jusqu'à 15 mètres derrière elle.")
     # The spear: Holy Shock's hit (48822), anywhere (13); effect 0 its target, effect 1 the enemies within 15 yd of it
     # (53: at the target, 16: the enemies around that point), which the script narrows to the line behind it
     @{ Id = 94551; Clone = 48822; Name = 'Lance de la Litanie'; IconPath = 'Interface\Icons\INV_Spear_04'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false

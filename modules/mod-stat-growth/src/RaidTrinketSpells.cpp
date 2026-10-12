@@ -25,9 +25,10 @@ enum RaidTrinketSpells : uint32
     SPELL_CHAIN_BURST       = 94558,    // Chaîne brisée's burst
 };
 
-// The spear: 120% of the wearer's attack power (a hunter's ranged one if higher), to the target and the enemies up to
-// 15 yd behind it within 2 yd of the line from the wearer through it
-constexpr float SpearAttackPowerPct = 120.0f;
+// The spear: 55% of the wearer's attack power (a hunter's ranged one if higher), to the target and the enemies up to
+// 15 yd behind it within 2 yd of the line from the wearer through it (120% first: a tenth of a fighter's damage in a
+// fight, seen on the first kill; a twentieth at most)
+constexpr float SpearAttackPowerPct = 55.0f;
 constexpr float SpearLength = 15.0f;
 constexpr float SpearHalfWidth = 2.0f;
 // The psalm's verses, the last making the next spell instant

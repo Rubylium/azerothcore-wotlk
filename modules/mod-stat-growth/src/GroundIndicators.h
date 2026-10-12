@@ -205,6 +205,9 @@ namespace GroundIndicators
     constexpr uint32 SPELL_SIGIL_AEGIS = 90737;
     void ShowDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs,
                    uint32 spellId);
+    // The same picture turning about its middle as planned (a veil whose holes go round), one drawing all along
+    void ShowTurningDecal(Unit* owner, Position const& center, float orientation, float radius, uint32 durationMs,
+                          uint32 spellId, std::vector<Turn> const& turns);
 
     // An upright picture turned to the camera (shapes.json kind billboard: a boss's eye over it) on a stalker at the
     // floor under position, for durationMs; its height over the floor is the model's own (elevation). A flipbook

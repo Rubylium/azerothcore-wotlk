@@ -83,6 +83,26 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
   180 degree cone does not reshape well (a streak along its edges): wide cones are 90/45 degree pieces side by side;
   a long wide strip is tiles flush with its ends. Small circles keep a stock-shaped burst sized from its footprint
   measured in the lab against the 5 yd rings.
+- **The reference look: Valérian's phase 2** (`ZealotBoss.cpp`, `localTools/valerian/valerianArt.py`, its brief
+  `.agents/plans/gaol-third/gaol-third.ASSETS-p2.md`; the user called it a masterpiece). Every boss is drawn that
+  way:
+  - **No red left**: every shape a painted look (`shapes.json` `VL_*`). One brief per phase, in that file's format:
+    the boss's own colour language (here white-gold divine light, its counter colour told apart by value and texture,
+    not hue: violet-black shadow), a style prefix pasted in every prompt, each file's exact size and framing.
+  - **Fills, not paintings, for floor areas**: seamless squares the build cuts into each shape (`divine`,
+    `starfall`, `choir`). Arena cut-outs (halves, quadrants, slices, wedges, thirds) keep a clean rim; cones and lines
+    bleed at their sides (ragged footprint, faded strip edges).
+  - **Two layers**: the base and its glow alone (`blend` add), the glow breathing faster as the strike comes
+    (`pulseRamp` over the tell). A line strikes as a flare of its own painting (`VL_LanceFlare`, `VL_TendrilFlare`:
+    `alphaKeys`) - a stock kit ignored its facing.
+  - **Information painted in**: numerals inside their parts (never a decal of their own), a veil with its holes cut
+    out, a beacon where a star counts; marks over heads (billboards) for who carries what, a flipbook for a change
+    (the seal burning into the other).
+  - **Moving shapes one drawing**, turned by the client (see above); the turn's plan shared with the bots.
+  - **Checked in the FX lab** (the `wow-dev-client` MCP: a top-down `camera`, `screenshot_burst` timed on the
+    pattern), each pattern and its strike, before the user sees it.
+  - **Never a boss's look on players' things**: a legendary or a trinket wearing a mechanic's visual teaches the group
+    to ignore (or fear) it.
 - Art scope: a boss's art is what players see in the fight (shapes, marks, walls, impacts); ability icons stay
   stock; never item art unless asked. A board page or gate for the boss on the Défi board (`ChallengeBoard.lua`).
 
