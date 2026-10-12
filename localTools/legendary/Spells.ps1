@@ -268,12 +268,12 @@ $spells += @(
        Fields = (Merge-Fields @{ 225 = 2 }) },
 
     # --- Valérian: Lumière totale, the Unique ---
-    # The item's use: 3 sec cast (SpellCastTimes 14), a dummy on the wearer; mod-legendary lets the light fall as it
-    # ends (OnPlayerSpellCast). Holy Light's row and its holy cast glow
+    # The item's use: instant (no cast time: the user's), a dummy on the wearer; mod-legendary lets the light fall as it
+    # is cast (OnPlayerSpellCast). Holy Light's row and its holy glow
     @{ Id = 97960; Clone = 48782; Name = 'Lumière totale'; Icon = 'Spell_Holy_DivineHymn'; FallbackIconSpell = 64843; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = 'Toute la lumière amassée tombe : sur les ennemis à moins de 20 m, sur les alliés blessés à moins de 40 m.'
        Effects = @(@{ Index = 0; Effect = 3; TargetA = 1; BasePoints = 0 })
-       Fields = @{ 28 = 14; 225 = 2; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
+       Fields = @{ 28 = 1; 225 = 2; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
     # The light falling on each enemy (shared), Holy: Holy Vengeance's flash
     (New-Damage 97961 'Lumière totale' 'Spell_Holy_DivineHymn' 64843 2 121 `
         'Toute la lumière tombe sur vos ennemis.'),

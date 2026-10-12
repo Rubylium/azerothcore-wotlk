@@ -255,10 +255,10 @@ AddBoss(29, 17910, { "Valérian l'Ascensionné", "Valerian the Ascended" },
       "The prisoner turned god kept nothing of his chains but the light that broke them." })
 
 AddUnique(30, 17911, { "Valérian l'Ascensionné", "Valerian the Ascended" },
-    { "%s de vos dégâts et de vos soins s'amassent en une lumière. Utilisez l'objet : après 3 sec, toute la "
-        .. "lumière tombe - ses dégâts se partagent entre les ennemis à moins de 20 m, ses soins entre les 5 alliés "
+    { "%s de vos dégâts et de vos soins s'amassent en une lumière. Utilisez l'objet : toute la lumière "
+        .. "tombe - ses dégâts se partagent entre les ennemis à moins de 20 m, ses soins entre les 5 alliés "
         .. "les plus blessés à moins de 40 m. Hors combat, la lumière se dissipe.",
-      "%s of your damage and healing gathers into a light. Use the item: after 3 sec, all of the light falls - its "
+      "%s of your damage and healing gathers into a light. Use the item: all of the light falls - its "
         .. "damage shared by the enemies within 20 yd, its healing by the 5 most injured allies within 40 yd. Out of "
         .. "combat, the light fades." },
     { "« Toute la lumière va tomber. » Il l'a dit à chacun d'eux. Aucun ne l'a cru avant la fin.",

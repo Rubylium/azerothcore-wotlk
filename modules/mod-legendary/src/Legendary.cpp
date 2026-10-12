@@ -305,7 +305,7 @@ std::array<Definition, 30> const Definitions = { {
 
     // --- Valérian: the Unique ---
     // Lumière totale, a trinket (17911, a free row made one): his last cast, 25-30% of the damage and healing done
-    // gathered into a light that its use lets fall after 3 sec (the enemies within 20 yd share its damage, the 5 most
+    // gathered into a light that its use lets fall at once (the enemies within 20 yd share its damage, the 5 most
     // hurt allies within 40 yd its healing). Only from his death, TotalLightDropPct a kill (item level 485)
     { 30, 17911, KIND_TOTAL_LIGHT, 25.0f, 30.0f, 25.0f, 30.0f, WardenVorhanItemLevel, NeckBudget, 0,
       { .spell = 97961, .spell2 = 97962, .spell3 = 97960, .count = 5, .radius = 20.0f }, ValerianBoss,
@@ -696,7 +696,7 @@ public:
     void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
     {
         SpellInfo const* spellInfo = spell ? spell->GetSpellInfo() : nullptr;
-        // Lumière totale: its item's use cast to its end, the light falls (an item's cast: before the echo's checks)
+        // Lumière totale: its item's use cast (instant), the light falls (an item's cast: before the echo's checks)
         if (spellInfo)
             GetWorn(player)->ForEach(KIND_TOTAL_LIGHT, [player, spellInfo](Definition const& definition, float,
                 PowerState& state)
