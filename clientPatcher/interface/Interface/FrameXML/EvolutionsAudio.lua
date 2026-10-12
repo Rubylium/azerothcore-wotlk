@@ -5,6 +5,9 @@
 --   EVA <tab> S <tab> <guid>                                               the sounds on that object fade out
 --   EVA <tab> M <tab> <key> [<tab> <fade in, ms>]                          that music (EvolutionsAudio_PlayMusic)
 --   EVA <tab> N [<tab> <fade out, ms>]                                     the music fades out
+--   EVA <tab> T <tab> <guid> <tab> <from> <tab> <segments>                  that unit turned by the client from its plan
+--   EVA <tab> F <tab> <guid> <tab> <target guid> <tab> <offset> <tab> <ms>  that unit facing another (SmoothTurns, the
+--                                                                            same DLL: GroundIndicators' turning shapes)
 -- /eva play <key> [target]   plays a sound of the bank on you (or your target) - /eva music <key>, /eva stopmusic,
 -- /eva list, /eva reload (the bank and its files read again: tune the client copy of
 -- Interface\AddOns\EvolutionsAudio\sounds.txt without restarting).
@@ -94,6 +97,10 @@ frame:SetScript("OnEvent", function(self, event, prefix, message)
         EvolutionsAudio_PlayMusic(first, tonumber(second))
     elseif command == "N" and EvolutionsAudio_StopMusic then
         EvolutionsAudio_StopMusic(tonumber(first))
+    elseif command == "T" and first ~= "" and SmoothTurns_Turn then
+        SmoothTurns_Turn(first, second)
+    elseif command == "F" and first ~= "" and SmoothTurns_Follow then
+        SmoothTurns_Follow(first, second)
     end
 end)
 

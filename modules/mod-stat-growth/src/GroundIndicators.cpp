@@ -1,4 +1,5 @@
 #include "GroundIndicators.h"
+#include "EvolutionsAudio.h"
 
 #include "PassiveAI.h"
 #include "Random.h"
@@ -19,6 +20,7 @@
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "StringFormat.h"
 #include "TemporarySummon.h"
 #include <algorithm>
 #include <array>
@@ -342,17 +344,53 @@ private:
     uint32 _timer;
 };
 
+// A turning stalker is turned by the client, at its frame rate, from a plan sent once as it appears (the client
+// extension's SmoothTurns, over EvolutionsAudio's whisper): its facing sent every 50 ms jittered (the updates came
+// unevenly, the client snapped to each). The server keeps its own facing without telling anyone, and sends it once
+// where the plan ends (a client without the extension sees the shape there).
+constexpr float SmoothTurnsReach = 150.0f;
+
+void TellTurns(Creature* stalker, std::string const& plan)
+{
+    std::string const command = Acore::StringFormat("{}\t{:016X}\t{}", plan.substr(0, 1),
+        stalker->GetGUID().GetRawValue(), plan.substr(2));
+    for (auto const& ref : stalker->GetMap()->GetPlayers())
+        if (Player* player = ref.GetSource(); player && player->IsInWorld() &&
+            player->GetExactDist2d(stalker) <= SmoothTurnsReach)
+            EvolutionsAudio::Command(player, command);
+}
+
+// "T\t<from>\t<atMs>,<forMs>,<radians>,<ease>;..."
+std::string TurnPlanOf(float from, std::vector<GroundIndicators::Turn> const& turns, bool eased = false)
+{
+    std::string segments;
+    for (GroundIndicators::Turn const& turn : turns)
+        segments += Acore::StringFormat("{}{},{},{:.5f},{}", segments.empty() ? "" : ";", turn.atMs, turn.forMs,
+            turn.radians, eased ? 1 : 0);
+    return Acore::StringFormat("T\t{:.5f}\t{}", from, segments);
+}
+
 // A cone's stalker turning to face one unit for as long as it is drawn
 struct TrackingConeAI : public NullCreatureAI
 {
     TrackingConeAI(Creature* creature, ObjectGuid turnsTo, float offset = 0.0f, uint32 followMs = 0)
-        : NullCreatureAI(creature), _offset(offset), _turnsTo(turnsTo), _followMs(followMs) { }
+        : NullCreatureAI(creature), _offset(offset), _turnsTo(turnsTo), _followMs(followMs)
+    {
+        TellTurns(creature, Acore::StringFormat("F\t{:016X}\t{:.5f}\t{}", turnsTo.GetRawValue(), offset, followMs));
+    }
 
     void UpdateAI(uint32 diff) override
     {
         _elapsed += diff;
         if (_followMs && _elapsed > _followMs)
+        {
+            if (!_held)
+            {
+                _held = true;
+                me->SetFacingTo(me->GetOrientation());
+            }
             return;
+        }
         if (_timer > diff)
         {
             _timer -= diff;
@@ -367,13 +405,14 @@ struct TrackingConeAI : public NullCreatureAI
         float turn = std::fabs(facing - me->GetOrientation());
         turn = std::min(turn, 2.0f * float(M_PI) - turn);
         if (turn > MinTurn)
-            me->SetFacingTo(facing);
+            me->SetOrientation(facing);
     }
 
 private:
     static constexpr uint32 TurnEveryMs = 100;
     static constexpr float MinTurn = 0.02f;
     float _offset;                              // pi: it points away from the unit
+    bool _held = false;
 
     ObjectGuid _turnsTo;
     uint32 _followMs = 0;
@@ -385,7 +424,12 @@ private:
 struct SweepAI : public NullCreatureAI
 {
     SweepAI(Creature* creature, float from, float speed, uint32 stopAfterMs = 0)
-        : NullCreatureAI(creature), _from(from), _speed(speed), _stopAfterMs(stopAfterMs) { }
+        : NullCreatureAI(creature), _from(from), _speed(speed), _stopAfterMs(stopAfterMs)
+    {
+        // Turning until it stops, or for as long as a stalker may live (SweepForeverMs)
+        uint32 const ms = stopAfterMs ? stopAfterMs : SweepForeverMs;
+        TellTurns(creature, TurnPlanOf(from, { { 0, ms, speed * float(ms) / 1000.0f } }));
+    }
 
     void UpdateAI(uint32 diff) override
     {
@@ -405,11 +449,12 @@ struct SweepAI : public NullCreatureAI
             return;
         }
         _timer = TurnEveryMs;
-        me->SetFacingTo(Position::NormalizeOrientation(_from + _speed * float(_elapsed) / 1000.0f));
+        me->SetOrientation(Position::NormalizeOrientation(_from + _speed * float(_elapsed) / 1000.0f));
     }
 
 private:
     static constexpr uint32 TurnEveryMs = 50;
+    static constexpr uint32 SweepForeverMs = 600000;
 
     float _from;
     float _speed;
@@ -423,7 +468,12 @@ private:
 struct TurnPlanAI : public NullCreatureAI
 {
     TurnPlanAI(Creature* creature, float from, std::vector<GroundIndicators::Turn> turns)
-        : NullCreatureAI(creature), _from(from), _turns(std::move(turns)) { }
+        : NullCreatureAI(creature), _from(from), _turns(std::move(turns))
+    {
+        for (GroundIndicators::Turn const& turn : _turns)
+            _endMs = std::max(_endMs, turn.atMs + turn.forMs);
+        TellTurns(creature, TurnPlanOf(from, _turns));
+    }
 
     void UpdateAI(uint32 diff) override
     {
@@ -435,10 +485,13 @@ struct TurnPlanAI : public NullCreatureAI
         }
         _timer = TurnEveryMs;
         float const facing = Position::NormalizeOrientation(_from + GroundIndicators::TurnedBy(_turns, _elapsed));
-        float turn = std::fabs(facing - me->GetOrientation());
-        turn = std::min(turn, 2.0f * float(M_PI) - turn);
-        if (turn > 0.002f)
+        if (!_told && _elapsed >= _endMs)
+        {
+            _told = true;
             me->SetFacingTo(facing);
+            return;
+        }
+        me->SetOrientation(facing);
     }
 
 private:
@@ -446,6 +499,8 @@ private:
 
     float _from;
     std::vector<GroundIndicators::Turn> _turns;
+    uint32 _endMs = 0;
+    bool _told = false;
     uint32 _elapsed = 0;
     uint32 _timer = 0;
 };
@@ -456,7 +511,10 @@ struct SwingAI : public NullCreatureAI
 {
     SwingAI(Creature* creature, float from, float turn, uint32 startMs, uint32 swingMs)
         : NullCreatureAI(creature), _from(from), _turn(turn), _startMs(startMs),
-          _swingMs(std::max<uint32>(swingMs, 1)) { }
+          _swingMs(std::max<uint32>(swingMs, 1))
+    {
+        TellTurns(creature, TurnPlanOf(from, { { startMs, _swingMs, turn } }, true));
+    }
 
     void UpdateAI(uint32 diff) override
     {
@@ -471,8 +529,11 @@ struct SwingAI : public NullCreatureAI
         _timer = TurnEveryMs;
         float const t = std::min(1.0f, float(_elapsed - _startMs) / float(_swingMs));
         float const eased = t * t * (3.0f - 2.0f * t);
-        me->SetFacingTo(Position::NormalizeOrientation(_from + _turn * eased));
         _done = t >= 1.0f;
+        if (_done)
+            me->SetFacingTo(Position::NormalizeOrientation(_from + _turn));
+        else
+            me->SetOrientation(Position::NormalizeOrientation(_from + _turn * eased));
     }
 
 private:

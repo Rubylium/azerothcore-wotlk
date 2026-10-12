@@ -54,4 +54,9 @@ void StopMusic(Player* player, uint32 fadeOutMs)
 {
     Send(player, fadeOutMs ? Acore::StringFormat("N\t{}", fadeOutMs) : std::string("N"));
 }
+
+void Command(Player* player, std::string const& command)
+{
+    Send(player, command);
+}
 }

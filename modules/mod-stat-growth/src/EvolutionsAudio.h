@@ -2,6 +2,7 @@
 #define MOD_STAT_GROWTH_EVOLUTIONS_AUDIO_H
 
 #include "Define.h"
+#include <string>
 #include <string_view>
 
 class Player;
@@ -27,6 +28,8 @@ void StopOn(Player* player, WorldObject const* source);
 void PlayMusic(Player* player, std::string_view key, uint32 fadeInMs = 0);
 // The music fades out (fadeOutMs 0: the engine's, 2 s), the game's own music back after it
 void StopMusic(Player* player, uint32 fadeOutMs = 0);
+// Another command over the same whisper (FrameXML EvolutionsAudio.lua: "T", "F" for the DLL's SmoothTurns)
+void Command(Player* player, std::string const& command);
 }
 
 #endif
