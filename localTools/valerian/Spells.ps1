@@ -103,6 +103,12 @@ $spells = @(
         "Les revers du Zélote." "Dégâts subis augmentés. Laissez-le à l'autre tank."),
     (New-Debuff 94653 'Marque de ferveur' 48819 1 `
         "Sa ferveur va exploser sur vous." "Sa ferveur va exploser sur vous : écoutez-la."),
+    # His guard down after a ward (La Litanie): a real buff, 50% damage done, timed by the script (15 s)
+    @{ Id = 94654; Clone = 2983; Name = 'Garde brisée'; FallbackIconSpell = 31884; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; MaxStacks = 1; Spellbook = $false
+       Description = "La litanie achevée, la garde du Zélote tombe."
+       AuraDescription = 'Dégâts infligés augmentés de 50%.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 79; TargetA = 1; Value = 50; Misc = 127 })
+       Fields = @{ 40 = 21 } },
     # His ward while he recites (Divine Shield's look and immunity, nothing a dispel takes): the script puts it on and off
     @{ Id = 94669; Clone = 642; Name = 'Litanie'; FallbackIconSpell = 642; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = "Le Zélote récite sa litanie : rien ne l'atteint."

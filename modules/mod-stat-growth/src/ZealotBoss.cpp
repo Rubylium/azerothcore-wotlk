@@ -54,7 +54,7 @@ constexpr float OnHimShare = 0.7f;
 Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimShare, 1.095f / 1.18f };
 // Phase 2 while it is bare (no mechanic): its own health, the seconds it lasts against the profile's group
 Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 60.0f, 1.095f / 1.18f };
-LiveTuning::Knob const HealthScale("valerian.health_scale", 1.0f);
+LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
 constexpr float HoldPct = 1.0f;
 
 // Keli'dan's hall in the Blood Furnace, its middle (ForgeMaster.cpp's Room: the same arena); the arena round it: a ring
@@ -134,6 +134,8 @@ constexpr float LitanySigilFacing = float(M_PI) / 2.0f;    // the sigil turned s
 // spell's own, Spells.ps1), a lightning streak of the Light's gold flying with it; thrown so it reaches the verse's
 // numeral on the beat it strikes, aimed LitanySpearHeight over the floor at the wall
 constexpr float LitanySpearSpeed = 45.0f;
+// When a pattern that wards him ends (La Litanie), his guard down: everyone deals OpeningPct more damage for OpeningMs
+constexpr uint32 OpeningMs = 15000;
 constexpr float LitanySpearHeight = 1.2f;
 
 // The bots' places (Guide: a spot of its own each, out of a pattern's safe ones - they cannot read his tells): how far
@@ -302,6 +304,7 @@ enum Spells : uint32
     SPELL_VERSE_SPEAR       = 94645,    // La Litanie's spear in flight (a missile, nothing more)
     SPELL_VERSE_LIGHTNING   = 94646,    // ... and the golden lightning flying with it
     SPELL_LITANY_WARD       = 94669,    // Litanie (nothing reaches him while he recites)
+    SPELL_OPENING           = 94654,    // Garde brisée (+50% damage done, after a ward: Spells.ps1 holds the share)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
     SPELL_ZEAL              = 94652,    // Zèle brûlant (his tank's stacks)
@@ -1831,12 +1834,23 @@ private:
             Pose(0);
             HoldSpear(false);
             me->RemoveAurasDueToSpell(SPELL_LITANY_WARD);
+            GuardDown();
         });
         AtBeat(Grid, lastStrike + 1, [this]()
         {
             if (!_litanyProfaned)
                 Sound("Valerian.LitanyEnd", Middle());
         });
+    }
+
+    // His ward gone: everyone alive strikes harder for a while (Garde brisée)
+    void GuardDown()
+    {
+        if (_litanyProfaned)
+            return;
+        for (Player* player : ArenaPlayers())
+            if (player->IsAlive())
+                AddTimedAura(player, SPELL_OPENING, OpeningMs);
     }
 
     // The spears in flight: from his hand to the wall along each aim, the throw's gesture with them
