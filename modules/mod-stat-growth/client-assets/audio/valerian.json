@@ -11,7 +11,8 @@
     "Raised again after a pull (2026-10-12): the impacts 3 dB, the lances' thunder 6 dB, phase 2's music 5 dB.",
     "Valerian.FirstBlow: his first blow as a god (phase 2's hit), Akarat's echo's air-slam explosion, picked by the user.",
     "La Litanie's (picked 2026-10-12): its start (Inarius's ping), each spear raised (Inarius's throw), the litany complete (the Paladin's Holy Light), the profanation (Akarat's final possession).",
-    "Valerian.VerseStrike: each spear on its verse, the Cataclysm's lightning bolt (picked 2026-10-12)."
+    "Valerian.VerseStrike: each spear on its verse, the Cataclysm's lightning bolt (picked 2026-10-12).",
+    "Music.ValerianRewind: phase 3's, phase 2's own track wound back from Lumière totale's hit, then played again from just before its 1:11 drop (localTools/valerian/buildRewindMusic.py)."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -25,6 +26,14 @@
       "kind": "music",
       "files": [
         "modules/mod-stat-growth/client-assets/audio/sources/valerian/valerian_p2.ogg"
+      ],
+      "loopStart": 0,
+      "volume": 1.8
+    },
+    "Music.ValerianRewind": {
+      "kind": "music",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/valerian_p3.ogg"
       ],
       "loopStart": 0,
       "volume": 1.8
