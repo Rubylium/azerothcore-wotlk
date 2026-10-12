@@ -2506,7 +2506,8 @@ void GiveGlyph(Player* player, ParagonGlyph const& glyph)
 void DropGlyph(Player* player)
 {
     ParagonState* state = GetState(player);
-    if (!state || Glyphs.empty())
+    // A denied kill (GroundLoot::DenyLoot) gives its gold only
+    if (!state || Glyphs.empty() || GroundLoot::LootDenied(player->GetMap()))
         return;
 
     std::vector<ParagonGlyph const*> missing;

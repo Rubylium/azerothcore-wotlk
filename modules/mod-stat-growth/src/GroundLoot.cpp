@@ -528,11 +528,13 @@ void ShareCorpseLoot(Creature* corpse, std::vector<Player*> const& players)
         return;
 
     Loot& loot = corpse->loot;
+    // A denied kill (DenyLoot) gives its gold only: none of its items (its essences included)
+    bool const denied = GroundLoot::LootDenied(corpse->GetMap());
     for (uint32 index = 0; index < loot.items.size(); ++index)
     {
         LootItem& item = loot.items[index];
         ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(item.itemid);
-        if (item.is_looted || item.needs_quest || !itemTemplate)
+        if (item.is_looted || item.needs_quest || !itemTemplate || denied)
             continue;
 
         std::vector<Player*> allowed;

@@ -1894,6 +1894,9 @@ void RollUpgradeMaterial(Player* player, uint32 itemLevel)
 {
     if (!player || !player->GetSession() || player->GetSession()->IsBot() || itemLevel < MaterialMinItemLevel)
         return;
+    // A denied kill (GroundLoot::DenyLoot: Valérian beaten with his light stolen) gives its gold only, and no roll
+    if (GroundLoot::LootDenied(player->GetMap()))
+        return;
     ObjectGuid::LowType const guid = player->GetGUID().GetCounter();
     uint32 misses = 0;
     if (QueryResult result = CharacterDatabase.Query("SELECT misses FROM character_legendary_luck "
