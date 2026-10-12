@@ -61,7 +61,7 @@ Defi::Sizing const Sizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, 127.4f * OnHimSh
 // legendaries (+10% damage each, several of them)
 Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (265.0f - 34.5f) * OnHimShare,
     1.095f / 1.18f };
-LiveTuning::Knob const HealthScale("valerian.health_scale", 1.0625f);
+LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
 LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 1.8125f);
 // One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
 // (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
