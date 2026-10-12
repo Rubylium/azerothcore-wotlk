@@ -60,6 +60,17 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
   `ShowTrackingCone` followMs.
 - Carried looks (circles round players, marks over them) are drawn at their own size on every race and creature
   (their effect rows pinned to scale 1).
+- Painted floor pictures (shapes.json `texture` and `image`), three things the client does (seen in the FX lab on
+  Valérian's phase 2):
+  - **It draws them back to front by their carrier's distance to the camera**, never in the order they were put on:
+    a small picture over a big one (a numeral on its part, a pool of light on a veil) is hidden whenever its carrier
+    lies farther than the big one's (past the boss). Paint the detail into the big picture
+    (`valerianArt.py` `with_numeral`), or cut a hole in it the small one shows through (the Éclipse's veil).
+  - **It mirrors them**: a picture whose handedness matters (a numeral, a clock) is mirrored when built
+    (`mirrored_painting`, `with_numeral`); a symmetric one needs nothing.
+  - **A decal (`ShowDecal`, kind `image`) lies a quarter turn from its carrier's facing**: the picture's +x along
+    facing + pi / 2. Turn the carrier by - pi / 2 for a picture laid out along its own x (the veil's holes), or paint
+    it symmetric about an axis that does not matter.
 - **Every strike has a 3D impact** where it lands: retail effects converted for 3.3.5 (Ascension's client,
   `localTools/ascensionImport/importVisuals.py`, one import folder per boss: `client-assets/imported<Boss>`), in the
   fight's colours (tinted), compared in the lab before keeping. **An impact never leaves its shape**: a cone, a
