@@ -2459,6 +2459,12 @@ $ownDisplays = @(
     # (localTools\valerian\ascensionVisuals.json), its ring 4.12 yards in radius at scale 1
     @{ Id = 60020; CloneModel = 2816; CloneDisplay = 25334
        Model = 'World\Expansion07\Doodads\FX\8fx_rl_annihilation_state_holy.mdx'; Scale = 1.0 }
+    # Valérian's phase 2 body (modules/mod-stat-growth/src/ZealotBoss.cpp): the Maw's Kyrian from the Ascension client
+    # made his own by localTools\valerian\buildAscendedModel.py (repainted to the Light, its wings and shroud turned to
+    # light), a copy of Tyrael's pet's rows (2864, 25900: a plain creature, no worn items)
+    @{ Id = 60022; CloneModel = 2864; CloneDisplay = 25900
+       Model = 'Creature\ValerianAscended\ValerianAscended.mdx'; Scale = 1.0
+       Textures = @('ValerianAscended_Body', 'ValerianAscended_Armor', 'ValerianAscended_Wings') }
 )
 # White, green, blue, purple, orange (legendary), gold, red (a Unique: the client extension's quality 6 colour)
 $beamColours = @('ffffff', '1eff00', '0070dd', 'a335ee', 'ff8000', 'ffd100', 'e8332b')
@@ -2488,6 +2494,11 @@ function Add-OwnDisplays([string]$modelSource, [string]$displaySource, [string[]
         Set-Field $display 0 ([uint32]$own.Id)
         Set-Field $display 1 ([uint32]$own.Id)
         if ($own.ContainsKey('Scale')) { Set-Field $display 4 (Get-FloatBits $own.Scale) }
+        if ($own.ContainsKey('Textures')) {
+            for ($index = 0; $index -lt 3; ++$index) {
+                Set-Field $display (6 + $index) (Add-DbcString $displayDbc.Strings $own.Textures[$index])
+            }
+        }
         $displayDbc.NewRecords.AddRange($display)
     }
     $modelOutput = Get-StringDbcOutput $modelDbc

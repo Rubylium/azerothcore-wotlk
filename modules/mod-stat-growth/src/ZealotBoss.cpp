@@ -188,6 +188,11 @@ constexpr uint32 AscendRiseTakesMs = 12000;
 constexpr float AscendHeight = 7.0f;
 constexpr uint32 AscendGlowEveryMs = 1500;
 constexpr float AscendScale = 1.7f;
+// His god's form from his blow on: the Maw's Kyrian made his (localTools/valerian/buildAscendedModel.py: repainted to
+// the Light, wings and shroud of light), at AscendedSize - as tall as his human form had grown (the Kyrian stands about
+// half as tall again at the same scale)
+constexpr uint32 DISPLAY_ASCENDED = 60022;
+constexpr float AscendedSize = 3.0f;
 constexpr float AscendFromScale = 1.35f;    // ... from the prelude's last
 constexpr float AscendSway = 0.35f;         // hovering, he sways up and down this far, once every AscendSwayMs
 constexpr uint32 AscendSwayMs = 3200;
@@ -658,6 +663,9 @@ struct boss_valerian : public Defi::BossAI
     }
 
     // One pattern now (in a fight, or in the lab's rehearsal)
+    // .valerian look's size: kept as his own (SetSize)
+    void LookSize(float scale) { SetSize(scale); }
+
     bool CastNow(std::string const& what)
     {
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
@@ -2144,14 +2152,16 @@ private:
                         float(player->GetHealth() - left) * 100.0f / float(player->GetMaxHealth()));
             }
             me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+            // The god, as his blow lands
+            me->SetDisplayId(DISPLAY_ASCENDED);
+            SetSize(AscendedSize);
             if (_ascendRehearsed)
             {
-                // The lab: back to rehearsing, as he was
+                // The lab: back to rehearsing, the god's form kept to look at (.valerian look 0 2.6: the man again)
                 _ascendRehearsed = false;
                 _phase = Phase::Rehearsal;
                 me->SetCanFly(false);
                 me->SetDisableGravity(false);
-                SetSize(BaseScale);
                 EndMusic();
                 return;
             }
@@ -2181,8 +2191,10 @@ private:
         if (!_ascentFrom)
             return;
         uint32 const at = Elapsed() - _ascentFrom;
-        SetSize(BaseScale * (AscendFromScale + (AscendScale - AscendFromScale) *
-            std::min(1.0f, float(at) / float(AscendLandMs))));
+        // (from his blow on he is the god, its own size: his blow's step has set it)
+        if (at < AscendHitMs)
+            SetSize(BaseScale * (AscendFromScale + (AscendScale - AscendFromScale) *
+                std::min(1.0f, float(at) / float(AscendLandMs))));
         float height = 0.0f;
         if (at >= AscendHitMs)
             _ascentFrom = 0;
@@ -2327,6 +2339,7 @@ private:
         me->RemoveAurasDueToSpell(SPELL_LITANY_WARD);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
+        me->SetDisplayId(me->GetNativeDisplayId());
         SetSize(BaseScale);
         me->setPowerType(POWER_MANA);
         me->SetMaxPower(POWER_MANA, 100);
@@ -2364,7 +2377,7 @@ private:
 // --- Commands ---------------------------------------------------------------------------------------------------------
 using namespace Acore::ChatCommands;
 
-// .valerian info | skip <seconds> | cast <pattern> | lab [off] | pull | measure
+// .valerian info | skip <seconds> | cast <pattern> | lab [off] | pull | measure | look <display> [scale] | kit <id>
 class ValerianCommandScript final : public CommandScript
 {
 public:
@@ -2379,6 +2392,8 @@ public:
             { "lab", HandleLab, SEC_GAMEMASTER, Console::No },
             { "pull", HandlePull, SEC_GAMEMASTER, Console::No },
             { "measure", HandleMeasure, SEC_GAMEMASTER, Console::No },
+            { "look", HandleLook, SEC_GAMEMASTER, Console::No },
+            { "kit", HandleKit, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable = {
             { "valerian", valerianTable },
@@ -2396,6 +2411,36 @@ public:
     {
         boss_valerian* valerian = FindValerian(handler->GetPlayer());
         handler->SendSysMessage(valerian ? valerian->Describe() : std::string("Valerian is not within 250 yards."));
+        return true;
+    }
+
+    // .valerian look <display> [scale]: him in another look (0: his own) and size, to compare (the FX lab)
+    static bool HandleLook(ChatHandler* handler, uint32 display, Optional<float> scale)
+    {
+        Player* player = handler->GetPlayer();
+        Creature* valerian = player ? player->FindNearestCreature(NPC_VALERIAN, 250.0f) : nullptr;
+        if (!valerian)
+        {
+            handler->SendErrorMessage("Valerian is not within 250 yards.");
+            return false;
+        }
+        valerian->SetDisplayId(display ? display : valerian->GetNativeDisplayId());
+        if (scale)
+            CAST_AI(boss_valerian, valerian->AI())->LookSize(*scale);
+        return true;
+    }
+
+    // .valerian kit <SpellVisualKit id>: a kit played on him (a candidate look, compared in the FX lab)
+    static bool HandleKit(ChatHandler* handler, uint32 kit)
+    {
+        Player* player = handler->GetPlayer();
+        Creature* valerian = player ? player->FindNearestCreature(NPC_VALERIAN, 250.0f) : nullptr;
+        if (!valerian)
+        {
+            handler->SendErrorMessage("Valerian is not within 250 yards.");
+            return false;
+        }
+        valerian->SendPlaySpellVisual(kit);
         return true;
     }
 

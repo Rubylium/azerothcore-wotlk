@@ -6,12 +6,21 @@
     "animations, played by emotes 402-405/417). A creature look: localTools/patchSinisterStrike.ps1 gives it a",
     "creature display (60020). Imported by localTools/ascensionImport/importVisuals.py into client-assets/importedValerian.",
     "Kits 83901+: candidates for his strikes' impacts, compared in the FX lab (then reshaped: localTools/shapedEffects).",
-    "Looks: VerseSpear, Odyn's spear of light thrown (Ascension's visual 1032, no kit, no sound: ours plays); VerseLightning, a lightning streak tinted the Light's gold flying with it (La Litanie's spears)."
+    "Looks: VerseSpear, Odyn's spear of light thrown (Ascension's visual 1032, no kit, no sound: ours plays); VerseLightning, a lightning streak tinted the Light's gold flying with it (La Litanie's spears).",
+    "Phase 2's body: the Maw's Kyrian and the black textures its displays swap in, the source of localTools/valerian/buildAscendedModel.py (his own copy, repainted to the Light, its wings and shroud turned to light: creature display 60022)."
   ],
   "output": "modules/mod-stat-growth/client-assets/importedValerian",
   "idBase": 83000,
   "models": [
-    "world/expansion07/doodads/fx/8fx_rl_annihilation_state_holy.m2"
+    "world/expansion07/doodads/fx/8fx_rl_annihilation_state_holy.m2",
+    {
+      "model": "creature/kyrianmaw/kyrianmaw.m2",
+      "textures": [
+        "creature/kyrianmaw/kyrianmaw_body_black.blp",
+        "creature/kyrianmaw/kyrianmaw_armor_black.blp",
+        "creature/kyrianmaw/kyrianmaw_wings_black.blp"
+      ]
+    }
   ],
   "kits": {
     "Cand00": {
