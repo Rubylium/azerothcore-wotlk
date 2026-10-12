@@ -1,5 +1,5 @@
 # Valérian, le Zélote's spell data (modules/mod-stat-growth/src/ZealotBoss.cpp, the Hellfire Gaol's third gate; plan:
-# .agents/plans/gaol-third). Ids 94630-94679.
+# .agents/plans/gaol-third). Ids 94630-94679, phase 2 94680-94699.
 #
 # As the Gaol's other gates (localTools/escapeHunter/Spells.ps1): every hit a spell of its own whose description says
 # what went wrong (the combat log and the death recap: nothing is written on the screen in the fight), the debuffs
@@ -123,6 +123,30 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; Aura = 39; TargetA = 1; Misc = 127 })
        Fields = @{ 2 = 0; 3 = 0; 40 = 21 } },
 
+    # --- Phase 2: what hits ---
+    (New-Hit 94680 'Ailes séraphiques' 48782 $holy `
+        "Ses ailes de lumière balaient l'arène. Restez entre elles et tournez avec elles."),
+    (New-Hit 94681 "Pluie d'astres" 48782 $holy `
+        "Une étoile posée sur sa balise éclate sur un tiers de l'arène ; posée ailleurs, partout autour d'elle. Seul l'abri sous lui reste sûr."),
+    (New-Hit 94682 'Regard divin' 20271 $holy `
+        "Son regard suit sa cible, se fige, puis frappe tout ce qu'il couvre."),
+    (New-Hit 94683 'Sentence' 20271 $holy `
+        "Les moitiés (ou les quarts) numérotées frappent dans leur ordre. Allez où la lumière est déjà tombée."),
+    (New-Hit 94684 'Dissonance' 642 $holy `
+        "Un sceau sur la mauvaise couleur quand le chœur chante : la lumière emporte tout le monde."),
+    (New-Hit 94685 'Écho' 48782 $holy `
+        "Votre écho éclate là où vous étiez quand il a remonté le temps."),
+    (New-Hit 94686 'Catalyse' 20271 $holy `
+        "Toute sa lumière d'un coup : chacun n'en garde qu'un souffle."),
+    (New-Hit 94687 'Éclipse' 642 $holy `
+        "La nuit a pris tout ce que la lumière n'éclairait plus."),
+    (New-Hit 94688 'Lumière totale' 642 $holy `
+        "Il était encore debout quand la lumière a tout pris."),
+    (New-Debuff 94689 'Surcharge' 48782 1 `
+        "Une lumière prise : une seconde vous ferait éclater." "Une seconde lumière vous ferait éclater."),
+    (New-Hit 94690 'Lumière brûlante' 48782 $holy `
+        "Une seconde lumière prise sous Surcharge."),
+
     # --- His cast bars ---
     (New-Cast 94660 'Revers sacré' 53595 16 "Le Zélote arme son revers."),
     (New-Cast 94661 'Colère du juste' 48806 16 "Le Zélote lève le poing."),
@@ -132,7 +156,10 @@ $spells = @(
     (New-Cast 94665 'Lances de lumière' 48782 16 "Des lances de lumière se forment."),
     (New-Cast 94666 'Éclat de zèle' 31884 4 "La ferveur du Zélote déborde."),
     (New-Cast 94667 'Jugement' 20271 171 "La Lumière va rendre son verdict."),
-    (New-Cast 94668 'Litanie' 48782 171 "Le Zélote récite sa litanie : chacun son verset, chacun sa place.")
+    (New-Cast 94668 'Litanie' 48782 171 "Le Zélote récite sa litanie : chacun son verset, chacun sa place."),
+    (New-Cast 94691 'Le Chœur' 48782 170 "Chacun son sceau, chacun sa couleur quand le chœur chantera."),
+    (New-Cast 94692 'Écho' 20271 6 "Il remonte le temps : quittez l'endroit où vous êtes."),
+    (New-Cast 94693 'Lumière totale' 642 201 "Toute la lumière va tomber. Il doit tomber avant.")
 )
 
 return $spells
