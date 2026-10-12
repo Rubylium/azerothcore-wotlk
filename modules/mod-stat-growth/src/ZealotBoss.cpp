@@ -259,6 +259,9 @@ constexpr uint32 AilesGuideLeadMs = 200;
 // The split (the later sets): each tendril, once it has burst, splits; its halves slide AilesSplitDeg each way into the
 // gaps (AilesSplitAfterMs after it stopped, over AilesSplitSlideMs) and explode AilesSplitHoldMs after they land
 constexpr float AilesSplitDeg = 30.0f;
+// ... and their sweep turns AilesSplitSweepDeg at the same pace: not a whole gap, so the tendrils stop off the lines they
+// started on and the halves land off both those and the first gaps - nothing learnt at the tell holds
+constexpr float AilesSplitSweepDeg = 75.0f;
 constexpr float AilesSplitWidth = AilesWidth; // drawn with the tendril's own look: as wide
 constexpr uint32 AilesSplitAfterMs = 200;
 constexpr uint32 AilesSplitSlideMs = 600;
@@ -2706,18 +2709,21 @@ private:
         bool const split = version >= 2;
         Position const middle = Middle();
         float const base = frand(0.0f, 2.0f * float(M_PI));
-        float const turn = AilesTurnDeg * float(M_PI) / 180.0f;
+        float const sweepDeg = split ? AilesSplitSweepDeg : AilesTurnDeg;
+        float const turn = sweepDeg * float(M_PI) / 180.0f;
+        uint32 const sweepMs = uint32(float(AilesSweepMs) * sweepDeg / AilesTurnDeg);
         float const way = urand(0, 1) ? 1.0f : -1.0f;
         std::vector<GroundIndicators::Turn> turns;
-        uint32 total = P2TellMs + AilesSweepMs;
+        uint32 total = P2TellMs + sweepMs;
         if (!reversed)
-            turns.push_back({ P2TellMs, AilesSweepMs, way * turn });
+            turns.push_back({ P2TellMs, sweepMs, way * turn });
         else
         {
+            // AilesTurnDeg / 2 one way, then the sweep back
             uint32 const half = AilesSweepMs / 2;
-            turns.push_back({ P2TellMs, half, way * turn / 2.0f });
-            turns.push_back({ P2TellMs + half, AilesSweepMs, -way * turn });
-            total = P2TellMs + half + AilesSweepMs;
+            turns.push_back({ P2TellMs, half, way * AilesTurnDeg * float(M_PI) / 360.0f });
+            turns.push_back({ P2TellMs + half, sweepMs, -way * turn });
+            total = P2TellMs + half + sweepMs;
             // Its tell: a flash on the side it turns back to, a beat before
             After(P2TellMs + half - 600, [this, base, way]()
             {
@@ -3324,9 +3330,17 @@ private:
         Areas burning;
         for (uint32 index = 1; index < 8; ++index)
             if (index != 4)
+                // Drawn only (as areas all along, the bots refused their spots in the safe slices and fell back to him):
+                // the bots are guided along the safe slices (GuideAscension), the burning checked below
                 burning.push_back(GroundIndicators::ShowTurningCone(me, Middle(), _pizzaBase + float(index) * slice,
-                    P2Radius + 1.0f, 45.0f, AscensionLastsMs, turns, MistakeDamage, true, LOOK_DIVINE_CONE_45,
+                    P2Radius + 1.0f, 45.0f, AscensionLastsMs, turns, MistakeDamage, false, LOOK_DIVINE_CONE_45,
                     LOOK_DIVINE_GLOW_45));
+        // Each bot its place for the whole pizza (its lane, its side of it, how far): a place handed out again from a
+        // list as the catchers changed sent bots across the arena, through the burning slices by him
+        _ascensionSlots.clear();
+        uint32 slot = 0;
+        for (Player* bot : SortedBots())
+            _ascensionSlots[bot->GetGUID()] = slot++;
         auto lastHit = std::make_shared<std::map<ObjectGuid, uint32>>();
         for (uint32 t = AscensionTellMs; t < AscensionLastsMs; t += AscensionTickMs)
             After(t, [this, burning, turns, t, lastHit]()
@@ -3393,29 +3407,33 @@ private:
                 _orbs.push_back({ orb->GetGUID(), lane, OrbFrom });
             }
         }
-        // Its catchers: two bots free of Surcharge, one a lane
-        for (Player* bot : SortedBots())
-            if (_catchers.size() < 2 && !bot->HasAura(SPELL_OVERLOAD) && !IsTank(bot))
-                _catchers.push_back(bot->GetGUID());
-    }
-
-    // The bots in the safe slices (safe: one's middle), AscensionAside yd off the lanes; the catchers on them
-    void GuideAscension(float safe)
-    {
-        std::vector<Position> spots;
-        for (float lane : { safe, safe + float(M_PI) })
-            for (float side : { -1.0f, 1.0f })
-                for (float d : { 12.0f, 17.0f })
-                    spots.push_back(P2At(lane + side * std::asin(AscensionAside / d), d));
-        uint32 next = 0;
+        // Its catchers: on each lane a bot already beside it (its place on that lane), free of Surcharge
+        _catchers.assign(2, ObjectGuid::Empty);
         for (Player* bot : SortedBots())
         {
-            auto const catcher = std::find(_catchers.begin(), _catchers.end(), bot->GetGUID());
-            if (catcher != _catchers.end())
-                GroundIndicators::SetUnitSpot(me, bot, P2At(catcher == _catchers.begin() ? safe : safe + float(M_PI),
-                    10.0f), 0.8f, AilesGuideStepMs + 400);
-            else
-                GroundIndicators::SetUnitSpot(me, bot, spots[next++ % spots.size()], 1.0f, AilesGuideStepMs + 400);
+            auto const slot = _ascensionSlots.find(bot->GetGUID());
+            if (slot == _ascensionSlots.end() || bot->HasAura(SPELL_OVERLOAD) || IsTank(bot))
+                continue;
+            ObjectGuid& catcher = _catchers[slot->second % 2];
+            if (catcher.IsEmpty())
+                catcher = bot->GetGUID();
+        }
+    }
+
+    // The bots in the safe slices (safe: one's middle), each at its place (AscensionAside yd off its lane, near or far),
+    // a wave's catcher on its lane
+    void GuideAscension(float safe)
+    {
+        for (Player* bot : SortedBots())
+        {
+            auto const found = _ascensionSlots.find(bot->GetGUID());
+            uint32 const slot = found != _ascensionSlots.end() ? found->second : 0;
+            float const lane = safe + (slot % 2 ? float(M_PI) : 0.0f);
+            bool const catcher = _catchers.size() == 2 && _catchers[slot % 2] == bot->GetGUID();
+            float const d = (slot / 4) % 2 ? 17.0f : 12.0f;
+            float const side = (slot / 2) % 2 ? 1.0f : -1.0f;
+            Position const spot = catcher ? P2At(lane, 10.0f) : P2At(lane + side * std::asin(AscensionAside / d), d);
+            GroundIndicators::SetUnitSpot(me, bot, spot, catcher ? 0.8f : 1.0f, AilesGuideStepMs + 400);
         }
     }
 
@@ -3661,6 +3679,7 @@ private:
     float _starsBase = 0.0f;
     float _pizzaBase = 0.0f;
     std::vector<ObjectGuid> _catchers;      // Ascension's wave: the bots taking its orbs
+    std::map<ObjectGuid, uint32> _ascensionSlots;   // Ascension: each bot's place (GuideAscension)
     float _eclipseAngle = 0.0f;         // the first Éclipse's holes, the second's on the other side
     uint32 _totalLightAt = 0;
     struct Orb
