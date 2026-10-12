@@ -196,6 +196,9 @@ namespace GroundIndicators
     // runs on round the ring, counterclockwise. Enough pieces read as a circle (ten long ones read as a polygon).
     void ShowCurtainRing(Unit* owner, Position const& center, uint32 firstLook, uint32 looks, uint32 pieces,
                          float pieceLength, uint32 durationMs);
+    // Owner's pieces wearing a look from firstLook to lastLook (a curtain ring's, its other looks' alike) fading out
+    // now, gone once faded: a wall ended before its time
+    void FadeLooksOf(Unit* owner, uint32 firstLook, uint32 lastLook);
 
     // Gardien-chef Vorhan's painted marks (shapes.json VW_*, their pictures localTools/wardenVorhan/indicatorArt.py).
     // None is an area: what they mark is the fight's to resolve.

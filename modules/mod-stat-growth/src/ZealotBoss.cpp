@@ -63,6 +63,14 @@ constexpr float HoldPct = 1.0f;
 Defi::Room const Room = { Position(326.5f, -86.0f, -24.6f, 0.0f), 55.0f, 1000.0f, 60.0f };
 constexpr uint32 WallPieces = 16;
 float const ArenaRadius = GroundIndicators::WardenWallPieceLength / (2.0f * std::sin(float(M_PI) / float(WallPieces)));
+// His god's blow pushes the wall back: WallPiecesAscended of them from then on (AscendedArenaRadius, about 24 yd: the
+// rim of Keli'dan's round platform) - phase 2's arena, the wall still deadly. A wall lasts until it is pushed or the
+// fight ends (WallLastsMs: longer than any fight)
+constexpr uint32 WallPiecesAscended = 24;
+float const AscendedArenaRadius = GroundIndicators::WardenWallPieceLength /
+    (2.0f * std::sin(float(M_PI) / float(WallPiecesAscended)));
+constexpr uint32 WallLastsMs = 30 * MINUTE * IN_MILLISECONDS;
+constexpr uint32 WallPushRiseMs = 300;      // the pushed wall rises this long after the blow (the bursts first)
 constexpr float WallMargin = 0.6f;          // past ArenaRadius less this: in the wall
 constexpr uint32 WallShowBeats = 8;         // the wall rises this long after the pull
 constexpr uint32 WallRiseBeats = 8;         // and kills this long after it rose (time to step in)
@@ -314,6 +322,7 @@ enum Spells : uint32
     SPELL_VERSE_SPEAR       = 94645,    // La Litanie's spear in flight (a missile, nothing more)
     SPELL_VERSE_LIGHTNING   = 94646,    // ... and the golden lightning flying with it
     SPELL_LITANY_WARD       = 94669,    // Litanie (nothing reaches him while he recites)
+    SPELL_OUT_OF_REACH      = 94670,    // Hors d'atteinte (his defeat and his ascension: nothing reaches him)
     SPELL_OPENING           = 94654,    // Garde brisée (+50% damage done, after a ward: Spells.ps1 holds the share)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
@@ -606,6 +615,11 @@ struct boss_valerian : public Defi::BossAI
         {
             _musicOver = true;
             EndMusic();
+        }
+        if (_phase == Phase::Ascended && elapsed >= _nextCheckMs)
+        {
+            _nextCheckMs = elapsed + 200;
+            CheckWall();
         }
         if (_phase == Phase::Ascended && !me->HasUnitState(UNIT_STATE_CASTING))
             DoMeleeAttackIfReady();
@@ -1037,21 +1051,48 @@ private:
     void RaiseArena()
     {
         Position const middle = Middle();
-        uint32 const lasts = MusicEndMs + 30000;
         uint32 const shows = _phase == Phase::Rehearsal ? 0 : WallShowBeats;
-        AtBeat(Grid, shows, [this, middle, lasts]()
+        _wallRadius = ArenaRadius;
+        AtBeat(Grid, shows, [this, middle]()
         {
             GroundIndicators::ShowDecal(me, middle, 0.0f, ArenaRadius, WallRiseMs, LOOK_WALL_RISE);
-            float const piece = GroundIndicators::WardenWallPieceLength;
-            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_LIGHT, 1, WallPieces, piece * WallLightOut, lasts);
-            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_BARS_FIRST, WallBarsLooks, WallPieces, piece,
-                lasts);
-            GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_MOTES, 1, WallPieces, piece * WallMotesIn, lasts);
+            ShowWall(WallPieces);
             Sound("Valerian.WallRise", middle);
         });
         _wallFrom = Grid.At(shows + WallRiseBeats) + WallDrawInGraceMs;
         AtBeat(Grid, shows + WallRiseBeats, [this]() { DrawIn(); });
-        KeepBotsIn(lasts);
+        KeepBotsIn(WallLastsMs);
+    }
+
+    // The wall's pieces round the middle (its light behind, its bars, its motes in front), until pushed or the end
+    void ShowWall(uint32 pieces)
+    {
+        Position const middle = Middle();
+        float const piece = GroundIndicators::WardenWallPieceLength;
+        GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_LIGHT, 1, pieces, piece * WallLightOut, WallLastsMs);
+        GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_BARS_FIRST, WallBarsLooks, pieces, piece, WallLastsMs);
+        GroundIndicators::ShowCurtainRing(me, middle, LOOK_WALL_MOTES, 1, pieces, piece * WallMotesIn, WallLastsMs);
+    }
+
+    // His god's blow pushes the wall back: the old one bursting where it stood and fading, the new one rising at the
+    // rim of the platform (AscendedArenaRadius) - still deadly, the bots kept inside it
+    void PushWall()
+    {
+        Position const middle = Middle();
+        float const was = _wallRadius;
+        GroundIndicators::FadeLooksOf(me, LOOK_WALL_BARS_FIRST, LOOK_WALL_MOTES);
+        for (uint32 index = 0; index < WallPieces; ++index)
+            GroundIndicators::Burst(me, OnArena(float(index) * 2.0f * float(M_PI) / float(WallPieces), was),
+                GroundIndicators::Theme::Holy);
+        _wallRadius = AscendedArenaRadius;
+        GroundIndicators::ShowDecal(me, middle, 0.0f, _wallRadius, WallRiseMs, LOOK_WALL_RISE);
+        scheduler.Schedule(Milliseconds(WallPushRiseMs), [this, middle](TaskContext)
+        {
+            ShowWall(WallPiecesAscended);
+            Sound("Valerian.WallRise", middle);
+        });
+        if (_phase != Phase::Rehearsal)
+            KeepBotsIn(WallLastsMs);
     }
 
     void KeepBotsIn(uint32 lastsMs)
@@ -1060,7 +1101,7 @@ private:
         outside.kind = GroundIndicators::Area::Kind::Ring;
         outside.origin = Middle();
         outside.radius = 60.0f;
-        outside.inner = ArenaRadius - WallMargin - 0.5f;
+        outside.inner = _wallRadius - WallMargin - 0.5f;
         GroundIndicators::WatchArea(me, outside, lastsMs, MistakeDamage);
     }
 
@@ -1071,9 +1112,9 @@ private:
             return;
         Position const middle = Middle();
         for (Player* player : ArenaPlayers())
-            if (player->GetExactDist2d(&middle) > ArenaRadius - WallMargin)
+            if (player->GetExactDist2d(&middle) > _wallRadius - WallMargin)
             {
-                Position const in = AtAngle(middle, middle.GetAngle(player), ArenaRadius - 3.0f);
+                Position const in = AtAngle(middle, middle.GetAngle(player), _wallRadius - 3.0f);
                 player->NearTeleportTo(in.GetPositionX(), in.GetPositionY(), in.GetPositionZ() + 0.5f,
                     player->GetOrientation());
             }
@@ -1086,7 +1127,7 @@ private:
             return;
         Position const middle = Middle();
         for (Player* player : ArenaPlayers())
-            if (player->GetExactDist2d(&middle) > ArenaRadius - WallMargin)
+            if (player->GetExactDist2d(&middle) > _wallRadius - WallMargin)
             {
                 LOG_INFO(_logName, "Valerian wall instance={} at={:.1f}s {} at={:.1f}yd/{:.0f}deg moving={}",
                          me->GetInstanceId(), Elapsed() / 1000.0f, player->GetName(), player->GetExactDist2d(&middle),
@@ -2011,12 +2052,13 @@ private:
         ClearLights();
         GroundIndicators::ClearAreasOf(me);
         EndMusic();
+        me->AddAura(SPELL_OUT_OF_REACH, me);
         Talk(SAY_STOLEN);
         Sound("Valerian.Chained", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
-        // Still in combat (never immune: an immune boss left combat, and the board counted down a new pull);
-        // DamageTaken takes nothing meanwhile
+        // Still in combat (never SetImmuneToAll: an immune boss left combat, and the board counted down a new pull):
+        // an aura makes him immune instead (Hors d'atteinte, from his defeat to phase 2), DamageTaken takes nothing
         me->SetStandState(UNIT_STAND_STATE_KNEEL);
         me->SetPower(POWER_MANA, 0);
         scheduler.Schedule(Milliseconds(JailersInMs), [this](TaskContext)
@@ -2065,10 +2107,15 @@ private:
         ClearLights();
         GroundIndicators::ClearAreasOf(me);
         EndPace();
+        // Phase 1's track ends here, fading (it is in its own fade by now): every track loops, and left to play to
+        // its end it started over for a few seconds before MusicEndMs stopped it
+        _musicOver = true;
+        EndMusic();
         me->AttackStop();
+        me->AddAura(SPELL_OUT_OF_REACH, me);
         me->SetReactState(REACT_PASSIVE);
-        // Still in combat (never immune: an immune boss left combat, and the board counted down a new pull);
-        // DamageTaken takes nothing meanwhile
+        // Still in combat (never SetImmuneToAll: an immune boss left combat, and the board counted down a new pull):
+        // an aura makes him immune instead (Hors d'atteinte, from his defeat to phase 2), DamageTaken takes nothing
         Talk(SAY_PRELUDE_FIRST);
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         uint32 const lights = PreludeMs / PreludeLightMs;
@@ -2115,8 +2162,8 @@ private:
         Sound("Valerian.Ascend", Middle());
         me->AttackStop();
         me->SetReactState(REACT_PASSIVE);
-        // Still in combat (never immune: an immune boss left combat, and the board counted down a new pull);
-        // DamageTaken takes nothing meanwhile
+        // Still in combat (never SetImmuneToAll: an immune boss left combat, and the board counted down a new pull):
+        // an aura makes him immune instead (Hors d'atteinte, from his defeat to phase 2), DamageTaken takes nothing
         Position const middle = Middle();
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL);
         GroundIndicators::ShowDecal(me, middle, 0.0f, SigilRadius, AscendHitMs, LOOK_SIGIL_RUNES);
@@ -2143,10 +2190,8 @@ private:
         {
             Position const at = Middle();
             Sound("Valerian.FirstBlow", at);
-            for (uint32 index = 0; index < 8; ++index)
-                GroundIndicators::Burst(me, OnArena(float(index) * float(M_PI) / 4.0f, 7.0f),
-                    GroundIndicators::Theme::Holy);
             GroundIndicators::Burst(me, at, GroundIndicators::Theme::Holy);
+            PushWall();
             for (Player* player : _ascendRehearsed ? std::vector<Player*>() : ArenaPlayers())
             {
                 uint32 const left = uint32(float(player->GetMaxHealth()) * AscendLeftPct / 100.0f);
@@ -2164,6 +2209,7 @@ private:
                 // The lab: back to rehearsing, the god's form kept to look at (.valerian look 0 2.6: the man again)
                 _ascendRehearsed = false;
                 _phase = Phase::Rehearsal;
+                me->RemoveAurasDueToSpell(SPELL_OUT_OF_REACH);
                 me->SetCanFly(false);
                 me->SetDisableGravity(false);
                 EndMusic();
@@ -2248,6 +2294,7 @@ private:
     {
         EndPace();
         _phase = Phase::Ascended;
+        me->RemoveAurasDueToSpell(SPELL_OUT_OF_REACH);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
         Position const middle = Middle();
@@ -2341,6 +2388,8 @@ private:
         me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
         HoldSpear(false);
         me->RemoveAurasDueToSpell(SPELL_LITANY_WARD);
+        me->RemoveAurasDueToSpell(SPELL_OUT_OF_REACH);
+        _wallRadius = ArenaRadius;
         me->SetCanFly(false);
         me->SetDisableGravity(false);
         me->SetDisplayId(me->GetNativeDisplayId());
@@ -2362,6 +2411,7 @@ private:
     uint32 _ascentFrom = 0;             // when his apotheosis' rise began (Elapsed), 0 once he is down
     float _height = 0.0f;
     float _dropFrom = -1.0f;            // his height as his drop began (-1: not yet)
+    float _wallRadius = ArenaRadius;    // the wall now: phase 1's, then pushed back by his god's blow
     float _size = 0.0f;                 // his size as set (SetSize), kept against the core's
     uint32 _swapHeldUntil = 0;          // no tank swap before then (Revers sacré's back cone)
     std::set<ObjectGuid> _litanyStruck;  // La Litanie: the verses struck so far (free to move)

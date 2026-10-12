@@ -109,6 +109,13 @@ $spells = @(
        AuraDescription = 'Dégâts infligés augmentés de 50%.'
        Effects = @(@{ Index = 0; Effect = 6; Aura = 79; TargetA = 1; Value = 50; Misc = 127 })
        Fields = @{ 40 = 21 } },
+    # Out of reach from his defeat to phase 2 (beaten and chained, or rising as a god): immune, nothing shown (the
+    # script puts it on and off)
+    @{ Id = 94670; Clone = 642; Name = "Hors d'atteinte"; FallbackIconSpell = 642; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Rien n'atteint plus le Zélote."
+       AuraDescription = "Rien ne l'atteint."
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 39; TargetA = 1; Misc = 127 })
+       Fields = @{ 2 = 0; 3 = 0; 40 = 21; 131 = 0 } },
     # His ward while he recites (Divine Shield's look and immunity, nothing a dispel takes): the script puts it on and off
     @{ Id = 94669; Clone = 642; Name = 'Litanie'; FallbackIconSpell = 642; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
        Description = "Le Zélote récite sa litanie : rien ne l'atteint."

@@ -2428,6 +2428,34 @@ void ShowCurtainRing(Unit* owner, Position const& center, uint32 firstLook, uint
     }
 }
 
+void FadeLooksOf(Unit* owner, uint32 firstLook, uint32 lastLook)
+{
+    if (!owner || !owner->IsInWorld())
+        return;
+    std::list<Creature*> found;
+    Acore::AllWorldObjectsInRange check(owner, 120.0f);
+    Acore::CreatureListSearcher<Acore::AllWorldObjectsInRange> searcher(owner, found, check);
+    Cell::VisitObjects(owner, searcher, 120.0f);
+    for (Creature* stalker : found)
+    {
+        if (!stalker->IsSummon() || stalker->ToTempSummon()->GetSummonerGUID() != owner->GetGUID())
+            continue;
+        uint32 look = 0;
+        for (auto const& [auraId, application] : stalker->GetAppliedAuras())
+            if (auraId >= firstLook && auraId <= lastLook)
+            {
+                look = auraId;
+                break;
+            }
+        if (!look)
+            continue;
+        stalker->RemoveAurasDueToSpell(look);
+        if (uint32 const fade = FadeLookOf(look))
+            stalker->AddAura(fade, stalker);
+        stalker->DespawnOrUnsummon(Milliseconds(FadeMs));
+    }
+}
+
 void ShowWardenGaze(Unit* owner, Position const& position, uint32 durationMs, Unit* follow)
 {
     ShowBillboard(owner, position, SPELL_WARDEN_GAZE, durationMs, follow);
