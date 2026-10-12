@@ -13,7 +13,9 @@ config.json (see localTools/barbarian/ascensionVisuals.json):
               persistentarea; "missile" replaces the missile's model (an effect, below: scaled or tinted too)
     kits      { "<key>": <kit> } - kits of their own, for a server to play on a unit (SMSG_PLAY_SPELL_VISUAL);
               each one carries its "id", which the module's code names
-    models    [ "<archive path of a model>" or { "model": <that>, "tint": "#rrggbb" }, ... ] - models shipped with
+    models    [ "<archive path of a model>" or { "model": <that>, "tint": "#rrggbb" } or { "model": <that>,
+              "textures": [ "<archive path of a texture>", ... ] } (a creature's: the textures its displays swap in,
+              which the model names nowhere), ... ] - models shipped with
               their skins and textures and no row behind them (a creature's look, which creature displays name), as
               they are or as a tinted copy (see below)
     sounds    { "<key>": { "clone": <Ascension SoundEntries id>, "files": [ "<wav, relative to the repository>" ],
@@ -173,6 +175,8 @@ class Importer:
         self.ids = {name: {} for name in TABLES}
         self.rows = {name: [] for name in TABLES}
         self.models = set()
+        self.extra_textures = set()
+        self.synthetic_strings = {}
         self.sounds = set()
         # Tinted copies to make once the models are read: {copy's model path: (source model path, rgb)}
         self.tints = {}
@@ -196,6 +200,8 @@ class Importer:
         fields = list(row)
         fields[0] = new_id
         strings = {str(field): self.source[table].string(fields[field]) for field in STRING_FIELDS.get(table, ())}
+        strings.update({field: value for field, value in self.synthetic_strings.get((table, source_id), {}).items()
+                        if field.isdigit()})
         entry = {'id': new_id, 'source': source_id, 'fields': fields, 'strings': strings}
         self.rows[table].append(entry)
         rewrite(entry)
@@ -258,9 +264,29 @@ class Importer:
         found = sorted(row for row in table.rows.values()
                        if ntpath.splitext(ntpath.basename(table.string(row[2])))[0].lower() == spec.lower())
         if not found:
-            raise SystemExit(f'No effect model named {spec} in the Ascension client')
+            return self.synthetic_effect(spec)
         at_scale = [row for row in found if struct.unpack('<f', struct.pack('<I', row[4]))[0] == 1.0]
         return (at_scale or found)[0][0]
+
+    def synthetic_effect(self, name):
+        """an effect row for a model the Ascension client carries but no row of its names (Spells/<name>, or a path
+        given whole): a copy of one at scale 1 pointing at it, made as if Ascension had it"""
+        table = self.source['SpellVisualEffectName']
+        path = archive_path(name if ('/' in name or '\\' in name) else f'Spells/{name}')
+        stem = ntpath.splitext(path)[0]
+        key = stem.lower()
+        for source_id, strings in self.synthetic_strings.items():
+            if strings.get('key') == key:
+                return source_id[1]
+        template = next(row for row in table.rows.values()
+                        if struct.unpack('<f', struct.pack('<I', row[4]))[0] == 1.0)
+        source_id = 0x7F000000 + len(self.synthetic_strings)
+        fields = list(template)
+        fields[0] = source_id
+        table.rows[source_id] = fields
+        self.synthetic_strings[('SpellVisualEffectName', source_id)] = {'1': ntpath.basename(stem), '2': stem + '.mdx',
+                                                                        'key': key}
+        return source_id
 
     def find_sound(self, spec):
         if spec is None or isinstance(spec, int):
@@ -489,6 +515,7 @@ class Importer:
             for name in companions:
                 if name not in missing:
                     files[name] = open(local(directory, name), 'rb').read()
+        textures |= self.extra_textures
         texture_directory = os.path.join(self.work, 'textures')
         missing |= extract(sorted(textures), texture_directory)
         for name in textures - missing:
@@ -589,8 +616,12 @@ def main(config_path):
         kits = {key: importer.composed_kit(spec) for key, spec in config.get('kits', {}).items()}
         own_sounds = {key: importer.own_sound(key) for key in config.get('sounds', {})}
         for spec in config.get('models', []):
-            if isinstance(spec, dict):
+            if isinstance(spec, dict) and 'tint' in spec:
                 importer.tinted_model(spec['model'], spec['tint'])
+            elif isinstance(spec, dict):
+                # a creature's model and the textures its displays swap in (named by no model: shipped as listed)
+                importer.models.add(model_path(spec['model']))
+                importer.extra_textures |= {archive_path(name) for name in spec.get('textures', [])}
             else:
                 importer.models.add(model_path(spec))
         for table, rows in importer.rows.items():
