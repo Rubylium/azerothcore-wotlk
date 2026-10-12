@@ -34,7 +34,7 @@ struct Trinket
     Kind kind;
 };
 
-constexpr std::array<Trinket, 18> Trinkets = { {
+constexpr std::array<Trinket, 22> Trinkets = { {
     { 17836, Raid::HollowVoice, Kind::Fighter },    // Éclat du Marteau béni: attack power on a blow
     { 17837, Raid::HollowVoice, Kind::Fighter },    // Penne du Séraphin: haste, used
     { 17838, Raid::HollowVoice, Kind::Caster },     // Psautier du Néant: spell power on a harmful spell
@@ -53,6 +53,10 @@ constexpr std::array<Trinket, 18> Trinkets = { {
     { 17853, Raid::WardenVorhan, Kind::Tank },      // Verrou du cachot: 25% less damage taken, used
     { 17856, Raid::EscapeHunter, Kind::Damage },    // Croc du gangrechien: damage done stacked by blows and spells
     { 17857, Raid::EscapeHunter, Kind::Damage },    // Cor de l'hallali: critical strike rating, used
+    { 17859, Raid::Valerian, Kind::Fighter },       // Lance de la Litanie: a spear of light through a blow's target
+    { 17860, Raid::Valerian, Kind::Caster },        // Psaume du Zélote: haste stacked by harmful spells, used
+    { 17861, Raid::Valerian, Kind::Healer },        // Sceau du Chœur: heals echoed on the most hurt ally, used
+    { 17862, Raid::Valerian, Kind::Tank },          // Chaîne brisée: a shield that bursts for what it took, used
 } };
 
 Kind KindOf(LootFit::Role role)

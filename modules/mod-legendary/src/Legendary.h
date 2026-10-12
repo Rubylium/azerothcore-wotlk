@@ -54,6 +54,12 @@ enum Kind : uint32
                                 // they dealt it since the last, n the sentences on it so far (up to count)
     KIND_QUARRY,                // the enemy the wearer strikes (their selection first) is their quarry: the wearer and
                                 // their group deal X% more damage to it while its mark lasts
+    KIND_SWEEP,                 // every everyMs in combat, count tendrils from the wearer sweep 60 degrees in
+                                // cooldownMs: each enemy within radius is struck as one crosses it, X% of AP or SP (a
+                                // healer's: each ally healed as much)
+    KIND_TOTAL_LIGHT,           // X% of the damage and healing done gathers into a light; the item's use (spell3) lets
+                                // it fall: its damage shared by the enemies within radius, its healing by the count
+                                // most hurt allies around. Out of combat it goes out
 };
 
 // Which blows a damage power takes: every direct one, weapon blows only, or spells only
@@ -103,6 +109,7 @@ struct Definition
     uint32 sourceDungeon;           // where it drops: the Dungeon Finder dungeon a Mythic+ key of completes (0: none)
     Tuning tuning;
     uint32 sourceBoss = 0;          // or the boss whose death drops it (its creature entry)
+    float dropPct = 0.0f;           // a boss's own chance a kill, no luck kept (the rarest); 0: the luck's (DropBasePct)
 };
 
 struct Copy
@@ -184,7 +191,7 @@ namespace Legendary
 // The Gaol's gates (their creature entries: mod-stat-growth WardenVorhan.cpp, ForgeMaster.cpp)
 constexpr uint32 WardenVorhanGate = 930200;
 constexpr uint32 EscapeHunterGate = 930400;
-// The third gate's boss, to come: its creature entry reserved, its share of the sets kept for it (SetPieces.cpp)
+// The third gate's boss: Valérian (mod-stat-growth ZealotBoss.cpp)
 constexpr uint32 GaolThirdGate = 930500;
 // The Gaol's gates' rows a player can get from gate (WardenVorhanGate, EscapeHunterGate, GaolThirdGate): their armour
 // type's set pieces of its slots, its shared piece and the weapons of its share they can use (the loot collection)

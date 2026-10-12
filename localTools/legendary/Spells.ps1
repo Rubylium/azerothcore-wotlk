@@ -251,7 +251,35 @@ $spells += @(
     @{ Id = 97940; Clone = 2983; Name = 'Proie du Traqueur'; Icon = 'INV_Legendary_TropheeTraqueur'; FallbackIconSpell = 1130; Cost = 0; Cooldown = 0; Level = 0; DummyAura = $true; Spellbook = $false
        Description = 'Marqué comme proie : le Traqueur et sa meute s''acharnent sur lui.'
        AuraDescription = 'Proie : subit davantage de dégâts du porteur du trophée et de son groupe.'
-       Fields = @{ 4 = 0x04000000; 40 = 18 } }
+       Fields = @{ 4 = 0x04000000; 40 = 18 } },
+
+    # --- Valérian: Ailes de l'Ascensionné, his legendary ---
+    # A tendril crossing an enemy, Holy: Holy Vengeance's small flash (kit 121's visual, as the Marque's feeds)
+    (New-Damage 97950 'Ailes séraphiques' 'Spell_Holy_GuardianSpirit' 47788 2 121 `
+        'Les vrilles de l''Ascensionné balaient les ennemis autour de vous.'),
+    # ... crossing an ally, for a healer: Prayer of Mending's golden sparkle
+    (New-Heal 97951 'Ailes séraphiques' 'Spell_Holy_GuardianSpirit' 47788 2 1714 `
+        'Les vrilles de l''Ascensionné soignent les alliés autour de vous.'),
+    # The sweep's look on the wearer: Divine Storm's holy whirl (its row and visual, its effects a dummy on the
+    # wearer). Never his tendrils on the floor: his deadly pattern's look on a player's cloak would teach to ignore it
+    @{ Id = 97952; Clone = 53385; Name = 'Ailes séraphiques'; Icon = 'Spell_Holy_GuardianSpirit'; FallbackIconSpell = 47788; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Les vrilles de l''Ascensionné balaient tout autour de vous.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1; BasePoints = 0 })
+       Fields = (Merge-Fields @{ 225 = 2 }) },
+
+    # --- Valérian: Lumière totale, the Unique ---
+    # The item's use: 3 sec cast (SpellCastTimes 14), a dummy on the wearer; mod-legendary lets the light fall as it
+    # ends (OnPlayerSpellCast). Holy Light's row and its holy cast glow
+    @{ Id = 97960; Clone = 48782; Name = 'Lumière totale'; Icon = 'Spell_Holy_DivineHymn'; FallbackIconSpell = 64843; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Toute la lumière amassée tombe : sur les ennemis à moins de 20 m, sur les alliés blessés à moins de 40 m.'
+       Effects = @(@{ Index = 0; Effect = 3; TargetA = 1; BasePoints = 0 })
+       Fields = @{ 28 = 14; 225 = 2; 208 = 0; 209 = 0; 210 = 0; 211 = 0 } },
+    # The light falling on each enemy (shared), Holy: Holy Vengeance's flash
+    (New-Damage 97961 'Lumière totale' 'Spell_Holy_DivineHymn' 64843 2 121 `
+        'Toute la lumière tombe sur vos ennemis.'),
+    # ... and on each ally hurt: Prayer of Mending's sparkle
+    (New-Heal 97962 'Lumière totale' 'Spell_Holy_DivineHymn' 64843 2 1714 `
+        'Toute la lumière tombe en soins sur vos alliés.')
 )
 
 return $spells

@@ -143,6 +143,20 @@ constexpr uint32 WardenVorhanItemLevel = 485;
 // Le Traqueur d'évadés, the Geôle's second gate (mod-stat-growth EscapeHunter.cpp): his legendary drops at his gear's
 // item level, the Geôle's (mod-playerbots ChallengeBoard.cpp, his page)
 constexpr uint32 EscapeHunterBoss = 930400;
+// Valérian, the Geôle's third gate (mod-stat-growth ZealotBoss.cpp): his legendary and his Unique drop at his gear's
+// item level, the Unique by a chance of its own a kill, no luck kept (the rarest thing the board gives); never when he
+// was beaten with his light stolen (GroundLoot::LootDenied)
+constexpr uint32 ValerianBoss = 930500;
+constexpr float TotalLightDropPct = 3.0f;
+// Ailes de l'Ascensionné: the sweep's turn. Never drawn as his tendrils on the floor (his deadly pattern's look on a
+// player's cloak would teach the group to ignore it): a holy whirl on the wearer (its tuning's spell3)
+constexpr float SweepTurn = float(M_PI) / 3.0f;
+// Lumière totale: its healing on the most hurt allies within this reach
+constexpr float TotalLightHealReach = 40.0f;
+// A sweep: an enemy struck if still within its reach and this much (it moved as the tendril came)
+constexpr float SweepSlack = 2.0f;
+// LootRoleOfPlayer's healer
+constexpr uint8 HealerRole = 4;
 // L'Étoile captive: how far around the wearer the star finds a target when they have none, and their allies to heal
 constexpr float SupernovaTargetReach = 30.0f;
 constexpr float SupernovaHealReach = 40.0f;
@@ -164,7 +178,7 @@ uint32 const Floor = Mythic::GetItemLevel(2);
 // their look in localTools/patchSinisterStrike.ps1), its power, its window (bottom at +2, top at +60), its slot's
 // budget, its dungeon and its numbers. Misc armour rows: every class wears them, the armour rolled for the looter's
 // own type. Three per dungeon.
-std::array<Definition, 28> const Definitions = { {
+std::array<Definition, 30> const Definitions = { {
     // --- The Scarlet Cathedral ---
     // Marque de l'Inquisiteur, a cloak (24567): direct damage burns as Holy over 4 sec, 5-10% -> 25-35%
     { 1, 24567, KIND_BRAND, 5.0f, 10.0f, 25.0f, 35.0f, Floor, CloakBudget, ScarletCathedral,
@@ -279,6 +293,23 @@ std::array<Definition, 28> const Definitions = { {
     // his death (item level 485): one window
     { 28, 17858, KIND_QUARRY, 4.0f, 5.0f, 4.0f, 5.0f, WardenVorhanItemLevel, NeckBudget, 0,
       { .spell = 97940 }, EscapeHunterBoss },
+
+    // --- Valérian: his legendary ---
+    // Ailes de l'Ascensionné, a cloak (17910, a free row made one): his Ailes séraphiques, every 10 sec in combat six
+    // tendrils from the wearer sweep 60 degrees in 1.5 sec, each enemy within 8 yd struck as one crosses it for
+    // 60-75% of AP or SP (a healer's heal the allies they cross). Only from his death (item level 485): one window
+    { 29, 17910, KIND_SWEEP, 60.0f, 75.0f, 60.0f, 75.0f, WardenVorhanItemLevel, CloakBudget, 0,
+      { .spell = 97950, .spell2 = 97951, .spell3 = 97952, .everyMs = 10000, .count = 6, .radius = 8.0f,
+        .cooldownMs = 1500 },
+      ValerianBoss },
+
+    // --- Valérian: the Unique ---
+    // Lumière totale, a trinket (17911, a free row made one): his last cast, 25-30% of the damage and healing done
+    // gathered into a light that its use lets fall after 3 sec (the enemies within 20 yd share its damage, the 5 most
+    // hurt allies within 40 yd its healing). Only from his death, TotalLightDropPct a kill (item level 485)
+    { 30, 17911, KIND_TOTAL_LIGHT, 25.0f, 30.0f, 25.0f, 30.0f, WardenVorhanItemLevel, NeckBudget, 0,
+      { .spell = 97961, .spell2 = 97962, .spell3 = 97960, .count = 5, .radius = 20.0f }, ValerianBoss,
+      TotalLightDropPct },
 } };
 
 // A legendary drops for each player who completes a key of its source, rarely: this chance, raised by the step for
@@ -511,6 +542,8 @@ struct PowerState
     float healing = 0.0f;           // healing waiting to land (the star's)
     bool running = false;           // a timed power's cycle under way
     ObjectGuid target;              // the enemy under sentence (the hourglass's), the quarry (the trophy's)
+    bool heals = false;             // a sweep's tendrils heal (a healer's)
+    std::vector<std::pair<ObjectGuid, uint32>> due;     // a sweep's blows to come: on whom, when (getMSTime())
 };
 
 struct Worn : public DataMap::Base
@@ -663,6 +696,14 @@ public:
     void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
     {
         SpellInfo const* spellInfo = spell ? spell->GetSpellInfo() : nullptr;
+        // Lumière totale: its item's use cast to its end, the light falls (an item's cast: before the echo's checks)
+        if (spellInfo)
+            GetWorn(player)->ForEach(KIND_TOTAL_LIGHT, [player, spellInfo](Definition const& definition, float,
+                PowerState& state)
+            {
+                if (spellInfo->Id == definition.tuning.spell3)
+                    LegendaryPlayerScript::LetLightFall(player, definition, state);
+            });
         if (!spellInfo || spell->IsTriggered() || spell->m_CastItem || IsOwnSpell(spellInfo) ||
             std::max(spellInfo->RecoveryTime, spellInfo->CategoryRecoveryTime) < EchoMinCooldownMs)
             return;
@@ -857,6 +898,48 @@ public:
             Sentence(player, definition, percent, state);
         });
 
+        // Ailes de l'Ascensionné: every everyMs in combat (at once when a fight starts) the tendrils sweep round the
+        // wearer; each one within reach then is struck (a healer's: healed) as a tendril crosses them, once a sweep
+        worn->ForEach(KIND_SWEEP, [player, diff, alive](Definition const& definition, float percent,
+            PowerState& state)
+        {
+            Tuning const& tuning = definition.tuning;
+            uint32 const now = getMSTime();
+            for (auto it = state.due.begin(); it != state.due.end();)
+            {
+                if (!Ready(it->second, now))
+                {
+                    ++it;
+                    continue;
+                }
+                uint32 const spell = state.heals ? tuning.spell2 : tuning.spell;
+                if (Unit* unit = alive ? ObjectAccessor::GetUnit(*player, it->first) : nullptr)
+                    if (unit->IsAlive() && unit->IsWithinDistInMap(player, tuning.radius + SweepSlack))
+                        Cast(player, unit, spell, Share(PowerOf(player, spell), percent));
+                it = state.due.erase(it);
+            }
+            if (!alive || !player->IsInCombat())
+            {
+                state.timer = 0;
+                return;
+            }
+            state.timer = state.timer > diff ? state.timer - diff : 0;
+            if (state.timer)
+                return;
+            state.timer = tuning.everyMs;
+            Sweep(player, definition, state, now);
+        });
+
+        // Lumière totale: the light gathered goes out with the fight
+        worn->ForEach(KIND_TOTAL_LIGHT, [player, alive](Definition const&, float, PowerState& state)
+        {
+            if (!alive || !player->IsInCombat())
+            {
+                state.pending = 0.0f;
+                state.healing = 0.0f;
+            }
+        });
+
         // The last stand's look (Tombeau de Keleseth): on while the wearer is below the threshold
         worn->ForEach(KIND_LAST_STAND, [player, alive](Definition const& definition, float /*percent*/,
             PowerState& /*state*/)
@@ -915,6 +998,66 @@ public:
                     Cast(player, ally, tuning.spell2, share);
             }
         }
+        state.healing = 0.0f;
+    }
+
+    // A sweep of the tendrils (unseen: its look is the whirl of spell3 on the wearer), from a random facing, one way or
+    // the other; whoever is within reach is struck when the tendril behind them, in the turn's way, reaches them
+    static void Sweep(Player* player, Definition const& definition, PowerState& state, uint32 now)
+    {
+        Tuning const& tuning = definition.tuning;
+        float const from = frand(0.0f, 2.0f * float(M_PI));
+        float const each = 2.0f * float(M_PI) / float(std::max<uint32>(tuning.count, 1));
+        float const way = urand(0, 1) ? 1.0f : -1.0f;
+        if (tuning.spell3)
+            player->CastSpell(player, tuning.spell3, true);
+        state.heals = LootRoleOfPlayer(player) == HealerRole;
+        auto strike = [player, from, each, way, &tuning, &state, now](Unit* unit)
+        {
+            float const off = Position::NormalizeOrientation(way * (player->GetAbsoluteAngle(unit) - from));
+            float const behind = std::fmod(off, each);
+            if (behind > SweepTurn)
+                return;
+            state.due.emplace_back(unit->GetGUID(), now + uint32(behind / SweepTurn * float(tuning.cooldownMs)));
+        };
+        if (state.heals)
+            for (Player* ally : AlliesAround(player, player, tuning.radius))
+                strike(ally);
+        else
+            for (Unit* enemy : EnemiesAround(player, player, tuning.radius))
+                strike(enemy);
+    }
+
+    // The light falling (Lumière totale's use): its damage shared by the enemies within radius of the wearer, its
+    // healing by the most hurt allies around; with nobody to take either, it is spent all the same
+    static void LetLightFall(Player* player, Definition const& definition, PowerState& state)
+    {
+        Tuning const& tuning = definition.tuning;
+        std::list<Unit*> const enemies = EnemiesAround(player, player, tuning.radius);
+        if (state.pending >= 1.0f && !enemies.empty())
+        {
+            int32 const share = std::max(1, int32(std::lround(state.pending / float(enemies.size()))));
+            for (Unit* enemy : enemies)
+                Cast(player, enemy, tuning.spell, share);
+        }
+        if (state.healing >= 1.0f)
+        {
+            std::vector<Player*> allies = AlliesAround(player, player, TotalLightHealReach);
+            std::erase_if(allies, [](Player* ally) { return ally->IsFullHealth(); });
+            std::sort(allies.begin(), allies.end(), [](Player* a, Player* b)
+            {
+                return a->GetHealthPct() < b->GetHealthPct();
+            });
+            if (allies.size() > tuning.count)
+                allies.resize(tuning.count);
+            if (!allies.empty())
+            {
+                int32 const share = std::max(1, int32(std::lround(state.healing / float(allies.size()))));
+                for (Player* ally : allies)
+                    Cast(player, ally, tuning.spell2, share);
+            }
+        }
+        state.pending = 0.0f;
         state.healing = 0.0f;
     }
 
@@ -1141,10 +1284,11 @@ public:
             if (bonus > 0.0f)
                 damage = uint32(std::lround(float(damage) * (1.0f + bonus / 100.0f)));
             uint32 const dealt = damage;
-            worn->ForEach(KIND_SUPERNOVA, [dealt](Definition const&, float percent, PowerState& state)
-            {
-                state.pending += float(dealt) * percent / 100.0f;
-            });
+            for (Kind kind : { KIND_SUPERNOVA, KIND_TOTAL_LIGHT })
+                worn->ForEach(kind, [dealt](Definition const&, float percent, PowerState& state)
+                {
+                    state.pending += float(dealt) * percent / 100.0f;
+                });
             if (target)
                 FeedSentence(player, worn, target, float(dealt));
         }
@@ -1165,10 +1309,11 @@ public:
         Worn* worn = GetWorn(player);
         // L'Étoile captive: what the heal really heals (no overhealing), a tick's too
         uint32 const healed = std::min(heal, target->GetMaxHealth() - target->GetHealth());
-        worn->ForEach(KIND_SUPERNOVA, [healed](Definition const&, float percent, PowerState& state)
-        {
-            state.healing += float(healed) * percent / 100.0f;
-        });
+        for (Kind kind : { KIND_SUPERNOVA, KIND_TOTAL_LIGHT })
+            worn->ForEach(kind, [healed](Definition const&, float percent, PowerState& state)
+            {
+                state.healing += float(healed) * percent / 100.0f;
+            });
         if (tick)
             return;
         worn->ForEach(KIND_OVERHEAL_SHIELD, [player, target, heal](Definition const& definition, float percent,
@@ -1353,11 +1498,12 @@ private:
                 Cast(player, enemy, tuning.spell, Share(dealt, percent));
             }
         });
-        // L'Étoile captive: the share feeds the star (OnPlayerUpdate collapses it)
-        worn->ForEach(KIND_SUPERNOVA, [dealt](Definition const&, float percent, PowerState& state)
-        {
-            state.pending += dealt * percent / 100.0f;
-        });
+        // L'Étoile captive: the share feeds the star (OnPlayerUpdate collapses it); Lumière totale's light the same
+        for (Kind kind : { KIND_SUPERNOVA, KIND_TOTAL_LIGHT })
+            worn->ForEach(kind, [dealt](Definition const&, float percent, PowerState& state)
+            {
+                state.pending += dealt * percent / 100.0f;
+            });
         // Sablier de Perpétuité: what the target under sentence takes waits for its next sentence
         FeedSentence(player, worn, victim, dealt);
         // Chevalière de Porung: the share waits to be healed (OnPlayerUpdate, once a second)
@@ -1493,7 +1639,7 @@ bool PowerSuitsRole(Kind kind, uint8 role)
     bool const healing = kind == KIND_RENEW_ALLIES || kind == KIND_OVERHEAL_SHIELD || kind == KIND_HEAL_SPLASH;
     bool const survival = kind == KIND_THORNS || kind == KIND_LAST_STAND || kind == KIND_BULWARK ||
         kind == KIND_OATH || kind == KIND_LEECH || kind == KIND_KILL_HEAL;
-    if (kind == KIND_SUPERNOVA || kind == KIND_COOLDOWN_ECHO)
+    if (kind == KIND_SUPERNOVA || kind == KIND_COOLDOWN_ECHO || kind == KIND_SWEEP || kind == KIND_TOTAL_LIGHT)
         return true;
     if (role == Healer)
         return healing;
@@ -1517,6 +1663,8 @@ Definition const* PickForRole(std::vector<Definition const*> const& pool, Player
 
 // Every real player in a map rolls once against their luck at a source (a dungeon id or a boss entry); a drop picks
 // one of the pool (PickForRole) and lands on the floor (GroundLoot) at the item level given.
+void Drop(Player* player, Definition const& definition, uint32 itemLevel);
+
 void RollDrops(Map* map, uint32 source, std::vector<Definition const*> const& pool, uint32 itemLevel)
 {
     map->DoForAllPlayers([&pool, itemLevel, source](Player* player)
@@ -1534,20 +1682,38 @@ void RollDrops(Map* map, uint32 source, std::vector<Definition const*> const& po
             "VALUES ({}, {}, {})", guid, source, dropped ? 0 : misses + 1);
         LOG_INFO("module", "Legendary: {} at source {} at {}%: {}", player->GetName(), source, chance,
             dropped ? "dropped" : "nothing");
-        if (!dropped)
-            return;
+        if (dropped)
+            Drop(player, *PickForRole(pool, player), itemLevel);
+    });
+}
 
-        Definition const* definition = PickForRole(pool, player);
-        uint32 const id = definition->id;
-        ItemTemplate const* base = sObjectMgr->GetItemTemplate(definition->baseItem);
-        ObjectGuid const owner = player->GetGUID();
-        bool const thrown = base && GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
-        {
-            if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
-                MakeCopy(looter, item, id, itemLevel);
-        });
-        if (!thrown)
-            GiveLegendary(player, id, itemLevel);
+// A copy dropped for a player: on the floor with the boss's loot, else in the bags
+void Drop(Player* player, Definition const& definition, uint32 itemLevel)
+{
+    uint32 const id = definition.id;
+    ItemTemplate const* base = sObjectMgr->GetItemTemplate(definition.baseItem);
+    ObjectGuid const owner = player->GetGUID();
+    bool const thrown = base && GroundLoot::Throw(player, base, [owner, id, itemLevel](Item* item)
+    {
+        if (Player* looter = ObjectAccessor::FindConnectedPlayer(owner))
+            MakeCopy(looter, item, id, itemLevel);
+    });
+    if (!thrown)
+        GiveLegendary(player, id, itemLevel);
+}
+
+// A boss's rarest (Definition::dropPct): every real player there rolls its own chance, no luck kept
+void RollRare(Map* map, Definition const& definition, uint32 itemLevel)
+{
+    map->DoForAllPlayers([&definition, itemLevel](Player* player)
+    {
+        if (!player->GetSession() || player->GetSession()->IsBot())
+            return;
+        bool const dropped = frand(0.0f, 100.0f) < definition.dropPct;
+        LOG_INFO("module", "Legendary: {} rolled for {} at {}%: {}", player->GetName(), definition.id,
+            definition.dropPct, dropped ? "dropped" : "nothing");
+        if (dropped)
+            Drop(player, definition, itemLevel);
     });
 }
 
@@ -1610,18 +1776,26 @@ public:
         if (!boss || !boss->GetMap())
             return;
         RollRaidBossMaterial(boss);
+        // A kill whose loot is denied (Valérian beaten with his light stolen: gold only) drops none
+        if (GroundLoot::LootDenied(boss->GetMap()))
+            return;
         uint32 const entry = boss->GetEntry();
         std::vector<Definition const*> pool;
+        std::vector<Definition const*> rare;
         for (Definition const& definition : Definitions)
             if (definition.sourceBoss == entry)
-                pool.push_back(&definition);
-        if (pool.empty() || !FirstRoll(boss->GetMap(), entry))
+                (definition.dropPct > 0.0f ? rare : pool).push_back(&definition);
+        if ((pool.empty() && rare.empty()) || !FirstRoll(boss->GetMap(), entry))
             return;
         // Its loot opened first (as above): the Hollow Voice's Unique went to the bags unseen
         GroundLoot::Open(boss);
+        Definition const* any = pool.empty() ? rare.front() : pool.front();
         uint32 const itemLevel = entry == InfiniteGodBoss ?
-            GetChallengeGodItemLevel(GetChallengeTierOf(boss->GetMap())) : pool.front()->floorItemLevel;
-        RollDrops(boss->GetMap(), entry, pool, itemLevel);
+            GetChallengeGodItemLevel(GetChallengeTierOf(boss->GetMap())) : any->floorItemLevel;
+        if (!pool.empty())
+            RollDrops(boss->GetMap(), entry, pool, itemLevel);
+        for (Definition const* definition : rare)
+            RollRare(boss->GetMap(), *definition, itemLevel);
     }
 
 private:

@@ -2279,6 +2279,11 @@ $legendaryItems = @(
     # icons (localTools/escapeHunter/buildIcons.py), a fang's and a war horn's until then
     @{ Item = 17856; Display = 71063; CloneOf = 959; Icon = 'ICON_Traqueur_Croc'; Class = 4; Subclass = 0; Material = 4; InventoryType = 12 }
     @{ Item = 17857; Display = 71064; CloneOf = 13081; Icon = 'ICON_Traqueur_CorHallali'; Class = 4; Subclass = 0; Material = 4; InventoryType = 12 }
+    # Valérian's legendary (mod-legendary 29), Ailes de l'Ascensionné: a free test row made a cloak, Jaina's Radiance's
+    # golden cloak; and his Unique (30), Lumière totale: a free test row made a trinket, Binding Light's look. Stock
+    # icons, no painted ones (the user's choice): Guardian Spirit's wings, Divine Hymn's light
+    @{ Item = 17910; Display = 71065; CloneOf = 47552; Icon = 'Spell_Holy_GuardianSpirit'; StockIcon = $true; Class = 4; Subclass = 1; Material = 7; InventoryType = 16 }
+    @{ Item = 17911; Display = 71066; CloneOf = 47947; Icon = 'Spell_Holy_DivineHymn'; StockIcon = $true; Class = 4; Subclass = 0; Material = 4; InventoryType = 12 }
 )
 foreach ($legendary in $legendaryItems) {
     if (-not $itemOffsets.ContainsKey($legendary.Item)) { throw "Item.dbc has no row $($legendary.Item) for $($legendary.Icon)." }
@@ -2296,9 +2301,9 @@ foreach ($legendary in $legendaryItems) {
     $legendary.Painted = Test-Path -LiteralPath (Join-Path $compiledIconRoot "$($legendary.Icon).tga")
 }
 
-# The raid trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): the Hollow Voice's 17836-17843 and Gardien-chef
-# Vorhan's 17844-17848 and 17851-17853 (the Traqueur d'évadés's 17856-17857, painted, are $legendaryItems'), free "junk"
-# rows made trinkets (ClassID 4, SubclassID 0, Material 4 as stock
+# The raid trinkets (modules/mod-stat-growth/src/RaidTrinkets.cpp): the Hollow Voice's 17836-17843, Gardien-chef
+# Vorhan's 17844-17848 and 17851-17853 and Valérian's 17859-17862 (the Traqueur d'évadés's 17856-17857, painted, are
+# $legendaryItems'), free "junk" rows made trinkets (ClassID 4, SubclassID 0, Material 4 as stock
 # trinkets, InventoryType 12), each wearing a stock trinket's look and icon
 $raidTrinkets = @(
     @{ Item = 17836; Display = 53122 }   # Éclat du Marteau béni: Spell_Holy_SealOfSacrifice
@@ -2317,6 +2322,10 @@ $raidTrinkets = @(
     @{ Item = 17851; Display = 35649 }   # Tampon de libération: INV_Misc_Token_ArgentDawn2
     @{ Item = 17852; Display = 32335 }   # Maillon des fers: INV_Jewelry_Ring_45
     @{ Item = 17853; Display = 64264 }   # Verrou du cachot: INV_Misc_Key_15
+    @{ Item = 17859; Display = 42993 }   # Lance de la Litanie: INV_Spear_04
+    @{ Item = 17860; Display = 34961 }   # Psaume du Zélote: INV_Relics_LibramofTruth
+    @{ Item = 17861; Display = 40108 }   # Sceau du Chœur: Spell_Holy_SealOfSalvation
+    @{ Item = 17862; Display = 9635 }    # Chaîne brisée: Spell_Frost_ChainsOfIce
 )
 foreach ($trinket in $raidTrinkets) {
     if (-not $itemOffsets.ContainsKey($trinket.Item)) { throw "Item.dbc has no row $($trinket.Item) for a raid trinket." }
@@ -2423,7 +2432,8 @@ foreach ($legendary in @($legendaryCloak, $legendaryRing, $legendaryGloves) + $l
     [Array]::Copy($displayDbc.Data, $displayDbc.Offsets[$legendary.CloneOf], $record, 0, $displayDbc.RecordSize)
     Set-Field $record 0 ([uint32]$legendary.Display)
     # A legendary not painted yet keeps its look's own icon (a missing icon is a question mark)
-    if ($legendary.Painted -ne $false) { Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendary.Icon) }
+    # Its painted icon, or a stock one named (StockIcon); else its look's own
+    if ($legendary.Painted -ne $false -or $legendary.StockIcon) { Set-Field $record 5 (Add-DbcString $displayDbc.Strings $legendary.Icon) }
     $displayDbc.NewRecords.AddRange($record)
 }
 $displayOutput = Get-StringDbcOutput $displayDbc

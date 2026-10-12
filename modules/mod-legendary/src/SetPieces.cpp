@@ -657,14 +657,21 @@ void GiveEscapeHunterLootItem(Player* player, uint32 /*itemLevel*/)
 }
 
 // A piece of the Gaol's gear Valérian keeps (mod-playerbots ChallengeBoard.cpp: his win), of the profile that suits the
-// player, thrown on the floor with his loot as any raid item (no trinket of his yet); none when he was beaten with his
-// light stolen (GroundLoot::LootDenied: 1 gold, nothing else)
+// player, thrown on the floor with his loot as any raid item. Sometimes one of his own trinkets instead, one for each
+// role (mod-stat-growth RaidTrinkets.cpp). None when he was beaten with his light stolen (GroundLoot::LootDenied: 1
+// gold, nothing else)
 void GiveValerianLootItem(Player* player, uint32 /*itemLevel*/)
 {
     using namespace Legendary;
     if (!player || GroundLoot::LootDenied(player->GetMap()))
         return;
     LootFit::DrawnRole const drawn(player);
+    if (ItemTemplate const* trinket = RaidTrinkets::Roll(player, RaidTrinkets::Raid::Valerian))
+    {
+        if (!GroundLoot::Throw(player, trinket, {}))
+            StoreMythicItem(player, trinket, {});
+        return;
+    }
     uint32 const row = DrawRow(player, Gate::Third);
     ItemTemplate const* item = FitPiece(player, row);
     if (!item)

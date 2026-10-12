@@ -86,6 +86,10 @@ LEGENDARIES = [
     (17855, 28789, "Sablier de Perpétuité", "Hourglass of Perpetuity"),
     # Le Traqueur d'évadés's legendary: a necklace on a free row, Loque'Nahak's Severed Fang's template
     (17858, 44688, "Trophée du Traqueur", "Escape-Hunter's Trophy"),
+    # Valérian's legendary: a cloak on a free row, Jaina's Radiance's template; his Unique: a trinket on a free row,
+    # Binding Light's template (its use: ON_USE)
+    (17910, 47552, "Ailes de l'Ascensionné", "Wings of the Ascended"),
+    (17911, 47947, "Lumière totale", "Total Light"),
 ]
 # Epic: the warden's sets
 EPIC = {13710, 13711, 13712, 13713, 13714, 13715, 13716, 13717, 13672, 13673, 13674, 13675, 13676, 13677, 13678, 13679, 13680, 13681, 13682, 13683, 13684, 13685, 13686, 13687, 13688, 13689, 13690, 13691, 13692, 13693, 13694, 13695, 13696, 13697, 12187}
@@ -129,10 +133,15 @@ ROW_OVERRIDES = {
     12187: (4, 1, 7, 16, 0),
     17855: (4, 0, 4, 12, 0),
     17858: (4, 0, 4, 2, 0),
+    17910: (4, 1, 7, 16, 0),
+    17911: (4, 0, 4, 12, 0),
 }
 # Rows made another slot by localTools/patchSinisterStrike.ps1 ($legendaryItems InventoryType): the stock row is read
 INVENTORY_TYPES = {16067: 12}
-UNIQUE = {10555, 17855}
+UNIQUE = {10555, 17855, 17911}
+# A base with a use of its own (its power acts when used): its spell and cooldown, in ms (Lumière totale: mod-legendary
+# lets the light fall as the cast ends)
+ON_USE = {17911: (97960, 90000)}
 
 
 # Every legendary base (the three Scarlet Cathedral ones written by hand above the generated block, the others below)
@@ -184,6 +193,15 @@ def item_rows():
     return rows
 
 
+def on_use(base):
+    if base not in ON_USE:
+        return ""
+    spell, cooldown = ON_USE[base]
+    return (f"\nUPDATE `item_template` SET `spellid_1` = {spell}, `spelltrigger_1` = 0, `spellcharges_1` = 0, "
+            f"`spellcooldown_1` = {cooldown},\n    `spellcategory_1` = 0, `spellcategorycooldown_1` = -1 "
+            f"WHERE `entry` = {base};")
+
+
 def quote(text):
     return text.replace("'", "''")
 
@@ -214,7 +232,7 @@ UPDATE `legendary_base` SET
     `RequiredSkill` = 0, `RequiredSkillRank` = 0, `requiredspell` = 0, `RequiredReputationFaction` = 0,
     `RequiredReputationRank` = 0, `maxcount` = 0, `stackable` = 1;
 INSERT INTO `item_template` SELECT * FROM `legendary_base`;
-DROP TEMPORARY TABLE `legendary_base`;
+DROP TEMPORARY TABLE `legendary_base`;{on_use(base)}
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
 ({base}, 'frFR', '{quote(french)}', '', 0),
 ({base}, 'enUS', '{quote(english)}', '', 0);

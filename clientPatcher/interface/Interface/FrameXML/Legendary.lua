@@ -244,6 +244,26 @@ AddBoss(28, 17858, { "Le Traqueur d'évadés", "The Escape-Hunter" },
     { "Un croc pour chaque évadé repris. Le Traqueur n'a jamais manqué de place sur le cordon.",
       "A fang for every escapee brought back. The Hunter never ran out of room on the cord." })
 
+AddBoss(29, 17910, { "Valérian l'Ascensionné", "Valerian the Ascended" },
+    { "Toutes les 10 sec en combat, six vrilles de lumière jaillissent de vous et balaient 60 degrés autour de "
+        .. "vous : chaque ennemi qu'elles traversent subit %s de votre puissance d'attaque ou de sorts en dégâts du "
+        .. "Sacré. Un soigneur soigne d'autant les alliés qu'elles traversent.",
+      "Every 10 sec in combat, six tendrils of light spring from you and sweep 60 degrees around you: every enemy "
+        .. "they cross takes %s of your attack or spell power as Holy damage. A healer heals the allies they cross "
+        .. "for as much instead." },
+    { "Le prisonnier devenu dieu n'a gardé de ses chaînes que la lumière qui les a brisées.",
+      "The prisoner turned god kept nothing of his chains but the light that broke them." })
+
+AddUnique(30, 17911, { "Valérian l'Ascensionné", "Valerian the Ascended" },
+    { "%s de vos dégâts et de vos soins s'amassent en une lumière. Utilisez l'objet : après 3 sec, toute la "
+        .. "lumière tombe - ses dégâts se partagent entre les ennemis à moins de 20 m, ses soins entre les 5 alliés "
+        .. "les plus blessés à moins de 40 m. Hors combat, la lumière se dissipe.",
+      "%s of your damage and healing gathers into a light. Use the item: after 3 sec, all of the light falls - its "
+        .. "damage shared by the enemies within 20 yd, its healing by the 5 most injured allies within 40 yd. Out of "
+        .. "combat, the light fades." },
+    { "« Toute la lumière va tomber. » Il l'a dit à chacun d'eux. Aucun ne l'a cru avant la fin.",
+      "\"All the light will fall.\" He told every one of them. None believed him until the end." })
+
 -- Gardien-chef Vorhan's sets are no legendaries: generated items as the raid's (mod-legendary SetPieces.cpp), their
 -- stats in their own record and their set named by MythicItemTag.lua
 

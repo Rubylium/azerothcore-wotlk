@@ -869,6 +869,8 @@ void AddDaytimeCommand();
 void AddFxLabScripts();
 // StatOverflowSystem.cpp: Robustesse on hits taken, the character sheet's overflow summary
 void AddStatOverflowScripts();
+// RaidTrinketSpells.cpp: what Valérian's trinkets' spell data cannot say
+void AddRaidTrinketSpellScripts();
 
 void AddStatGrowthScripts()
 {
@@ -895,6 +897,7 @@ void AddStatGrowthScripts()
     AddWardenVorhanScripts();
     AddForgeMasterScripts();
     AddZealotBossScripts();
+    AddRaidTrinketSpellScripts();
     AddMythicTuningScripts();
     AddMythicForgeOfSoulsScripts();
     AddMythicHallsOfLightningScripts();

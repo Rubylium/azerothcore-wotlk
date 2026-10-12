@@ -1,8 +1,10 @@
 # The raid trinkets' spell data (modules/mod-stat-growth/src/RaidTrinkets.cpp): eight trinkets of the Hollow Voice
 # (items 17836-17843, item level 477) and eight of Gardien-chef Vorhan (17844-17848, 17851-17853, item level 485), one
 # passive and one active for each role - a fighter, a caster, a healer, a tank; two of the Traqueur d'évadés (17856,
-# 17857, item level 485), a passive and an active for every damage dealer. Ids 94600-94626. Items and procs:
-# data/sql/updates/pending_db_world (item_template, spell_proc).
+# 17857, item level 485), a passive and an active for every damage dealer. Ids 94600-94626. Four of Valérian
+# (17859-17862, item level 485), one for each role: ids 94550-94559 (free, between Vorhan's fading indicators'
+# 94500-94549 and these), what their spell data cannot say modules/mod-stat-growth/src/RaidTrinketSpells.cpp's. Items,
+# procs and scripts: data/sql/updates/pending_db_world (item_template, spell_proc, spell_script_names).
 #
 # What a trinket gives is sized as the raid's generated gear grows (power-scaling.md): a stock trinket's at item level
 # 284 (the Ruby Sanctum's and Icecrown's heroic ones), its power and stats times the item level ratio (477/284 = 1.68,
@@ -12,7 +14,7 @@
 #   cooldown are spell_proc's. A buff it triggers: a stock trinket's buff, its amounts here.
 # - A use spell (an active): a stock trinket's use, its amounts here; its 2 min are the item's.
 # Every spell wears its trinket's icon. Duration indexes (SpellDuration): 31 = 8 s, 1 = 10 s, 29 = 12 s, 8 = 15 s,
-# 18 = 20 s.
+# 18 = 20 s. Radius indexes (SpellRadius): 14 = 8 yd, 18 = 15 yd.
 
 # Proc flags: dealt by a weapon (melee, ranged, their abilities), by a harmful or a helpful spell, taken from a blow
 $weaponBlows = 0x154
@@ -151,6 +153,82 @@ $spells = @(
     # Cor de l'hallali: 600 critical strike rating for 20 s (as the Penne's haste), x1.31
     (New-Active 94626 "Sonner l'hallali" 'ICON_Traqueur_CorHallali' 18 (New-Rating $critRating 786) `
         'Augmente votre score de coup critique de 786 pendant 20 sec.' 'Score de coup critique augmenté de 786.')
+)
+
+# --- Valérian (item level 485), one for each role ---
+# A stock class spell cloned for its looks keeps nothing of its class: no family (talents and glyphs would reach it),
+# no category (it would share a cooldown with the class's own), no spell power coefficient (fields 229-231, floats: 0)
+function Clear-ClassFields($fields) {
+    foreach ($field in 1, 208, 209, 210, 211, 229, 230, 231) { $fields[$field] = 0 }
+    $fields
+}
+
+# A spell with some more fields than its helper writes
+function Add-Fields($spell, $fields) {
+    foreach ($field in $fields.Keys) { $spell.Fields[$field] = $fields[$field] }
+    $spell
+}
+
+$spells += @(
+    # Lance de la Litanie: a blow sometimes throws a spear of light (15%, 3 s rest: spell_proc) through its target, 120%
+    # of the wearer's attack power as holy damage to it and to every enemy up to 15 yd behind it on the line from the
+    # wearer (RaidTrinketSpells.cpp chooses them and sizes the hit). No stock trinket at 284 hurts on a blow: the hit is
+    # the wearer's own attack power, grown with the gear as it is. About a spear every 6 s on one target: about what the
+    # Pierre à aiguiser's 850 attack power gives, more on a line of enemies.
+    (New-Passive 94550 'Lance de la Litanie' 'INV_Spear_04' $weaponBlows 94551 `
+        "Vos attaques en mêlée et à distance ont une chance de projeter une lance de lumière à travers votre cible : elle inflige des dégâts du Sacré égaux à 120% de votre puissance d'attaque à la cible et à tous les ennemis alignés jusqu'à 15 mètres derrière elle.")
+    # The spear: Holy Shock's hit (48822), anywhere (13); effect 0 its target, effect 1 the enemies within 15 yd of it
+    # (53: at the target, 16: the enemies around that point), which the script narrows to the line behind it
+    @{ Id = 94551; Clone = 48822; Name = 'Lance de la Litanie'; IconPath = 'Interface\Icons\INV_Spear_04'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Une lance de lumière qui transperce sa cible et les ennemis alignés derrière elle.'
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 6; Value = 1 },
+                   @{ Index = 1; Effect = 2; TargetA = 53; Value = 1 })
+       Fields = (Clear-ClassFields @{ 46 = 13; 90 = 16; 93 = 18 }) }
+
+    # Psaume du Zélote: for 20 s each harmful spell cast (spell_proc: its cast, once) adds a verse, casts 2% faster a
+    # verse up to 8 (16%, under the Œil du Gardien-chef's 20% all along); the 8th makes the next spell with a cast time
+    # instant, once (RaidTrinketSpells.cpp: the verses, the charge, the verses gone with the psalm)
+    # (proc flags 34, its chance 35, the verse it adds 116)
+    (Add-Fields (New-Active 94552 'Psaume du Zélote' 'INV_Relics_LibramofTruth' 18 `
+        @(@{ Index = 0; Effect = 6; Aura = 42; TargetA = 1; BasePoints = 0 }) `
+        "Pendant 20 sec, chacun de vos sorts offensifs ajoute un verset au psaume : vitesse d'incantation augmentée de 2% par verset, jusqu'à 8. Le huitième rend instantané votre prochain sort." `
+        'Chaque sort offensif ajoute un verset au psaume.') @{ 34 = $harmfulSpells; 35 = 100; 116 = 94553 })
+    (New-Buff 94553 75473 'Verset du Zélote' 'INV_Relics_LibramofTruth' 18 (New-Aura 65 2) `
+        "Vitesse d'incantation augmentée de 2% par verset." 8)
+    # The 8th verse: casting time -100% (108: a percent modifier, 10: casting time) on one spell (field 50: a charge).
+    # A modifier of no family reaches every spell; its class mask all set, so the client's cast bar knows it too.
+    @{ Id = 94554; Clone = 75473; Name = 'Psaume accompli'; IconPath = 'Interface\Icons\INV_Relics_LibramofTruth'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'Votre prochain sort est instantané.'
+       AuraDescription = 'Votre prochain sort est instantané.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 108; TargetA = 1; Misc = 10; Value = -100 })
+       Fields = @{ 40 = 1; 49 = 1; 50 = 1; 122 = 0xFFFFFFFF; 123 = 0xFFFFFFFF; 124 = 0xFFFFFFFF; 208 = 0 } }
+
+    # Sceau du Chœur: for 12 s each direct heal (spell_proc: a helpful spell's heal, on its hit) also heals the most
+    # hurt other member of the group within 40 yd, its target aside, for 35% of it (RaidTrinketSpells.cpp)
+    (Add-Fields (New-Active 94555 'Sceau du Chœur' 'Spell_Holy_SealOfSalvation' 29 `
+        @(@{ Index = 0; Effect = 6; Aura = 4; TargetA = 1; BasePoints = 0 }) `
+        "Pendant 12 sec, chacun de vos soins directs soigne aussi l'allié le plus blessé à moins de 40 mètres pour 35% de son montant." `
+        "Vos soins directs soignent aussi l'allié le plus blessé pour 35% de leur montant.") @{ 34 = $helpfulSpells; 35 = 100 })
+    # The echo: Beacon of Light's heal (53652), of the amount the script hands it, never a critical (no damage class)
+    @{ Id = 94556; Clone = 53652; Name = 'Écho du Chœur'; IconPath = 'Interface\Icons\Spell_Holy_SealOfSalvation'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Le chœur reprend le soin d'un allié pour le plus blessé."
+       Effects = @(@{ Index = 0; Effect = 10; TargetA = 21; Value = 1 })
+       Fields = (Clear-ClassFields @{ 46 = 13; 213 = 0 }) }
+
+    # Chaîne brisée: a shield of 25% of the wearer's maximum health for 10 s (Corroded Skeleton Key's Hardened Skin,
+    # 71586, 6400 at item level 264; a share of health needs no sizing); when it ends, broken or run out, the chain
+    # bursts for what it absorbed (RaidTrinketSpells.cpp)
+    @{ Id = 94557; Clone = 71586; Name = 'Chaîne brisée'; IconPath = 'Interface\Icons\Spell_Frost_ChainsOfIce'; Cost = 0; Cooldown = 120000; Level = 0; Spellbook = $false
+       Description = "Vous protège d'un bouclier absorbant des dégâts égaux à 25% de vos points de vie maximum pendant 10 sec. Quand il disparaît, la chaîne éclate et inflige aux ennemis à moins de 8 mètres des dégâts du Sacré égaux aux dégâts absorbés."
+       AuraDescription = 'Absorbe des dégâts. La chaîne éclate quand le bouclier disparaît.'
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 69; TargetA = 1; Misc = 127; BasePoints = 0 })
+       Fields = @{ 40 = 1; 208 = 0 } }
+    # The burst: Holy Nova's (48078), the enemies around the wearer (22, 15) within 8 yd, of the amount the script hands
+    # it (no damage class: no critical, no coefficient); 14 = 0: no form forbids it
+    @{ Id = 94558; Clone = 48078; Name = 'Chaîne brisée'; IconPath = 'Interface\Icons\Spell_Frost_ChainsOfIce'; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = 'La chaîne éclate et rend les coups qu''elle a retenus.'
+       Effects = @(@{ Index = 0; Effect = 2; TargetA = 22; Value = 1 })
+       Fields = (Clear-ClassFields @{ 14 = 0; 89 = 15; 92 = 14; 213 = 0 }) }
 )
 
 return $spells

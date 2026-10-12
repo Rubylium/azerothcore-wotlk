@@ -148,6 +148,7 @@ uint8 SourceOfRow(uint32 row)
             case RaidTrinkets::Raid::WardenVorhan: return 1;
             case RaidTrinkets::Raid::EscapeHunter: return 2;
             case RaidTrinkets::Raid::HollowVoice: return 3;
+            case RaidTrinkets::Raid::Valerian: return 6;
         }
     }
     return 0;
@@ -160,6 +161,8 @@ std::optional<RaidTrinkets::Raid> RaidOfGate(uint32 gate)
         return RaidTrinkets::Raid::WardenVorhan;
     if (gate == Legendary::EscapeHunterGate)
         return RaidTrinkets::Raid::EscapeHunter;
+    if (gate == Legendary::GaolThirdGate)
+        return RaidTrinkets::Raid::Valerian;
     return std::nullopt;
 }
 
