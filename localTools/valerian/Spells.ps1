@@ -1,5 +1,6 @@
 # Valérian, le Zélote's spell data (modules/mod-stat-growth/src/ZealotBoss.cpp, the Hellfire Gaol's third gate; plan:
-# .agents/plans/gaol-third). Ids 94630-94679, phase 2 94680-94699.
+# .agents/plans/gaol-third). Ids 94630-94679, phase 2 94680-94699; phase 3 (Le Refus) in
+# the gaps: 94671-94679, 94695-94699.
 #
 # As the Gaol's other gates (localTools/escapeHunter/Spells.ps1): every hit a spell of its own whose description says
 # what went wrong (the combat log and the death recap: nothing is written on the screen in the fight), the debuffs
@@ -147,6 +148,32 @@ $spells = @(
     (New-Hit 94690 'Lumière brûlante' 48782 $holy `
         "Une seconde lumière prise sous Surcharge."),
 
+    # --- Phase 3 (Le Refus): what hits, what holds ---
+    (New-Hit 94674 'Les Sabliers' 20271 $holy `
+        "Un sablier tire sur le joueur le plus proche (doré) ou le plus éloigné (violet). Seule sa cible y survit."),
+    (New-Hit 94675 'Rupture du temps' 642 $holy `
+        "Une chaîne du temps s'est rompue : seul un tank encaisse sa rupture."),
+    (New-Hit 94676 'Prémonition' 48782 $holy `
+        "L'avenir qu'il a montré frappe, dans l'ordre inverse de ses visions."),
+    (New-Hit 94677 'Lien brûlant' 25203 $holy `
+        "Ne vous tenez pas entre lui et une chaîne du temps."),
+    (New-Hit 94678 'Le Refus' 48782 $holy `
+        "Votre écho éclate là où le temps vous a ramené."),
+    # Time stands still as he refuses: everyone held (a stun the script puts on and times)
+    @{ Id = 94671; Clone = 2983; Name = 'Temps suspendu'; FallbackIconSpell = 20066; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Il refuse de mourir : le temps s'arrête, puis recule."
+       AuraDescription = "Le temps s'est arrêté."
+       Effects = @(@{ Index = 0; Effect = 6; Aura = 12; TargetA = 1 })
+       Fields = @{ 4 = $debuff; 40 = 21 } },
+    (New-Debuff 94672 'Chaîne du temps' 38505 3 `
+        "Il vous a enchaîné au temps : un tank doit prendre votre chaîne avant qu'elle ne rompe." `
+        "Un tank doit prendre la chaîne avant sa rupture."),
+    # The chain itself, from him to its holder (Ulduar's shackle chain: a beam the script's stalkers cast)
+    @{ Id = 94673; Clone = 62646; Name = 'Chaîne du temps'; FallbackIconSpell = 38505; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "La chaîne qui lie au Zélote."
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 25; Aura = 4; BasePoints = 0 })
+       Fields = @{ 40 = 21; 46 = 13; 28 = 1; 213 = 0 } },
+
     # --- His cast bars ---
     (New-Cast 94660 'Revers sacré' 53595 16 "Le Zélote arme son revers."),
     (New-Cast 94661 'Colère du juste' 48806 16 "Le Zélote lève le poing."),
@@ -160,7 +187,10 @@ $spells = @(
     (New-Cast 94691 'Le Chœur' 48782 6 "Chacun son sceau, chacun sa couleur quand le chœur chantera."),
     (New-Cast 94692 'Écho' 20271 171 "Il remonte le temps : quittez l'endroit où vous êtes."),
     (New-Cast 94694 'Le Chœur' 48782 15 "Chacun son sceau, chacun sa couleur quand le chœur chantera."),
-    (New-Cast 94693 'Lumière totale' 642 201 "Toute la lumière va tomber. Il doit tomber avant.")
+    (New-Cast 94693 'Lumière totale' 642 201 "Toute la lumière va tomber. Il doit tomber avant."),
+    (New-Cast 94695 'Le Refus' 48782 171 "Il refuse de mourir et remonte le temps."),
+    (New-Cast 94696 'Les Sabliers' 20271 171 "Le sable s'écoule : doré vers le plus proche, violet vers le plus loin."),
+    (New-Cast 94697 'Prémonition' 48782 171 "Il montre l'avenir. Retenez-le : il frappera à rebours.")
 )
 
 return $spells

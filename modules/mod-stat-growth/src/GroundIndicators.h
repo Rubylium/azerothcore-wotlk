@@ -132,6 +132,15 @@ namespace GroundIndicators
                           uint32 look = 0);
     // Where a tracking cone points now
     Area CurrentCone(Unit* aimedAt, Area const& area);
+    // The player a seeking cone aims at from apex: the nearest one within reach (farthest: the farthest), alive and in
+    // owner's map; game masters only when nobody else is there (the FX lab)
+    Player* SeekTarget(Unit* owner, Position const& apex, bool farthest, float reach);
+    // A cone from apex that follows whoever is its SeekTarget each moment (the nearest player, or the farthest) for
+    // followMs, then holds where it points until durationMs: drawn only (the caller registers it once it holds, read
+    // from its carrier's facing: placed). layer: a second look over it, following the same way.
+    Area ShowSeekingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
+                         uint32 followMs, bool farthest, float reach, uint32 look, uint32 layer = 0,
+                         ObjectGuid* placed = nullptr);
     // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a
     // few proportions (inner / outer 0.2, 0.4, 0.6, 0.8): the nearest one to what is asked is drawn, and returned.
     Area ShowRing(Unit* owner, Position const& center, float outerRadius, float innerRadius, uint32 durationMs,

@@ -420,6 +420,64 @@ private:
     uint32 _timer = TurnEveryMs;
 };
 
+// A seeking cone's stalker (ShowSeekingCone): it faces its SeekTarget, told to the client again (SmoothTurns' follow)
+// whenever that changes, until followMs, then holds
+struct SeekingConeAI : public NullCreatureAI
+{
+    SeekingConeAI(Creature* creature, Unit* owner, bool farthest, float reach, uint32 followMs)
+        : NullCreatureAI(creature), _owner(owner->GetGUID()), _farthest(farthest), _reach(reach), _followMs(followMs)
+    {
+        Seek();
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _elapsed += diff;
+        if (_elapsed > _followMs)
+        {
+            if (!_held)
+            {
+                _held = true;
+                me->SetFacingTo(me->GetOrientation());
+            }
+            return;
+        }
+        if (_timer > diff)
+        {
+            _timer -= diff;
+            return;
+        }
+        _timer = SeekEveryMs;
+        Seek();
+    }
+
+private:
+    void Seek()
+    {
+        Unit* owner = ObjectAccessor::GetUnit(*me, _owner);
+        Player* target = owner ? GroundIndicators::SeekTarget(owner, me->GetPosition(), _farthest, _reach) : nullptr;
+        if (!target)
+            return;
+        if (target->GetGUID() != _target)
+        {
+            _target = target->GetGUID();
+            TellTurns(me, Acore::StringFormat("F\t{:016X}\t0.00000\t{}", _target.GetRawValue(),
+                _followMs > _elapsed ? _followMs - _elapsed : 0));
+        }
+        me->SetOrientation(me->GetAngle(target));
+    }
+
+    static constexpr uint32 SeekEveryMs = 100;
+    ObjectGuid _owner;
+    ObjectGuid _target;
+    bool _farthest;
+    float _reach;
+    uint32 _followMs;
+    uint32 _elapsed = 0;
+    uint32 _timer = SeekEveryMs;
+    bool _held = false;
+};
+
 // A sweeping rectangle's stalker turning at its pace, from its facing when it starts
 struct SweepAI : public NullCreatureAI
 {
@@ -1926,6 +1984,54 @@ Area ShowTrackingCone(Unit* owner, Position const& apex, float radius, float arc
     {
         stalker->AIM_Initialize(new TrackingConeAI(stalker, aimedAt->GetGUID(), offset, followMs));
         Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), offset);
+    }
+    return area;
+}
+
+Player* SeekTarget(Unit* owner, Position const& apex, bool farthest, float reach)
+{
+    if (!owner || !owner->IsInWorld())
+        return nullptr;
+    Player* found = nullptr;
+    Player* master = nullptr;
+    float best = 0.0f;
+    for (auto const& ref : owner->GetMap()->GetPlayers())
+    {
+        Player* player = ref.GetSource();
+        if (!player || !player->IsAlive() || !player->IsInWorld())
+            continue;
+        float const distance = player->GetExactDist2d(&apex);
+        if (distance > reach)
+            continue;
+        if (player->IsGameMaster())
+        {
+            master = player;
+            continue;
+        }
+        if (!found || (farthest ? distance > best : distance < best))
+        {
+            found = player;
+            best = distance;
+        }
+    }
+    return found ? found : master;
+}
+
+Area ShowSeekingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
+                     uint32 followMs, bool farthest, float reach, uint32 look, uint32 layer, ObjectGuid* placed)
+{
+    Player* target = SeekTarget(owner, apex, farthest, reach);
+    float const facing = target ? apex.GetAngle(target->GetPositionX(), target->GetPositionY()) : 0.0f;
+    Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
+    area.arc = arcDegrees * float(M_PI) / 180.0f;
+    if (layer)
+        if (Creature* glow = Place(owner, apex, facing, layer, radius, durationMs))
+            glow->AIM_Initialize(new SeekingConeAI(glow, owner, farthest, reach, followMs));
+    if (Creature* stalker = Place(owner, apex, facing, look, radius, durationMs))
+    {
+        stalker->AIM_Initialize(new SeekingConeAI(stalker, owner, farthest, reach, followMs));
+        if (placed)
+            *placed = stalker->GetGUID();
     }
     return area;
 }

@@ -11,6 +11,7 @@
 #include "StringFormat.h"
 
 #include <array>
+#include <deque>
 #include <functional>
 #include <map>
 #include <optional>
@@ -65,6 +66,10 @@ LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
 // (Measured on the first real kill, 2026-10-12: two players with their legendaries and bots took phase 2's health at
 // 0.26% of the bar a second at 1.8125 - dead by 3:49. At 3.75 that pace leaves him 20% of the bar at Lumière totale)
 LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 3.75f);
+// Phase 3 (Le Refus): hittable from its drop (5.25 s on its music) to its earliest death (3:19.25), as phase 2's pace
+Defi::Sizing const RewoundSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (199.25f - 5.25f) * OnHimShare,
+    1.095f / 1.18f };
+LiveTuning::Knob const RewoundHealthScale("valerian.rewound_health_scale", 3.75f);
 // One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
 // (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
 // to nothing. What a group deals in each phase is its sizing's, as before.
@@ -334,6 +339,60 @@ constexpr float EclipseTurnDeg = 90.0f;     // its holes going round him meanwhi
 constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on him (stock 7005 without its tints:
                                             // they stayed on him, and on the god after, yellow and see-through)
 
+// --- Phase 3, Le Refus (Music.ValerianRewind: p2's track again from its 65.75 s; ms on its own clock, P3Ms) ----------
+// At nothing in phase 2 he refuses to die: the music cut, the user's rewind (Valerian.Rewind: a big clock's machinery
+// and bells) as time stands still (RefusStillMs: everyone held) and runs back, his health filling, everyone pulled back
+// to where they stood RefusBackMs before (their trail) at RefusPullMs, their after-image there; phase 3's music
+// RefusMusicMs after the cut, fading in under the rewind's last clockwork. On its drop (RefusDropMs) the after-images
+// burst and everyone is left at RefusLeftPct; then RefusCalmMs of calm.
+constexpr uint32 RefusStillMs = 1500;
+constexpr uint32 RefusPullMs = 6000;
+constexpr uint32 RefusMusicMs = 6500;
+constexpr uint32 RefusBackMs = 4000;
+constexpr uint32 TrailEveryMs = 250;
+constexpr uint32 RefusDropMs = 5250;
+constexpr float RefusLeftPct = 20.0f;
+constexpr uint32 RefusCalmMs = 10000;
+// His health paced from the drop to nothing at P3EarliestDeathMs; Lumière totale as in phase 2, on the same music
+// (p2's times less 65.75 s): its cast from P3TotalLightCastMs, everyone dead at P3TotalLightMs if he stands. Its sigil
+// covers the arena only once the last Prémonition has struck (P3TotalLightSigilMs): over its shapes, it hid them.
+constexpr uint32 P3EarliestDeathMs = 199250;
+constexpr uint32 P3TotalLightCastMs = 190250;
+constexpr uint32 P3TotalLightMs = 209250;
+constexpr uint32 P3TotalLightSigilMs = 14500;  // after the cast's start
+constexpr uint32 P3MusicEndMs = 215360;
+// Les Sabliers: six hourglasses on the wall (HourglassAt yd from him, 60 degrees apart), in volleys of three. A gold one
+// fires a SablierNearArc cone SablierNearLength long at its nearest player, a violet one a SablierFarArc cone across the
+// arena at its farthest; the cone follows that player (whoever it is each moment) until a second before it fires, then
+// holds. Its target takes SablierTargetPct; anyone else in it dies.
+constexpr uint32 Hourglasses = 6;
+constexpr float HourglassAt = 23.0f;
+constexpr float SablierNearArc = 30.0f;
+constexpr float SablierNearLength = 30.0f;
+constexpr float SablierFarArc = 20.0f;
+constexpr float SablierFarLength = 47.0f;
+constexpr float SablierReach = 60.0f;
+constexpr uint32 SablierFreezeMs = 1000;
+constexpr float SablierTargetPct = 40.0f;
+// Prémonition: visions of his strikes shown one after another (PremonitionShowMs each), then struck in reverse order
+// (PremonitionGapMs apart, each drawn that long before it strikes): his light close (PremonitionInner yd: the ring
+// looks' 0.4), the ring beyond it, the half on his left, the half on his right (of where he faced as he began)
+constexpr float PremonitionInner = 10.0f;
+constexpr uint32 PremonitionFirstMs = 500;
+constexpr uint32 PremonitionPauseMs = 1600;
+// Chaînes du temps: ChainsMs after he chains them (never a tank), each chain breaks - death on anyone but a tank, who
+// takes ChainBreakPct (a profile hit: their defences count) for each they hold. A tank within ChainTakeReach of a chained
+// player takes their chain, as many as their share (the chains over the tanks there). Its line burns whoever else stands
+// on it (ChainLineWidth wide, past ChainLineFrom: his own reach is the tanks'), from ChainLineGraceMs on.
+constexpr uint32 ChainsMs = 10000;
+constexpr float ChainTakeReach = 3.0f;
+constexpr float ChainBreakPct = 40.0f;
+constexpr float ChainLineFrom = 8.0f;
+constexpr float ChainLineWidth = 1.2f;
+constexpr uint32 ChainLineGraceMs = 2000;
+constexpr uint32 ChainCheckMs = 200;
+constexpr uint32 ChainBurnAgainMs = 2000;
+
 // What a red area is told to the bots (GroundIndicators hitDamage): nothing known, so always left
 constexpr uint32 MistakeDamage = 0;
 
@@ -365,6 +424,22 @@ enum Looks : uint32
     LOOK_MARK_VERSE_FIRST       = 98622,    // La Litanie's numerals I-VIII over the heads (+ the verse's index)
     LOOK_LITANY_SIGIL           = 98630,    // its clock under him: I at its top, then clockwise
     LOOK_LITANY_SIGIL_GLOW      = 98631,
+    // Phase 3's (stand-ins drawn or cut from phase 2's fills until its paintings: gaol-third.ASSETS-p3.md; 98632 up,
+    // their fading twins 60 on)
+    LOOK_HOURGLASS_GOLD         = 98632,    // Les Sabliers: an hourglass on the wall (it fires at the nearest)
+    LOOK_HOURGLASS_VIOLET       = 98633,    // ... (at the farthest)
+    LOOK_SABLIER_GOLD           = 98634,    // ... a gold one's cone
+    LOOK_SABLIER_GOLD_GLOW      = 98635,
+    LOOK_SABLIER_VIOLET         = 98636,    // ... a violet one's
+    LOOK_SABLIER_VIOLET_WISPS   = 98637,
+    LOOK_VISION_CIRCLE          = 98638,    // Prémonition's visions: his light close, the ring, a half
+    LOOK_VISION_RING_40         = 98639,
+    LOOK_VISION_HALF            = 98640,
+    LOOK_DIVINE_CIRCLE          = 98641,    // ... and its strikes (a half: LOOK_DIVINE_CONE_180)
+    LOOK_DIVINE_GLOW_CIRCLE     = 98642,
+    LOOK_DIVINE_RING_40         = 98643,
+    LOOK_DIVINE_GLOW_RING_40    = 98644,
+    LOOK_MARK_CHAIN             = 98645,    // over a chained player's head
     // Phase 2's (the brief: gaol-third.ASSETS-p2.md; 98800 up, the Faucheur's ranks below)
     LOOK_DIVINE_CONE_45         = 98800,    // Ascension's burning slices
     LOOK_DIVINE_GLOW_45         = 98801,
@@ -432,6 +507,8 @@ constexpr uint32 LayerOf(uint32 look)
         case LOOK_SENTENCE_QUARTER_FIRST: case LOOK_SENTENCE_QUARTER_FIRST + 1: case LOOK_SENTENCE_QUARTER_FIRST + 2:
         case LOOK_SENTENCE_QUARTER_FIRST + 3: return LOOK_DIVINE_GLOW_90;
         case LOOK_SENTENCE_HALF_FIRST: case LOOK_SENTENCE_HALF_FIRST + 1: return LOOK_DIVINE_GLOW_180;
+        case LOOK_DIVINE_CIRCLE: return LOOK_DIVINE_GLOW_CIRCLE;
+        case LOOK_DIVINE_RING_40: return LOOK_DIVINE_GLOW_RING_40;
         default: return 0;
     }
 }
@@ -503,6 +580,18 @@ enum Spells : uint32
     CAST_ECHO               = 94692,    // Écho (5 s)
     CAST_TOTAL_LIGHT        = 94693,
     CAST_CHOIR_FAST         = 94694,    // Le Chœur's verse, the second's (4 s)    // Lumière totale (19 s)
+    // Phase 3's (Spells.ps1: in the gaps)
+    SPELL_TIME_STILL        = 94671,    // Temps suspendu (everyone held as he refuses)
+    SPELL_TIME_CHAIN        = 94672,    // Chaîne du temps (its holder's debuff, a stack a chain)
+    SPELL_TIME_CHAIN_BEAM   = 94673,    // ... the chain from him (a beam)
+    SPELL_SABLIER           = 94674,    // Les Sabliers
+    SPELL_CHAIN_BREAK       = 94675,    // Rupture du temps
+    SPELL_PREMONITION       = 94676,    // Prémonition
+    SPELL_CHAIN_LINE        = 94677,    // Lien brûlant (standing on a chain)
+    SPELL_REFUS             = 94678,    // Le Refus (an after-image bursting)
+    CAST_REFUS              = 94695,
+    CAST_SABLIERS           = 94696,
+    CAST_PREMONITION        = 94697,
     SPELL_OPENING           = 94654,    // Garde brisée (+50% damage done, after a ward: Spells.ps1 holds the share)
     SPELL_STOLEN            = 94650,    // Lumière dérobée (3% damage and healing a stack)
     SPELL_DAZZLED           = 94651,    // Ébloui (a mistake)
@@ -545,7 +634,9 @@ enum class Phase : uint8
     Zealot,         // phase 1
     Chained,        // the light stolen: he kneels, the jailers come
     Ascending,      // every light in him: he rises
-    Ascended,       // phase 2 (bare for now)
+    Ascended,       // phase 2
+    Refusing,       // at nothing in phase 2: time stopped and wound back (Le Refus)
+    Rewound,        // phase 3
     Over,
     Rehearsal,      // the FX lab
 };
@@ -649,6 +740,10 @@ Rule const RuleEcho = { SPELL_ECHO, DodgePct, "echo", "Valerian.Fervor", Look::B
 Rule const RulePizza = { SPELL_STARS, DodgePct, "pizza", "Valerian.Chain", Look::Shaped };
 Rule const RuleEclipse = { SPELL_ECLIPSE, 100.0f, "eclipse" };
 Rule const RuleSpread = { SPELL_SENTENCE, DodgePct, "spread", "Valerian.Fervor", Look::None };
+Rule const RuleRefus = { SPELL_REFUS, DodgePct, "refus", "Valerian.Fervor", Look::Blast, false };
+Rule const RuleSablier = { SPELL_SABLIER, 100.0f, "sablier", "Valerian.Revers" };
+Rule const RulePremonition = { SPELL_PREMONITION, DodgePct, "premonition", nullptr, Look::Shaped };
+Rule const RuleChainLine = { SPELL_CHAIN_LINE, DodgePct, "chainline" };
 
 // Phase 2 on p2's track (ms from his apotheosis), each pattern ending before the next starts (3-5 s between); after
 // Écho's hit and the choir's swap, nothing that hurts. arg: a pattern's version (0 its first, 1 its twist, ...)
@@ -686,6 +781,35 @@ std::vector<P2Step> BuildP2Timeline()
     };
 }
 
+// Phase 3 on its own music (P3Ms: 0 where it starts, after the rewind), each pattern ending before the next starts;
+// never two at once (the chains above all: who is chained has nothing else to do). arg: a pattern's version.
+enum class P3Event : uint8
+{
+    Sabliers,       // 0: gold then violet; 1: each flipping as it fires (four volleys); 2: so, faster; 3: violet first
+    Premonition,    // 0: four visions; 1: five, mirrored as they strike; 2: six, faster; 3: five, during the last cast
+    Chains,         // 0: four chains; 1: six
+    Eclipse,        // 2: its holes go round and back; 3: one hole, half round the other way
+    TotalLight,
+};
+
+struct P3Step
+{
+    uint32 ms;
+    P3Event what;
+    uint32 arg = 0;
+};
+
+std::vector<P3Step> BuildP3Timeline()
+{
+    return {
+        { 18000, P3Event::Sabliers, 0 }, { 34000, P3Event::Premonition, 0 }, { 50000, P3Event::Chains, 0 },
+        { 66000, P3Event::Sabliers, 1 }, { 86000, P3Event::Premonition, 1 }, { 103000, P3Event::Chains, 1 },
+        { 123000, P3Event::Premonition, 2 }, { 140000, P3Event::Sabliers, 2 },
+        { 157250, P3Event::Eclipse, 2 }, { 165250, P3Event::Eclipse, 3 }, { 172000, P3Event::Sabliers, 3 },
+        { P3TotalLightCastMs, P3Event::TotalLight }, { 193000, P3Event::Premonition, 3 },
+    };
+}
+
 // When nothing may hurt and he does not swing (track ms): after Écho's hit, the two Éclipses
 struct Calm
 {
@@ -693,6 +817,8 @@ struct Calm
     uint32 toMs;
 };
 Calm const P2Calms[] = { { 66000, 66000 + EchoMs + EchoCalmMs }, { 220000, 236000 } };
+// Phase 3's (P3Ms): the drop's (healing up), the two Éclipses
+Calm const P3Calms[] = { { 0, RefusDropMs + RefusCalmMs }, { 154000, 170250 } };
 
 bool IsTank(Player* player)
 {
@@ -792,6 +918,11 @@ struct boss_valerian : public Defi::BossAI
             P2Damage(damage);
             return;
         }
+        if (_phase == Phase::Rewound)
+        {
+            P3Damage(damage);
+            return;
+        }
         if (_phase != Phase::Zealot || me->HasAura(SPELL_LITANY_WARD))
         {
             damage = 0;
@@ -821,8 +952,8 @@ struct boss_valerian : public Defi::BossAI
         }
         if (Fighting())
             WatchDeaths();
-        // Kneeling, rising: no one to hit, his steps still go on (the jailers, the end; phase 2)
-        if (_phase == Phase::Chained || _phase == Phase::Ascending)
+        // Kneeling, rising, refusing: no one to hit, his steps still go on (the jailers, the end; phase 2, phase 3)
+        if (_phase == Phase::Chained || _phase == Phase::Ascending || _phase == Phase::Refusing)
         {
             scheduler.Update(diff);
             UpdateAscent();
@@ -859,10 +990,29 @@ struct boss_valerian : public Defi::BossAI
         }
         if (_phase == Phase::Ascended)
         {
+            RecordTrail(elapsed);
             while (_p2Next < _p2Timeline.size() && _p2Timeline[_p2Next].trackMs <= TrackMs())
                 ExecuteP2(_p2Timeline[_p2Next++], 0);
             UpdateP2(diff);
-            if (!me->HasUnitState(UNIT_STATE_CASTING) && !InCalm())
+            if (_phase == Phase::Ascended && !me->HasUnitState(UNIT_STATE_CASTING) && !InCalm())
+                DoMeleeAttackIfReady();
+        }
+        if (_phase == Phase::Rewound)
+        {
+            if (elapsed >= _nextCheckMs)
+            {
+                _nextCheckMs = elapsed + 200;
+                CheckWall();
+            }
+            if (_p3From && elapsed >= _p3From + P3MusicEndMs && !_p3MusicOver)
+            {
+                _p3MusicOver = true;
+                EndMusic();
+            }
+            while (_p3Next < _p3Timeline.size() && _p3Timeline[_p3Next].ms <= P3Ms())
+                ExecuteP3(_p3Timeline[_p3Next++]);
+            UpdateP3();
+            if (_phase == Phase::Rewound && !me->HasUnitState(UNIT_STATE_CASTING) && !InCalmP3())
                 DoMeleeAttackIfReady();
         }
         if (_phase != Phase::Zealot)
@@ -968,6 +1118,27 @@ struct boss_valerian : public Defi::BossAI
             { "ascension", { 0, P2Event::Ascension, 0 } }, { "eclipse", { 0, P2Event::Eclipse, 0 } },
             { "eclipse2", { 0, P2Event::Eclipse, 1 } },
         };
+        static std::map<std::string, P3Step> const p3 = {
+            { "sabliers", { 0, P3Event::Sabliers, 0 } }, { "sabliers2", { 0, P3Event::Sabliers, 1 } },
+            { "sabliers3", { 0, P3Event::Sabliers, 2 } }, { "sabliers4", { 0, P3Event::Sabliers, 3 } },
+            { "premonition", { 0, P3Event::Premonition, 0 } }, { "premonition2", { 0, P3Event::Premonition, 1 } },
+            { "premonition3", { 0, P3Event::Premonition, 2 } }, { "premonition4", { 0, P3Event::Premonition, 3 } },
+            { "chains", { 0, P3Event::Chains, 0 } }, { "chains2", { 0, P3Event::Chains, 1 } },
+            { "eclipse3", { 0, P3Event::Eclipse, 2 } }, { "eclipse4", { 0, P3Event::Eclipse, 3 } },
+        };
+        if (auto const found = p3.find(what); found != p3.end())
+        {
+            if (_phase != Phase::Rehearsal)
+                return false;
+            ExecuteP3(found->second);
+            return true;
+        }
+        // In the lab: the change, harmless (its sound, the music, the after-images round whoever is there)
+        if (what == "refus" && _phase == Phase::Rehearsal)
+        {
+            StartRefus();
+            return true;
+        }
         if (auto const found = p2.find(what); found != p2.end())
         {
             if (_phase != Phase::Rehearsal)
@@ -1007,10 +1178,14 @@ struct boss_valerian : public Defi::BossAI
     }
 
 protected:
-    Defi::Sizing const& GetSizing() const override { return _phase == Phase::Ascended ? AscendedSizing : Sizing; }
+    Defi::Sizing const& GetSizing() const override
+    {
+        return _phase == Phase::Ascended ? AscendedSizing : Rewinding() ? RewoundSizing : Sizing;
+    }
     float HealthScale() const override
     {
-        return _phase == Phase::Ascended ? float(::AscendedHealthScale) : float(::HealthScale);
+        return _phase == Phase::Ascended ? float(::AscendedHealthScale) : Rewinding() ? float(::RewoundHealthScale) :
+            float(::HealthScale);
     }
     bool IsOwn(Creature const* creature) const override
     {
@@ -1030,8 +1205,10 @@ private:
     bool Fighting() const
     {
         return _phase == Phase::Zealot || _phase == Phase::Chained || _phase == Phase::Ascending ||
-            _phase == Phase::Ascended;
+            _phase == Phase::Ascended || Rewinding();
     }
+
+    bool Rewinding() const { return _phase == Phase::Refusing || _phase == Phase::Rewound; }
 
     // --- The timeline ----------------------------------------------------------------------------------------------
     void Execute(Step const& step)
@@ -1078,7 +1255,7 @@ private:
     void Strike(Areas const& areas, Rule const& rule)
     {
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal && _phase != Phase::Ascending &&
-            _phase != Phase::Ascended)
+            _phase != Phase::Ascended && !Rewinding())
             return;
         std::vector<Position> spots;
         for (GroundIndicators::Area const& area : areas)
@@ -2628,7 +2805,7 @@ private:
     // The track's time (from his apotheosis): phase 2's clock
     uint32 TrackMs() const { return _ascendFrom && Elapsed() > _ascendFrom ? Elapsed() - _ascendFrom : 0; }
 
-    bool P2Active() const { return _phase == Phase::Ascended || _phase == Phase::Rehearsal; }
+    bool P2Active() const { return _phase == Phase::Ascended || _phase == Phase::Rehearsal || Rewinding(); }
 
     bool InCalm() const
     {
@@ -2667,8 +2844,8 @@ private:
             case P2Event::Choir: Choir(step.arg == 1); break;
             case P2Event::Echo: Echo(); break;
             case P2Event::Ascension: Ascension(); break;
-            case P2Event::Eclipse: Eclipse(step.arg == 1); break;
-            case P2Event::TotalLight: TotalLight(); break;
+            case P2Event::Eclipse: Eclipse(step.arg); break;
+            case P2Event::TotalLight: TotalLight(0); break;
         }
     }
 
@@ -2686,8 +2863,10 @@ private:
         _p2True = _p2True > damage ? _p2True - damage : 0;
         uint32 const shown = P2Shown();
         uint32 const health = uint32(me->GetHealth());
-        // At nothing (the pace past its end, the group's damage done): the blow that takes it lands whole
-        damage = shown == 0 ? health : health > shown ? health - shown : 0;
+        // At nothing (the pace past its end, the group's damage done): he keeps a point of it - he refuses to die
+        // (UpdateP2: Le Refus)
+        uint32 const floor = std::max<uint32>(1, shown);
+        damage = health > floor ? health - floor : 0;
     }
 
     void UpdateP2(uint32 diff)
@@ -2696,13 +2875,8 @@ private:
         uint32 const shown = P2Shown();
         if (shown == 0)
         {
-            // Past his earliest death with nothing left: he falls (the one who holds him the killer)
-            Unit* killer = me->GetVictim();
-            if (!killer)
-                for (Player* player : ArenaPlayers())
-                    killer = player;
-            if (killer)
-                Unit::Kill(killer, me);
+            // Past his earliest death with nothing left: he refuses to die (phase 3)
+            StartRefus();
             return;
         }
         // Both ways: down with the pace, up when an orb reaches him
@@ -3516,8 +3690,11 @@ private:
     }
 
     // --- Éclipse: the dark everywhere but its holes of light ----------------------------------------------------------------
-    void Eclipse(bool second)
+    // version 0: two holes going round; 1: one, behind, the other way; phase 3's 2: two holes going round, then back
+    // halfway; 3: one, half round the other way
+    void Eclipse(uint32 version)
     {
+        bool const second = version % 2 == 1;
         Position const middle = Middle();
         std::vector<Position> holes;
         // The veil faces between the first two holes (EclipseSpread each side: its picture symmetric, so a mirrored
@@ -3535,7 +3712,12 @@ private:
         if (!second)
             _eclipseWay = urand(0, 1) ? 1.0f : -1.0f;
         float const way = second ? -_eclipseWay : _eclipseWay;
-        std::vector<GroundIndicators::Turn> const turns = { { 0, lasts, way * EclipseTurnDeg * float(M_PI) / 180.0f } };
+        float const turn = EclipseTurnDeg * float(M_PI) / 180.0f;
+        std::vector<GroundIndicators::Turn> turns = { { 0, lasts, way * turn } };
+        if (version == 2)
+            turns = { { 0, lasts / 2, way * turn }, { lasts / 2, lasts / 2, -way * turn } };
+        else if (version == 3)
+            turns = { { 0, lasts, 2.0f * way * turn } };
         Sound("Valerian.Profanation", middle);
         // The dark, its holes cut (drawn only - as an area, it had the bots refuse the holes inside it), and the holes'
         // light painted where they are, both turning together
@@ -3590,15 +3772,18 @@ private:
     }
 
     // --- Lumière totale: his last cast, the end at 4:35.0 -----------------------------------------------------------------
-    void TotalLight()
+    // sigilAfterMs: its sigil only that long into the cast (phase 3: once the last Prémonition has struck)
+    void TotalLight(uint32 sigilAfterMs)
     {
         CastBar(CAST_TOTAL_LIGHT);
         // The whole arena (it lies over the last patterns' decals, drawn as the client sorts them: the tendrils then
         // stand up as curtains, TendrilCurtain)
-        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs,
-            LOOK_TOTAL_LIGHT_SIGIL);
-        GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, TotalLightMs - TotalLightCastMs,
-            LOOK_TOTAL_LIGHT_RUNES);
+        After(sigilAfterMs, [this, sigilAfterMs]()
+        {
+            uint32 const lasts = TotalLightMs - TotalLightCastMs - sigilAfterMs;
+            GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, lasts, LOOK_TOTAL_LIGHT_SIGIL);
+            GroundIndicators::ShowDecal(me, Middle(), 0.0f, P2Radius, lasts, LOOK_TOTAL_LIGHT_RUNES);
+        });
         After(TotalLightMs - TotalLightCastMs, [this]()
         {
             EndCastBar();
@@ -3607,6 +3792,646 @@ private:
             for (Player* player : ArenaPlayers())
                 Doom(player, SPELL_TOTAL_LIGHT);
         });
+    }
+
+    // --- Phase 3: Le Refus ------------------------------------------------------------------------------------------------
+    // A Sablier volley: the hourglasses of one parity (every other one) firing at once, strikesMs into the pattern
+    struct Volley
+    {
+        uint32 strikesMs;
+        uint32 parity;
+        bool farthest;
+    };
+
+    enum class Vision : uint8
+    {
+        In,         // his light, close to him
+        Out,        // the ring beyond it
+        Left,       // the half on his left (of where he faced as he began)
+        Right,
+    };
+
+    struct TimeChain
+    {
+        ObjectGuid holder;
+        ObjectGuid tether;
+    };
+
+    // Phase 3's clock: from its music's start
+    uint32 P3Ms() const { return _p3From && Elapsed() > _p3From ? Elapsed() - _p3From : 0; }
+
+    bool InCalmP3() const
+    {
+        uint32 const now = P3Ms();
+        for (Calm const& calm : P3Calms)
+            if (now >= calm.fromMs && now < calm.toMs)
+                return true;
+        return now >= P3TotalLightCastMs;
+    }
+
+    // Where everyone has been in phase 2: a step every TrailEveryMs, back to RefusBackMs ago
+    void RecordTrail(uint32 elapsed)
+    {
+        if (elapsed < _nextTrailMs)
+            return;
+        _nextTrailMs = elapsed + TrailEveryMs;
+        for (Player* player : ArenaPlayers())
+        {
+            auto& trail = _trail[player->GetGUID()];
+            trail.push_back({ elapsed, Ground(player->GetPosition()) });
+            while (trail.size() > 1 && trail[1].first + RefusBackMs <= elapsed)
+                trail.pop_front();
+        }
+    }
+
+    // Where player stood RefusBackMs ago (as far back as their trail goes)
+    Position PastSpot(Player* player) const
+    {
+        auto const found = _trail.find(player->GetGUID());
+        if (found == _trail.end() || found->second.empty())
+            return Ground(player->GetPosition());
+        return found->second.front().second;
+    }
+
+    // At nothing in phase 2: time stops and runs back (in the lab: its sound, the music, harmless)
+    void StartRefus()
+    {
+        bool const rehearsed = _phase == Phase::Rehearsal;
+        if (!rehearsed)
+        {
+            _phase = Phase::Refusing;
+            scheduler.CancelAll();
+            EndCastBar();
+            _p2Next = _p2Timeline.size();
+            GroundIndicators::ClearAreasOf(me);
+            KeepBotsIn(WallLastsMs);
+            GroundIndicators::FadeLooksOf(me, LOOK_DIVINE_CONE_45, LOOK_TENDRIL_CURTAIN);
+            _ascendedMusicOver = true;
+            me->AttackStop();
+            me->SetReactState(REACT_PASSIVE);
+            me->AddAura(SPELL_OUT_OF_REACH, me);
+            // His health anew (phase 3's), filled as time runs back
+            SetModelHealth();
+            _p3Pool = uint32(me->GetMaxHealth());
+            _p3True = _p3Pool;
+            me->SetHealth(1);
+        }
+        EndMusic();
+        Sound("Valerian.Rewind", Middle());
+        CastBar(CAST_REFUS);
+        Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        LOG_INFO(_logName, "Valerian refuses instance={} at={:.1f}s health={}", me->GetInstanceId(),
+                 Elapsed() / 1000.0f, _p3Pool);
+        // Where everyone goes back to; held meanwhile
+        std::vector<std::pair<ObjectGuid, Position>> back;
+        for (Player* player : ArenaPlayers())
+        {
+            back.push_back({ player->GetGUID(), PastSpot(player) });
+            if (!rehearsed)
+                AddTimedAura(player, SPELL_TIME_STILL, RefusPullMs);
+        }
+        _trail.clear();
+        uint32 const drop = RefusMusicMs + RefusDropMs;
+        auto echoes = std::make_shared<Areas>();
+        After(RefusStillMs, [this, back, drop, echoes]()
+        {
+            for (auto const& [guid, spot] : back)
+                echoes->push_back(Painted(MakeCircle(spot, EchoRadius), LOOK_ECHO, drop - RefusStillMs));
+        });
+        for (uint32 at = RefusStillMs; at <= RefusPullMs; at += 100)
+            After(at, [this, at, rehearsed]()
+            {
+                if (at % 300 == 0)
+                    StreamLight();
+                if (!rehearsed)
+                    me->SetHealth(std::max<uint32>(1, uint32(uint64(_p3Pool) * (at - RefusStillMs) /
+                        (RefusPullMs - RefusStillMs))));
+            });
+        After(RefusPullMs, [this, back, rehearsed]()
+        {
+            for (auto const& [guid, spot] : back)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, guid); player && player->IsAlive())
+                {
+                    GroundIndicators::PlayKit(me, Ground(player->GetPosition()), KIT_HOLY_IMPACT, 0.6f, 0, ImpactMs);
+                    if (!rehearsed)
+                        player->NearTeleportTo(spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ() + 0.5f,
+                            player->GetOrientation());
+                }
+        });
+        After(RefusMusicMs, [this, rehearsed]() { StartRewound(rehearsed); });
+        After(drop, [this, echoes, rehearsed]()
+        {
+            Strike(*echoes, RuleRefus);
+            Sound("Valerian.FirstBlow", Middle());
+            GroundIndicators::Burst(me, Middle(), GroundIndicators::Theme::Holy);
+            if (rehearsed)
+                return;
+            for (Player* player : ArenaPlayers())
+            {
+                uint32 const left = uint32(float(player->GetMaxHealth()) * RefusLeftPct / 100.0f);
+                if (player->GetHealth() > left)
+                    HitOwnHealth(player, SPELL_CATALYST,
+                        float(player->GetHealth() - left) * 100.0f / float(player->GetMaxHealth()));
+            }
+        });
+    }
+
+    // Phase 3, its music on (under the rewind's end)
+    void StartRewound(bool rehearsed)
+    {
+        StartMusic("Music.ValerianRewind");
+        _p3From = Elapsed();
+        if (rehearsed)
+            return;
+        _phase = Phase::Rewound;
+        EndCastBar();
+        Pose(EMOTE_STATE_READY_SPELL_OMNI);
+        me->RemoveAurasDueToSpell(SPELL_OUT_OF_REACH);
+        me->SetHealth(_p3Pool);
+        _p3Timeline = BuildP3Timeline();
+        _p3Next = 0;
+        _p3MusicOver = false;
+        _nextCheckMs = 0;
+        me->SetReactState(REACT_AGGRESSIVE);
+        DoZoneInCombat(me, GetRoom().reach);
+        LOG_INFO(_logName, "Valerian rewound instance={} health={}", me->GetInstanceId(), me->GetMaxHealth());
+    }
+
+    void ExecuteP3(P3Step const& step)
+    {
+        LOG_INFO(_logName, "Valerian p3 {} instance={} at={:.2f}s shown={:.1f}% true={:.1f}%", uint32(step.what),
+                 me->GetInstanceId(), P3Ms() / 1000.0f, me->GetHealthPct(),
+                 _p3Pool ? 100.0f * float(_p3True) / float(_p3Pool) : 0.0f);
+        switch (step.what)
+        {
+            case P3Event::Sabliers: Sabliers(step.arg); break;
+            case P3Event::Premonition: Premonition(step.arg); break;
+            case P3Event::Chains: Chains(step.arg); break;
+            case P3Event::Eclipse: Eclipse(step.arg); break;
+            case P3Event::TotalLight: TotalLight(P3TotalLightSigilMs); break;
+        }
+    }
+
+    // His health in phase 3: paced from the drop to nothing at P3EarliestDeathMs, never before
+    uint32 P3Shown() const
+    {
+        uint32 const now = P3Ms();
+        float const share = now <= RefusDropMs ? 1.0f : now >= P3EarliestDeathMs ? 0.0f :
+            1.0f - float(now - RefusDropMs) / float(P3EarliestDeathMs - RefusDropMs);
+        return std::max(_p3True, uint32(float(_p3Pool) * share));
+    }
+
+    void P3Damage(uint32& damage)
+    {
+        _p3True = _p3True > damage ? _p3True - damage : 0;
+        uint32 const shown = P3Shown();
+        uint32 const health = uint32(me->GetHealth());
+        damage = shown == 0 ? health : health > shown ? health - shown : 0;
+    }
+
+    void UpdateP3()
+    {
+        uint32 const shown = P3Shown();
+        if (shown == 0)
+        {
+            // Past his earliest death with nothing left: he falls at last (the one who holds him the killer)
+            Unit* killer = me->GetVictim();
+            if (!killer)
+                for (Player* player : ArenaPlayers())
+                    killer = player;
+            if (killer)
+                Unit::Kill(killer, me);
+            return;
+        }
+        if (me->GetHealth() != shown)
+            me->SetHealth(shown);
+    }
+
+    // --- Les Sabliers: hourglasses firing at the nearest player (gold) and the farthest (violet) ---------------------------
+    std::vector<Volley> SablierVolleys(uint32 version) const
+    {
+        switch (version)
+        {
+            case 0: return { { 6000, 0, false }, { 11000, 1, true } };
+            case 1: return { { 5000, 0, false }, { 9000, 1, true }, { 13000, 1, false }, { 17000, 0, true } };
+            case 2: return { { 4000, 0, false }, { 7000, 1, true }, { 10000, 1, false }, { 13000, 0, true } };
+            default: return { { 4000, 1, true }, { 7000, 0, false }, { 10000, 0, true }, { 13000, 1, false } };
+        }
+    }
+
+    void Sabliers(uint32 version)
+    {
+        CastBar(CAST_SABLIERS);
+        float const base = frand(0.0f, 2.0f * float(M_PI));
+        std::vector<Volley> const volleys = SablierVolleys(version);
+        uint32 const tellMs = version >= 2 ? 3000 : 4000;
+        // Each hourglass in the colour of its next volley: it flips as it fires
+        for (uint32 index = 0; index < Hourglasses; ++index)
+        {
+            Position const at = P2At(base + float(index) * float(M_PI) / 3.0f, HourglassAt);
+            uint32 from = 0;
+            for (Volley const& volley : volleys)
+            {
+                if (volley.parity != index % 2)
+                    continue;
+                uint32 const look = volley.farthest ? LOOK_HOURGLASS_VIOLET : LOOK_HOURGLASS_GOLD;
+                uint32 const lasts = volley.strikesMs - from;
+                After(from, [this, at, look, lasts]() { GroundIndicators::ShowBillboard(me, at, look, lasts, nullptr); });
+                from = volley.strikesMs;
+            }
+        }
+        for (uint32 index = 0; index < volleys.size(); ++index)
+        {
+            Volley const volley = volleys[index];
+            After(volley.strikesMs - tellMs, [this, base, volley, tellMs, index]()
+            {
+                SablierVolley(base, volley, tellMs, index);
+            });
+        }
+        After(volleys.front().strikesMs, [this]() { EndCastBar(); });
+    }
+
+    void SablierVolley(float base, Volley const& volley, uint32 tellMs, uint32 volleyIndex)
+    {
+        float const arc = volley.farthest ? SablierFarArc : SablierNearArc;
+        float const length = volley.farthest ? SablierFarLength : SablierNearLength;
+        uint32 const look = volley.farthest ? LOOK_SABLIER_VIOLET : LOOK_SABLIER_GOLD;
+        uint32 const layer = volley.farthest ? LOOK_SABLIER_VIOLET_WISPS : LOOK_SABLIER_GOLD_GLOW;
+        bool const farthest = volley.farthest;
+        auto cones = std::make_shared<std::vector<std::pair<ObjectGuid, Position>>>();
+        std::vector<float> angles;
+        for (uint32 index = volley.parity; index < Hourglasses; index += 2)
+        {
+            float const angle = base + float(index) * float(M_PI) / 3.0f;
+            angles.push_back(angle);
+            Position const apex = P2At(angle, HourglassAt);
+            ObjectGuid placed;
+            GroundIndicators::ShowSeekingCone(me, apex, length, arc, tellMs, tellMs - SablierFreezeMs, farthest,
+                SablierReach, look, layer, &placed);
+            cones->push_back({ placed, apex });
+        }
+        Sound("Valerian.ReversCast", Middle());
+        GuideSabliers(angles, farthest, volleyIndex, tellMs);
+        // Held a second before it fires: where it points then, and at whom
+        auto frozen = std::make_shared<std::vector<std::pair<GroundIndicators::Area, ObjectGuid>>>();
+        After(tellMs - SablierFreezeMs, [this, cones, frozen, arc, length, farthest]()
+        {
+            Position const middle = Middle();
+            for (auto const& [stalker, apex] : *cones)
+            {
+                Player* target = GroundIndicators::SeekTarget(me, apex, farthest, SablierReach);
+                Creature* drawn = me->GetMap()->GetCreature(stalker);
+                float const facing = drawn ? drawn->GetOrientation() : target ? apex.GetAngle(target) :
+                    apex.GetAngle(&middle);
+                GroundIndicators::Area area = MakeCircle(apex, length);
+                area.kind = GroundIndicators::Area::Kind::Cone;
+                area.origin.SetOrientation(facing);
+                area.arc = arc * float(M_PI) / 180.0f;
+                GroundIndicators::WatchArea(me, area, SablierFreezeMs, MistakeDamage);
+                frozen->push_back({ area, target && !target->IsGameMaster() ? target->GetGUID() : ObjectGuid::Empty });
+            }
+        });
+        After(tellMs, [this, frozen]()
+        {
+            std::vector<Position> spots;
+            Areas areas;
+            for (auto const& [area, target] : *frozen)
+            {
+                spots.push_back(BurstSpot(area));
+                areas.push_back(area);
+                ConeBlasts(area);
+            }
+            SoundNearest("Valerian.Revers", spots);
+            if (_phase == Phase::Rehearsal)
+            {
+                LogSafe("sablier", areas);
+                return;
+            }
+            for (auto const& [area, target] : *frozen)
+                if (Player* player = ObjectAccessor::GetPlayer(*me, target))
+                    Hit(player, SPELL_SABLIER, SablierTargetPct);
+            for (Player* player : ArenaPlayers())
+                for (auto const& [area, target] : *frozen)
+                    if (player->GetGUID() != target && area.Contains(player->GetPosition()))
+                    {
+                        Mistake(player, RuleSablier);
+                        break;
+                    }
+        });
+    }
+
+    // A narrow cone's strike: bursts along its axis, each as wide as the cone there (it never leaves its shape)
+    void ConeBlasts(GroundIndicators::Area const& area)
+    {
+        float const facing = area.origin.GetOrientation();
+        for (float along = area.radius * 0.15f; along < area.radius; along += area.radius * 0.22f)
+            Blast(Ground(AtAngle(area.origin, facing, along)), std::max(1.5f, along * std::tan(area.arc / 2.0f)));
+    }
+
+    // The bots: three bait the volley (gold: close in front of their hourglass, a little aside, so that the cone runs
+    // along the wall; violet: across the arena, aside again, the three cones a pinwheel round him), the others (the
+    // tanks with him) where none of those cones reaches
+    void GuideSabliers(std::vector<float> const& angles, bool farthest, uint32 volleyIndex, uint32 tellMs)
+    {
+        std::vector<Player*> baiters;
+        std::vector<Player*> others;
+        for (Player* bot : SortedBots())
+            (IsTank(bot) ? others : baiters).push_back(bot);
+        if (!baiters.empty())
+            std::rotate(baiters.begin(), baiters.begin() + (volleyIndex * angles.size()) % baiters.size(),
+                baiters.end());
+        std::vector<Position> baits;
+        Areas predicted;
+        for (float angle : angles)
+        {
+            Position const apex = P2At(angle, HourglassAt);
+            Position const bait = farthest ? P2At(angle + float(M_PI) + 0.8f, 21.0f) : P2At(angle + 0.35f, 20.0f);
+            baits.push_back(bait);
+            GroundIndicators::Area cone = MakeCircle(apex, farthest ? SablierFarLength : SablierNearLength);
+            cone.kind = GroundIndicators::Area::Kind::Cone;
+            cone.origin.SetOrientation(apex.GetAngle(&bait));
+            cone.arc = ((farthest ? SablierFarArc : SablierNearArc) + 10.0f) * float(M_PI) / 180.0f;
+            predicted.push_back(cone);
+        }
+        std::vector<Position> safe;
+        for (float radius : { 3.0f, 5.0f, 8.0f, 11.0f })
+            for (uint32 step = 0; step < 24; ++step)
+            {
+                Position const spot = P2At(float(step) * float(M_PI) / 12.0f, radius);
+                bool reached = false;
+                for (GroundIndicators::Area const& cone : predicted)
+                    if (cone.Contains(spot, 2.0f) || (!farthest && spot.GetExactDist2d(&cone.origin) < 12.0f))
+                        reached = true;
+                if (!reached)
+                    safe.push_back(spot);
+            }
+        for (uint32 index = 0; index < baiters.size(); ++index)
+        {
+            if (index < baits.size())
+                GroundIndicators::SetUnitSpot(me, baiters[index], baits[index], 1.0f, tellMs + 300);
+            else
+                others.push_back(baiters[index]);
+        }
+        for (uint32 index = 0; index < others.size(); ++index)
+            if (!IsTank(others[index]) && !safe.empty())
+                GroundIndicators::SetUnitSpot(me, others[index], safe[(index * 7) % safe.size()], 1.0f, tellMs + 300);
+    }
+
+    // --- Prémonition: visions of his strikes, then the strikes in reverse order ------------------------------------------
+    void Premonition(uint32 version)
+    {
+        uint32 const count = version == 0 ? 4 : version == 2 ? 6 : 5;
+        uint32 const showMs = version == 2 ? 900 : 1100;
+        uint32 const gapMs = version >= 2 ? 1100 : 1300;
+        bool const mirrored = version == 1;
+        float const facing = me->GetOrientation();
+        // Each kind once, then more, never the same twice in a row
+        std::vector<Vision> visions = { Vision::In, Vision::Out, Vision::Left, Vision::Right };
+        Acore::Containers::RandomShuffle(visions);
+        while (visions.size() < count)
+        {
+            Vision next = Vision(urand(0, 3));
+            while (next == visions.back())
+                next = Vision(urand(0, 3));
+            visions.push_back(next);
+        }
+        CastBar(CAST_PREMONITION);
+        for (uint32 index = 0; index < count; ++index)
+        {
+            Vision const vision = visions[index];
+            After(PremonitionFirstMs + index * showMs, [this, vision, facing, showMs]()
+            {
+                ShowVision(vision, facing, showMs - 100);
+                Sound("Valerian.VerseTell", Middle());
+            });
+        }
+        uint32 const firstStrike = PremonitionFirstMs + count * showMs + PremonitionPauseMs;
+        After(firstStrike - gapMs, [this]() { EndCastBar(); });
+        for (uint32 step = 0; step < count; ++step)
+        {
+            Vision vision = visions[count - 1 - step];
+            if (mirrored && (vision == Vision::Left || vision == Vision::Right))
+                vision = vision == Vision::Left ? Vision::Right : Vision::Left;
+            After(firstStrike + step * gapMs - gapMs, [this, vision, facing, gapMs]()
+            {
+                GroundIndicators::Area const area = PremonitionArea(vision, facing, gapMs);
+                GuidePremonition(vision, facing, gapMs);
+                After(gapMs, [this, area, vision]()
+                {
+                    Strike(Areas{ area }, RulePremonition);
+                    Sound(vision == Vision::In || vision == Vision::Out ? "Valerian.Rage" : "Valerian.Wrath", Middle());
+                });
+            });
+        }
+    }
+
+    float HalfFacing(Vision vision, float facing) const
+    {
+        return Position::NormalizeOrientation(facing + (vision == Vision::Left ? 1.0f : -1.0f) * float(M_PI) / 2.0f);
+    }
+
+    // A vision: drawn only (nothing to leave yet)
+    void ShowVision(Vision vision, float facing, uint32 ms)
+    {
+        Position const middle = Middle();
+        switch (vision)
+        {
+            case Vision::In:
+                GroundIndicators::ShowDecal(me, middle, 0.0f, PremonitionInner, ms, LOOK_VISION_CIRCLE);
+                break;
+            case Vision::Out:
+                GroundIndicators::ShowDecal(me, middle, 0.0f, P2Radius + 1.0f, ms, LOOK_VISION_RING_40);
+                break;
+            default:
+                GroundIndicators::ShowDecal(me, middle, HalfFacing(vision, facing), P2Radius + 1.0f, ms,
+                    LOOK_VISION_HALF);
+                break;
+        }
+    }
+
+    // A strike as it comes: drawn and registered ms before it lands
+    GroundIndicators::Area PremonitionArea(Vision vision, float facing, uint32 ms)
+    {
+        Position const middle = Middle();
+        if (vision == Vision::In)
+            return Painted(MakeCircle(middle, PremonitionInner), LOOK_DIVINE_CIRCLE, ms);
+        GroundIndicators::Area area = MakeCircle(middle, P2Radius + 1.0f);
+        if (vision == Vision::Out)
+        {
+            area.kind = GroundIndicators::Area::Kind::Ring;
+            area.inner = PremonitionInner;
+            return Painted(area, LOOK_DIVINE_RING_40, ms);
+        }
+        area.kind = GroundIndicators::Area::Kind::Cone;
+        area.origin.SetOrientation(HalfFacing(vision, facing));
+        area.arc = float(M_PI);
+        return Painted(area, LOOK_DIVINE_CONE_180, ms);
+    }
+
+    void GuidePremonition(Vision vision, float facing, uint32 ms)
+    {
+        std::vector<Position> spots;
+        for (uint32 index = 0; index < 8; ++index)
+        {
+            float const around = float(index) * float(M_PI) / 4.0f;
+            float const across = (float(index) - 3.5f) * 0.3f;
+            switch (vision)
+            {
+                case Vision::In: spots.push_back(P2At(around, PremonitionInner + 3.0f)); break;
+                case Vision::Out: spots.push_back(P2At(around, PremonitionInner - 4.0f)); break;
+                default: spots.push_back(P2At(HalfFacing(vision, facing) + float(M_PI) + across, 7.0f)); break;
+            }
+        }
+        GuideP2(spots, ms + 300);
+    }
+
+    // --- Chaînes du temps: chains the tanks must take before they break -----------------------------------------------------
+    void Chains(uint32 version)
+    {
+        uint32 const count = version ? 6 : 4;
+        EndChains();
+        uint32 tanks = 0;
+        for (Player* player : ArenaPlayers())
+            if (IsTank(player))
+                ++tanks;
+        _chainShare = tanks ? (count + tanks - 1) / tanks : count;
+        for (Player* player : Targets(count))
+        {
+            _chains.push_back({ player->GetGUID(), GroundIndicators::ShowTether(me, me, player, SPELL_TIME_CHAIN_BEAM,
+                ChainsMs) });
+            AddTimedAura(player, SPELL_TIME_CHAIN, ChainsMs);
+            GroundIndicators::ShowCarriedLook(player, LOOK_MARK_CHAIN, ChainsMs);
+        }
+        Sound("Valerian.Chained", Middle());
+        for (uint32 at = ChainCheckMs; at < ChainsMs; at += ChainCheckMs)
+            After(at, [this, at]() { UpdateChains(at); });
+        After(ChainsMs, [this]() { BreakChains(); });
+    }
+
+    uint32 ChainsHeldBy(ObjectGuid guid) const
+    {
+        uint32 held = 0;
+        for (TimeChain const& chain : _chains)
+            if (chain.holder == guid)
+                ++held;
+        return held;
+    }
+
+    // A tank touching a chained player takes their chain (up to their share); the chained bots walk to a tank with room
+    void UpdateChains(uint32 at)
+    {
+        uint32 const left = ChainsMs > at ? ChainsMs - at : 0;
+        std::vector<Player*> tanks;
+        for (Player* player : ArenaPlayers())
+            if (IsTank(player))
+                tanks.push_back(player);
+        for (TimeChain& chain : _chains)
+        {
+            Player* holder = ObjectAccessor::GetPlayer(*me, chain.holder);
+            if (!holder || !holder->IsAlive() || IsTank(holder))
+                continue;
+            Player* taker = nullptr;
+            Player* nearest = nullptr;
+            for (Player* tank : tanks)
+            {
+                if (ChainsHeldBy(tank->GetGUID()) >= _chainShare)
+                    continue;
+                if (tank->GetExactDist2d(holder) <= ChainTakeReach)
+                    taker = tank;
+                if (!nearest || tank->GetExactDist2d(holder) < nearest->GetExactDist2d(holder))
+                    nearest = tank;
+            }
+            if (taker)
+            {
+                GroundIndicators::EndTether(me, chain.tether);
+                holder->RemoveAurasDueToSpell(SPELL_TIME_CHAIN);
+                GroundIndicators::ClearCarriedLook(holder, LOOK_MARK_CHAIN);
+                chain.holder = taker->GetGUID();
+                chain.tether = GroundIndicators::ShowTether(me, me, taker, SPELL_TIME_CHAIN_BEAM, left);
+                AddTimedAura(taker, SPELL_TIME_CHAIN, left, uint8(ChainsHeldBy(taker->GetGUID())));
+                LOG_INFO(_logName, "Valerian chain instance={} taken by {} from {}", me->GetInstanceId(),
+                         taker->GetName(), holder->GetName());
+                continue;
+            }
+            if (nearest && IsBotPlayer(holder))
+                GroundIndicators::SetUnitSpot(me, holder, Ground(nearest->GetPosition()), 1.0f, ChainCheckMs * 3);
+        }
+        if (at >= ChainLineGraceMs && _phase != Phase::Rehearsal)
+            BurnChainLines();
+    }
+
+    // Whoever else stands on a chain (past his own reach) is burnt
+    void BurnChainLines()
+    {
+        Position const middle = Middle();
+        uint32 const now = Elapsed();
+        for (Player* player : ArenaPlayers())
+        {
+            if (ChainsHeldBy(player->GetGUID()))
+                continue;
+            if (auto const burned = _chainBurned.find(player->GetGUID()); burned != _chainBurned.end() &&
+                burned->second > now)
+                continue;
+            for (TimeChain const& chain : _chains)
+            {
+                Player* holder = ObjectAccessor::GetPlayer(*me, chain.holder);
+                if (!holder)
+                    continue;
+                float const dx = holder->GetPositionX() - middle.GetPositionX();
+                float const dy = holder->GetPositionY() - middle.GetPositionY();
+                float const length = std::sqrt(dx * dx + dy * dy);
+                if (length < ChainLineFrom + 1.0f)
+                    continue;
+                float const px = player->GetPositionX() - middle.GetPositionX();
+                float const py = player->GetPositionY() - middle.GetPositionY();
+                float const along = (px * dx + py * dy) / length;
+                float const across = std::fabs(px * dy - py * dx) / length;
+                if (along > ChainLineFrom && along < length - 1.0f && across <= ChainLineWidth / 2.0f)
+                {
+                    _chainBurned[player->GetGUID()] = now + ChainBurnAgainMs;
+                    Mistake(player, RuleChainLine);
+                    break;
+                }
+            }
+        }
+    }
+
+    void BreakChains()
+    {
+        Sound("Valerian.Chain", Middle());
+        for (TimeChain const& chain : _chains)
+        {
+            Player* holder = ObjectAccessor::GetPlayer(*me, chain.holder);
+            if (!holder || !holder->IsAlive())
+                continue;
+            GroundIndicators::PlayKit(me, Ground(holder->GetPosition()), KIT_HOLY_IMPACT, 0.8f, 0, ImpactMs);
+            if (_phase == Phase::Rehearsal)
+                continue;
+            if (IsTank(holder))
+                Hit(holder, SPELL_CHAIN_BREAK, ChainBreakPct);
+            else
+            {
+                LOG_INFO(_logName, "Valerian chain instance={} broke on {} bot={}", me->GetInstanceId(),
+                         holder->GetName(), IsBotPlayer(holder));
+                Doom(holder, SPELL_CHAIN_BREAK);
+            }
+        }
+        EndChains();
+    }
+
+    void EndChains()
+    {
+        for (TimeChain const& chain : _chains)
+        {
+            GroundIndicators::EndTether(me, chain.tether);
+            if (Player* holder = ObjectAccessor::GetPlayer(*me, chain.holder))
+            {
+                holder->RemoveAurasDueToSpell(SPELL_TIME_CHAIN);
+                GroundIndicators::ClearCarriedLook(holder, LOOK_MARK_CHAIN);
+            }
+        }
+        _chains.clear();
+        _chainBurned.clear();
     }
 
     // --- Mistakes ----------------------------------------------------------------------------------------------------
@@ -3678,6 +4503,15 @@ private:
         _musicOver = false;
         _ascendFrom = 0;
         _ascendedMusicOver = false;
+        EndChains();
+        _p3From = 0;
+        _p3Timeline.clear();
+        _p3Next = 0;
+        _p3Pool = 0;
+        _p3True = 0;
+        _p3MusicOver = false;
+        _trail.clear();
+        _nextTrailMs = 0;
         _spawned = 0;
         _absorbed = 0;
         _taken = 0;
@@ -3746,6 +4580,18 @@ private:
     uint32 _taken = 0;
     std::map<std::string, uint32> _deaths;
     std::set<ObjectGuid> _fallen;
+    // Phase 3
+    uint32 _p3From = 0;                 // when its music started (Elapsed): P3Ms from then
+    std::vector<P3Step> _p3Timeline;
+    size_t _p3Next = 0;
+    uint32 _p3Pool = 0;                 // his phase 3 health (the whole bar)
+    uint32 _p3True = 0;
+    bool _p3MusicOver = false;
+    std::map<ObjectGuid, std::deque<std::pair<uint32, Position>>> _trail;  // phase 2: where everyone has been
+    uint32 _nextTrailMs = 0;
+    std::vector<TimeChain> _chains;
+    uint32 _chainShare = 1;             // the chains a tank may hold
+    std::map<ObjectGuid, uint32> _chainBurned;  // standing on a chain: not burnt again before then
 };
 
 // --- Commands ---------------------------------------------------------------------------------------------------------
