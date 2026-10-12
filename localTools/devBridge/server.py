@@ -266,6 +266,70 @@ def screenshot(hide_ui: bool = False, width: int = 1280) -> Image:
     return Image(data=out.getvalue(), format='jpeg')
 
 
+def client_window():
+    """The client's window: its handle and its drawing area on the desktop (left, top, right, bottom)"""
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    found = []
+    pid = bridge.process.pid if bridge.process else None
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def visit(hwnd, _):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == pid and user32.IsWindowVisible(hwnd):
+            found.append(hwnd)
+        return True
+
+    user32.EnumWindows(visit, 0)
+    if not found:
+        raise RuntimeError('no client window')
+    hwnd = found[0]
+    rect = wintypes.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    corner = wintypes.POINT(0, 0)
+    user32.ClientToScreen(hwnd, ctypes.byref(corner))
+    return hwnd, (corner.x, corner.y, corner.x + rect.right, corner.y + rect.bottom)
+
+
+@server.tool()
+def screenshot_burst(times: list[float], command: str = '', hide_ui: bool = True, width: int = 960) -> list[Image]:
+    """Frames grabbed from the client's window on the desktop at given moments (for what lasts a fraction of a second:
+    a missile, a burst; ~30 ms a frame, where the game's own screenshots take far longer): `command` (a chat line, a
+    '.command') is sent first, then a frame `times[i]` seconds after it. The window is brought to the front for it.
+    At most 16."""
+    import ctypes
+    from PIL import ImageGrab
+    times = sorted(times)[:16]
+    hwnd, box = client_window()
+    ctypes.windll.user32.SetForegroundWindow(hwnd)
+    if hide_ui:
+        bridge.lua('UIParent:Hide()')
+    time.sleep(0.3)
+    if command:
+        escaped = command.replace('\\', '\\\\').replace('"', '\\"')
+        bridge.lua(f'SendChatMessage("{escaped}", "WHISPER", nil, UnitName("player"))')
+    start = time.time()
+    frames = []
+    for at in times:
+        delay = start + at - time.time()
+        if delay > 0:
+            time.sleep(delay)
+        frames.append(ImageGrab.grab(bbox=box, all_screens=True))
+    if hide_ui:
+        bridge.lua('UIParent:Show()')
+    images = []
+    for picture in frames:
+        picture = picture.convert('RGB')
+        if picture.width > width:
+            picture = picture.resize((width, int(picture.height * width / picture.width)))
+        out = io.BytesIO()
+        picture.save(out, format='JPEG', quality=85)
+        images.append(Image(data=out.getvalue(), format='jpeg'))
+    return images
+
+
 @server.tool()
 def camera(preset: str = 'three_quarter', distance: float = 15.0) -> str:
     """Place the camera behind the character: preset 'three_quarter' (looking down at ~45 degrees), 'top' (straight
