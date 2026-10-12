@@ -259,12 +259,15 @@ enum Kits : uint32
     KIT_LIGHTS_JUDGEMENT    = 83903,    // a ring of golden sparks bursting (the Vindicaar's Light's Judgement)
     KIT_HOLY_IMPACT         = 83906,    // a column of light and its ground flash (Dragonflight)
     KIT_HOLY_BLAST          = 83911,    // a wide golden flash (the Lightforged siege weapon's)
-    KIT_SPEAR_IN_HAND       = 83920,    // Odyn's spear of light in his right hand (Lances de lumière)
+    KIT_SPEAR_IN_HAND       = 83920,    // Odyn's spear of light in his right hand (unused: it read as a ball of light)
     SHAPED_HOLY_CONE_90     = 83950,    // a quarter of the arena, 17 yd
     SHAPED_HOLY_RING_7_17   = 83951,    // Rage contenue's outside
     SHAPED_HOLY_LINE_10X2   = 83952,    // a lance's tile: 10 yd along, 2.5 across
 };
-constexpr uint32 ImpactMs = 4000;           // an impact's stalker lasts this long (its effect plays out)
+constexpr uint32 ImpactMs = 4000;
+// His spear: Odyn's Stormforged Spear (retail, localTools/retailImport display 70117: lightning scrolling along it),
+// carried by item 18881 - in his hands while he throws spears of light (La Litanie, Lances de lumière)
+constexpr uint32 ITEM_STORMFORGED_SPEAR = 18881;           // an impact's stalker lasts this long (its effect plays out)
 // How far each burst reaches from its middle at scale 1 (yards, seen in the FX lab): sized from it to its circle
 constexpr float BlastReach = 3.0f;
 constexpr float JudgementReach = 3.5f;
@@ -1662,9 +1665,8 @@ private:
         // Channelling, a spear of light in his hand while the grid shows; he throws it to the sky a beat before it lands
         // (a column of light rising from him), takes another for the shifted grid, and throws that one too
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
-        for (uint32 beat = start; beat + 1 < first + LanceShiftBeats; beat += 2)
-            if (beat + 1 != first)
-                AtBeat(Grid, beat, [this]() { me->SendPlaySpellVisual(KIT_SPEAR_IN_HAND); });
+        HoldSpear(true);
+        AtBeat(Grid, first + LanceShiftBeats, [this]() { HoldSpear(false); });
         AtBeat(Grid, first - 1, [this]() { ThrowSpear(false); });
         AtBeat(Grid, first + LanceShiftBeats - 1, [this]() { ThrowSpear(true); });
         AtBeat(Grid, first, [this]() { EndCastBar(); });
@@ -1688,6 +1690,12 @@ private:
         }
         Wave(start, first, [this, turn](uint32 ms) { return Grille(turn, LanceSpacing / 2.0f, ms); }, RuleLances);
         Wave(first, first + LanceShiftBeats, [this, turn](uint32 ms) { return Grille(turn, 0.0f, ms); }, RuleLances);
+    }
+
+    // His spear in his hands (or not): Odyn's Stormforged Spear, crackling with lightning
+    void HoldSpear(bool held)
+    {
+        me->SetVirtualItem(0, held ? ITEM_STORMFORGED_SPEAR : 0);
     }
 
     void ThrowSpear(bool last)
@@ -1731,6 +1739,7 @@ private:
     {
         CastBar(CAST_LITANY);
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
+        HoldSpear(true);
         Sound("Valerian.LitanyStart", Middle());
         // The numerals dealt at random, I to as many as there are players (eight at most)
         std::vector<Player*> players = ArenaPlayers();
@@ -1780,7 +1789,6 @@ private:
                 group.push_back(throwIndex);
             AtBeat(Grid, strikes - LitanyWarnBeats, [this, verses, group, strikes]()
             {
-                me->SendPlaySpellVisual(KIT_SPEAR_IN_HAND);
                 Sound("Valerian.VerseTell", Middle());
                 std::vector<std::pair<uint32, GroundIndicators::Area>> lines;
                 for (uint32 verse : group)
@@ -1794,6 +1802,7 @@ private:
         {
             EndCastBar();
             Pose(0);
+            HoldSpear(false);
         });
         AtBeat(Grid, lastStrike + 1, [this]()
         {
@@ -1823,7 +1832,6 @@ private:
             Impact(Look::Shaped, line);
         }
         SoundNearest("Valerian.VerseStrike", spots);
-        SoundNearest("Valerian.VerseBell", spots);
         if (_phase == Phase::Rehearsal || _litanyProfaned)
             return;
         Player* profaner = nullptr;
@@ -2241,6 +2249,7 @@ private:
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->SetStandState(UNIT_STAND_STATE_STAND);
         me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+        HoldSpear(false);
         me->SetCanFly(false);
         me->SetDisableGravity(false);
         me->SetObjectScale(BaseScale);

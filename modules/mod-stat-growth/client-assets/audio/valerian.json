@@ -9,7 +9,9 @@
     "played at random. Levelled as the ear hears them (K-weighted, their loudest 0.4 s), then by what the user heard in",
     "the fight: the impacts 6 dB over the chains' first level, the warnings 3, the chain's sweep (five in a row) 6 under it. Past -4 dBFS (the limiter would only squash it) the rest is the sound's volume.",
     "Raised again after a pull (2026-10-12): the impacts 3 dB, the lances' thunder 6 dB, phase 2's music 5 dB.",
-    "Valerian.FirstBlow: his first blow as a god (phase 2's hit), Akarat's echo's air-slam explosion, picked by the user."
+    "Valerian.FirstBlow: his first blow as a god (phase 2's hit), Akarat's echo's air-slam explosion, picked by the user.",
+    "La Litanie's (picked 2026-10-12): its start (Inarius's ping), each spear raised (Inarius's throw), the litany complete (the Paladin's Holy Light), the profanation (Akarat's final possession).",
+    "Valerian.VerseStrike: each spear on its verse, the Cataclysm's lightning bolt (picked 2026-10-12)."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -276,6 +278,65 @@
       "minDistance": 60,
       "maxDistance": 140,
       "volume": 2.5,
+      "loudnessWindowMs": 400,
+      "loudness": -4
+    },
+    "Valerian.LitanyStart": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Ping_Cast_3p_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Ping_Cast_3p_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.6,
+      "loudnessWindowMs": 400,
+      "loudness": -4
+    },
+    "Valerian.VerseTell": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Throw_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Inarius_Spear_Throw_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.4,
+      "loudnessWindowMs": 400,
+      "loudness": -4
+    },
+    "Valerian.LitanyEnd": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_HolyLight_Variant_Explo_1P_MediaShared_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_SKIL_Paladin_HolyLight_Variant_Explo_1P_MediaShared_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 2.3,
+      "loudnessWindowMs": 400,
+      "loudness": -4
+    },
+    "Valerian.Profanation": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_MON_Akarat_Skill_Possess_Final_Impact_2D_Media_take1.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 2.5,
+      "loudnessWindowMs": 400,
+      "loudness": -4
+    },
+    "Valerian.VerseStrike": {
+      "kind": "spell",
+      "files": [
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_QUE_OBJ_Druid_Cataclysm_Lightning_Bolt_Impact_2ch_Media_take1.wav",
+        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Play_QUE_OBJ_Druid_Cataclysm_Lightning_Bolt_Impact_2ch_Media_take2.wav"
+      ],
+      "minDistance": 60,
+      "maxDistance": 140,
+      "volume": 1.8,
       "loudnessWindowMs": 400,
       "loudness": -4
     }

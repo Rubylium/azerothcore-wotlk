@@ -7,8 +7,8 @@
 -- and already in the client's Item.dbc with no template on the server before these;
 -- localTools/patchSinisterStrike.ps1 gives those Item.dbc rows the class, slot and display
 -- written here.
-DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835, 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996);
-DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835, 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996);
+DELETE FROM `item_template_locale` WHERE `ID` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835, 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996, 18881, 18882);
+DELETE FROM `item_template` WHERE `entry` IN (19313, 19314, 16144, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1162, 905, 906, 907, 908, 909, 1163, 4853, 7248, 16102, 16103, 16105, 16106, 16107, 16108, 16109, 16116, 16117, 16118, 16119, 16120, 16121, 16122, 16123, 16124, 16125, 16126, 16127, 16129, 16131, 16132, 16134, 16135, 16136, 16137, 16138, 16139, 16140, 16141, 16142, 16143, 16145, 16146, 16147, 16148, 16149, 16150, 16151, 16152, 16153, 16154, 16155, 16156, 16157, 16158, 16159, 16160, 16161, 16162, 16163, 16164, 16165, 16172, 16173, 16174, 16175, 16176, 16177, 16178, 16179, 16180, 16181, 16182, 16183, 16184, 16185, 16186, 16187, 16188, 16211, 16212, 16213, 17824, 17825, 17826, 17831, 17832, 17833, 17834, 17835, 5551, 5552, 5553, 5554, 5555, 5556, 5557, 5558, 5560, 5561, 4899, 4900, 4912, 4956, 4985, 4996, 18881, 18882);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_retail_item`;
 CREATE TEMPORARY TABLE `tmp_retail_item` LIKE `item_template`;
@@ -2236,6 +2236,44 @@ UPDATE `tmp_retail_item` SET
 INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
 DELETE FROM `tmp_retail_item`;
 
+-- Stormforged Spear: stats of item 50603, display 70117
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50603;
+UPDATE `tmp_retail_item` SET
+    `entry` = 18881,
+    `name` = 'Stormforged Spear',
+    `class` = 2,
+    `subclass` = 6,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70117,
+    `InventoryType` = 17,
+    `sheath` = 1,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
+-- Spear of Light: stats of item 50603, display 70118
+INSERT INTO `tmp_retail_item` SELECT * FROM `item_template` WHERE `entry` = 50603;
+UPDATE `tmp_retail_item` SET
+    `entry` = 18882,
+    `name` = 'Spear of Light',
+    `class` = 2,
+    `subclass` = 6,
+    `SoundOverrideSubclass` = -1,
+    `Material` = 1,
+    `displayid` = 70118,
+    `InventoryType` = 17,
+    `sheath` = 1,
+    `description` = '',
+    `itemset` = 0,
+    `Flags` = `Flags` | 0x10,
+    `VerifiedBuild` = NULL;
+INSERT INTO `item_template` SELECT * FROM `tmp_retail_item`;
+DELETE FROM `tmp_retail_item`;
+
 DROP TEMPORARY TABLE `tmp_retail_item`;
 
 INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `VerifiedBuild`) VALUES
@@ -2355,4 +2393,6 @@ INSERT INTO `item_template_locale` (`ID`, `locale`, `Name`, `Description`, `Veri
 (4912, 'frFR', 'Arbalète du mirador', '', NULL),
 (4956, 'frFR', 'Baguette du regard du geôlier', '', NULL),
 (4985, 'frFR', 'Rempart de la Geôle', '', NULL),
-(4996, 'frFR', 'Code pénal de la Geôle', '', NULL);
+(4996, 'frFR', 'Code pénal de la Geôle', '', NULL),
+(18881, 'frFR', 'Lance forgée par la tempête', '', NULL),
+(18882, 'frFR', 'Lance de lumière', '', NULL);

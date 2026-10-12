@@ -4704,6 +4704,86 @@
         "backport": "C:\\backport\\vorhan",
         "display": 726401
       }
+    },
+    {
+      "id": 70117,
+      "cloneOf": 64390,
+      "modelName": [
+        "polearm_2h_odynspear_d_01.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "polearm_2h_odynspear_lightning",
+        ""
+      ],
+      "icon": "inv_polearm_2h_odynspear_d_01",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Stormforged Spear (Odyn\u0027s spear, lightning)",
+      "retail": {
+        "display": 710635,
+        "models": [
+          "1508057 item/objectcomponents/weapon/polearm_2h_odynspear_d_01.m2"
+        ],
+        "textures": [
+          "1508061 item/objectcomponents/weapon/polearm_2h_odynspear_lightning.blp"
+        ],
+        "icon": "1508064 interface/icons/inv_polearm_2h_odynspear_d_01.blp"
+      }
+    },
+    {
+      "id": 70118,
+      "cloneOf": 64390,
+      "modelName": [
+        "polearm_2h_odynspear_d_02.mdx",
+        ""
+      ],
+      "modelTexture": [
+        "polearm_2h_odynspear_holy",
+        ""
+      ],
+      "icon": "inv_polearm_2h_odynspear_d_02",
+      "bodyTextures": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "geosets": [
+        0,
+        0,
+        0
+      ],
+      "helmetVis": null,
+      "note": "Spear of Light (Odyn\u0027s spear, holy)",
+      "retail": {
+        "display": 710636,
+        "models": [
+          "1508063 item/objectcomponents/weapon/polearm_2h_odynspear_d_02.m2"
+        ],
+        "textures": [
+          "1508109 item/objectcomponents/weapon/polearm_2h_odynspear_holy.blp"
+        ],
+        "icon": "1508065 interface/icons/inv_polearm_2h_odynspear_d_02.blp"
+      }
     }
   ],
   "items": [
@@ -5759,6 +5839,24 @@
       "display": 70116,
       "inventoryType": 23,
       "sheath": 0
+    },
+    {
+      "entry": 18881,
+      "class": 2,
+      "subclass": 6,
+      "material": 1,
+      "display": 70117,
+      "inventoryType": 17,
+      "sheath": 1
+    },
+    {
+      "entry": 18882,
+      "class": 2,
+      "subclass": 6,
+      "material": 1,
+      "display": 70118,
+      "inventoryType": 17,
+      "sheath": 1
     }
   ]
 }

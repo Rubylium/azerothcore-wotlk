@@ -185,7 +185,13 @@
     { "id": 70115, "retailDisplay": 727119, "slot": "weapon", "clone": 65029, "backport": "C:\\backport\\vorhan",
       "note": "Bulwark of Noble Resolve (the Voidspire), green: Bulwark of the Gaol" },
     { "id": 70116, "retailDisplay": 726401, "slot": "weapon", "clone": 64441, "backport": "C:\\backport\\vorhan",
-      "note": "Grimoire of the Eternal Light (the Voidspire), green: The Gaol's Penal Code" }
+      "note": "Grimoire of the Eternal Light (the Voidspire), green: The Gaol's Penal Code" },
+    // Valérian's spear (mod-stat-growth ZealotBoss.cpp): Odyn's, in his hand while he throws his spears of light (La
+    // Litanie, Lances de lumière). Its lightning and glow are scrolling textures on the model: they survive.
+    { "id": 70117, "retailDisplay": 710635, "slot": "weapon", "clone": 64390,
+      "note": "Stormforged Spear (Odyn's spear, lightning)" },
+    { "id": 70118, "retailDisplay": 710636, "slot": "weapon", "clone": 64390,
+      "note": "Spear of Light (Odyn's spear, holy)" }
   ],
 
   // Test items: entries below 65536 that the client's Item.dbc already has and the world database has no
@@ -547,6 +553,13 @@
       "description": "", "descriptionFr": "" },
     { "entry": 4996, "display": 70116, "class": 4, "subclass": 0, "material": 3, "inventoryType": 23, "sheath": 0,
       "statsFrom": 50635, "name": "The Gaol's Penal Code", "nameFr": "Code pénal de la Geôle",
+      "description": "", "descriptionFr": "" },
+    // Valérian's spears, carried by him only (his virtual item)
+    { "entry": 18881, "display": 70117, "class": 2, "subclass": 6, "material": 1, "inventoryType": 17, "sheath": 1,
+      "statsFrom": 50603, "name": "Stormforged Spear", "nameFr": "Lance forgée par la tempête",
+      "description": "", "descriptionFr": "" },
+    { "entry": 18882, "display": 70118, "class": 2, "subclass": 6, "material": 1, "inventoryType": 17, "sheath": 1,
+      "statsFrom": 50603, "name": "Spear of Light", "nameFr": "Lance de lumière",
       "description": "", "descriptionFr": "" }
   ]
 }
