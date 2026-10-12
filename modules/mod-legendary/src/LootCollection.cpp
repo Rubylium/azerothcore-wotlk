@@ -87,9 +87,10 @@ struct Source
     uint32 boss;        // its creature entry (0: Mythic+, its dungeons)
 };
 constexpr uint8 SourceMythic = 5;
-constexpr std::array<Source, 5> Sources = { {
+constexpr std::array<Source, 6> Sources = { {
     { 1, Legendary::WardenVorhanGate },
     { 2, Legendary::EscapeHunterGate },
+    { 6, Legendary::GaolThirdGate },    // Valérian (its id the next free: the others' are kept by the client's choice)
     { 3, 930100 },      // the Hollow Voice
     { 4, 930000 },      // L'Infini
     { SourceMythic, 0 },
@@ -132,7 +133,7 @@ uint8 SourceOfRow(uint32 row)
                 return source.id;
         return 0;
     }
-    // A gate of the Gaol whose boss the collection lists (the third's share waits for its boss: none until then)
+    // A gate of the Gaol (its three bosses each a source)
     if (uint32 const gate = Legendary::GateOfRow(row))
     {
         for (Source const& source : Sources)
@@ -152,6 +153,16 @@ uint8 SourceOfRow(uint32 row)
     return 0;
 }
 
+// A gate's own trinkets (RaidTrinkets), if it has any
+std::optional<RaidTrinkets::Raid> RaidOfGate(uint32 gate)
+{
+    if (gate == Legendary::WardenVorhanGate)
+        return RaidTrinkets::Raid::WardenVorhan;
+    if (gate == Legendary::EscapeHunterGate)
+        return RaidTrinkets::Raid::EscapeHunter;
+    return std::nullopt;
+}
+
 Kind KindOf(uint32 row)
 {
     ItemTemplate const* item = sObjectMgr->GetItemTemplate(row);
@@ -169,12 +180,15 @@ Kind KindOf(uint32 row)
 std::vector<Piece> PiecesOf(Player* player, Source const& source, std::set<uint32> const& collected)
 {
     std::vector<uint32> rows;
-    if (source.boss == Legendary::WardenVorhanGate || source.boss == Legendary::EscapeHunterGate)
+    if (source.boss == Legendary::WardenVorhanGate || source.boss == Legendary::EscapeHunterGate ||
+        source.boss == Legendary::GaolThirdGate)
     {
         rows = Legendary::GateRows(player, source.boss);
-        std::vector<uint32> const trinkets = RaidTrinkets::Suited(player, source.boss == Legendary::WardenVorhanGate ?
-            RaidTrinkets::Raid::WardenVorhan : RaidTrinkets::Raid::EscapeHunter);
-        rows.insert(rows.end(), trinkets.begin(), trinkets.end());
+        if (std::optional<RaidTrinkets::Raid> const raid = RaidOfGate(source.boss))
+        {
+            std::vector<uint32> const trinkets = RaidTrinkets::Suited(player, *raid);
+            rows.insert(rows.end(), trinkets.begin(), trinkets.end());
+        }
     }
     else if (source.id == 3)
         rows = RaidTrinkets::Suited(player, RaidTrinkets::Raid::HollowVoice);

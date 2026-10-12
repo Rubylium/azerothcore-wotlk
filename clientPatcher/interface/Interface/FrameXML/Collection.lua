@@ -62,6 +62,7 @@ local SCENES = {
     [2] = { art = "ChallengeForge" },
     [3] = { art = "ChallengeVoice" },
     [4] = { art = "ChallengeGod" },
+    [6] = { art = "ChallengeValerian" },
 }
 local FIGURE_BOTTOM = 0.6367        -- the figure fills the top of its texture (ChallengeBoard.lua *_FIGURE_BOTTOM)
 local FIGURE_SHOWN = 0.4            -- the share of it shown: head and shoulders
