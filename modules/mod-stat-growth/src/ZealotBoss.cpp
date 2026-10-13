@@ -382,6 +382,7 @@ constexpr uint32 SablierFreezeMs = 1000;
 // fill in): its seal over their head and its beam to them until it fires - the cone follows them, they place it.
 // The nearest (farthest) only if they die. Nobody marked for two volleys at once.
 constexpr uint32 SablierMarkLeadMs = 2000;
+constexpr uint32 SablierFastMarkLeadMs = 3000;  // the fast versions' (3 s between volleys: a marked bot was late)
 constexpr float SablierWaitAt = 2.5f;       // a marked bot waits this far from him while the volley before is out
 constexpr float SablierSealHeight = 2.4f;   // the seal's middle over the floor (shapes.json VL_SablierSeal*)
 constexpr float SablierTargetPct = 40.0f;
@@ -4159,7 +4160,8 @@ private:
         {
             Volley const volley = volleys[index];
             uint32 const tellAt = volley.strikesMs - tellMs;
-            uint32 const markAt = tellAt > SablierMarkLeadMs ? tellAt - SablierMarkLeadMs : 0;
+            uint32 const lead = version >= 2 ? SablierFastMarkLeadMs : SablierMarkLeadMs;
+            uint32 const markAt = tellAt > lead ? tellAt - lead : 0;
             uint32 const previousStrikes = index > 0 ? volleys[index - 1].strikesMs : 0;
             bool const waits = previousStrikes > markAt;
             auto marks = std::make_shared<std::vector<ObjectGuid>>();
