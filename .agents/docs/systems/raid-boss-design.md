@@ -70,6 +70,11 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
     a small picture over a big one (a numeral on its part, a pool of light on a veil) is hidden whenever its carrier
     lies farther than the big one's (past the boss). Paint the detail into the big picture
     (`valerianArt.py` `with_numeral`), or cut a hole in it the small one shows through (the Éclipse's veil).
+  - **A 3D model standing on one must be solid to stay in front of it**: a see-through curtain is sorted with the
+    painting by their carriers' distance, so where they share a carrier spot (lines from the boss over a sigil under
+    him) it flickers under the painting from half the angles. A curtain with `blend` "key" is alpha-tested and writes
+    depth: nothing painted after it covers it (Valérian's tendril walls over Lumière totale). A sunk carrier does not
+    work (the projection is cast from the carrier: nothing painted).
   - **It mirrors them**: a picture whose handedness matters (a numeral, a clock) is mirrored when built
     (`mirrored_painting`, `with_numeral`); a symmetric one needs nothing.
   - **A decal (`ShowDecal`, kind `image`) lies a quarter turn from its carrier's facing**: the picture's +x along
