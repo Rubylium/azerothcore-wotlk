@@ -64,12 +64,14 @@ Defi::Sizing const AscendedSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (265.0f 
     1.095f / 1.18f };
 LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
 // (Measured on the first real kill, 2026-10-12: two players with their legendaries and bots took phase 2's health at
-// 0.26% of the bar a second at 1.8125 - dead by 3:49. At 3.75 that pace leaves him 20% of the bar at Lumière totale)
-LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 3.75f);
-// Phase 3 (Le Refus): hittable from its drop (5.25 s on its music) to its earliest death (3:19.25), as phase 2's pace
+// 0.26% of the bar a second at 1.8125 - dead by 3:49; 3.75 made it the wall. Phase 3 came, the wall moved there: the
+// user and bots, 2026-10-13, took 0.076% of the bar a second at 3.75 - at 1.2 that dies by 4:05, held to 4:25)
+LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 1.2f);
+// Phase 3 (Le Refus): hittable from its drop (5.25 s on its music) to its earliest death (3:19.25), as phase 2's pace.
+// The wall: at 2.9 the kill's group (above) leaves him 20% at Lumière totale; the user and bots alone, half
 Defi::Sizing const RewoundSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (199.25f - 5.25f) * OnHimShare,
     1.095f / 1.18f };
-LiveTuning::Knob const RewoundHealthScale("valerian.rewound_health_scale", 3.75f);
+LiveTuning::Knob const RewoundHealthScale("valerian.rewound_health_scale", 2.9f);
 // One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
 // (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
 // to nothing. What a group deals in each phase is its sizing's, as before.
@@ -3340,21 +3342,34 @@ private:
         }
         DrawWedges(offset, turns, total);
         After(ChoirFirstCastMs, [this, cast]() { CastBar(cast); });
-        // The bots: each to a wedge of its colour (wedge k: light if k even)
+        // The bots: each to the nearest wedge of its colour (wedge k: light if k even)
         // within: where in its wedge (0 its start, 1 its end, counterclockwise): before a turn by the edge it turns
         // towards, after it just past the new wedge's edge they come from - a short step (a long arc was late)
+        // (Handed out in turn first: a bell's swap changed how many bots carried each colour, every bot after the
+        // swapped one got another wedge - some across the arena - and one was late for the singing: a real wipe)
         auto place = [this, seals, step](float wedgesAt, float within, uint32 ms)
         {
-            uint32 nextOf[2] = { 0, 1 };
+            Position const middle = Middle();
             for (Player* player : SortedBots())
             {
                 auto const found = seals->find(player->GetGUID());
                 if (found == seals->end())
                     continue;
-                uint32 const wedge = nextOf[found->second] % 8;
-                nextOf[found->second] += 2;
-                GroundIndicators::SetUnitSpot(me, player, P2At(wedgesAt + (float(wedge) + within) * step, ChoirRing),
-                    1.0f, ms);
+                float const at = middle.GetAbsoluteAngle(player);
+                float best = 0.0f;
+                float bestOff = 10.0f;
+                for (uint32 wedge = found->second; wedge < 8; wedge += 2)
+                {
+                    float const spot = wedgesAt + (float(wedge) + within) * step;
+                    float off = Position::NormalizeOrientation(spot - at);
+                    off = std::min(off, 2.0f * float(M_PI) - off);
+                    if (off < bestOff)
+                    {
+                        bestOff = off;
+                        best = spot;
+                    }
+                }
+                GroundIndicators::SetUnitSpot(me, player, P2At(best, ChoirRing), 1.0f, ms);
             }
         };
         for (uint32 verse = 0; verse < count; ++verse)
