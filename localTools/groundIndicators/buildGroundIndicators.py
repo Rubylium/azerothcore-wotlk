@@ -677,6 +677,9 @@ def animate(data, shape):
         return False
     sequence_count, _ = array(data, 0x1C)
     loops = []
+    # A negative spin turns the other way (Le Refus' clock hands: backwards)
+    way = -1.0 if spin < 0 else 1.0
+    spin = abs(spin)
     if spin:
         loops.append(int(spin))
     if pulse:
@@ -687,7 +690,7 @@ def animate(data, shape):
         transform = append_block(data, bytes(60))
         steps = 8
         turn = [int(spin * k / steps) for k in range(steps + 1)]
-        quaternions = [(0.0, 0.0, math.sin(math.pi * k / steps), math.cos(math.pi * k / steps))
+        quaternions = [(0.0, 0.0, way * math.sin(math.pi * k / steps), math.cos(math.pi * k / steps))
                        for k in range(steps + 1)]
         write_global_track(data, transform + 20, 0, sequence_count, turn, quaternions, '<4f')
         struct.pack_into('<hh', data, transform, 0, -1)

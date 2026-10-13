@@ -424,10 +424,12 @@ enum Looks : uint32
     LOOK_MARK_VERSE_FIRST       = 98622,    // La Litanie's numerals I-VIII over the heads (+ the verse's index)
     LOOK_LITANY_SIGIL           = 98630,    // its clock under him: I at its top, then clockwise
     LOOK_LITANY_SIGIL_GLOW      = 98631,
-    // Phase 3's (stand-ins drawn or cut from phase 2's fills until its paintings: gaol-third.ASSETS-p3.md; 98632 up,
-    // their fading twins 60 on)
-    LOOK_HOURGLASS_GOLD         = 98632,    // Les Sabliers: an hourglass on the wall (it fires at the nearest)
-    LOOK_HOURGLASS_VIOLET       = 98633,    // ... (at the farthest)
+    // Phase 3's (the brief: gaol-third.ASSETS-p3.md; 98632 up, their fading twins 60 on)
+    // Les Sabliers drawn as Le Chœur's seals standing at the wall (painted hourglasses did not match phase 2):
+    LOOK_SABLIER_LIGHT          = 98632,    // the sun seal: it fires at the nearest
+    LOOK_SABLIER_SHADOW         = 98633,    // the crescent seal: at the farthest
+    LOOK_SABLIER_SWAP_LS        = 98646,    // ... burning into the other as it fires (the seals' flipbook, SealSwapMs)
+    LOOK_SABLIER_SWAP_SL        = 98647,
     LOOK_SABLIER_GOLD           = 98634,    // ... a gold one's cone
     LOOK_SABLIER_GOLD_GLOW      = 98635,
     LOOK_SABLIER_VIOLET         = 98636,    // ... a violet one's
@@ -440,6 +442,11 @@ enum Looks : uint32
     LOOK_DIVINE_RING_40         = 98643,
     LOOK_DIVINE_GLOW_RING_40    = 98644,
     LOOK_MARK_CHAIN             = 98645,    // over a chained player's head
+    LOOK_VISION_GLOW_CIRCLE     = 98648,    // the visions' glow
+    LOOK_VISION_GLOW_RING_40    = 98649,
+    LOOK_VISION_GLOW_HALF       = 98650,
+    LOOK_REFUS_SIGIL            = 98651,    // Le Refus: a clock under him
+    LOOK_REFUS_HANDS            = 98652,    // ... its hands, spun backwards
     // Phase 2's (the brief: gaol-third.ASSETS-p2.md; 98800 up, the Faucheur's ranks below)
     LOOK_DIVINE_CONE_45         = 98800,    // Ascension's burning slices
     LOOK_DIVINE_GLOW_45         = 98801,
@@ -3807,6 +3814,7 @@ private:
         uint32 strikesMs;
         uint32 parity;
         bool farthest;
+        float side = 1.0f;      // the side of its hourglass its baiters stand (the bots: SablierBait)
     };
 
     enum class Vision : uint8
@@ -3885,12 +3893,9 @@ private:
         EndMusic();
         Sound("Valerian.Rewind", Middle());
         CastBar(CAST_REFUS);
-        // A clock under him while time stands still and runs back (La Litanie's until its own painting:
-        // gaol-third.ASSETS-p3.md sigil_refus)
-        GroundIndicators::ShowDecal(me, Middle(), LitanySigilFacing, LitanySigilRadius, RefusMusicMs,
-            LOOK_LITANY_SIGIL);
-        GroundIndicators::ShowDecal(me, Middle(), LitanySigilFacing, LitanySigilRadius, RefusMusicMs,
-            LOOK_LITANY_SIGIL_GLOW);
+        // A clock under him while time stands still and runs back, its hands spun backwards
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, SigilRadius, RefusMusicMs, LOOK_REFUS_SIGIL);
+        GroundIndicators::ShowDecal(me, Middle(), 0.0f, SigilRadius, RefusMusicMs, LOOK_REFUS_HANDS);
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         LOG_INFO(_logName, "Valerian refuses instance={} at={:.1f}s health={}", me->GetInstanceId(),
                  Elapsed() / 1000.0f, _p3Pool);
@@ -4035,8 +4040,43 @@ private:
     {
         CastBar(CAST_SABLIERS);
         float const base = frand(0.0f, 2.0f * float(M_PI));
-        std::vector<Volley> const volleys = SablierVolleys(version);
+        std::vector<Volley> volleys = SablierVolleys(version);
         uint32 const tellMs = version >= 2 ? 3000 : 4000;
+        // The bots' side of each hourglass, volley by volley: the shortest walk for the set that baits it (it baited
+        // two volleys before), clear of the volley before when it can be (they set off as it shows, not as it fires)
+        for (uint32 index = 1; index < volleys.size(); ++index)
+        {
+            float best = 1.0f;
+            float bestCost = 0.0f;
+            for (float side : { 1.0f, -1.0f })
+            {
+                volleys[index].side = side;
+                float cost = 0.0f;
+                for (float angle : VolleyAngles(base, volleys[index]))
+                {
+                    Position const bait = SablierBait(angle, volleys[index]);
+                    if (index >= 2)
+                    {
+                        float nearest = 100.0f;
+                        for (float before : VolleyAngles(base, volleys[index - 2]))
+                        {
+                            Position const was = SablierBait(before, volleys[index - 2]);
+                            nearest = std::min(nearest, bait.GetExactDist2d(&was));
+                        }
+                        cost += nearest;
+                    }
+                    for (float before : VolleyAngles(base, volleys[index - 1]))
+                        if (PredictedSablier(before, volleys[index - 1]).Contains(bait, 2.0f))
+                            cost += 30.0f;
+                }
+                if (side > 0.0f || cost < bestCost)
+                {
+                    best = side;
+                    bestCost = cost;
+                }
+            }
+            volleys[index].side = best;
+        }
         // Each hourglass in the colour of its next volley: it flips as it fires
         for (uint32 index = 0; index < Hourglasses; ++index)
         {
@@ -4046,10 +4086,27 @@ private:
             {
                 if (volley.parity != index % 2)
                     continue;
-                uint32 const look = volley.farthest ? LOOK_HOURGLASS_VIOLET : LOOK_HOURGLASS_GOLD;
-                uint32 const lasts = volley.strikesMs - from;
-                After(from, [this, at, look, lasts]() { GroundIndicators::ShowBillboard(me, at, look, lasts, nullptr); });
+                // Its seal until it fires; then, if it fires again, burning into the other
+                uint32 const seal = volley.farthest ? LOOK_SABLIER_SHADOW : LOOK_SABLIER_LIGHT;
+                if (volley.strikesMs > from)
+                    After(from, [this, at, seal, lasts = volley.strikesMs - from]()
+                    {
+                        GroundIndicators::ShowBillboard(me, at, seal, lasts, nullptr);
+                    });
                 from = volley.strikesMs;
+                bool const again = std::any_of(volleys.begin(), volleys.end(), [&volley, index](Volley const& later)
+                {
+                    return later.parity == index % 2 && later.strikesMs > volley.strikesMs;
+                });
+                if (again)
+                {
+                    uint32 const swap = volley.farthest ? LOOK_SABLIER_SWAP_SL : LOOK_SABLIER_SWAP_LS;
+                    After(from, [this, at, swap]()
+                    {
+                        GroundIndicators::ShowBillboard(me, at, swap, SealSwapMs, nullptr);
+                    });
+                    from += SealSwapMs;
+                }
             }
         }
         // The bots that bait: two sets in turn (never the tanks), each walking to its volley's spots while the other set
@@ -4066,19 +4123,20 @@ private:
             uint32 from = 0;
             if (index > 0)
             {
-                from = volleys[index - 1].strikesMs - tellMs;
+                // As its set's last volley strikes (the second set: from the start, its spots clear of the first's)
+                from = index >= 2 ? volleys[index - 2].strikesMs : 0;
                 for (float angle : VolleyAngles(base, volley))
                     for (float before : VolleyAngles(base, volleys[index - 1]))
                     {
-                        Position const bait = SablierBait(angle, volley.farthest);
-                        if (PredictedSablier(before, volleys[index - 1].farthest).Contains(bait, 2.0f))
+                        Position const bait = SablierBait(angle, volley);
+                        if (PredictedSablier(before, volleys[index - 1]).Contains(bait, 2.0f))
                             from = volleys[index - 1].strikesMs;
                     }
             }
             std::vector<ObjectGuid> const baiters = sets[index % 2];
             After(from, [this, base, volley, baiters, lasts = volley.strikesMs - from + 300]()
             {
-                GuideBaiters(baiters, VolleyAngles(base, volley), volley.farthest, lasts);
+                GuideBaiters(baiters, VolleyAngles(base, volley), volley, lasts);
             });
             // Busy meanwhile: this volley's baiters, and the next one's on their way
             std::set<ObjectGuid> busy(baiters.begin(), baiters.end());
@@ -4103,16 +4161,18 @@ private:
 
     // Where a bot baits an hourglass: close in front of it, a little aside, so that its cone runs along the wall (gold);
     // across the arena, aside again, the three cones a pinwheel round him (violet)
-    Position SablierBait(float angle, bool farthest) const
+    Position SablierBait(float angle, Volley const& volley) const
     {
-        return farthest ? P2At(angle + float(M_PI) + 0.8f, 19.0f) : P2At(angle + 0.35f, 19.0f);
+        return volley.farthest ? P2At(angle + float(M_PI) + 0.8f * volley.side, 19.0f) :
+            P2At(angle + 0.35f * volley.side, 19.0f);
     }
 
     // Its cone if its baiter stands there (a little wider: the bots keep clear of it)
-    GroundIndicators::Area PredictedSablier(float angle, bool farthest) const
+    GroundIndicators::Area PredictedSablier(float angle, Volley const& volley) const
     {
+        bool const farthest = volley.farthest;
         Position const apex = P2At(angle, HourglassAt);
-        Position const bait = SablierBait(angle, farthest);
+        Position const bait = SablierBait(angle, volley);
         GroundIndicators::Area cone = MakeCircle(apex, farthest ? SablierFarLength : SablierNearLength);
         cone.kind = GroundIndicators::Area::Kind::Cone;
         cone.origin.SetOrientation(apex.GetAngle(&bait));
@@ -4120,16 +4180,23 @@ private:
         return cone;
     }
 
-    void GuideBaiters(std::vector<ObjectGuid> const& baiters, std::vector<float> const& angles, bool farthest,
+    void GuideBaiters(std::vector<ObjectGuid> const& baiters, std::vector<float> const& angles, Volley const& volley,
                       uint32 ms)
     {
+        bool const farthest = volley.farthest;
         std::vector<Player*> bots;
         for (ObjectGuid const& guid : baiters)
             if (Player* bot = ObjectAccessor::GetPlayer(*me, guid); bot && bot->IsAlive())
                 bots.push_back(bot);
+        // A set short of a baiter (one died): the tank not holding him baits too - a cone left to whoever stood nearest
+        // fell across the group, and more died
+        if (bots.size() < angles.size())
+            for (Player* bot : SortedBots())
+                if (IsTank(bot) && bot != me->GetVictim() && bots.size() < angles.size())
+                    bots.push_back(bot);
         std::vector<Position> baits;
         for (float angle : angles)
-            baits.push_back(SablierBait(angle, farthest));
+            baits.push_back(SablierBait(angle, volley));
         // Each bait to the nearest bot still free
         Position const middle = Middle();
         for (Position const& bait : baits)
@@ -4193,7 +4260,7 @@ private:
             cones->push_back({ placed, apex });
         }
         Sound("Valerian.ReversCast", Middle());
-        GuideSabliers(angles, farthest, busy, tellMs);
+        GuideSabliers(angles, volley, busy, tellMs);
         // Held a second before it fires: where it points then, and at whom
         auto frozen = std::make_shared<std::vector<std::pair<GroundIndicators::Area, ObjectGuid>>>();
         After(tellMs - SablierFreezeMs, [this, cones, frozen, arc, length, farthest]()
@@ -4256,12 +4323,13 @@ private:
 
     // The bots not baiting (nor walking to bait the next volley): where none of this volley's cones reaches, the tanks
     // with him
-    void GuideSabliers(std::vector<float> const& angles, bool farthest, std::set<ObjectGuid> const& busy,
+    void GuideSabliers(std::vector<float> const& angles, Volley const& volley, std::set<ObjectGuid> const& busy,
                        uint32 tellMs)
     {
+        bool const farthest = volley.farthest;
         Areas predicted;
         for (float angle : angles)
-            predicted.push_back(PredictedSablier(angle, farthest));
+            predicted.push_back(PredictedSablier(angle, volley));
         std::vector<Position> safe;
         for (float radius : { 3.0f, 5.0f, 8.0f, 11.0f })
             for (uint32 step = 0; step < 24; ++step)
@@ -4359,13 +4427,17 @@ private:
         {
             case Vision::In:
                 GroundIndicators::ShowDecal(me, middle, 0.0f, PremonitionInner, ms, LOOK_VISION_CIRCLE);
+                GroundIndicators::ShowDecal(me, middle, 0.0f, PremonitionInner, ms, LOOK_VISION_GLOW_CIRCLE);
                 break;
             case Vision::Out:
                 GroundIndicators::ShowDecal(me, middle, 0.0f, P2Radius + 1.0f, ms, LOOK_VISION_RING_40);
+                GroundIndicators::ShowDecal(me, middle, 0.0f, P2Radius + 1.0f, ms, LOOK_VISION_GLOW_RING_40);
                 break;
             default:
                 GroundIndicators::ShowDecal(me, middle, HalfFacing(vision, facing), P2Radius + 1.0f, ms,
                     LOOK_VISION_HALF);
+                GroundIndicators::ShowDecal(me, middle, HalfFacing(vision, facing), P2Radius + 1.0f, ms,
+                    LOOK_VISION_GLOW_HALF);
                 break;
         }
     }
