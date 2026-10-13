@@ -174,6 +174,17 @@ $spells = @(
        Effects = @(@{ Index = 0; Effect = 6; TargetA = 25; Aura = 4; BasePoints = 0 })
        Fields = @{ 40 = 21; 46 = 13; 28 = 1; 213 = 0 } },
 
+    # Les Sabliers: a seal's link to the player it marked (Blade's Edge's gold beam for a sun; for a crescent the one
+    # stock "Purple Beam" that is violet, 39123 - 28309 and 38632 are teal: a beam the script's stalkers cast)
+    @{ Id = 94698; Clone = 35960; Name = 'Lien du sablier'; FallbackIconSpell = 20271; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Ce sablier tirera sur vous."
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 25; Aura = 4; BasePoints = 0 })
+       Fields = @{ 40 = 21; 46 = 13; 28 = 1; 213 = 0 } },
+    @{ Id = 94699; Clone = 39123; Name = 'Lien du sablier'; FallbackIconSpell = 20271; Cost = 0; Cooldown = 0; Level = 0; Spellbook = $false
+       Description = "Ce sablier tirera sur vous."
+       Effects = @(@{ Index = 0; Effect = 6; TargetA = 25; Aura = 4; BasePoints = 0 })
+       Fields = @{ 40 = 21; 46 = 13; 28 = 1; 213 = 0 } },
+
     # --- His cast bars ---
     (New-Cast 94660 'Revers sacré' 53595 16 "Le Zélote arme son revers."),
     (New-Cast 94661 'Colère du juste' 48806 16 "Le Zélote lève le poing."),

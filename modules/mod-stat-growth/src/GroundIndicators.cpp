@@ -424,8 +424,9 @@ private:
 // whenever that changes, until followMs, then holds
 struct SeekingConeAI : public NullCreatureAI
 {
-    SeekingConeAI(Creature* creature, Unit* owner, bool farthest, float reach, uint32 followMs)
-        : NullCreatureAI(creature), _owner(owner->GetGUID()), _farthest(farthest), _reach(reach), _followMs(followMs)
+    SeekingConeAI(Creature* creature, Unit* owner, bool farthest, float reach, uint32 followMs, ObjectGuid marked)
+        : NullCreatureAI(creature), _owner(owner->GetGUID()), _marked(marked), _farthest(farthest), _reach(reach),
+          _followMs(followMs)
     {
         Seek();
     }
@@ -455,7 +456,9 @@ private:
     void Seek()
     {
         Unit* owner = ObjectAccessor::GetUnit(*me, _owner);
-        Player* target = owner ? GroundIndicators::SeekTarget(owner, me->GetPosition(), _farthest, _reach) : nullptr;
+        Player* target = _marked.IsEmpty() ? nullptr : ObjectAccessor::GetPlayer(*me, _marked);
+        if (!target || !target->IsAlive())
+            target = owner ? GroundIndicators::SeekTarget(owner, me->GetPosition(), _farthest, _reach) : nullptr;
         if (!target)
             return;
         if (target->GetGUID() != _target)
@@ -469,6 +472,7 @@ private:
 
     static constexpr uint32 SeekEveryMs = 100;
     ObjectGuid _owner;
+    ObjectGuid _marked;
     ObjectGuid _target;
     bool _farthest;
     float _reach;
@@ -2027,18 +2031,21 @@ Player* SeekTarget(Unit* owner, Position const& apex, bool farthest, float reach
 }
 
 Area ShowSeekingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
-                     uint32 followMs, bool farthest, float reach, uint32 look, uint32 layer, ObjectGuid* placed)
+                     uint32 followMs, bool farthest, float reach, uint32 look, uint32 layer, ObjectGuid* placed,
+                     ObjectGuid marked)
 {
-    Player* target = SeekTarget(owner, apex, farthest, reach);
+    Player* target = marked.IsEmpty() ? nullptr : ObjectAccessor::GetPlayer(*owner, marked);
+    if (!target || !target->IsAlive())
+        target = SeekTarget(owner, apex, farthest, reach);
     float const facing = target ? apex.GetAngle(target->GetPositionX(), target->GetPositionY()) : 0.0f;
     Area area = MakeArea(Area::Kind::Cone, apex, facing, radius);
     area.arc = arcDegrees * float(M_PI) / 180.0f;
     if (layer)
         if (Creature* glow = Place(owner, apex, facing, layer, radius, durationMs))
-            glow->AIM_Initialize(new SeekingConeAI(glow, owner, farthest, reach, followMs));
+            glow->AIM_Initialize(new SeekingConeAI(glow, owner, farthest, reach, followMs, marked));
     if (Creature* stalker = Place(owner, apex, facing, look, radius, durationMs))
     {
-        stalker->AIM_Initialize(new SeekingConeAI(stalker, owner, farthest, reach, followMs));
+        stalker->AIM_Initialize(new SeekingConeAI(stalker, owner, farthest, reach, followMs, marked));
         if (placed)
             *placed = stalker->GetGUID();
     }
@@ -2551,6 +2558,26 @@ ObjectGuid ShowTether(Unit* owner, Unit* from, Unit* to, uint32 spell, uint32 du
             source->CastSpell(target, spell, true);
     }, 300ms);
     return sourceGuid;
+}
+
+ObjectGuid ShowTetherFrom(Unit* owner, Position const& from, Unit* to, uint32 spell, uint32 durationMs)
+{
+    if (!owner || !owner->IsInWorld() || !to || durationMs == 0)
+        return ObjectGuid::Empty;
+    TempSummon* source = owner->SummonCreature(NPC_GROUND_INDICATOR, from, TEMPSUMMON_TIMED_DESPAWN, durationMs);
+    TempSummon* end = owner->SummonCreature(NPC_GROUND_INDICATOR, to->GetPosition(), TEMPSUMMON_TIMED_DESPAWN,
+                                            durationMs);
+    if (!source || !end)
+        return ObjectGuid::Empty;
+    end->AIM_Initialize(new FollowCarrierAI(end, to->GetGUID()));
+    end->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+    ObjectGuid const endGuid = end->GetGUID();
+    source->m_Events.AddEventAtOffset([source, endGuid, spell]()
+    {
+        if (Creature* target = source->GetMap()->GetCreature(endGuid))
+            source->CastSpell(target, spell, true);
+    }, 300ms);
+    return source->GetGUID();
 }
 
 void EndTether(Unit* owner, ObjectGuid tether)

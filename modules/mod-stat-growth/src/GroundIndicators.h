@@ -140,10 +140,11 @@ namespace GroundIndicators
     Player* SeekTarget(Unit* owner, Position const& apex, bool farthest, float reach);
     // A cone from apex that follows whoever is its SeekTarget each moment (the nearest player, or the farthest) for
     // followMs, then holds where it points until durationMs: drawn only (the caller registers it once it holds, read
-    // from its carrier's facing: placed). layer: a second look over it, following the same way.
+    // from its carrier's facing: placed). layer: a second look over it, following the same way. marked: the player it
+    // follows instead, while they live (then its SeekTarget again)
     Area ShowSeekingCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
                          uint32 followMs, bool farthest, float reach, uint32 look, uint32 layer = 0,
-                         ObjectGuid* placed = nullptr);
+                         ObjectGuid* placed = nullptr, ObjectGuid marked = ObjectGuid::Empty);
     // Everything between innerRadius and outerRadius around center: only the middle is safe. The rings come in a
     // few proportions (inner / outer 0.2, 0.4, 0.6, 0.8): the nearest one to what is asked is drawn, and returned.
     Area ShowRing(Unit* owner, Position const& center, float outerRadius, float innerRadius, uint32 durationMs,
@@ -397,6 +398,8 @@ namespace GroundIndicators
     // cast by an invisible stalker following `from` on another following `to` - never by the units themselves (a
     // channelling bot stops in its tracks). EndTether takes it down before its time.
     ObjectGuid ShowTether(Unit* owner, Unit* from, Unit* to, uint32 spell, uint32 durationMs);
+    // The same from a point (a mark standing on a wall) to a unit
+    ObjectGuid ShowTetherFrom(Unit* owner, Position const& from, Unit* to, uint32 spell, uint32 durationMs);
     void EndTether(Unit* owner, ObjectGuid tether);
     void SetHoldStill(Unit* owner, Unit* unit, uint32 durationMs);
     bool HoldsStill(Unit* unit);
