@@ -2052,6 +2052,17 @@ Area ShowSeekingCone(Unit* owner, Position const& apex, float radius, float arcD
     return area;
 }
 
+void WatchAimedCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
+                    Unit* aimedAt, uint32 hitDamage)
+{
+    if (!owner || !owner->IsInWorld() || !aimedAt || durationMs == 0)
+        return;
+    Area area = MakeArea(Area::Kind::Cone, apex, apex.GetAngle(aimedAt->GetPositionX(), aimedAt->GetPositionY()),
+        radius);
+    area.arc = arcDegrees * float(M_PI) / 180.0f;
+    Register(owner, nullptr, area, durationMs, hitDamage, aimedAt->GetGUID(), aimedAt->GetGUID(), 0.0f);
+}
+
 Area CurrentCone(Unit* aimedAt, Area const& area)
 {
     Area current = area;

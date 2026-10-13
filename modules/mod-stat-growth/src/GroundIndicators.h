@@ -135,6 +135,10 @@ namespace GroundIndicators
                           uint32 look = 0);
     // Where a tracking cone points now
     Area CurrentCone(Unit* aimedAt, Area const& area);
+    // A cone from apex following aimedAt, for the bots only (nothing drawn: a seeking cone's own drawing): they walk
+    // round it, the one it follows holds its ground in it
+    void WatchAimedCone(Unit* owner, Position const& apex, float radius, float arcDegrees, uint32 durationMs,
+                        Unit* aimedAt, uint32 hitDamage = 0);
     // The player a seeking cone aims at from apex: the nearest one within reach (farthest: the farthest), alive and in
     // owner's map; game masters only when nobody else is there (the FX lab)
     Player* SeekTarget(Unit* owner, Position const& apex, bool farthest, float reach);
