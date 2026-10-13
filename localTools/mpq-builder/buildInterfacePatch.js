@@ -79,6 +79,8 @@ const frameXmlFiles = ['RetailUIAtlas.lua', 'RetailUI.lua', 'RetailWindows.lua',
     'ClassHud.lua', 'ClassHudReaper.lua', 'ClassHudWarrior.lua', 'ClassHudPestifere.lua',
     // Our own sound engine (the client extension DLL's EvolutionsAudio): the server's sounds, the place's acoustics
     'EvolutionsAudio.lua',
+    // Valérian's rewind over the screen (its command "R" through EvolutionsAudio's channel)
+    'RefusOverlay.lua',
     // A boss's loot on the floor (mod-stat-growth GroundLoot.cpp): the item's tooltip over its bag; needs GameTooltip
     'GroundLoot.lua',
     // The Effects panel's view distance, objects' detail and grass past the stock limits, with the game's memory

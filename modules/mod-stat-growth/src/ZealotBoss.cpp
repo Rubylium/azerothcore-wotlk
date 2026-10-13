@@ -3926,9 +3926,12 @@ private:
             _p3True = _p3Pool;
             me->SetHealth(1);
         }
-        // The music cut: phase 3's track starts with the rewind itself (as loud as the music, on its channel)
+        // The music cut: phase 3's track starts with the rewind itself (as loud as the music, on its channel), and
+        // its clock over everyone's screen (RefusOverlay.lua, on the same channel)
         EndMusic();
         StartMusic("Music.ValerianRewind");
+        for (Player* player : Listeners())
+            EvolutionsAudio::Command(player, "R");
         CastBar(CAST_REFUS);
         // A clock under him while time stands still and runs back, its hands spun backwards
         GroundIndicators::ShowDecal(me, Middle(), 0.0f, SigilRadius, RefusMusicMs, LOOK_REFUS_SIGIL);
@@ -4190,32 +4193,49 @@ private:
         return cone;
     }
 
-    // A volley's marks: a player for each of its seals - the real ones first (tanks too), then bots, the tank holding
-    // him last - none already marked for a volley still to fire; the seal over their head, its beam to them. A marked
-    // bot goes to its spot at once (SablierBait)
+    // A volley's marks: a player for each of its seals - the real ones first (tanks too), then the bots nearest the
+    // seals' spots - none already marked for a volley still to fire; the seal over their head, its beam to them. A
+    // marked bot goes to its spot at once (SablierBait)
     void MarkSabliers(float base, Volley const& volley, uint32 lastsMs, std::vector<ObjectGuid>& marks)
     {
         uint32 const now = Elapsed();
-        std::vector<Player*> players;
+        std::vector<Player*> reals;
+        std::vector<Player*> bots;
         for (Player* player : ArenaPlayers())
             if (auto const busy = _sablierMarked.find(player->GetGUID()); busy == _sablierMarked.end() ||
                 busy->second <= now)
-                players.push_back(player);
-        Acore::Containers::RandomShuffle(players);
-        std::stable_sort(players.begin(), players.end(), [this](Player* a, Player* b)
-        {
-            auto rank = [this](Player* p)
-            {
-                return !IsBotPlayer(p) ? 0 : p == me->GetVictim() ? 3 : IsTank(p) ? 2 : 1;
-            };
-            return rank(a) < rank(b);
-        });
+                (IsBotPlayer(player) ? bots : reals).push_back(player);
+        Acore::Containers::RandomShuffle(reals);
         std::vector<float> const angles = VolleyAngles(base, volley);
         Position const middle = Middle();
         marks.clear();
-        for (uint32 index = 0; index < angles.size() && index < players.size(); ++index)
+        for (uint32 index = 0; index < angles.size(); ++index)
         {
-            Player* player = players[index];
+            Position const bait = SablierBait(angles[index], volley);
+            // A real player first; else the bot nearest its spot (a random one walked 36 yd and was late: a tank only
+            // if need be, never the one holding him)
+            Player* player = nullptr;
+            if (!reals.empty())
+            {
+                player = reals.back();
+                reals.pop_back();
+            }
+            else
+            {
+                auto const cost = [this, &bait](Player* bot)
+                {
+                    return bot->GetExactDist2d(&bait) + (IsTank(bot) ? 40.0f : 0.0f) +
+                        (bot == me->GetVictim() ? 1000.0f : 0.0f);
+                };
+                auto const nearest = std::min_element(bots.begin(), bots.end(), [&cost](Player* a, Player* b)
+                {
+                    return cost(a) < cost(b);
+                });
+                if (nearest == bots.end())
+                    break;
+                player = *nearest;
+                bots.erase(nearest);
+            }
             marks.push_back(player->GetGUID());
             _sablierMarked[player->GetGUID()] = now + lastsMs;
             GroundIndicators::ShowCarriedLook(player, volley.farthest ? LOOK_MARK_SEAL_SHADOW : LOOK_MARK_SEAL_LIGHT,
@@ -4224,7 +4244,6 @@ private:
             seal.m_positionZ += SablierSealHeight;
             GroundIndicators::ShowTetherFrom(me, seal, player, volley.farthest ? SPELL_SABLIER_LINK_MOON :
                 SPELL_SABLIER_LINK_SUN, lastsMs);
-            Position const bait = SablierBait(angles[index], volley);
             if (IsBotPlayer(player))
                 GroundIndicators::SetUnitSpot(me, player, bait, 1.0f, lastsMs + 300);
             LOG_INFO(_logName, "Valerian sablier instance={} {} marked {} bot={} from {:.1f}yd of its spot at "

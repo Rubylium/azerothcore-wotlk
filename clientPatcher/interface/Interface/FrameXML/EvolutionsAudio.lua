@@ -101,6 +101,8 @@ frame:SetScript("OnEvent", function(self, event, prefix, message)
         SmoothTurns_Turn(first, second)
     elseif command == "F" and first ~= "" and SmoothTurns_Follow then
         SmoothTurns_Follow(first, second)
+    elseif command == "R" and RefusOverlay_Play then
+        RefusOverlay_Play()
     end
 end)
 
