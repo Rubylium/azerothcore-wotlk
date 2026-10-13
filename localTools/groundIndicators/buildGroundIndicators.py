@@ -476,6 +476,10 @@ def premultiplied_mips(array_):
 
 def write_painted_blp(array_, path):
     """Uncompressed 32-bit BLP2 (the colours exactly as painted), premultiplied mipmaps"""
+    # The client draws a texture whose sides are not powers of two green (Valérian's 256 x 384 hourglass)
+    for side in array_.shape[:2]:
+        if side & (side - 1):
+            raise SystemExit(f'{path}: {array_.shape[1]} x {array_.shape[0]}, a side not a power of two')
     mipmaps = [mip for mip in premultiplied_mips(array_)][:16]
     offsets = [0] * 16
     sizes = [0] * 16

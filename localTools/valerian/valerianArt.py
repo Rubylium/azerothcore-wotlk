@@ -485,9 +485,9 @@ STAND_IN_COLOURS = {'gold': numpy.array([1.0, 0.82, 0.42]), 'violet': numpy.arra
 
 
 def stand_in_hourglass(colour):
-    """Les Sabliers: an hourglass of light (gold: it fires at the nearest player; violet: at the farthest), 256 x 384,
-    its sand in the lower bulb"""
-    height, width = 384, 256
+    """Les Sabliers: an hourglass of light (gold: it fires at the nearest player; violet: at the farthest), 256 x 512
+    (a texture's sides are powers of two: 384 tall drew green), its sand in the lower bulb"""
+    height, width = 512, 256
     y, x = numpy.mgrid[0:height, 0:width].astype(numpy.float64)
     u = (x + 0.5) / width * 2.0 - 1.0              # -1 .. 1 across
     v = (y + 0.5) / height * 2.0 - 1.0             # -1 at the top, 1 at the bottom

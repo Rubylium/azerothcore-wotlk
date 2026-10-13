@@ -1076,6 +1076,12 @@ struct boss_valerian : public Defi::BossAI
 
     bool CastNow(std::string const& what)
     {
+        // In phase 2: Le Refus now, as if his health had reached nothing (straight to phase 3: a bot run)
+        if (what == "refus" && _phase == Phase::Ascended)
+        {
+            StartRefus();
+            return true;
+        }
         if (_phase != Phase::Zealot && _phase != Phase::Rehearsal)
             return false;
         uint32 const now = CurrentBeat(Grid) + 1;
@@ -3879,6 +3885,12 @@ private:
         EndMusic();
         Sound("Valerian.Rewind", Middle());
         CastBar(CAST_REFUS);
+        // A clock under him while time stands still and runs back (La Litanie's until its own painting:
+        // gaol-third.ASSETS-p3.md sigil_refus)
+        GroundIndicators::ShowDecal(me, Middle(), LitanySigilFacing, LitanySigilRadius, RefusMusicMs,
+            LOOK_LITANY_SIGIL);
+        GroundIndicators::ShowDecal(me, Middle(), LitanySigilFacing, LitanySigilRadius, RefusMusicMs,
+            LOOK_LITANY_SIGIL_GLOW);
         Pose(EMOTE_STATE_SPELL_CHANNEL_OMNI);
         LOG_INFO(_logName, "Valerian refuses instance={} at={:.1f}s health={}", me->GetInstanceId(),
                  Elapsed() / 1000.0f, _p3Pool);
