@@ -57,7 +57,8 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
   its tell to its strike**, never a still one swapped for a moving one (it fades out and in): a frozen sweep keeps its
   drawing (`ShowSweepingRectangle` stopAfterMs); one that holds, turns, turns back: `ShowTurningRectangle` /
   `ShowTurningCone` (a plan of `Turn`s, the bots told each part as it comes); a cone that follows then freezes:
-  `ShowTrackingCone` followMs. All of them are turned by the client (the DLL's `SmoothTurns`, its plan whispered once
+  `ShowTrackingCone` followMs; one that follows whoever is nearest (or farthest) each moment - a bait -
+  `ShowSeekingCone` (Valérian's Sabliers: register it yourself once it holds, from its carrier's facing). All of them are turned by the client (the DLL's `SmoothTurns`, its plan whispered once
   as the shape appears: `GroundIndicators.cpp` `TellTurns`), never by facing packets (they came unevenly: it
   jittered); the server keeps its own facing quietly and sends it once where the plan ends. A new kind of moving shape
   sends its plan the same way.
@@ -74,6 +75,8 @@ right). The base class is `Defi::BossAI` (`DefiBoss.h`); the floor's shapes, the
   - **A decal (`ShowDecal`, kind `image`) lies a quarter turn from its carrier's facing**: the picture's +x along
     facing + pi / 2. Turn the carrier by - pi / 2 for a picture laid out along its own x (the veil's holes), or paint
     it symmetric about an axis that does not matter.
+- **Every texture's sides are powers of two** (256 x 512, never 256 x 384): the client draws any other size green
+  (the builder refuses one). A standing piece of another aspect is painted inside such a canvas.
 - **Every strike has a 3D impact** where it lands: retail effects converted for 3.3.5 (Ascension's client,
   `localTools/ascensionImport/importVisuals.py`, one import folder per boss: `client-assets/imported<Boss>`), in the
   fight's colours (tinted), compared in the lab before keeping. **An impact never leaves its shape**: a cone, a
