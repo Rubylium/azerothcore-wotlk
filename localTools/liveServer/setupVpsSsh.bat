@@ -36,7 +36,8 @@ try {
     $rule = Get-NetFirewallRule -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -in 'OpenSSH-Server-In-TCP', 'sshd' }
     if ($rule) {
-        $rule | Enable-NetFirewallRule
+        # Windows makes its rule Private only; a VPS's internet link is Public
+        $rule | Set-NetFirewallRule -Enabled True -Profile Any
     } else {
         New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound `
             -Protocol TCP -Action Allow -LocalPort 22 | Out-Null

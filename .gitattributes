@@ -51,3 +51,5 @@ data/sql/*    linguist-documentation
 *.exe    binary
 *.ico    binary
 *.ttf    binary
+# Run by cmd on Windows machines: keep CRLF
+/localTools/liveServer/*.bat text eol=crlf
