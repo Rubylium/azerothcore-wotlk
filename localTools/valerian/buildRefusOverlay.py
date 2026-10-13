@@ -4,8 +4,8 @@ Valérian winds time back, as the user validated them on the preview page (2026-
     python localTools/valerian/buildRefusOverlay.py
 
 Writes clientPatcher/interface/Interface/Valerian/Refus*.png and .blp (the client's BLP2, its sides powers of two):
-- RefusClock: the rewind's clock (art/sigil_refus.png), its whole disc opaque to a soft rim - keyed from its black
-  background its dark stone came out half see-through.
+- RefusClock: the rewind's clock (art/sigil_refus.png, at its full 1024: drawn as tall as the screen, 512 was blown up),
+  its whole disc opaque to a soft rim - keyed from its black background its dark stone came out half see-through.
 - RefusHands: its hands (art/sigil_refus_hands.png), keyed, turned by the client about their middle.
 - RefusVignette: the screen's edges darkening to violet (the preview's radial gradient, baked: the client fades
   plain textures only - a gradient's alpha set from Lua turned white).
@@ -46,7 +46,7 @@ def stops(r, points):
     return numpy.dstack(channels)
 
 
-def clock(size=512):
+def clock(size=1024):
     source = Image.open(os.path.join(ART, 'sigil_refus.png')).convert('RGB').resize((size, size), Image.LANCZOS)
     rgb = numpy.asarray(source, dtype=numpy.float64) / 255.0
     r, _, _ = radius(size, size)
@@ -55,7 +55,7 @@ def clock(size=512):
     return Image.fromarray((numpy.dstack([rgb, alpha]) * 255).astype(numpy.uint8), 'RGBA')
 
 
-def hands(size=512):
+def hands(size=1024):
     source = Image.open(os.path.join(ART, 'sigil_refus_hands.png')).convert('RGB').resize((size, size), Image.LANCZOS)
     rgb = numpy.asarray(source, dtype=numpy.float64) / 255.0
     alpha = numpy.clip(rgb.max(axis=2) * 3.0, 0.0, 1.0)

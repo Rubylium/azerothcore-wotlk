@@ -10,7 +10,9 @@ local LENGTH = 7.2
 local TICKS = { 0.29, 0.91, 1.86, 2.27, 3.34, 3.59, 3.79, 3.97, 4.36, 4.56, 4.96, 5.16, 5.36, 5.56 }
 local DIAL_ALPHA = 0.72
 local HANDS_ALPHA = 0.9
-local DIAL_SHARE = 0.62         -- of the screen's width
+-- Its size: of the screen's height (the preview's 62% of a 16:9 width) - of its width, an ultrawide screen made it
+-- twice as large, cut and blown up
+local DIAL_SHARE = 1.1
 
 local function clamp(x, low, high)
     return math.min(high or 1, math.max(low or 0, x))
@@ -97,7 +99,7 @@ local function Draw(t)
     local pulse = TickPulse(t)
     local shown = ease(ramp(t, 0.2, 1.2)) * (1 - out)
     local grow = 1 + 0.35 * out + 0.025 * pulse
-    local size = frame:GetWidth() * DIAL_SHARE * grow
+    local size = frame:GetHeight() * DIAL_SHARE * grow
     dial:SetSize(size, size)
     dial:SetAlpha(clamp(shown * (DIAL_ALPHA + 0.12 * pulse)))
     hands:SetSize(size, size)

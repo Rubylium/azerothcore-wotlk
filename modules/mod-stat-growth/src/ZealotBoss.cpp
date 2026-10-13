@@ -68,10 +68,11 @@ LiveTuning::Knob const HealthScale("valerian.health_scale", 0.85f);
 // user and bots, 2026-10-13, took 0.076% of the bar a second at 3.75 - at 1.2 that dies by 4:05, held to 4:25)
 LiveTuning::Knob const AscendedHealthScale("valerian.ascended_health_scale", 1.2f);
 // Phase 3 (Le Refus): hittable from its drop (5.25 s on its music) to its earliest death (3:19.25), as phase 2's pace.
-// The wall: at 2.9 the kill's group (above) leaves him 20% at Lumière totale; the user and bots alone, half
+// The wall: at 2.9 the kill's group (above) left him 20% at Lumière totale; the user and bots alone, half - 30% less
+// asked after the first try (2026-10-13): 2.03
 Defi::Sizing const RewoundSizing = { 477.0f, 650.0f, 4.0f, 2.0f, 2.0f, (199.25f - 5.25f) * OnHimShare,
     1.095f / 1.18f };
-LiveTuning::Knob const RewoundHealthScale("valerian.rewound_health_scale", 2.9f);
+LiveTuning::Knob const RewoundHealthScale("valerian.rewound_health_scale", 2.03f);
 // One bar for both phases: each phase's health (its sizing) is half of it - phase 1 paced from full down to HoldPct
 // (half: a boss at half health, not one that drops to nothing as if a second phase were to come), phase 2 from there
 // to nothing. What a group deals in each phase is its sizing's, as before.
