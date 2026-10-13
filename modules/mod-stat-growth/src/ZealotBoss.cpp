@@ -788,7 +788,7 @@ enum class P3Event : uint8
     Sabliers,       // 0: gold then violet; 1: each flipping as it fires (four volleys); 2: so, faster; 3: violet first
     Premonition,    // 0: four visions; 1: five, mirrored as they strike; 2: six, faster; 3: five, during the last cast
     Chains,         // 0: four chains; 1: six
-    Eclipse,        // 2: its holes go round and back; 3: one hole, half round the other way
+    Eclipse,        // 2: its holes go round and back; 3: one hole, round and back the other way
     TotalLight,
 };
 
@@ -3697,7 +3697,7 @@ private:
 
     // --- Éclipse: the dark everywhere but its holes of light ----------------------------------------------------------------
     // version 0: two holes going round; 1: one, behind, the other way; phase 3's 2: two holes going round, then back
-    // halfway; 3: one, half round the other way
+    // halfway; 3: one, round and back the other way
     void Eclipse(uint32 version)
     {
         bool const second = version % 2 == 1;
@@ -3720,10 +3720,10 @@ private:
         float const way = second ? -_eclipseWay : _eclipseWay;
         float const turn = EclipseTurnDeg * float(M_PI) / 180.0f;
         std::vector<GroundIndicators::Turn> turns = { { 0, lasts, way * turn } };
-        if (version == 2)
-            turns = { { 0, lasts / 2, way * turn }, { lasts / 2, lasts / 2, -way * turn } };
-        else if (version == 3)
-            turns = { { 0, lasts, 2.0f * way * turn } };
+        // (phase 3's: round and back, half as far each way - a whole 90 degrees in half the time ran the holes at
+        // 9-12 yd/s, faster than anyone runs: the bots were caught)
+        if (version == 2 || version == 3)
+            turns = { { 0, lasts / 2, way * turn / 2.0f }, { lasts / 2, lasts / 2, -way * turn / 2.0f } };
         Sound("Valerian.Profanation", middle);
         // The dark, its holes cut (drawn only - as an area, it had the bots refuse the holes inside it), and the holes'
         // light painted where they are, both turning together
@@ -4052,18 +4052,128 @@ private:
                 from = volley.strikesMs;
             }
         }
+        // The bots that bait: two sets in turn (never the tanks), each walking to its volley's spots while the other set
+        // baits the one before - when those spots are clear of it (else from its strike): 3 s was too short to cross
+        // the arena to the far wall
+        std::array<std::vector<ObjectGuid>, 2> sets;
+        uint32 next = 0;
+        for (Player* bot : SortedBots())
+            if (!IsTank(bot) && sets[next % 2].size() < 3)
+                sets[next++ % 2].push_back(bot->GetGUID());
         for (uint32 index = 0; index < volleys.size(); ++index)
         {
             Volley const volley = volleys[index];
-            After(volley.strikesMs - tellMs, [this, base, volley, tellMs, index]()
+            uint32 from = 0;
+            if (index > 0)
             {
-                SablierVolley(base, volley, tellMs, index);
+                from = volleys[index - 1].strikesMs - tellMs;
+                for (float angle : VolleyAngles(base, volley))
+                    for (float before : VolleyAngles(base, volleys[index - 1]))
+                    {
+                        Position const bait = SablierBait(angle, volley.farthest);
+                        if (PredictedSablier(before, volleys[index - 1].farthest).Contains(bait, 2.0f))
+                            from = volleys[index - 1].strikesMs;
+                    }
+            }
+            std::vector<ObjectGuid> const baiters = sets[index % 2];
+            After(from, [this, base, volley, baiters, lasts = volley.strikesMs - from + 300]()
+            {
+                GuideBaiters(baiters, VolleyAngles(base, volley), volley.farthest, lasts);
+            });
+            // Busy meanwhile: this volley's baiters, and the next one's on their way
+            std::set<ObjectGuid> busy(baiters.begin(), baiters.end());
+            if (index + 1 < volleys.size())
+                busy.insert(sets[(index + 1) % 2].begin(), sets[(index + 1) % 2].end());
+            After(volley.strikesMs - tellMs, [this, base, volley, tellMs, busy]()
+            {
+                SablierVolley(base, volley, tellMs, busy);
             });
         }
         After(volleys.front().strikesMs, [this]() { EndCastBar(); });
     }
 
-    void SablierVolley(float base, Volley const& volley, uint32 tellMs, uint32 volleyIndex)
+    // The hourglasses firing in a volley (every other one)
+    std::vector<float> VolleyAngles(float base, Volley const& volley) const
+    {
+        std::vector<float> angles;
+        for (uint32 index = volley.parity; index < Hourglasses; index += 2)
+            angles.push_back(base + float(index) * float(M_PI) / 3.0f);
+        return angles;
+    }
+
+    // Where a bot baits an hourglass: close in front of it, a little aside, so that its cone runs along the wall (gold);
+    // across the arena, aside again, the three cones a pinwheel round him (violet)
+    Position SablierBait(float angle, bool farthest) const
+    {
+        return farthest ? P2At(angle + float(M_PI) + 0.8f, 19.0f) : P2At(angle + 0.35f, 19.0f);
+    }
+
+    // Its cone if its baiter stands there (a little wider: the bots keep clear of it)
+    GroundIndicators::Area PredictedSablier(float angle, bool farthest) const
+    {
+        Position const apex = P2At(angle, HourglassAt);
+        Position const bait = SablierBait(angle, farthest);
+        GroundIndicators::Area cone = MakeCircle(apex, farthest ? SablierFarLength : SablierNearLength);
+        cone.kind = GroundIndicators::Area::Kind::Cone;
+        cone.origin.SetOrientation(apex.GetAngle(&bait));
+        cone.arc = ((farthest ? SablierFarArc : SablierNearArc) + 10.0f) * float(M_PI) / 180.0f;
+        return cone;
+    }
+
+    void GuideBaiters(std::vector<ObjectGuid> const& baiters, std::vector<float> const& angles, bool farthest,
+                      uint32 ms)
+    {
+        std::vector<Player*> bots;
+        for (ObjectGuid const& guid : baiters)
+            if (Player* bot = ObjectAccessor::GetPlayer(*me, guid); bot && bot->IsAlive())
+                bots.push_back(bot);
+        std::vector<Position> baits;
+        for (float angle : angles)
+            baits.push_back(SablierBait(angle, farthest));
+        // Each bait to the nearest bot still free
+        Position const middle = Middle();
+        for (Position const& bait : baits)
+        {
+            auto const nearest = std::min_element(bots.begin(), bots.end(), [&bait](Player* a, Player* b)
+            {
+                return a->GetExactDist2d(&bait) < b->GetExactDist2d(&bait);
+            });
+            if (nearest == bots.end())
+                return;
+            LOG_INFO(_logName, "Valerian sablier instance={} bait {} for {} at={:.1f}yd/{:.0f}deg from {:.1f}yd",
+                     me->GetInstanceId(), (*nearest)->GetName(), farthest ? "farthest" : "nearest",
+                     middle.GetExactDist2d(&bait), middle.GetAbsoluteAngle(&bait) * 180.0f / float(M_PI),
+                     (*nearest)->GetExactDist2d(&bait));
+            GroundIndicators::SetUnitSpot(me, *nearest, bait, 1.0f, ms);
+            bots.erase(nearest);
+        }
+    }
+
+    // The bots: each to the nearest of spots (a spot taken costs more: spread over them)
+    void GuideNearest(std::vector<Player*> const& bots, std::vector<Position> const& spots, uint32 ms)
+    {
+        if (spots.empty())
+            return;
+        std::vector<uint32> taken(spots.size(), 0);
+        for (Player* bot : bots)
+        {
+            size_t best = 0;
+            float bestCost = 0.0f;
+            for (size_t index = 0; index < spots.size(); ++index)
+            {
+                float const cost = bot->GetExactDist2d(&spots[index]) + float(taken[index]) * 6.0f;
+                if (index == 0 || cost < bestCost)
+                {
+                    best = index;
+                    bestCost = cost;
+                }
+            }
+            ++taken[best];
+            GroundIndicators::SetUnitSpot(me, bot, spots[best], 1.0f, ms);
+        }
+    }
+
+    void SablierVolley(float base, Volley const& volley, uint32 tellMs, std::set<ObjectGuid> const& busy)
     {
         float const arc = volley.farthest ? SablierFarArc : SablierNearArc;
         float const length = volley.farthest ? SablierFarLength : SablierNearLength;
@@ -4083,7 +4193,7 @@ private:
             cones->push_back({ placed, apex });
         }
         Sound("Valerian.ReversCast", Middle());
-        GuideSabliers(angles, farthest, volleyIndex, tellMs);
+        GuideSabliers(angles, farthest, busy, tellMs);
         // Held a second before it fires: where it points then, and at whom
         auto frozen = std::make_shared<std::vector<std::pair<GroundIndicators::Area, ObjectGuid>>>();
         After(tellMs - SablierFreezeMs, [this, cones, frozen, arc, length, farthest]()
@@ -4100,6 +4210,10 @@ private:
                 area.origin.SetOrientation(facing);
                 area.arc = arc * float(M_PI) / 180.0f;
                 GroundIndicators::WatchArea(me, area, SablierFreezeMs, MistakeDamage);
+                if (target)
+                    LOG_INFO(_logName, "Valerian sablier instance={} {} cone on {} bot={} at={:.1f}yd/{:.0f}deg",
+                             me->GetInstanceId(), farthest ? "far" : "near", target->GetName(), IsBotPlayer(target),
+                             middle.GetExactDist2d(target), middle.GetAbsoluteAngle(target) * 180.0f / float(M_PI));
                 frozen->push_back({ area, target && !target->IsGameMaster() ? target->GetGUID() : ObjectGuid::Empty });
             }
         });
@@ -4140,31 +4254,14 @@ private:
             Blast(Ground(AtAngle(area.origin, facing, along)), std::max(1.5f, along * std::tan(area.arc / 2.0f)));
     }
 
-    // The bots: three bait the volley (gold: close in front of their hourglass, a little aside, so that the cone runs
-    // along the wall; violet: across the arena, aside again, the three cones a pinwheel round him), the others (the
-    // tanks with him) where none of those cones reaches
-    void GuideSabliers(std::vector<float> const& angles, bool farthest, uint32 volleyIndex, uint32 tellMs)
+    // The bots not baiting (nor walking to bait the next volley): where none of this volley's cones reaches, the tanks
+    // with him
+    void GuideSabliers(std::vector<float> const& angles, bool farthest, std::set<ObjectGuid> const& busy,
+                       uint32 tellMs)
     {
-        std::vector<Player*> baiters;
-        std::vector<Player*> others;
-        for (Player* bot : SortedBots())
-            (IsTank(bot) ? others : baiters).push_back(bot);
-        if (!baiters.empty())
-            std::rotate(baiters.begin(), baiters.begin() + (volleyIndex * angles.size()) % baiters.size(),
-                baiters.end());
-        std::vector<Position> baits;
         Areas predicted;
         for (float angle : angles)
-        {
-            Position const apex = P2At(angle, HourglassAt);
-            Position const bait = farthest ? P2At(angle + float(M_PI) + 0.8f, 21.0f) : P2At(angle + 0.35f, 20.0f);
-            baits.push_back(bait);
-            GroundIndicators::Area cone = MakeCircle(apex, farthest ? SablierFarLength : SablierNearLength);
-            cone.kind = GroundIndicators::Area::Kind::Cone;
-            cone.origin.SetOrientation(apex.GetAngle(&bait));
-            cone.arc = ((farthest ? SablierFarArc : SablierNearArc) + 10.0f) * float(M_PI) / 180.0f;
-            predicted.push_back(cone);
-        }
+            predicted.push_back(PredictedSablier(angle, farthest));
         std::vector<Position> safe;
         for (float radius : { 3.0f, 5.0f, 8.0f, 11.0f })
             for (uint32 step = 0; step < 24; ++step)
@@ -4177,16 +4274,11 @@ private:
                 if (!reached)
                     safe.push_back(spot);
             }
-        for (uint32 index = 0; index < baiters.size(); ++index)
-        {
-            if (index < baits.size())
-                GroundIndicators::SetUnitSpot(me, baiters[index], baits[index], 1.0f, tellMs + 300);
-            else
-                others.push_back(baiters[index]);
-        }
-        for (uint32 index = 0; index < others.size(); ++index)
-            if (!IsTank(others[index]) && !safe.empty())
-                GroundIndicators::SetUnitSpot(me, others[index], safe[(index * 7) % safe.size()], 1.0f, tellMs + 300);
+        std::vector<Player*> others;
+        for (Player* bot : SortedBots())
+            if (!IsTank(bot) && !busy.count(bot->GetGUID()))
+                others.push_back(bot);
+        GuideNearest(others, safe, tellMs + 300);
     }
 
     // --- Prémonition: visions of his strikes, then the strikes in reverse order ------------------------------------------
@@ -4219,15 +4311,32 @@ private:
         }
         uint32 const firstStrike = PremonitionFirstMs + count * showMs + PremonitionPauseMs;
         After(firstStrike - gapMs, [this]() { EndCastBar(); });
+        // The strikes: the visions backwards (mirrored, the second time)
+        std::vector<Vision> strikes;
         for (uint32 step = 0; step < count; ++step)
         {
             Vision vision = visions[count - 1 - step];
             if (mirrored && (vision == Vision::Left || vision == Vision::Right))
                 vision = vision == Vision::Left ? Vision::Right : Vision::Left;
-            After(firstStrike + step * gapMs - gapMs, [this, vision, facing, gapMs]()
+            strikes.push_back(vision);
+        }
+        // The bots: where the first strike will not reach as soon as the visions end (they cannot remember them), then
+        // at each strike's tell where neither it nor the next reaches when there is such a place (1.3 s is short for
+        // them: a whole half crossed in it caught them on the way)
+        After(firstStrike - gapMs - PremonitionPauseMs, [this, strikes, facing, gapMs]()
+        {
+            GuidePremonition(strikes[0], strikes.size() > 1 ? &strikes[1] : nullptr, facing,
+                PremonitionPauseMs + gapMs);
+        });
+        for (uint32 step = 0; step < count; ++step)
+        {
+            Vision const vision = strikes[step];
+            std::optional<Vision> const next = step + 1 < count ? std::optional<Vision>(strikes[step + 1]) :
+                std::nullopt;
+            After(firstStrike + step * gapMs - gapMs, [this, vision, next, facing, gapMs]()
             {
                 GroundIndicators::Area const area = PremonitionArea(vision, facing, gapMs);
-                GuidePremonition(vision, facing, gapMs);
+                GuidePremonition(vision, next ? &*next : nullptr, facing, gapMs);
                 After(gapMs, [this, area, vision]()
                 {
                     Strike(Areas{ area }, RulePremonition);
@@ -4280,21 +4389,57 @@ private:
         return Painted(area, LOOK_DIVINE_CONE_180, ms);
     }
 
-    void GuidePremonition(Vision vision, float facing, uint32 ms)
+    // Whether a spot is margin yards clear of a strike
+    bool ClearOf(Vision vision, float facing, Position const& spot, float margin) const
     {
-        std::vector<Position> spots;
-        for (uint32 index = 0; index < 8; ++index)
+        Position const middle = Middle();
+        float const distance = middle.GetExactDist2d(&spot);
+        switch (vision)
         {
-            float const around = float(index) * float(M_PI) / 4.0f;
-            float const across = (float(index) - 3.5f) * 0.3f;
-            switch (vision)
+            case Vision::In: return distance > PremonitionInner + margin;
+            case Vision::Out: return distance < PremonitionInner - margin;
+            default:
             {
-                case Vision::In: spots.push_back(P2At(around, PremonitionInner + 3.0f)); break;
-                case Vision::Out: spots.push_back(P2At(around, PremonitionInner - 4.0f)); break;
-                default: spots.push_back(P2At(HalfFacing(vision, facing) + float(M_PI) + across, 7.0f)); break;
+                // Along the half's middle: negative on the other side
+                float const half = HalfFacing(vision, facing);
+                float const along = (spot.GetPositionX() - middle.GetPositionX()) * std::cos(half) +
+                    (spot.GetPositionY() - middle.GetPositionY()) * std::sin(half);
+                return along < -margin;
             }
         }
-        GuideP2(spots, ms + 300);
+    }
+
+    // The bots: spots clear of this strike and the next one if any such are, else of this one alone nearest to where
+    // the next leaves free (round the edge between them), spread round him in a fixed order
+    void GuidePremonition(Vision vision, Vision const* next, float facing, uint32 ms)
+    {
+        std::vector<Position> both;
+        std::vector<std::pair<float, Position>> alone;
+        for (float radius : { 3.5f, 5.0f, 7.0f, 8.0f, 12.0f, 13.5f, 16.0f })
+            for (uint32 step = 0; step < 24; ++step)
+            {
+                Position const spot = P2At(float(step) * float(M_PI) / 12.0f, radius);
+                if (!ClearOf(vision, facing, spot, 1.5f))
+                    continue;
+                if (!next || ClearOf(*next, facing, spot, 1.5f))
+                    both.push_back(spot);
+                else
+                {
+                    // How far it stands from where the next leaves free: round the edge of it
+                    float cost = 0.0f;
+                    for (float margin = 1.5f; margin > -20.0f && !ClearOf(*next, facing, spot, margin); margin -= 1.0f)
+                        cost += 1.0f;
+                    alone.push_back({ cost, spot });
+                }
+            }
+        std::vector<Position> spots = both;
+        if (spots.empty())
+        {
+            std::stable_sort(alone.begin(), alone.end(), [](auto const& a, auto const& b) { return a.first < b.first; });
+            for (uint32 index = 0; index < alone.size() && index < 12; ++index)
+                spots.push_back(alone[index].second);
+        }
+        GuideNearest(SortedBots(), spots, ms + 300);
     }
 
     // --- Chaînes du temps: chains the tanks must take before they break -----------------------------------------------------
