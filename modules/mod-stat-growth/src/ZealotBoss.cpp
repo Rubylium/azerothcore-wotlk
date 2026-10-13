@@ -342,10 +342,10 @@ constexpr uint32 KIT_HOLY_GLOW = 83922;     // Holy_Precast_High_Base, played on
                                             // they stayed on him, and on the god after, yellow and see-through)
 
 // --- Phase 3, Le Refus (Music.ValerianRewind: p2's track again from its 65.75 s; ms on its own clock, P3Ms) ----------
-// At nothing in phase 2 he refuses to die: the music cut, the user's rewind (Valerian.Rewind: a big clock's machinery
-// and bells) as time stands still (RefusStillMs: everyone held) and runs back, his health filling, everyone pulled back
-// to where they stood RefusBackMs before (their trail) at RefusPullMs, their after-image there; phase 3's music
-// RefusMusicMs after the cut, fading in under the rewind's last clockwork. On its drop (RefusDropMs) the after-images
+// At nothing in phase 2 he refuses to die: the music cut, the user's rewind (a big clock's machinery and bells: the
+// start of phase 3's own track) as time stands still (RefusStillMs: everyone held) and runs back, his health filling, everyone pulled back
+// to where they stood RefusBackMs before (their trail) at RefusPullMs, their after-image there; phase 2's music again
+// RefusMusicMs after the cut, fading in under the rewind's last clockwork (P3Ms counts from there). On its drop (RefusDropMs) the after-images
 // burst and everyone is left at RefusLeftPct; then RefusCalmMs of calm.
 constexpr uint32 RefusStillMs = 1500;
 constexpr uint32 RefusPullMs = 6000;
@@ -3905,8 +3905,9 @@ private:
             _p3True = _p3Pool;
             me->SetHealth(1);
         }
+        // The music cut: phase 3's track starts with the rewind itself (as loud as the music, on its channel)
         EndMusic();
-        Sound("Valerian.Rewind", Middle());
+        StartMusic("Music.ValerianRewind");
         CastBar(CAST_REFUS);
         // A clock under him while time stands still and runs back, its hands spun backwards
         GroundIndicators::ShowDecal(me, Middle(), 0.0f, SigilRadius, RefusMusicMs, LOOK_REFUS_SIGIL);
@@ -3968,10 +3969,9 @@ private:
         });
     }
 
-    // Phase 3, its music on (under the rewind's end)
+    // Phase 3, its music in (under the rewind's end: its track started with the rewind)
     void StartRewound(bool rehearsed)
     {
-        StartMusic("Music.ValerianRewind");
         _p3From = Elapsed();
         if (rehearsed)
             return;

@@ -12,7 +12,7 @@
     "Valerian.FirstBlow: his first blow as a god (phase 2's hit), Akarat's echo's air-slam explosion, picked by the user.",
     "La Litanie's (picked 2026-10-12): its start (Inarius's ping), each spear raised (Inarius's throw), the litany complete (the Paladin's Holy Light), the profanation (Akarat's final possession).",
     "Valerian.VerseStrike: each spear on its verse, the Cataclysm's lightning bolt (picked 2026-10-12).",
-    "Music.ValerianRewind: phase 3's, phase 2's own track again from just before its 1:11 drop (localTools/valerian/buildRewindMusic.py); Valerian.Rewind: the user's own sound (clockwork of a big clock, bells), time stopped and wound back as he refuses, the music cut (a wound back tape, then a lone bell, came first)."
+    "Music.ValerianRewind: phase 3's - the user's own rewind (clockwork of a big clock, bells: time stopped and wound back as he refuses) levelled to the music, then phase 2's own track again from just before its 1:11 drop, fading in under it (localTools/valerian/buildRewindMusic.py). The rewind was first a sound of its own (Valerian.Rewind): far too quiet next to the music."
   ],
   "sounds": {
     "Music.ValerianZealot": {
@@ -29,17 +29,6 @@
       ],
       "loopStart": 0,
       "volume": 1.8
-    },
-    "Valerian.Rewind": {
-      "kind": "spell",
-      "files": [
-        "modules/mod-stat-growth/client-assets/audio/sources/valerian/Valerian_Rewind.wav"
-      ],
-      "minDistance": 60,
-      "maxDistance": 140,
-      "volume": 1.0,
-      "loudnessWindowMs": 400,
-      "loudness": -6.0
     },
     "Music.ValerianRewind": {
       "kind": "music",
