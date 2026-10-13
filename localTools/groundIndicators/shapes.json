@@ -337,6 +337,6 @@
     {"key": "VL_TendrilFlare", "kind": "texture", "picture": "localTools/valerian/valerianArt.py:tendril", "shape": "rect", "ratio": 5.3333, "tile": true, "mirror": false, "size": 512, "blend": "add", "alphaKeys": [[0, 0.0], [60, 1.0], [260, 0.9], [700, 0.0]], "spell": 98844},
     {"key": "VL_EclipseLightTwo", "kind": "image", "picture": "localTools/valerian/valerianArt.py:eclipse_light", "args": [2], "size": 1024, "brightness": 1.0, "alpha": 1.0, "pulse": [0.8, 1.0, 600], "spell": 98845},
     {"key": "VL_EclipseLightOne", "kind": "image", "picture": "localTools/valerian/valerianArt.py:eclipse_light", "args": [1], "size": 1024, "brightness": 1.0, "alpha": 1.0, "pulse": [0.8, 1.0, 600], "spell": 98846},
-    {"key": "VL_TendrilCurtain", "kind": "curtain", "picture": "localTools/valerian/valerianArt.py:tendril", "paintedAlpha": true, "length": 24, "height": 3.0, "spread": 1.6, "tiles": 0.5, "scroll": 3000, "gain": 1.2, "pulse": [0.8, 1.0, 500], "appear": 300, "spell": 98847}
+    {"key": "VL_TendrilCurtain", "kind": "curtain", "picture": "localTools/valerian/valerianArt.py:tendril_shadow", "paintedAlpha": true, "blend": "alpha", "length": 24, "height": 3.0, "spread": 1.6, "tiles": 1.0, "scroll": 3000, "gain": 1.0, "pulse": [0.8, 1.0, 500], "appear": 300, "spell": 98847}
   ]
 }

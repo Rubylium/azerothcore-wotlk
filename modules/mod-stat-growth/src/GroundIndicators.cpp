@@ -1752,6 +1752,15 @@ Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation,
         length / width);
     Area area = MakeArea(Area::Kind::Rectangle, start, orientation, length);
     area.width = look ? width : length / shape.size;
+    if (look == CurtainOnly)
+    {
+        RegisterTurns(owner, area, durationMs, turns, hitDamage);
+        if (curtain)
+            if (Creature* light = Place(owner, OnGround(owner, start.GetPositionX(), start.GetPositionY(),
+                start.GetPositionZ()), orientation, curtain, 1.0f, durationMs))
+                light->AIM_Initialize(new TurnPlanAI(light, orientation, turns));
+        return area;
+    }
     if (Creature* stalker = Place(owner, start, orientation, look ? look : shape.spell, length, durationMs))
     {
         stalker->AIM_Initialize(new TurnPlanAI(stalker, orientation, turns));

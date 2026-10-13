@@ -450,6 +450,24 @@ def tendril():
     return strip('tendril_strip.png', 'tendril_strip_glow.png')
 
 
+def tendril_shadow():
+    """Ailes séraphiques under Lumière totale's sigil, as its 3D curtain: the tendril in shadow - Le Chœur's violet-black
+    smoke and its wisps, a silver-violet core along its middle (the holy sigil under it: gold on gold did not read).
+    1024 x 128, four tiles of smoke along it; its two sides faded as a painted strip's"""
+    height, length = 128, 1024
+    v, u = numpy.mgrid[0:height, 0:length].astype(numpy.float64)
+    across = numpy.abs((v + 0.5) / height * 2.0 - 1.0)
+    su, sv = (u + 0.5) / length * 4.0, (v + 0.5) / height * 0.5
+    smoke = tiled(seamless('fill_choir_shadow.png'), su, sv)
+    wisps = tiled(seamless('fill_choir_shadow_wisps.png'), su, sv)
+    core = numpy.exp(-(across / 0.18) ** 2)[..., None]
+    rgb = numpy.clip(smoke * 0.9 + wisps * 1.6 * SHADOW_RIM + core * 0.55 * SHADOW_RIM, 0.0, 1.0)
+    along = (u + 0.5) / length
+    wander = 0.18 * (fractal(along, across * 0.0 + 0.25, 5) - 0.5)
+    alpha = smooth(1.0, 0.55, across + wander) * 0.95
+    return image(numpy.concatenate([rgb, alpha[..., None]], axis=2))
+
+
 def orb_lane():
     """Ascension: an orb's path, from the wall to him (its chevrons point at him: the strip's right)"""
     return strip('orb_lane.png', None, 0.75)

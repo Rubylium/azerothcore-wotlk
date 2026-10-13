@@ -490,8 +490,9 @@ enum Looks : uint32
     LOOK_SEAL_SWAP_SL           = 98840,
     LOOK_ECLIPSE_LIGHT_TWO      = 98845,    // the Éclipse's pools of light where its veil's holes are, turning with it
     LOOK_ECLIPSE_LIGHT_ONE      = 98846,
-    LOOK_TENDRIL_CURTAIN        = 98847,    // a tendril's light standing up (a curtain, 3D): over Lumière totale's sigil,
-                                            // which covers the floor and every decal under it
+    LOOK_TENDRIL_CURTAIN        = 98847,    // a tendril standing up (a curtain, 3D) in shadow: over Lumière totale's holy
+                                            // sigil, which covers the floor (gold on gold did not read; a decal over it
+                                            // flickered: the tendrils have no floor drawing then)
     LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and III painted in one, II and IV the other
     LOOK_LANCE_FLARE            = 98843,    // a lance's tile flashing as it strikes (added, its own alpha keys)
     LOOK_TENDRIL_FLARE          = 98844,    // a tendril (or a split half) flashing as it strikes
@@ -1146,6 +1147,13 @@ struct boss_valerian : public Defi::BossAI
             if (_phase != Phase::Rehearsal)
                 return false;
             ExecuteP3(found->second);
+            return true;
+        }
+        // In the lab: Lumière totale's sigil, the Ailes cast meanwhile drawn as under it (ailes4: its last set)
+        if (what == "totallight" && _phase == Phase::Rehearsal)
+        {
+            _totalLightRehearsedUntil = Elapsed() + (TotalLightMs - TotalLightCastMs);
+            TotalLight(0);
             return true;
         }
         // In the lab: the change, harmless (its sound, the music, the after-images round whoever is there)
@@ -2932,7 +2940,7 @@ private:
         for (uint32 index = 0; index < AilesTendrils; ++index)
             GroundIndicators::ShowTurningRectangle(me, middle,
                 base + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius, AilesWidth, total, turns,
-                MistakeDamage, LOOK_TENDRIL, TendrilCurtain());
+                MistakeDamage, TendrilLook(), TendrilCurtain());
         // The bots: each in a gap's middle, moved along with the gaps as they turn (a little ahead of them)
         float const gap = float(M_PI) / float(AilesTendrils);
         auto gapsAt = [this, base, gap, turns](uint32 t)
@@ -2954,7 +2962,8 @@ private:
         float const end = base + GroundIndicators::TurnedBy(turns, total);
         After(total, [this, end]()
         {
-            for (uint32 index = 0; index < AilesTendrils; ++index)
+            // (a flare is a floor drawing: none over Lumière totale's sigil)
+            for (uint32 index = 0; index < AilesTendrils && !TendrilCurtain(); ++index)
                 ShapedLine(Middle(), end + float(index) * 2.0f * float(M_PI) / float(AilesTendrils), P2Radius,
                     AilesWidth);
             SoundNearest("Valerian.Lances", { Middle() });
@@ -2978,7 +2987,7 @@ private:
             {
                 GroundIndicators::Area area = GroundIndicators::ShowTurningRectangle(me, Middle(), from, P2Radius,
                     AilesSplitWidth, blows, { { AilesSplitAfterMs, AilesSplitSlideMs, side * slide } }, MistakeDamage,
-                    LOOK_TENDRIL, TendrilCurtain());
+                    TendrilLook(), TendrilCurtain());
                 area.origin.SetOrientation(Position::NormalizeOrientation(from + side * slide));
                 halves.push_back(area);
             }
@@ -2992,12 +3001,15 @@ private:
         {
             Strike(halves, RuleAiles);
             for (GroundIndicators::Area const& half : halves)
-                ShapedLine(Middle(), half.origin.GetOrientation(), P2Radius, AilesSplitWidth);
+                if (!TendrilCurtain())
+                    ShapedLine(Middle(), half.origin.GetOrientation(), P2Radius, AilesSplitWidth);
         });
     }
 
-    // Under Lumière totale's sigil (the whole arena's floor, drawn over the tendrils' decals) the tendrils stand up too
-    uint32 TendrilCurtain() const { return TrackMs() >= TotalLightCastMs ? LOOK_TENDRIL_CURTAIN : 0; }
+    // Under Lumière totale's sigil (the whole arena's floor) the tendrils stand up in shadow, nothing on the floor
+    bool UnderTotalLight() const { return TrackMs() >= TotalLightCastMs || Elapsed() < _totalLightRehearsedUntil; }
+    uint32 TendrilCurtain() const { return UnderTotalLight() ? LOOK_TENDRIL_CURTAIN : 0; }
+    uint32 TendrilLook() const { return UnderTotalLight() ? GroundIndicators::CurtainOnly : LOOK_TENDRIL; }
 
     // Everyone on a tendril now (angle: the first's) struck, once a sweep
     void StrikeTendrils(float angle, std::shared_ptr<std::set<ObjectGuid>> hit)
@@ -4803,6 +4815,7 @@ private:
     std::map<ObjectGuid, uint32> _ascensionSlots;   // Ascension: each bot's place (GuideAscension)
     float _eclipseAngle = 0.0f;         // the first Éclipse's holes, the second's on the other side
     uint32 _totalLightAt = 0;
+    uint32 _totalLightRehearsedUntil = 0;   // the lab's Lumière totale (.valerian cast totallight): until then
     struct Orb
     {
         ObjectGuid guid;

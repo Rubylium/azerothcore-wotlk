@@ -107,7 +107,10 @@ namespace GroundIndicators
     // look: a painted shape drawn in place of the red (shapes.json kind texture, painted to the area's proportions:
     // a rectangle's width is then as given, a cone's arc arcDegrees); layer: a second look over it (its glow), turning
     // with it on a carrier of its own; curtain: its light standing up from the floor (shapes.json kind curtain, built
-    // to the line's length: 3D, seen over a floor painted under it), turning with it on a carrier of its own
+    // to the line's length: 3D, seen over a floor painted under it), turning with it on a carrier of its own.
+    // look CurtainOnly: nothing on the floor, its curtain alone (over another floor picture a decal flickered: the
+    // client sorts the two by distance, frame by frame)
+    constexpr uint32 CurtainOnly = 0xFFFFFFFFu;
     Area ShowTurningRectangle(Unit* owner, Position const& start, float orientation, float length, float width,
                               uint32 durationMs, std::vector<Turn> const& turns, uint32 hitDamage = 0,
                               uint32 look = 0, uint32 curtain = 0);
