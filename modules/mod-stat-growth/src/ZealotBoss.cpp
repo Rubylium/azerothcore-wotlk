@@ -363,6 +363,7 @@ constexpr uint32 P3TotalLightCastMs = 190250;
 constexpr uint32 P3TotalLightMs = 209250;
 constexpr uint32 P3TotalLightSigilMs = 14500;  // after the cast's start
 constexpr uint32 P3MusicEndMs = 215360;
+
 // Les Sabliers: six hourglasses on the wall (HourglassAt yd from him, 60 degrees apart), in volleys of three. A gold one
 // fires a SablierNearArc cone SablierNearLength long at its nearest player, a violet one a SablierFarArc cone across the
 // arena at its farthest; the cone follows that player (whoever it is each moment) until a second before it fires, then
@@ -490,9 +491,9 @@ enum Looks : uint32
     LOOK_SEAL_SWAP_SL           = 98840,
     LOOK_ECLIPSE_LIGHT_TWO      = 98845,    // the Éclipse's pools of light where its veil's holes are, turning with it
     LOOK_ECLIPSE_LIGHT_ONE      = 98846,
-    LOOK_TENDRIL_CURTAIN        = 98847,    // a tendril standing up (a curtain, 3D) in shadow: over Lumière totale's holy
-                                            // sigil, which covers the floor (gold on gold did not read; a decal over it
-                                            // flickered: the tendrils have no floor drawing then)
+    LOOK_TENDRIL_CURTAIN        = 98847,    // a tendril standing up (a curtain, 3D) in shadow, solid: over Lumière
+                                            // totale's holy sigil (gold on gold did not read; a decal over it, or a
+                                            // see-through wall past the middle, flickered: drawn with the solids)
     LOOK_SENTENCE_HALF_FIRST    = 98841,    // Sentence's halves, I and III painted in one, II and IV the other
     LOOK_LANCE_FLARE            = 98843,    // a lance's tile flashing as it strikes (added, its own alpha keys)
     LOOK_TENDRIL_FLARE          = 98844,    // a tendril (or a split half) flashing as it strikes

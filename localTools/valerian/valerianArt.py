@@ -464,7 +464,7 @@ def tendril_shadow():
     rgb = numpy.clip(smoke * 0.9 + wisps * 1.6 * SHADOW_RIM + core * 0.55 * SHADOW_RIM, 0.0, 1.0)
     along = (u + 0.5) / length
     wander = 0.18 * (fractal(along, across * 0.0 + 0.25, 5) - 0.5)
-    alpha = smooth(1.0, 0.55, across + wander) * 0.95
+    alpha = smooth(1.0, 0.55, across + wander * 1.6)
     return image(numpy.concatenate([rgb, alpha[..., None]], axis=2))
 
 

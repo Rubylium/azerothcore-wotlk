@@ -666,7 +666,8 @@ def grow(data, shape, fade):
 
 
 # How a model is drawn over what is behind it (M2 blending modes): laid over it, or added to it (a glow)
-BLEND_MODES = {'alpha': 2, 'add': 4}
+# 'key': alpha-tested, drawn with the scene's solids (a curtain then writes depth: build_curtain_model)
+BLEND_MODES = {'alpha': 2, 'add': 4, 'key': 1}
 
 
 def animate(data, shape):
@@ -870,7 +871,8 @@ def build_curtain_frame(shape, source_image):
     X, Y = numpy.meshgrid(xs, ys)
     result = sample(source, X, Y)
     # Fading up: full at the floor, nothing at the top
-    result *= (v ** 1.5)[:, None, None]
+    if shape.get('fadeUp', True):
+        result *= (v ** 1.5)[:, None, None]
     return result
 
 
@@ -973,6 +975,10 @@ def build_curtain_model(template, skin, shape, texture_path, fade=False):
     if 'blend' in shape:
         _, materials = array(data, 0x70)
         material_flags, _ = struct.unpack_from('<HH', data, materials)
+        # A solid one ('key') writes depth (the template's material does not: 0x10), so a floor painting drawn after
+        # it is hidden behind it - Lumière totale's sigil was painted over the tendril walls standing on it
+        if shape['blend'] == 'key':
+            material_flags &= ~0x10
         struct.pack_into('<HH', data, materials, material_flags, BLEND_MODES[shape['blend']])
 
     colors_count, colors = array(data, 0x48)
