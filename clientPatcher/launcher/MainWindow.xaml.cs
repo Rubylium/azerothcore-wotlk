@@ -457,7 +457,8 @@ namespace Evolutions
             ShowRealm(online, online ? "Latence " + clock.ElapsedMilliseconds + " ms" : "Nouvel essai dans 30 s");
         }
 
-        // The realm choice (live / PTR) under the realm's name; hidden while the release lists a single realm
+        // The realm choice (live / PTR) under the realm's name, in place of the subtitle; hidden while the release lists
+        // a single realm
         void ShowRealms()
         {
             Realm current = settings.CurrentRealm();
@@ -467,7 +468,7 @@ namespace Evolutions
             RealmChoiceLive.IsChecked = current?.Id == "live";
             RealmChoicePtr.IsChecked = current?.Id == "ptr";
             showingRealms = false;
-            RealmSubtitle.Text = current?.Id == "ptr" ? "WOTLK 3.3.5A · SERVEUR DE TEST" : "WOTLK 3.3.5A";
+            RealmSubtitle.Visibility = both ? Visibility.Collapsed : Visibility.Visible;
         }
 
         bool showingRealms;
