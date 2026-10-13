@@ -72,6 +72,7 @@ namespace Evolutions
             {
                 ShowNews(settings.News);
                 ShowVersion(settings.Version);
+                ShowRealms();
                 ShowSettings();
                 if (StartPage == "news")
                     NavNews.IsChecked = true;
@@ -131,10 +132,13 @@ namespace Evolutions
                 waiting.Stop();
                 DetailText.Text = "";
 
-                string knownRealm = settings.Realmlist;
+                string knownRealm = settings.RealmAddress();
                 Remember(manifest);
-                if (knownRealm != manifest.Realmlist)
+                if (knownRealm != settings.RealmAddress())
+                {
+                    realmChecked = false;
                     await CheckRealmAsync();
+                }
                 if (selfUpdate && await updater.UpdateSelfAsync(manifest))
                 {
                     Close();
@@ -190,11 +194,14 @@ namespace Evolutions
         void Remember(Manifest latest)
         {
             settings.Realmlist = latest.Realmlist;
+            settings.Realms = latest.Realms ?? new List<Realm>();
+            settings.DefaultRealm = latest.DefaultRealm;
             settings.Version = latest.Version;
             settings.News = latest.News ?? new List<NewsItem>();
             settings.Save();
             ShowNews(settings.News);
             ShowVersion(latest.Version);
+            ShowRealms();
         }
 
         void SetState(string status, string detail, string action, Action onAction)
@@ -301,6 +308,8 @@ namespace Evolutions
 
             try
             {
+                // The realm picked since the last update (the sync writes it too, but a pick can come after it)
+                ApplyRealm();
                 Process game = Process.Start(new ProcessStartInfo(Path.Combine(settings.GameFolder, "Wow.exe"))
                 {
                     WorkingDirectory = settings.GameFolder,
@@ -410,7 +419,7 @@ namespace Evolutions
 
         async Task CheckRealmAsync()
         {
-            string realmlist = settings.Realmlist;
+            string realmlist = settings.RealmAddress();
             if (string.IsNullOrWhiteSpace(realmlist))
             {
                 ShowRealm(null, "Adresse du royaume manquante");
@@ -446,6 +455,68 @@ namespace Evolutions
             }
             realmChecked = true;
             ShowRealm(online, online ? "Latence " + clock.ElapsedMilliseconds + " ms" : "Nouvel essai dans 30 s");
+        }
+
+        // The realm choice (live / PTR) under the realm's name; hidden while the release lists a single realm
+        void ShowRealms()
+        {
+            Realm current = settings.CurrentRealm();
+            bool both = settings.Realms.Any(realm => realm.Id == "live") && settings.Realms.Any(realm => realm.Id == "ptr");
+            RealmChoices.Visibility = both ? Visibility.Visible : Visibility.Collapsed;
+            showingRealms = true;
+            RealmChoiceLive.IsChecked = current?.Id == "live";
+            RealmChoicePtr.IsChecked = current?.Id == "ptr";
+            showingRealms = false;
+            RealmSubtitle.Text = current?.Id == "ptr" ? "WOTLK 3.3.5A · SERVEUR DE TEST" : "WOTLK 3.3.5A";
+        }
+
+        bool showingRealms;
+
+        async void OnRealmChoice(object sender, RoutedEventArgs e)
+        {
+            if (showingRealms)
+                return;
+            string id = sender == RealmChoicePtr ? "ptr" : "live";
+            if (settings.CurrentRealm()?.Id == id)
+                return;
+            settings.SelectedRealm = id;
+            settings.Save();
+            ShowRealms();
+            ApplyRealm();
+            realmChecked = false;
+            await CheckRealmAsync();
+        }
+
+        // Points the game at the current realm. Each realm's server has its own creatures and items, which the game
+        // remembers in Cache\WDB: emptied on a switch, or the other realm's tooltips would linger.
+        void ApplyRealm()
+        {
+            if (!HasGameFolder() || IsGameRunning())
+                return;
+            try
+            {
+                string address = settings.RealmAddress();
+                foreach (string locale in Directory.GetDirectories(Path.Combine(settings.GameFolder, "Data")))
+                {
+                    string file = Path.Combine(locale, "realmlist.wtf");
+                    if (File.Exists(file) && !File.ReadAllText(file).Contains(address))
+                    {
+                        string cache = Path.Combine(settings.GameFolder, "Cache", "WDB");
+                        if (Directory.Exists(cache))
+                            Directory.Delete(cache, true);
+                        break;
+                    }
+                }
+                ClientSetup.SetRealmlist(settings.GameFolder, address,
+                    Path.Combine(settings.GameFolder, "_Evolutions", "backup"));
+            }
+            catch (IOException)
+            {
+                // The next update writes it again
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
         }
 
         void ShowRealm(bool? online, string detail)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Web.Script.Serialization;
 
 namespace Evolutions
@@ -11,6 +12,10 @@ namespace Evolutions
 
         // From the last manifest read, so the home page has something to show before (or without) the network
         public string Realmlist { get; set; }
+        public List<Realm> Realms { get; set; } = new List<Realm>();
+        public string DefaultRealm { get; set; }
+        // The realm the player picked on the realm card (a Realm.Id); empty until they pick one
+        public string SelectedRealm { get; set; }
         public string Version { get; set; }
         public List<NewsItem> News { get; set; } = new List<NewsItem>();
 
@@ -26,6 +31,15 @@ namespace Evolutions
         // Hashes of the files already checked, keyed by path: a file whose size and date are unchanged is not
         // read again, which keeps a start from hashing the whole patch every time
         public Dictionary<string, CachedHash> Hashes { get; set; } = new Dictionary<string, CachedHash>();
+
+        // The player's pick, else the release's default, else the first; null when the release lists no realms
+        public Realm CurrentRealm() =>
+            Realms?.FirstOrDefault(realm => realm.Id == SelectedRealm)
+            ?? Realms?.FirstOrDefault(realm => realm.Id == DefaultRealm)
+            ?? Realms?.FirstOrDefault();
+
+        // The address the game is pointed at and the realm card pings
+        public string RealmAddress() => CurrentRealm()?.Address ?? Realmlist;
 
         static string Folder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Evolutions");

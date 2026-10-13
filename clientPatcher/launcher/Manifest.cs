@@ -9,7 +9,11 @@ namespace Evolutions
         public string Version { get; set; }
         public RemoteFile Launcher { get; set; }
         public RemoteFile WowExePatch { get; set; }
+        // The single address launchers from before the realm choice write; the PTR's, so they keep working as before
         public string Realmlist { get; set; }
+        // The realms a player can pick on the home page's realm card (live, PTR), and the one picked by default
+        public List<Realm> Realms { get; set; } = new List<Realm>();
+        public string DefaultRealm { get; set; }
         // Raised by a release whose server data the game caches (a creature's flags, an item): every launcher empties
         // the game's Cache\WDB once when it is above the number it last applied (Settings.CacheReset)
         public int CacheReset { get; set; }
@@ -32,6 +36,14 @@ namespace Evolutions
         public string Tag { get; set; }
         public string Image { get; set; }
         public string Body { get; set; }
+    }
+
+    // A server players can connect to; Address is what realmlist.wtf gets (a host, or host:port)
+    public sealed class Realm
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Address { get; set; }
     }
 
     // A whole folder shipped as one zip (an addon): installed by replacing the folder

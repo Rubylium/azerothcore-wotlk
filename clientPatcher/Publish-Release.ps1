@@ -5,6 +5,11 @@ param(
     # for the realm card's status. It used to default to empty, which left every release without an address:
     # the realm card could only ever say "Adresse inconnue". Pass '' to leave players' clients as they are.
     [string]$realmlist = '87.91.69.235',
+    # The live server (the VPS, localTools/liveServer). With it, the realm card offers a choice between live and the
+    # PTR ($realmlist); launchers from before that choice keep $realmlist.
+    [string]$liveRealmlist = '51.77.214.33',
+    # The realm a player is on until they pick one: 'ptr' or 'live'
+    [ValidateSet('ptr', 'live')][string]$defaultRealm = 'ptr',
     # Publish the completed .build/current payload instead of building a new one
     [switch]$skipBuild,
     # Publish this package from dist (e.g. CustomWotLKClientPatch-1.0.24.zip): a launcher-only release keeps the
@@ -238,6 +243,11 @@ $manifest = [ordered]@{
     Launcher = [ordered]@{ Url = "$downloadBase/Evolutions.exe"; Sha256 = $launcherSha; Size = (Get-Item $launcherPath).Length }
     WowExePatch = Publish-File (Join-Path $payloadRoot 'WowExePatch.json')
     Realmlist = $realmlist
+    Realms = @(
+        if ($liveRealmlist) { [ordered]@{ Id = 'live'; Name = 'Live'; Address = $liveRealmlist } }
+        if ($realmlist) { [ordered]@{ Id = 'ptr'; Name = 'PTR'; Address = $realmlist } }
+    )
+    DefaultRealm = $defaultRealm
     Addons = $addons
     RemovedAddons = $removedAddons
     Files = @($files)
@@ -248,6 +258,8 @@ $manifest = [ordered]@{
 # Nothing to publish when neither the files, the launcher, the news nor the settings moved
 if ($previous) {
     $same = ($previous.Launcher.Sha256 -eq $launcherSha) -and ($previous.Realmlist -eq $realmlist) -and
+        ((ConvertTo-Json @($previous.Realms) -Compress) -eq (ConvertTo-Json @($manifest.Realms) -Compress)) -and
+        ($previous.DefaultRealm -eq $defaultRealm) -and
         ([int]$previous.CacheReset -eq $cacheReset) -and
         ($previous.WowExePatch.Sha256 -eq $manifest.WowExePatch.Sha256) -and
         (@($previous.RemovedAddons) -join '|') -eq ($removedAddons -join '|') -and

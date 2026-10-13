@@ -189,7 +189,7 @@ namespace Evolutions
 
             ClientSetup.RetireAddons(gameFolder, manifest.RemovedAddons, backupFolder);
             ClientSetup.EnableAddons(gameFolder, manifest.Addons);
-            ClientSetup.SetRealmlist(gameFolder, manifest.Realmlist, backupFolder);
+            ClientSetup.SetRealmlist(gameFolder, settings.RealmAddress(), backupFolder);
 
             ResetCacheIfAsked(manifest, gameFolder);
 
