@@ -29,13 +29,11 @@ PIECES = [
     # The big red button (Play, Create an account): a left cap and a long right part, joined into a 3-slice
     '128-redbutton-left', '128-redbutton-right', '128-redbutton-left-pressed', '128-redbutton-right-pressed',
     '128-redbutton-highlight',
-    # The dark iron frame of the panels, and its header strip
-    'ui-frame-diamondmetal-cornertopleft-2x', 'ui-frame-diamondmetal-cornertopright-2x',
-    'ui-frame-diamondmetal-cornerbottomleft-2x', 'ui-frame-diamondmetal-cornerbottomright-2x',
-    '_ui-frame-diamondmetal-edgetop-2x', '_ui-frame-diamondmetal-edgebottom-2x',
-    '!ui-frame-diamondmetal-edgeleft-2x', '!ui-frame-diamondmetal-edgeright-2x',
-    'ui-frame-diamondmetal-header-cornerleft-2x', '_ui-frame-diamondmetal-header-tile-2x',
-    'ui-frame-diamondmetal-header-cornerright-2x',
+    # The gold frame of the panels (Plunderstorm's nine-slice)
+    'plunderstorm-nineslice-cornertopleft', 'plunderstorm-nineslice-cornertopright',
+    'plunderstorm-nineslice-cornerbottomleft', 'plunderstorm-nineslice-cornerbottomright',
+    '_plunderstorm-nineslice-edgetop', '_plunderstorm-nineslice-edgebottom',
+    '!plunderstorm-nineslice-edgeleft', '!plunderstorm-nineslice-edgeright',
     # The wood and gold title plate of the section headings, and the wood behind the top bar
     'ui-frame-neutral-titleleft', '_ui-frame-neutral-titlemiddle', 'ui-frame-neutral-titleright',
     'UI-Frame-Neutral-BackgroundTile',

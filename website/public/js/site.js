@@ -81,84 +81,72 @@
     const french = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     const dateText = (date) => french.format(new Date(`${date}T12:00:00`));
     const picture = (item) => `/img/news-${item.Image || 'evolution'}.jpg`;
-    const link = (item) => `/nouveautes/${item.Slug}`;
-    const excerpt = (body) => (body || '').split(/\n\s*\n/)[0].replace(/\s+/g, ' ').trim();
+    const anchor = (item) => `news-${item.Slug}`;
+    const paragraphs = (body) => (body || '').split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
 
     // A post's body: paragraphs split by a blank line, "- " and "• " lines as a list
-    function bodyNodes(body) {
-        const nodes = [];
-        for (const block of (body || '').split(/\n\s*\n/)) {
+    function bodyNodes(blocks) {
+        return blocks.map((block) => {
             const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
-            if (!lines.length) continue;
             if (lines.every((line) => /^[-•]\s/.test(line))) {
-                nodes.push(el('ul', {}, lines.map((line) => el('li', { text: line.replace(/^[-•]\s+/, '') }))));
-            } else {
-                nodes.push(el('p', { text: lines.join(' ') }));
+                return el('ul', {}, lines.map((line) => el('li', { text: line.replace(/^[-•]\s+/, '') })));
             }
-        }
-        return nodes;
+            return el('p', { text: lines.join(' ') });
+        });
     }
 
-    const newsRow = (item) => el('a', { class: 'news-row', href: link(item) }, [
-        el('div', { class: 'pic' }, el('img', { src: picture(item), alt: '', loading: 'lazy' })),
-        el('div', {}, [
-            el('div', { class: 'news-meta' }, [el('span', { class: 'tag', text: item.Tag }), dateText(item.Date)]),
-            el('h3', { text: item.Title }),
-            el('p', { text: excerpt(item.Body) }),
-        ]),
-    ]);
+    // A post on the home page: its first paragraph, the rest opened in place
+    function newsRow(item) {
+        const blocks = paragraphs(item.Body);
+        const first = el('p', { text: (blocks[0] || '').replace(/\s+/g, ' ') });
+        const row = el('article', { class: 'news-row', id: anchor(item) }, [
+            el('div', { class: 'pic' }, el('img', { src: picture(item), alt: '', loading: 'lazy' })),
+            el('div', {}, [
+                el('div', { class: 'news-meta' }, [el('span', { class: 'tag', text: item.Tag }), dateText(item.Date)]),
+                el('h3', { text: item.Title }),
+                first,
+            ]),
+        ]);
+        // More than its first paragraph, or one long enough to be cut at three lines
+        if (blocks.length > 1 || (blocks[0] || '').length > 230) {
+            const full = el('div', { class: 'news-full', hidden: '' }, bodyNodes(blocks));
+            const toggle = el('button', { class: 'news-toggle', type: 'button', text: 'Lire la suite' });
+            row.classList.add('opens');
+            row.lastChild.append(full, toggle);
+            row.open = (open = full.hidden) => {
+                full.hidden = !open;
+                first.hidden = open;
+                toggle.textContent = open ? 'Réduire' : 'Lire la suite';
+            };
+            row.addEventListener('click', (event) => {
+                if (event.target.closest('a')) return;
+                row.open();
+            });
+        }
+        return row;
+    }
 
-    const spot = (item) => el('a', { class: 'spot', href: link(item) }, [
-        el('div', { class: 'spot-pic' }, el('img', { src: picture(item), alt: '' })),
-        el('div', { class: 'spot-title', text: item.Title }),
-    ]);
+    const spot = (item) => {
+        const link = el('a', { class: 'spot', href: `#${anchor(item)}` }, [
+            el('div', { class: 'spot-pic' }, el('img', { src: picture(item), alt: '' })),
+            el('div', { class: 'spot-title', text: item.Title }),
+        ]);
+        link.addEventListener('click', () => document.getElementById(anchor(item))?.open?.(true));
+        return link;
+    };
 
-    const newsData = fetch('/api/news').then((response) => response.json()).then((data) => data.news);
-
-    newsData.then((items) => {
-        const spots = $('[data-spots]');
-        if (spots) spots.replaceChildren(...items.slice(0, 2).map(spot));
+    fetch('/api/news').then((response) => response.json()).then(({ news }) => {
         const home = $('[data-news]');
-        if (home) home.replaceChildren(...items.slice(0, Number(home.dataset.news)).map(newsRow));
-        if ($('[data-news-page]')) {
-            const slug = decodeURIComponent(location.pathname.replace(/^\/nouveautes\/?/, ''));
-            if (slug) showArticle(items.find((item) => item.Slug === slug));
-            else showNewsList(items);
+        if (home) home.replaceChildren(...news.slice(0, Number(home.dataset.news)).map(newsRow));
+        const spots = $('[data-spots]');
+        if (spots) spots.replaceChildren(...news.slice(0, 2).map(spot));
+        // Arrived from an old news link or a thumbnail: that post, opened
+        const target = location.hash && document.getElementById(location.hash.slice(1));
+        if (target?.open) {
+            target.open(true);
+            target.scrollIntoView();
         }
     });
-
-    function showNewsList(items) {
-        const filters = $('[data-news-filters]');
-        const tags = ['Toutes', ...new Set(items.map((item) => item.Tag))];
-        let current = 'Toutes';
-        const render = () => {
-            const shown = current === 'Toutes' ? items : items.filter((item) => item.Tag === current);
-            $('[data-news-all]').replaceChildren(...shown.map(newsRow));
-            $$('.chip', filters).forEach((chip) => chip.classList.toggle('active', chip.textContent === current));
-        };
-        filters.replaceChildren(...tags.map((tag) => {
-            const chip = el('button', { class: 'chip', type: 'button', text: tag });
-            chip.addEventListener('click', () => { current = tag; render(); });
-            return chip;
-        }));
-        render();
-    }
-
-    function showArticle(item) {
-        if (!item) {
-            location.replace('/nouveautes');
-            return;
-        }
-        $('[data-news-head]').hidden = true;
-        $('[data-news-list]').hidden = true;
-        $('[data-news-article]').hidden = false;
-        $('[data-article-pic]').src = picture(item);
-        $('[data-article-tag]').textContent = item.Tag;
-        $('[data-article-date]').textContent = dateText(item.Date);
-        $('[data-article-title]').textContent = item.Title;
-        $('[data-article-body]').replaceChildren(...bodyNodes(item.Body));
-        document.title = `${item.Title} - Evolutions`;
-    }
 
     // Sign-up --------------------------------------------------------------------------------------------------
 

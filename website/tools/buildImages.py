@@ -51,29 +51,44 @@ def row(*names):
     return joined
 
 
-def nine_slice(prefix, size):
-    """A frame's corners and edges in one 3x3 image, for CSS border-image (the middle stays empty)"""
-    frame = Image.new('RGBA', (size * 3, size * 3))
-    cells = {
-        'cornertopleft': (0, 0), 'edgetop': (1, 0), 'cornertopright': (2, 0),
-        'edgeleft': (0, 1), 'edgeright': (2, 1),
-        'cornerbottomleft': (0, 2), 'edgebottom': (1, 2), 'cornerbottomright': (2, 2),
-    }
-    for part, (column, line) in cells.items():
-        frame.paste(Image.open(UI / f'{prefix}-{part}-2x.png').convert('RGBA'), (column * size, line * size))
+def nine_slice(prefix, corner, thickness):
+    """A frame's corners and edges in one 3x3 image for CSS border-image, each edge against the outer side of its
+    cell (the middle stays empty). The edges are plain bars: brought to the cell's length along their run only."""
+    size = corner * 3
+    frame = Image.new('RGBA', (size, size))
+    piece = lambda part: Image.open(UI / f'{prefix}-{part}.png').convert('RGBA')
+    frame.paste(piece('cornertopleft'), (0, 0))
+    frame.paste(piece('cornertopright'), (2 * corner, 0))
+    frame.paste(piece('cornerbottomleft'), (0, 2 * corner))
+    frame.paste(piece('cornerbottomright'), (2 * corner, 2 * corner))
+    frame.paste(piece('edgetop').resize((corner, thickness), Image.LANCZOS), (corner, 0))
+    frame.paste(piece('edgebottom').resize((corner, thickness), Image.LANCZOS), (corner, size - thickness))
+    frame.paste(piece('edgeleft').resize((thickness, corner), Image.LANCZOS), (0, corner))
+    frame.paste(piece('edgeright').resize((thickness, corner), Image.LANCZOS), (size - thickness, corner))
     return frame
+
+
+def title_plate(width):
+    """The neutral title plate as the client draws it: the middle strip runs underneath, the two ends (which fade
+    out towards the middle) are laid over it"""
+    left = Image.open(UI / 'ui-frame-neutral-titleleft.png').convert('RGBA')
+    middle = Image.open(UI / 'ui-frame-neutral-titlemiddle.png').convert('RGBA')
+    right = Image.open(UI / 'ui-frame-neutral-titleright.png').convert('RGBA')
+    plate = Image.new('RGBA', (width, left.height))
+    for x in range(60, width - 60, middle.width):
+        plate.alpha_composite(middle, (x, 0))
+    plate.alpha_composite(left, (0, 0))
+    plate.alpha_composite(right, (width - right.width, 0))
+    return plate
 
 
 def compose():
     """The retail pieces (tools/extractRetailUi.py) joined into what the CSS uses"""
-    nine_slice('ui-frame-diamondmetal', 128).save(UI / 'frame-metal.png', optimize=True)
-    row('ui-frame-diamondmetal-header-cornerleft-2x.png', 'ui-frame-diamondmetal-header-tile-2x.png',
-        'ui-frame-diamondmetal-header-cornerright-2x.png').save(UI / 'header-metal.png', optimize=True)
+    nine_slice('plunderstorm-nineslice', 166, 30).save(UI / 'frame-gold.png', optimize=True)
     row('128-redbutton-left.png', '128-redbutton-right.png').save(UI / 'button-red.png', optimize=True)
     row('128-redbutton-left-pressed.png', '128-redbutton-right-pressed.png').save(UI / 'button-red-pressed.png',
                                                                                     optimize=True)
-    row('ui-frame-neutral-titleleft.png', 'ui-frame-neutral-titlemiddle.png',
-        'ui-frame-neutral-titleright.png').save(UI / 'title-plate.png', optimize=True)
+    title_plate(600).save(UI / 'title-plate.png', optimize=True)
 
 
 def main():

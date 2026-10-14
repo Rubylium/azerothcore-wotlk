@@ -201,6 +201,22 @@ p {
     box-shadow: 0 1px 0 rgba(232, 180, 90, 0.22), 0 4px 18px rgba(0, 0, 0, 0.6);
 }
 
+/* Plunderstorm's gold bar under the top bar */
+.bar::after,
+.site-footer::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: url('/img/ui/plunderstorm-nineslice-edgetop.png') 0 0 / auto 8px repeat-x;
+    pointer-events: none;
+}
+
+.bar::after {
+    bottom: -5px;
+}
+
 .bar-inner {
     height: 100%;
     display: flex;
@@ -477,54 +493,53 @@ p {
     color: var(--offline);
 }
 
-/* Panels: the retail dark iron frame -------------------------------------------------------------------------- */
+/* Panels: Plunderstorm's gold frame on a plain dark ground ------------------------------------------------------ */
 
+/* The frame's bars are 10px thick and lie in the border; its corners reach further in, over the padding */
 .panel {
     position: relative;
-    border-style: solid;
-    border-width: 30px;
-    border-image: url('/img/ui/frame-metal.png') 128 / 30px round;
-    background: url('/img/ui/ui-frame-neutral-backgroundtile.png') center / 256px, #120c09;
-    background-clip: padding-box;
+    border: 10px solid transparent;
+    border-image: url('/img/ui/frame-gold.png') 166 / 56px stretch;
+    background: rgba(13, 9, 6, 0.95) padding-box;
+    padding: 22px 24px 24px;
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
 }
 
-.panel+.panel {
+
+/* A title plaque sitting on the top edge, as the client's dialogs */
+.panel.titled {
+    padding-top: 40px;
     margin-top: 26px;
 }
 
-/* The wood shows through only at the edges: text sits on a dark wash */
-.panel-inner {
-    margin: -14px;
-    padding: 14px 16px 16px;
-    background: rgba(12, 8, 5, 0.82);
+/* Room for the next panel's plaque */
+.panel+.panel {
+    margin-top: 58px;
 }
 
-/* A panel's title on the iron header strip */
 .panel-title {
-    margin: -30px -30px 0;
-    height: 46px;
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 1px 14px 0;
     border-style: solid;
-    border-width: 0 40px;
-    border-image: url('/img/ui/header-metal.png') 0 128 fill / 0 40px stretch;
+    border-width: 0 52px;
+    border-image: url('/img/ui/title-plate.png') 0 100 fill / 0 52px stretch;
     font-family: var(--display);
     font-size: 15px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     color: var(--gold-light);
     text-shadow: 0 2px 2px #000;
-    position: relative;
-    z-index: 1;
+    white-space: nowrap;
 }
 
-.panel-title+.panel-inner {
-    margin-top: 0;
-}
-
-/* Section headings on the retail wood and gold title plate */
+/* Section headings on the same plate, larger */
 .plate {
     display: flex;
     justify-content: center;
@@ -532,15 +547,14 @@ p {
 }
 
 .plate h2 {
-    min-width: 300px;
     height: 54px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 30px 0;
+    padding: 2px 24px 0;
     border-style: solid;
-    border-width: 0 74px;
-    border-image: url('/img/ui/title-plate.png') 0 202 fill / 0 74px stretch;
+    border-width: 0 64px;
+    border-image: url('/img/ui/title-plate.png') 0 100 fill / 0 64px stretch;
     font-size: 20px;
     letter-spacing: 0.06em;
     color: var(--gold-light);
@@ -568,6 +582,14 @@ p {
     border: 1px solid rgba(232, 180, 90, 0.16);
     color: var(--text);
     transition: border-color 0.2s, background 0.2s;
+}
+
+.news-row.opens {
+    cursor: pointer;
+}
+
+.news-row {
+    scroll-margin-top: calc(var(--bar) + 20px);
 }
 
 .news-row:hover {
@@ -820,82 +842,45 @@ p {
     margin-inline: auto;
 }
 
-/* News page */
-.filters {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-    margin-bottom: 28px;
+/* A post opened in place */
+.news-full {
+    margin-top: 10px;
+    color: var(--soft);
+    font-size: 15px;
+    line-height: 1.7;
 }
 
-.chip {
-    padding: 5px 13px;
-    border: 1px solid rgba(232, 180, 90, 0.28);
-    background: rgba(0, 0, 0, 0.35);
-    color: var(--soft);
+.news-full p {
+    margin: 0 0 0.9em;
+}
+
+.news-full ul {
+    padding-left: 22px;
+    margin: 0 0 0.9em;
+}
+
+.news-full li {
+    margin-bottom: 5px;
+}
+
+.news-full li::marker {
+    color: var(--gold);
+}
+
+.news-toggle {
+    margin-top: 8px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--gold-light);
     font: 700 12px var(--body);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     cursor: pointer;
 }
 
-.chip:hover {
-    color: var(--gold-light);
-    border-color: var(--gold);
-}
-
-.chip.active {
-    color: #2a1a0a;
-    background: linear-gradient(180deg, #d9b97c, #b38c4f);
-    border-color: #e9cf98;
-}
-
-/* Article */
-.article-pic {
-    border: 1px solid #000;
-    outline: 1px solid rgba(232, 180, 90, 0.35);
-    outline-offset: -3px;
-    margin-bottom: 22px;
-}
-
-.article-pic img {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-}
-
-.article h1 {
-    font-size: clamp(26px, 3vw, 34px);
-    margin: 8px 0 18px;
-}
-
-.article-body {
-    color: var(--soft);
-    font-size: 16px;
-    line-height: 1.75;
-}
-
-.article-body ul {
-    padding-left: 22px;
-    margin: 0 0 1.1em;
-}
-
-.article-body li {
-    margin-bottom: 6px;
-}
-
-.article-body li::marker {
-    color: var(--gold);
-}
-
-.back {
-    display: inline-block;
-    margin-bottom: 18px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+.news-toggle:hover {
+    color: #fff;
 }
 
 /* Download */
@@ -1181,11 +1166,15 @@ p {
     color: var(--gold-light);
 }
 
+.site-footer::before {
+    top: -4px;
+}
+
 /* Footer ------------------------------------------------------------------------------------------------------- */
 
 .site-footer {
+    position: relative;
     background: #090604;
-    border-top: 1px solid rgba(232, 180, 90, 0.16);
     padding: 36px 0 26px;
     color: var(--muted);
     font-size: 13px;
@@ -1342,12 +1331,11 @@ p {
     }
 
     .panel {
-        border-width: 22px;
-        border-image-width: 22px;
+        padding: 18px 16px 18px;
     }
 
-    .panel-title {
-        margin: -22px -22px 0;
+    .panel.titled {
+        padding-top: 36px;
     }
 
     .wrap {

@@ -223,9 +223,8 @@ const sendPage = (name, status = 200) => (req, res) => res.status(status).type('
 app.get('/', sendPage('index'));
 app.get('/inscription', sendPage('inscription'));
 app.get('/telecharger', sendPage('telecharger'));
-app.get('/nouveautes', sendPage('nouveautes'));
-// An article has its own address, shown by the news page
-app.get('/nouveautes/:slug', sendPage('nouveautes'));
+// The news live on the home page only (an older link lands there)
+app.get(['/nouveautes', '/nouveautes/*'], (req, res) => res.redirect(301, '/#nouveautes'));
 
 app.use(express.static(path.join(__dirname, 'public'), {
     setHeaders(res, file) {

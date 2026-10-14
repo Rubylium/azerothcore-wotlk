@@ -19,13 +19,14 @@ It needs the local MySQL (`localTools/startDatabase.ps1`); the game servers can 
 - `pages/*.html`: the pages; the server puts `pages/partials/header.html` and `footer.html` into each.
 - `public/`: CSS, JS, fonts and pictures. `public/img` is made by `python website/tools/buildImages.py` from the art
   the launcher and the client already use (committed; run it again after changing that art).
-- `public/img/ui`: the interface pieces (the red button, the iron frame, the title plate), cut from the retail
+- `public/img/ui`: the interface pieces (the red button, Plunderstorm's gold frame, the title plate), cut from the retail
   client's UI atlases by `python website/tools/extractRetailUi.py` (needs the local retail install; committed), then
   joined into CSS 9-slices and 3-slices by `buildImages.py`.
 - `server.js`: the API.
   - `GET /api/status` checks each realm's auth port, and counts online players when the realm lists a characters
     database (accounts whose last login came from somewhere other than the server itself, so bots are left out).
-  - `GET /api/news` serves `clientPatcher/news.json`, the launcher's news, so a post is written once.
+  - `GET /api/news` serves `clientPatcher/news.json`, the launcher's news, so a post is written once. The home
+    page shows the latest posts and opens each one in place; there is no news page (`/nouveautes` redirects home).
   - `POST /api/register` creates the account in every database listed under `accounts`.
 - `lib/srp6.js`: the salt and verifier, as the auth server computes them.
 - `tools/checkLogin.js <host> <user> <password>`: logs in like the game client, to check that an account works.
