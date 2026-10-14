@@ -1,0 +1,3 @@
+node_modules/
+# Database passwords and the anti-robot secret
+config.json
