@@ -206,9 +206,11 @@ const pagesRoot = path.join(__dirname, 'pages');
 const pageCache = new Map();
 function page(name) {
     const file = path.join(pagesRoot, `${name}.html`);
-    const mtime = fs.statSync(file).mtimeMs;
+    // The page or a shared part edited: assembled again
+    const mtime = Math.max(...[file, ...['header', 'footer'].map((part) => path.join(pagesRoot, 'partials', `${part}.html`))]
+        .map((source) => fs.statSync(source).mtimeMs));
     const cached = pageCache.get(name);
-    if (cached && cached.mtime === mtime && !config.devReload) return cached.html;
+    if (cached && cached.mtime === mtime) return cached.html;
     const partial = (part) => fs.readFileSync(path.join(pagesRoot, 'partials', `${part}.html`), 'utf8');
     const html = fs.readFileSync(file, 'utf8')
         .replace('<!-- header -->', partial('header'))

@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Nouveautés - Evolutions</title>
-    <meta name="description" content="Toutes les nouveautés du serveur Evolutions : classes, donjons, raids et mises à jour.">
+    <meta name="description" content="Les nouveautés et notes de mise à jour du serveur Evolutions.">
     <link rel="icon" href="/img/logo.png">
     <link rel="stylesheet" href="/css/site.css">
 </head>
@@ -14,33 +14,29 @@
     <!-- header -->
 
     <main data-news-page>
-        <section class="banner" data-news-banner>
+        <section class="page-head" data-news-head>
             <div class="wrap">
-                <div class="eyebrow">Le journal du serveur</div>
                 <h1>Nouveautés</h1>
-                <p>Classes, donjons, raids et améliorations : tout ce qui change sur Evolutions.</p>
+                <p>Mises à jour et annonces du serveur.</p>
             </div>
         </section>
 
-        <section class="section" style="padding-top: 40px" data-news-list>
-            <div class="wrap">
-                <div class="filters" data-news-filters></div>
-                <div data-news-featured></div>
-                <div class="news-grid" data-news-all></div>
-            </div>
-        </section>
+        <div class="wrap page narrow" data-news-list>
+            <div class="filters" data-news-filters></div>
+            <div data-news-all></div>
+        </div>
 
-        <section class="section" style="padding-top: calc(var(--header) + 50px); display: none" data-news-article>
-            <div class="wrap">
-                <article class="article">
-                    <a class="back" href="/nouveautes">← Toutes les nouveautés</a>
+        <div class="wrap page narrow" data-news-article hidden>
+            <a class="back" href="/nouveautes">‹ Toutes les nouveautés</a>
+            <div class="panel">
+                <div class="panel-inner article">
                     <div class="article-pic"><img alt="" data-article-pic></div>
-                    <div class="article-meta"><span class="tag" data-article-tag></span><span data-article-date></span></div>
+                    <div class="news-meta"><span class="tag" data-article-tag></span><span data-article-date></span></div>
                     <h1 data-article-title></h1>
                     <div class="article-body" data-article-body></div>
-                </article>
+                </div>
             </div>
-        </section>
+        </div>
     </main>
 
     <!-- footer -->

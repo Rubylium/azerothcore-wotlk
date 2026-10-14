@@ -18,13 +18,9 @@ INTERFACE = REPO / 'localTools' / 'interface' / 'assets'
 PICTURES = {
     'hero.jpg': (REPO / 'clientPatcher' / 'assets' / 'login' / 'LoginBackdrop-source.png', 1920, 82),
     'hero-wide.jpg': (REPO / 'clientPatcher' / 'assets' / 'login' / 'LoginBackdropWide-source.png', 2400, 82),
-    'pestifere.jpg': (REPO / 'clientPatcher' / 'assets' / 'launcher' / 'background-pestifere-source.png', 1920, 82),
-    'raid-hollowvoice.jpg': (INTERFACE / 'hollowVoice' / 'backdrop.png', 1536, 82),
-    'raid-planetarium.jpg': (INTERFACE / 'challengeGod' / 'backdrop.png', 1536, 82),
-    'crest-barbarian.jpg': (INTERFACE / 'classes' / 'barbarian.png', 600, 85),
-    'crest-necromancer.jpg': (INTERFACE / 'classes' / 'necromancer.png', 600, 85),
-    'crest-pestifere.jpg': (INTERFACE / 'classes' / 'pestifere.png', 600, 85),
-    'crest-oathblade.jpg': (INTERFACE / 'classes' / 'oathblade.png', 600, 85),
+    # Portraits for the home page's cards (no raid boss a player has not met yet)
+    'portrait-challenge.jpg': (INTERFACE / 'challengeGod' / 'portrait.png', 900, 82),
+    'portrait-frontier.jpg': (INTERFACE / 'frontier' / 'colossus-1.png', 900, 82),
 }
 
 
@@ -41,6 +37,45 @@ def save(source: Path, target: Path, longest: int, quality: int):
         image.convert('RGB').save(target, quality=quality, optimize=True, progressive=True)
 
 
+UI = OUT / 'ui'
+
+
+def row(*names):
+    """Retail pieces side by side (a 3-slice: left cap, stretchable middle, right cap)"""
+    pieces = [Image.open(UI / name).convert('RGBA') for name in names]
+    joined = Image.new('RGBA', (sum(piece.width for piece in pieces), max(piece.height for piece in pieces)))
+    x = 0
+    for piece in pieces:
+        joined.paste(piece, (x, 0))
+        x += piece.width
+    return joined
+
+
+def nine_slice(prefix, size):
+    """A frame's corners and edges in one 3x3 image, for CSS border-image (the middle stays empty)"""
+    frame = Image.new('RGBA', (size * 3, size * 3))
+    cells = {
+        'cornertopleft': (0, 0), 'edgetop': (1, 0), 'cornertopright': (2, 0),
+        'edgeleft': (0, 1), 'edgeright': (2, 1),
+        'cornerbottomleft': (0, 2), 'edgebottom': (1, 2), 'cornerbottomright': (2, 2),
+    }
+    for part, (column, line) in cells.items():
+        frame.paste(Image.open(UI / f'{prefix}-{part}-2x.png').convert('RGBA'), (column * size, line * size))
+    return frame
+
+
+def compose():
+    """The retail pieces (tools/extractRetailUi.py) joined into what the CSS uses"""
+    nine_slice('ui-frame-diamondmetal', 128).save(UI / 'frame-metal.png', optimize=True)
+    row('ui-frame-diamondmetal-header-cornerleft-2x.png', 'ui-frame-diamondmetal-header-tile-2x.png',
+        'ui-frame-diamondmetal-header-cornerright-2x.png').save(UI / 'header-metal.png', optimize=True)
+    row('128-redbutton-left.png', '128-redbutton-right.png').save(UI / 'button-red.png', optimize=True)
+    row('128-redbutton-left-pressed.png', '128-redbutton-right-pressed.png').save(UI / 'button-red-pressed.png',
+                                                                                    optimize=True)
+    row('ui-frame-neutral-titleleft.png', 'ui-frame-neutral-titlemiddle.png',
+        'ui-frame-neutral-titleright.png').save(UI / 'title-plate.png', optimize=True)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, (source, longest, quality) in PICTURES.items():
@@ -49,7 +84,9 @@ def main():
     for source in LAUNCHER.glob('news-*.jpg'):
         save(source, OUT / source.name, 960, 82)
     save(LAUNCHER / 'logo.png', OUT / 'logo.png', 480, 0)
-    for target in sorted(OUT.iterdir()):
+    save(REPO / 'clientPatcher' / 'assets' / 'logo' / 'WorldOfWarcraft-Evolution.png', OUT / 'logo-large.png', 1100, 0)
+    compose()
+    for target in sorted(OUT.glob('*.*')):
         print(f'{target.stat().st_size // 1024:5} KB  {target.name}')
 
 

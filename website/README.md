@@ -19,6 +19,9 @@ It needs the local MySQL (`localTools/startDatabase.ps1`); the game servers can 
 - `pages/*.html`: the pages; the server puts `pages/partials/header.html` and `footer.html` into each.
 - `public/`: CSS, JS, fonts and pictures. `public/img` is made by `python website/tools/buildImages.py` from the art
   the launcher and the client already use (committed; run it again after changing that art).
+- `public/img/ui`: the interface pieces (the red button, the iron frame, the title plate), cut from the retail
+  client's UI atlases by `python website/tools/extractRetailUi.py` (needs the local retail install; committed), then
+  joined into CSS 9-slices and 3-slices by `buildImages.py`.
 - `server.js`: the API.
   - `GET /api/status` checks each realm's auth port, and counts online players when the realm lists a characters
     database (accounts whose last login came from somewhere other than the server itself, so bots are left out).

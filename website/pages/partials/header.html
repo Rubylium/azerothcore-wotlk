@@ -1,22 +1,32 @@
-<header class="site-header" id="header">
-    <div class="wrap header-inner">
-        <nav class="nav nav-left" aria-label="Navigation principale">
-            <a href="/" data-nav="index">Accueil</a>
-            <a href="/#le-jeu" data-nav="jeu">Le jeu</a>
-            <a href="/#classes" data-nav="classes">Classes</a>
-            <a href="/nouveautes" data-nav="nouveautes">Nouveautés</a>
-        </nav>
-        <a class="brand" href="/" aria-label="Evolutions - accueil">
+<header class="bar" id="header">
+    <div class="wrap bar-inner">
+        <a class="bar-logo" href="/" aria-label="Evolutions - accueil">
             <img src="/img/logo.png" alt="World of Warcraft Evolution" width="480" height="351">
         </a>
-        <nav class="nav nav-right" aria-label="Jouer">
-            <a href="/telecharger" data-nav="telecharger">Télécharger</a>
-            <a class="btn btn-play btn-small" href="/inscription">Créer un compte</a>
+        <nav class="bar-nav" aria-label="Navigation principale">
+            <a class="bar-link" href="/" data-nav="index">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z" /></svg>Accueil
+            </a>
+            <a class="bar-link" href="/nouveautes" data-nav="nouveautes">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2zm15 4h1v10a1 1 0 0 1-2 0V8zM7 7v3h7V7zm0 5v1h7v-1zm0 3v1h7v-1z" /></svg>Nouveautés
+            </a>
+            <a class="bar-link" href="/telecharger" data-nav="telecharger">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z" /></svg>Comment jouer
+            </a>
+            <a class="bar-link" href="#" data-discord hidden>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 5.3A16 16 0 0 0 15.6 4l-.5 1a15 15 0 0 0-6.2 0l-.5-1a16 16 0 0 0-4 1.3C1.9 9.1 1.2 12.8 1.5 16.4a16 16 0 0 0 4.9 2.5l1-1.6-1.6-.8.4-.3a11.5 11.5 0 0 0 11.6 0l.4.3-1.6.8 1 1.6a16 16 0 0 0 4.9-2.5c.4-4.2-.6-7.8-2.9-11.1zM8.7 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z" /></svg>Discord
+            </a>
         </nav>
+        <div class="bar-right">
+            <a class="bar-link" href="/inscription" data-nav="inscription">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5z" /></svg>Créer un compte
+            </a>
+            <a class="btn-tan" data-launcher href="/telecharger">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 3h2v9.6l3.3-3.3 1.4 1.4L12 16.4l-5.7-5.7 1.4-1.4 3.3 3.3zM5 19h14v2H5z" /></svg>Télécharger
+            </a>
+        </div>
         <button class="menu-toggle" type="button" aria-label="Menu" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
     </div>
 </header>

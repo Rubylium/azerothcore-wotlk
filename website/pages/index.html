@@ -4,11 +4,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Evolutions - Wrath of the Lich King comme vous ne l'avez jamais joué</title>
+    <title>Evolutions - Serveur Wrath of the Lich King</title>
     <meta name="description"
-        content="Serveur Wrath of the Lich King 3.3.5a gratuit : nouvelles classes, Mythique+, tableau des Défis, Parangon et compagnons pour vos donjons et raids.">
+        content="Evolutions, serveur Wrath of the Lich King 3.3.5a gratuit : nouvelles classes, Mythique+, tableau des Défis et Parangon.">
     <meta property="og:title" content="Evolutions">
-    <meta property="og:description" content="Wrath of the Lich King comme vous ne l'avez jamais joué.">
     <meta property="og:image" content="/img/hero.jpg">
     <link rel="icon" href="/img/logo.png">
     <link rel="preload" href="/img/hero.jpg" as="image">
@@ -22,231 +21,108 @@
         <section class="hero">
             <div class="hero-art"></div>
             <div class="embers" aria-hidden="true"></div>
-            <div class="wrap">
-                <div class="hero-content">
-                    <div class="eyebrow">Wrath of the Lich King · 3.3.5a</div>
-                    <h1>Evolutions</h1>
-                    <p class="lead">Wrath of the Lich King comme vous ne l'avez jamais joué : de nouvelles classes, le
-                        Mythique+, le Parangon et le prestige.</p>
-                    <div class="hero-actions">
-                        <a class="btn btn-play btn-large" href="/inscription">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
-                            Jouer gratuitement
-                        </a>
-                        <a class="btn btn-ghost btn-large" href="/telecharger">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" /></svg>
-                            Télécharger le launcher
-                        </a>
-                    </div>
-                    <div class="realms" data-realms aria-live="polite"></div>
-                </div>
-            </div>
-            <div class="scroll-hint">Découvrir</div>
-        </section>
+            <div class="wrap hero-grid">
+                <aside class="hero-spots">
+                    <div class="side-label">À la une</div>
+                    <div data-spots></div>
+                </aside>
 
-        <section class="section" style="padding: 0">
-            <div class="wrap">
-                <div class="pillars reveal-up">
-                    <div class="pillar">
-                        <strong>Quatre classes inédites</strong>
-                        <span>Barbare, Nécromancien, Pestiféré et Oathblade, chacune avec ses spécialisations et ses
-                            talents.</span>
-                    </div>
-                    <div class="pillar">
-                        <strong>Mythique+</strong>
-                        <span>Des clés pour chaque donjon : battez le chrono et montez aussi haut que possible.</span>
-                    </div>
-                    <div class="pillar">
-                        <strong>Tableau des Défis</strong>
-                        <span>Les boss de raid revisités, palier après palier, et des rencontres inédites.</span>
-                    </div>
-                    <div class="pillar">
-                        <strong>Jamais seul</strong>
-                        <span>Des compagnons complètent vos groupes : donjons, raids et clés, même en solo.</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section" id="classes">
-            <div class="wrap">
-                <div class="section-head reveal-up">
-                    <div class="eyebrow">Nouvelles classes</div>
-                    <h2>Choisissez votre voie</h2>
-                    <p>Quatre classes que vous ne trouverez nulle part ailleurs, jouables de toutes les races, chacune
-                        avec son arbre de talents, ses effets visuels et ses sons.</p>
-                </div>
-                <div class="classes">
-                    <article class="class-card reveal-up" style="--tint: rgba(210, 70, 40, 0.28)">
-                        <div class="crest"><img src="/img/crest-barbarian.jpg" alt="Emblème du Barbare" loading="lazy"></div>
-                        <h3>Barbare</h3>
-                        <div class="roles"><span class="tag">Dégâts</span></div>
-                        <p>Venu du Nord, porté par la rage : il frappe à la hache, lance ses haches de loin ou se dresse
-                            derrière un bouclier ancestral.</p>
-                        <div class="specs"><b>Brutalité</b> · <b>Chasseur de têtes</b> · <b>Ascendance</b></div>
-                    </article>
-                    <article class="class-card reveal-up" style="--tint: rgba(140, 90, 230, 0.3)">
-                        <div class="crest"><img src="/img/crest-necromancer.jpg" alt="Emblème du Nécromancien" loading="lazy"></div>
-                        <h3>Nécromancien</h3>
-                        <div class="roles"><span class="tag">Dégâts</span></div>
-                        <p>Il relève les morts et mène son armée au combat : des serviteurs au corps à corps comme à
-                            distance, toujours à ses ordres.</p>
-                        <div class="specs"><b>Légion</b> · <b>Ossuaire</b> · <b>Rituels</b></div>
-                    </article>
-                    <article class="class-card reveal-up" style="--tint: rgba(110, 200, 60, 0.26)">
-                        <div class="crest"><img src="/img/crest-pestifere.jpg" alt="Emblème du Pestiféré" loading="lazy"></div>
-                        <h3>Pestiféré</h3>
-                        <div class="roles"><span class="tag">Tank</span><span class="tag">Soins</span></div>
-                        <p>Il porte la peste en lui, la propage et la fait éclater. Rempart des siens, ou soigneur au
-                            cœur de la mêlée.</p>
-                        <div class="specs"><b>Charnier</b> · <b>Sangsue</b> · <b>Putréfaction</b></div>
-                    </article>
-                    <article class="class-card reveal-up" style="--tint: rgba(70, 130, 230, 0.3)">
-                        <div class="crest"><img src="/img/crest-oathblade.jpg" alt="Emblème de l'Oathblade" loading="lazy"></div>
-                        <h3>Oathblade</h3>
-                        <div class="roles"><span class="tag">Dégâts</span></div>
-                        <p>Un duelliste noble et vif, lié par son serment, qui enchaîne les assauts à l'épée dans des
-                            fenêtres de puissance fulgurantes.</p>
-                        <div class="specs"><b>Swordcraft</b> · <b>Honor</b> · <b>Aegis</b></div>
-                    </article>
-                </div>
-            </div>
-        </section>
-
-        <section class="section section-dark" id="le-jeu">
-            <div class="wrap">
-                <div class="section-head reveal-up">
-                    <div class="eyebrow">Le jeu</div>
-                    <h2>Le Norfendre, et bien plus</h2>
-                    <p>Toute l'aventure de Wrath of the Lich King, avec ce qui fait vivre un serveur bien après le
-                        niveau 80.</p>
+                <div class="hero-center">
+                    <img class="hero-logo" src="/img/logo-large.png" alt="World of Warcraft Evolution" width="1100"
+                        height="825">
+                    <a class="btn-red" href="/inscription">Jouer gratuitement</a>
+                    <div class="hero-sub">Wrath of the Lich King · 3.3.5a</div>
                 </div>
 
-                <div class="feature reveal-up">
-                    <div class="feature-art"><img src="/img/news-mythicplus.jpg" alt="Un donjon Mythique+" loading="lazy"></div>
-                    <div class="feature-text">
-                        <div class="eyebrow">Donjons</div>
-                        <h3>Le Mythique+</h3>
-                        <p>Insérez votre clé, terminez le donjon dans le temps imparti pour l'améliorer, et montez aussi
-                            haut que possible.</p>
-                        <ul class="checks">
-                            <li>Une clé pour chaque donjon du jeu</li>
-                            <li>Les techniques des monstres sont annoncées avant de frapper</li>
-                            <li>Au-delà de +10, chaque clé indique le niveau de Parangon conseillé</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="feature reverse reveal-up">
-                    <div class="feature-art"><img src="/img/raid-hollowvoice.jpg" alt="La salle du trône de la Voix creuse" loading="lazy"></div>
-                    <div class="feature-text">
-                        <div class="eyebrow">Raids</div>
-                        <h3>Le tableau des Défis</h3>
-                        <p>Les boss de raid que vous connaissez, revisités palier après palier, et des rencontres que
-                            vous n'avez jamais vues. Le gardien du tableau attend les plus téméraires.</p>
-                        <ul class="checks">
-                            <li>Des paliers de plus en plus exigeants, et un meilleur butin à chacun</li>
-                            <li>Des raids inédits, comme la Voix creuse sous le Puits de soleil</li>
-                            <li>Des objets légendaires et uniques à conquérir</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="feature reveal-up">
-                    <div class="feature-art"><img src="/img/news-pantheon.jpg" alt="Le tableau de Parangon" loading="lazy"></div>
-                    <div class="feature-text">
-                        <div class="eyebrow">Progression</div>
-                        <h3>Parangon et prestige</h3>
-                        <p>Au niveau 80, la progression continue. Façonnez votre personnage sur le tableau de Parangon,
-                            de l'Éveil jusqu'au Panthéon, et repartez plus fort à chaque prestige.</p>
-                        <ul class="checks">
-                            <li>Des branches propres aux combattants et aux lanceurs de sorts</li>
-                            <li>Des glyphes de Parangon et des configurations à enregistrer</li>
-                            <li>Un tableau recommandé pour votre rôle, d'un clic</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section">
-            <div class="wrap">
-                <div class="section-head reveal-up">
-                    <div class="eyebrow">Et aussi</div>
-                    <h2>Un monde qui vit</h2>
-                </div>
-                <div class="tiles">
-                    <article class="tile reveal-up">
-                        <img src="/img/news-bots.jpg" alt="Des compagnons en donjon" loading="lazy">
-                        <div class="tile-body">
-                            <h3>Des compagnons</h3>
-                            <p>Choisissez votre rôle et lancez la recherche, même seul : des compagnons prêts au combat
-                                complètent vos donjons, vos raids et vos clés.</p>
+                <aside>
+                    <div class="status">
+                        <div class="status-head">
+                            <img src="/img/logo.png" alt="" width="480" height="351">
+                            <div>
+                                <strong>Evolutions</strong>
+                                <span data-players>État des royaumes</span>
+                            </div>
                         </div>
-                    </article>
-                    <article class="tile reveal-up">
-                        <img src="/img/news-raidfinder.jpg" alt="La recherche de raid" loading="lazy">
-                        <div class="tile-body">
-                            <h3>Tous les raids</h3>
-                            <p>Du Cœur du Magma à la Citadelle de la Couronne de glace, en 10 ou 25 joueurs, normal ou
-                                héroïque, sans verrouillage d'instance.</p>
+                        <div class="status-rows" data-realms aria-live="polite">
+                            <div class="status-row"><span>Vérification…</span></div>
                         </div>
-                    </article>
-                    <article class="tile reveal-up">
-                        <img src="/img/news-frontier.jpg" alt="Le Front du Nord" loading="lazy">
-                        <div class="tile-body">
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <div class="wrap portal">
+            <section>
+                <div class="plate"><h2>Nouveautés</h2></div>
+                <div data-news="5"></div>
+                <div class="news-more"><a class="btn-line" href="/nouveautes">Toutes les nouveautés</a></div>
+            </section>
+
+            <aside>
+                <div class="panel">
+                    <div class="panel-title">Commencer à jouer</div>
+                    <div class="panel-inner">
+                        <ol class="steps-list">
+                            <li>Créez votre compte.</li>
+                            <li>Téléchargez le launcher et lancez-le.</li>
+                            <li>Indiquez votre dossier World of Warcraft 3.3.5a, puis cliquez sur Jouer.</li>
+                        </ol>
+                        <div class="side-actions">
+                            <a class="btn-red small wide" href="/inscription">Créer un compte</a>
+                            <a class="btn-line" data-launcher href="/telecharger">Télécharger le launcher</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-title">Le serveur</div>
+                    <div class="panel-inner">
+                        <ul class="facts">
+                            <li>Wrath of the Lich King 3.3.5a</li>
+                            <li>De nouvelles classes jouables</li>
+                            <li>Donjons Mythique+</li>
+                            <li>Tableau des Défis et raids inédits</li>
+                            <li>Parangon et prestige au niveau 80</li>
+                            <li>Des compagnons pour compléter vos groupes</li>
+                            <li>Gratuit, sans boutique</li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <section class="discover">
+            <div class="wrap">
+                <div class="plate"><h2>Découvrir le jeu</h2></div>
+                <div class="cards">
+                    <a class="card" href="/nouveautes/2026-09-19-le-mythique-est-disponible">
+                        <img src="/img/news-mythicplus.jpg" alt="" loading="lazy">
+                        <div class="card-text">
+                            <h3>Mythique+</h3>
+                            <p>Terminez le donjon à temps pour améliorer votre clé.</p>
+                        </div>
+                    </a>
+                    <a class="card" href="/nouveautes/2026-09-29-nouveau-defi-l-infini">
+                        <img src="/img/portrait-challenge.jpg" alt="" loading="lazy">
+                        <div class="card-text">
+                            <h3>Tableau des Défis</h3>
+                            <p>Les boss de raid, palier après palier.</p>
+                        </div>
+                    </a>
+                    <a class="card" href="/nouveautes/2026-10-02-nouveau-le-front-du-nord">
+                        <img src="/img/portrait-frontier.jpg" alt="" loading="lazy">
+                        <div class="card-text">
                             <h3>Le Front du Nord</h3>
-                            <p>Le Norfendre est de nouveau en guerre. Rejoignez le front auprès du quartier-maître de
-                                Dalaran.</p>
+                            <p>Le Norfendre est de nouveau en guerre.</p>
                         </div>
-                    </article>
-                    <article class="tile reveal-up">
-                        <img src="/img/news-argent.jpg" alt="La Forge" loading="lazy">
-                        <div class="tile-body">
-                            <h3>La Forge</h3>
-                            <p>Renforcez votre équipement chez le maître forgeron, jusqu'à ses effets visuels qui
-                                évoluent avec chaque rang.</p>
+                    </a>
+                    <a class="card" href="/nouveautes/2026-09-29-parangon-le-pantheon-et-les-glyphes">
+                        <img src="/img/news-prestige.jpg" alt="" loading="lazy">
+                        <div class="card-text">
+                            <h3>Parangon</h3>
+                            <p>Au niveau 80, votre personnage continue de progresser.</p>
                         </div>
-                    </article>
-                    <article class="tile reveal-up">
-                        <img src="/img/news-ulduar.jpg" alt="Le Donjon infini" loading="lazy">
-                        <div class="tile-body">
-                            <h3>Le Donjon infini</h3>
-                            <p>Seul ou à deux, montez aussi haut que possible. Son gardien vous attend à Hurlevent.</p>
-                        </div>
-                    </article>
-                    <article class="tile reveal-up">
-                        <img src="/img/news-talents.jpg" alt="Les arbres de talents" loading="lazy">
-                        <div class="tile-body">
-                            <h3>De nouveaux talents</h3>
-                            <p>Toutes les classes passent au nouveau système de talents, avec des builds conseillés et
-                                des configurations à enregistrer.</p>
-                        </div>
-                    </article>
-                </div>
-            </div>
-        </section>
-
-        <section class="section section-dark">
-            <div class="wrap">
-                <div class="section-head reveal-up">
-                    <div class="eyebrow">Nouveautés</div>
-                    <h2>Dernières nouvelles</h2>
-                </div>
-                <div class="news-grid" data-news="3"></div>
-                <div class="more"><a class="btn btn-ghost" href="/nouveautes">Toutes les nouveautés</a></div>
-            </div>
-        </section>
-
-        <section class="cta">
-            <div class="wrap">
-                <div class="ornament" style="margin-bottom: 28px"><i></i></div>
-                <h2>Rejoignez Evolutions</h2>
-                <p>Créez votre compte gratuitement, installez le launcher, et votre aventure commence en quelques
-                    minutes.</p>
-                <div class="hero-actions">
-                    <a class="btn btn-play btn-large" href="/inscription">Créer un compte</a>
-                    <a class="btn btn-ghost btn-large" href="/telecharger">Comment jouer</a>
+                    </a>
                 </div>
             </div>
         </section>

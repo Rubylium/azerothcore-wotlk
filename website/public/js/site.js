@@ -1,4 +1,4 @@
-// The pages' behaviour: the header, the realm status, the news, the sign-up form
+// The pages' behaviour: the top bar, the realm status, the news, the sign-up form
 (() => {
     const $ = (selector, root = document) => root.querySelector(selector);
     const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -11,29 +11,24 @@
             else if (key === 'text') node.textContent = value;
             else node.setAttribute(key, value);
         }
-        for (const child of [].concat(children)) if (child) node.append(child);
+        for (const child of [].concat(children)) if (child !== null && child !== undefined) node.append(child);
         return node;
     };
 
-    // Header ---------------------------------------------------------------------------------------------------
+    // Top bar --------------------------------------------------------------------------------------------------
 
-    const header = $('#header');
-    const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 40);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-
+    const bar = $('#header');
     $$(`[data-nav="${page}"]`).forEach((link) => link.classList.add('active'));
     $('.menu-toggle').addEventListener('click', (event) => {
-        const open = header.classList.toggle('open');
+        const open = bar.classList.toggle('open');
         event.currentTarget.setAttribute('aria-expanded', String(open));
     });
-    $$('.nav a').forEach((link) => link.addEventListener('click', () => header.classList.remove('open')));
     $$('[data-year]').forEach((node) => { node.textContent = new Date().getFullYear(); });
 
-    // Embers rising over the hero, as the launcher's braziers
+    // Embers rising from the braziers of the hero
     const embers = $('.embers');
     if (embers && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        for (let i = 0; i < 28; i++) {
+        for (let i = 0; i < 26; i++) {
             const ember = el('span');
             const size = 1.5 + Math.random() * 2.5;
             ember.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;` +
@@ -43,48 +38,39 @@
         }
     }
 
-    // Sections rise into view once
-    const reveal = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            entry.target.classList.add('visible');
-            reveal.unobserve(entry.target);
-        }
-    }, { rootMargin: '0px 0px -8% 0px' });
-    $$('.reveal-up').forEach((node) => reveal.observe(node));
-
-    // Site settings: the launcher's address, the anti-robot key ---------------------------------------------------
+    // Site settings: the launcher's address, Discord, the anti-robot key -------------------------------------------
 
     const settings = fetch('/api/config').then((response) => response.json()).catch(() => ({}));
-    settings.then(({ launcherUrl }) => {
+    settings.then(({ launcherUrl, discordUrl }) => {
         if (launcherUrl) $$('[data-launcher]').forEach((link) => { link.href = launcherUrl; });
+        if (discordUrl) {
+            $$('[data-discord]').forEach((link) => {
+                link.href = discordUrl;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.hidden = false;
+            });
+        }
     });
 
     // Realm status ---------------------------------------------------------------------------------------------
 
-    function realmCard(realm) {
-        const state = realm.online ? 'En ligne' : 'Hors ligne';
-        const players = realm.online && realm.players !== null
-            ? ` · ${realm.players} joueur${realm.players === 1 ? '' : 's'}` : '';
-        const name = el('div', { class: 'realm-name', text: 'Evolutions' },
-            el('small', { text: realm.name.toUpperCase() }));
-        const detail = el('div', { class: 'realm-state' }, [el('strong', { text: state }), players]);
-        return el('div', { class: `realm ${realm.online ? 'online' : 'offline'}`, title: realm.description },
-            [el('span', { class: 'realm-dot' }), el('div', {}, [name, detail])]);
-    }
-
     async function showRealms() {
-        const cards = $('[data-realms]');
-        const list = $('[data-realm-list]');
+        const rows = $('[data-realms]');
+        if (!rows) return;
         try {
             const { realms } = await (await fetch('/api/status')).json();
-            if (cards) cards.replaceChildren(...realms.map(realmCard));
-            if (list) {
-                list.replaceChildren(...realms.map((realm) => el('li', {},
-                    `${realm.name} : ${realm.online ? 'en ligne' : 'hors ligne'}`)));
-            }
+            rows.replaceChildren(...realms.map((realm) => el('div', { class: 'status-row', title: realm.description }, [
+                el('span', { text: 'Evolutions' }),
+                el('span', { class: 'realm-tag', text: `[${realm.name}]` }),
+                el('span', { class: realm.online ? 'up' : 'down', text: realm.online ? 'En ligne' : 'Hors ligne' }),
+            ])));
+            const counted = realms.filter((realm) => realm.online && realm.players !== null);
+            const players = counted.reduce((sum, realm) => sum + realm.players, 0);
+            $('[data-players]').textContent = counted.length
+                ? `${players} joueur${players > 1 ? 's' : ''} en ligne` : 'État des royaumes';
         } catch {
-            if (list) list.replaceChildren(el('li', { text: 'État indisponible' }));
+            rows.replaceChildren(el('div', { class: 'status-row' }, el('span', { text: 'État indisponible' })));
         }
     }
     showRealms();
@@ -95,6 +81,8 @@
     const french = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     const dateText = (date) => french.format(new Date(`${date}T12:00:00`));
     const picture = (item) => `/img/news-${item.Image || 'evolution'}.jpg`;
+    const link = (item) => `/nouveautes/${item.Slug}`;
+    const excerpt = (body) => (body || '').split(/\n\s*\n/)[0].replace(/\s+/g, ' ').trim();
 
     // A post's body: paragraphs split by a blank line, "- " and "• " lines as a list
     function bodyNodes(body) {
@@ -102,8 +90,7 @@
         for (const block of (body || '').split(/\n\s*\n/)) {
             const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
             if (!lines.length) continue;
-            const bullets = lines.filter((line) => /^[-•]\s/.test(line));
-            if (bullets.length === lines.length) {
+            if (lines.every((line) => /^[-•]\s/.test(line))) {
                 nodes.push(el('ul', {}, lines.map((line) => el('li', { text: line.replace(/^[-•]\s+/, '') }))));
             } else {
                 nodes.push(el('p', { text: lines.join(' ') }));
@@ -112,48 +99,41 @@
         return nodes;
     }
 
-    const excerpt = (body) => (body || '').split(/\n\s*\n/)[0].replace(/\s+/g, ' ').trim();
-
-    function newsCard(item, featured = false) {
-        const pic = el('div', { class: 'news-pic' }, [
-            el('img', { src: picture(item), alt: '', loading: 'lazy' }),
-            featured ? null : el('span', { class: 'tag', text: item.Tag }),
-        ]);
-        const body = el('div', { class: 'news-body' }, [
-            featured ? el('div', { class: 'roles', style: 'justify-content:flex-start' }, el('span', { class: 'tag', text: item.Tag })) : null,
-            el('div', { class: 'news-date', text: dateText(item.Date) }),
+    const newsRow = (item) => el('a', { class: 'news-row', href: link(item) }, [
+        el('div', { class: 'pic' }, el('img', { src: picture(item), alt: '', loading: 'lazy' })),
+        el('div', {}, [
+            el('div', { class: 'news-meta' }, [el('span', { class: 'tag', text: item.Tag }), dateText(item.Date)]),
             el('h3', { text: item.Title }),
             el('p', { text: excerpt(item.Body) }),
-            featured ? el('span', { class: 'read-more', text: 'Lire la suite →' }) : null,
-        ]);
-        return el('a', { class: featured ? 'news-featured' : 'news-card', href: `/nouveautes/${item.Slug}` }, [pic, body]);
-    }
+        ]),
+    ]);
+
+    const spot = (item) => el('a', { class: 'spot', href: link(item) }, [
+        el('div', { class: 'spot-pic' }, el('img', { src: picture(item), alt: '' })),
+        el('div', { class: 'spot-title', text: item.Title }),
+    ]);
 
     const newsData = fetch('/api/news').then((response) => response.json()).then((data) => data.news);
 
-    const homeNews = $('[data-news]');
-    if (homeNews) {
-        newsData.then((items) => {
-            homeNews.replaceChildren(...items.slice(0, Number(homeNews.dataset.news)).map((item) => newsCard(item)));
-        });
-    }
-
-    if ($('[data-news-page]')) {
-        newsData.then((items) => {
+    newsData.then((items) => {
+        const spots = $('[data-spots]');
+        if (spots) spots.replaceChildren(...items.slice(0, 2).map(spot));
+        const home = $('[data-news]');
+        if (home) home.replaceChildren(...items.slice(0, Number(home.dataset.news)).map(newsRow));
+        if ($('[data-news-page]')) {
             const slug = decodeURIComponent(location.pathname.replace(/^\/nouveautes\/?/, ''));
             if (slug) showArticle(items.find((item) => item.Slug === slug));
             else showNewsList(items);
-        });
-    }
+        }
+    });
 
     function showNewsList(items) {
         const filters = $('[data-news-filters]');
-        const tags = ['Tout', ...new Set(items.map((item) => item.Tag))];
-        let current = 'Tout';
+        const tags = ['Toutes', ...new Set(items.map((item) => item.Tag))];
+        let current = 'Toutes';
         const render = () => {
-            const shown = current === 'Tout' ? items : items.filter((item) => item.Tag === current);
-            $('[data-news-featured]').replaceChildren(shown.length ? newsCard(shown[0], true) : '');
-            $('[data-news-all]').replaceChildren(...shown.slice(1).map((item) => newsCard(item)));
+            const shown = current === 'Toutes' ? items : items.filter((item) => item.Tag === current);
+            $('[data-news-all]').replaceChildren(...shown.map(newsRow));
             $$('.chip', filters).forEach((chip) => chip.classList.toggle('active', chip.textContent === current));
         };
         filters.replaceChildren(...tags.map((tag) => {
@@ -169,16 +149,15 @@
             location.replace('/nouveautes');
             return;
         }
-        $('[data-news-banner]').style.display = 'none';
-        $('[data-news-list]').style.display = 'none';
-        $('[data-news-article]').style.display = '';
+        $('[data-news-head]').hidden = true;
+        $('[data-news-list]').hidden = true;
+        $('[data-news-article]').hidden = false;
         $('[data-article-pic]').src = picture(item);
         $('[data-article-tag]').textContent = item.Tag;
         $('[data-article-date]').textContent = dateText(item.Date);
         $('[data-article-title]').textContent = item.Title;
         $('[data-article-body]').replaceChildren(...bodyNodes(item.Body));
         document.title = `${item.Title} - Evolutions`;
-        header.classList.add('solid');
     }
 
     // Sign-up --------------------------------------------------------------------------------------------------
@@ -213,12 +192,12 @@
             $('.error', box).textContent = text || '';
         };
 
-        // The same rules as the server, so most mistakes show before sending
+        // The server's rules, so most mistakes show before sending
         const checks = {
-            username: (value) => (/^[A-Za-z0-9]{3,16}$/.test(value) ? '' : 'De 3 à 16 caractères : lettres et chiffres uniquement.'),
+            username: (value) => (/^[A-Za-z0-9]{3,16}$/.test(value) ? '' : '3 à 16 lettres ou chiffres.'),
             email: (value) => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) ? '' : 'Adresse e-mail invalide.'),
-            password: (value) => (/^[\x21-\x7E]{6,16}$/.test(value) ? '' : 'De 6 à 16 caractères, sans espace ni accent.'),
-            confirm: (value) => (value === $('#password').value ? '' : 'Les deux mots de passe ne correspondent pas.'),
+            password: (value) => (/^[\x21-\x7E]{6,16}$/.test(value) ? '' : '6 à 16 caractères, sans espace ni accent.'),
+            confirm: (value) => (value === $('#password').value ? '' : 'Les mots de passe ne correspondent pas.'),
         };
         for (const name of Object.keys(checks)) {
             const input = signup.elements[name];
@@ -250,10 +229,9 @@
                 });
                 const result = await response.json();
                 if (result.ok) {
-                    $('[data-signup]').style.display = 'none';
+                    $('[data-signup]').hidden = true;
                     $('[data-account-name]').textContent = result.username;
                     $('[data-success]').classList.add('shown');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     return;
                 }
                 if (result.field) setError(result.field, result.message);
@@ -263,7 +241,7 @@
                 }
                 window.turnstile?.reset();
             } catch {
-                message.textContent = 'Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.';
+                message.textContent = 'Le serveur ne répond pas. Réessayez dans un instant.';
                 message.classList.add('shown');
             } finally {
                 button.disabled = false;
