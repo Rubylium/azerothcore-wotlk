@@ -20,6 +20,17 @@ winget install --id Microsoft.VCRedist.2015+.x64 --exact --silent --accept-packa
     --disable-interactivity | Out-Null
 Write-Host 'Done.'
 
+Write-Host '== Memory and clock'
+# OVH's image has a fixed 512 MB pagefile: once the RAM was full, MySQL and the auth server died with no margin
+$computer = Get-CimInstance Win32_ComputerSystem
+if (-not $computer.AutomaticManagedPagefile) {
+    Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile = $true }
+    Write-Host 'Pagefile managed by Windows (from the next reboot).'
+}
+# The players' time: the game's daily and weekly resets follow the server's clock
+Set-TimeZone -Id 'Romance Standard Time'
+Write-Host 'Done.'
+
 Write-Host '== MySQL'
 if (-not (Test-Path (Join-Path $mysqlBin 'mysqld.exe'))) {
     $zip = Join-Path $env:TEMP "mysql-$mysqlVersion.zip"
@@ -33,7 +44,8 @@ if (-not (Test-Path (Join-Path $mysqlBin 'mysqld.exe'))) {
     Remove-Item -Force $zip
 }
 
-if (-not (Test-Path $mysqlIni)) {
+# Written every run: ours, so a setting changed here reaches an installed server
+& {
     $iniRoot = $mysqlRoot -replace '\\', '/'
     $iniData = $mysqlData -replace '\\', '/'
     @"
@@ -44,7 +56,10 @@ port=3306
 # Never reachable from the internet: only the servers on this machine talk to it
 bind-address=127.0.0.1
 mysqlx=OFF
-innodb_buffer_pool_size=1G
+# Small: on 8 GB the worldserver needs the rest (it reached 5.3 GB with 30 bots and no player)
+innodb_buffer_pool_size=512M
+# No replication here: binary logs only filled the disk (560 MB in a night)
+skip-log-bin
 max_allowed_packet=256M
 max_connections=300
 character-set-server=utf8mb4
@@ -62,11 +77,14 @@ if (-not (Get-Service $serviceName -ErrorAction SilentlyContinue)) {
     if ($LASTEXITCODE) { throw 'mysqld --install failed' }
 }
 Set-Service $serviceName -StartupType Automatic
-Start-Service $serviceName
+# Brought back after a crash: the servers cannot run without it
+sc.exe failure $serviceName reset= 86400 actions= restart/10000/restart/10000/restart/60000 | Out-Null
+Restart-Service $serviceName
 
 $mysql = Join-Path $mysqlBin 'mysql.exe'
 for ($i = 0; $i -lt 30; $i++) {
-    & $mysql -uroot -e 'SELECT 1' 2>$null | Out-Null
+    # Through cmd: under PowerShell 5.1 its "can't connect" on stderr would stop the script
+    cmd.exe /c "`"$mysql`" -uroot -e `"SELECT 1`" >nul 2>nul"
     if (-not $LASTEXITCODE) { break }
     Start-Sleep -Seconds 1
 }
